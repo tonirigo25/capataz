@@ -38,6 +38,7 @@ const navItems = [
   { href: "/buscar", label: "Buscador", icon: Search },
   { href: "/capataz", label: "Capataz IA", icon: Bot },
   { href: "/configuracion", label: "Configuración", icon: Settings },
+  { href: "/configuracion#sistema", label: "Estado del sistema", icon: Settings },
   { href: "/configuracion#perfil", label: "Mi perfil", icon: UserRound },
   { href: "/configuracion#empresa", label: "Datos de empresa", icon: Building2 },
   { href: "/configuracion#suscripcion", label: "Suscripción", icon: CreditCard }

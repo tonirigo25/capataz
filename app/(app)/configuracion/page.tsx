@@ -1,9 +1,10 @@
-import { Building2, Check, CreditCard, Image, LockKeyhole, Save, Smartphone, UserRound, Users, Zap } from "lucide-react";
+import { Activity, Building2, Check, CreditCard, Image, LockKeyhole, Save, Smartphone, UserRound, Users, Zap } from "lucide-react";
 import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
 import { SectionHeader } from "@/components/section-header";
 import { appModeDescription, appModeLabel, getAppMode, isUnlimitedMode } from "@/lib/app-mode";
 import { companyCompletion, profileCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
+import { getSystemStatus } from "@/lib/system-status";
 
 const limits = [
   "Máximo 3 clientes reales",
@@ -55,9 +56,10 @@ const plans = [
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const [company, profile] = await Promise.all([
+  const [company, profile, systemStatus] = await Promise.all([
     prisma.empresa.findFirst(),
-    prisma.usuarioPerfil.findFirst()
+    prisma.usuarioPerfil.findFirst(),
+    getSystemStatus()
   ]);
   const mode = getAppMode();
   const unlimited = isUnlimitedMode(mode);
@@ -83,6 +85,39 @@ export default async function SettingsPage() {
             ? "El propietario/desarrollador puede crear clientes, obras, presupuestos, facturas, recordatorios y PDFs sin bloqueos."
             : "La demo pública mantiene límites comerciales y marca de agua en PDFs."}
         </div>
+      </section>
+
+      <section id="sistema" className="card mb-5 scroll-mt-24 p-4">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-obra-yellow/30 text-obra-yellowDark">
+            <Activity size={22} />
+          </span>
+          <div>
+            <h2 className="text-lg font-black text-obra-ink">Estado del sistema</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Comprobación básica de entorno, API interna y conexión de datos. No muestra secretos ni la URL de base de datos.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <SystemItem label="Entorno" value={systemStatus.appEnv} />
+          <SystemItem label="Modo" value={systemStatus.appMode} />
+          <SystemItem label="URL web" value={systemStatus.webBaseUrl} />
+          <SystemItem label="API interna" value={systemStatus.internalApiPath} status="ok" />
+          <SystemItem label="Prisma / PostgreSQL" value={systemStatus.database === "ok" ? "Conectado" : "Revisar conexión"} status={systemStatus.database} />
+          <SystemItem label="Backend móvil" value={systemStatus.mobileServerConfigured ? "Configurado" : "Pendiente"} status={systemStatus.mobileServerConfigured ? "ok" : "warning"} />
+        </div>
+
+        {systemStatus.missingPublicVars.length || systemStatus.missingRecommendedVars.length ? (
+          <div className="mt-3 rounded-lg bg-obra-yellow/20 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">
+            Faltan variables: {[...systemStatus.missingPublicVars, ...systemStatus.missingRecommendedVars].join(", ")}.
+          </div>
+        ) : (
+          <div className="mt-3 rounded-lg bg-obra-green/10 p-3 text-sm font-semibold text-obra-green">
+            Variables principales configuradas.
+          </div>
+        )}
       </section>
 
       <section id="perfil" className="card mb-5 scroll-mt-24 p-4">
@@ -343,6 +378,32 @@ function CompletionBar({
       ) : (
         <p className="mt-2 text-xs font-semibold text-obra-green">Datos listos para trabajar.</p>
       )}
+    </div>
+  );
+}
+
+function SystemItem({
+  label,
+  value,
+  status = "neutral"
+}: {
+  label: string;
+  value: string;
+  status?: "ok" | "error" | "warning" | "neutral";
+}) {
+  const tone =
+    status === "ok"
+      ? "bg-obra-green/10 text-obra-green"
+      : status === "error"
+        ? "bg-obra-red/10 text-obra-red"
+        : status === "warning"
+          ? "bg-obra-yellow/20 text-obra-yellowDark"
+          : "bg-slate-50 text-slate-700";
+
+  return (
+    <div className={`rounded-lg p-3 ${tone}`}>
+      <p className="text-xs font-semibold uppercase tracking-normal opacity-80">{label}</p>
+      <p className="mt-1 break-words text-sm font-black">{value}</p>
     </div>
   );
 }
