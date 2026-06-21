@@ -92,8 +92,27 @@ npm run start
 Internamente ejecuta:
 
 ```bash
-node .next/standalone/server.js
+node scripts/start-standalone.mjs
 ```
+
+El wrapper define `HOSTNAME=0.0.0.0` en Linux/Railway y `127.0.0.1` en Windows local. Usa `PORT` si Railway lo proporciona. Si no existe `PORT`, usa `8080`.
+
+## Assets estáticos en standalone
+
+Railway arranca el servidor standalone desde `.next/standalone/server.js`. Para que Tailwind, JavaScript, iconos e imágenes carguen correctamente, el build ejecuta:
+
+```bash
+node scripts/prepare-standalone.mjs
+```
+
+Ese script copia:
+
+```text
+.next/static -> .next/standalone/.next/static
+public       -> .next/standalone/public
+```
+
+Si esos directorios no existen dentro de `.next/standalone`, la app puede arrancar pero verse como HTML básico sin CSS.
 
 ## Subidas, logo, sello y PDFs
 
