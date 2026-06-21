@@ -39,7 +39,7 @@ const statusOptions = {
   ],
   obra: ["pendiente_inicio", "en_curso", "pausada", "pendiente_material", "pendiente_remates", "finalizada", "pendiente_cobro", "cerrada"],
   presupuesto: ["borrador", "pendiente_revision", "enviado", "visto", "pendiente_respuesta", "aceptado", "rechazado", "caducado"],
-  factura: ["pendiente_emitir", "emitida", "enviada", "pendiente_pago", "parcialmente_pagada", "pagada", "vencida", "reclamada"],
+  factura: ["borrador", "enviada", "pendiente", "parcialmente_pagada", "pagada", "vencida", "pendiente_emitir", "emitida", "pendiente_pago", "reclamada"],
   pago: ["senal", "pago_parcial", "pago_final", "regularizacion"],
   gasto: ["material", "mano_obra", "transporte", "herramienta", "gasolina", "subcontrata", "otros"],
   material: ["pendiente", "comprado", "entregado", "falta", "devuelto"],
@@ -237,7 +237,9 @@ function renderFields({
           <RelationSelect name="obraId" label="Obra" optional options={works.map((work) => [work.id, `${work.titulo} · ${work.client.nombre}`])} value={record?.obraId ?? defaults.obraId} />
           <Field name="numero" label="Número" value={record?.numero ?? suggestedInvoiceNumber} />
           <Field name="concepto" label="Concepto" required value={record?.concepto} />
-          <Select name="estado" label="Estado" options={statusOptions.factura} value={record?.estado ?? "pendiente_pago"} />
+          <Select name="estado" label="Estado" options={statusOptions.factura} value={record?.estado ?? "borrador"} />
+          <input type="hidden" name="ivaPercent" value={company?.ivaDefecto ?? 21} />
+          <Textarea name="partidas" label="Partidas editables (JSON o texto)" value={record?.partidas ?? defaultInvoiceLines()} />
           <Field name="importeBase" label="Base imponible" type="number" value={record?.importeBase ?? 0} />
           <Field name="iva" label="IVA" type="number" value={record?.iva ?? 0} />
           <Field name="total" label="Total" type="number" value={record?.total ?? 0} />
@@ -447,6 +449,16 @@ function defaultBudgetLines() {
   return JSON.stringify(
     [
       { descripcion: "Partida principal", cantidad: 1, unidad: "servicio", precioUnitario: 0, total: 0, categoria: "General" }
+    ],
+    null,
+    2
+  );
+}
+
+function defaultInvoiceLines() {
+  return JSON.stringify(
+    [
+      { descripcion: "Servicio realizado", cantidad: 1, unidad: "servicio", precioUnitario: 0, total: 0, categoria: "Factura" }
     ],
     null,
     2

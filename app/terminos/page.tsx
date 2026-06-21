@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { LegalBackButton } from "@/components/legal-back-button";
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
+      <LegalBackButton />
       <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">Capataz</Link>
       <h1 className="mt-4 text-3xl font-black text-obra-ink">Términos de uso</h1>
       <p className="mt-3 text-sm leading-6 text-slate-600">

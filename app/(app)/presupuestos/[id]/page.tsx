@@ -95,7 +95,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
           </form>
           <form action={convertBudgetToInvoice}>
             <input type="hidden" name="id" value={budget.id} />
-            <ConfirmSubmitButton message="¿Crear una factura desde este presupuesto?">Convertir a factura</ConfirmSubmitButton>
+            <ConfirmSubmitButton message="¿Crear una factura borrador editable desde este presupuesto?">Convertir a factura</ConfirmSubmitButton>
           </form>
         </div>
       </section>

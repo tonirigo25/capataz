@@ -19,3 +19,4 @@ function copyIfExists(from, to) {
 
 copyIfExists(".next/static", ".next/standalone/.next/static");
 copyIfExists("public", ".next/standalone/public");
+copyIfExists("templates/documents", ".next/standalone/templates/documents");

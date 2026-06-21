@@ -28,6 +28,7 @@ export const statusLabels: Record<string, string> = {
   pendiente_emitir: "Pendiente emitir",
   emitida: "Emitida",
   enviada: "Enviada",
+  pendiente: "Pendiente",
   pendiente_pago: "Pendiente pago",
   parcialmente_pagada: "Parcialmente pagada",
   pagada: "Pagada",
@@ -89,6 +90,7 @@ export function statusClass(status: string) {
     "border-obra-orange/25 bg-obra-orange/10 text-obra-orange":
       [
         "pendiente_cobro",
+        "pendiente",
         "pendiente_pago",
         "parcialmente_pagada",
         "pendiente_confirmacion",
@@ -102,7 +104,7 @@ export function statusClass(status: string) {
         "vencimiento_factura"
       ].includes(status),
     "border-obra-yellowDark/20 bg-obra-yellow/25 text-obra-yellowDark":
-      ["borrador", "pendiente_revision", "pendiente", "emitida", "enviada", "en_curso", "visita", "compra_material"].includes(status),
+      ["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "visita", "compra_material"].includes(status),
     "border-slate-200 bg-white text-slate-600":
       ![
         "pagada",
@@ -121,6 +123,7 @@ export function statusClass(status: string) {
         "reclamada",
         "cancelado",
         "pendiente_cobro",
+        "pendiente",
         "pendiente_pago",
         "parcialmente_pagada",
         "pendiente_confirmacion",
@@ -134,7 +137,6 @@ export function statusClass(status: string) {
         "vencimiento_factura",
         "borrador",
         "pendiente_revision",
-        "pendiente",
         "emitida",
         "enviada",
         "en_curso",
@@ -148,7 +150,7 @@ export function deriveInvoiceStatus(total: number, pending: number, dueDate: Dat
   if (pending <= 0) return "pagada";
   if (pending < total) return "parcialmente_pagada";
   if (dueDate < startOfToday()) return "vencida";
-  return "pendiente_pago";
+  return "pendiente";
 }
 
 function startOfToday() {

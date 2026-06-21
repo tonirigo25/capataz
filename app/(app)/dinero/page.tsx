@@ -11,6 +11,7 @@ import { deriveInvoiceStatus } from "@/lib/status";
 export const dynamic = "force-dynamic";
 
 const tabs = [
+  ["borrador", "Borradores"],
   ["pendiente_emitir", "Pendientes de emitir"],
   ["emitida", "Emitidas"],
   ["enviada", "Enviadas"],
@@ -37,7 +38,7 @@ export default async function MoneyPage({
 
   const invoicesWithStatus = invoices.map((invoice) => ({
     ...invoice,
-    liveStatus: deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento)
+    liveStatus: invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento)
   }));
 
   const visibleInvoices = invoicesWithStatus.filter((invoice) => {

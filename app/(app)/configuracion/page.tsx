@@ -257,6 +257,8 @@ export default async function SettingsPage() {
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <a href="/privacidad" className="secondary-button">Privacidad</a>
           <a href="/terminos" className="secondary-button">Términos</a>
+          <a href="/cookies" className="secondary-button">Cookies</a>
+          <a href="/politicas" className="secondary-button">Políticas</a>
           <a href="/soporte" className="secondary-button">Soporte</a>
         </div>
       </section>

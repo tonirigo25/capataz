@@ -44,9 +44,11 @@ enum BudgetStatus {
 }
 
 enum InvoiceStatus {
+  borrador
   pendiente_emitir
   emitida
   enviada
+  pendiente
   pendiente_pago
   parcialmente_pagada
   pagada
@@ -204,6 +206,7 @@ model Invoice {
   obraId           String?
   numero           String        @unique
   concepto         String
+  partidas         String?
   importeBase      Float
   iva              Float
   total            Float

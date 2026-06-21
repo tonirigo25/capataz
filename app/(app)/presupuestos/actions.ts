@@ -85,21 +85,22 @@ export async function convertBudgetToInvoice(formData: FormData) {
   const budget = await prisma.budget.findUnique({ where: { id }, include: { client: true } });
   if (!budget) return;
 
-  await prisma.invoice.create({
+  const invoice = await prisma.invoice.create({
     data: {
       clienteId: budget.clienteId,
       obraId: budget.obraId,
       numero: await nextDocumentNumber("invoice"),
-      concepto: `Anticipo ${budget.titulo}`,
-      importeBase: Math.round((budget.total / 1.21) * 100) / 100,
-      iva: Math.round((budget.total - budget.total / 1.21) * 100) / 100,
+      concepto: `Factura de ${budget.titulo}`,
+      partidas: budget.partidas,
+      importeBase: budget.subtotal,
+      iva: budget.iva,
       total: budget.total,
       pagado: 0,
       pendiente: budget.total,
       fechaEmision: new Date(),
       fechaVencimiento: addDays(7),
-      estado: "pendiente_pago",
-      observaciones: `Creada desde presupuesto ${budget.numero}.`,
+      estado: "borrador",
+      observaciones: `Creada desde presupuesto aceptado ${budget.numero}. Revisar antes de enviar al cliente.`,
       metodoPago: budget.formaPago,
       datosBancarios: null
     }
@@ -108,6 +109,7 @@ export async function convertBudgetToInvoice(formData: FormData) {
   revalidatePath("/presupuestos");
   revalidatePath("/dinero");
   revalidatePath("/hoy");
+  redirect(`/dinero/${invoice.id}`);
 }
 
 export async function duplicateBudget(formData: FormData) {

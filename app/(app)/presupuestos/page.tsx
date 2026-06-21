@@ -131,8 +131,8 @@ export default async function BudgetsPage({
                           </form>
                           <form action={convertBudgetToInvoice}>
                             <input type="hidden" name="id" value={budget.id} />
-                            <ConfirmSubmitButton message="¿Crear una factura/anticipo desde este presupuesto?">
-                              Crear anticipo
+                            <ConfirmSubmitButton message="¿Crear una factura borrador editable desde este presupuesto aceptado?">
+                              Crear factura
                             </ConfirmSubmitButton>
                           </form>
                         </>

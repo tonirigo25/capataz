@@ -149,8 +149,11 @@ async function saveBudget(formData: FormData, id: string | null) {
 }
 
 async function saveInvoice(formData: FormData, id: string | null) {
-  const importeBase = number(formData, "importeBase");
-  const iva = number(formData, "iva");
+  const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
+  const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
+  const calculated = calculateBudgetTotals(lines, number(formData, "ivaPercent", 21), 0);
+  const importeBase = number(formData, "importeBase", calculated.subtotal);
+  const iva = number(formData, "iva", calculated.iva);
   const total = number(formData, "total", importeBase + iva);
   const pagado = number(formData, "pagado");
   const pendiente = number(formData, "pendiente", Math.max(0, total - pagado));
@@ -162,6 +165,7 @@ async function saveInvoice(formData: FormData, id: string | null) {
     obraId: optionalText(formData, "obraId"),
     numero: optionalText(formData, "numero") ?? await nextDocumentNumber("invoice"),
     concepto: text(formData, "concepto"),
+    partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), importeBase),
     importeBase,
     iva,
     total,
@@ -169,7 +173,7 @@ async function saveInvoice(formData: FormData, id: string | null) {
     pendiente,
     fechaEmision: requiredDate(formData, "fechaEmision"),
     fechaVencimiento,
-    estado: pendingStateRequiresAuto(total, pagado, pendiente, fechaVencimiento) ? autoStatus : manualStatus ?? autoStatus,
+    estado: manualStatus === "borrador" ? "borrador" : pendingStateRequiresAuto(total, pagado, pendiente, fechaVencimiento) ? autoStatus : manualStatus ?? autoStatus,
     observaciones: optionalText(formData, "observaciones"),
     metodoPago: optionalText(formData, "metodoPago"),
     datosBancarios: optionalText(formData, "datosBancarios")

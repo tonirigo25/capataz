@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
@@ -18,6 +19,7 @@ import {
   UserRound
 } from "lucide-react";
 import { reprogramAgendaEvent, updateAgendaEventStatus } from "@/app/(app)/agenda/actions";
+import { runChatCommand } from "@/app/(app)/capataz/actions";
 import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
 import { registerPayment } from "@/app/(app)/dinero/actions";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
@@ -230,9 +232,10 @@ type ProfileCardFields = Extract<ActionCard, { type: "user-profile" }>["profile"
 type CompanyCardFields = Extract<ActionCard, { type: "company-settings" }>["company"];
 
 const samples = [
+  "Créame para el cliente Juana un presupuesto de la reforma integral, cocina + baño de 14000 euros, con material incluido",
+  "Hazme un presupuesto para Juan de cambiar el baño por 6.500",
+  "Presupuesto para Pedro de pintar piso completo por 2300 más IVA",
   "Apunta 86 euros de material para la obra de Juan.",
-  "Agenda visita con Laura mañana a las 10.",
-  "Haz presupuesto para Laura por 1500.",
   "¿Quién me debe dinero?"
 ];
 
@@ -247,8 +250,10 @@ const quickCreates = [
 ];
 
 export function CapatazChat({ data }: { data: ChatData }) {
+  const router = useRouter();
   const displayName = userName(data);
   const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -265,17 +270,37 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const missingProfile = data.completion.profile.missingRequired.length + data.completion.profile.missingRecommended.length;
   const missingCompany = data.completion.company.missingRequired.length + data.completion.company.missingRecommended.length;
 
-  function submit(event?: FormEvent<HTMLFormElement>, forced?: string) {
+  async function submit(event?: FormEvent<HTMLFormElement>, forced?: string) {
     event?.preventDefault();
     const text = (forced ?? input).trim();
-    if (!text) return;
+    if (!text || isSending) return;
 
-    setMessages((current) => [
-      ...current,
-      { id: crypto.randomUUID(), role: "user", text },
-      { id: crypto.randomUUID(), role: "assistant", ...respond(text, data, pendingDebt) }
-    ]);
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", text };
+    setMessages((current) => [...current, userMessage]);
     setInput("");
+    setIsSending(true);
+
+    try {
+      if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", text);
+      const command = await runChatCommand(text);
+      if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
+      const assistantMessage: Message = command.handled
+        ? { id: crypto.randomUUID(), role: "assistant", text: command.text }
+        : { id: crypto.randomUUID(), role: "assistant", ...respond(text, data, pendingDebt) };
+      setMessages((current) => [...current, assistantMessage]);
+      if (command.created) router.refresh();
+    } catch {
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: "No he podido guardar la acción ahora mismo. No he enviado nada al cliente. Revisa la conexión o crea el borrador desde + Añadir."
+        }
+      ]);
+    } finally {
+      setIsSending(false);
+    }
   }
 
   return (
@@ -361,9 +386,10 @@ export function CapatazChat({ data }: { data: ChatData }) {
               className="field"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Escribe a Capataz..."
+              placeholder={isSending ? "Capataz está preparando el borrador..." : "Escribe a Capataz..."}
+              disabled={isSending}
             />
-            <button type="submit" className="icon-button shrink-0" aria-label="Enviar mensaje">
+            <button type="submit" className="icon-button shrink-0 disabled:opacity-50" aria-label="Enviar mensaje" disabled={isSending}>
               <Send size={20} />
             </button>
           </div>
@@ -731,7 +757,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
     };
   }
 
-  return { text: "Te sigo. En esta demo puedo preparar gastos, pagos, seguimientos y revisar pendientes. Si hay dudas de cliente, obra, factura, importe o canal, te pediré confirmación." };
+  return { text: "No he entendido del todo la acción. ¿Quieres crear un presupuesto, factura, gasto, pago o recordatorio?" };
 }
 
 function ActionCardView({ card, data }: { card: ActionCard; data: ChatData }) {

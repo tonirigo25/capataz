@@ -76,6 +76,8 @@ export default function LoginPage() {
         <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold text-slate-600">
           <Link href="/privacidad" className="hover:text-obra-ink">Privacidad</Link>
           <Link href="/terminos" className="hover:text-obra-ink">Términos</Link>
+          <Link href="/cookies" className="hover:text-obra-ink">Cookies</Link>
+          <Link href="/politicas" className="hover:text-obra-ink">Políticas</Link>
           <Link href="/soporte" className="hover:text-obra-ink">Soporte</Link>
         </div>
       </section>
