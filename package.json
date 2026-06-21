@@ -1,0 +1,44 @@
+{
+  "name": "capataz",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node .next/standalone/server.js",
+    "typecheck": "tsc --noEmit",
+    "db:deploy": "prisma generate && prisma migrate deploy",
+    "db:push": "prisma db push && npm run db:seed",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio",
+    "mobile:sync": "cap sync",
+    "mobile:sync:android": "cap sync android",
+    "mobile:sync:ios": "cap sync ios",
+    "mobile:open:android": "cap open android",
+    "mobile:open:ios": "cap open ios",
+    "mobile:android:aab": "cd android && gradlew.bat bundleRelease",
+    "mobile:ios:open": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "@prisma/client": "^6.10.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "next": "^15.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "prisma": "^6.10.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}

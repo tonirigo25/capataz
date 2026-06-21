@@ -1,0 +1,354 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientStatus {
+  nuevo
+  pendiente_datos
+  visita_pendiente
+  presupuesto_pendiente
+  presupuesto_enviado
+  seguimiento_pendiente
+  aceptado
+  rechazado
+  obra_activa
+  finalizado
+  pendiente_cobro
+}
+
+enum WorkStatus {
+  pendiente_inicio
+  en_curso
+  pausada
+  pendiente_material
+  pendiente_remates
+  finalizada
+  pendiente_cobro
+  cerrada
+}
+
+enum BudgetStatus {
+  borrador
+  pendiente_revision
+  enviado
+  visto
+  pendiente_respuesta
+  aceptado
+  rechazado
+  caducado
+}
+
+enum InvoiceStatus {
+  pendiente_emitir
+  emitida
+  enviada
+  pendiente_pago
+  parcialmente_pagada
+  pagada
+  vencida
+  reclamada
+}
+
+enum PaymentType {
+  senal
+  pago_parcial
+  pago_final
+  regularizacion
+}
+
+enum ExpenseCategory {
+  material
+  mano_obra
+  transporte
+  herramienta
+  gasolina
+  subcontrata
+  otros
+}
+
+enum MaterialStatus {
+  pendiente
+  comprado
+  entregado
+  falta
+  devuelto
+}
+
+enum ReminderType {
+  seguimiento_presupuesto
+  recordatorio_factura
+  factura_vencida
+  pedir_fotos
+  pedir_medidas
+  confirmar_visita
+  material_pendiente
+  recordatorio_interno
+}
+
+enum ReminderChannel {
+  interno
+  whatsapp
+  email
+}
+
+enum ReminderStatus {
+  borrador
+  pendiente_confirmacion
+  programado
+  enviado
+  cancelado
+  fallido
+  realizado
+}
+
+enum EventoAgendaTipo {
+  visita
+  llamada
+  seguimiento_presupuesto
+  seguimiento_cobro
+  inicio_obra
+  fin_previsto_obra
+  compra_material
+  recordatorio_interno
+  vencimiento_factura
+  presupuesto_pendiente
+  tarea_obra
+}
+
+enum EventoAgendaEstado {
+  pendiente
+  confirmado
+  realizado
+  reprogramado
+  cancelado
+}
+
+model Client {
+  id                String       @id @default(cuid())
+  nombre            String
+  telefono          String
+  email             String?
+  direccion         String
+  tipo              String
+  estado            ClientStatus @default(nuevo)
+  origen            String
+  notas             String?
+  fechaCreacion     DateTime     @default(now())
+  ultimaInteraccion DateTime?
+  budgets           Budget[]
+  expenses          Expense[]
+  invoices          Invoice[]
+  payments          Payment[]
+  reminders         Reminder[]
+  works             Work[]
+  agendaEvents      EventoAgenda[]
+}
+
+model Work {
+  id                   String     @id @default(cuid())
+  clienteId            String
+  titulo               String
+  direccion            String
+  tipoTrabajo          String
+  estado               WorkStatus @default(pendiente_inicio)
+  fechaInicio          DateTime?
+  fechaFinPrevista     DateTime?
+  presupuestoAprobado  Float
+  gastoReal            Float      @default(0)
+  margenEstimado       Float      @default(0)
+  notas                String?
+  budgets              Budget[]
+  client               Client     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  expenses             Expense[]
+  invoices             Invoice[]
+  materials            Material[]
+  payments             Payment[]
+  reminders            Reminder[]
+  agendaEvents         EventoAgenda[]
+}
+
+model Budget {
+  id               String       @id @default(cuid())
+  clienteId        String
+  obraId           String?
+  numero           String       @unique
+  titulo           String
+  partidas         String
+  subtotal         Float
+  iva              Float
+  descuento        Float        @default(0)
+  total            Float
+  margenEstimado   Float
+  estado           BudgetStatus @default(borrador)
+  fechaCreacion    DateTime     @default(now())
+  fechaEnvio       DateTime?
+  fechaValidez     DateTime?
+  fechaSeguimiento DateTime?
+  condiciones      String?
+  observaciones    String?
+  formaPago        String?
+  client           Client       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  agendaEvents     EventoAgenda[]
+  reminders        Reminder[]
+  work             Work?        @relation(fields: [obraId], references: [id])
+}
+
+model Invoice {
+  id               String        @id @default(cuid())
+  clienteId        String
+  obraId           String?
+  numero           String        @unique
+  concepto         String
+  importeBase      Float
+  iva              Float
+  total            Float
+  pagado           Float         @default(0)
+  pendiente        Float
+  fechaEmision     DateTime
+  fechaVencimiento DateTime
+  estado           InvoiceStatus @default(pendiente_pago)
+  observaciones    String?
+  metodoPago       String?
+  datosBancarios   String?
+  client           Client        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  agendaEvents     EventoAgenda[]
+  payments         Payment[]
+  reminders        Reminder[]
+  work             Work?         @relation(fields: [obraId], references: [id])
+}
+
+model Payment {
+  id        String      @id @default(cuid())
+  facturaId String
+  clienteId String
+  obraId    String?
+  importe   Float
+  metodo    String
+  fecha     DateTime    @default(now())
+  tipo      PaymentType
+  notas     String?
+  client    Client      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  invoice   Invoice     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  work      Work?       @relation(fields: [obraId], references: [id])
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  obraId        String
+  clienteId     String?
+  proveedor     String
+  concepto      String
+  categoria     ExpenseCategory
+  importe       Float
+  fecha         DateTime
+  fotoTicketUrl String?
+  notas         String?
+  client        Client?         @relation(fields: [clienteId], references: [id])
+  work          Work            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+}
+
+model Material {
+  id       String         @id @default(cuid())
+  obraId   String
+  nombre   String
+  cantidad String
+  estado   MaterialStatus @default(pendiente)
+  notas    String?
+  work     Work           @relation(fields: [obraId], references: [id], onDelete: Cascade)
+}
+
+model Reminder {
+  id                    String          @id @default(cuid())
+  clienteId             String?
+  obraId                String?
+  facturaId             String?
+  presupuestoId         String?
+  tipo                  ReminderType
+  canal                 ReminderChannel @default(interno)
+  mensaje               String
+  fechaProgramada       DateTime
+  estado                ReminderStatus  @default(borrador)
+  requiereConfirmacion  Boolean         @default(true)
+  confirmadoPorUsuario  Boolean         @default(false)
+  budget                Budget?         @relation(fields: [presupuestoId], references: [id])
+  client                Client?         @relation(fields: [clienteId], references: [id])
+  invoice               Invoice?        @relation(fields: [facturaId], references: [id])
+  work                  Work?           @relation(fields: [obraId], references: [id])
+  agendaEvents          EventoAgenda[]
+}
+
+model EventoAgenda {
+  id                    String              @id @default(cuid())
+  titulo                String
+  descripcion           String?
+  tipo                  EventoAgendaTipo
+  estado                EventoAgendaEstado  @default(pendiente)
+  fechaInicio           DateTime
+  fechaFin              DateTime?
+  horaInicio            String?
+  horaFin               String?
+  clienteId             String?
+  obraId                String?
+  presupuestoId         String?
+  facturaId             String?
+  recordatorioId        String?
+  direccion             String?
+  notas                 String?
+  requiereConfirmacion  Boolean             @default(false)
+  confirmadoPorUsuario  Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  budget                Budget?             @relation(fields: [presupuestoId], references: [id])
+  client                Client?             @relation(fields: [clienteId], references: [id])
+  invoice               Invoice?            @relation(fields: [facturaId], references: [id])
+  reminder              Reminder?           @relation(fields: [recordatorioId], references: [id])
+  work                  Work?               @relation(fields: [obraId], references: [id])
+}
+
+model UsuarioPerfil {
+  id               String   @id @default(cuid())
+  nombre           String?
+  apellidos        String?
+  nombrePreferido  String?
+  telefono         String?
+  email            String?
+  cargo            String?
+  oficioPrincipal  String?
+  tonoPreferido    String   @default("directo")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Empresa {
+  id                       String   @id @default(cuid())
+  nombreComercial          String
+  razonSocial              String?
+  nifCif                   String?
+  direccionFiscal          String?
+  codigoPostal             String?
+  ciudad                   String?
+  provincia                String?
+  pais                     String   @default("España")
+  telefono                 String?
+  email                    String?
+  web                      String?
+  personaContacto          String?
+  iban                     String?
+  condicionesPorDefecto    String?
+  textoLegal               String?
+  logoUrl                  String?
+  selloUrl                 String?
+  colorMarca               String   @default("#f6c945")
+  ivaDefecto               Float    @default(21)
+  seriePresupuestos        String   @default("2026")
+  serieFacturas            String   @default("2026")
+  prefijoPresupuesto       String   @default("P")
+  prefijoFactura           String   @default("F")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}

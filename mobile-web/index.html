@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6c945" />
+    <title>Capataz</title>
+    <style>
+      :root {
+        color-scheme: light;
+        background: #f6f7f8;
+        color: #1f2428;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        min-height: 100dvh;
+        margin: 0;
+        background: linear-gradient(180deg, rgba(246, 201, 69, 0.22), rgba(246, 247, 248, 0) 320px), #f6f7f8;
+      }
+
+      main {
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        padding: max(env(safe-area-inset-top), 24px) 20px max(env(safe-area-inset-bottom), 24px);
+      }
+
+      section {
+        width: min(100%, 420px);
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: white;
+        padding: 24px;
+        box-shadow: 0 16px 40px rgba(31, 36, 40, 0.1);
+      }
+
+      .logo {
+        display: inline-grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        border-radius: 8px;
+        background: #1f2428;
+        color: #f6c945;
+        font-weight: 900;
+      }
+
+      h1 {
+        margin: 16px 0 8px;
+        font-size: 28px;
+        line-height: 1.1;
+      }
+
+      p {
+        margin: 0;
+        color: #475569;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+      code {
+        border-radius: 6px;
+        background: #f1f5f9;
+        padding: 2px 5px;
+        color: #1f2428;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <span class="logo">C</span>
+        <h1>Capataz</h1>
+        <p>
+          Esta app móvil carga la interfaz web de Capataz desde el backend configurado en
+          <code>CAPATAZ_MOBILE_SERVER_URL</code>. Arranca el servidor Next y ejecuta
+          <code>npx cap sync</code> para probar dashboard, agenda, presupuestos, facturas, PDFs y chat.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

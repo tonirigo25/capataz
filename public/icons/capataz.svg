@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Capataz">
+  <rect width="128" height="128" rx="24" fill="#1f2428"/>
+  <path d="M22 76h84v12c0 5-4 9-9 9H31c-5 0-9-4-9-9V76Z" fill="#f6c945"/>
+  <path d="M34 72V55c0-17 13-31 30-31s30 14 30 31v17H78V55c0-8-6-15-14-15s-14 7-14 15v17H34Z" fill="#f6c945"/>
+  <path d="M30 70h68a8 8 0 0 1 8 8v2H22v-2a8 8 0 0 1 8-8Z" fill="#ffffff"/>
+  <path d="M48 90h32" stroke="#1f2428" stroke-width="8" stroke-linecap="round"/>
+</svg>

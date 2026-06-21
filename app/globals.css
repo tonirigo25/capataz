@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #f6f7f8;
+  color: #1f2428;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
+  background:
+    linear-gradient(180deg, rgba(246, 201, 69, 0.12), rgba(246, 247, 248, 0) 320px),
+    #f6f7f8;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+@layer components {
+  .screen {
+    @apply mx-auto min-h-dvh w-full max-w-3xl px-4 pt-4 sm:px-6;
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+
+  .card {
+    @apply rounded-lg border border-slate-200 bg-white shadow-card;
+  }
+
+  .icon-button {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-obra-ink transition hover:border-obra-yellowDark hover:bg-obra-yellow/15;
+  }
+
+  .primary-button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-obra-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-black;
+  }
+
+  .secondary-button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-obra-ink transition hover:border-obra-yellowDark hover:bg-obra-yellow/15;
+  }
+
+  .field {
+    @apply min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-obra-ink outline-none transition placeholder:text-slate-400 focus:border-obra-yellowDark focus:ring-2 focus:ring-obra-yellow/35;
+    font-size: 16px;
+  }
+
+  .label {
+    @apply text-xs font-semibold uppercase tracking-normal text-slate-500;
+  }
+}

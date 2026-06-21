@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <rect width="2732" height="2732" fill="#f6f7f8"/>
+  <circle cx="1366" cy="1220" r="360" fill="#f6c945"/>
+  <rect x="1086" y="940" width="560" height="560" rx="88" fill="#1f2428"/>
+  <path fill="#f6c945" d="M1412 1378c-98 0-169-64-169-154 0-92 71-155 171-155 63 0 113 25 139 68l-68 44c-16-26-40-39-70-39-50 0-86 33-86 82 0 48 36 82 86 82 30 0 54-13 70-39l68 44c-26 43-77 67-141 67Z"/>
+  <text x="1366" y="1705" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="150" font-weight="900" fill="#1f2428">Capataz</text>
+  <text x="1366" y="1810" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#475569">Obra, cobros y seguimientos</text>
+</svg>
