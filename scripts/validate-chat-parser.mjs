@@ -15,7 +15,7 @@ const compiled = ts.transpileModule(source, {
 const sandbox = { exports: {}, require, console };
 vm.runInNewContext(compiled, sandbox);
 
-const { parseChatCommand } = sandbox.exports;
+const { parseBudgetFollowUp, parseChatCommand } = sandbox.exports;
 
 const cases = [
   {
@@ -55,6 +55,79 @@ const cases = [
       amount: 2300,
       ivaMode: "plus"
     }
+  },
+  {
+    text: "haz presupuesto para Juan baño 6500 material incluido",
+    expected: {
+      intent: "crear_presupuesto",
+      clientName: "Juan",
+      workTitle: "Baño",
+      amount: 6500,
+      materialIncluded: true
+    }
+  }
+];
+
+const followUpCases = [
+  {
+    text: "iva incluido, es en mallorca la obra. Telefono de juana es 65898784",
+    expected: {
+      useful: true,
+      ivaMode: "included",
+      workAddress: "Mallorca",
+      phone: "65898784"
+    }
+  },
+  {
+    text: "más iva y en calle mayor 12",
+    expected: {
+      useful: true,
+      ivaMode: "plus",
+      workAddress: "Calle Mayor 12"
+    }
+  }
+];
+
+const extraCases = [
+  {
+    text: "haz factura a Laura por la cocina, 4200 con iva incluido",
+    expected: {
+      intent: "crear_factura",
+      clientName: "Laura",
+      workTitle: "Cocina",
+      amount: 4200,
+      ivaMode: "included"
+    }
+  },
+  {
+    text: "factura a Juana la reforma del baño por 6500",
+    expected: {
+      intent: "crear_factura",
+      clientName: "Juana",
+      workTitle: "Reforma del baño",
+      amount: 6500
+    }
+  },
+  {
+    text: "convierte el presupuesto aceptado de Juana en factura",
+    expected: {
+      intent: "convertir_presupuesto_en_factura",
+      clientName: "Juana"
+    }
+  },
+  {
+    text: "genera el pdf",
+    expected: {
+      intent: "generar_pdf"
+    }
+  },
+  {
+    text: "sácame el PDF de la factura de Juana",
+    expected: {
+      intent: "generar_pdf",
+      documentKind: "invoice",
+      clientName: "Juana"
+    }
   }
 ];
 
@@ -70,6 +143,32 @@ for (const item of cases) {
     console.error("actual:", result);
   } else {
     console.log("[chat-parser] OK", item.text);
+  }
+}
+
+for (const item of followUpCases) {
+  const result = parseBudgetFollowUp(item.text);
+  const failed = Object.entries(item.expected).filter(([key, value]) => result?.[key] !== value);
+  if (failed.length) {
+    failures += 1;
+    console.error("[chat-parser] FAIL follow-up", item.text);
+    console.error("expected subset:", item.expected);
+    console.error("actual:", result);
+  } else {
+    console.log("[chat-parser] OK follow-up", item.text);
+  }
+}
+
+for (const item of extraCases) {
+  const result = parseChatCommand(item.text);
+  const failed = Object.entries(item.expected).filter(([key, value]) => result?.[key] !== value);
+  if (failed.length) {
+    failures += 1;
+    console.error("[chat-parser] FAIL extra", item.text);
+    console.error("expected subset:", item.expected);
+    console.error("actual:", result);
+  } else {
+    console.log("[chat-parser] OK extra", item.text);
   }
 }
 

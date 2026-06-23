@@ -5,8 +5,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const status = await getSystemStatus();
-  return NextResponse.json({
-    ok: status.database === "ok" && status.missingPublicVars.length === 0,
-    ...status
-  });
+  const healthy = status.database === "ok" && status.missingPublicVars.length === 0;
+
+  return NextResponse.json(
+    {
+      ok: healthy,
+      ...status
+    },
+    { status: healthy ? 200 : 503 }
+  );
 }

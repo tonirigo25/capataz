@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -19,7 +19,7 @@ import {
   UserRound
 } from "lucide-react";
 import { reprogramAgendaEvent, updateAgendaEventStatus } from "@/app/(app)/agenda/actions";
-import { runChatCommand } from "@/app/(app)/capataz/actions";
+import { runChatCommand, type ChatCommandContext } from "@/app/(app)/capataz/actions";
 import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
 import { registerPayment } from "@/app/(app)/dinero/actions";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
@@ -249,6 +249,8 @@ const quickCreates = [
   { href: "/gestion?tipo=recordatorio&returnTo=/capataz", label: "Recordatorio" }
 ];
 
+const chatContextStorageKey = "capataz-chat-context";
+
 export function CapatazChat({ data }: { data: ChatData }) {
   const router = useRouter();
   const displayName = userName(data);
@@ -256,6 +258,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const [isSending, setIsSending] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [chatContext, setChatContext] = useState<ChatCommandContext | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "hello",
@@ -270,6 +273,27 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const missingProfile = data.completion.profile.missingRequired.length + data.completion.profile.missingRecommended.length;
   const missingCompany = data.completion.company.missingRequired.length + data.completion.company.missingRecommended.length;
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(chatContextStorageKey);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as ChatCommandContext & { type?: string; fechaCreacion?: string };
+      if (parsed?.activeTask || parsed?.lastDocumentType || parsed?.type) setChatContext(parsed);
+    } catch {
+      window.localStorage.removeItem(chatContextStorageKey);
+    }
+  }, []);
+
+  function persistChatContext(nextContext: ChatCommandContext | null) {
+    setChatContext(nextContext);
+    try {
+      if (nextContext) window.localStorage.setItem(chatContextStorageKey, JSON.stringify(nextContext));
+      else window.localStorage.removeItem(chatContextStorageKey);
+    } catch {
+      // localStorage is only a convenience for chat continuity. The records are already in Prisma.
+    }
+  }
+
   async function submit(event?: FormEvent<HTMLFormElement>, forced?: string) {
     event?.preventDefault();
     const text = (forced ?? input).trim();
@@ -281,13 +305,15 @@ export function CapatazChat({ data }: { data: ChatData }) {
     setIsSending(true);
 
     try {
-      if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", text);
-      const command = await runChatCommand(text);
+      if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", { text, chatContext });
+      const command = await runChatCommand(text, chatContext);
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
       const assistantMessage: Message = command.handled
         ? { id: crypto.randomUUID(), role: "assistant", text: command.text }
         : { id: crypto.randomUUID(), role: "assistant", ...respond(text, data, pendingDebt) };
       setMessages((current) => [...current, assistantMessage]);
+      if (command.clearContext) persistChatContext(null);
+      else if (command.context !== undefined) persistChatContext(command.context);
       if (command.created) router.refresh();
     } catch {
       setMessages((current) => [
@@ -689,7 +715,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
     const pending = data.budgets.filter((budget) =>
       ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"].includes(budget.estado)
     );
-    if (!pending.length) return { text: "No tienes presupuestos pendientes en la demo." };
+    if (!pending.length) return { text: "No tienes presupuestos pendientes ahora mismo." };
     return {
       text: pending
         .map((budget) => `${budget.numero} para ${budget.clientName}: ${budget.titulo}, ${formatCurrency(budget.total)}, estado ${budget.estado.replaceAll("_", " ")}.`)
@@ -757,7 +783,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
     };
   }
 
-  return { text: "No he entendido del todo la acción. ¿Quieres crear un presupuesto, factura, gasto, pago o recordatorio?" };
+  return { text: "No lo tengo claro. Dime, por ejemplo: “crear presupuesto para Juana por 14000”, “haz factura a Laura por 4200” o “genera el PDF del último documento”." };
 }
 
 function ActionCardView({ card, data }: { card: ActionCard; data: ChatData }) {

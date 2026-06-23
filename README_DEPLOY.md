@@ -25,7 +25,7 @@ npm run db:seed
 prisma generate && prisma migrate deploy
 ```
 
-En Railway debe usarse como pre-deploy command para aplicar migraciones antes de arrancar la nueva versión.
+Railway lo ejecuta automaticamente como pre-deploy command mediante `railway.json`, antes de arrancar la nueva version.
 
 ## Variables de entorno
 
@@ -43,6 +43,17 @@ Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites de
 
 `DATABASE_URL` debe venir como variable referenciada desde el servicio PostgreSQL de Railway.
 
+No existe autenticacion real en esta version, por lo que el codigo no usa `NEXTAUTH_SECRET`, `AUTH_SECRET` ni variables de proveedores OAuth.
+
+Variables opcionales:
+
+```bash
+CAPATAZ_MOBILE_SERVER_URL=
+CAPATAZ_CHAT_DEBUG=false
+```
+
+`CAPATAZ_MOBILE_SERVER_URL` solo es necesaria si el binario Capacitor debe apuntar a una URL distinta de `NEXT_PUBLIC_WEB_BASE_URL`. `CAPATAZ_CHAT_DEBUG` solo activa logs de diagnostico del chat.
+
 ## Pasos de despliegue
 
 1. Sube el repositorio a GitHub.
@@ -51,10 +62,13 @@ Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites de
 4. Añade una base de datos PostgreSQL en el mismo proyecto.
 5. En el servicio web de Capataz, añade la variable `DATABASE_URL` como referencia al PostgreSQL.
 6. Añade las variables `NEXT_PUBLIC_APP_MODE`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_WEB_BASE_URL` y `NEXT_PUBLIC_SUPPORT_EMAIL`.
-7. En Settings > Deploy > Pre-deploy Command, configura:
+7. Comprueba que Railway detecta `railway.json`. Ese archivo fija:
 
-```bash
-npm run db:deploy
+```text
+Build: npm run build
+Pre-deploy: npm run db:deploy
+Start: npm run start
+Healthcheck: /api/status
 ```
 
 8. Despliega el servicio.
@@ -81,6 +95,8 @@ datasource db {
 
 Las migraciones están en `prisma/migrations/`. Railway debe ejecutar `prisma migrate deploy`, no `prisma db push`, en despliegues de producción.
 
+El archivo local ignorado `prisma/dev.db` no se incluye en Git ni se usa en Railway. La aplicacion desplegada solo admite una `DATABASE_URL` PostgreSQL.
+
 ## Start command
 
 El proyecto genera build standalone de Next.js. El start script es:
@@ -96,6 +112,8 @@ node scripts/start-standalone.mjs
 ```
 
 El wrapper define `HOSTNAME=0.0.0.0` en Linux/Railway y `127.0.0.1` en Windows local. Usa `PORT` si Railway lo proporciona. Si no existe `PORT`, usa `8080`.
+
+El wrapper conserva una segunda comprobacion de migraciones al arrancar. La migracion principal se ejecuta en pre-deploy; si falla, Railway no publica la version nueva.
 
 ## Assets estáticos en standalone
 
@@ -128,3 +146,7 @@ En Railway, el almacenamiento local del contenedor no debe considerarse persiste
 - Seed es destructivo y sólo debe usarse para demo/staging.
 - Los archivos de logo/sello necesitan storage externo antes de producción real con uploads.
 - Si se usa la app móvil publicada, `CAPATAZ_MOBILE_SERVER_URL` debe apuntar a la URL pública HTTPS.
+
+## Diagnostico del despliegue
+
+La ruta publica `/api/status` devuelve `app`, `database`, `environment` y `timestamp`. Devuelve HTTP 200 solo cuando PostgreSQL responde y las variables publicas obligatorias estan configuradas; en caso contrario devuelve HTTP 503 sin exponer credenciales.

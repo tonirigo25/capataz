@@ -10,6 +10,9 @@ const requiredPublicVars = [
 const recommendedServerVars = ["CAPATAZ_MOBILE_SERVER_URL"];
 
 export type SystemStatus = {
+  app: "ok" | "degraded";
+  environment: string;
+  timestamp: string;
   appEnv: string;
   appMode: string;
   webBaseUrl: string;
@@ -22,15 +25,20 @@ export type SystemStatus = {
 
 export async function getSystemStatus(): Promise<SystemStatus> {
   const database = await checkDatabase();
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "sin configurar";
+  const missingPublicVars = requiredPublicVars.filter((key) => !process.env[key]);
 
   return {
-    appEnv: process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "sin configurar",
+    app: database === "ok" ? "ok" : "degraded",
+    environment: process.env.RAILWAY_ENVIRONMENT_NAME || appEnv,
+    timestamp: new Date().toISOString(),
+    appEnv,
     appMode: getAppMode(),
     webBaseUrl: process.env.NEXT_PUBLIC_WEB_BASE_URL || "sin configurar",
     mobileServerConfigured: Boolean(process.env.CAPATAZ_MOBILE_SERVER_URL || process.env.NEXT_PUBLIC_WEB_BASE_URL),
     internalApiPath: "/api/status",
     database,
-    missingPublicVars: requiredPublicVars.filter((key) => !process.env[key]),
+    missingPublicVars,
     missingRecommendedVars: recommendedServerVars.filter((key) => !process.env[key] && !process.env.NEXT_PUBLIC_WEB_BASE_URL)
   };
 }

@@ -1,3 +1,5 @@
+export type IvaMode = "included" | "plus" | "none" | "unknown";
+
 export type ParsedBudgetCommand = {
   intent: "crear_presupuesto";
   clientName: string;
@@ -9,12 +11,47 @@ export type ParsedBudgetCommand = {
   amount: number;
   currency: "EUR";
   materialIncluded: boolean;
-  ivaMode: "included" | "plus" | "unknown";
+  ivaMode: IvaMode;
+};
+
+export type ParsedInvoiceCommand = {
+  intent: "crear_factura";
+  clientName: string;
+  workTitle: string;
+  lineDescription: string;
+  amount: number;
+  currency: "EUR";
+  ivaMode: IvaMode;
+  materialIncluded: boolean;
+};
+
+export type ParsedBudgetFollowUp = {
+  useful: boolean;
+  ivaMode?: Exclude<IvaMode, "unknown">;
+  workAddress?: string;
+  phone?: string;
+  email?: string;
+  nif?: string;
+  leavePending?: boolean;
+  wantsPdf?: boolean;
+};
+
+export type ParsedPdfCommand = {
+  intent: "generar_pdf";
+  documentKind?: "budget" | "invoice";
+  clientName?: string;
+};
+
+export type ParsedConvertBudgetCommand = {
+  intent: "convertir_presupuesto_en_factura";
+  clientName?: string;
 };
 
 export type ParsedChatCommand =
   | ParsedBudgetCommand
-  | { intent: "crear_factura" }
+  | ParsedInvoiceCommand
+  | ParsedPdfCommand
+  | ParsedConvertBudgetCommand
   | { intent: "registrar_gasto" }
   | { intent: "registrar_pago" }
   | { intent: "marcar_factura_pagada" }
@@ -22,7 +59,6 @@ export type ParsedChatCommand =
   | { intent: "buscar_cliente" }
   | { intent: "completar_cliente" }
   | { intent: "buscar_documento" }
-  | { intent: "convertir_presupuesto_en_factura" }
   | null;
 
 export const chatIntentValidationCases = [
@@ -52,17 +88,25 @@ const stopWords = new Set([
   "factura",
   "para",
   "por",
-  "de"
+  "de",
+  "a",
+  "en"
 ]);
 
 export function parseChatCommand(text: string): ParsedChatCommand {
   const normalized = normalizeText(text);
 
+  if (looksLikePdfRequest(normalized)) return parsePdfCommand(text, normalized);
+  if (looksLikeBudgetToInvoiceCommand(normalized)) return parseBudgetToInvoiceCommand(text, normalized);
+
   if (looksLikeBudgetCommand(normalized)) {
     return parseBudgetCommand(text, normalized);
   }
 
-  if (normalized.includes("factura")) return { intent: "crear_factura" };
+  if (looksLikeInvoiceCommand(normalized)) {
+    return parseInvoiceCommand(text, normalized);
+  }
+
   if (normalized.includes("gasto") || normalized.includes("apunta")) return { intent: "registrar_gasto" };
   if (normalized.includes("pagado") || normalized.includes("pago")) return { intent: "registrar_pago" };
   if (normalized.includes("recordatorio") || normalized.includes("recuerdame")) return { intent: "crear_recordatorio" };
@@ -70,6 +114,29 @@ export function parseChatCommand(text: string): ParsedChatCommand {
   if (normalized.includes("documento") || normalized.includes("pdf")) return { intent: "buscar_documento" };
 
   return null;
+}
+
+export function parseBudgetFollowUp(text: string): ParsedBudgetFollowUp {
+  const normalized = normalizeText(text);
+  const result: ParsedBudgetFollowUp = { useful: false };
+  const ivaMode = extractIvaMode(normalized);
+  const workAddress = extractWorkAddress(text, normalized);
+  const phone = extractPhone(text);
+  const email = extractEmail(text);
+  const nif = extractNif(text);
+  const leavePending = /(dejalo pendiente|dejarlo pendiente|no tengo mas datos|luego te lo digo|dejalo asi|dejalo asi de momento|asi vale)/.test(normalized);
+  const wantsPdf = looksLikePdfRequest(normalized);
+
+  if (ivaMode !== "unknown") result.ivaMode = ivaMode;
+  if (workAddress) result.workAddress = workAddress;
+  if (phone) result.phone = phone;
+  if (email) result.email = email;
+  if (nif) result.nif = nif;
+  if (leavePending) result.leavePending = true;
+  if (wantsPdf) result.wantsPdf = true;
+
+  result.useful = Boolean(result.ivaMode || result.workAddress || result.phone || result.email || result.nif || result.leavePending || result.wantsPdf);
+  return result;
 }
 
 export function normalizeText(text: string) {
@@ -89,24 +156,34 @@ function looksLikeBudgetCommand(normalized: string) {
   return normalized.includes("presupuesto") && /(haz|hazme|crea|creame|crear|prepara|preparame|presupuesto para|presupuesto de)/.test(normalized);
 }
 
+function looksLikeInvoiceCommand(normalized: string) {
+  if (!normalized.includes("factura")) return false;
+  if (looksLikePdfRequest(normalized) || looksLikeBudgetToInvoiceCommand(normalized)) return false;
+  return /(haz|hazme|crea|creame|crear|prepara|preparame|factura a|factura para|factura de|factura del)/.test(normalized);
+}
+
+function looksLikeBudgetToInvoiceCommand(normalized: string) {
+  return normalized.includes("presupuesto") && normalized.includes("factura") && /(convierte|convertir|pasar|pasalo|haz factura|hacer factura)/.test(normalized);
+}
+
+function looksLikePdfRequest(normalized: string) {
+  return /\b(pdf|descarga|descargar|sacame|hazme.*pdf|genera|generar)\b/.test(normalized) && /(pdf|descarga|descargar|presupuesto|factura)/.test(normalized);
+}
+
 function parseBudgetCommand(original: string, normalized: string): ParsedBudgetCommand | null {
   const amount = extractMoneyAmount(original);
-  const clientName = extractClientName(original, normalized);
+  const clientName = extractClientName(original, normalized, "budget");
   if (!amount || !clientName) return null;
 
-  const rawWork = extractWorkText(original, normalized) ?? "Trabajo pendiente de definir";
+  const rawWork = extractWorkText(original, normalized, "budget") ?? "Trabajo pendiente de definir";
   const workTitle = sentenceCase(cleanWorkTitle(rawWork));
   const materialIncluded = /material(?:es)? incluido|incluye material|con material/.test(normalized);
-  const ivaMode = /mas iva|más iva|iva aparte|sin iva/.test(normalized)
-    ? "plus"
-    : /con iva incluido|iva incluido|incluye iva/.test(normalized)
-      ? "included"
-      : "unknown";
+  const ivaMode = extractIvaMode(normalized);
 
   const lineConcept = workTitle;
   const lineDescription = buildLineDescription(workTitle, materialIncluded);
 
-    return {
+  return {
     intent: "crear_presupuesto",
     clientName,
     workTitle,
@@ -121,21 +198,86 @@ function parseBudgetCommand(original: string, normalized: string): ParsedBudgetC
   };
 }
 
-function extractClientName(original: string, normalized: string) {
-  const patterns = [
-    /(?:para\s+el\s+cliente|para\s+la\s+cliente|cliente)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-    /presupuesto\s+para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-    /para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)\s+(?:un\s+)?presupuesto/i,
-    /(?:hazme|haz|creame|créame|crea|prepara|preparame|prepárame)\s+(?:un\s+)?presupuesto\s+para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i
-  ];
+function parseInvoiceCommand(original: string, normalized: string): ParsedInvoiceCommand | null {
+  const amount = extractMoneyAmount(original);
+  const clientName = extractClientName(original, normalized, "invoice");
+  if (!amount || !clientName) return null;
+
+  const rawWork = extractWorkText(original, normalized, "invoice") ?? "Trabajo pendiente de definir";
+  const workTitle = sentenceCase(cleanWorkTitle(rawWork));
+  const materialIncluded = /material(?:es)? incluido|incluye material|con material/.test(normalized);
+
+  return {
+    intent: "crear_factura",
+    clientName,
+    workTitle,
+    lineDescription: buildLineDescription(workTitle, materialIncluded),
+    amount,
+    currency: "EUR",
+    ivaMode: extractIvaMode(normalized),
+    materialIncluded
+  };
+}
+
+function parsePdfCommand(original: string, normalized: string): ParsedPdfCommand {
+  return {
+    intent: "generar_pdf",
+    documentKind: normalized.includes("factura") ? "invoice" : normalized.includes("presupuesto") ? "budget" : undefined,
+    clientName: extractLooseClientName(original, normalized)
+  };
+}
+
+function parseBudgetToInvoiceCommand(original: string, normalized: string): ParsedConvertBudgetCommand {
+  return {
+    intent: "convertir_presupuesto_en_factura",
+    clientName: extractLooseClientName(original, normalized)
+  };
+}
+
+function extractClientName(original: string, normalized: string, document: "budget" | "invoice") {
+  const documentWord = document === "budget" ? "presupuesto" : "factura";
+  const commandWords = "(?:hazme|haz|creame|créame|crea|crear|prepara|preparame|prepárame)";
+  const patterns = document === "budget"
+    ? [
+        /presupuesto\s+para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)\s+(?=baño|bano|cocina|reforma|pintar|pintura|cambiar|alicatar|obra|piso)/i,
+        /(?:para\s+el\s+cliente|para\s+la\s+cliente|cliente)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
+        /presupuesto\s+para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
+        /para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)\s+(?:un\s+)?presupuesto/i,
+        new RegExp(`${commandWords}\\s+(?:un\\s+)?${documentWord}\\s+para\\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)`, "i")
+      ]
+    : [
+        /factura\s+(?:a|para)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)\s+(?=baño|bano|cocina|reforma|pintar|pintura|cambiar|alicatar|obra|piso|la\s+|el\s+)/i,
+        /(?:factura\s+a|factura\s+para|a\s+el\s+cliente|a\s+la\s+cliente|cliente)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
+        /(?:hazme|haz|creame|créame|crea|crear|prepara|preparame|prepárame)\s+(?:una\s+)?factura\s+(?:a|para)\s+([A-Za-zÁÉÍÓÚÜÑáéÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
+        /factura\s+de\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i
+      ];
 
   for (const pattern of patterns) {
     const match = original.match(pattern);
     if (match?.[1]) return cleanClientName(match[1]);
   }
 
-  const normalizedMatch = normalized.match(/presupuesto para ([a-z]+(?: [a-z]+)?)/);
+  const normalizedMatch = normalized.match(new RegExp(`${documentWord} para ([a-z]+(?: [a-z]+)?)`))
+    ?? normalized.match(new RegExp(`${documentWord} a ([a-z]+(?: [a-z]+)?)`));
   return normalizedMatch?.[1] ? titleCase(cleanClientName(normalizedMatch[1])) : null;
+}
+
+function extractLooseClientName(original: string, normalized: string) {
+  const patterns = [
+    /(?:factura|presupuesto)\s+(?:de|a|para)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
+    /(?:cliente|de|a|para)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?:\s|$)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = original.match(pattern);
+    if (match?.[1]) {
+      const cleaned = cleanClientName(match[1]);
+      if (cleaned) return cleaned;
+    }
+  }
+
+  const normalizedMatch = normalized.match(/(?:cliente|de|a|para) ([a-z]+(?: [a-z]+)?)(?: |$)/);
+  return normalizedMatch?.[1] ? titleCase(cleanClientName(normalizedMatch[1])) : undefined;
 }
 
 function cleanClientName(value: string) {
@@ -146,20 +288,85 @@ function cleanClientName(value: string) {
   return titleCase(words.slice(0, 2).join(" "));
 }
 
-function extractWorkText(original: string, normalized: string) {
+function extractWorkText(original: string, normalized: string, document: "budget" | "invoice") {
   const lowerOriginal = original.toLowerCase();
   const moneyIndex = findMoneyIndex(lowerOriginal);
   const beforeMoney = moneyIndex >= 0 ? original.slice(0, moneyIndex) : original;
   const cleanBeforeMoney = beforeMoney.replace(/\b(?:de|por)\s*$/i, "").trim();
+  const documentWord = document === "budget" ? "presupuesto" : "factura";
 
-  const afterBudgetOf = cleanBeforeMoney.match(/presupuesto\s+de\s+(.+)$/i)?.[1];
-  if (afterBudgetOf) return afterBudgetOf;
+  const afterDocumentOf = cleanBeforeMoney.match(new RegExp(`${documentWord}\\s+de\\s+(.+)$`, "i"))?.[1];
+  if (afterDocumentOf) return afterDocumentOf;
 
-  const afterClientOf = cleanBeforeMoney.match(/(?:para\s+(?:el\s+cliente\s+|la\s+cliente\s+)?[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s+de\s+)(.+)$/i)?.[1];
+  const afterClientOf = cleanBeforeMoney.match(/(?:para|a)\s+(?:el\s+cliente\s+|la\s+cliente\s+)?[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s+(?:un\s+|una\s+)?(?:presupuesto|factura)?\s*(?:de|por)\s+(.+)$/i)?.[1];
   if (afterClientOf) return afterClientOf;
 
-  const normalizedWork = normalized.match(/presupuesto para [a-z]+(?: [a-z]+)? de (.+?)(?: por | de \d| \d|$)/)?.[1];
+  const directAfterClient = cleanBeforeMoney.match(new RegExp(`${documentWord}\\s+(?:para|a)\\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\\s+(.+)$`, "i"))?.[1];
+  if (directAfterClient) {
+    const cleaned = directAfterClient.replace(/^(?:de|por)\s+/i, "").trim();
+    if (cleaned && !stopWords.has(normalizeText(cleaned))) return cleaned;
+  }
+
+  const afterPor = cleanBeforeMoney.match(/\spor\s+(.+)$/i)?.[1];
+  if (afterPor && !/^\d/.test(afterPor.trim())) return afterPor;
+
+  const normalizedWork = normalized.match(new RegExp(`${documentWord} (?:para|a) [a-z]+(?: [a-z]+)? de (.+?)(?: por | de \\d| \\d|$)`))?.[1];
   return normalizedWork ?? null;
+}
+
+function extractIvaMode(normalized: string): IvaMode {
+  if (/(mas iva|más iva|iva aparte|iva a parte|anade el iva|añade el iva|sumale iva|sumale el iva)/.test(normalized)) return "plus";
+  if (/(sin iva|exento de iva|no lleva iva)/.test(normalized)) return "none";
+  if (/(con iva incluido|iva incluido|incluye iva|con iva|va con iva|son con iva|los \d[\d.,]* son con iva)/.test(normalized)) return "included";
+  return "unknown";
+}
+
+function extractWorkAddress(original: string, normalized: string) {
+  const patterns = [
+    /(?:la\s+obra\s+es\s+en|obra\s+en|es\s+en|en)\s+(.+?)(?:\.|,?\s+(?:telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)\b|$)/i,
+    /(?:direccion|dirección)\s+(?:de\s+la\s+obra\s+)?(.+?)(?:\.|,?\s+(?:telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)\b|$)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = original.match(pattern);
+    if (match?.[1]) {
+      const cleaned = cleanAddress(match[1]);
+      if (cleaned) return cleaned;
+    }
+  }
+
+  const normalizedMatch = normalized.match(/(?:la obra es en|obra en|es en|en) (.+?)(?: telefono| tel | movil| email| nif| cif|$)/);
+  return normalizedMatch?.[1] ? cleanAddress(normalizedMatch[1]) : undefined;
+}
+
+function cleanAddress(value: string) {
+  const cleaned = value
+    .replace(/\b(la obra|obra|direccion|dirección)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[,.\s]+|[,.\s]+$/g, "")
+    .trim();
+  if (!cleaned || stopWords.has(normalizeText(cleaned))) return undefined;
+  return titleCase(cleaned);
+}
+
+function extractPhone(text: string) {
+  const explicit = text.match(/(?:telefono|teléfono|tel\.?|movil|móvil|whatsapp)(?:\s+de\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*(?:es|:)?\s*((?:\+?\d[\s.-]?){8,13})/i)?.[1];
+  const loose = text.match(/\b((?:\+?\d[\s.-]?){8,13})\b/)?.[1];
+  const raw = explicit ?? loose;
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  const digits = cleaned.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 13 ? cleaned : undefined;
+}
+
+function extractEmail(text: string) {
+  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match?.[0]?.toLowerCase();
+}
+
+function extractNif(text: string) {
+  const match = text.match(/\b(?:nif|cif)\s*(?:es|:)?\s*([A-Z0-9][A-Z0-9 .-]{6,14}[A-Z0-9])\b/i);
+  return match?.[1]?.replace(/[\s.-]/g, "").toUpperCase();
 }
 
 function findMoneyIndex(text: string) {
@@ -231,7 +438,9 @@ function titleCase(value: string) {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ")
-    .replace(/\bBano\b/g, "Baño");
+    .replace(/\bBano\b/g, "Baño")
+    .replace(/\bCif\b/g, "CIF")
+    .replace(/\bNif\b/g, "NIF");
 }
 
 function sentenceCase(value: string) {
