@@ -266,9 +266,12 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
     return await executeAIChatCommand(ai, context);
   } catch (error) {
     debugChat("ai_error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
+    const detail = process.env.NEXT_PUBLIC_APP_ENV !== "production" && error instanceof Error
+      ? `\n\nDetalle técnico staging: ${sanitizeAIError(error.message)}`
+      : "";
     return {
       handled: true,
-      text: "He intentado interpretar el mensaje con IA, pero no he podido completar la lectura estructurada. No he creado ni enviado nada. Revisa OPENAI_API_KEY, OPENAI_MODEL y los logs del servidor antes de reintentarlo.",
+      text: `He intentado interpretar el mensaje con IA, pero no he podido completar la lectura estructurada. No he creado ni enviado nada. Revisa OPENAI_API_KEY, OPENAI_MODEL y los logs del servidor antes de reintentarlo.${detail}`,
       context
     };
   }
@@ -1541,6 +1544,13 @@ function debugChat(step: string, payload: unknown) {
   const enabled = process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production";
   if (!enabled) return;
   console.info(`[capataz-chat] ${step}`, JSON.stringify(payload, null, 2));
+}
+
+function sanitizeAIError(message: string) {
+  return message
+    .replace(/sk-[A-Za-z0-9_-]+/g, "[OPENAI_API_KEY]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
+    .slice(0, 700);
 }
 
 async function findClientMatches(name: string) {
