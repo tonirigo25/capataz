@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { parseBudgetLines, serializeBudgetLines, type BudgetLine } from "@/lib/budget-lines";
 import {
+  createActivityCompletionContext,
   createBudgetCompletionContext,
   createInvoiceCompletionContext,
   createLastDocumentContext,
@@ -17,6 +18,7 @@ import {
 import {
   normalizeName,
   type IvaMode,
+  type ParsedActivityCommand,
   type ParsedBudgetCommand,
   type ParsedBudgetFollowUp,
   type ParsedConvertBudgetCommand,
@@ -40,6 +42,8 @@ export type ChatCommandResult = {
     workId?: string;
     budgetId?: string;
     invoiceId?: string;
+    agendaEventId?: string;
+    reminderId?: string;
   };
   context?: ChatCommandContext | null;
   clearContext?: boolean;
@@ -142,6 +146,32 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
     }
   }
 
+  if (plan.action === "register_activity" && plan.command && isParsedActivityCommand(plan.command)) {
+    try {
+      return await registerActivityFromChat(plan.command);
+    } catch (error) {
+      debugChat("error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
+      return {
+        handled: true,
+        text: "He entendido que quieres registrar una visita o nota, pero no he podido guardarla por un problema de base de datos. No he creado gastos ni importes.",
+        context: plan.context
+      };
+    }
+  }
+
+  if (plan.action === "complete_activity") {
+    try {
+      return await completeActivityFromChat(plan.context, text, plan.entities);
+    } catch (error) {
+      debugChat("error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
+      return {
+        handled: true,
+        text: "He entendido que estás completando una visita o seguimiento, pero no he podido actualizarlo por un problema de base de datos. No he enviado nada al cliente.",
+        context: plan.context
+      };
+    }
+  }
+
   if (plan.action === "convert_budget_to_invoice" && plan.command?.intent === "convertir_presupuesto_en_factura") {
     try {
       return await convertBudgetToInvoiceFromChat(plan.command, plan.context);
@@ -213,6 +243,231 @@ type BudgetDraftOptions = {
   forceNewWork?: boolean;
   followUp?: ChatEntities;
 };
+
+async function registerActivityFromChat(command: ParsedActivityCommand): Promise<ChatCommandResult> {
+  if (!command.clientName) {
+    return {
+      handled: true,
+      text: "He entendido que es una visita, reunión, llamada o nota de obra, pero me falta el cliente. No he creado gastos ni importes. ¿Con quién fue?"
+    };
+  }
+
+  const clientMatches = await findClientMatches(command.clientName);
+  if (clientMatches.length > 1) {
+    return {
+      handled: true,
+      text: `He encontrado varios clientes parecidos a "${command.clientName}". Antes de registrar la actividad, dime cuál quieres usar:\n${clientMatches.map((client, index) => `${index + 1}. ${client.nombre}${client.direccion ? ` · ${client.direccion}` : ""}`).join("\n")}`
+    };
+  }
+
+  const existingClient = clientMatches[0] ?? null;
+  const existingWork = existingClient && command.workTitle ? await findSimilarWork(existingClient.id, command.workTitle) : null;
+  const activityDate = activityDateTime(command.eventDateHint, command.eventTime);
+  const isPast = activityLooksCompleted(command.notes);
+  const agendaType = command.eventType === "llamada" ? "llamada" : "visita";
+  const displayType = command.eventType === "reunion" ? "reunión" : command.eventType;
+  const normalizedWorkTitle = command.workTitle ?? "Trabajo pendiente de definir";
+  const pendingFields = activityPendingFields(command);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const client = existingClient ?? await tx.client.create({
+      data: {
+        nombre: command.clientName!,
+        telefono: "Pendiente",
+        email: null,
+        direccion: "Dirección pendiente",
+        tipo: "Particular",
+        estado: command.pendingConfirmation ? "seguimiento_pendiente" : "visita_pendiente",
+        origen: "Chat Capataz",
+        notas: "Cliente provisional creado desde una actividad registrada en el chat.",
+        ultimaInteraccion: new Date()
+      }
+    });
+
+    const work = command.workTitle
+      ? existingWork ?? await tx.work.create({
+          data: {
+            clienteId: client.id,
+            titulo: normalizedWorkTitle,
+            direccion: client.direccion && client.direccion !== "Dirección pendiente" ? client.direccion : "Dirección pendiente",
+            tipoTrabajo: normalizedWorkTitle,
+            estado: "pendiente_inicio",
+            fechaInicio: null,
+            fechaFinPrevista: null,
+            presupuestoAprobado: 0,
+            gastoReal: 0,
+            margenEstimado: 0,
+            notas: "Obra provisional creada desde una visita o nota de chat."
+          }
+        })
+      : null;
+
+    const activityNotes = buildActivityNotes(command);
+    const event = await tx.eventoAgenda.create({
+      data: {
+        titulo: `${titleCase(displayType)} con ${client.nombre}`,
+        descripcion: activityNotes,
+        tipo: agendaType,
+        estado: isPast ? "realizado" : "pendiente",
+        fechaInicio: activityDate,
+        fechaFin: null,
+        horaInicio: command.eventTime ?? timeValue(activityDate),
+        horaFin: null,
+        clienteId: client.id,
+        obraId: work?.id ?? null,
+        direccion: work?.direccion && work.direccion !== "Dirección pendiente" ? work.direccion : null,
+        notas: activityNotes,
+        requiereConfirmacion: false,
+        confirmadoPorUsuario: true
+      }
+    });
+
+    await tx.client.update({
+      where: { id: client.id },
+      data: {
+        estado: command.pendingConfirmation ? "seguimiento_pendiente" : undefined,
+        notas: appendNote(client.notas, `Actividad registrada: ${activityNotes}`),
+        ultimaInteraccion: new Date()
+      }
+    });
+
+    if (work) {
+      await tx.work.update({
+        where: { id: work.id },
+        data: { notas: appendNote(work.notas, `Actividad registrada: ${activityNotes}`) }
+      });
+    }
+
+    return { client, work, event };
+  });
+
+  revalidateActivityPaths(result.client.id, result.work?.id, result.event.id);
+
+  const context = pendingFields.length
+    ? createActivityCompletionContext({
+        clientId: result.client.id,
+        workId: result.work?.id,
+        eventId: result.event.id,
+        clientName: result.client.nombre,
+        pendingFields
+      })
+    : {
+        lastClientId: result.client.id,
+        lastWorkId: result.work?.id,
+        lastClientName: result.client.nombre
+      };
+
+  return {
+    handled: true,
+    created: {
+      clientId: result.client.id,
+      workId: result.work?.id,
+      agendaEventId: result.event.id
+    },
+    context,
+    text: activityCreatedMessage({
+      command,
+      clientName: result.client.nombre,
+      workTitle: result.work?.titulo,
+      eventId: result.event.id,
+      pendingFields
+    })
+  };
+}
+
+async function completeActivityFromChat(context: ChatCommandContext, message: string, entities: ChatEntities): Promise<ChatCommandResult> {
+  const eventId = typeof context.activeTask?.draftData?.eventId === "string" ? context.activeTask.draftData.eventId : undefined;
+  if (!eventId) {
+    return {
+      handled: true,
+      text: "Tenía una visita o nota pendiente, pero falta identificarla. No he creado recordatorios duplicados.",
+      clearContext: true
+    };
+  }
+
+  const event = await prisma.eventoAgenda.findUnique({
+    where: { id: eventId },
+    include: { client: true, work: true }
+  });
+  if (!event) {
+    return {
+      handled: true,
+      text: "No encuentro la visita anterior. No he creado recordatorios duplicados.",
+      clearContext: true
+    };
+  }
+
+  const cleanMessage = message.trim();
+  const reminderDate = reminderDateTime(cleanMessage, entities);
+  const remaining = new Set(context.activeTask?.pendingFields ?? []);
+  const updates: string[] = [];
+  let reminderId: string | undefined;
+
+  await prisma.$transaction(async (tx) => {
+    if (cleanMessage) {
+      await tx.eventoAgenda.update({
+        where: { id: event.id },
+        data: {
+          notas: appendNote(event.notas, `Detalle añadido desde chat: ${cleanMessage}`),
+          descripcion: appendNote(event.descripcion, `Detalle: ${cleanMessage}`)
+        }
+      });
+      updates.push("detalle añadido a la visita");
+    }
+
+    if (reminderDate) {
+      const reminder = await tx.reminder.create({
+        data: {
+          clienteId: event.clienteId,
+          obraId: event.obraId,
+          tipo: "confirmar_visita",
+          canal: "interno",
+          mensaje: `Llamar a ${event.client?.nombre ?? "cliente"} para seguimiento de ${event.work?.titulo ?? event.titulo}. ${cleanMessage}`,
+          fechaProgramada: reminderDate,
+          estado: "programado",
+          requiereConfirmacion: true,
+          confirmadoPorUsuario: true
+        }
+      });
+      reminderId = reminder.id;
+      updates.push(`recordatorio interno programado para ${formatDateTime(reminderDate)}`);
+      remaining.delete("fecha_recordatorio");
+    }
+  });
+
+  revalidateActivityPaths(event.clienteId ?? undefined, event.obraId ?? undefined, event.id);
+  revalidatePath("/recordatorios");
+
+  const nextContext = remaining.size
+    ? createActivityCompletionContext({
+        clientId: event.clienteId ?? undefined,
+        workId: event.obraId ?? undefined,
+        eventId: event.id,
+        clientName: event.client?.nombre ?? context.lastClientName,
+        pendingFields: [...remaining],
+        createdAt: context.activeTask?.createdAt
+      })
+    : {
+        lastClientId: event.clienteId ?? undefined,
+        lastWorkId: event.obraId ?? undefined,
+        lastClientName: event.client?.nombre ?? context.lastClientName
+      };
+
+  return {
+    handled: true,
+    created: {
+      clientId: event.clienteId ?? undefined,
+      workId: event.obraId ?? undefined,
+      agendaEventId: event.id,
+      reminderId
+    },
+    context: nextContext,
+    clearContext: !remaining.size,
+    text: updates.length
+      ? `${joinNatural(updates)}. No he enviado WhatsApp ni email.`
+      : "Sigo con esa visita. Dime qué tiene que confirmar el cliente o cuándo quieres que te lo recuerde."
+  };
+}
 
 async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: BudgetDraftOptions = {}): Promise<ChatCommandResult> {
   const clientMatches = options.existingClientId
@@ -919,6 +1174,13 @@ function pdfResult(kind: ChatDocumentKind, id: string, clientId?: string, workId
   };
 }
 
+function isParsedActivityCommand(command: { intent: string }): command is ParsedActivityCommand {
+  return command.intent === "registrar_visita"
+    || command.intent === "registrar_reunion"
+    || command.intent === "registrar_llamada"
+    || command.intent === "registrar_nota_obra";
+}
+
 function debugChat(step: string, payload: unknown) {
   const enabled = process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production";
   if (!enabled) return;
@@ -976,7 +1238,7 @@ async function findSimilarWork(clientId: string, title: string) {
   const targetWords = new Set(normalizeName(title).split(" ").filter((word) => word.length > 2));
   const works = await prisma.work.findMany({
     where: { clienteId: clientId },
-    select: { id: true, titulo: true }
+    select: { id: true, titulo: true, direccion: true, notas: true }
   });
 
   return works.find((work) => {
@@ -1012,6 +1274,115 @@ function calculateChatDocumentTotals(amount: number, ivaMode: IvaMode, ivaPercen
     iva: 0,
     total: roundMoney(amount)
   };
+}
+
+function activityDateTime(dateHint?: "today" | "tomorrow", eventTime?: string) {
+  const date = new Date();
+  if (dateHint === "tomorrow") date.setDate(date.getDate() + 1);
+  if (eventTime) {
+    const [hours, minutes] = eventTime.split(":").map(Number);
+    date.setHours(hours || 0, minutes || 0, 0, 0);
+  }
+  return date;
+}
+
+function activityLooksCompleted(notes: string) {
+  const normalized = notes
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return /(he tenido|ha sido|hemos revisado|hemos hablado|he hablado|he ido|visita ha sido|reunion ha sido)/.test(normalized);
+}
+
+function activityPendingFields(command: ParsedActivityCommand) {
+  const fields: string[] = [];
+  if (command.materialsReviewed) fields.push("materiales_revisados");
+  if (command.pendingConfirmation) {
+    fields.push("pendiente_de_confirmar");
+    fields.push("fecha_recordatorio");
+  }
+  return fields;
+}
+
+function buildActivityNotes(command: ParsedActivityCommand) {
+  const parts = [
+    command.notes,
+    command.materialsReviewed ? "Se revisaron materiales." : null,
+    command.pendingConfirmation ? "Queda confirmación pendiente por parte del cliente." : null
+  ].filter(Boolean);
+  return parts.join("\n");
+}
+
+function activityCreatedMessage({
+  command,
+  clientName,
+  workTitle,
+  eventId,
+  pendingFields
+}: {
+  command: ParsedActivityCommand;
+  clientName: string;
+  workTitle?: string;
+  eventId: string;
+  pendingFields: string[];
+}) {
+  const typeLabel = command.eventType === "reunion" ? "reunión" : command.eventType;
+  const time = command.eventTime ? ` a las ${command.eventTime}` : "";
+  const work = workTitle ? ` sobre ${workTitle}` : "";
+  const notes = [
+    command.materialsReviewed ? "He anotado que revisasteis materiales." : null,
+    command.pendingConfirmation ? `${clientName} tiene que confirmar.` : null
+  ].filter(Boolean).join(" ");
+  const questions = [
+    pendingFields.includes("materiales_revisados") ? "¿Qué materiales revisasteis?" : null,
+    pendingFields.includes("pendiente_de_confirmar") ? "¿Qué tiene que confirmar exactamente?" : null,
+    pendingFields.includes("fecha_recordatorio") ? "¿Cuándo quieres que te recuerde llamarle si no responde?" : null
+  ].filter(Boolean).map((question, index) => `${index + 1}. ${question}`).join("\n");
+
+  return `He registrado la ${typeLabel} con ${clientName}${work}${time}.
+
+${notes || "He guardado la nota en la agenda interna."}
+
+${questions ? `Para dejar el seguimiento mejor preparado:\n\n${questions}` : `Puedes revisarla en /agenda?buscar=${encodeURIComponent(eventId)}.`}`;
+}
+
+function reminderDateTime(message: string, entities: ChatEntities) {
+  const normalized = message
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const hint = entities.reminderDateHint ?? (normalized.includes("manana") ? "tomorrow" : normalized.includes("hoy") ? "today" : undefined);
+  const weekday = weekdayDate(normalized);
+  if (!hint && !weekday && !entities.reminderTime) return null;
+  const date = weekday ?? new Date();
+  if (hint === "tomorrow") date.setDate(date.getDate() + 1);
+  const time = entities.reminderTime ?? "10:00";
+  const [hours, minutes] = time.split(":").map(Number);
+  date.setHours(hours || 10, minutes || 0, 0, 0);
+  return date;
+}
+
+function weekdayDate(normalized: string) {
+  const weekdays: Record<string, number> = {
+    domingo: 0,
+    lunes: 1,
+    martes: 2,
+    miercoles: 3,
+    jueves: 4,
+    viernes: 5,
+    sabado: 6
+  };
+  const match = normalized.match(/\b(domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b/);
+  if (!match?.[1]) return null;
+  const target = weekdays[match[1]];
+  const date = new Date();
+  const delta = (target - date.getDay() + 7) % 7 || 7;
+  date.setDate(date.getDate() + delta);
+  return date;
+}
+
+function timeValue(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function amountForIvaUpdate(subtotal: number, iva: number, total: number, mode: IvaMode) {
@@ -1203,6 +1574,18 @@ function revalidateInvoicePaths(clientId?: string, workId?: string, invoiceId?: 
   revalidatePath("/hoy");
 }
 
+function revalidateActivityPaths(clientId?: string, workId?: string, eventId?: string) {
+  revalidatePath("/capataz");
+  revalidatePath("/agenda");
+  revalidatePath("/recordatorios");
+  revalidatePath("/clientes");
+  if (clientId) revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/obras");
+  if (workId) revalidatePath(`/obras/${workId}`);
+  if (eventId) revalidatePath(`/agenda?evento=${eventId}`);
+  revalidatePath("/hoy");
+}
+
 function addDays(date: Date, days: number) {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);
@@ -1219,4 +1602,22 @@ function formatEuros(value: number) {
     currency: "EUR",
     maximumFractionDigits: value % 1 === 0 ? 0 : 2
   }).format(value);
+}
+
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(value);
+}
+
+function titleCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }

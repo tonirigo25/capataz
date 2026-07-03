@@ -61,7 +61,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       logoUrl: company?.logoUrl,
       sealUrl: company?.selloUrl,
       brandColor: company?.colorMarca,
-      legalText: company?.textoLegal ?? "Documento interno/borrador. Revisa con tu gestoría antes de usarlo como factura legal."
+      legalText: company?.textoLegal
     },
     client: {
       name: invoice.client.nombre,

@@ -1374,9 +1374,16 @@ function normalize(text: string) {
 }
 
 function extractAmount(text: string) {
-  const match = text.match(/(\d+(?:[,.]\d{1,2})?)/);
-  if (!match) return null;
-  return Number(match[1].replace(",", "."));
+  const pattern = /(\d+(?:[,.]\d{1,2})?)/g;
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    const value = match[1];
+    const before = text.slice(Math.max(0, index - 12), index);
+    const after = text.slice(index + value.length, index + value.length + 4);
+    if (/^\s*(h|:)/.test(after) || /\b(a\s+)?las\s+$/.test(before)) continue;
+    return Number(value.replace(",", "."));
+  }
+  return null;
 }
 
 function findMentionedName(text: string) {

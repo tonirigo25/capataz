@@ -101,6 +101,35 @@ const cases = [
     expected: { action: "create_invoice", clientName: "Laura", amount: 4200, ivaMode: "included" }
   },
   {
+    name: "registrar visita sin convertir hora en importe",
+    message: "he tenido una visita con Laura referente a la obra completa, hemos revisado los materiales y me tiene que confirmar, la visita ha sido a las 17H",
+    context: {},
+    expected: { action: "register_activity", clientName: "Laura", eventTime: "17:00", amount: undefined }
+  },
+  {
+    name: "respuesta corta completa visita anterior",
+    message: "mañana a las 10",
+    context: engine.createActivityCompletionContext({
+      clientId: "client_laura",
+      workId: "work_obra_completa",
+      eventId: "event_visita_laura",
+      clientName: "Laura"
+    }),
+    expected: { action: "complete_activity", reminderDateHint: "tomorrow", reminderTime: "10:00" }
+  },
+  {
+    name: "gasto real con material e importe",
+    message: "Apunta 86 euros de material para la obra de Juan.",
+    context: {},
+    expected: { action: "register_expense", amount: 86 }
+  },
+  {
+    name: "seguimiento preparado sin envio real",
+    message: "Mándale un toque a Marta por el presupuesto mañana a las 10.",
+    context: {},
+    expected: { action: "create_reminder", clientName: "Marta", reminderDateHint: "tomorrow", reminderTime: "10:00" }
+  },
+  {
     name: "convertir presupuesto",
     message: "convierte el presupuesto de Juana en factura",
     context: {},
@@ -124,6 +153,9 @@ for (const item of cases) {
     ivaMode: result.entities?.ivaMode,
     phone: result.entities?.phone,
     workAddress: result.entities?.workAddress,
+    eventTime: result.entities?.eventTime,
+    reminderDateHint: result.entities?.reminderDateHint,
+    reminderTime: result.entities?.reminderTime,
     clientName: result.entities?.clientName,
     amount: result.entities?.amount,
     invoiceStatus: result.entities?.invoiceStatus

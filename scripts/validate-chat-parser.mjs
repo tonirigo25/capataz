@@ -65,6 +65,18 @@ const cases = [
       amount: 6500,
       materialIncluded: true
     }
+  },
+  {
+    text: "he tenido una visita con Laura referente a la obra completa, hemos revisado los materiales y me tiene que confirmar, la visita ha sido a las 17H",
+    expected: {
+      intent: "registrar_visita",
+      clientName: "Laura",
+      workTitle: "Obra completa",
+      eventTime: "17:00",
+      materialsReviewed: true,
+      pendingConfirmation: true,
+      amount: undefined
+    }
   }
 ];
 
@@ -127,6 +139,21 @@ const extraCases = [
       intent: "generar_pdf",
       documentKind: "invoice",
       clientName: "Juana"
+    }
+  },
+  {
+    text: "Apunta 86 euros de material para la obra de Juan.",
+    expected: {
+      intent: "registrar_gasto"
+    }
+  },
+  {
+    text: "Mándale un toque a Marta por el presupuesto mañana a las 10.",
+    expected: {
+      intent: "crear_seguimiento",
+      clientName: "Marta",
+      reminderDateHint: "tomorrow",
+      reminderTime: "10:00"
     }
   }
 ];

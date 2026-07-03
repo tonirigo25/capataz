@@ -3,6 +3,7 @@ import {
   parseBudgetFollowUp,
   parseChatCommand,
   type IvaMode,
+  type ParsedActivityCommand,
   type ParsedBudgetCommand,
   type ParsedBudgetFollowUp,
   type ParsedChatCommand,
@@ -22,7 +23,8 @@ export type ChatTaskType =
   | "confirm_send"
   | "register_payment"
   | "register_expense"
-  | "create_reminder";
+  | "create_reminder"
+  | "complete_activity";
 
 export type ChatDecisionType =
   | "use_existing_client"
@@ -71,6 +73,9 @@ export type ChatContext = {
 export type ChatEntities = ParsedBudgetFollowUp & {
   clientName?: string;
   amount?: number;
+  eventTime?: string;
+  reminderDateHint?: "today" | "tomorrow";
+  reminderTime?: string;
   materialIncluded?: boolean;
   invoiceStatus?: "pagada" | "parcialmente_pagada" | "pendiente" | "vencida" | "enviada" | "borrador";
   ordinal?: number;
@@ -90,6 +95,7 @@ export type ChatPlan =
         | "create_new_work_for_budget"
         | "complete_budget"
         | "complete_invoice"
+        | "complete_activity"
         | "generate_pdf"
         | "confirm_send"
         | "select_document"
@@ -110,6 +116,7 @@ export type ChatPlan =
         | "register_payment"
         | "register_expense"
         | "create_reminder"
+        | "register_activity"
         | "ask_pending";
       entities: ChatEntities;
       context: ChatContext;
@@ -145,7 +152,7 @@ type LegacyChatContext = {
   lastClientName?: string;
 };
 
-const fallbackResponse = "No lo he entendido del todo. ¿Quieres que lo trate como presupuesto, factura, gasto, pago o recordatorio?";
+const fallbackResponse = "No lo he entendido del todo. ¿Quieres que lo trate como visita, nota, seguimiento, presupuesto, factura, gasto, pago o recordatorio?";
 
 export function planChatMessage(message: string, rawContext?: ChatContext | LegacyChatContext | null): ChatPlan {
   const context = normalizeChatContext(rawContext);
@@ -230,6 +237,17 @@ export function planChatMessage(message: string, rawContext?: ChatContext | Lega
     };
   }
 
+  if (command.intent === "registrar_visita" || command.intent === "registrar_reunion" || command.intent === "registrar_llamada" || command.intent === "registrar_nota_obra") {
+    return {
+      handled: true,
+      source: "parser",
+      action: "register_activity",
+      command,
+      entities: mergeCommandEntities(entities, command),
+      context: touchContext(context)
+    };
+  }
+
   if (command.intent === "marcar_factura_pagada") {
     return {
       handled: true,
@@ -270,6 +288,17 @@ export function planChatMessage(message: string, rawContext?: ChatContext | Lega
       action: "create_reminder",
       command,
       entities,
+      context: touchContext(context)
+    };
+  }
+
+  if (command.intent === "crear_seguimiento") {
+    return {
+      handled: true,
+      source: "parser",
+      action: "create_reminder",
+      command,
+      entities: mergeCommandEntities(entities, command),
       context: touchContext(context)
     };
   }
@@ -381,6 +410,31 @@ export function resolvePendingContext(message: string, rawContext: ChatContext, 
     };
   }
 
+  if (task.type === "complete_activity") {
+    if (hasUsefulEntities(entities) || message.trim().length > 2) {
+      return {
+        handled: true,
+        source: "context",
+        action: "complete_activity",
+        entities,
+        context: withTask(context, {
+          ...task,
+          pendingFields: mergeActivityPendingFields(task.pendingFields, entities, message),
+          updatedAt: now()
+        })
+      };
+    }
+
+    return {
+      handled: true,
+      source: "context",
+      action: "ask_pending",
+      entities,
+      context: touchContext(context),
+      response: task.lastQuestion ?? "Sigo con esa visita. Puedes decirme qué falta confirmar o cuándo quieres que te lo recuerde."
+    };
+  }
+
   if (task.type === "complete_budget" || task.type === "create_budget") {
     if (hasUsefulEntities(entities)) {
       return {
@@ -442,6 +496,9 @@ export function extractChatEntities(message: string): ChatEntities {
     useful: followUp.useful || false,
     clientName: extractClientReference(message),
     amount: extractMoneyAmount(message) ?? undefined,
+    eventTime: extractClockTime(message, normalized),
+    reminderDateHint: normalized.includes("manana") ? "tomorrow" : normalized.includes("hoy") ? "today" : undefined,
+    reminderTime: extractClockTime(message, normalized),
     materialIncluded: /material(?:es)? incluido|incluye material|con material/.test(normalized) ? true : undefined,
     invoiceStatus: extractInvoiceStatus(normalized),
     ordinal: extractOrdinal(normalized),
@@ -569,6 +626,41 @@ export function createInvoiceCompletionContext({
   };
 }
 
+export function createActivityCompletionContext({
+  clientId,
+  workId,
+  eventId,
+  clientName,
+  pendingFields = ["materiales_revisados", "pendiente_de_confirmar", "fecha_recordatorio"],
+  createdAt
+}: {
+  clientId?: string;
+  workId?: string;
+  eventId?: string;
+  clientName?: string;
+  pendingFields?: string[];
+  createdAt?: string;
+}): ChatContext {
+  const timestamp = createdAt ?? now();
+  return {
+    activeTask: {
+      type: "complete_activity",
+      clienteId: clientId,
+      obraId: workId,
+      pendingFields,
+      draftData: { eventId },
+      lastQuestion: clientName
+        ? `Sigo con la visita de ${clientName}.`
+        : "Sigo con esa visita.",
+      createdAt: timestamp,
+      updatedAt: now()
+    },
+    lastClientId: clientId,
+    lastWorkId: workId,
+    lastClientName: clientName
+  };
+}
+
 export function createWorkSelectionContext({
   clientId,
   clientName,
@@ -680,6 +772,15 @@ function mergeCommandEntities(entities: ChatEntities, command: Exclude<ParsedCha
   if ("amount" in command && command.amount) entities.amount = command.amount;
   if ("ivaMode" in command && command.ivaMode && command.ivaMode !== "unknown") entities.ivaMode = command.ivaMode as Exclude<IvaMode, "unknown">;
   if ("materialIncluded" in command) entities.materialIncluded = command.materialIncluded;
+  if (isActivityCommand(command)) {
+    if (command.eventTime) entities.eventTime = command.eventTime;
+    if (command.eventDateHint) entities.reminderDateHint = command.eventDateHint;
+  }
+  if (command.intent === "crear_seguimiento") {
+    if (command.reminderDateHint) entities.reminderDateHint = command.reminderDateHint;
+    if (command.reminderTime) entities.reminderTime = command.reminderTime;
+    if (command.channel === "whatsapp" || command.channel === "email") entities.sendChannel = command.channel;
+  }
   if (command.intent === "generar_pdf") {
     const pdfCommand = command as ParsedPdfCommand;
     if (pdfCommand.clientName) entities.clientName = pdfCommand.clientName;
@@ -692,11 +793,24 @@ function mergeCommandEntities(entities: ChatEntities, command: Exclude<ParsedCha
   return entities;
 }
 
+function isActivityCommand(command: Exclude<ParsedChatCommand, null>): command is ParsedActivityCommand {
+  return command.intent === "registrar_visita" || command.intent === "registrar_reunion" || command.intent === "registrar_llamada" || command.intent === "registrar_nota_obra";
+}
+
 function mergePendingFields(fields: string[] | undefined, entities: ChatEntities) {
   const next = new Set(fields ?? []);
   if (entities.ivaMode) next.delete("iva");
   if (entities.workAddress) next.delete("direccion_obra");
   if (entities.phone || entities.email || entities.nif || entities.clientName) next.delete("datos_cliente");
+  return [...next];
+}
+
+function mergeActivityPendingFields(fields: string[] | undefined, entities: ChatEntities, message: string) {
+  const next = new Set(fields ?? []);
+  const normalized = normalizeText(message);
+  if (/(material|azulejo|suelo|grifo|mampara|pintura|mueble|encimera|plato|sanitario)/.test(normalized)) next.delete("materiales_revisados");
+  if (/(confirmar|aprob|precio|fecha|material|color|medida|presupuesto|licencia)/.test(normalized)) next.delete("pendiente_de_confirmar");
+  if (entities.reminderDateHint || entities.reminderTime || /(manana|hoy|lunes|martes|miercoles|jueves|viernes|sabado|domingo|semana)/.test(normalized)) next.delete("fecha_recordatorio");
   return [...next];
 }
 
@@ -710,6 +824,9 @@ function hasUsefulEntities(entities: ChatEntities) {
     entities.leavePending ||
     entities.wantsPdf ||
     entities.amount ||
+    entities.eventTime ||
+    entities.reminderDateHint ||
+    entities.reminderTime ||
     entities.materialIncluded !== undefined ||
     entities.clientName ||
     entities.invoiceStatus ||
@@ -779,6 +896,8 @@ function extractClientReference(message: string) {
     /factura\s+de\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
     /presupuesto\s+de\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
     /obra\s+de\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
+    /(?:visita|reunion|reunión|llamada)\s+con\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i,
+    /\bcon\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i,
     /cliente\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
     /(?:para|a)\s+(?!la\b|el\b|pagada\b|cobrada\b)([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i
   ];
@@ -792,12 +911,54 @@ function extractClientReference(message: string) {
 }
 
 function extractMoneyAmount(text: string) {
-  const match = text.match(/(\d[\d.,]*)(?:\s*(?:euros|eur|€))?/i);
-  if (!match?.[1]) return null;
-  const cleaned = match[1].trim();
+  const pattern = /(\d[\d.,]*)(?:\s*(?:euros|eur|€))?/gi;
+  let cleaned: string | null = null;
+  for (const match of text.matchAll(pattern)) {
+    if (!match[1]) continue;
+    if (isTimeLikeNumber(text, match.index ?? 0, match[1])) continue;
+    cleaned = match[1].trim();
+    break;
+  }
+  if (!cleaned) return null;
   if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(cleaned)) return Number(cleaned.replace(/\./g, "").replace(",", "."));
   if (/^\d+[,.]\d{1,2}$/.test(cleaned)) return Number(cleaned.replace(",", "."));
   return Number(cleaned.replace(/[.,]/g, ""));
+}
+
+function isTimeLikeNumber(text: string, index: number, value: string) {
+  const before = text.slice(Math.max(0, index - 12), index).toLowerCase();
+  const after = text.slice(index + value.length, index + value.length + 4).toLowerCase();
+  if (/^\s*(h|:)/.test(after)) return true;
+  if (/\b(a\s+)?las\s+$/.test(before)) return true;
+  return false;
+}
+
+function extractClockTime(original: string, normalized: string) {
+  const numeric = original.match(/\b(?:a\s+las\s+|las\s+)?([01]?\d|2[0-3])(?::([0-5]\d))?\s*h\b/i)
+    ?? original.match(/\b(?:a\s+las\s+|las\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/i)
+    ?? original.match(/\b(?:a\s+las\s+|las\s+)([01]?\d|2[0-3])\b/i);
+  if (numeric?.[1]) return `${numeric[1].padStart(2, "0")}:${numeric[2] ?? "00"}`;
+
+  const hourWords: Record<string, number> = {
+    una: 1,
+    uno: 1,
+    dos: 2,
+    tres: 3,
+    cuatro: 4,
+    cinco: 5,
+    seis: 6,
+    siete: 7,
+    ocho: 8,
+    nueve: 9,
+    diez: 10,
+    once: 11,
+    doce: 12
+  };
+  const word = normalized.match(/\ba las (una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)(?: de la (tarde|manana|noche))?\b/);
+  if (!word?.[1]) return undefined;
+  let hour = hourWords[word[1]] ?? 0;
+  if ((word[2] === "tarde" || word[2] === "noche") && hour < 12) hour += 12;
+  return `${String(hour).padStart(2, "0")}:00`;
 }
 
 function titleCase(value: string) {

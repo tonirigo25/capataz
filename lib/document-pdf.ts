@@ -1,5 +1,4 @@
-import { documentTemplates, type DocumentTemplateKind } from "@/lib/document-templates";
-import { statusLabel } from "@/lib/status";
+import type { DocumentTemplateKind } from "@/lib/document-templates";
 
 export type ProfessionalDocumentLine = {
   descripcion: string;
@@ -65,7 +64,6 @@ const pageHeight = 842;
 const margin = 42;
 
 export function createProfessionalDocumentPdf(input: ProfessionalDocumentPdf) {
-  const template = documentTemplates[input.kind];
   const brandColor = parseColor(input.company.brandColor || "#f6c945");
   const pages: PdfPage[] = [];
   let current = newPage();
@@ -97,10 +95,10 @@ export function createProfessionalDocumentPdf(input: ProfessionalDocumentPdf) {
   y = drawTotals(current, y, input, brandColor);
 
   const notes = [
-    input.conditions ? `Condiciones: ${input.conditions}` : null,
-    input.paymentMethod ? `Forma de pago: ${input.paymentMethod}` : null,
-    input.observations ? `Observaciones: ${input.observations}` : null,
-    input.company.legalText ? `Texto legal: ${input.company.legalText}` : null
+    clientVisibleText(input.conditions) ? `Condiciones: ${clientVisibleText(input.conditions)}` : null,
+    clientVisibleText(input.paymentMethod) ? `Forma de pago: ${clientVisibleText(input.paymentMethod)}` : null,
+    input.kind === "invoice" && clientVisibleText(input.company.iban) ? `Datos bancarios: ${clientVisibleText(input.company.iban)}` : null,
+    clientVisibleText(input.company.legalText) ? clientVisibleText(input.company.legalText) : null
   ].filter(Boolean) as string[];
 
   for (const note of notes) {
@@ -108,7 +106,7 @@ export function createProfessionalDocumentPdf(input: ProfessionalDocumentPdf) {
     y = paragraph(current, margin, y, note, 95, 9, false, [0.32, 0.36, 0.4]) - 6;
   }
 
-  pages.forEach((page, index) => drawFooter(page, index + 1, pages.length, template.visualLabel));
+  pages.forEach((page, index) => drawFooter(page, index + 1, pages.length));
   return buildPdf(pages);
 }
 
@@ -122,18 +120,29 @@ export function documentMoney(value: number) {
 }
 
 function drawHeader(page: PdfPage, input: ProfessionalDocumentPdf, brandColor: number[]) {
-  const template = documentTemplates[input.kind];
-  rect(page, 0, pageHeight - 124, pageWidth, 124, lighten(brandColor, 0.77));
-  rect(page, margin, pageHeight - 92, 56, 56, brandColor);
-  text(page, margin + 18, pageHeight - 70, "C", 22, true, [0.12, 0.14, 0.16]);
-  text(page, margin + 72, pageHeight - 56, input.kind === "budget" ? "PRESUPUESTO" : "FACTURA", 25, true, [0.12, 0.14, 0.16]);
-  text(page, margin + 72, pageHeight - 76, template.visualLabel, 9, false, [0.32, 0.36, 0.4]);
-  text(page, margin + 72, pageHeight - 92, `Base documental: ${template.sourceDocx}`, 7, false, [0.45, 0.49, 0.54]);
+  rect(page, 0, pageHeight - 122, pageWidth, 122, lighten(brandColor, 0.78));
+  rect(page, margin, pageHeight - 90, 54, 54, brandColor);
+  text(page, margin + 18, pageHeight - 68, "C", 21, true, [0.12, 0.14, 0.16]);
+  text(page, margin + 70, pageHeight - 54, input.kind === "budget" ? "PRESUPUESTO" : "FACTURA", 25, true, [0.12, 0.14, 0.16]);
+  text(page, margin + 70, pageHeight - 75, `N. ${input.documentNumber}`, 11, true, [0.24, 0.27, 0.31]);
+  text(page, margin + 70, pageHeight - 92, `Fecha: ${documentDate(input.issueDate)}`, 9, false, [0.32, 0.36, 0.4]);
 
-  strokeRect(page, pageWidth - 205, pageHeight - 96, 163, 64, [0.75, 0.67, 0.33]);
-  text(page, pageWidth - 192, pageHeight - 55, `N. ${input.documentNumber}`, 12, true, [0.12, 0.14, 0.16]);
-  text(page, pageWidth - 192, pageHeight - 73, `Fecha: ${documentDate(input.issueDate)}`, 9, false, [0.32, 0.36, 0.4]);
-  text(page, pageWidth - 192, pageHeight - 90, `Estado: ${statusLabel(input.status)}`, 9, false, [0.32, 0.36, 0.4]);
+  const dates = [
+    input.validUntil ? `Validez: ${documentDate(input.validUntil)}` : null,
+    input.dueDate ? `Vencimiento: ${documentDate(input.dueDate)}` : null
+  ].filter(Boolean);
+  if (dates.length) text(page, margin + 70, pageHeight - 108, dates.join(" · "), 8, false, [0.32, 0.36, 0.4]);
+
+  const companyX = pageWidth - 250;
+  const companyLines = [
+    input.company.name,
+    input.company.legalName && input.company.legalName !== input.company.name ? input.company.legalName : null,
+    input.company.taxId ? `NIF/CIF: ${input.company.taxId}` : null
+  ].filter((line): line is string => Boolean(clientVisibleText(line)));
+  let cy = pageHeight - 48;
+  for (const item of companyLines.slice(0, 4)) {
+    cy = paragraph(page, companyX, cy, item, 46, item === input.company.name ? 9.5 : 7.6, item === input.company.name, [0.18, 0.21, 0.24]) - 1;
+  }
   return pageHeight - 148;
 }
 
@@ -146,21 +155,21 @@ function drawContinuationHeader(page: PdfPage, input: ProfessionalDocumentPdf, b
 
 function drawInfoCards(page: PdfPage, y: number, input: ProfessionalDocumentPdf) {
   const cardWidth = (pageWidth - margin * 2 - 16) / 2;
-  drawCard(page, margin, y, cardWidth, "Empresa", [
+  drawCard(page, margin, y, cardWidth, 154, "Empresa", [
     input.company.name,
-    input.company.legalName || "Razón social pendiente",
-    input.company.taxId ? `NIF/CIF: ${input.company.taxId}` : "NIF/CIF pendiente",
-    input.company.address || "Dirección fiscal pendiente",
-    input.company.contact || "Contacto pendiente",
-    input.company.iban ? `IBAN: ${input.company.iban}` : ""
+    input.company.legalName,
+    input.company.taxId ? `NIF/CIF: ${input.company.taxId}` : "",
+    input.company.address,
+    ...contactLines(input.company.contact),
+    input.kind === "invoice" ? input.company.iban : ""
   ]);
-  drawCard(page, margin + cardWidth + 16, y, cardWidth, "Cliente", [
+  drawCard(page, margin + cardWidth + 16, y, cardWidth, 154, "Cliente", [
     input.client.name,
-    input.client.taxId ? `NIF/CIF: ${input.client.taxId}` : "NIF/CIF no informado",
-    input.client.address || "Dirección no informada",
-    input.client.contact || "Contacto no informado"
+    input.client.taxId ? `NIF/CIF: ${input.client.taxId}` : "",
+    input.client.address,
+    ...contactLines(input.client.contact)
   ]);
-  return y - 116;
+  return y - 174;
 }
 
 function drawSummary(page: PdfPage, y: number, input: ProfessionalDocumentPdf) {
@@ -173,7 +182,7 @@ function drawSummary(page: PdfPage, y: number, input: ProfessionalDocumentPdf) {
     input.validUntil ? `Validez: ${documentDate(input.validUntil)}` : null,
     input.dueDate ? `Vencimiento: ${documentDate(input.dueDate)}` : null
   ].filter(Boolean).join(" · ");
-  paragraph(page, margin + 14, y - 40, detail || "Documento preparado desde Capataz.", 94, 9, false, [0.32, 0.36, 0.4]);
+  paragraph(page, margin + 14, y - 40, detail || "Detalle del trabajo.", 94, 9, false, [0.32, 0.36, 0.4]);
   return y - 88;
 }
 
@@ -186,7 +195,7 @@ function drawLinesTable(
   setY: (value: number) => void
 ) {
   let y = startY;
-  const widths = [250, 55, 72, 72, 62];
+  const widths = [238, 42, 45, 92, 94];
   const x = margin;
 
   function header(target: PdfPage) {
@@ -253,19 +262,21 @@ function drawTotals(page: PdfPage, y: number, input: ProfessionalDocumentPdf, br
   return y - height - 22;
 }
 
-function drawCard(page: PdfPage, x: number, y: number, width: number, title: string, lines: string[]) {
-  rect(page, x, y - 96, width, 96, [1, 1, 1]);
-  strokeRect(page, x, y - 96, width, 96, [0.86, 0.88, 0.91]);
+function drawCard(page: PdfPage, x: number, y: number, width: number, height: number, title: string, lines: Array<string | null | undefined>) {
+  rect(page, x, y - height, width, height, [1, 1, 1]);
+  strokeRect(page, x, y - height, width, height, [0.86, 0.88, 0.91]);
   text(page, x + 12, y - 18, title, 10, true, [0.12, 0.14, 0.16]);
   let cy = y - 36;
-  for (const item of lines.filter(Boolean).slice(0, 5)) {
-    cy = paragraph(page, x + 12, cy, item, Math.floor(width / 5.1), 8.2, false, [0.32, 0.36, 0.4]) - 2;
+  for (const item of lines.map(clientVisibleText).filter(Boolean).slice(0, 8)) {
+    const nextY = paragraph(page, x + 12, cy, item, Math.floor(width / 5.3), 7.4, false, [0.32, 0.36, 0.4]) - 2;
+    if (nextY < y - height + 12) break;
+    cy = nextY;
   }
 }
 
-function drawFooter(page: PdfPage, current: number, total: number, templateName: string) {
+function drawFooter(page: PdfPage, current: number, total: number) {
   line(page, margin, 34, pageWidth - margin, 34, [0.88, 0.9, 0.93]);
-  text(page, margin, 20, `Capataz · ${templateName}`, 7, false, [0.48, 0.52, 0.57]);
+  text(page, margin, 20, "Documento generado por Capataz", 7, false, [0.48, 0.52, 0.57]);
   text(page, pageWidth - 92, 20, `Página ${current}/${total}`, 7, false, [0.48, 0.52, 0.57]);
 }
 
@@ -344,8 +355,47 @@ function ascii(value: string) {
     .replace(/[^\x20-\x7E]/g, "-");
 }
 
+function clientVisibleText(value: string | null | undefined) {
+  const textValue = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!textValue) return "";
+  const normalized = normalizeForFilter(textValue);
+  const forbidden = [
+    "creado desde chat",
+    "creada desde chat",
+    "revisar datos fiscales",
+    "no enviar sin confirmacion",
+    "sin pagos registrados",
+    "documento interno",
+    "borrador",
+    "estado: borrador",
+    "plantilla",
+    "instruccion del usuario",
+    "gestoria",
+    "pendiente de acordar",
+    "pendiente de revisar"
+  ];
+  return forbidden.some((item) => normalized.includes(item)) ? "" : textValue;
+}
+
+function contactLines(value: string | null | undefined) {
+  return String(value ?? "")
+    .split(/·|\||;/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeForFilter(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function wrap(value: string, max: number) {
-  const words = ascii(value).split(/\s+/).filter(Boolean);
+  const words = ascii(value)
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((word) => breakLongWord(word, Math.max(8, max)));
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
@@ -359,6 +409,15 @@ function wrap(value: string, max: number) {
   }
   if (current) lines.push(current);
   return lines.length ? lines : [""];
+}
+
+function breakLongWord(word: string, max: number) {
+  if (word.length <= max) return [word];
+  const parts: string[] = [];
+  for (let index = 0; index < word.length; index += max) {
+    parts.push(word.slice(index, index + max));
+  }
+  return parts;
 }
 
 function byteLength(value: string) {
@@ -386,4 +445,3 @@ function num(value: number) {
 function formatPercent(value: number) {
   return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value)}%`;
 }
-

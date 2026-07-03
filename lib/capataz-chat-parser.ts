@@ -47,11 +47,35 @@ export type ParsedConvertBudgetCommand = {
   clientName?: string;
 };
 
+export type ParsedActivityCommand = {
+  intent: "registrar_visita" | "registrar_reunion" | "registrar_llamada" | "registrar_nota_obra";
+  eventType: "visita" | "reunion" | "llamada" | "nota";
+  clientName?: string;
+  workTitle?: string;
+  eventTime?: string;
+  eventDateHint?: "today" | "tomorrow";
+  topics: string[];
+  materialsReviewed: boolean;
+  pendingConfirmation: boolean;
+  notes: string;
+};
+
+export type ParsedFollowUpCommand = {
+  intent: "crear_seguimiento";
+  clientName?: string;
+  channel?: "whatsapp" | "email" | "interno";
+  reminderDateHint?: "today" | "tomorrow";
+  reminderTime?: string;
+  message: string;
+};
+
 export type ParsedChatCommand =
   | ParsedBudgetCommand
   | ParsedInvoiceCommand
   | ParsedPdfCommand
   | ParsedConvertBudgetCommand
+  | ParsedActivityCommand
+  | ParsedFollowUpCommand
   | { intent: "registrar_gasto" }
   | { intent: "registrar_pago" }
   | { intent: "marcar_factura_pagada" }
@@ -73,6 +97,10 @@ export const chatIntentValidationCases = [
   {
     text: "presupuesto para Pedro de pintar piso completo por 2300 más IVA",
     expected: { intent: "crear_presupuesto", clientName: "Pedro", amount: 2300, ivaMode: "plus" }
+  },
+  {
+    text: "he tenido una visita con Laura referente a la obra completa, hemos revisado los materiales y me tiene que confirmar, la visita ha sido a las 17H",
+    expected: { intent: "registrar_visita", clientName: "Laura", workTitle: "Obra completa", eventTime: "17:00" }
   }
 ] as const;
 
@@ -98,6 +126,7 @@ export function parseChatCommand(text: string): ParsedChatCommand {
 
   if (looksLikePdfRequest(normalized)) return parsePdfCommand(text, normalized);
   if (looksLikeBudgetToInvoiceCommand(normalized)) return parseBudgetToInvoiceCommand(text, normalized);
+  if (looksLikeActivityCommand(normalized)) return parseActivityCommand(text, normalized);
 
   if (looksLikeBudgetCommand(normalized)) {
     return parseBudgetCommand(text, normalized);
@@ -107,7 +136,8 @@ export function parseChatCommand(text: string): ParsedChatCommand {
     return parseInvoiceCommand(text, normalized);
   }
 
-  if (normalized.includes("gasto") || normalized.includes("apunta")) return { intent: "registrar_gasto" };
+  if (looksLikeFollowUpCommand(normalized)) return parseFollowUpCommand(text, normalized);
+  if (looksLikeExpenseCommand(normalized, text)) return { intent: "registrar_gasto" };
   if (normalized.includes("pagado") || normalized.includes("pago")) return { intent: "registrar_pago" };
   if (normalized.includes("recordatorio") || normalized.includes("recuerdame")) return { intent: "crear_recordatorio" };
   if (normalized.includes("cliente")) return { intent: "buscar_cliente" };
@@ -160,6 +190,24 @@ function looksLikeInvoiceCommand(normalized: string) {
   if (!normalized.includes("factura")) return false;
   if (looksLikePdfRequest(normalized) || looksLikeBudgetToInvoiceCommand(normalized)) return false;
   return /(haz|hazme|crea|creame|crear|prepara|preparame|factura a|factura para|factura de|factura del)/.test(normalized);
+}
+
+function looksLikeActivityCommand(normalized: string) {
+  return /\b(visita|reunion|llamada)\b/.test(normalized)
+    || /(he ido a ver|hemos quedado|he quedado|he hablado con|hemos hablado con|me he reunido con|reunido con)/.test(normalized);
+}
+
+function looksLikeFollowUpCommand(normalized: string) {
+  return /(mandale|mándale|enviar seguimiento|pon seguimiento|hacer seguimiento|dar un toque|mandar un toque|recuerdale|recuérdale|llamar si no responde)/.test(normalized);
+}
+
+function looksLikeExpenseCommand(normalized: string, original: string) {
+  if (looksLikeActivityCommand(normalized)) return false;
+  const amount = extractMoneyAmount(original);
+  if (/\bgasto\b|\bgastos\b|factura de proveedor|recibo|proveedor|leroy merlin/.test(normalized)) return true;
+  if (/(he comprado|comprado|compra de|pague|pagué|me costo|me costó|coste|material comprado)/.test(normalized)) return true;
+  if ((normalized.includes("apunta") || normalized.includes("apuntame")) && amount && /\bmaterial(?:es)?\b/.test(normalized)) return true;
+  return false;
 }
 
 function looksLikeBudgetToInvoiceCommand(normalized: string) {
@@ -234,6 +282,56 @@ function parseBudgetToInvoiceCommand(original: string, normalized: string): Pars
   };
 }
 
+function parseActivityCommand(original: string, normalized: string): ParsedActivityCommand {
+  const eventType = normalized.includes("llamada") || normalized.includes("he hablado con") || normalized.includes("hemos hablado con")
+    ? "llamada"
+    : normalized.includes("reunion") || normalized.includes("hemos quedado") || normalized.includes("he quedado") || normalized.includes("reunido")
+      ? "reunion"
+      : normalized.includes("visita") || normalized.includes("he ido a ver")
+        ? "visita"
+        : "nota";
+
+  const intent = eventType === "llamada"
+    ? "registrar_llamada"
+    : eventType === "reunion"
+      ? "registrar_reunion"
+      : eventType === "visita"
+        ? "registrar_visita"
+        : "registrar_nota_obra";
+
+  const materialsReviewed = /(revisad[oa]s? (?:los |las )?material(?:es)?|material(?:es)? revisad[oa]s?)/.test(normalized)
+    || (normalized.includes("materiales") && /(visita|reunion|hemos|revis)/.test(normalized));
+  const pendingConfirmation = /(me tiene que confirmar|tiene que confirmar|debe confirmar|queda pendiente confirmar|pendiente de confirmar|me tiene que llamar|tiene que llamarme|si no responde)/.test(normalized);
+
+  const topics: string[] = [];
+  if (materialsReviewed) topics.push("materiales");
+  if (pendingConfirmation) topics.push("confirmación pendiente");
+
+  return {
+    intent,
+    eventType,
+    clientName: extractActivityClientName(original, normalized),
+    workTitle: extractActivityWorkTitle(original, normalized),
+    eventTime: extractClockTime(original, normalized),
+    eventDateHint: normalized.includes("manana") ? "tomorrow" : "today",
+    topics,
+    materialsReviewed,
+    pendingConfirmation,
+    notes: original.trim()
+  };
+}
+
+function parseFollowUpCommand(original: string, normalized: string): ParsedFollowUpCommand {
+  return {
+    intent: "crear_seguimiento",
+    clientName: extractLooseClientName(original, normalized) ?? extractActivityClientName(original, normalized),
+    channel: normalized.includes("whatsapp") ? "whatsapp" : normalized.includes("email") || normalized.includes("correo") ? "email" : "interno",
+    reminderDateHint: normalized.includes("manana") ? "tomorrow" : normalized.includes("hoy") ? "today" : undefined,
+    reminderTime: extractClockTime(original, normalized),
+    message: original.trim()
+  };
+}
+
 function extractClientName(original: string, normalized: string, document: "budget" | "invoice") {
   const documentWord = document === "budget" ? "presupuesto" : "factura";
   const commandWords = "(?:hazme|haz|creame|créame|crea|crear|prepara|preparame|prepárame)";
@@ -278,6 +376,72 @@ function extractLooseClientName(original: string, normalized: string) {
 
   const normalizedMatch = normalized.match(/(?:cliente|de|a|para) ([a-z]+(?: [a-z]+)?)(?: |$)/);
   return normalizedMatch?.[1] ? titleCase(cleanClientName(normalizedMatch[1])) : undefined;
+}
+
+function extractActivityClientName(original: string, normalized: string) {
+  const patterns = [
+    /(?:visita|reunión|reunion|llamada|quedado|hablado|reunido)\s+con\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i,
+    /\bcon\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i,
+    /\b(?:cliente|a)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = original.match(pattern);
+    if (match?.[1]) {
+      const cleaned = cleanClientName(match[1]);
+      if (cleaned) return cleaned;
+    }
+  }
+
+  const normalizedMatch = normalized.match(/\bcon ([a-z]+(?: [a-z]+)?)(?= referente| sobre| por| para| a las| hemos| y |,|\.|$)/);
+  return normalizedMatch?.[1] ? titleCase(cleanClientName(normalizedMatch[1])) : undefined;
+}
+
+function extractActivityWorkTitle(original: string, normalized: string) {
+  const patterns = [
+    /(?:referente a|sobre|por|para)\s+(?:la\s+|el\s+)?(.+?)(?:,|\.|\s+hemos\b|\s+a\s+las\b|\s+me\s+tiene\b|\s+tiene\s+que\b|$)/i,
+    /\bobra\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+?)(?:,|\.|\s+hemos\b|\s+a\s+las\b|\s+me\s+tiene\b|\s+tiene\s+que\b|$)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = original.match(pattern);
+    if (match?.[1]) {
+      const cleaned = cleanWorkTitle(match[1]);
+      if (cleaned) return sentenceCase(cleaned);
+    }
+  }
+
+  const normalizedMatch = normalized.match(/(?:referente a|sobre|por|para) (?:la |el )?(.+?)(?:,| hemos| a las| me tiene| tiene que|$)/);
+  return normalizedMatch?.[1] ? sentenceCase(cleanWorkTitle(normalizedMatch[1])) : undefined;
+}
+
+function extractClockTime(original: string, normalized: string) {
+  const numeric = original.match(/\b(?:a\s+las\s+|las\s+)?([01]?\d|2[0-3])(?::([0-5]\d))?\s*h\b/i)
+    ?? original.match(/\b(?:a\s+las\s+|las\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/i)
+    ?? original.match(/\b(?:a\s+las\s+|las\s+)([01]?\d|2[0-3])\b/i);
+  if (numeric?.[1]) return `${numeric[1].padStart(2, "0")}:${numeric[2] ?? "00"}`;
+
+  const hourWords: Record<string, number> = {
+    una: 1,
+    uno: 1,
+    dos: 2,
+    tres: 3,
+    cuatro: 4,
+    cinco: 5,
+    seis: 6,
+    siete: 7,
+    ocho: 8,
+    nueve: 9,
+    diez: 10,
+    once: 11,
+    doce: 12
+  };
+  const word = normalized.match(/\ba las (una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)(?: de la (tarde|manana|mañana|noche))?\b/);
+  if (!word?.[1]) return undefined;
+  let hour = hourWords[word[1]] ?? 0;
+  const dayPart = word[2];
+  if ((dayPart === "tarde" || dayPart === "noche") && hour < 12) hour += 12;
+  return `${String(hour).padStart(2, "0")}:00`;
 }
 
 function cleanClientName(value: string) {
@@ -370,8 +534,8 @@ function extractNif(text: string) {
 }
 
 function findMoneyIndex(text: string) {
-  const matches = [...text.matchAll(/\d[\d.,]*(?:\s*(?:euros|eur|€))?/g)];
-  return matches.length ? matches[0].index ?? -1 : -1;
+  const match = firstMoneyMatch(text);
+  return match?.index ?? -1;
 }
 
 function cleanWorkTitle(value: string) {
@@ -412,9 +576,27 @@ function extractScope(workTitle: string) {
 }
 
 function extractMoneyAmount(text: string) {
-  const match = text.match(/(\d[\d.,]*)(?:\s*(?:euros|eur|€))?/i);
-  if (!match?.[1]) return null;
-  return parseSpanishNumber(match[1]);
+  const match = firstMoneyMatch(text);
+  if (!match) return null;
+  return parseSpanishNumber(match.value);
+}
+
+function firstMoneyMatch(text: string) {
+  const pattern = /(\d[\d.,]*)(?:\s*(euros|eur|€))?/gi;
+  for (const match of text.matchAll(pattern)) {
+    if (!match[1]) continue;
+    if (isTimeLikeNumber(text, match.index ?? 0, match[1])) continue;
+    return { value: match[1], index: match.index ?? 0 };
+  }
+  return null;
+}
+
+function isTimeLikeNumber(text: string, index: number, value: string) {
+  const before = text.slice(Math.max(0, index - 12), index).toLowerCase();
+  const after = text.slice(index + value.length, index + value.length + 4).toLowerCase();
+  if (/^\s*(h|:)/.test(after)) return true;
+  if (/\b(a\s+)?las\s+$/.test(before)) return true;
+  return false;
 }
 
 function parseSpanishNumber(value: string) {
