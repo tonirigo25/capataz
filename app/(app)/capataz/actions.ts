@@ -25,6 +25,11 @@ import {
   type ParsedInvoiceCommand,
   type ParsedPdfCommand
 } from "@/lib/capataz-chat-parser";
+import {
+  interpretCapatazMessageWithAI,
+  isCapatazAIConfigured,
+  type CapatazAIResult
+} from "@/lib/ai/capataz-ai";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
@@ -50,8 +55,12 @@ export type ChatCommandResult = {
 };
 
 export async function runChatCommand(text: string, context?: ChatCommandContext | null): Promise<ChatCommandResult> {
-  const plan = planChatMessage(text, context ?? null);
   debugChat("received", { text, context });
+
+  const aiResult = await runAIChatCommand(text, context ?? null);
+  if (aiResult) return aiResult;
+
+  const plan = planChatMessage(text, context ?? null);
   debugChat("plan", plan);
 
   if (!plan.handled) {
@@ -244,6 +253,353 @@ type BudgetDraftOptions = {
   followUp?: ChatEntities;
 };
 
+async function runAIChatCommand(text: string, context: ChatCommandContext | null): Promise<ChatCommandResult | null> {
+  if (!isCapatazAIConfigured()) {
+    debugChat("ai_skipped", { reason: "missing_OPENAI_API_KEY" });
+    return null;
+  }
+
+  try {
+    const data = await buildAIContext(context);
+    const ai = await interpretCapatazMessageWithAI({ message: text, context, data });
+    debugChat("ai_result", ai);
+    return await executeAIChatCommand(ai, context);
+  } catch (error) {
+    debugChat("ai_error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
+    return {
+      handled: true,
+      text: "He intentado interpretar el mensaje con IA, pero no he podido completar la lectura estructurada. No he creado ni enviado nada. Revisa OPENAI_API_KEY, OPENAI_MODEL y los logs del servidor antes de reintentarlo.",
+      context
+    };
+  }
+}
+
+async function buildAIContext(context: ChatCommandContext | null) {
+  const [clients, works, budgets, invoices] = await Promise.all([
+    prisma.client.findMany({
+      orderBy: { ultimaInteraccion: "desc" },
+      take: 30,
+      select: {
+        id: true,
+        nombre: true,
+        telefono: true,
+        email: true,
+        direccion: true,
+        tipo: true,
+        estado: true,
+        origen: true,
+        notas: true
+      }
+    }),
+    prisma.work.findMany({
+      orderBy: { id: "desc" },
+      take: 30,
+      select: {
+        id: true,
+        clienteId: true,
+        titulo: true,
+        direccion: true,
+        tipoTrabajo: true,
+        estado: true,
+        notas: true,
+        client: { select: { nombre: true } }
+      }
+    }),
+    prisma.budget.findMany({
+      orderBy: { fechaCreacion: "desc" },
+      take: 30,
+      select: {
+        id: true,
+        clienteId: true,
+        obraId: true,
+        numero: true,
+        titulo: true,
+        total: true,
+        estado: true,
+        client: { select: { nombre: true } }
+      }
+    }),
+    prisma.invoice.findMany({
+      orderBy: { fechaEmision: "desc" },
+      take: 30,
+      select: {
+        id: true,
+        clienteId: true,
+        obraId: true,
+        numero: true,
+        concepto: true,
+        total: true,
+        pagado: true,
+        pendiente: true,
+        estado: true,
+        client: { select: { nombre: true } }
+      }
+    })
+  ]);
+
+  return {
+    chatContext: context,
+    clients,
+    works,
+    budgets,
+    invoices,
+    currentDate: new Date().toISOString()
+  };
+}
+
+async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandContext | null): Promise<ChatCommandResult | null> {
+  if (ai.confidence < 0.45) {
+    return {
+      handled: true,
+      text: ai.userResponse || "Necesito un poco más de contexto para preparar una acción segura.",
+      context
+    };
+  }
+
+  const wantsBudget = ai.intent === "crear_presupuesto" || aiHasAction(ai, "crearPresupuestoBorrador");
+  const wantsInvoice = ai.intent === "crear_factura" || aiHasAction(ai, "crearFacturaBorrador");
+  const wantsActivity = ai.intent === "registrar_visita" || ai.intent === "registrar_reunion" || aiHasAction(ai, "registrarVisita");
+  const wantsPdf = ai.intent === "generar_pdf" || aiHasAction(ai, "generarPDF");
+
+  if (wantsBudget && canCreateAIBudget(ai)) {
+    return createBudgetDraftFromAI(ai);
+  }
+
+  if (wantsInvoice && canCreateAIInvoice(ai)) {
+    return createInvoiceDraftFromAI(ai);
+  }
+
+  if (wantsActivity && ai.shouldExecute && !ai.requiresConfirmation) {
+    return registerActivityFromAI(ai);
+  }
+
+  if (wantsPdf) {
+    const documentKind = ai.entities.documento_tipo === "factura" ? "invoice" : ai.entities.documento_tipo === "presupuesto" ? "budget" : undefined;
+    const clientName = ai.entities.empresa_facturacion ?? ai.entities.cliente_nombre ?? ai.entities.contacto_nombre;
+    return buildPdfResult({ intent: "generar_pdf", documentKind, clientName }, context);
+  }
+
+  if (ai.intent === "registrar_gasto" || ai.intent === "registrar_pago" || ai.intent === "registrar_seguimiento") {
+    return {
+      handled: true,
+      text: withQuestions(ai.userResponse, ai.clarificationQuestions) + "\n\nAntes de guardar o programar esta acción necesito confirmación explícita. No he enviado WhatsApp, email ni he registrado movimientos definitivos.",
+      context
+    };
+  }
+
+  if (ai.requiresConfirmation || !ai.shouldExecute || ai.intent === "preguntar_aclaracion") {
+    return {
+      handled: true,
+      text: withQuestions(ai.userResponse, ai.clarificationQuestions),
+      context
+    };
+  }
+
+  if (ai.intent === "sin_accion") {
+    return {
+      handled: true,
+      text: withQuestions(ai.userResponse, ai.clarificationQuestions) || "Dime si quieres preparar un presupuesto, factura, visita, seguimiento, gasto, pago o PDF.",
+      context
+    };
+  }
+
+  return null;
+}
+
+function aiHasAction(ai: CapatazAIResult, action: string) {
+  return ai.actionPlan.some((item) => item.action === action);
+}
+
+function canCreateAIBudget(ai: CapatazAIResult) {
+  const clientName = ai.entities.empresa_facturacion ?? ai.entities.cliente_nombre ?? ai.entities.contacto_nombre;
+  return Boolean(clientName && ai.entities.importe && buildAIWorkTitle(ai));
+}
+
+function canCreateAIInvoice(ai: CapatazAIResult) {
+  const clientName = ai.entities.empresa_facturacion ?? ai.entities.cliente_nombre ?? ai.entities.contacto_nombre;
+  return Boolean(clientName && ai.entities.importe && buildAIWorkTitle(ai));
+}
+
+async function createBudgetDraftFromAI(ai: CapatazAIResult): Promise<ChatCommandResult> {
+  const entities = ai.entities;
+  const clientName = entities.empresa_facturacion ?? entities.cliente_nombre ?? entities.contacto_nombre;
+  const workTitle = buildAIWorkTitle(ai);
+  const amount = entities.importe;
+
+  if (!clientName || !workTitle || !amount) {
+    return {
+      handled: true,
+      text: withQuestions(ai.userResponse, ai.clarificationQuestions) || "He entendido que quieres preparar un presupuesto, pero me falta cliente, trabajo o importe. No he creado nada."
+    };
+  }
+
+  const clientMatches = await findClientMatches(clientName);
+  if (clientMatches.length > 1) {
+    return {
+      handled: true,
+      text: `He encontrado varios clientes parecidos a "${clientName}". Antes de crear nada, dime cuál quieres usar:\n${clientMatches.map((client, index) => `${index + 1}. ${client.nombre}${client.direccion ? ` · ${client.direccion}` : ""}`).join("\n")}`
+    };
+  }
+
+  const existingClient = clientMatches[0] ?? null;
+  const company = await prisma.empresa.findFirst();
+  const ivaMode = ivaModeFromAI(ai);
+  const ivaPercent = entities.iva_porcentaje ?? company?.ivaDefecto ?? 21;
+  const totals = calculateChatDocumentTotals(amount, ivaMode, ivaPercent);
+  const line = buildAIBudgetLine(ai, totals.subtotal);
+  const pendingFields = pendingFieldsFromAI(ai, ivaMode);
+  const number = await nextDocumentNumber("budget");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const client = existingClient ?? await tx.client.create({
+      data: {
+        nombre: clientName,
+        telefono: entities.contacto_telefono ?? "Pendiente",
+        email: entities.contacto_email ?? null,
+        direccion: entities.direccion_fiscal ?? entities.obra_direccion ?? entities.obra_localidad ?? "Dirección pendiente",
+        tipo: clientTypeFromAI(ai),
+        estado: pendingFields.length ? "pendiente_datos" : "presupuesto_pendiente",
+        origen: "Asistente Capataz",
+        notas: buildAIClientNotes(ai),
+        ultimaInteraccion: new Date()
+      }
+    });
+
+    const work = await tx.work.create({
+      data: {
+        clienteId: client.id,
+        titulo: workTitle,
+        direccion: entities.obra_direccion ?? entities.obra_localidad ?? (client.direccion && client.direccion !== "Dirección pendiente" ? client.direccion : "Dirección pendiente"),
+        tipoTrabajo: entities.descripcion_trabajo ?? entities.obra_tipo ?? workTitle,
+        estado: "pendiente_inicio",
+        fechaInicio: null,
+        fechaFinPrevista: null,
+        presupuestoAprobado: 0,
+        gastoReal: 0,
+        margenEstimado: 0,
+        notas: buildAIWorkNotes(ai)
+      }
+    });
+
+    const budget = await tx.budget.create({
+      data: {
+        clienteId: client.id,
+        obraId: work.id,
+        numero: number,
+        titulo: workTitle,
+        partidas: serializeBudgetLines([line]),
+        subtotal: totals.subtotal,
+        iva: totals.iva,
+        descuento: 0,
+        total: totals.total,
+        margenEstimado: 0,
+        estado: "borrador",
+        fechaValidez: addDays(new Date(), 15),
+        fechaSeguimiento: null,
+        condiciones: company?.condicionesPorDefecto ?? "Validez 15 días. Fechas sujetas a disponibilidad y revisión de datos.",
+        observaciones: buildAIBudgetObservations(ai, ivaMode),
+        formaPago: "Pendiente de acordar"
+      }
+    });
+
+    await tx.client.update({
+      where: { id: client.id },
+      data: {
+        estado: pendingFields.length ? "pendiente_datos" : "presupuesto_pendiente",
+        ultimaInteraccion: new Date(),
+        notas: existingClient ? appendNote(client.notas, buildAIClientNotes(ai)) : undefined
+      }
+    });
+
+    return { client, work, budget };
+  });
+
+  revalidateChatPaths(result.client.id, result.work.id, result.budget.id);
+
+  const context = pendingBudgetContext({
+    clientId: result.client.id,
+    workId: result.work.id,
+    budgetId: result.budget.id,
+    clientName: result.client.nombre,
+    ivaMode,
+    pendingFields
+  });
+
+  return {
+    handled: true,
+    created: {
+      clientId: result.client.id,
+      workId: result.work.id,
+      budgetId: result.budget.id
+    },
+    context,
+    text: buildAIBudgetMessage(ai, {
+      clientName: result.client.nombre,
+      contactName: entities.contacto_nombre,
+      workTitle: result.work.titulo,
+      amount,
+      budgetId: result.budget.id,
+      budgetNumber: result.budget.numero,
+      ivaMode,
+      pendingFields,
+      clientWasCreated: !existingClient
+    })
+  };
+}
+
+async function createInvoiceDraftFromAI(ai: CapatazAIResult): Promise<ChatCommandResult> {
+  const entities = ai.entities;
+  const clientName = entities.empresa_facturacion ?? entities.cliente_nombre ?? entities.contacto_nombre;
+  const workTitle = buildAIWorkTitle(ai);
+  const amount = entities.importe;
+
+  if (!clientName || !workTitle || !amount) {
+    return {
+      handled: true,
+      text: withQuestions(ai.userResponse, ai.clarificationQuestions) || "He entendido que quieres preparar una factura, pero me falta cliente, concepto o importe. No he creado nada."
+    };
+  }
+
+  const command: ParsedInvoiceCommand = {
+    intent: "crear_factura",
+    clientName,
+    workTitle,
+    lineDescription: buildAILineDescription(ai, workTitle),
+    amount,
+    currency: "EUR",
+    ivaMode: ivaModeFromAI(ai),
+    materialIncluded: entities.material_incluido === true
+  };
+
+  return createInvoiceDraftFromChat(command);
+}
+
+async function registerActivityFromAI(ai: CapatazAIResult): Promise<ChatCommandResult> {
+  const entities = ai.entities;
+  const clientName = entities.cliente_nombre ?? entities.contacto_nombre ?? entities.empresa_facturacion;
+  const eventType = entities.tipo_actividad === "reunion"
+    ? "reunion"
+    : entities.tipo_actividad === "llamada"
+      ? "llamada"
+      : "visita";
+  const workTitle = entities.obra_nombre ?? entities.descripcion_trabajo ?? entities.alcance;
+
+  const command: ParsedActivityCommand = {
+    intent: eventType === "reunion" ? "registrar_reunion" : eventType === "llamada" ? "registrar_llamada" : "registrar_visita",
+    eventType,
+    clientName,
+    workTitle,
+    eventTime: entities.hora,
+    eventDateHint: undefined,
+    topics: [entities.descripcion_trabajo, entities.alcance].filter(Boolean) as string[],
+    materialsReviewed: Boolean(entities.material_incluido || entities.notas?.toLowerCase().includes("material")),
+    pendingConfirmation: entities.datos_pendientes.some((field) => field.toLowerCase().includes("confirm")),
+    notes: entities.notas ?? ai.userResponse
+  };
+
+  return registerActivityFromChat(command);
+}
+
 async function registerActivityFromChat(command: ParsedActivityCommand): Promise<ChatCommandResult> {
   if (!command.clientName) {
     return {
@@ -278,8 +634,8 @@ async function registerActivityFromChat(command: ParsedActivityCommand): Promise
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: command.pendingConfirmation ? "seguimiento_pendiente" : "visita_pendiente",
-        origen: "Chat Capataz",
-        notas: "Cliente provisional creado desde una actividad registrada en el chat.",
+        origen: "Asistente Capataz",
+        notas: "Cliente provisional creado desde una actividad registrada en Capataz.",
         ultimaInteraccion: new Date()
       }
     });
@@ -297,7 +653,7 @@ async function registerActivityFromChat(command: ParsedActivityCommand): Promise
             presupuestoAprobado: 0,
             gastoReal: 0,
             margenEstimado: 0,
-            notas: "Obra provisional creada desde una visita o nota de chat."
+            notas: "Obra provisional creada desde una visita o nota de Capataz."
           }
         })
       : null;
@@ -408,7 +764,7 @@ async function completeActivityFromChat(context: ChatCommandContext, message: st
       await tx.eventoAgenda.update({
         where: { id: event.id },
         data: {
-          notas: appendNote(event.notas, `Detalle añadido desde chat: ${cleanMessage}`),
+          notas: appendNote(event.notas, `Detalle añadido en Capataz: ${cleanMessage}`),
           descripcion: appendNote(event.descripcion, `Detalle: ${cleanMessage}`)
         }
       });
@@ -522,8 +878,8 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
-        origen: "Chat Capataz",
-        notas: "Cliente provisional creado desde el chat. Faltan apellidos, teléfono, NIF/CIF, email y dirección fiscal.",
+        origen: "Asistente Capataz",
+        notas: "Cliente provisional preparado por Capataz. Faltan apellidos, teléfono, NIF/CIF, email y dirección fiscal.",
         ultimaInteraccion: new Date()
       }
     });
@@ -547,7 +903,7 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
             presupuestoAprobado: 0,
             gastoReal: 0,
             margenEstimado: 0,
-            notas: `Trabajo provisional creado desde chat. Material incluido: ${command.materialIncluded ? "Sí" : "No indicado"}.`
+            notas: `Trabajo provisional preparado por Capataz. Material incluido: ${command.materialIncluded ? "Sí" : "No indicado"}.`
           }
         });
 
@@ -578,7 +934,7 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
         estado: existingClient ? "presupuesto_pendiente" : "pendiente_datos",
         telefono: options.followUp?.phone ?? undefined,
         email: options.followUp?.email ?? undefined,
-        notas: options.followUp?.nif ? appendNote(client.notas, `NIF/CIF indicado desde chat: ${options.followUp.nif}.`) : undefined,
+        notas: options.followUp?.nif ? appendNote(client.notas, `NIF/CIF indicado en Capataz: ${options.followUp.nif}.`) : undefined,
         ultimaInteraccion: new Date()
       }
     });
@@ -662,7 +1018,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
         where: { id: budget.obraId },
         data: {
           direccion: followUp.workAddress,
-          notas: appendNote(budget.work?.notas, `Dirección/localización completada desde chat: ${followUp.workAddress}.`)
+          notas: appendNote(budget.work?.notas, `Dirección/localización completada en Capataz: ${followUp.workAddress}.`)
         }
       });
       updates.push(`obra en ${followUp.workAddress}`);
@@ -681,7 +1037,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
       remaining.delete("datos_cliente");
     }
     if (followUp.nif) {
-      clientData.notas = appendNote(budget.client.notas, `NIF/CIF indicado desde chat: ${followUp.nif}.`);
+      clientData.notas = appendNote(budget.client.notas, `NIF/CIF indicado en Capataz: ${followUp.nif}.`);
       updates.push(`NIF/CIF ${followUp.nif}`);
       remaining.delete("datos_cliente");
     }
@@ -768,7 +1124,7 @@ async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatE
       updates.push(`email ${entities.email}`);
     }
     if (entities.nif) {
-      clientData.notas = appendNote(invoice.client.notas, `NIF/CIF indicado desde chat: ${entities.nif}.`);
+      clientData.notas = appendNote(invoice.client.notas, `NIF/CIF indicado en Capataz: ${entities.nif}.`);
       updates.push(`NIF/CIF ${entities.nif}`);
     }
     if (entities.phone || entities.email || entities.nif) {
@@ -842,7 +1198,7 @@ async function markInvoicePaidFromChat(entities: ChatEntities, context: ChatComm
         metodo: invoice.metodoPago ?? "transferencia",
         fecha: new Date(),
         tipo: "pago_final",
-        notas: "Marcada como pagada desde el chat de Capataz."
+        notas: "Marcada como pagada desde Capataz."
       }
     }),
     prisma.invoice.update({
@@ -909,7 +1265,7 @@ async function registerPaymentFromChat(entities: ChatEntities, context: ChatComm
         metodo: "transferencia",
         fecha: new Date(),
         tipo: nuevoPendiente <= 0 ? "pago_final" : "pago_parcial",
-        notas: "Pago registrado desde el chat de Capataz."
+        notas: "Pago registrado desde Capataz."
       }
     }),
     prisma.invoice.update({
@@ -961,8 +1317,8 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
-        origen: "Chat Capataz",
-        notas: "Cliente provisional creado desde el chat para una factura. Faltan NIF/CIF y dirección fiscal.",
+        origen: "Asistente Capataz",
+        notas: "Cliente provisional preparado por Capataz para una factura. Faltan NIF/CIF y dirección fiscal.",
         ultimaInteraccion: new Date()
       }
     });
@@ -979,7 +1335,7 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
         presupuestoAprobado: totals.total,
         gastoReal: 0,
         margenEstimado: 0,
-        notas: "Obra provisional creada desde chat para una factura. Revisar antes de enviar."
+        notas: "Obra provisional preparada por Capataz para una factura. Revisar antes de enviar."
       }
     });
 
@@ -998,7 +1354,7 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
         fechaEmision: new Date(),
         fechaVencimiento: addDays(new Date(), 7),
         estado: "borrador",
-        observaciones: `${invoiceIvaObservation(command.ivaMode)} Creada desde chat; revisar datos fiscales y no enviar sin confirmación explícita.`,
+        observaciones: `${invoiceIvaObservation(command.ivaMode)} Revisar datos fiscales antes de enviar.`,
         metodoPago: "Pendiente de acordar",
         datosBancarios: company?.iban ?? null
       }
@@ -1138,7 +1494,7 @@ async function buildPdfResult(command: ParsedPdfCommand, context: ChatCommandCon
   }
 
   if (!command.clientName) {
-    return { handled: true, text: "Dime de qué cliente o documento quieres el PDF, o abre primero un presupuesto/factura desde el chat." };
+    return { handled: true, text: "Dime de qué cliente o documento quieres el PDF, o abre primero un presupuesto/factura desde Capataz." };
   }
 
   const clientMatches = await findClientMatches(command.clientName);
@@ -1408,21 +1764,186 @@ function retotalLines(lines: BudgetLine[], title: string, newSubtotal: number) {
   });
 }
 
+function ivaModeFromAI(ai: CapatazAIResult): IvaMode {
+  if (ai.entities.iva_porcentaje === 0) return "none";
+  if (ai.entities.iva_incluido === true) return "included";
+  if (ai.entities.iva_incluido === false) return "plus";
+  return "unknown";
+}
+
+function buildAIWorkTitle(ai: CapatazAIResult) {
+  const entities = ai.entities;
+  const base = entities.obra_nombre ?? entities.descripcion_trabajo ?? entities.alcance;
+  if (!base) return null;
+
+  const parts = [
+    base,
+    entities.alcance && !base.toLowerCase().includes(entities.alcance.toLowerCase()) ? entities.alcance : null,
+    entities.cantidad && entities.unidad_cantidad && !base.includes(String(entities.cantidad))
+      ? `${entities.cantidad} ${entities.unidad_cantidad}`
+      : null,
+    entities.obra_tipo && !base.toLowerCase().includes(entities.obra_tipo.toLowerCase()) ? entities.obra_tipo : null
+  ].filter(Boolean);
+
+  return sentenceLike(parts.join(" - "));
+}
+
+function buildAIBudgetLine(ai: CapatazAIResult, subtotal: number): BudgetLine {
+  const firstLine = ai.entities.partidas[0];
+  const quantity = firstLine?.cantidad ?? ai.entities.cantidad ?? 1;
+  const total = firstLine?.total ?? subtotal;
+  const safeQuantity = quantity > 0 ? quantity : 1;
+  const description = firstLine?.descripcion ?? buildAILineDescription(ai, buildAIWorkTitle(ai) ?? "Trabajo");
+
+  return {
+    descripcion: description,
+    cantidad: safeQuantity,
+    unidad: firstLine?.unidad ?? ai.entities.unidad_cantidad ?? "servicio",
+    precioUnitario: firstLine?.precioUnitario ?? roundMoney(total / safeQuantity),
+    total: roundMoney(total),
+    categoria: firstLine?.categoria ?? (ai.entities.material_incluido ? "Material incluido" : "General")
+  };
+}
+
+function buildAILineDescription(ai: CapatazAIResult, fallback: string) {
+  const entities = ai.entities;
+  const details = [
+    entities.descripcion_trabajo ?? fallback,
+    entities.alcance && !fallback.toLowerCase().includes(entities.alcance.toLowerCase()) ? entities.alcance : null,
+    entities.material_incluido ? "material incluido" : null,
+    entities.duracion_estimada ? `duración estimada ${entities.duracion_estimada}` : null
+  ].filter(Boolean);
+  return sentenceLike(details.join(", "));
+}
+
+function pendingFieldsFromAI(ai: CapatazAIResult, ivaMode: IvaMode) {
+  const fields = new Set<PendingField>();
+  const pendingText = ai.entities.datos_pendientes.join(" ").toLowerCase();
+
+  if (ivaMode === "unknown" || pendingText.includes("iva")) fields.add("iva");
+  if (!ai.entities.obra_direccion || pendingText.includes("direccion obra") || pendingText.includes("dirección obra")) fields.add("direccion_obra");
+  if (!ai.entities.contacto_telefono && !ai.entities.contacto_email) fields.add("datos_cliente");
+  if (!ai.entities.cliente_nif || !ai.entities.direccion_fiscal || pendingText.includes("cif") || pendingText.includes("nif") || pendingText.includes("fiscal")) {
+    fields.add("datos_fiscales");
+  }
+
+  return [...fields];
+}
+
+function clientTypeFromAI(ai: CapatazAIResult) {
+  if (ai.entities.empresa_facturacion) return "Empresa";
+  if (ai.entities.cliente_tipo === "empresa") return "Empresa";
+  if (ai.entities.cliente_tipo === "autonomo") return "Autónomo";
+  return "Particular";
+}
+
+function buildAIClientNotes(ai: CapatazAIResult) {
+  const entities = ai.entities;
+  const notes = [
+    entities.contacto_nombre && entities.empresa_facturacion ? `Contacto operativo: ${entities.contacto_nombre}.` : null,
+    entities.contacto_telefono ? `Teléfono contacto: ${entities.contacto_telefono}.` : null,
+    entities.contacto_email ? `Email contacto: ${entities.contacto_email}.` : null,
+    entities.cliente_nif ? `NIF/CIF: ${entities.cliente_nif}.` : null,
+    entities.direccion_fiscal ? `Dirección fiscal: ${entities.direccion_fiscal}.` : null,
+    entities.datos_pendientes.length ? `Datos pendientes: ${entities.datos_pendientes.join(", ")}.` : null
+  ].filter(Boolean);
+
+  return notes.join("\n") || "Cliente provisional preparado por Capataz. Faltan datos para emitir documentos definitivos.";
+}
+
+function buildAIWorkNotes(ai: CapatazAIResult) {
+  const entities = ai.entities;
+  const notes = [
+    entities.obra_tipo ? `Tipo de obra: ${entities.obra_tipo}.` : null,
+    entities.obra_localidad ? `Localidad: ${entities.obra_localidad}.` : null,
+    entities.alcance ? `Alcance: ${entities.alcance}.` : null,
+    entities.cantidad && entities.unidad_cantidad ? `Cantidad: ${entities.cantidad} ${entities.unidad_cantidad}.` : null,
+    entities.material_incluido === true ? "Material incluido en el precio." : null,
+    entities.duracion_estimada ? `Duración estimada: ${entities.duracion_estimada}.` : null,
+    entities.notas ? entities.notas : null
+  ].filter(Boolean);
+
+  return notes.join("\n") || "Obra provisional preparada por Capataz.";
+}
+
+function buildAIBudgetObservations(ai: CapatazAIResult, ivaMode: IvaMode) {
+  const notes = [
+    invoiceIvaObservation(ivaMode),
+    `Material incluido: ${ai.entities.material_incluido ? "Sí" : "No indicado"}.`,
+    ai.entities.duracion_estimada ? `Duración estimada: ${ai.entities.duracion_estimada}.` : null,
+    ai.entities.datos_pendientes.length ? `Pendiente de completar: ${ai.entities.datos_pendientes.join(", ")}.` : null
+  ].filter(Boolean);
+
+  return notes.join(" ");
+}
+
+function buildAIBudgetMessage(ai: CapatazAIResult, details: {
+  clientName: string;
+  contactName?: string;
+  workTitle: string;
+  amount: number;
+  budgetId: string;
+  budgetNumber: string;
+  ivaMode: IvaMode;
+  pendingFields: string[];
+  clientWasCreated: boolean;
+}) {
+  const contact = details.contactName && details.contactName !== details.clientName
+    ? `\nContacto: ${details.contactName}`
+    : "";
+  const pending = details.pendingFields.length || ai.clarificationQuestions.length
+    ? `\n\nPara dejarlo listo antes de enviar necesito confirmar:\n${[
+        ...new Set([
+          ...ai.clarificationQuestions,
+          details.pendingFields.includes("iva") ? `Si los ${formatEuros(details.amount)} incluyen IVA o hay que añadirlo aparte.` : null,
+          details.pendingFields.includes("datos_fiscales") ? "CIF/NIF y dirección fiscal del cliente de facturación." : null,
+          details.pendingFields.includes("direccion_obra") ? "Dirección exacta de la obra." : null,
+          details.pendingFields.includes("datos_cliente") ? "Teléfono o email de contacto." : null
+        ].filter(Boolean) as string[])
+      ].map((question, index) => `${index + 1}. ${question}`).join("\n")}`
+    : "";
+
+  return `He preparado un presupuesto en borrador para ${details.clientName}.${contact}
+
+Cliente fiscal: ${details.clientName}${details.clientWasCreated ? " (provisional)" : ""}
+Trabajo: ${details.workTitle}
+Importe: ${formatEuros(details.amount)}
+IVA: ${invoiceIvaLabel(details.ivaMode)}
+Estado: Borrador
+Presupuesto: ${details.budgetNumber}
+
+Puedes revisarlo y editarlo aquí: /presupuestos/${details.budgetId}${pending}
+
+No he enviado ningún documento al cliente.`;
+}
+
+function withQuestions(response: string, questions: string[]) {
+  const clean = response.trim();
+  if (!questions.length) return clean;
+  const list = questions.map((question, index) => `${index + 1}. ${question}`).join("\n");
+  return `${clean}\n\n${list}`.trim();
+}
+
+function sentenceLike(value: string) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : clean;
+}
+
 function buildBudgetObservations(command: ParsedBudgetCommand) {
   const ivaNote = invoiceIvaObservation(command.ivaMode);
-  return `${ivaNote} Material incluido: ${command.materialIncluded ? "Sí" : "No indicado"}. Creado desde chat; no enviar sin confirmación explícita.`;
+  return `${ivaNote} Material incluido: ${command.materialIncluded ? "Sí" : "No indicado"}. Revisar antes de enviar al cliente.`;
 }
 
 function ivaObservation(mode: Exclude<IvaMode, "unknown">) {
-  if (mode === "included") return "IVA incluido confirmado desde chat.";
-  if (mode === "plus") return "IVA añadido aparte confirmado desde chat.";
-  return "Presupuesto marcado sin IVA desde chat.";
+  if (mode === "included") return "IVA incluido confirmado.";
+  if (mode === "plus") return "IVA añadido aparte confirmado.";
+  return "Presupuesto marcado sin IVA.";
 }
 
 function invoiceIvaObservation(mode: IvaMode) {
-  if (mode === "included") return "IVA incluido según instrucción del usuario.";
-  if (mode === "plus") return "IVA añadido aparte según instrucción del usuario.";
-  if (mode === "none") return "Sin IVA según instrucción del usuario.";
+  if (mode === "included") return "IVA incluido en el importe indicado.";
+  if (mode === "plus") return "IVA añadido aparte sobre la base indicada.";
+  if (mode === "none") return "Sin IVA.";
   return "IVA pendiente de confirmar: no queda claro si el importe incluye IVA o si hay que añadirlo aparte.";
 }
 

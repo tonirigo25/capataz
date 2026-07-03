@@ -33,6 +33,8 @@ Configura estas variables en el servicio web de Railway:
 
 ```bash
 DATABASE_URL=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.5
 NEXT_PUBLIC_APP_MODE=test
 NEXT_PUBLIC_APP_ENV=staging
 NEXT_PUBLIC_WEB_BASE_URL=
@@ -42,6 +44,8 @@ NEXT_PUBLIC_SUPPORT_EMAIL=soporte@capataz.app
 Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites demo durante pruebas. Para demo pública limitada se puede usar `demo`. Para producción comercial futura, `production`.
 
 `DATABASE_URL` debe venir como variable referenciada desde el servicio PostgreSQL de Railway.
+
+`OPENAI_API_KEY` es privada y debe configurarse solo en el backend de Railway, nunca con prefijo `NEXT_PUBLIC`. Activa el motor de chat con salida JSON estructurada y herramientas internas controladas. `OPENAI_MODEL` es opcional; si no se configura, Capataz usa `gpt-5.5` por defecto.
 
 No existe autenticacion real en esta version, por lo que el codigo no usa `NEXTAUTH_SECRET`, `AUTH_SECRET` ni variables de proveedores OAuth.
 
@@ -61,7 +65,7 @@ CAPATAZ_CHAT_DEBUG=false
 3. Selecciona Deploy from GitHub repo y elige el repositorio de Capataz.
 4. Añade una base de datos PostgreSQL en el mismo proyecto.
 5. En el servicio web de Capataz, añade la variable `DATABASE_URL` como referencia al PostgreSQL.
-6. Añade las variables `NEXT_PUBLIC_APP_MODE`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_WEB_BASE_URL` y `NEXT_PUBLIC_SUPPORT_EMAIL`.
+6. Añade `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEXT_PUBLIC_APP_MODE`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_WEB_BASE_URL` y `NEXT_PUBLIC_SUPPORT_EMAIL`.
 7. Comprueba que Railway detecta `railway.json`. Ese archivo fija:
 
 ```text
@@ -150,3 +154,5 @@ En Railway, el almacenamiento local del contenedor no debe considerarse persiste
 ## Diagnostico del despliegue
 
 La ruta publica `/api/status` devuelve `app`, `database`, `environment` y `timestamp`. Devuelve HTTP 200 solo cuando PostgreSQL responde y las variables publicas obligatorias estan configuradas; en caso contrario devuelve HTTP 503 sin exponer credenciales.
+
+Tambien devuelve `ai.openai` como `ok` o `missing` y el modelo configurado, sin mostrar la clave. Si `NEXT_PUBLIC_APP_ENV=production`, `OPENAI_API_KEY` pasa a ser obligatoria para el healthcheck.

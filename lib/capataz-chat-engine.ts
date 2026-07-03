@@ -152,7 +152,7 @@ type LegacyChatContext = {
   lastClientName?: string;
 };
 
-const fallbackResponse = "No lo he entendido del todo. ¿Quieres que lo trate como visita, nota, seguimiento, presupuesto, factura, gasto, pago o recordatorio?";
+const fallbackResponse = "Necesito un poco más de contexto. ¿Quieres preparar una visita, nota, seguimiento, presupuesto, factura, gasto, pago o recordatorio?";
 
 export function planChatMessage(message: string, rawContext?: ChatContext | LegacyChatContext | null): ChatPlan {
   const context = normalizeChatContext(rawContext);

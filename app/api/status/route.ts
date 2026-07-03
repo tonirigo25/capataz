@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const status = await getSystemStatus();
-  const healthy = status.database === "ok" && status.missingPublicVars.length === 0;
+  const healthy = status.database === "ok" && status.missingPublicVars.length === 0 && status.missingServerVars.length === 0;
 
   return NextResponse.json(
     {

@@ -20,7 +20,7 @@ const nextSteps = [
   "Generar PDFs de presupuestos y facturas",
   "Automatizar backups y observabilidad en PostgreSQL",
   "Activar Stripe y planes de suscripción",
-  "Sustituir chat mock por IA real con herramientas"
+  "Conectar IA real con herramientas internas controladas"
 ];
 
 const plans = [

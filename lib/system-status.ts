@@ -1,4 +1,5 @@
 import { getAppMode } from "@/lib/app-mode";
+import { getCapatazAIStatus } from "@/lib/ai/capataz-ai";
 import { prisma } from "@/lib/prisma";
 
 const requiredPublicVars = [
@@ -8,6 +9,7 @@ const requiredPublicVars = [
 ];
 
 const recommendedServerVars = ["CAPATAZ_MOBILE_SERVER_URL"];
+const requiredAIProductionVars = ["OPENAI_API_KEY"];
 
 export type SystemStatus = {
   app: "ok" | "degraded";
@@ -18,8 +20,14 @@ export type SystemStatus = {
   webBaseUrl: string;
   mobileServerConfigured: boolean;
   internalApiPath: string;
+  ai: {
+    openai: "ok" | "missing";
+    model: string;
+    required: boolean;
+  };
   database: "ok" | "error";
   missingPublicVars: string[];
+  missingServerVars: string[];
   missingRecommendedVars: string[];
 };
 
@@ -27,6 +35,8 @@ export async function getSystemStatus(): Promise<SystemStatus> {
   const database = await checkDatabase();
   const appEnv = process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "sin configurar";
   const missingPublicVars = requiredPublicVars.filter((key) => !process.env[key]);
+  const aiStatus = getCapatazAIStatus();
+  const openAIRequired = appEnv === "production";
 
   return {
     app: database === "ok" ? "ok" : "degraded",
@@ -37,8 +47,14 @@ export async function getSystemStatus(): Promise<SystemStatus> {
     webBaseUrl: process.env.NEXT_PUBLIC_WEB_BASE_URL || "sin configurar",
     mobileServerConfigured: Boolean(process.env.CAPATAZ_MOBILE_SERVER_URL || process.env.NEXT_PUBLIC_WEB_BASE_URL),
     internalApiPath: "/api/status",
+    ai: {
+      openai: aiStatus.configured ? "ok" : "missing",
+      model: aiStatus.model,
+      required: openAIRequired
+    },
     database,
     missingPublicVars,
+    missingServerVars: openAIRequired ? requiredAIProductionVars.filter((key) => !process.env[key]) : [],
     missingRecommendedVars: recommendedServerVars.filter((key) => !process.env[key] && !process.env.NEXT_PUBLIC_WEB_BASE_URL)
   };
 }

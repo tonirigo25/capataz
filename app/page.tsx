@@ -45,7 +45,7 @@ export default function LoginPage() {
         <div className="mb-5">
           <h2 className="text-xl font-black text-obra-ink">Acceso demo</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Entra con datos ficticios para probar clientes, obras, presupuestos, cobros y el chat mock.
+            Entra con datos ficticios para probar clientes, obras, presupuestos, cobros y el asistente.
           </p>
         </div>
 

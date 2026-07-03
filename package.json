@@ -7,6 +7,7 @@
     "build": "prisma generate && next build && node scripts/prepare-standalone.mjs",
     "start": "node scripts/start-standalone.mjs",
     "typecheck": "tsc --noEmit",
+    "test:ai": "node scripts/validate-capataz-ai.mjs",
     "test:chat-parser": "node scripts/validate-chat-parser.mjs",
     "test:chat-engine": "node scripts/validate-chat-engine.mjs",
     "db:deploy": "prisma generate && prisma migrate deploy",

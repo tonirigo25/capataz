@@ -565,7 +565,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         type: "agenda-event",
         eventType: "recordatorio_interno",
         title: `Llamar a ${client?.nombre ?? findMentionedName(text) ?? "cliente"}`,
-        description: "Llamada preparada desde chat mock.",
+        description: "Llamada preparada desde Capataz.",
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         dateTime: normalized.includes("viernes") ? nextFridayAtTen() : tomorrowAtTen(),
         requiereConfirmacion: false
@@ -584,7 +584,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         title: `Seguimiento cobro ${openInvoice?.numero ?? ""}`.trim() || "Seguimiento de cobro",
         description: openInvoice
           ? `Revisar cobro pendiente de ${formatCurrency(openInvoice.pendiente)}.`
-          : "Seguimiento de cobro preparado desde chat mock.",
+          : "Seguimiento de cobro preparado desde Capataz.",
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         invoiceId: openInvoice?.id,
         dateTime: normalized.includes("lunes") ? nextWeekdayAt(1, 10) : tomorrowAtTen(),
@@ -783,7 +783,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
     };
   }
 
-  return { text: "No lo tengo claro. Dime, por ejemplo: “crear presupuesto para Juana por 14000”, “haz factura a Laura por 4200” o “genera el PDF del último documento”." };
+  return { text: "Necesito un poco más de contexto. Dime, por ejemplo: “crear presupuesto para Juana por 14000”, “haz factura a Laura por 4200” o “genera el PDF del último documento”." };
 }
 
 function ActionCardView({ card, data }: { card: ActionCard; data: ChatData }) {
@@ -893,7 +893,7 @@ function ExpenseCard({ card, data }: { card: Extract<ActionCard, { type: "expens
       <InputField name="concepto" label="Concepto" value={card.concept} />
       <InputField name="proveedor" label="Proveedor" value="Proveedor pendiente" />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Preparado desde chat mock" />
+      <TextareaField name="notas" label="Notas" value="Preparado por Capataz" />
       <button type="submit" className="primary-button w-full">Guardar</button>
     </form>
   );
@@ -910,7 +910,7 @@ function PaymentCard({ card, data }: { card: Extract<ActionCard, { type: "paymen
       <SelectField name="metodo" label="Método" value="transferencia" options={[["transferencia", "Transferencia"], ["bizum", "Bizum"], ["efectivo", "Efectivo"], ["tarjeta", "Tarjeta"]]} />
       <SelectField name="tipo" label="Tipo" value="pago_parcial" options={[["senal", "Señal"], ["pago_parcial", "Pago parcial"], ["pago_final", "Pago final"], ["regularizacion", "Regularización"]]} />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Pago preparado desde chat mock" />
+      <TextareaField name="notas" label="Notas" value="Pago preparado por Capataz" />
       <button type="submit" className="primary-button w-full">Confirmar pago</button>
     </form>
   );
@@ -965,8 +965,8 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
       <InputField name="email" label="Email" type="email" value="" />
       <InputField name="direccion" label="Dirección" value="Pendiente" />
       <InputField name="tipoCliente" label="Tipo" value="Particular" />
-      <InputField name="origen" label="Origen" value="Chat mock" />
-      <TextareaField name="notas" label="Notas" value={`Lead preparado desde chat. Trabajo solicitado: ${card.job}.`} />
+      <InputField name="origen" label="Origen" value="Asistente Capataz" />
+      <TextareaField name="notas" label="Notas" value={`Lead preparado por Capataz. Trabajo solicitado: ${card.job}.`} />
       {limited ? (
         <DemoLimitButton
           className="primary-button w-full"
@@ -1015,7 +1015,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="titulo" label="Título" value={card.title} />
       <SelectField name="estado" label="Estado" value="borrador" options={[["borrador", "Borrador"], ["pendiente_revision", "Pendiente revisión"]]} />
       <input type="hidden" name="ivaPercent" value={ivaPercent} />
-      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada desde chat", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
+      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada por Capataz", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
       <InputField name="subtotal" label="Subtotal" type="number" value={base} />
       <InputField name="iva" label="IVA" type="number" value={iva} />
       <InputField name="descuento" label="Descuento" type="number" value={0} />
@@ -1023,7 +1023,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="margenEstimado" label="Margen estimado" type="number" value={Math.round(card.amount * 0.25 * 100) / 100} />
       <InputField name="fechaValidez" label="Fecha validez" type="datetime-local" value={inDaysInputValue(15)} />
       <TextareaField name="condiciones" label="Condiciones" value="Validez 15 días. Fechas sujetas a disponibilidad de materiales." />
-      <TextareaField name="observaciones" label="Observaciones" value="Propuesta creada desde chat mock. Revisar antes de enviar." />
+      <TextareaField name="observaciones" label="Observaciones" value="Propuesta preparada por Capataz. Revisar antes de enviar." />
       <InputField name="formaPago" label="Forma de pago" value="Transferencia / según acuerdo" />
       {limited ? (
         <DemoLimitButton
@@ -1061,7 +1061,7 @@ function InvoiceCard({ card, data }: { card: Extract<ActionCard, { type: "invoic
       <InputField name="pendiente" label="Pendiente" type="number" value={card.amount} />
       <InputField name="fechaEmision" label="Fecha emisión" type="datetime-local" value={nowInputValue()} />
       <InputField name="fechaVencimiento" label="Fecha vencimiento" type="datetime-local" value={inDaysInputValue(7)} />
-      <TextareaField name="observaciones" label="Observaciones" value="Borrador creado desde chat mock. Revisa con gestoría antes de usarlo como factura legal." />
+      <TextareaField name="observaciones" label="Observaciones" value="Borrador preparado por Capataz. Revisa con gestoría antes de usarlo como factura legal." />
       <InputField name="metodoPago" label="Método de pago" value="transferencia" />
       <TextareaField name="datosBancarios" label="Datos bancarios" value={data.company?.iban ?? ""} />
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">

@@ -63,7 +63,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
 
         <div className="mt-4 rounded-lg bg-obra-yellow/20 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">
-          Documento interno/borrador. Revisa con tu gestoría antes de usarlo como factura legal.
+          Factura en borrador. Revisa con tu gestoría antes de usarla como factura legal.
         </div>
         {companyMissing ? (
           <div className="mt-3 rounded-lg bg-obra-yellow/20 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">

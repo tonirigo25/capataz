@@ -91,7 +91,7 @@ export default async function MoneyPage({
       </section>
 
       <div className="card mb-5 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">
-        Documento interno/borrador. Revisa con tu gestoría antes de usarlo como factura legal.
+        Factura en borrador. Revisa con tu gestoría antes de usarla como factura legal.
       </div>
 
       <form action="/dinero" className="card mb-3 flex gap-2 p-3">

@@ -2,7 +2,7 @@
 
 PWA web móvil para autónomos y pequeñas pymes de construcción, reformas e instalaciones.
 
-Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Esta versión usa lógica local, datos demo, PDFs internos/borrador y un motor mock local para el chat. No integra todavía WhatsApp, email, Stripe ni IA real conectada.
+Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Esta versión usa datos demo, lógica local para ejecutar acciones controladas, PDFs profesionales en borrador y un motor OpenAI server-side con salida estructurada cuando `OPENAI_API_KEY` está configurada. No integra todavía WhatsApp, email ni Stripe reales.
 
 ## Stack
 
@@ -284,7 +284,7 @@ El seed crea:
 - PDFs de presupuesto y factura/borrador con datos de empresa, cliente, importes, condiciones, observaciones, logo/sello como referencia configurada y marca de agua en modo demo.
 - Preparación de recordatorio de cobro sin envío automático.
 - Recordatorios con confirmación/cancelación de programación.
-- Chat mock de Capataz con frases de obra.
+- Chat de Capataz con OpenAI server-side, salida estructurada y acciones internas controladas.
 - Agenda interna con vistas Hoy, Semana, Mes y Lista.
 - Eventos manuales editables asociados a cliente, obra, presupuesto, factura o recordatorio.
 - Recordatorios, vencimientos de factura, fechas de obra, materiales pendientes y presupuestos sin respuesta visibles en Agenda.
@@ -293,7 +293,7 @@ El seed crea:
 - Clientes y obras en formato compacto con desplegables.
 - Sección renombrada a `Facturas y Cobros`, con categorías y tarjetas desplegables.
 - Configuración de empresa con datos fiscales, logo, sello, color de marca, IVA y series.
-- Capa preparada para IA real controlada con salida estructurada y fallback mock.
+- Respaldo local limitado para desarrollo cuando no hay `OPENAI_API_KEY`.
 - Modal de límite freemium demo.
 
 ## Gestión manual
@@ -332,14 +332,14 @@ Crear una visita manual:
 3. Elige tipo `Visita`, cliente, fecha/hora y dirección.
 4. Pulsa `Guardar`.
 
-Crear una visita desde chat:
+Crear una visita desde el asistente:
 
 1. Ve a `/capataz`.
 2. Escribe `Agenda visita con Marta mañana a las 10.`
 3. Capataz muestra una tarjeta editable de evento tipo visita.
 4. Revisa campos y pulsa `Guardar visita`.
 
-Frases de agenda que reconoce el chat mock:
+Frases de agenda que reconoce el asistente de Capataz:
 
 - `Agenda visita con Marta mañana a las 10.`
 - `Recuérdame llamar a Pedro el viernes.`
@@ -424,8 +424,8 @@ Usar Capataz como app:
 
 IA real controlada:
 
-- `lib/capataz-ai.ts` define prompt de sistema, intenciones, confianza, campos faltantes, datos propuestos y confirmación.
-- La UI mantiene fallback mock con tarjetas editables antes de guardar.
+- `lib/ai/capataz-ai.ts` llama a OpenAI desde servidor, valida JSON estructurado y devuelve intención, entidades, plan de acción, campos pendientes y confirmación.
+- La UI mantiene tarjetas editables para acciones sensibles antes de guardar.
 - No se ejecutan acciones sensibles sin confirmación explícita.
 
 ## Recorrido demo recomendado
@@ -449,8 +449,6 @@ Capataz no envía WhatsApp, email, presupuestos, facturas ni reclamaciones sin c
 
 ## Próximos pasos
 
-- Sustituir el chat mock por IA real con herramientas y permisos explícitos.
-- Conectar `lib/capataz-ai.ts` a OpenAI API cuando haya claves y permisos definidos.
 - Añadir autenticación real.
 - Preparar storage externo para logos, sellos y uploads reales.
 - Integrar WhatsApp Business y email transaccional.
