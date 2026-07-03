@@ -36,6 +36,13 @@ export type ChatDecisionType =
 
 export type ChatEntityType = "client" | "work" | "budget" | "invoice";
 export type ChatDocumentType = "budget" | "invoice";
+export type ChatTaskStatus = "activo" | "pendiente" | "aparcado" | "completado" | "cancelado";
+
+export type ChatPendingFieldDetail = {
+  key: string;
+  label: string;
+  requiredFor?: string;
+};
 
 export type ChatDecisionOption = {
   id: string;
@@ -45,11 +52,17 @@ export type ChatDecisionOption = {
 
 export type ChatActiveTask = {
   type: ChatTaskType;
+  status?: ChatTaskStatus;
+  title?: string;
+  contactName?: string;
+  billingClientName?: string;
+  workName?: string;
   clienteId?: string;
   obraId?: string;
   presupuestoId?: string;
   facturaId?: string;
   pendingFields?: string[];
+  pendingFieldDetails?: ChatPendingFieldDetail[];
   pendingDecision?: {
     type: ChatDecisionType;
     options?: ChatDecisionOption[];
@@ -62,6 +75,7 @@ export type ChatActiveTask = {
 
 export type ChatContext = {
   activeTask?: ChatActiveTask;
+  parkedTask?: ChatActiveTask;
   lastClientId?: string;
   lastWorkId?: string;
   lastBudgetId?: string;
@@ -99,7 +113,12 @@ export type ChatPlan =
         | "generate_pdf"
         | "confirm_send"
         | "select_document"
-        | "ask_pending";
+        | "ask_pending"
+        | "answer_context"
+        | "park_task"
+        | "clear_context"
+        | "cancel_task"
+        | "resume_task";
       entities: ChatEntities;
       context: ChatContext;
       response?: string;
@@ -157,6 +176,9 @@ const fallbackResponse = "Necesito un poco más de contexto. ¿Quieres preparar 
 export function planChatMessage(message: string, rawContext?: ChatContext | LegacyChatContext | null): ChatPlan {
   const context = normalizeChatContext(rawContext);
   const entities = extractChatEntities(message);
+  const contextQuestion = resolveContextMetaQuestion(message, context, entities);
+  if (contextQuestion) return contextQuestion;
+
   const pending = resolvePendingContext(message, context, entities);
   if (pending) return pending;
 
@@ -313,10 +335,156 @@ export function planChatMessage(message: string, rawContext?: ChatContext | Lega
   };
 }
 
+export function resolveContextMetaQuestion(message: string, rawContext: ChatContext, entities = extractChatEntities(message)): ChatPlan | null {
+  const context = normalizeChatContext(rawContext);
+  const normalized = normalizeText(message);
+  const activeTask = context.activeTask;
+  const parkedTask = context.parkedTask;
+  const task = activeTask ?? parkedTask;
+
+  if (wantsCancelTask(normalized) && activeTask) {
+    const nextContext: ChatContext = {
+      ...context,
+      activeTask: undefined,
+      parkedTask: undefined
+    };
+    return {
+      handled: true,
+      source: "context",
+      action: "cancel_task",
+      entities,
+      context: nextContext,
+      response: `He cancelado el contexto activo de ${taskTitle(activeTask)}. No he borrado el historial ni los registros ya creados.`
+    };
+  }
+
+  if ((wantsParkTask(normalized) || wantsNewConversation(normalized)) && activeTask) {
+    const parked = { ...activeTask, status: "aparcado" as const, updatedAt: now() };
+    const nextContext: ChatContext = {
+      ...context,
+      activeTask: undefined,
+      parkedTask: parked
+    };
+    return {
+      handled: true,
+      source: "context",
+      action: wantsNewConversation(normalized) ? "clear_context" : "park_task",
+      entities,
+      context: nextContext,
+      response: wantsNewConversation(normalized)
+        ? `He limpiado el contexto activo y he dejado aparcado ${taskTitle(parked)}. Podemos empezar otra cosa sin borrar el historial.`
+        : `Dejo aparcado ${taskTitle(parked)}. Puedes seguir con otra cosa y decirme "volver al presupuesto" cuando quieras retomarlo.`
+    };
+  }
+
+  if (wantsNewConversation(normalized) && !activeTask) {
+    return {
+      handled: true,
+      source: "context",
+      action: "clear_context",
+      entities,
+      context,
+      response: parkedTask
+        ? `No hay una tarea activa bloqueando el chat. Mantengo aparcado ${taskTitle(parkedTask)} y podemos empezar otra cosa.`
+        : "No hay una tarea activa ahora mismo. Podemos empezar otra cosa sin borrar el historial."
+    };
+  }
+
+  if (wantsParkTask(normalized) && !activeTask && parkedTask) {
+    return {
+      handled: true,
+      source: "context",
+      action: "park_task",
+      entities,
+      context,
+      response: `Ya estaba aparcado ${taskTitle(parkedTask)}. Puedes seguir con otra cosa o decir "volver al presupuesto" para retomarlo.`
+    };
+  }
+
+  if (wantsResumeTask(normalized) && (parkedTask || activeTask)) {
+    const resumed = { ...(parkedTask ?? activeTask!), status: "activo" as const, updatedAt: now() };
+    const nextContext: ChatContext = {
+      ...context,
+      activeTask: resumed,
+      parkedTask: parkedTask ? undefined : context.parkedTask
+    };
+    return {
+      handled: true,
+      source: "context",
+      action: "resume_task",
+      entities,
+      context: nextContext,
+      response: `${summarizeActiveTask(resumed)}\n\n${shortPendingQuestion(resumed)}`
+    };
+  }
+
+  if (isGreeting(normalized)) {
+    if (activeTask) {
+      return {
+        handled: true,
+        source: "context",
+        action: "answer_context",
+        entities,
+        context: touchContext(context),
+        response: `Hola. Tengo pendiente ${taskTitle(activeTask)}. Si quieres, puedo decirte qué datos faltan o podemos seguir con otra cosa.`
+      };
+    }
+    if (parkedTask) {
+      return {
+        handled: true,
+        source: "context",
+        action: "answer_context",
+        entities,
+        context,
+        response: `Hola. Tengo aparcado ${taskTitle(parkedTask)}. Puedes decir "volver al presupuesto" para retomarlo o pedirme otra cosa.`
+      };
+    }
+    return null;
+  }
+
+  if (!task) return null;
+
+  if (asksPendingFields(normalized)) {
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context: activeTask ? touchContext(context) : context,
+      response: listPendingFields(task)
+    };
+  }
+
+  if (asksClientIdentity(normalized)) {
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context: activeTask ? touchContext(context) : context,
+      response: answerClientIdentity(task)
+    };
+  }
+
+  if (asksActiveSummary(normalized)) {
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context: activeTask ? touchContext(context) : context,
+      response: `${summarizeActiveTask(task)}\n\n${shortPendingQuestion(task)}`
+    };
+  }
+
+  return null;
+}
+
 export function resolvePendingContext(message: string, rawContext: ChatContext, entities = extractChatEntities(message)): ChatPlan | null {
   const context = normalizeChatContext(rawContext);
   const task = context.activeTask;
   if (!task) return null;
+  if (task.status === "aparcado" || task.status === "cancelado" || task.status === "completado") return null;
 
   if (entities.wantsPdf) {
     return {
@@ -557,26 +725,46 @@ export function createBudgetCompletionContext({
   workId,
   budgetId,
   clientName,
+  contactName,
+  billingClientName,
+  workName,
+  title,
   pendingFields = ["iva", "direccion_obra", "datos_cliente"],
+  pendingFieldDetails,
+  draftData,
   createdAt
 }: {
   clientId?: string;
   workId?: string;
   budgetId?: string;
   clientName?: string;
+  contactName?: string;
+  billingClientName?: string;
+  workName?: string;
+  title?: string;
   pendingFields?: string[];
+  pendingFieldDetails?: ChatPendingFieldDetail[];
+  draftData?: Record<string, unknown>;
   createdAt?: string;
 }): ChatContext {
   const timestamp = createdAt ?? now();
+  const taskBillingName = billingClientName ?? clientName;
   return {
     activeTask: {
       type: "complete_budget",
+      status: "activo",
+      title: title ?? (taskBillingName ? `el presupuesto de ${taskBillingName}` : undefined),
+      contactName,
+      billingClientName: taskBillingName,
+      workName,
       clienteId: clientId,
       obraId: workId,
       presupuestoId: budgetId,
       pendingFields,
+      pendingFieldDetails,
+      draftData,
       lastQuestion: clientName
-        ? `Faltan datos del presupuesto de ${clientName}.`
+        ? `Tengo pendiente el presupuesto de ${clientName}. Faltan ${joinNatural(readablePendingFields({ type: "complete_budget", billingClientName: taskBillingName, contactName, workName, pendingFields, pendingFieldDetails, draftData, createdAt: timestamp, updatedAt: timestamp }).map(shortPendingLabel))}.`
         : "Faltan datos del presupuesto.",
       createdAt: timestamp,
       updatedAt: now()
@@ -594,24 +782,44 @@ export function createInvoiceCompletionContext({
   workId,
   invoiceId,
   clientName,
+  contactName,
+  billingClientName,
+  workName,
+  title,
   pendingFields = ["datos_fiscales"],
+  pendingFieldDetails,
+  draftData,
   createdAt
 }: {
   clientId?: string;
   workId?: string;
   invoiceId?: string;
   clientName?: string;
+  contactName?: string;
+  billingClientName?: string;
+  workName?: string;
+  title?: string;
   pendingFields?: string[];
+  pendingFieldDetails?: ChatPendingFieldDetail[];
+  draftData?: Record<string, unknown>;
   createdAt?: string;
 }): ChatContext {
   const timestamp = createdAt ?? now();
+  const taskBillingName = billingClientName ?? clientName;
   return {
     activeTask: {
       type: "complete_invoice",
+      status: "activo",
+      title: title ?? (taskBillingName ? `la factura de ${taskBillingName}` : undefined),
+      contactName,
+      billingClientName: taskBillingName,
+      workName,
       clienteId: clientId,
       obraId: workId,
       facturaId: invoiceId,
       pendingFields,
+      pendingFieldDetails,
+      draftData,
       lastQuestion: clientName
         ? `Faltan datos de la factura de ${clientName}.`
         : "Faltan datos de la factura.",
@@ -631,24 +839,37 @@ export function createActivityCompletionContext({
   workId,
   eventId,
   clientName,
+  workName,
+  title,
   pendingFields = ["materiales_revisados", "pendiente_de_confirmar", "fecha_recordatorio"],
+  pendingFieldDetails,
+  draftData,
   createdAt
 }: {
   clientId?: string;
   workId?: string;
   eventId?: string;
   clientName?: string;
+  workName?: string;
+  title?: string;
   pendingFields?: string[];
+  pendingFieldDetails?: ChatPendingFieldDetail[];
+  draftData?: Record<string, unknown>;
   createdAt?: string;
 }): ChatContext {
   const timestamp = createdAt ?? now();
   return {
     activeTask: {
       type: "complete_activity",
+      status: "activo",
+      title: title ?? (clientName ? `la visita de ${clientName}` : undefined),
+      contactName: clientName,
+      workName,
       clienteId: clientId,
       obraId: workId,
       pendingFields,
-      draftData: { eventId },
+      pendingFieldDetails,
+      draftData: { ...draftData, eventId },
       lastQuestion: clientName
         ? `Sigo con la visita de ${clientName}.`
         : "Sigo con esa visita.",
@@ -680,6 +901,9 @@ export function createWorkSelectionContext({
   return {
     activeTask: {
       type: "create_budget",
+      status: "activo",
+      title: `el presupuesto de ${clientName}`,
+      billingClientName: clientName,
       clienteId: clientId,
       pendingFields,
       pendingDecision: {
@@ -726,6 +950,177 @@ export function draftBudgetCommandFromContext(context: ChatContext): ParsedBudge
   return command.intent === "crear_presupuesto" && typeof command.clientName === "string" && typeof command.amount === "number"
     ? command as ParsedBudgetCommand
     : null;
+}
+
+export function summarizeActiveTask(task: ChatActiveTask) {
+  const subject = taskTitle(task);
+  const details = [
+    task.contactName ? `Contacto: ${task.contactName}.` : null,
+    task.billingClientName ? `Cliente de facturación: ${task.billingClientName}.` : null,
+    task.workName ? `Obra: ${task.workName}.` : null,
+    typeof task.draftData?.amount === "number" ? `Importe: ${formatEngineEuros(task.draftData.amount)}.` : null,
+    task.status === "aparcado" ? "Estado: aparcado." : null
+  ].filter(Boolean);
+
+  return details.length
+    ? `Tengo pendiente ${subject}.\n\n${details.join("\n")}`
+    : `Tengo pendiente ${subject}.`;
+}
+
+export function listPendingFields(task: ChatActiveTask) {
+  const fields = readablePendingFields(task);
+  if (!fields.length) return `No veo datos obligatorios pendientes en ${taskTitle(task)}. Puedes pedirme un resumen o revisar el documento.`;
+  const list = fields.map((field, index) => `${index + 1}. ${field}.`).join("\n");
+  return `${withDePrefix(taskTitle(task))} faltan estos datos:\n\n${list}\n\nCon esos datos puedo dejarlo mucho más completo.`;
+}
+
+export function answerClientIdentity(task: ChatActiveTask) {
+  const contact = task.contactName;
+  const billing = task.billingClientName ?? taskTitleName(task);
+
+  if (contact && billing && normalizeText(contact) !== normalizeText(billing)) {
+    return `En este trabajo tengo dos datos separados:\n\nContacto: ${contact}.\nCliente de facturación: ${billing}.\n\nLa factura o presupuesto debería ir a nombre de ${billing}, y ${contact} queda como persona de contacto.`;
+  }
+
+  if (billing) return `El cliente que tengo para ${taskTitle(task)} es ${billing}.`;
+  if (contact) return `La persona de contacto que tengo para ${taskTitle(task)} es ${contact}.`;
+  return `Todavía no tengo claro el cliente de ${taskTitle(task)}. Si quieres, dime el contacto y la empresa de facturación.`;
+}
+
+function shortPendingQuestion(task: ChatActiveTask) {
+  const fields = readablePendingFields(task);
+  if (!fields.length) return "¿Quieres completarlo, generar un PDF o seguir con otra cosa?";
+  return `Faltan ${joinNatural(fields.map(shortPendingLabel))}. ¿Quieres completarlo ahora o lo dejamos pendiente?`;
+}
+
+function readablePendingFields(task: ChatActiveTask) {
+  const fromDetails = (task.pendingFieldDetails ?? [])
+    .filter((field) => !task.pendingFields?.length || task.pendingFields.includes(field.key) || task.pendingFields.some((key) => field.key.startsWith(`${key}:`)))
+    .map((field) => field.label.trim())
+    .filter(Boolean);
+  if (fromDetails.length) return [...new Set(fromDetails)];
+
+  const labels: string[] = [];
+  const pending = orderedPendingFields(task.pendingFields ?? []);
+  const billingName = task.billingClientName ?? taskTitleName(task) ?? "cliente de facturación";
+  const contactName = task.contactName ?? "contacto";
+  const amount = typeof task.draftData?.amount === "number" ? formatEngineEuros(task.draftData.amount) : "el importe";
+  const workName = task.workName ?? "";
+  const location = extractKnownLocation(task);
+  const workAddressLabel = workName.toLowerCase().includes("hotel") || location
+    ? `Dirección exacta ${location ? `del hotel en ${location}` : "de la obra/hotel"}`
+    : "Dirección exacta de la obra";
+
+  for (const field of pending) {
+    if (field === "datos_fiscales") {
+      labels.push(`CIF de ${billingName}`);
+      labels.push(`Dirección fiscal de ${billingName}`);
+    } else if (field === "iva") {
+      labels.push(`Confirmar si los ${amount} son con IVA incluido o más IVA`);
+    } else if (field === "direccion_obra") {
+      labels.push(workAddressLabel);
+    } else if (field === "datos_cliente") {
+      labels.push(`Teléfono o email de ${contactName}`);
+    } else if (field === "materiales_revisados") {
+      labels.push("Qué materiales se revisaron");
+    } else if (field === "pendiente_de_confirmar") {
+      labels.push("Qué tiene que confirmar el cliente");
+    } else if (field === "fecha_recordatorio") {
+      labels.push("Cuándo quieres que te lo recuerde");
+    } else {
+      labels.push(humanizeKey(field));
+    }
+  }
+
+  return [...new Set(labels)];
+}
+
+function orderedPendingFields(fields: string[]) {
+  const order = ["datos_fiscales", "direccion_obra", "iva", "datos_cliente", "materiales_revisados", "pendiente_de_confirmar", "fecha_recordatorio"];
+  return [...fields].sort((a, b) => {
+    const indexA = order.indexOf(a);
+    const indexB = order.indexOf(b);
+    return (indexA === -1 ? order.length : indexA) - (indexB === -1 ? order.length : indexB);
+  });
+}
+
+function taskTitle(task: ChatActiveTask) {
+  if (task.title) return task.title;
+  const name = taskTitleName(task);
+  if (task.type === "complete_invoice" || task.type === "create_invoice") return `la factura de ${name ?? "ese cliente"}`;
+  if (task.type === "complete_activity") return `la visita o seguimiento de ${name ?? "ese cliente"}`;
+  return `el presupuesto de ${name ?? "ese cliente"}`;
+}
+
+function taskTitleName(task: ChatActiveTask) {
+  return task.billingClientName ?? task.contactName;
+}
+
+function withDePrefix(title: string) {
+  if (title.startsWith("el ")) return `Del ${title.slice(3)}`;
+  if (title.startsWith("El ")) return `Del ${title.slice(3)}`;
+  return `De ${title}`;
+}
+
+function shortPendingLabel(label: string) {
+  return label
+    .replace(/^Confirmar si /, "")
+    .replace(/^Dirección exacta /, "dirección ")
+    .replace(/^Teléfono o email /, "contacto ")
+    .replace(/^CIF /, "CIF ")
+    .replace(/^Dirección fiscal /, "dirección fiscal ");
+}
+
+function humanizeKey(field: string) {
+  return field.replace(/_/g, " ");
+}
+
+function extractKnownLocation(task: ChatActiveTask) {
+  const haystack = normalizeText(`${task.workName ?? ""} ${task.title ?? ""}`);
+  const locations = ["Menorca", "Mallorca", "Ibiza", "Madrid", "Barcelona", "Valencia", "Alicante", "Sevilla", "Malaga", "Málaga"];
+  return locations.find((location) => haystack.includes(normalizeText(location)));
+}
+
+function formatEngineEuros(amount: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount);
+}
+
+function joinNatural(items: string[]) {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} y ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+function isGreeting(normalized: string) {
+  return /^(hola|buenas|buenos dias|buenos días|buenas tardes|buenas noches|hey|que tal|qué tal)([!. ]*)?$/.test(normalized);
+}
+
+function asksPendingFields(normalized: string) {
+  return /(que datos faltan|que datos\??|que falta|dime lo que falta|que tengo pendiente|que necesitas|que hace falta|datos pendientes|faltantes|pendiente para terminar|para terminarlo)/.test(normalized);
+}
+
+function asksClientIdentity(normalized: string) {
+  return /(como se llama el cliente|quien es el cliente|quien es contacto|quien es el contacto|a nombre de quien|a nombre de quién|cliente de facturacion|cliente de facturación)/.test(normalized);
+}
+
+function asksActiveSummary(normalized: string) {
+  return /(que teniamos pendiente|qué teníamos pendiente|resumen de esto|resumeme esto|resume esto|que era esto|en que estabamos|en qué estábamos|que tengo abierto|tarea pendiente)/.test(normalized);
+}
+
+function wantsParkTask(normalized: string) {
+  return /(dejalo pendiente|déjalo pendiente|aparcalo|apárcalo|aparcar esto|lo dejamos pendiente|luego seguimos|mas tarde|más tarde)/.test(normalized);
+}
+
+function wantsNewConversation(normalized: string) {
+  return /(nuevo chat|nueva conversacion|nueva conversación|empezamos otra cosa|otra cosa|limpia el contexto|empezar de cero)/.test(normalized);
+}
+
+function wantsCancelTask(normalized: string) {
+  return /(cancela esto|cancelar esto|olvida este presupuesto|olvida esta factura|olvida esto|descarta esto|borra este contexto)/.test(normalized);
+}
+
+function wantsResumeTask(normalized: string) {
+  return /(sigue con|seguir con|volver al|vuelve al|retoma|retomar|continuar tarea|continua con|continúa con)/.test(normalized);
 }
 
 export function mergeBudgetCommandWithEntities(command: ParsedBudgetCommand, entities: ChatEntities): ParsedBudgetCommand {
@@ -852,7 +1247,8 @@ function withTask(context: ChatContext, task: ChatActiveTask): ChatContext {
     lastWorkId: task.obraId ?? context.lastWorkId,
     lastBudgetId: task.presupuestoId ?? context.lastBudgetId,
     lastInvoiceId: task.facturaId ?? context.lastInvoiceId,
-    lastDocumentType: task.presupuestoId ? "budget" : task.facturaId ? "invoice" : context.lastDocumentType
+    lastDocumentType: task.presupuestoId ? "budget" : task.facturaId ? "invoice" : context.lastDocumentType,
+    lastClientName: task.billingClientName ?? task.contactName ?? context.lastClientName
   };
 }
 

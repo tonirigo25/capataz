@@ -39,8 +39,66 @@ const workSelectionContext = createWorkSelectionContext({
   draftBudget: budgetCommand,
   lastQuestion: "Ya existe una obra parecida para Juana: Reforma integral cocina + baño. ¿Quieres usar esa obra o crear una nueva?"
 });
+const murhotelContext = createBudgetCompletionContext({
+  clientId: "client_murhotel",
+  workId: "work_menorca",
+  budgetId: "budget_murhotel",
+  clientName: "MURHOTEL SL",
+  contactName: "Alberto Ruiz",
+  billingClientName: "MURHOTEL SL",
+  workName: "Renovación de 25 baños en pequeño hotel en Menorca",
+  pendingFields: ["iva", "direccion_obra", "datos_cliente", "datos_fiscales"],
+  draftData: { amount: 60000 }
+});
+const murhotelParkedContext = {
+  ...murhotelContext,
+  activeTask: undefined,
+  parkedTask: { ...murhotelContext.activeTask, status: "aparcado" }
+};
 
 const cases = [
+  {
+    name: "saludo no bloquea contexto activo",
+    message: "Hola",
+    context: murhotelContext,
+    expected: { action: "answer_context", responseIncludes: "Hola", responseIncludes2: "MURHOTEL SL" }
+  },
+  {
+    name: "pregunta datos pendientes lista campos concretos",
+    message: "qué datos faltan?",
+    context: murhotelContext,
+    expected: { action: "answer_context", responseIncludes: "CIF de MURHOTEL SL", responseIncludes2: "Teléfono o email de Alberto Ruiz" }
+  },
+  {
+    name: "pregunta cliente distingue contacto y facturacion",
+    message: "como se llama el cliente?",
+    context: murhotelContext,
+    expected: { action: "answer_context", responseIncludes: "Contacto: Alberto Ruiz", responseIncludes2: "Cliente de facturación: MURHOTEL SL" }
+  },
+  {
+    name: "aparcar tarea activa",
+    message: "déjalo pendiente",
+    context: murhotelContext,
+    expected: { action: "park_task", activeStatus: undefined, parkedStatus: "aparcado" }
+  },
+  {
+    name: "nuevo chat limpia contexto activo sin borrar tarea",
+    message: "nuevo chat",
+    context: murhotelContext,
+    expected: { action: "clear_context", activeStatus: undefined, parkedStatus: "aparcado" }
+  },
+  {
+    name: "nuevo chat con tarea ya aparcada no cae a fallback",
+    message: "nuevo chat",
+    context: murhotelParkedContext,
+    expected: { action: "clear_context", activeStatus: undefined, parkedStatus: "aparcado", responseIncludes: "Mantengo aparcado" }
+  },
+  {
+    name: "volver a tarea aparcada",
+    message: "volver al presupuesto de MURHOTEL",
+    context: murhotelParkedContext,
+    expected: { action: "resume_task", activeStatus: "activo", parkedStatus: undefined, responseIncludes: "MURHOTEL SL" }
+  },
   {
     name: "usar obra con esa",
     message: "esa",
@@ -158,9 +216,16 @@ for (const item of cases) {
     reminderTime: result.entities?.reminderTime,
     clientName: result.entities?.clientName,
     amount: result.entities?.amount,
-    invoiceStatus: result.entities?.invoiceStatus
+    invoiceStatus: result.entities?.invoiceStatus,
+    activeStatus: result.context?.activeTask?.status,
+    parkedStatus: result.context?.parkedTask?.status,
+    responseIncludes: item.expected.responseIncludes ? result.response?.includes(item.expected.responseIncludes) : undefined,
+    responseIncludes2: item.expected.responseIncludes2 ? result.response?.includes(item.expected.responseIncludes2) : undefined
   };
-  const failed = Object.entries(item.expected).filter(([key, value]) => checks[key] !== value);
+  const failed = Object.entries(item.expected).filter(([key, value]) => {
+    if (key === "responseIncludes" || key === "responseIncludes2") return checks[key] !== true;
+    return checks[key] !== value;
+  });
   if (failed.length) {
     failures += 1;
     console.error("[chat-engine] FAIL", item.name);

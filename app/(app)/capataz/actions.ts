@@ -101,10 +101,11 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
 }
 
 async function runChatCommandCore(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult> {
-  debugChat("received", { text, context });
+  const enrichedContext = await enrichChatContext(context);
+  debugChat("received", { text, context: enrichedContext });
 
   const planStarted = nowMs();
-  const plan = planChatMessage(text, context);
+  const plan = planChatMessage(text, enrichedContext);
   await logChatPerf(trace, "local:plan", planStarted, plan.handled ? "ok" : "fallback", {
     action: plan.action,
     source: plan.source
@@ -116,7 +117,7 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
     return executeLocalChatPlan(text, plan);
   }
 
-  const aiResult = await runAIChatCommand(text, context, trace);
+  const aiResult = await runAIChatCommand(text, enrichedContext, trace);
   if (aiResult) return aiResult;
 
   await logChatPerf(trace, "route", trace.startedAt, "local_after_ai", { action: plan.action, source: plan.source });
@@ -130,10 +131,13 @@ async function executeLocalChatPlan(text: string, plan: ReturnType<typeof planCh
     return { handled: false, text: "" };
   }
 
-  if (plan.action === "ask_pending") {
+  if (["ask_pending", "answer_context", "park_task", "clear_context", "cancel_task", "resume_task"].includes(plan.action)) {
+    const response = plan.action === "answer_context"
+      ? await personalizeContextGreeting(plan.response ?? "")
+      : plan.response;
     return {
       handled: true,
-      text: plan.response ?? "Sigo con la acción anterior. Dime si quieres usar lo existente, crear algo nuevo o dejarlo pendiente.",
+      text: response ?? "Sigo con la acción anterior. Dime si quieres usar lo existente, crear algo nuevo o dejarlo pendiente.",
       context: plan.context
     };
   }
@@ -306,6 +310,108 @@ async function executeLocalChatPlan(text: string, plan: ReturnType<typeof planCh
   }
 
   return { handled: false, text: "" };
+}
+
+async function enrichChatContext(context: ChatCommandContext | null): Promise<ChatCommandContext | null> {
+  if (!context) return null;
+  const normalized = normalizeChatContext(context);
+  const task = normalized.activeTask ?? normalized.parkedTask;
+  if (!task) return normalized;
+
+  const ids = contextIds(normalized);
+  try {
+    if (ids.budgetId) {
+      const budget = await prisma.budget.findUnique({
+        where: { id: ids.budgetId },
+        include: { client: true, work: true }
+      });
+      if (!budget) return normalized;
+
+      const notes = `${budget.client.notas ?? ""}\n${budget.work?.notas ?? ""}\n${budget.observaciones ?? ""}`;
+      const contactName = task.contactName ?? extractContextContactName(notes);
+      const locality = extractContextLocality(notes);
+      const workName = task.workName ?? [budget.work?.titulo ?? budget.titulo, locality ? `en ${locality}` : null].filter(Boolean).join(" ");
+      const enrichedTask = {
+        ...task,
+        status: task.status ?? "activo" as const,
+        title: task.title ?? `el presupuesto de ${budget.client.nombre}`,
+        contactName,
+        billingClientName: task.billingClientName ?? budget.client.nombre,
+        workName,
+        pendingFields: task.pendingFields?.length ? task.pendingFields : inferBudgetPendingFields(budget),
+        draftData: {
+          ...(task.draftData ?? {}),
+          amount: typeof task.draftData?.amount === "number" ? task.draftData.amount : budget.total
+        }
+      };
+      return replaceContextTask(normalized, enrichedTask);
+    }
+
+    if (ids.invoiceId) {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: ids.invoiceId },
+        include: { client: true, work: true }
+      });
+      if (!invoice) return normalized;
+
+      const enrichedTask = {
+        ...task,
+        status: task.status ?? "activo" as const,
+        title: task.title ?? `la factura de ${invoice.client.nombre}`,
+        billingClientName: task.billingClientName ?? invoice.client.nombre,
+        workName: task.workName ?? invoice.work?.titulo ?? invoice.concepto,
+        pendingFields: task.pendingFields?.length ? task.pendingFields : ["datos_fiscales"],
+        draftData: {
+          ...(task.draftData ?? {}),
+          amount: typeof task.draftData?.amount === "number" ? task.draftData.amount : invoice.total
+        }
+      };
+      return replaceContextTask(normalized, enrichedTask);
+    }
+  } catch (error) {
+    debugChat("context_enrich_error", error instanceof Error ? { message: error.message } : error);
+  }
+
+  return normalized;
+}
+
+function replaceContextTask(context: ChatCommandContext, task: NonNullable<ChatCommandContext["activeTask"]>): ChatCommandContext {
+  if (context.activeTask) return { ...context, activeTask: task };
+  if (context.parkedTask) return { ...context, parkedTask: task };
+  return context;
+}
+
+async function personalizeContextGreeting(response: string) {
+  if (!response.startsWith("Hola.")) return response;
+  try {
+    const profile = await prisma.usuarioPerfil.findFirst({
+      select: { nombrePreferido: true, nombre: true }
+    });
+    const name = (profile?.nombrePreferido ?? profile?.nombre ?? "").trim();
+    return name ? response.replace(/^Hola\./, `Hola ${name}.`) : response;
+  } catch {
+    return response;
+  }
+}
+
+function inferBudgetPendingFields(budget: { iva: number; client: { telefono: string | null; email: string | null; direccion: string | null; notas: string | null }; work: { direccion: string | null } | null }) {
+  const fields = new Set<string>();
+  const notes = budget.client.notas ?? "";
+  if (!/(NIF|CIF|Dirección fiscal)/i.test(notes) || !budget.client.direccion || budget.client.direccion === "Dirección pendiente") fields.add("datos_fiscales");
+  if (!budget.work?.direccion || budget.work.direccion === "Dirección pendiente") fields.add("direccion_obra");
+  if (!budget.iva) fields.add("iva");
+  if (!budget.client.telefono || budget.client.telefono === "Pendiente" || !budget.client.email) fields.add("datos_cliente");
+  return [...fields];
+}
+
+function extractContextContactName(text: string) {
+  const match = text.match(/Contacto operativo:\s*([^.\\n]+)/i) ?? text.match(/Contacto:\s*([^.\\n]+)/i);
+  return match?.[1]?.trim();
+}
+
+function extractContextLocality(text: string) {
+  const match = text.match(/Localidad:\s*([^.\\n]+)/i);
+  return match?.[1]?.trim();
 }
 
 type BudgetDraftOptions = {
@@ -641,6 +747,10 @@ async function createBudgetDraftFromAI(ai: CapatazAIResult): Promise<ChatCommand
     workId: result.work.id,
     budgetId: result.budget.id,
     clientName: result.client.nombre,
+    contactName: entities.contacto_nombre,
+    billingClientName: result.client.nombre,
+    workName: `${result.work.titulo}${entities.obra_localidad ? ` en ${entities.obra_localidad}` : ""}`,
+    amount,
     ivaMode,
     pendingFields
   });
@@ -1069,6 +1179,9 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
     workId: result.work.id,
     budgetId: result.budget.id,
     clientName: result.client.nombre,
+    billingClientName: result.client.nombre,
+    workName: result.work.titulo,
+    amount: command.amount,
     ivaMode: command.ivaMode,
     pendingFields: budgetPendingFields(command.ivaMode, options.followUp)
   });
@@ -2286,6 +2399,10 @@ function pendingBudgetContext({
   workId,
   budgetId,
   clientName,
+  contactName,
+  billingClientName,
+  workName,
+  amount,
   ivaMode,
   pendingFields
 }: {
@@ -2293,6 +2410,10 @@ function pendingBudgetContext({
   workId: string;
   budgetId: string;
   clientName: string;
+  contactName?: string;
+  billingClientName?: string;
+  workName?: string;
+  amount?: number;
   ivaMode: IvaMode;
   pendingFields?: string[];
 }): ChatCommandContext {
@@ -2301,7 +2422,11 @@ function pendingBudgetContext({
     workId,
     budgetId,
     clientName,
-    pendingFields: pendingFields ?? (ivaMode === "unknown" ? ["iva", "direccion_obra", "datos_cliente"] : ["direccion_obra", "datos_cliente"])
+    contactName,
+    billingClientName,
+    workName,
+    pendingFields: pendingFields ?? (ivaMode === "unknown" ? ["iva", "direccion_obra", "datos_cliente"] : ["direccion_obra", "datos_cliente"]),
+    draftData: amount ? { amount } : undefined
   });
 }
 

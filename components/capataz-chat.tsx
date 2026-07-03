@@ -307,7 +307,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
       const stored = window.localStorage.getItem(chatContextStorageKey);
       if (!stored) return;
       const parsed = JSON.parse(stored) as ChatCommandContext & { type?: string; fechaCreacion?: string };
-      if (parsed?.activeTask || parsed?.lastDocumentType || parsed?.type) setChatContext(parsed);
+      if (parsed?.activeTask || parsed?.parkedTask || parsed?.lastDocumentType || parsed?.type) setChatContext(parsed);
     } catch {
       window.localStorage.removeItem(chatContextStorageKey);
     }
@@ -377,6 +377,18 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowCreate((open) => !open)}>
           Crear algo rápido
+        </button>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "nuevo chat")} disabled={isSending}>
+          Nueva conversación
+        </button>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "qué datos faltan?")} disabled={isSending}>
+          Ver pendientes
+        </button>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "volver al presupuesto")} disabled={isSending}>
+          Continuar tarea
+        </button>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "déjalo pendiente")} disabled={isSending}>
+          Aparcar tarea
         </button>
       </div>
 
@@ -476,6 +488,10 @@ export function CapatazChat({ data }: { data: ChatData }) {
 function progressStepsForMessage(text: string) {
   const normalized = normalize(text);
   const shortReply = /^(si|sí|no|vale|ok|esa|ese|la misma|el mismo|con iva|mas iva|más iva|hazlo)$/i.test(normalized.trim());
+  const contextQuestion = /(hola|que datos|qué datos|que falta|qué falta|como se llama el cliente|cómo se llama el cliente|nuevo chat|nueva conversacion|nueva conversación|dejalo pendiente|déjalo pendiente|aparcalo|apárcalo|volver al|sigue con|resumen)/i.test(normalized);
+  if (contextQuestion) {
+    return ["Leyendo tu mensaje...", "Revisando contexto...", "Preparando respuesta..."];
+  }
   if (shortReply) {
     return ["Leyendo tu respuesta...", "Aplicando contexto...", "Guardando cambios..."];
   }
