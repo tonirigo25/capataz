@@ -175,7 +175,8 @@ function drawInfoCards(page: PdfPage, y: number, input: ProfessionalDocumentPdf)
 function drawSummary(page: PdfPage, y: number, input: ProfessionalDocumentPdf) {
   rect(page, margin, y - 66, pageWidth - margin * 2, 66, [0.97, 0.98, 0.99]);
   strokeRect(page, margin, y - 66, pageWidth - margin * 2, 66, [0.86, 0.88, 0.91]);
-  text(page, margin + 14, y - 20, input.title, 13, true, [0.12, 0.14, 0.16]);
+  const title = clientVisibleText(input.title) || defaultDocumentTitle(input.kind);
+  text(page, margin + 14, y - 20, title, 13, true, [0.12, 0.14, 0.16]);
   const workTitle = clientVisibleText(input.work?.title);
   const workAddress = clientVisibleText(input.work?.address);
   const clientAddress = clientVisibleText(input.client.address);
@@ -215,10 +216,12 @@ function drawLinesTable(
   }
 
   header(page);
-  const lines = input.lines.length ? input.lines : [{ descripcion: input.title, cantidad: 1, unidad: "servicio", precioUnitario: input.totals.base, total: input.totals.base }];
+  const title = clientVisibleText(input.title) || defaultDocumentTitle(input.kind);
+  const lines = input.lines.length ? input.lines : [{ descripcion: title, cantidad: 1, unidad: "servicio", precioUnitario: input.totals.base, total: input.totals.base }];
 
   for (const line of lines) {
-    const description = line.categoria ? `${line.descripcion} (${line.categoria})` : line.descripcion;
+    const lineDescription = clientVisibleText(line.descripcion) || title;
+    const description = line.categoria ? `${lineDescription} (${line.categoria})` : lineDescription;
     const wrapped = wrap(description, 45);
     const rowHeight = Math.max(28, wrapped.length * 11 + 12);
     ensure(rowHeight + 36);
@@ -380,10 +383,15 @@ function clientVisibleText(value: string | null | undefined) {
     "direccion fiscal pendiente",
     "contacto pendiente",
     "nif/cif pendiente",
-    "datos pendientes"
+    "datos pendientes",
+    "trabajo pendiente de definir"
   ];
   if (normalized === "pendiente" || normalized === "sin informar" || normalized === "no informado") return "";
   return forbidden.some((item) => normalized.includes(item)) ? "" : textValue;
+}
+
+function defaultDocumentTitle(kind: DocumentTemplateKind) {
+  return kind === "invoice" ? "Trabajos realizados" : "Trabajos presupuestados";
 }
 
 function contactLines(value: string | null | undefined) {
