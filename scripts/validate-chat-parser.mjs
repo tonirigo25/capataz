@@ -97,6 +97,22 @@ const followUpCases = [
       ivaMode: "plus",
       workAddress: "Calle Mayor 12"
     }
+  },
+  {
+    text: "b82837238 Calle francesc Frontera n13 3A. La obra es en florencio n13, seran 60 mil euros + IVA",
+    expected: {
+      useful: true,
+      ivaMode: "plus",
+      fiscalAddress: "Calle Francesc Frontera N13 3a",
+      workAddress: "Florencio N13",
+      nif: "B82837238"
+    }
+  },
+  {
+    text: "el cif y la direccion fiscal ya te lo he dado",
+    expected: {
+      useful: false
+    }
   }
 ];
 

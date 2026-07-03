@@ -32,6 +32,7 @@ export type ParsedBudgetFollowUp = {
   phone?: string;
   email?: string;
   nif?: string;
+  fiscalAddress?: string;
   leavePending?: boolean;
   wantsPdf?: boolean;
 };
@@ -150,6 +151,7 @@ export function parseBudgetFollowUp(text: string): ParsedBudgetFollowUp {
   const normalized = normalizeText(text);
   const result: ParsedBudgetFollowUp = { useful: false };
   const ivaMode = extractIvaMode(normalized);
+  const fiscalAddress = extractFiscalAddress(text, normalized);
   const workAddress = extractWorkAddress(text, normalized);
   const phone = extractPhone(text);
   const email = extractEmail(text);
@@ -158,6 +160,7 @@ export function parseBudgetFollowUp(text: string): ParsedBudgetFollowUp {
   const wantsPdf = looksLikePdfRequest(normalized);
 
   if (ivaMode !== "unknown") result.ivaMode = ivaMode;
+  if (fiscalAddress) result.fiscalAddress = fiscalAddress;
   if (workAddress) result.workAddress = workAddress;
   if (phone) result.phone = phone;
   if (email) result.email = email;
@@ -165,7 +168,7 @@ export function parseBudgetFollowUp(text: string): ParsedBudgetFollowUp {
   if (leavePending) result.leavePending = true;
   if (wantsPdf) result.wantsPdf = true;
 
-  result.useful = Boolean(result.ivaMode || result.workAddress || result.phone || result.email || result.nif || result.leavePending || result.wantsPdf);
+  result.useful = Boolean(result.ivaMode || result.workAddress || result.fiscalAddress || result.phone || result.email || result.nif || result.leavePending || result.wantsPdf);
   return result;
 }
 
@@ -479,7 +482,7 @@ function extractWorkText(original: string, normalized: string, document: "budget
 }
 
 function extractIvaMode(normalized: string): IvaMode {
-  if (/(mas iva|más iva|iva aparte|iva a parte|anade el iva|añade el iva|sumale iva|sumale el iva)/.test(normalized)) return "plus";
+  if (/(mas iva|más iva|\+ iva|iva aparte|iva a parte|anade el iva|añade el iva|sumale iva|sumale el iva)/.test(normalized)) return "plus";
   if (/(sin iva|exento de iva|no lleva iva)/.test(normalized)) return "none";
   if (/(con iva incluido|iva incluido|incluye iva|con iva|va con iva|son con iva|los \d[\d.,]* son con iva)/.test(normalized)) return "included";
   return "unknown";
@@ -487,29 +490,50 @@ function extractIvaMode(normalized: string): IvaMode {
 
 function extractWorkAddress(original: string, normalized: string) {
   const patterns = [
-    /(?:la\s+obra\s+es\s+en|obra\s+en|es\s+en|en)\s+(.+?)(?:\.|,?\s+(?:telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)\b|$)/i,
-    /(?:direccion|dirección)\s+(?:de\s+la\s+obra\s+)?(.+?)(?:\.|,?\s+(?:telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)\b|$)/i
+    /(?:la\s+obra\s+(?:es|será|sera)\s+en|obra\s+(?:es\s+)?en|direccion\s+de\s+la\s+obra|dirección\s+de\s+la\s+obra)\s+(.+?)(?:\.|,?\s+(?:sera|será|seran|serán|son|importe|por|telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)\b|$)/i,
+    /(?:es\s+en|en)\s+(.+?)\s+(?:la\s+obra|obra)(?:\.|,|$)/i,
+    /(?:es\s+en|en)\s+((?:calle|c\/|avda\.?|avenida|plaza|paseo|camino|carretera|ctra\.?|ronda)\s+.+?)(?:\.|,?\s+(?:sera|será|seran|serán|son|importe|por|telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)|$)/i
   ];
 
   for (const pattern of patterns) {
     const match = original.match(pattern);
     if (match?.[1]) {
-      const cleaned = cleanAddress(match[1]);
+      const cleaned = cleanWorkAddress(match[1]);
       if (cleaned) return cleaned;
     }
   }
 
-  const normalizedMatch = normalized.match(/(?:la obra es en|obra en|es en|en) (.+?)(?: telefono| tel | movil| email| nif| cif|$)/);
-  return normalizedMatch?.[1] ? cleanAddress(normalizedMatch[1]) : undefined;
+  const normalizedMatch = normalized.match(/(?:la obra (?:es|sera) en|obra (?:es )?en|direccion de la obra|direccion de obra) (.+?)(?: sera| seran| son| importe| por| telefono| tel | movil| email| nif| cif|$)/);
+  return normalizedMatch?.[1] ? cleanWorkAddress(normalizedMatch[1]) : undefined;
 }
 
-function cleanAddress(value: string) {
+function extractFiscalAddress(original: string, normalized: string) {
+  const explicit = original.match(/(?:direccion\s+fiscal|dirección\s+fiscal|domicilio\s+fiscal)(?:\s+(?:es|:))?\s+(.+?)(?:\.|,?\s+(?:la\s+obra|obra\s+en|direccion\s+de\s+la\s+obra|dirección\s+de\s+la\s+obra|telefono|teléfono|tel|movil|móvil|email|correo|nif|cif)\b|$)/i)?.[1];
+  const afterTaxId = original.match(/\b(?:nif|cif)?\s*([A-Z]\d{7}[A-Z0-9]|\d{8}[A-Z]|[XYZ]\d{7}[A-Z])\b\s+(.+?)(?:\.|,?\s+(?:la\s+obra|obra\s+en|direccion\s+de\s+la\s+obra|dirección\s+de\s+la\s+obra|telefono|teléfono|tel|movil|móvil|email|correo)\b|$)/i)?.[2];
+  const candidate = explicit ?? afterTaxId;
+  if (!candidate) return undefined;
+  return cleanFiscalAddress(candidate, normalized);
+}
+
+function cleanWorkAddress(value: string) {
+  return cleanAddress(value, "work");
+}
+
+function cleanFiscalAddress(value: string, fullNormalized = "") {
+  return cleanAddress(value, "fiscal", fullNormalized);
+}
+
+function cleanAddress(value: string, kind: "work" | "fiscal" = "work", fullNormalized = "") {
   const cleaned = value
-    .replace(/\b(la obra|obra|direccion|dirección)\b/gi, " ")
+    .replace(/\b(la obra|obra|direccion|dirección|fiscal|domicilio)\b/gi, " ")
+    .replace(/\b(?:sera|será|seran|serán|son)\s+\d[\d.,]*(?:\s+mil)?\s*(?:euros|eur|€)?\b.*$/i, " ")
     .replace(/\s+/g, " ")
     .replace(/^[,.\s]+|[,.\s]+$/g, "")
     .trim();
-  if (!cleaned || stopWords.has(normalizeText(cleaned))) return undefined;
+  const candidate = normalizeText(cleaned);
+  if (!cleaned || stopWords.has(candidate)) return undefined;
+  if (/(ya te lo he dado|te lo he dado|ya lo he dado|lo tienes|ya esta|ya está)/.test(candidate) || /(ya te lo he dado|te lo he dado|ya lo he dado|lo tienes)/.test(fullNormalized)) return undefined;
+  if (kind === "fiscal" && /^(ya|te|lo|he|dado|falta|faltaba|direccion|fiscal)\b/.test(candidate)) return undefined;
   return titleCase(cleaned);
 }
 
@@ -529,8 +553,11 @@ function extractEmail(text: string) {
 }
 
 function extractNif(text: string) {
-  const match = text.match(/\b(?:nif|cif)\s*(?:es|:)?\s*([A-Z0-9][A-Z0-9 .-]{6,14}[A-Z0-9])\b/i);
-  return match?.[1]?.replace(/[\s.-]/g, "").toUpperCase();
+  const taxIdPattern = "([A-Z]\\d{7}[A-Z0-9]|\\d{8}[A-Z]|[XYZ]\\d{7}[A-Z])";
+  const explicit = text.match(new RegExp(`\\b(?:nif|cif)\\s*(?:es|:)?\\s*${taxIdPattern}\\b`, "i"));
+  const bare = text.match(new RegExp(`\\b${taxIdPattern}\\b`, "i"));
+  const raw = explicit?.[1] ?? bare?.[1];
+  return raw?.replace(/[\s.-]/g, "").toUpperCase();
 }
 
 function findMoneyIndex(text: string) {
@@ -576,6 +603,8 @@ function extractScope(workTitle: string) {
 }
 
 function extractMoneyAmount(text: string) {
+  const thousands = text.match(/\b(\d[\d.,]*)\s+mil(?:\s*(?:euros|eur|€))?\b/i);
+  if (thousands && !isTimeLikeNumber(text, thousands.index ?? 0, thousands[1])) return parseSpanishNumber(thousands[1]) * 1000;
   const match = firstMoneyMatch(text);
   if (!match) return null;
   return parseSpanishNumber(match.value);

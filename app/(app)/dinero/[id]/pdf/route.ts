@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { getAppMode } from "@/lib/app-mode";
 import { parseBudgetLines } from "@/lib/budget-lines";
 import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf";
 import { fillTemplatePlaceholders } from "@/lib/document-templates";
@@ -80,7 +79,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     },
     paymentMethod: invoice.metodoPago ?? "transferencia",
     observations: paymentSummary(invoice),
-    watermark: getAppMode() === "demo" ? "Demo Capataz" : null
+    watermark: null
   });
   return new Response(pdf, {
     headers: {

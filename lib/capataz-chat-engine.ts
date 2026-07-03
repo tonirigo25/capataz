@@ -41,6 +41,7 @@ export type ChatTaskStatus = "activo" | "pendiente" | "aparcado" | "completado" 
 export type ChatPendingFieldDetail = {
   key: string;
   label: string;
+  status?: "pending" | "completed" | "optional";
   requiredFor?: string;
 };
 
@@ -58,11 +59,18 @@ export type ChatActiveTask = {
   billingClientName?: string;
   workName?: string;
   clienteId?: string;
+  contactoId?: string;
+  empresaFacturacionId?: string;
   obraId?: string;
   presupuestoId?: string;
   facturaId?: string;
+  visitaId?: string;
+  seguimientoId?: string;
+  importe?: number;
+  iva?: number | "included" | "plus" | "none" | "unknown";
   pendingFields?: string[];
   pendingFieldDetails?: ChatPendingFieldDetail[];
+  availableActions?: string[];
   pendingDecision?: {
     type: ChatDecisionType;
     options?: ChatDecisionOption[];
@@ -442,7 +450,40 @@ export function resolveContextMetaQuestion(message: string, rawContext: ChatCont
     return null;
   }
 
-  if (!task) return null;
+  if (!task) {
+    if (asksPdfPreview(normalized) && context.lastDocumentType && (context.lastBudgetId || context.lastInvoiceId)) {
+      return {
+        handled: true,
+        source: "context",
+        action: "generate_pdf",
+        entities,
+        context: touchContext(context)
+      };
+    }
+    return null;
+  }
+
+  if (asksPdfPreview(normalized) && (task.presupuestoId || task.facturaId || context.lastBudgetId || context.lastInvoiceId)) {
+    const resumed = activeTask ? activeTask : { ...task, status: "activo" as const, updatedAt: now() };
+    return {
+      handled: true,
+      source: "context",
+      action: "generate_pdf",
+      entities,
+      context: activeTask ? touchContext(context) : withTask({ ...context, parkedTask: undefined }, resumed)
+    };
+  }
+
+  if (!activeTask && parkedTask && hasUsefulEntities(entities) && !asksPendingFields(normalized) && !asksActiveSummary(normalized)) {
+    const resumed = { ...parkedTask, status: "activo" as const, pendingFields: mergePendingFields(parkedTask.pendingFields, entities), updatedAt: now() };
+    const nextContext = withTask({ ...context, activeTask: resumed, parkedTask: undefined }, resumed);
+    if (resumed.type === "complete_budget" || resumed.type === "create_budget") {
+      return { handled: true, source: "context", action: "complete_budget", entities, context: nextContext };
+    }
+    if (resumed.type === "complete_invoice" || resumed.type === "create_invoice") {
+      return { handled: true, source: "context", action: "complete_invoice", entities, context: nextContext };
+    }
+  }
 
   if (asksPendingFields(normalized)) {
     return {
@@ -463,6 +504,28 @@ export function resolveContextMetaQuestion(message: string, rawContext: ChatCont
       entities,
       context: activeTask ? touchContext(context) : context,
       response: answerClientIdentity(task)
+    };
+  }
+
+  if (asksAmount(normalized)) {
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context: activeTask ? touchContext(context) : context,
+      response: answerAmount(task)
+    };
+  }
+
+  if (asksWorkInfo(normalized)) {
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context: activeTask ? touchContext(context) : context,
+      response: answerWorkInfo(task)
     };
   }
 
@@ -954,11 +1017,12 @@ export function draftBudgetCommandFromContext(context: ChatContext): ParsedBudge
 
 export function summarizeActiveTask(task: ChatActiveTask) {
   const subject = taskTitle(task);
+  const amount = taskAmount(task);
   const details = [
     task.contactName ? `Contacto: ${task.contactName}.` : null,
     task.billingClientName ? `Cliente de facturación: ${task.billingClientName}.` : null,
     task.workName ? `Obra: ${task.workName}.` : null,
-    typeof task.draftData?.amount === "number" ? `Importe: ${formatEngineEuros(task.draftData.amount)}.` : null,
+    typeof amount === "number" ? `Importe: ${formatEngineEuros(amount)}.` : null,
     task.status === "aparcado" ? "Estado: aparcado." : null
   ].filter(Boolean);
 
@@ -987,6 +1051,28 @@ export function answerClientIdentity(task: ChatActiveTask) {
   return `Todavía no tengo claro el cliente de ${taskTitle(task)}. Si quieres, dime el contacto y la empresa de facturación.`;
 }
 
+export function answerAmount(task: ChatActiveTask) {
+  const amount = taskAmount(task);
+  if (typeof amount !== "number") return `No tengo un importe confirmado guardado para ${taskTitle(task)}.`;
+  const iva = typeof task.iva === "number"
+    ? ` IVA registrado: ${formatPercent(task.iva)}.`
+    : task.iva === "included"
+      ? " Tengo marcado que el IVA va incluido."
+      : task.iva === "plus"
+        ? " Tengo marcado que es más IVA."
+        : "";
+  return `El importe que tengo guardado para ${taskTitle(task)} es ${formatEngineEuros(amount)}.${iva}`;
+}
+
+export function answerWorkInfo(task: ChatActiveTask) {
+  const work = task.workName || (typeof task.draftData?.workTitle === "string" ? task.draftData.workTitle : "");
+  const address = typeof task.draftData?.workAddress === "string" ? task.draftData.workAddress : "";
+  if (work && address) return `La obra que tengo para ${taskTitle(task)} es ${work}, en ${address}.`;
+  if (work) return `La obra que tengo para ${taskTitle(task)} es ${work}.`;
+  if (address) return `La dirección de obra que tengo para ${taskTitle(task)} es ${address}.`;
+  return `Todavía no tengo una obra o dirección clara guardada para ${taskTitle(task)}.`;
+}
+
 function shortPendingQuestion(task: ChatActiveTask) {
   const fields = readablePendingFields(task);
   if (!fields.length) return "¿Quieres completarlo, generar un PDF o seguir con otra cosa?";
@@ -1004,7 +1090,7 @@ function readablePendingFields(task: ChatActiveTask) {
   const pending = orderedPendingFields(task.pendingFields ?? []);
   const billingName = task.billingClientName ?? taskTitleName(task) ?? "cliente de facturación";
   const contactName = task.contactName ?? "contacto";
-  const amount = typeof task.draftData?.amount === "number" ? formatEngineEuros(task.draftData.amount) : "el importe";
+  const amount = typeof taskAmount(task) === "number" ? formatEngineEuros(taskAmount(task) as number) : "el importe";
   const workName = task.workName ?? "";
   const location = extractKnownLocation(task);
   const workAddressLabel = workName.toLowerCase().includes("hotel") || location
@@ -1085,6 +1171,17 @@ function formatEngineEuros(amount: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount);
 }
 
+function formatPercent(value: number) {
+  return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value)}%`;
+}
+
+function taskAmount(task: ChatActiveTask) {
+  if (typeof task.importe === "number") return task.importe;
+  if (typeof task.draftData?.amount === "number") return task.draftData.amount;
+  if (typeof task.draftData?.total === "number") return task.draftData.total;
+  return undefined;
+}
+
 function joinNatural(items: string[]) {
   if (items.length <= 1) return items[0] ?? "";
   if (items.length === 2) return `${items[0]} y ${items[1]}`;
@@ -1096,7 +1193,7 @@ function isGreeting(normalized: string) {
 }
 
 function asksPendingFields(normalized: string) {
-  return /(que datos faltan|que datos\??|que falta|dime lo que falta|que tengo pendiente|que necesitas|que hace falta|datos pendientes|faltantes|pendiente para terminar|para terminarlo)/.test(normalized);
+  return /(que datos faltan|que datos\??|que falta|dime lo que falta|dime los datos|dimelos|dímelos|dime cuales|dime cuáles|cuales son|cuáles son|que tengo pendiente|que necesitas|que hace falta|datos pendientes|faltantes|pendiente para terminar|para terminarlo)/.test(normalized);
 }
 
 function asksClientIdentity(normalized: string) {
@@ -1104,7 +1201,19 @@ function asksClientIdentity(normalized: string) {
 }
 
 function asksActiveSummary(normalized: string) {
-  return /(que teniamos pendiente|qué teníamos pendiente|resumen de esto|resumeme esto|resume esto|que era esto|en que estabamos|en qué estábamos|que tengo abierto|tarea pendiente)/.test(normalized);
+  return /(que teniamos pendiente|qué teníamos pendiente|resumen|resumen de esto|resumeme esto|resúmeme esto|resume esto|que era esto|en que estabamos|en qué estábamos|que tengo abierto|tarea pendiente)/.test(normalized);
+}
+
+function asksAmount(normalized: string) {
+  return /(cuanto era|cuánto era|cuanto era el importe|cuál era el importe|cual era el importe|que importe|qué importe|importe guardado|cuanto costaba|cuánto costaba|por cuanto era|por cuánto era)/.test(normalized);
+}
+
+function asksWorkInfo(normalized: string) {
+  return /(que obra era|qué obra era|donde era|dónde era|direccion de la obra|dirección de la obra|ubicacion|ubicación|que trabajo era|qué trabajo era)/.test(normalized);
+}
+
+function asksPdfPreview(normalized: string) {
+  return /^(quiero\s+)?(verlo|verlo aqui|verlo aquí|ver aqui|ver aquí|abrirlo|mostrarlo|muestralo|muéstralo|enseñamelo|enséñamelo)(\s+por aqui|\s+por aquí)?[.!?]*$/.test(normalized);
 }
 
 function wantsParkTask(normalized: string) {
@@ -1196,7 +1305,11 @@ function mergePendingFields(fields: string[] | undefined, entities: ChatEntities
   const next = new Set(fields ?? []);
   if (entities.ivaMode) next.delete("iva");
   if (entities.workAddress) next.delete("direccion_obra");
-  if (entities.phone || entities.email || entities.nif || entities.clientName) next.delete("datos_cliente");
+  if (entities.phone || entities.email || entities.clientName) next.delete("datos_cliente");
+  if (entities.nif || entities.fiscalAddress) {
+    next.delete("datos_cliente");
+    if (entities.nif && entities.fiscalAddress) next.delete("datos_fiscales");
+  }
   return [...next];
 }
 
@@ -1213,6 +1326,7 @@ function hasUsefulEntities(entities: ChatEntities) {
   return Boolean(
     entities.ivaMode ||
     entities.workAddress ||
+    entities.fiscalAddress ||
     entities.phone ||
     entities.email ||
     entities.nif ||
@@ -1295,7 +1409,7 @@ function extractClientReference(message: string) {
     /(?:visita|reunion|reunión|llamada)\s+con\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i,
     /\bcon\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)(?=\s+(?:referente|sobre|por|para|a\s+las|hemos|y|,|\.|$))/i,
     /cliente\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-    /(?:para|a)\s+(?!la\b|el\b|pagada\b|cobrada\b)([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i
+    /\b(?:para|a)\s+(?!la\b|el\b|obra\b|direccion\b|dirección\b|fiscal\b|nif\b|cif\b|pagada\b|cobrada\b)([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i
   ];
 
   for (const pattern of patterns) {
@@ -1307,6 +1421,11 @@ function extractClientReference(message: string) {
 }
 
 function extractMoneyAmount(text: string) {
+  const thousands = text.match(/\b(\d[\d.,]*)\s+mil(?:\s*(?:euros|eur|€))?\b/i);
+  if (thousands && !isTimeLikeNumber(text, thousands.index ?? 0, thousands[1])) {
+    const base = parseEngineNumber(thousands[1]);
+    return Number.isFinite(base) ? base * 1000 : null;
+  }
   const pattern = /(\d[\d.,]*)(?:\s*(?:euros|eur|€))?/gi;
   let cleaned: string | null = null;
   for (const match of text.matchAll(pattern)) {
@@ -1316,6 +1435,10 @@ function extractMoneyAmount(text: string) {
     break;
   }
   if (!cleaned) return null;
+  return parseEngineNumber(cleaned);
+}
+
+function parseEngineNumber(cleaned: string) {
   if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(cleaned)) return Number(cleaned.replace(/\./g, "").replace(",", "."));
   if (/^\d+[,.]\d{1,2}$/.test(cleaned)) return Number(cleaned.replace(",", "."));
   return Number(cleaned.replace(/[.,]/g, ""));

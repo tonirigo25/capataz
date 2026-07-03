@@ -368,7 +368,12 @@ function clientVisibleText(value: string | null | undefined) {
   const forbidden = [
     "creado desde chat",
     "creada desde chat",
+    "creado desde presupuesto",
+    "creada desde presupuesto",
+    "creado desde plantilla",
+    "creada desde plantilla",
     "revisar datos fiscales",
+    "revisar antes de enviar",
     "no enviar sin confirmacion",
     "sin pagos registrados",
     "documento interno",
@@ -384,7 +389,10 @@ function clientVisibleText(value: string | null | undefined) {
     "contacto pendiente",
     "nif/cif pendiente",
     "datos pendientes",
-    "trabajo pendiente de definir"
+    "trabajo pendiente de definir",
+    "preparada por capataz",
+    "preparado por capataz",
+    "provisional"
   ];
   if (normalized === "pendiente" || normalized === "sin informar" || normalized === "no informado") return "";
   return forbidden.some((item) => normalized.includes(item)) ? "" : textValue;

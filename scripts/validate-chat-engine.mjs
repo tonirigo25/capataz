@@ -70,6 +70,18 @@ const cases = [
     expected: { action: "answer_context", responseIncludes: "CIF de MURHOTEL SL", responseIncludes2: "Teléfono o email de Alberto Ruiz" }
   },
   {
+    name: "pronombre dimelos lista campos concretos",
+    message: "Dímelos",
+    context: murhotelContext,
+    expected: { action: "answer_context", responseIncludes: "CIF de MURHOTEL SL", responseIncludes2: "60.000" }
+  },
+  {
+    name: "pregunta importe conserva dato guardado",
+    message: "cuánto era?",
+    context: murhotelContext,
+    expected: { action: "answer_context", responseIncludes: "60.000" }
+  },
+  {
     name: "pregunta cliente distingue contacto y facturacion",
     message: "como se llama el cliente?",
     context: murhotelContext,
@@ -98,6 +110,30 @@ const cases = [
     message: "volver al presupuesto de MURHOTEL",
     context: murhotelParkedContext,
     expected: { action: "resume_task", activeStatus: "activo", parkedStatus: undefined, responseIncludes: "MURHOTEL SL" }
+  },
+  {
+    name: "completar tarea aparcada con datos fiscales no crea presupuesto nuevo",
+    message: "b82837238 Calle francesc Frontera n13 3A. La obra es en florencio n13, seran 60 mil euros + IVA",
+    context: murhotelParkedContext,
+    expected: { action: "complete_budget", activeStatus: "activo", parkedStatus: undefined, ivaMode: "plus", workAddress: "Florencio N13", amount: 60000 }
+  },
+  {
+    name: "frase ya te lo he dado no inventa nif ni direccion",
+    message: "el cif y la direccion fiscal ya te lo he dado",
+    context: murhotelContext,
+    expected: { action: "ask_pending", amount: undefined }
+  },
+  {
+    name: "quiero verlo aqui muestra pdf del ultimo documento",
+    message: "quiero verlo aqui",
+    context: createLastDocumentContext({
+      documentType: "budget",
+      documentId: "budget_murhotel",
+      clientId: "client_murhotel",
+      workId: "work_menorca",
+      clientName: "MURHOTEL SL"
+    }),
+    expected: { action: "generate_pdf" }
   },
   {
     name: "usar obra con esa",

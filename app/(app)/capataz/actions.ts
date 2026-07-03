@@ -20,7 +20,6 @@ import {
   type IvaMode,
   type ParsedActivityCommand,
   type ParsedBudgetCommand,
-  type ParsedBudgetFollowUp,
   type ParsedConvertBudgetCommand,
   type ParsedInvoiceCommand,
   type ParsedPdfCommand
@@ -58,7 +57,26 @@ export type ChatCommandResult = {
 export type ChatCommandOptions = {
   messageId?: string;
   idempotencyKey?: string;
+  conversationId?: string;
   clientStartedAt?: number;
+};
+
+export type ChatHistoryMessage = {
+  id: string;
+  role: "assistant" | "user" | "system";
+  text: string;
+  status: string;
+  createdAt: string;
+  metadata?: unknown;
+};
+
+export type ChatHistoryConversation = {
+  id: string;
+  title: string;
+  status: string;
+  updatedAt: string;
+  createdAt: string;
+  messages: ChatHistoryMessage[];
 };
 
 type ChatPerfTrace = {
@@ -339,6 +357,8 @@ async function enrichChatContext(context: ChatCommandContext | null): Promise<Ch
         billingClientName: task.billingClientName ?? budget.client.nombre,
         workName,
         pendingFields: task.pendingFields?.length ? task.pendingFields : inferBudgetPendingFields(budget),
+        importe: budget.total,
+        iva: budget.iva,
         draftData: {
           ...(task.draftData ?? {}),
           amount: typeof task.draftData?.amount === "number" ? task.draftData.amount : budget.total
@@ -361,6 +381,8 @@ async function enrichChatContext(context: ChatCommandContext | null): Promise<Ch
         billingClientName: task.billingClientName ?? invoice.client.nombre,
         workName: task.workName ?? invoice.work?.titulo ?? invoice.concepto,
         pendingFields: task.pendingFields?.length ? task.pendingFields : ["datos_fiscales"],
+        importe: invoice.total,
+        iva: invoice.iva,
         draftData: {
           ...(task.draftData ?? {}),
           amount: typeof task.draftData?.amount === "number" ? task.draftData.amount : invoice.total
@@ -1207,7 +1229,7 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
   };
 }
 
-async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ParsedBudgetFollowUp): Promise<ChatCommandResult> {
+async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEntities): Promise<ChatCommandResult> {
   const ids = contextIds(context);
   if (!ids.budgetId || !ids.clientId) {
     return { handled: true, text: "Tenía una acción pendiente, pero falta el identificador del presupuesto. Abre el presupuesto desde Documentos y edítalo manualmente.", clearContext: true };
@@ -1226,10 +1248,35 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
   const ivaPercent = company?.ivaDefecto ?? 21;
   const updates: string[] = [];
   const remaining = new Set(context.activeTask?.pendingFields ?? []);
+  let currentBudgetAmount = typeof context.activeTask?.draftData?.amount === "number"
+    ? context.activeTask.draftData.amount
+    : amountForIvaUpdate(budget.subtotal, budget.iva, budget.total, followUp.ivaMode ?? (budget.iva > 0 ? "plus" : "none"));
+  let currentIvaMode: IvaMode = followUp.ivaMode ?? (context.activeTask?.iva === "included" || context.activeTask?.iva === "plus" || context.activeTask?.iva === "none" ? context.activeTask.iva : budget.iva > 0 ? "plus" : "none");
 
   await prisma.$transaction(async (tx) => {
-    if (followUp.ivaMode) {
+    if (followUp.amount) {
+      currentBudgetAmount = followUp.amount;
+      currentIvaMode = followUp.ivaMode ?? currentIvaMode;
+      const totals = calculateChatDocumentTotals(currentBudgetAmount, currentIvaMode, ivaPercent);
+      const lines = retotalLines(parseBudgetLines(budget.partidas), budget.titulo, totals.subtotal);
+      await tx.budget.update({
+        where: { id: budget.id },
+        data: {
+          partidas: serializeBudgetLines(lines),
+          subtotal: totals.subtotal,
+          iva: totals.iva,
+          total: totals.total,
+          observaciones: appendNote(budget.observaciones, `Importe confirmado en Capataz: ${formatEuros(currentBudgetAmount)}${currentIvaMode === "plus" ? " + IVA" : currentIvaMode === "included" ? " IVA incluido" : ""}.`)
+        }
+      });
+      updates.push(`importe ${formatEuros(currentBudgetAmount)}${currentIvaMode === "plus" ? " + IVA" : currentIvaMode === "included" ? " IVA incluido" : ""}`);
+      if (followUp.ivaMode) remaining.delete("iva");
+    }
+
+    if (followUp.ivaMode && !followUp.amount) {
+      currentIvaMode = followUp.ivaMode;
       const basis = amountForIvaUpdate(budget.subtotal, budget.iva, budget.total, followUp.ivaMode);
+      currentBudgetAmount = basis;
       const totals = calculateChatDocumentTotals(basis, followUp.ivaMode, ivaPercent);
       const lines = retotalLines(parseBudgetLines(budget.partidas), budget.titulo, totals.subtotal);
       await tx.budget.update({
@@ -1258,7 +1305,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
       remaining.delete("direccion_obra");
     }
 
-    const clientData: { telefono?: string; email?: string; notas?: string; ultimaInteraccion: Date } = { ultimaInteraccion: new Date() };
+    const clientData: { telefono?: string; email?: string; direccion?: string; notas?: string; ultimaInteraccion: Date } = { ultimaInteraccion: new Date() };
     if (followUp.phone) {
       clientData.telefono = followUp.phone;
       updates.push(`teléfono del cliente ${followUp.phone}`);
@@ -1269,12 +1316,19 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
       updates.push(`email ${followUp.email}`);
       remaining.delete("datos_cliente");
     }
+    if (followUp.fiscalAddress) {
+      clientData.direccion = followUp.fiscalAddress;
+      updates.push(`dirección fiscal ${followUp.fiscalAddress}`);
+    }
     if (followUp.nif) {
       clientData.notas = appendNote(budget.client.notas, `NIF/CIF indicado en Capataz: ${followUp.nif}.`);
       updates.push(`NIF/CIF ${followUp.nif}`);
-      remaining.delete("datos_cliente");
     }
-    if (followUp.phone || followUp.email || followUp.nif) {
+    if (followUp.nif || followUp.fiscalAddress) {
+      remaining.delete("datos_cliente");
+      if (followUp.nif && followUp.fiscalAddress) remaining.delete("datos_fiscales");
+    }
+    if (followUp.phone || followUp.email || followUp.nif || followUp.fiscalAddress) {
       await tx.client.update({ where: { id: budget.clienteId }, data: clientData });
     }
   });
@@ -1291,7 +1345,11 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
         workId: budget.obraId ?? undefined,
         budgetId: budget.id,
         clientName: budget.client.nombre,
+        billingClientName: context.activeTask?.billingClientName ?? budget.client.nombre,
+        contactName: context.activeTask?.contactName,
+        workName: budget.work?.titulo ?? context.activeTask?.workName,
         pendingFields: [...remaining],
+        draftData: { ...(typeof context.activeTask?.draftData === "object" && context.activeTask.draftData ? context.activeTask.draftData : {}), amount: currentBudgetAmount },
         createdAt: context.activeTask?.createdAt
       })
     : latestDocumentContext("budget", budget.id, budget.clienteId, budget.obraId ?? undefined, budget.client.nombre);
@@ -1320,7 +1378,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: Parsed
       workId: budget.obraId ?? undefined,
       budgetId: budget.id
     },
-    text: `Perfecto, he actualizado el presupuesto de ${budget.client.nombre}: ${joinNatural(updates)}. Ya puedes revisarlo o generar el PDF.`
+    text: `Perfecto, he actualizado el presupuesto de ${budget.client.nombre}: ${joinNatural(updates)}. Ya puedes revisarlo o generar el PDF. No he enviado nada al cliente.`
   };
 }
 
@@ -1347,7 +1405,7 @@ async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatE
       updates.push(`obra en ${entities.workAddress}`);
     }
 
-    const clientData: { telefono?: string; email?: string; notas?: string; ultimaInteraccion: Date } = { ultimaInteraccion: new Date() };
+    const clientData: { telefono?: string; email?: string; direccion?: string; notas?: string; ultimaInteraccion: Date } = { ultimaInteraccion: new Date() };
     if (entities.phone) {
       clientData.telefono = entities.phone;
       updates.push(`teléfono ${entities.phone}`);
@@ -1356,11 +1414,15 @@ async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatE
       clientData.email = entities.email;
       updates.push(`email ${entities.email}`);
     }
+    if (entities.fiscalAddress) {
+      clientData.direccion = entities.fiscalAddress;
+      updates.push(`dirección fiscal ${entities.fiscalAddress}`);
+    }
     if (entities.nif) {
       clientData.notas = appendNote(invoice.client.notas, `NIF/CIF indicado en Capataz: ${entities.nif}.`);
       updates.push(`NIF/CIF ${entities.nif}`);
     }
-    if (entities.phone || entities.email || entities.nif) {
+    if (entities.phone || entities.email || entities.nif || entities.fiscalAddress) {
       await tx.client.update({ where: { id: invoice.clienteId }, data: clientData });
     }
   });
@@ -1759,7 +1821,9 @@ function pdfResult(kind: ChatDocumentKind, id: string, clientId?: string, workId
   return {
     handled: true,
     context: latestDocumentContext(kind, id, clientId, workId, clientName),
-    text: `PDF listo para revisar y descargar: ${path}. No he enviado nada al cliente.`
+    text: `PDF listo para revisar aquí: ${path}?preview=1
+Descarga directa: ${path}.
+No he enviado nada al cliente.`
   };
 }
 
@@ -1778,9 +1842,12 @@ function debugChat(step: string, payload: unknown) {
 
 async function persistIncomingChatMessage(text: string, context: ChatCommandContext | null, options: ChatCommandOptions) {
   const idempotencyKey = options.idempotencyKey ?? options.messageId;
+  const conversationId = options.conversationId || "default";
+  await ensureChatConversation(conversationId, text);
   if (!idempotencyKey) {
     const message = await prisma.chatMessage.create({
       data: {
+        conversationId,
         role: "user",
         content: text,
         status: "processing",
@@ -1802,6 +1869,7 @@ async function persistIncomingChatMessage(text: string, context: ChatCommandCont
     where: { idempotencyKey },
     create: {
       id: options.messageId,
+      conversationId,
       idempotencyKey,
       role: "user",
       content: text,
@@ -1831,6 +1899,8 @@ async function persistIncomingChatMessage(text: string, context: ChatCommandCont
 
 async function completeChatMessage(messageId: string | undefined, result: ChatCommandResult) {
   if (!messageId) return;
+  const sourceMessage = await prisma.chatMessage.findUnique({ where: { id: messageId }, select: { conversationId: true } });
+  const conversationId = sourceMessage?.conversationId ?? "default";
   const metadata = toJsonValue({
     result,
     completedAt: new Date().toISOString()
@@ -1843,7 +1913,7 @@ async function completeChatMessage(messageId: string | undefined, result: ChatCo
   if (result.text) {
     await prisma.chatMessage.create({
       data: {
-        conversationId: "default",
+        conversationId,
         role: "assistant",
         content: result.text,
         status: "completed",
@@ -1851,6 +1921,7 @@ async function completeChatMessage(messageId: string | undefined, result: ChatCo
       }
     });
   }
+  await updateConversationTitleAndTimestamp(conversationId, result.text);
 }
 
 async function failChatMessage(messageId: string | undefined, error: unknown) {
@@ -1865,6 +1936,118 @@ async function failChatMessage(messageId: string | undefined, error: unknown) {
       })
     }
   }).catch(() => undefined);
+}
+
+export async function loadChatConversations(includeArchived = false): Promise<ChatHistoryConversation[]> {
+  await ensureChatConversation("default", "Conversación principal");
+  const conversations = await prisma.chatConversation.findMany({
+    where: includeArchived ? undefined : { status: "active" },
+    orderBy: { updatedAt: "desc" },
+    take: 40,
+    include: {
+      messages: {
+        orderBy: { createdAt: "asc" },
+        take: 80
+      }
+    }
+  });
+
+  return conversations.map((conversation) => ({
+    id: conversation.id,
+    title: conversation.title,
+    status: conversation.status,
+    createdAt: conversation.createdAt.toISOString(),
+    updatedAt: conversation.updatedAt.toISOString(),
+    messages: conversation.messages
+      .filter((message) => message.role === "user" || message.role === "assistant" || message.role === "system")
+      .map((message) => ({
+        id: message.id,
+        role: message.role as "assistant" | "user" | "system",
+        text: message.content,
+        status: message.status,
+        createdAt: message.createdAt.toISOString(),
+        metadata: message.metadata ?? undefined
+      }))
+  }));
+}
+
+export async function createChatConversation(title = "Nueva conversación") {
+  const conversation = await prisma.chatConversation.create({
+    data: { title: cleanConversationTitle(title) || "Nueva conversación" }
+  });
+  revalidatePath("/capataz");
+  return {
+    id: conversation.id,
+    title: conversation.title,
+    status: conversation.status,
+    createdAt: conversation.createdAt.toISOString(),
+    updatedAt: conversation.updatedAt.toISOString(),
+    messages: [] as ChatHistoryMessage[]
+  } satisfies ChatHistoryConversation;
+}
+
+export async function renameChatConversation(conversationId: string, title: string) {
+  const nextTitle = cleanConversationTitle(title);
+  if (!nextTitle) return;
+  await prisma.chatConversation.update({ where: { id: conversationId }, data: { title: nextTitle } });
+  revalidatePath("/capataz");
+}
+
+export async function archiveChatConversation(conversationId: string) {
+  await prisma.chatConversation.update({ where: { id: conversationId }, data: { status: "archived" } });
+  revalidatePath("/capataz");
+}
+
+export async function deleteChatConversation(conversationId: string) {
+  await prisma.chatConversation.delete({ where: { id: conversationId } }).catch(() => undefined);
+  revalidatePath("/capataz");
+}
+
+async function ensureChatConversation(conversationId: string, firstText: string) {
+  const title = conversationId === "default" ? "Conversación principal" : titleFromUserMessage(firstText);
+  await prisma.chatConversation.upsert({
+    where: { id: conversationId },
+    create: { id: conversationId, title, status: "active" },
+    update: { updatedAt: new Date() }
+  }).catch(async () => {
+    await prisma.chatConversation.create({ data: { id: conversationId, title, status: "active" } }).catch(() => undefined);
+  });
+}
+
+async function updateConversationTitleAndTimestamp(conversationId: string, fallbackText: string) {
+  const conversation = await prisma.chatConversation.findUnique({ where: { id: conversationId }, select: { title: true } });
+  if (!conversation) return;
+  const generic = !conversation.title || conversation.title === "Nueva conversación" || conversation.title === "Conversación anterior";
+  const firstUserMessage = generic
+    ? await prisma.chatMessage.findFirst({ where: { conversationId, role: "user" }, orderBy: { createdAt: "asc" }, select: { content: true } })
+    : null;
+  await prisma.chatConversation.update({
+    where: { id: conversationId },
+    data: {
+      title: generic ? titleFromUserMessage(firstUserMessage?.content ?? fallbackText) : conversation.title,
+      updatedAt: new Date()
+    }
+  }).catch(() => undefined);
+}
+
+function titleFromUserMessage(text: string) {
+  const cleaned = cleanConversationTitle(text);
+  if (!cleaned) return "Nueva conversación";
+  const normalized = normalizeName(cleaned);
+  if (normalized.includes("presupuesto")) return compactTitle(cleaned, "Presupuesto");
+  if (normalized.includes("factura")) return compactTitle(cleaned, "Factura");
+  if (normalized.includes("visita") || normalized.includes("reunion") || normalized.includes("llamada")) return compactTitle(cleaned, "Visita");
+  if (normalized.includes("gasto") || normalized.includes("material")) return compactTitle(cleaned, "Gasto/material");
+  if (normalized.includes("pago") || normalized.includes("pagado")) return compactTitle(cleaned, "Pago");
+  return cleaned.slice(0, 58);
+}
+
+function compactTitle(text: string, prefix: string) {
+  return `${prefix} ${text.replace(/^(haz|crea|crear|creame|créame|hacer|apunta|registrar|registra)\s+/i, "").slice(0, 48)}`.trim();
+}
+
+function cleanConversationTitle(title: string) {
+  return title.replace(/\s+/g, " ").replace(/[\n\r\t]/g, " ").trim().slice(0, 80);
 }
 
 async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt: number, status: string, metadata?: Record<string, unknown>) {

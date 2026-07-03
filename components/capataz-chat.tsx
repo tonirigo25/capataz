@@ -12,14 +12,28 @@ import {
   CreditCard,
   FileText,
   Hammer,
+  History,
   MessageCircle,
+  Mic,
   PackagePlus,
+  Pencil,
   Send,
+  Square,
+  Trash2,
   UserPlus,
   UserRound
 } from "lucide-react";
 import { reprogramAgendaEvent, updateAgendaEventStatus } from "@/app/(app)/agenda/actions";
-import { runChatCommand, type ChatCommandContext } from "@/app/(app)/capataz/actions";
+import {
+  archiveChatConversation,
+  createChatConversation,
+  deleteChatConversation,
+  loadChatConversations,
+  renameChatConversation,
+  runChatCommand,
+  type ChatCommandContext,
+  type ChatHistoryConversation
+} from "@/app/(app)/capataz/actions";
 import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
 import { registerPayment } from "@/app/(app)/dinero/actions";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
@@ -226,6 +240,8 @@ type Message = {
   role: "assistant" | "user";
   text: string;
   card?: ActionCard;
+  status?: string;
+  retryText?: string;
 };
 
 type ProfileCardFields = Extract<ActionCard, { type: "user-profile" }>["profile"];
@@ -268,16 +284,17 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const [showExamples, setShowExamples] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [chatContext, setChatContext] = useState<ChatCommandContext | null>(null);
+  const [conversationId, setConversationId] = useState("default");
+  const [conversations, setConversations] = useState<ChatHistoryConversation[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<"idle" | "recording" | "transcribing" | "error">("idle");
+  const [voiceError, setVoiceError] = useState("");
   const inFlightRef = useRef(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "hello",
-      role: "assistant",
-      text: displayName
-        ? `Hola ${displayName}, dime qué necesitas y lo dejamos ordenado.`
-        : "Hola, soy Capataz. Puedo ayudarte con clientes, visitas, presupuestos, facturas, cobros y recordatorios. ¿Cómo te llamas?"
-    }
+    welcomeMessage(displayName)
   ]);
 
   const pendingDebt = useMemo(() => data.invoices.filter((invoice) => invoice.pendiente > 0), [data.invoices]);
@@ -313,6 +330,26 @@ export function CapatazChat({ data }: { data: ChatData }) {
     }
   }, []);
 
+  useEffect(() => {
+    refreshConversations();
+  }, []);
+
+  async function refreshConversations(nextSelectedId = conversationId) {
+    try {
+      const loaded = await loadChatConversations(false);
+      setConversations(loaded);
+      const selected = loaded.find((item) => item.id === nextSelectedId) ?? loaded[0];
+      if (selected) {
+        setConversationId(selected.id);
+        const restored = messagesFromConversation(selected, displayName);
+        if (restored.length) setMessages(restored);
+        persistChatContext(contextFromConversation(selected));
+      }
+    } catch {
+      // Si falla el historial, mantenemos vivo el chat actual en pantalla.
+    }
+  }
+
   function persistChatContext(nextContext: ChatCommandContext | null) {
     setChatContext(nextContext);
     try {
@@ -341,7 +378,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
     try {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", { text, chatContext });
-      const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, clientStartedAt: startedAt });
+      const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, conversationId, clientStartedAt: startedAt });
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
       const assistantMessage: Message = command.handled
         ? { id: crypto.randomUUID(), role: "assistant", text: command.text }
@@ -350,13 +387,16 @@ export function CapatazChat({ data }: { data: ChatData }) {
       if (command.clearContext) persistChatContext(null);
       else if (command.context !== undefined) persistChatContext(command.context);
       if (command.created) router.refresh();
+      refreshConversations(conversationId);
     } catch {
       setMessages((current) => [
         ...current,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: "No he podido guardar la acción ahora mismo. No he enviado nada al cliente. Revisa la conexión o crea el borrador desde + Añadir."
+          text: "No he podido guardar la acción ahora mismo. No he enviado nada al cliente. No se realizó ninguna acción nueva, salvo que el registro aparezca ya creado en la conversación. Puedes reintentar sin duplicar usando el mismo mensaje.",
+          status: "failed",
+          retryText: text
         }
       ]);
     } finally {
@@ -366,9 +406,133 @@ export function CapatazChat({ data }: { data: ChatData }) {
     }
   }
 
+  async function startNewConversation() {
+    const conversation = await createChatConversation("Nueva conversación");
+    setConversationId(conversation.id);
+    persistChatContext(null);
+    setMessages([welcomeMessage(displayName)]);
+    setShowHistory(false);
+    await refreshConversations(conversation.id);
+  }
+
+  function openConversation(conversation: ChatHistoryConversation) {
+    setConversationId(conversation.id);
+    setMessages(messagesFromConversation(conversation, displayName));
+    persistChatContext(contextFromConversation(conversation));
+    setShowHistory(false);
+  }
+
+  async function renameConversation(conversation: ChatHistoryConversation) {
+    const title = window.prompt("Nuevo título de la conversación", conversation.title);
+    if (!title?.trim()) return;
+    await renameChatConversation(conversation.id, title.trim());
+    await refreshConversations(conversation.id);
+  }
+
+  async function archiveConversation(conversation: ChatHistoryConversation) {
+    await archiveChatConversation(conversation.id);
+    if (conversation.id === conversationId) {
+      setConversationId("default");
+      setMessages([welcomeMessage(displayName)]);
+      persistChatContext(null);
+    }
+    await refreshConversations("default");
+  }
+
+  async function removeConversation(conversation: ChatHistoryConversation) {
+    const ok = window.confirm(`¿Borrar la conversación "${conversation.title}"? Esta acción no borra clientes, obras, presupuestos ni facturas.`);
+    if (!ok) return;
+    await deleteChatConversation(conversation.id);
+    if (conversation.id === conversationId) {
+      setConversationId("default");
+      setMessages([welcomeMessage(displayName)]);
+      persistChatContext(null);
+    }
+    await refreshConversations("default");
+  }
+
+  async function toggleDictation() {
+    if (voiceStatus === "recording") {
+      recorderRef.current?.stop();
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setVoiceStatus("error");
+      setVoiceError("Este navegador no permite grabar audio desde el chat. Revisa permisos de micrófono o usa otro navegador.");
+      return;
+    }
+
+    try {
+      setVoiceError("");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setVoiceStatus("transcribing");
+        try {
+          const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+          const formData = new FormData();
+          formData.append("audio", blob, "dictado.webm");
+          const response = await fetch("/api/capataz/transcribe", { method: "POST", body: formData });
+          const payload = await response.json().catch(() => null) as { text?: string; error?: string } | null;
+          if (!response.ok || !payload?.text) throw new Error(payload?.error || "No se pudo transcribir el audio.");
+          const transcribedText = payload.text.trim();
+          setInput((current) => current ? `${current} ${transcribedText}` : transcribedText);
+          setVoiceStatus("idle");
+        } catch (error) {
+          setVoiceStatus("error");
+          setVoiceError(error instanceof Error ? error.message : "No se pudo transcribir el audio.");
+        }
+      };
+      recorder.start();
+      setVoiceStatus("recording");
+    } catch {
+      setVoiceStatus("error");
+      setVoiceError("No tengo permiso para usar el micrófono. Activa el permiso del navegador y vuelve a intentarlo.");
+    }
+  }
+
   return (
-    <div className="flex min-h-[calc(100dvh-150px)] flex-col">
+    <div className="grid min-h-[calc(100dvh-150px)] gap-4 lg:grid-cols-[280px_1fr]">
+      <ChatHistoryPanel
+        conversations={conversations}
+        activeId={conversationId}
+        onNew={startNewConversation}
+        onOpen={openConversation}
+        onRename={renameConversation}
+        onArchive={archiveConversation}
+        onDelete={removeConversation}
+        className="hidden lg:block"
+      />
+
+      {showHistory ? (
+        <div className="fixed inset-0 z-50 bg-obra-ink/40 p-3 lg:hidden" onClick={() => setShowHistory(false)}>
+          <div onClick={(event) => event.stopPropagation()}>
+            <ChatHistoryPanel
+              conversations={conversations}
+              activeId={conversationId}
+              onNew={startNewConversation}
+              onOpen={openConversation}
+              onRename={renameConversation}
+              onArchive={archiveConversation}
+              onDelete={removeConversation}
+              className="max-h-[92dvh] overflow-y-auto"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col">
       <div className="mb-3 flex flex-wrap gap-2">
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs lg:hidden" onClick={() => setShowHistory(true)}>
+          <History size={16} /> Historial
+        </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowExamples((open) => !open)}>
           Ver ejemplos
         </button>
@@ -378,7 +542,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowCreate((open) => !open)}>
           Crear algo rápido
         </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "nuevo chat")} disabled={isSending}>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={startNewConversation} disabled={isSending}>
           Nueva conversación
         </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "qué datos faltan?")} disabled={isSending}>
@@ -443,8 +607,14 @@ export function CapatazChat({ data }: { data: ChatData }) {
                   message.role === "user" ? "bg-obra-yellow text-obra-ink" : "bg-slate-100 text-slate-700"
                 }`}
               >
-                {message.text}
+                <MessageText text={message.text} />
+                {pdfPreviewPathFromText(message.text) ? <PdfInlinePreview path={pdfPreviewPathFromText(message.text)!} /> : null}
                 {message.card ? <ActionCardView card={message.card} data={data} /> : null}
+                {message.retryText ? (
+                  <button type="button" className="secondary-button mt-2 text-xs" onClick={() => submit(undefined, message.retryText)} disabled={isSending}>
+                    Reintentar
+                  </button>
+                ) : null}
               </div>
               {message.role === "user" ? (
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-obra-graphite ring-1 ring-slate-200">
@@ -468,6 +638,13 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </div>
 
         <form onSubmit={submit} className="border-t border-slate-200 p-3">
+          {voiceStatus !== "idle" || voiceError ? (
+            <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-semibold ${voiceStatus === "error" ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+              {voiceStatus === "recording" ? "Grabando audio... pulsa el micrófono para parar." : null}
+              {voiceStatus === "transcribing" ? "Transcribiendo audio..." : null}
+              {voiceStatus === "error" ? voiceError : null}
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <input
               className="field"
@@ -475,20 +652,190 @@ export function CapatazChat({ data }: { data: ChatData }) {
               onChange={(event) => setInput(event.target.value)}
               placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Capataz..."}
             />
+            <button
+              type="button"
+              className="icon-button shrink-0 disabled:opacity-50"
+              aria-label={voiceStatus === "recording" ? "Parar dictado" : "Dictar por voz"}
+              onClick={toggleDictation}
+              disabled={isSending || voiceStatus === "transcribing"}
+            >
+              {voiceStatus === "recording" ? <Square size={18} /> : <Mic size={20} />}
+            </button>
             <button type="submit" className="icon-button shrink-0 disabled:opacity-50" aria-label="Enviar mensaje" disabled={isSending}>
               <Send size={20} />
             </button>
           </div>
         </form>
       </div>
+      </div>
     </div>
   );
+}
+
+function welcomeMessage(displayName: string | null): Message {
+  return {
+    id: "hello",
+    role: "assistant",
+    text: displayName
+      ? `Hola ${displayName}, dime qué necesitas y lo dejamos ordenado.`
+      : "Hola, soy Capataz. Puedo ayudarte con clientes, visitas, presupuestos, facturas, cobros y recordatorios. ¿Cómo te llamas?"
+  };
+}
+
+function messagesFromConversation(conversation: ChatHistoryConversation, displayName: string | null): Message[] {
+  const restored = conversation.messages
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => ({
+      id: message.id,
+      role: message.role as "assistant" | "user",
+      text: message.status === "failed" ? `${message.text}\n\nNo se realizó ninguna acción. Puedes reintentar.` : message.text,
+      status: message.status,
+      retryText: message.status === "failed" && message.role === "user" ? message.text : undefined
+    } satisfies Message));
+  return restored.length ? restored : [welcomeMessage(displayName)];
+}
+
+
+function MessageText({ text }: { text: string }) {
+  const urlPattern = /(\/[^\s]+?\/pdf(?:\?preview=1)?)/g;
+  const parts = text.split(urlPattern);
+  return (
+    <span className="whitespace-pre-wrap">
+      {parts.map((part, index) => {
+        if (urlPattern.test(part)) {
+          urlPattern.lastIndex = 0;
+          return (
+            <a key={`${part}-${index}`} href={part} target="_blank" rel="noreferrer" className="font-bold text-obra-blue underline underline-offset-2">
+              {part}
+            </a>
+          );
+        }
+        urlPattern.lastIndex = 0;
+        return <span key={`${index}-${part.slice(0, 8)}`}>{part}</span>;
+      })}
+    </span>
+  );
+}
+
+function pdfPreviewPathFromText(text: string) {
+  return text.match(/\/[^\s]+?\/pdf\?preview=1/)?.[0] ?? null;
+}
+
+function PdfInlinePreview({ path }: { path: string }) {
+  return (
+    <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-xs font-bold text-obra-ink">
+        <span>Vista previa del PDF</span>
+        <a href={path} target="_blank" rel="noreferrer" className="text-obra-blue underline underline-offset-2">Abrir grande</a>
+      </div>
+      <iframe title="Vista previa PDF" src={path} className="h-[520px] w-full bg-white" />
+    </div>
+  );
+}
+
+
+function contextFromConversation(conversation: ChatHistoryConversation): ChatCommandContext | null {
+  for (const message of [...conversation.messages].reverse()) {
+    const metadata = isObject(message.metadata) ? message.metadata : null;
+    const result = isObject(metadata?.result) ? metadata.result : null;
+    if (!result) continue;
+    if (result.clearContext) return null;
+    if ("context" in result) return (result.context ?? null) as ChatCommandContext | null;
+  }
+  return null;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function ChatHistoryPanel({
+  conversations,
+  activeId,
+  onNew,
+  onOpen,
+  onRename,
+  onArchive,
+  onDelete,
+  className = ""
+}: {
+  conversations: ChatHistoryConversation[];
+  activeId: string;
+  onNew: () => void;
+  onOpen: (conversation: ChatHistoryConversation) => void;
+  onRename: (conversation: ChatHistoryConversation) => void;
+  onArchive: (conversation: ChatHistoryConversation) => void;
+  onDelete: (conversation: ChatHistoryConversation) => void;
+  className?: string;
+}) {
+  const groups = groupConversations(conversations);
+  return (
+    <aside className={`card p-3 ${className}`}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-extrabold text-obra-ink">
+          <History size={18} /> Historial
+        </div>
+        <button type="button" className="primary-button px-3 py-2 text-xs" onClick={onNew}>Nuevo</button>
+      </div>
+      <div className="space-y-4">
+        {groups.map((group) => group.items.length ? (
+          <div key={group.label}>
+            <p className="mb-1 px-1 text-[11px] font-black uppercase tracking-wide text-slate-400">{group.label}</p>
+            <div className="space-y-1">
+              {group.items.map((conversation) => (
+                <div key={conversation.id} className={`rounded-lg border p-2 ${conversation.id === activeId ? "border-obra-yellowDark bg-obra-yellow/15" : "border-slate-200 bg-white"}`}>
+                  <button type="button" className="w-full text-left text-xs font-bold leading-5 text-obra-ink" onClick={() => onOpen(conversation)}>
+                    {conversation.title}
+                  </button>
+                  <div className="mt-2 flex gap-1">
+                    <button type="button" className="rounded-md bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-600" onClick={() => onRename(conversation)} aria-label="Renombrar conversación">
+                      <Pencil size={12} />
+                    </button>
+                    <button type="button" className="rounded-md bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-600" onClick={() => onArchive(conversation)}>
+                      Archivar
+                    </button>
+                    <button type="button" className="rounded-md bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700" onClick={() => onDelete(conversation)} aria-label="Borrar conversación">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null)}
+        {!conversations.length ? (
+          <p className="rounded-lg bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-500">Todavía no hay conversaciones guardadas en PostgreSQL.</p>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+
+function groupConversations(conversations: ChatHistoryConversation[]) {
+  const now = new Date();
+  const today = startOfDay(now).getTime();
+  const yesterday = today - 24 * 60 * 60 * 1000;
+  const last7 = today - 6 * 24 * 60 * 60 * 1000;
+  const groups = [
+    { label: "Hoy", items: [] as ChatHistoryConversation[] },
+    { label: "Ayer", items: [] as ChatHistoryConversation[] },
+    { label: "Últimos 7 días", items: [] as ChatHistoryConversation[] },
+    { label: "Anteriores", items: [] as ChatHistoryConversation[] }
+  ];
+  for (const conversation of conversations) {
+    const value = startOfDay(new Date(conversation.updatedAt)).getTime();
+    if (value >= today) groups[0].items.push(conversation);
+    else if (value >= yesterday) groups[1].items.push(conversation);
+    else if (value >= last7) groups[2].items.push(conversation);
+    else groups[3].items.push(conversation);
+  }
+  return groups;
 }
 
 function progressStepsForMessage(text: string) {
   const normalized = normalize(text);
   const shortReply = /^(si|sí|no|vale|ok|esa|ese|la misma|el mismo|con iva|mas iva|más iva|hazlo)$/i.test(normalized.trim());
-  const contextQuestion = /(hola|que datos|qué datos|que falta|qué falta|como se llama el cliente|cómo se llama el cliente|nuevo chat|nueva conversacion|nueva conversación|dejalo pendiente|déjalo pendiente|aparcalo|apárcalo|volver al|sigue con|resumen)/i.test(normalized);
+  const contextQuestion = /(hola|dimelos|dímelos|que datos|qué datos|que falta|qué falta|cuanto era|cuánto era|importe|como se llama el cliente|cómo se llama el cliente|nuevo chat|nueva conversacion|nueva conversación|dejalo pendiente|déjalo pendiente|aparcalo|apárcalo|volver al|sigue con|resumen)/i.test(normalized);
   if (contextQuestion) {
     return ["Leyendo tu mensaje...", "Revisando contexto...", "Preparando respuesta..."];
   }
