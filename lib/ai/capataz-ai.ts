@@ -413,7 +413,7 @@ export function getCapatazAIModel() {
 }
 
 export function getCapatazAIFastModel() {
-  return process.env.OPENAI_MODEL_FAST || "gpt-5-mini";
+  return process.env.OPENAI_MODEL_FAST || "gpt-4.1-mini";
 }
 
 export function getCapatazAIReasoningModel() {

@@ -34,7 +34,7 @@ Configura estas variables en el servicio web de Railway:
 ```bash
 DATABASE_URL=
 OPENAI_API_KEY=
-OPENAI_MODEL_FAST=gpt-5-mini
+OPENAI_MODEL_FAST=gpt-4.1-mini
 OPENAI_MODEL_REASONING=gpt-5.5
 OPENAI_REASONING_EFFORT=low
 OPENAI_MODEL=gpt-5.5
