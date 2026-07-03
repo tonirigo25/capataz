@@ -1548,7 +1548,8 @@ function debugChat(step: string, payload: unknown) {
 
 function sanitizeAIError(message: string) {
   return message
-    .replace(/sk-[A-Za-z0-9_-]+/g, "[OPENAI_API_KEY]")
+    .replace(/sk-[A-Za-z0-9_*.-]+/g, "[OPENAI_API_KEY]")
+    .replace(/\[OPENAI_API_KEY\][A-Za-z0-9_*.-]+/g, "[OPENAI_API_KEY]")
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
     .slice(0, 700);
 }
