@@ -632,7 +632,7 @@ async function pingOpenAIModel(apiKey: string, model: string, lane: "fast" | "re
       body: JSON.stringify({
         model,
         input: "Responde solo OK.",
-        max_output_tokens: 8
+        max_output_tokens: 16
       })
     });
     const payload = await response.json().catch(() => null);
