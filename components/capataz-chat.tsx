@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -250,15 +250,26 @@ const quickCreates = [
 ];
 
 const chatContextStorageKey = "capataz-chat-context";
+const defaultProgressSteps = [
+  "Leyendo tu mensaje...",
+  "Analizando datos...",
+  "Buscando cliente/obra...",
+  "Preparando respuesta...",
+  "Guardando cambios..."
+];
 
 export function CapatazChat({ data }: { data: ChatData }) {
   const router = useRouter();
   const displayName = userName(data);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [progressSteps, setProgressSteps] = useState(defaultProgressSteps);
+  const [progressIndex, setProgressIndex] = useState(0);
   const [showExamples, setShowExamples] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [chatContext, setChatContext] = useState<ChatCommandContext | null>(null);
+  const inFlightRef = useRef(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "hello",
@@ -272,6 +283,24 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const pendingDebt = useMemo(() => data.invoices.filter((invoice) => invoice.pendiente > 0), [data.invoices]);
   const missingProfile = data.completion.profile.missingRequired.length + data.completion.profile.missingRecommended.length;
   const missingCompany = data.completion.company.missingRequired.length + data.completion.company.missingRecommended.length;
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages, isSending, progressIndex]);
+
+  useEffect(() => {
+    if (!isSending) return;
+    setProgressIndex(0);
+    const timers = [
+      window.setTimeout(() => setProgressIndex((index) => Math.max(index, 1)), 550),
+      window.setTimeout(() => setProgressIndex((index) => Math.max(index, 2)), 1400),
+      window.setTimeout(() => setProgressIndex((index) => Math.max(index, 3)), 2800),
+      window.setTimeout(() => setProgressIndex((index) => Math.max(index, 4)), 5200),
+      window.setTimeout(() => setProgressSteps((steps) => [...steps.slice(0, 5), "Estoy tardando más de lo normal, sigo trabajando..."]), 9000),
+      window.setTimeout(() => setProgressIndex(5), 9200)
+    ];
+    return () => timers.forEach(window.clearTimeout);
+  }, [isSending]);
 
   useEffect(() => {
     try {
@@ -297,16 +326,22 @@ export function CapatazChat({ data }: { data: ChatData }) {
   async function submit(event?: FormEvent<HTMLFormElement>, forced?: string) {
     event?.preventDefault();
     const text = (forced ?? input).trim();
-    if (!text || isSending) return;
+    if (!text || inFlightRef.current) return;
 
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", text };
+    const userMessageId = crypto.randomUUID();
+    const idempotencyKey = `chat:${userMessageId}`;
+    const userMessage: Message = { id: userMessageId, role: "user", text };
+    const startedAt = Date.now();
+    setProgressSteps(progressStepsForMessage(text));
+    setProgressIndex(0);
     setMessages((current) => [...current, userMessage]);
     setInput("");
+    inFlightRef.current = true;
     setIsSending(true);
 
     try {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", { text, chatContext });
-      const command = await runChatCommand(text, chatContext);
+      const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, clientStartedAt: startedAt });
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
       const assistantMessage: Message = command.handled
         ? { id: crypto.randomUUID(), role: "assistant", text: command.text }
@@ -325,6 +360,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
         }
       ]);
     } finally {
+      if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] render total", { durationMs: Date.now() - startedAt });
+      inFlightRef.current = false;
       setIsSending(false);
     }
   }
@@ -404,6 +441,18 @@ export function CapatazChat({ data }: { data: ChatData }) {
               ) : null}
             </div>
           ))}
+          {isSending ? (
+            <div className="flex justify-start gap-2" aria-live="polite">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-obra-ink text-obra-yellow">
+                <Bot size={19} />
+              </span>
+              <div className="max-w-[82%] rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold leading-6 text-slate-600">
+                <span className="mr-2 inline-flex h-2 w-2 animate-pulse rounded-full bg-obra-yellowDark" />
+                {progressSteps[Math.min(progressIndex, progressSteps.length - 1)]}
+              </div>
+            </div>
+          ) : null}
+          <div ref={bottomRef} />
         </div>
 
         <form onSubmit={submit} className="border-t border-slate-200 p-3">
@@ -412,8 +461,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
               className="field"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={isSending ? "Capataz está preparando el borrador..." : "Escribe a Capataz..."}
-              disabled={isSending}
+              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Capataz..."}
             />
             <button type="submit" className="icon-button shrink-0 disabled:opacity-50" aria-label="Enviar mensaje" disabled={isSending}>
               <Send size={20} />
@@ -423,6 +471,27 @@ export function CapatazChat({ data }: { data: ChatData }) {
       </div>
     </div>
   );
+}
+
+function progressStepsForMessage(text: string) {
+  const normalized = normalize(text);
+  const shortReply = /^(si|sí|no|vale|ok|esa|ese|la misma|el mismo|con iva|mas iva|más iva|hazlo)$/i.test(normalized.trim());
+  if (shortReply) {
+    return ["Leyendo tu respuesta...", "Aplicando contexto...", "Guardando cambios..."];
+  }
+  if (normalized.includes("pdf")) {
+    return ["Leyendo tu mensaje...", "Localizando documento...", "Generando PDF...", "Preparando enlace..."];
+  }
+  if (normalized.includes("presupuesto")) {
+    return ["Leyendo tu mensaje...", "Analizando datos...", "Buscando cliente/obra...", "Preparando presupuesto...", "Guardando cambios..."];
+  }
+  if (normalized.includes("factura")) {
+    return ["Leyendo tu mensaje...", "Analizando datos...", "Buscando cliente/obra...", "Preparando factura...", "Guardando cambios..."];
+  }
+  if (normalized.includes("visita") || normalized.includes("reunion") || normalized.includes("reunión")) {
+    return ["Leyendo tu mensaje...", "Detectando fecha y hora...", "Buscando cliente/obra...", "Guardando visita..."];
+  }
+  return defaultProgressSteps;
 }
 
 function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]): Omit<Message, "id" | "role"> {

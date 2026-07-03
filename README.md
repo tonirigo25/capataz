@@ -426,6 +426,7 @@ IA real controlada:
 
 - `lib/ai/capataz-ai.ts` llama a OpenAI desde servidor, valida JSON estructurado y devuelve intención, entidades, plan de acción, campos pendientes y confirmación.
 - La UI mantiene tarjetas editables para acciones sensibles antes de guardar.
+- El chat guarda mensajes en PostgreSQL antes de interpretar, usa `idempotencyKey` para evitar duplicados y registra tiempos internos por fase en `ChatActionLog`.
 - No se ejecutan acciones sensibles sin confirmación explícita.
 
 ## Recorrido demo recomendado

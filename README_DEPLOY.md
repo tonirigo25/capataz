@@ -35,6 +35,7 @@ Configura estas variables en el servicio web de Railway:
 DATABASE_URL=
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5.5
+OPENAI_TIMEOUT_MS=18000
 NEXT_PUBLIC_APP_MODE=test
 NEXT_PUBLIC_APP_ENV=staging
 NEXT_PUBLIC_WEB_BASE_URL=
@@ -45,7 +46,7 @@ Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites de
 
 `DATABASE_URL` debe venir como variable referenciada desde el servicio PostgreSQL de Railway.
 
-`OPENAI_API_KEY` es privada y debe configurarse solo en el backend de Railway, nunca con prefijo `NEXT_PUBLIC`. Activa el motor de chat con salida JSON estructurada y herramientas internas controladas. `OPENAI_MODEL` es opcional; si no se configura, Capataz usa `gpt-5.5` por defecto.
+`OPENAI_API_KEY` es privada y debe configurarse solo en el backend de Railway, nunca con prefijo `NEXT_PUBLIC`. Activa el motor de chat con salida JSON estructurada y herramientas internas controladas. `OPENAI_MODEL` es opcional; si no se configura, Capataz usa `gpt-5.5` por defecto. `OPENAI_TIMEOUT_MS` limita la espera de IA para que el chat no quede bloqueado indefinidamente.
 
 No existe autenticacion real en esta version, por lo que el codigo no usa `NEXTAUTH_SECRET`, `AUTH_SECRET` ni variables de proveedores OAuth.
 

@@ -260,39 +260,54 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
     throw new Error("OPENAI_API_KEY no esta configurada");
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: getCapatazAIModel(),
-      input: [
-        {
-          role: "system",
-          content: capatazAISystemPrompt
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            message: input.message,
-            chatContext: input.context ?? null,
-            appContext: input.data ?? {},
-            currentDate: input.data?.currentDate ?? new Date().toISOString()
-          })
+  const timeoutMs = readTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: getCapatazAIModel(),
+        input: [
+          {
+            role: "system",
+            content: capatazAISystemPrompt
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              message: input.message,
+              chatContext: input.context ?? null,
+              appContext: input.data ?? {},
+              currentDate: input.data?.currentDate ?? new Date().toISOString()
+            })
+          }
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "capataz_ai_result",
+            strict: true,
+            schema: capatazAIJsonSchema
+          }
         }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "capataz_ai_result",
-          strict: true,
-          schema: capatazAIJsonSchema
-        }
-      }
-    })
-  });
+      })
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`OpenAI ha superado el timeout de ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -305,6 +320,12 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
 
   const parsed = JSON.parse(content) as unknown;
   return validateCapatazAIResult(parsed);
+}
+
+function readTimeoutMs() {
+  const value = Number(process.env.OPENAI_TIMEOUT_MS ?? 18000);
+  if (!Number.isFinite(value)) return 18000;
+  return Math.min(45000, Math.max(5000, value));
 }
 
 export function validateCapatazAIResult(raw: unknown): CapatazAIResult {

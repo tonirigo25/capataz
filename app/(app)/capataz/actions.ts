@@ -54,15 +54,76 @@ export type ChatCommandResult = {
   clearContext?: boolean;
 };
 
-export async function runChatCommand(text: string, context?: ChatCommandContext | null): Promise<ChatCommandResult> {
+export type ChatCommandOptions = {
+  messageId?: string;
+  idempotencyKey?: string;
+  clientStartedAt?: number;
+};
+
+type ChatPerfTrace = {
+  messageId?: string;
+  startedAt: number;
+};
+
+export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}): Promise<ChatCommandResult> {
+  const trace: ChatPerfTrace = { messageId: options.messageId, startedAt: nowMs() };
+  const persistStarted = nowMs();
+  const persisted = await persistIncomingChatMessage(text, context ?? null, options);
+  trace.messageId = persisted.messageId ?? trace.messageId;
+  await logChatPerf(trace, "db:save_user_message", persistStarted, "ok", { duplicate: persisted.duplicate });
+
+  if (persisted.result) {
+    await logChatPerf(trace, "total", trace.startedAt, "duplicate_completed");
+    return persisted.result;
+  }
+
+  if (persisted.duplicate) {
+    const result = {
+      handled: true,
+      text: "Ya estoy procesando ese mensaje. Lo mantengo en la conversación y no duplicaré acciones.",
+      context
+    };
+    await logChatPerf(trace, "total", trace.startedAt, "duplicate_processing");
+    return result;
+  }
+
+  try {
+    const result = await runChatCommandCore(text, context ?? null, trace);
+    await completeChatMessage(trace.messageId, result);
+    await logChatPerf(trace, "total", trace.startedAt, "ok", { handled: result.handled });
+    return result;
+  } catch (error) {
+    await failChatMessage(trace.messageId, error);
+    await logChatPerf(trace, "total", trace.startedAt, "error", error instanceof Error ? { message: error.message } : undefined);
+    throw error;
+  }
+}
+
+async function runChatCommandCore(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult> {
   debugChat("received", { text, context });
 
-  const aiResult = await runAIChatCommand(text, context ?? null);
-  if (aiResult) return aiResult;
-
-  const plan = planChatMessage(text, context ?? null);
+  const planStarted = nowMs();
+  const plan = planChatMessage(text, context);
+  await logChatPerf(trace, "local:plan", planStarted, plan.handled ? "ok" : "fallback", {
+    action: plan.action,
+    source: plan.source
+  });
   debugChat("plan", plan);
 
+  if (shouldResolveBeforeAI(text, plan)) {
+    await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: plan.action, source: plan.source });
+    return executeLocalChatPlan(text, plan);
+  }
+
+  const aiResult = await runAIChatCommand(text, context, trace);
+  if (aiResult) return aiResult;
+
+  await logChatPerf(trace, "route", trace.startedAt, "local_after_ai", { action: plan.action, source: plan.source });
+
+  return executeLocalChatPlan(text, plan);
+}
+
+async function executeLocalChatPlan(text: string, plan: ReturnType<typeof planChatMessage>): Promise<ChatCommandResult> {
   if (!plan.handled) {
     debugChat("fallback", { reason: "engine_no_match", entities: plan.entities });
     return { handled: false, text: "" };
@@ -253,18 +314,56 @@ type BudgetDraftOptions = {
   followUp?: ChatEntities;
 };
 
-async function runAIChatCommand(text: string, context: ChatCommandContext | null): Promise<ChatCommandResult | null> {
+function shouldResolveBeforeAI(text: string, plan: ReturnType<typeof planChatMessage>) {
+  if (!plan.handled) return false;
+  if (plan.source === "context") return true;
+
+  const normalized = normalizeName(text);
+  const words = normalized.split(/\s+/).filter(Boolean).length;
+
+  if (["generate_pdf", "select_document", "mark_invoice_paid", "register_payment", "register_expense", "create_reminder", "convert_budget_to_invoice"].includes(plan.action)) {
+    return true;
+  }
+
+  if (["complete_budget", "complete_invoice", "complete_activity", "use_existing_work_for_budget", "create_new_work_for_budget"].includes(plan.action)) {
+    return true;
+  }
+
+  if (plan.action === "register_activity") return true;
+  if ((plan.action === "create_budget" || plan.action === "create_invoice") && words <= 18) return true;
+
+  return false;
+}
+
+async function runAIChatCommand(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult | null> {
   if (!isCapatazAIConfigured()) {
     debugChat("ai_skipped", { reason: "missing_OPENAI_API_KEY" });
+    await logChatPerf(trace, "ai:skipped", nowMs(), "missing_key");
     return null;
   }
 
+  const aiStarted = nowMs();
   try {
-    const data = await buildAIContext(context);
+    const contextStarted = nowMs();
+    const data = await buildAIContext(context, text);
+    await logChatPerf(trace, "db:ai_context", contextStarted, "ok", {
+      clients: data.clients.length,
+      works: data.works.length,
+      budgets: data.budgets.length,
+      invoices: data.invoices.length
+    });
     const ai = await interpretCapatazMessageWithAI({ message: text, context, data });
+    await logChatPerf(trace, "ai:interpret", aiStarted, "ok", { intent: ai.intent, confidence: ai.confidence });
     debugChat("ai_result", ai);
-    return await executeAIChatCommand(ai, context);
+    const executeStarted = nowMs();
+    const result = await executeAIChatCommand(ai, context);
+    await logChatPerf(trace, "ai:execute_plan", executeStarted, result?.handled ? "ok" : "no_result", {
+      intent: ai.intent,
+      created: result?.created ? Object.keys(result.created).filter((key) => result.created?.[key as keyof typeof result.created]) : []
+    });
+    return result;
   } catch (error) {
+    await logChatPerf(trace, "ai:interpret", aiStarted, "error", error instanceof Error ? { message: sanitizeAIError(error.message) } : undefined);
     debugChat("ai_error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
     const detail = process.env.NEXT_PUBLIC_APP_ENV !== "production" && error instanceof Error
       ? `\n\nDetalle técnico staging: ${sanitizeAIError(error.message)}`
@@ -277,11 +376,20 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
   }
 }
 
-async function buildAIContext(context: ChatCommandContext | null) {
+async function buildAIContext(context: ChatCommandContext | null, text: string) {
+  const ids: Partial<ReturnType<typeof contextIds>> = context ? contextIds(context) : {};
+  const nameHints = extractPotentialNameHints(text);
+  const clientWhere = ids.clientId
+    ? { id: ids.clientId }
+    : nameHints.length
+      ? { OR: nameHints.map((hint) => ({ nombre: { contains: hint, mode: "insensitive" as const } })) }
+      : undefined;
+
   const [clients, works, budgets, invoices] = await Promise.all([
     prisma.client.findMany({
+      where: clientWhere,
       orderBy: { ultimaInteraccion: "desc" },
-      take: 30,
+      take: clientWhere ? 12 : 8,
       select: {
         id: true,
         nombre: true,
@@ -295,8 +403,9 @@ async function buildAIContext(context: ChatCommandContext | null) {
       }
     }),
     prisma.work.findMany({
+      where: ids.workId ? { id: ids.workId } : ids.clientId ? { clienteId: ids.clientId } : undefined,
       orderBy: { id: "desc" },
-      take: 30,
+      take: ids.workId || ids.clientId ? 12 : 8,
       select: {
         id: true,
         clienteId: true,
@@ -309,8 +418,9 @@ async function buildAIContext(context: ChatCommandContext | null) {
       }
     }),
     prisma.budget.findMany({
+      where: ids.budgetId ? { id: ids.budgetId } : ids.clientId ? { clienteId: ids.clientId } : undefined,
       orderBy: { fechaCreacion: "desc" },
-      take: 30,
+      take: ids.budgetId || ids.clientId ? 10 : 6,
       select: {
         id: true,
         clienteId: true,
@@ -323,8 +433,9 @@ async function buildAIContext(context: ChatCommandContext | null) {
       }
     }),
     prisma.invoice.findMany({
+      where: ids.invoiceId ? { id: ids.invoiceId } : ids.clientId ? { clienteId: ids.clientId } : undefined,
       orderBy: { fechaEmision: "desc" },
-      take: 30,
+      take: ids.invoiceId || ids.clientId ? 10 : 6,
       select: {
         id: true,
         clienteId: true,
@@ -1544,6 +1655,141 @@ function debugChat(step: string, payload: unknown) {
   const enabled = process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production";
   if (!enabled) return;
   console.info(`[capataz-chat] ${step}`, JSON.stringify(payload, null, 2));
+}
+
+async function persistIncomingChatMessage(text: string, context: ChatCommandContext | null, options: ChatCommandOptions) {
+  const idempotencyKey = options.idempotencyKey ?? options.messageId;
+  if (!idempotencyKey) {
+    const message = await prisma.chatMessage.create({
+      data: {
+        role: "user",
+        content: text,
+        status: "processing",
+        context: toJsonValue(context),
+        metadata: toJsonValue({ clientStartedAt: options.clientStartedAt })
+      }
+    });
+    return { messageId: message.id, duplicate: false, result: null as ChatCommandResult | null };
+  }
+
+  const existing = await prisma.chatMessage.findUnique({ where: { idempotencyKey } });
+  if (existing) {
+    const completed = resultFromChatMetadata(existing.metadata);
+    if (completed) return { messageId: existing.id, duplicate: true, result: completed };
+    if (existing.status === "processing") return { messageId: existing.id, duplicate: true, result: null };
+  }
+
+  const message = await prisma.chatMessage.upsert({
+    where: { idempotencyKey },
+    create: {
+      id: options.messageId,
+      idempotencyKey,
+      role: "user",
+      content: text,
+      status: "saved",
+      context: toJsonValue(context),
+      metadata: toJsonValue({ clientStartedAt: options.clientStartedAt })
+    },
+    update: {
+      context: toJsonValue(context),
+      metadata: toJsonValue({ clientStartedAt: options.clientStartedAt, retriedAt: new Date().toISOString() })
+    }
+  });
+
+  const lock = await prisma.chatMessage.updateMany({
+    where: { id: message.id, status: { in: ["saved", "failed"] } },
+    data: { status: "processing" }
+  });
+
+  if (lock.count === 0) {
+    const latest = await prisma.chatMessage.findUnique({ where: { id: message.id } });
+    const completed = resultFromChatMetadata(latest?.metadata);
+    return { messageId: message.id, duplicate: true, result: completed };
+  }
+
+  return { messageId: message.id, duplicate: false, result: null as ChatCommandResult | null };
+}
+
+async function completeChatMessage(messageId: string | undefined, result: ChatCommandResult) {
+  if (!messageId) return;
+  const metadata = toJsonValue({
+    result,
+    completedAt: new Date().toISOString()
+  });
+  await prisma.chatMessage.update({
+    where: { id: messageId },
+    data: { status: "completed", metadata }
+  });
+
+  if (result.text) {
+    await prisma.chatMessage.create({
+      data: {
+        conversationId: "default",
+        role: "assistant",
+        content: result.text,
+        status: "completed",
+        metadata: toJsonValue({ replyTo: messageId, created: result.created ?? null })
+      }
+    });
+  }
+}
+
+async function failChatMessage(messageId: string | undefined, error: unknown) {
+  if (!messageId) return;
+  await prisma.chatMessage.update({
+    where: { id: messageId },
+    data: {
+      status: "failed",
+      metadata: toJsonValue({
+        failedAt: new Date().toISOString(),
+        error: error instanceof Error ? sanitizeAIError(error.message) : "unknown"
+      })
+    }
+  }).catch(() => undefined);
+}
+
+async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt: number, status: string, metadata?: Record<string, unknown>) {
+  const durationMs = Math.max(0, Math.round(nowMs() - startedAt));
+  const payload = { stage, status, durationMs, messageId: trace.messageId, ...(metadata ?? {}) };
+  if (process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production") {
+    console.info("[capataz-chat-perf]", JSON.stringify(payload));
+  }
+
+  await prisma.chatActionLog.create({
+    data: {
+      messageId: trace.messageId,
+      stage,
+      status,
+      durationMs,
+      metadata: toJsonValue(metadata ?? {})
+    }
+  }).catch(() => undefined);
+}
+
+function resultFromChatMetadata(value: unknown): ChatCommandResult | null {
+  const metadata = isRecord(value) ? value : null;
+  const result = isRecord(metadata?.result) ? metadata.result : null;
+  if (!result || typeof result.text !== "string" || typeof result.handled !== "boolean") return null;
+  return result as ChatCommandResult;
+}
+
+function toJsonValue(value: unknown) {
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value ?? null));
+}
+
+function nowMs() {
+  return Date.now();
+}
+
+function extractPotentialNameHints(text: string) {
+  const matches = text.match(/\b[A-ZÁÉÍÓÚÑ][\p{L}ÁÉÍÓÚÑáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}ÁÉÍÓÚÑáéíóúñ]+){0,2}\b/gu) ?? [];
+  const ignored = new Set(["Tengo", "Quiere", "Hemos", "Factura", "Presupuesto", "Capataz"]);
+  return [...new Set(matches.map((match) => match.trim()).filter((match) => match.length > 2 && !ignored.has(match)))].slice(0, 6);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function sanitizeAIError(message: string) {

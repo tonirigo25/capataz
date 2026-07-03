@@ -313,6 +313,36 @@ model EventoAgenda {
   work                  Work?               @relation(fields: [obraId], references: [id])
 }
 
+model ChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String   @default("default")
+  role           String
+  content        String
+  status         String   @default("saved")
+  idempotencyKey String?  @unique
+  context        Json?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([status])
+}
+
+model ChatActionLog {
+  id         String   @id @default(cuid())
+  messageId  String?
+  stage      String
+  status     String
+  durationMs Int?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([messageId])
+  @@index([stage])
+  @@index([createdAt])
+}
+
 model UsuarioPerfil {
   id               String   @id @default(cuid())
   nombre           String?
