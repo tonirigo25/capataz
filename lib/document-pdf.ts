@@ -176,9 +176,12 @@ function drawSummary(page: PdfPage, y: number, input: ProfessionalDocumentPdf) {
   rect(page, margin, y - 66, pageWidth - margin * 2, 66, [0.97, 0.98, 0.99]);
   strokeRect(page, margin, y - 66, pageWidth - margin * 2, 66, [0.86, 0.88, 0.91]);
   text(page, margin + 14, y - 20, input.title, 13, true, [0.12, 0.14, 0.16]);
+  const workTitle = clientVisibleText(input.work?.title);
+  const workAddress = clientVisibleText(input.work?.address);
+  const clientAddress = clientVisibleText(input.client.address);
   const detail = [
-    input.work?.title ? `Obra: ${input.work.title}` : "Obra: sin asociar",
-    input.work?.address ? `Dirección obra: ${input.work.address}` : input.client.address ? `Dirección: ${input.client.address}` : null,
+    workTitle ? `Obra: ${workTitle}` : null,
+    workAddress ? `Dirección obra: ${workAddress}` : clientAddress ? `Dirección: ${clientAddress}` : null,
     input.validUntil ? `Validez: ${documentDate(input.validUntil)}` : null,
     input.dueDate ? `Vencimiento: ${documentDate(input.dueDate)}` : null
   ].filter(Boolean).join(" · ");
@@ -372,8 +375,14 @@ function clientVisibleText(value: string | null | undefined) {
     "instruccion del usuario",
     "gestoria",
     "pendiente de acordar",
-    "pendiente de revisar"
+    "pendiente de revisar",
+    "direccion pendiente",
+    "direccion fiscal pendiente",
+    "contacto pendiente",
+    "nif/cif pendiente",
+    "datos pendientes"
   ];
+  if (normalized === "pendiente" || normalized === "sin informar" || normalized === "no informado") return "";
   return forbidden.some((item) => normalized.includes(item)) ? "" : textValue;
 }
 
