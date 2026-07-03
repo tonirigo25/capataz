@@ -2036,19 +2036,18 @@ function ivaModeFromAI(ai: CapatazAIResult): IvaMode {
 
 function buildAIWorkTitle(ai: CapatazAIResult) {
   const entities = ai.entities;
-  const base = entities.obra_nombre ?? entities.descripcion_trabajo ?? entities.alcance;
+  const base = entities.descripcion_trabajo ?? entities.alcance ?? entities.obra_nombre;
   if (!base) return null;
 
-  const parts = [
-    base,
-    entities.alcance && !base.toLowerCase().includes(entities.alcance.toLowerCase()) ? entities.alcance : null,
-    entities.cantidad && entities.unidad_cantidad && !base.includes(String(entities.cantidad))
-      ? `${entities.cantidad} ${entities.unidad_cantidad}`
-      : null,
-    entities.obra_tipo && !base.toLowerCase().includes(entities.obra_tipo.toLowerCase()) ? entities.obra_tipo : null
-  ].filter(Boolean);
+  let title = base;
+  if (entities.cantidad && entities.unidad_cantidad && !title.includes(String(entities.cantidad))) {
+    title = `${title} ${entities.cantidad} ${entities.unidad_cantidad}`;
+  }
+  if (entities.obra_tipo && !title.toLowerCase().includes(entities.obra_tipo.toLowerCase())) {
+    title = `${title} en ${entities.obra_tipo}`;
+  }
 
-  return sentenceLike(parts.join(" - "));
+  return sentenceLike(title);
 }
 
 function buildAIBudgetLine(ai: CapatazAIResult, subtotal: number): BudgetLine {
@@ -2158,7 +2157,9 @@ function buildAIBudgetMessage(ai: CapatazAIResult, details: {
           details.pendingFields.includes("iva") ? `Confirmar si los ${formatEuros(details.amount)} son con IVA incluido o más IVA.` : null,
           details.pendingFields.includes("datos_fiscales") ? "CIF/NIF y dirección fiscal del cliente de facturación." : null,
           details.pendingFields.includes("direccion_obra") ? "Dirección exacta de la obra." : null,
-          details.pendingFields.includes("datos_cliente") ? `Teléfono o email de ${details.contactName ?? "contacto"}.` : null
+          (details.pendingFields.includes("datos_cliente") || (!ai.entities.contacto_telefono && !ai.entities.contacto_email))
+            ? `Teléfono o email de ${details.contactName ?? "contacto"}.`
+            : null
         ].filter(Boolean) as string[])
       ].map((question, index) => `${index + 1}. ${question}`).join("\n")}`
     : "";
