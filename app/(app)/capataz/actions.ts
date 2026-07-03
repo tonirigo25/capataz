@@ -2043,8 +2043,9 @@ function buildAIWorkTitle(ai: CapatazAIResult) {
   if (entities.cantidad && entities.unidad_cantidad && !title.includes(String(entities.cantidad))) {
     title = `${title} ${entities.cantidad} ${entities.unidad_cantidad}`;
   }
-  if (entities.obra_tipo && !title.toLowerCase().includes(entities.obra_tipo.toLowerCase())) {
-    title = `${title} en ${entities.obra_tipo}`;
+  const workPlaceType = entities.obra_tipo ?? (/hotel/i.test(entities.obra_nombre ?? "") ? entities.obra_nombre : null);
+  if (workPlaceType && !title.toLowerCase().includes(workPlaceType.toLowerCase())) {
+    title = `${title} en ${workPlaceType}`;
   }
 
   return sentenceLike(title);
@@ -2157,7 +2158,7 @@ function buildAIBudgetMessage(ai: CapatazAIResult, details: {
           details.pendingFields.includes("iva") ? `Confirmar si los ${formatEuros(details.amount)} son con IVA incluido o más IVA.` : null,
           details.pendingFields.includes("datos_fiscales") ? "CIF/NIF y dirección fiscal del cliente de facturación." : null,
           details.pendingFields.includes("direccion_obra") ? "Dirección exacta de la obra." : null,
-          (details.pendingFields.includes("datos_cliente") || (!ai.entities.contacto_telefono && !ai.entities.contacto_email))
+          (details.contactName || details.pendingFields.includes("datos_cliente") || (!ai.entities.contacto_telefono && !ai.entities.contacto_email))
             ? `Teléfono o email de ${details.contactName ?? "contacto"}.`
             : null
         ].filter(Boolean) as string[])
