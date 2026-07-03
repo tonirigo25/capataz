@@ -34,8 +34,13 @@ Configura estas variables en el servicio web de Railway:
 ```bash
 DATABASE_URL=
 OPENAI_API_KEY=
+OPENAI_MODEL_FAST=gpt-5-mini
+OPENAI_MODEL_REASONING=gpt-5.5
+OPENAI_REASONING_EFFORT=low
 OPENAI_MODEL=gpt-5.5
 OPENAI_TIMEOUT_MS=18000
+OPENAI_FAST_TIMEOUT_MS=10000
+OPENAI_REASONING_TIMEOUT_MS=30000
 NEXT_PUBLIC_APP_MODE=test
 NEXT_PUBLIC_APP_ENV=staging
 NEXT_PUBLIC_WEB_BASE_URL=
@@ -46,7 +51,7 @@ Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites de
 
 `DATABASE_URL` debe venir como variable referenciada desde el servicio PostgreSQL de Railway.
 
-`OPENAI_API_KEY` es privada y debe configurarse solo en el backend de Railway, nunca con prefijo `NEXT_PUBLIC`. Activa el motor de chat con salida JSON estructurada y herramientas internas controladas. `OPENAI_MODEL` es opcional; si no se configura, Capataz usa `gpt-5.5` por defecto. `OPENAI_TIMEOUT_MS` limita la espera de IA para que el chat no quede bloqueado indefinidamente.
+`OPENAI_API_KEY` es privada y debe configurarse solo en el backend de Railway, nunca con prefijo `NEXT_PUBLIC`. Activa el motor de chat con salida JSON estructurada y herramientas internas controladas. `OPENAI_MODEL_FAST` se usa para extracción compacta rápida. `OPENAI_MODEL_REASONING` sólo se usa si la extracción rápida devuelve baja confianza o ambigüedad. `OPENAI_REASONING_EFFORT` permite limitar esfuerzo/coste del carril potente. `OPENAI_FAST_TIMEOUT_MS` y `OPENAI_REASONING_TIMEOUT_MS` separan timeouts por carril; `OPENAI_TIMEOUT_MS` queda como compatibilidad general.
 
 No existe autenticacion real en esta version, por lo que el codigo no usa `NEXTAUTH_SECRET`, `AUTH_SECRET` ni variables de proveedores OAuth.
 
@@ -157,3 +162,5 @@ En Railway, el almacenamiento local del contenedor no debe considerarse persiste
 La ruta publica `/api/status` devuelve `app`, `database`, `environment` y `timestamp`. Devuelve HTTP 200 solo cuando PostgreSQL responde y las variables publicas obligatorias estan configuradas; en caso contrario devuelve HTTP 503 sin exponer credenciales.
 
 Tambien devuelve `ai.openai` como `ok` o `missing` y el modelo configurado, sin mostrar la clave. Si `NEXT_PUBLIC_APP_ENV=production`, `OPENAI_API_KEY` pasa a ser obligatoria para el healthcheck.
+
+Para diagnostico de modelos IA existe `/api/status/ai`. Por defecto no llama a OpenAI; con `/api/status/ai?live=1` hace una llamada minima a `OPENAI_MODEL_FAST` y `OPENAI_MODEL_REASONING` y devuelve sólo estado, modelo y duración, nunca la clave.

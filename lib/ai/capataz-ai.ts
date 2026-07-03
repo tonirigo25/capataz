@@ -100,6 +100,7 @@ export type CapatazAIResult = {
   requiresConfirmation: boolean;
   clarificationQuestions: string[];
   userResponse: string;
+  diagnostics?: CapatazAIDiagnostics;
 };
 
 export type CapatazAIContext = {
@@ -115,6 +116,65 @@ export type CapatazAIInterpretInput = {
   message: string;
   context?: unknown;
   data?: CapatazAIContext;
+};
+
+export type CapatazAIDiagnostics = {
+  lane: "fast" | "reasoning";
+  model: string;
+  schemaName: string;
+  promptBytes: number;
+  contextBytes: number;
+  timeoutMs: number;
+  durationMs: number;
+  reasoningEffort?: string;
+  escalated?: boolean;
+  escalationReason?: string;
+};
+
+type CompactIntent = CapatazAIIntent;
+
+type CompactExtraction = {
+  i: CompactIntent;
+  c: number;
+  e: {
+    cn?: string;
+    ct?: string;
+    ce?: string;
+    fc?: string;
+    cl?: string;
+    typ?: "particular" | "autonomo" | "empresa";
+    nif?: string;
+    df?: string;
+    on?: string;
+    ot?: string;
+    ol?: string;
+    od?: string;
+    job?: string;
+    scope?: string;
+    qty?: number;
+    unit?: string;
+    dur?: string;
+    lines: Array<{ d?: string; q?: number; u?: string; p?: number; t?: number; cat?: string }>;
+    amount?: number;
+    iva?: boolean;
+    mat?: boolean;
+    date?: string;
+    time?: string;
+    act?: "visita" | "reunion" | "llamada" | "nota" | "seguimiento";
+    channel?: "whatsapp" | "email" | "interno";
+    msg?: string;
+    doc?: "presupuesto" | "factura";
+    state?: string;
+    method?: string;
+    notes?: string;
+    pending: string[];
+    refs: string[];
+  };
+  a: CapatazAIInternalAction[];
+  x: boolean;
+  rc: boolean;
+  q: string[];
+  er?: string;
 };
 
 const stringOrNull = { type: ["string", "null"] };
@@ -219,6 +279,111 @@ export const capatazAIJsonSchema = {
   }
 } as const;
 
+const compactEntityProperties = {
+  cn: stringOrNull,
+  ct: stringOrNull,
+  ce: stringOrNull,
+  fc: stringOrNull,
+  cl: stringOrNull,
+  typ: { type: ["string", "null"], enum: ["particular", "autonomo", "empresa", null] },
+  nif: stringOrNull,
+  df: stringOrNull,
+  on: stringOrNull,
+  ot: stringOrNull,
+  ol: stringOrNull,
+  od: stringOrNull,
+  job: stringOrNull,
+  scope: stringOrNull,
+  qty: numberOrNull,
+  unit: stringOrNull,
+  dur: stringOrNull,
+  lines: {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["d", "q", "u", "p", "t", "cat"],
+      properties: {
+        d: stringOrNull,
+        q: numberOrNull,
+        u: stringOrNull,
+        p: numberOrNull,
+        t: numberOrNull,
+        cat: stringOrNull
+      }
+    }
+  },
+  amount: numberOrNull,
+  iva: booleanOrNull,
+  mat: booleanOrNull,
+  date: stringOrNull,
+  time: stringOrNull,
+  act: { type: ["string", "null"], enum: ["visita", "reunion", "llamada", "nota", "seguimiento", null] },
+  channel: { type: ["string", "null"], enum: ["whatsapp", "email", "interno", null] },
+  msg: stringOrNull,
+  doc: { type: ["string", "null"], enum: ["presupuesto", "factura", null] },
+  state: stringOrNull,
+  method: stringOrNull,
+  notes: stringOrNull,
+  pending: { type: "array", items: { type: "string" } },
+  refs: { type: "array", items: { type: "string" } }
+} as const;
+
+const compactExtractionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["i", "c", "e", "a", "x", "rc", "q", "er"],
+  properties: {
+    i: { type: "string", enum: capatazAIIntents },
+    c: { type: "number", minimum: 0, maximum: 1 },
+    e: {
+      type: "object",
+      additionalProperties: false,
+      required: Object.keys(compactEntityProperties),
+      properties: compactEntityProperties
+    },
+    a: { type: "array", items: { type: "string", enum: capatazAIInternalActions } },
+    x: { type: "boolean" },
+    rc: { type: "boolean" },
+    q: { type: "array", items: { type: "string" } },
+    er: stringOrNull
+  }
+} as const;
+
+type ExtractionProfile = {
+  id: "budget" | "invoice" | "visit" | "document" | "general";
+  schemaName: string;
+  instruction: string;
+};
+
+const extractionProfiles: Record<ExtractionProfile["id"], ExtractionProfile> = {
+  budget: {
+    id: "budget",
+    schemaName: "capataz_budget_extract",
+    instruction: "Extrae oportunidad/obra/presupuesto. Diferencia contacto operativo y empresa fiscal. Si hay precio acordado de trabajo, i=crear_presupuesto y a incluye crearPresupuestoBorrador."
+  },
+  invoice: {
+    id: "invoice",
+    schemaName: "capataz_invoice_extract",
+    instruction: "Extrae factura solo si el usuario pide factura de forma explicita. Si solo menciona que la factura ira a una empresa pero describe un trabajo futuro, usa presupuesto."
+  },
+  visit: {
+    id: "visit",
+    schemaName: "capataz_visit_extract",
+    instruction: "Extrae visita/reunion/nota. Horas como 17H son time=17:00, nunca amount. Si hay materiales revisados y confirmacion pendiente, pregunta seguimiento."
+  },
+  document: {
+    id: "document",
+    schemaName: "capataz_document_extract",
+    instruction: "Extrae comandos de PDF/documentos. No generes documentos si falta referencia."
+  },
+  general: {
+    id: "general",
+    schemaName: "capataz_general_extract",
+    instruction: "Extrae intencion y entidades minimas. Si no hay accion clara, i=preguntar_aclaracion o sin_accion."
+  }
+};
+
 const capatazAISystemPrompt = `
 Eres el motor de comprension de Capataz, una app para profesionales de reformas, construccion e instalaciones.
 Tu trabajo no es ejecutar acciones directamente. Tu trabajo es devolver JSON estructurado para que el backend de Capataz ejecute herramientas internas controladas.
@@ -244,13 +409,52 @@ export function isCapatazAIConfigured() {
 }
 
 export function getCapatazAIModel() {
-  return process.env.OPENAI_MODEL || "gpt-5.5";
+  return getCapatazAIReasoningModel();
+}
+
+export function getCapatazAIFastModel() {
+  return process.env.OPENAI_MODEL_FAST || "gpt-5-mini";
+}
+
+export function getCapatazAIReasoningModel() {
+  return process.env.OPENAI_MODEL_REASONING || process.env.OPENAI_MODEL || "gpt-5.5";
+}
+
+export function getCapatazAIReasoningEffort() {
+  return process.env.OPENAI_REASONING_EFFORT || "low";
 }
 
 export function getCapatazAIStatus() {
   return {
     configured: isCapatazAIConfigured(),
-    model: getCapatazAIModel()
+    model: getCapatazAIReasoningModel(),
+    fastModel: getCapatazAIFastModel(),
+    reasoningModel: getCapatazAIReasoningModel(),
+    reasoningEffort: getCapatazAIReasoningEffort(),
+    fastTimeoutMs: readTimeoutMs("fast"),
+    reasoningTimeoutMs: readTimeoutMs("reasoning")
+  };
+}
+
+export async function checkCapatazAIModels() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      fast: { model: getCapatazAIFastModel(), ok: false, error: "missing_OPENAI_API_KEY" },
+      reasoning: { model: getCapatazAIReasoningModel(), ok: false, error: "missing_OPENAI_API_KEY" }
+    };
+  }
+
+  const [fast, reasoning] = await Promise.all([
+    pingOpenAIModel(apiKey, getCapatazAIFastModel(), "fast"),
+    pingOpenAIModel(apiKey, getCapatazAIReasoningModel(), "reasoning")
+  ]);
+
+  return {
+    ok: fast.ok && reasoning.ok,
+    fast,
+    reasoning
   };
 }
 
@@ -260,7 +464,56 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
     throw new Error("OPENAI_API_KEY no esta configurada");
   }
 
-  const timeoutMs = readTimeoutMs();
+  const fast = await runCompactExtraction({
+    input,
+    apiKey,
+    lane: "fast",
+    profile: selectExtractionProfile(input.message)
+  });
+  const fastResult = compactToCapatazResult(fast.data, fast.diagnostics);
+  const escalationReason = shouldEscalate(fast.data, fastResult);
+  if (!escalationReason) return fastResult;
+
+  const reasoning = await runCompactExtraction({
+    input,
+    apiKey,
+    lane: "reasoning",
+    profile: selectExtractionProfile(input.message),
+    previous: fast.data,
+    escalationReason
+  });
+  return compactToCapatazResult(reasoning.data, {
+    ...reasoning.diagnostics,
+    escalated: true,
+    escalationReason
+  });
+}
+
+async function runCompactExtraction({
+  input,
+  apiKey,
+  lane,
+  profile,
+  previous,
+  escalationReason
+}: {
+  input: CapatazAIInterpretInput;
+  apiKey: string;
+  lane: "fast" | "reasoning";
+  profile: ExtractionProfile;
+  previous?: CompactExtraction;
+  escalationReason?: string;
+}) {
+  const model = lane === "fast" ? getCapatazAIFastModel() : getCapatazAIReasoningModel();
+  const timeoutMs = readTimeoutMs(lane);
+  const prompt = compactPrompt(profile, lane, escalationReason);
+  const compactContext = compactAIContext(input.data, input.context);
+  const userPayload = JSON.stringify({
+    m: input.message,
+    ctx: compactContext,
+    prev: previous ? compactForRetry(previous) : null
+  });
+  const startedAt = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
@@ -274,35 +527,41 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: getCapatazAIModel(),
+        model,
         input: [
           {
             role: "system",
-            content: capatazAISystemPrompt
+            content: prompt
           },
           {
             role: "user",
-            content: JSON.stringify({
-              message: input.message,
-              chatContext: input.context ?? null,
-              appContext: input.data ?? {},
-              currentDate: input.data?.currentDate ?? new Date().toISOString()
-            })
+            content: userPayload
           }
         ],
+        ...(lane === "reasoning" ? { reasoning: { effort: getCapatazAIReasoningEffort() } } : {}),
         text: {
           format: {
             type: "json_schema",
-            name: "capataz_ai_result",
+            name: profile.schemaName,
             strict: true,
-            schema: capatazAIJsonSchema
+            schema: compactExtractionSchema
           }
         }
       })
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`OpenAI ha superado el timeout de ${timeoutMs}ms`);
+      throw new CapatazAIRequestError(`OpenAI ha superado el timeout de ${timeoutMs}ms`, {
+        lane,
+        model,
+        schemaName: profile.schemaName,
+        promptBytes: byteLength(prompt),
+        contextBytes: byteLength(userPayload),
+        timeoutMs,
+        durationMs: Date.now() - startedAt,
+        reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined,
+        errorType: "timeout"
+      });
     }
     throw error;
   } finally {
@@ -312,20 +571,327 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message = extractOpenAIError(payload) || `OpenAI API devolvio HTTP ${response.status}`;
-    throw new Error(message);
+    throw new CapatazAIRequestError(message, {
+      lane,
+      model,
+      schemaName: profile.schemaName,
+      promptBytes: byteLength(prompt),
+      contextBytes: byteLength(userPayload),
+      timeoutMs,
+      durationMs: Date.now() - startedAt,
+      reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined,
+      status: response.status,
+      errorType: classifyOpenAIError(response.status, message)
+    });
   }
 
   const content = extractResponseText(payload);
-  if (!content) throw new Error("OpenAI no devolvio contenido estructurado");
+  if (!content) {
+    throw new CapatazAIRequestError("OpenAI no devolvio contenido estructurado", {
+      lane,
+      model,
+      schemaName: profile.schemaName,
+      promptBytes: byteLength(prompt),
+      contextBytes: byteLength(userPayload),
+      timeoutMs,
+      durationMs: Date.now() - startedAt,
+      reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined,
+      errorType: "empty_response"
+    });
+  }
 
   const parsed = JSON.parse(content) as unknown;
-  return validateCapatazAIResult(parsed);
+  return {
+    data: validateCompactExtraction(parsed),
+    diagnostics: {
+      lane,
+      model,
+      schemaName: profile.schemaName,
+      promptBytes: byteLength(prompt),
+      contextBytes: byteLength(userPayload),
+      timeoutMs,
+      durationMs: Date.now() - startedAt,
+      reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined
+    } satisfies CapatazAIDiagnostics
+  };
 }
 
-function readTimeoutMs() {
-  const value = Number(process.env.OPENAI_TIMEOUT_MS ?? 18000);
-  if (!Number.isFinite(value)) return 18000;
-  return Math.min(45000, Math.max(5000, value));
+async function pingOpenAIModel(apiKey: string, model: string, lane: "fast" | "reasoning") {
+  const timeoutMs = lane === "fast" ? 5000 : 8000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        input: "Responde solo OK.",
+        max_output_tokens: 8
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      return {
+        model,
+        ok: false,
+        durationMs: Date.now() - startedAt,
+        error: extractOpenAIError(payload) || `HTTP ${response.status}`
+      };
+    }
+    return {
+      model,
+      ok: true,
+      durationMs: Date.now() - startedAt
+    };
+  } catch (error) {
+    return {
+      model,
+      ok: false,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error && error.name === "AbortError" ? `timeout_${timeoutMs}ms` : error instanceof Error ? error.message : "unknown"
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function readTimeoutMs(lane: "fast" | "reasoning") {
+  const envKey = lane === "fast" ? "OPENAI_FAST_TIMEOUT_MS" : "OPENAI_REASONING_TIMEOUT_MS";
+  const fallback = lane === "fast" ? 10000 : Number(process.env.OPENAI_TIMEOUT_MS ?? 30000);
+  const value = Number(process.env[envKey] ?? fallback);
+  if (!Number.isFinite(value)) return lane === "fast" ? 10000 : 30000;
+  return Math.min(lane === "fast" ? 15000 : 35000, Math.max(5000, value));
+}
+
+export class CapatazAIRequestError extends Error {
+  meta: Record<string, unknown>;
+
+  constructor(message: string, meta: Record<string, unknown>) {
+    super(message);
+    this.name = "CapatazAIRequestError";
+    this.meta = meta;
+  }
+}
+
+export function getCapatazAIErrorMeta(error: unknown) {
+  return error instanceof CapatazAIRequestError ? error.meta : null;
+}
+
+function compactPrompt(profile: ExtractionProfile, lane: "fast" | "reasoning", escalationReason?: string) {
+  return [
+    "Eres el extractor estructurado de Capataz para reformas/construccion.",
+    "Devuelve solo JSON valido. No redactes respuesta al usuario.",
+    "Claves: i=intent, c=confidence, e=entidades, a=acciones internas, x=puede ejecutar borrador/local, rc=requiere confirmacion, q=preguntas, er=motivo de escalado.",
+    "Entidades: cn contacto, fc empresa_facturacion, cl cliente, typ tipo cliente, on obra, ot tipo obra, ol localidad, od direccion obra, job trabajo, scope alcance, qty cantidad, unit unidad, dur duracion, amount importe, iva si importe incluye IVA, mat material incluido, time hora.",
+    "Reglas: 17H es hora, no importe. 25 baños es cantidad. 60mil euros es amount=60000. Alberto Ruiz contacto y MURHOTEL SL empresa fiscal si el texto lo dice.",
+    "No propongas enviar WhatsApp/email ni emitir facturas definitivas.",
+    profile.instruction,
+    lane === "reasoning" ? `Revisa la extraccion previa y corrige ambiguedad: ${escalationReason ?? "confidence baja"}.` : "Prioriza rapidez y campos seguros."
+  ].join("\n");
+}
+
+function selectExtractionProfile(message: string): ExtractionProfile {
+  const normalized = normalizeBasic(message);
+  if (/\b(pdf|descargar|descarga)\b/.test(normalized)) return extractionProfiles.document;
+  if (/\b(visita|reunion|reunido|he hablado|hemos hablado|llamada)\b/.test(normalized)) return extractionProfiles.visit;
+  if (normalized.includes("factura") && /\b(haz|crear|crea|prepara|emite|factura a|factura para)\b/.test(normalized)) {
+    if (!/(factura tendra que ser|factura tendrá que ser|ira a nombre|irá a nombre|nombre de empresa)/.test(normalized)) return extractionProfiles.invoice;
+  }
+  if (normalized.includes("presupuesto") || /\b(precio cerrado|hemos acordado|cliente nuevo|nuevo cliente|obra es|quiere que)\b/.test(normalized)) return extractionProfiles.budget;
+  return extractionProfiles.general;
+}
+
+function compactAIContext(data?: CapatazAIContext, context?: unknown) {
+  return {
+    active: compactActiveContext(context),
+    clients: (data?.clients ?? []).slice(0, 5).map((client) => pickKeys(client, ["id", "nombre", "tipo", "estado"])),
+    works: (data?.works ?? []).slice(0, 5).map((work) => pickKeys(work, ["id", "clienteId", "titulo", "direccion", "tipoTrabajo", "estado"])),
+    budgets: (data?.budgets ?? []).slice(0, 4).map((budget) => pickKeys(budget, ["id", "clienteId", "obraId", "numero", "titulo", "total", "estado"])),
+    invoices: (data?.invoices ?? []).slice(0, 4).map((invoice) => pickKeys(invoice, ["id", "clienteId", "obraId", "numero", "concepto", "total", "pendiente", "estado"])),
+    now: data?.currentDate ?? new Date().toISOString()
+  };
+}
+
+function compactActiveContext(context: unknown) {
+  if (!isRecord(context)) return null;
+  return {
+    activeTask: context.activeTask ?? null,
+    lastClientId: context.lastClientId ?? null,
+    lastWorkId: context.lastWorkId ?? null,
+    lastBudgetId: context.lastBudgetId ?? null,
+    lastInvoiceId: context.lastInvoiceId ?? null,
+    lastDocumentType: context.lastDocumentType ?? null,
+    lastClientName: context.lastClientName ?? null
+  };
+}
+
+function pickKeys(source: Record<string, unknown>, keys: string[]) {
+  return Object.fromEntries(keys.map((key) => [key, source[key]]).filter(([, value]) => value !== undefined && value !== null && value !== ""));
+}
+
+function compactForRetry(value: CompactExtraction) {
+  return {
+    i: value.i,
+    c: value.c,
+    e: value.e,
+    a: value.a,
+    q: value.q,
+    er: value.er ?? null
+  };
+}
+
+function validateCompactExtraction(raw: unknown): CompactExtraction {
+  if (!isRecord(raw)) throw new Error("Respuesta IA compacta invalida: no es objeto");
+  if (!isIntent(raw.i)) throw new Error("Respuesta IA compacta invalida: intent desconocido");
+  const entity = isRecord(raw.e) ? raw.e : {};
+  return {
+    i: raw.i,
+    c: clampNumber(raw.c, 0, 1, 0),
+    e: {
+      cn: asCleanString(entity.cn),
+      ct: asCleanString(entity.ct),
+      ce: asCleanString(entity.ce),
+      fc: asCleanString(entity.fc),
+      cl: asCleanString(entity.cl),
+      typ: asEnum(entity.typ, ["particular", "autonomo", "empresa"]),
+      nif: asCleanString(entity.nif),
+      df: asCleanString(entity.df),
+      on: asCleanString(entity.on),
+      ot: asCleanString(entity.ot),
+      ol: asCleanString(entity.ol),
+      od: asCleanString(entity.od),
+      job: asCleanString(entity.job),
+      scope: asCleanString(entity.scope),
+      qty: asOptionalNumber(entity.qty),
+      unit: asCleanString(entity.unit),
+      dur: asCleanString(entity.dur),
+      lines: normalizeCompactLines(entity.lines),
+      amount: asOptionalNumber(entity.amount),
+      iva: asOptionalBoolean(entity.iva),
+      mat: asOptionalBoolean(entity.mat),
+      date: asCleanString(entity.date),
+      time: normalizeHour(entity.time),
+      act: asEnum(entity.act, ["visita", "reunion", "llamada", "nota", "seguimiento"]),
+      channel: asEnum(entity.channel, ["whatsapp", "email", "interno"]),
+      msg: asCleanString(entity.msg),
+      doc: asEnum(entity.doc, ["presupuesto", "factura"]),
+      state: asCleanString(entity.state),
+      method: asCleanString(entity.method),
+      notes: asCleanString(entity.notes),
+      pending: normalizeStringArray(entity.pending),
+      refs: normalizeStringArray(entity.refs)
+    },
+    a: Array.isArray(raw.a) ? raw.a.filter(isInternalAction) : [],
+    x: raw.x === true,
+    rc: raw.rc === true,
+    q: normalizeStringArray(raw.q),
+    er: asCleanString(raw.er)
+  };
+}
+
+function normalizeCompactLines(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isRecord).map((line) => ({
+    d: asCleanString(line.d),
+    q: asOptionalNumber(line.q),
+    u: asCleanString(line.u),
+    p: asOptionalNumber(line.p),
+    t: asOptionalNumber(line.t),
+    cat: asCleanString(line.cat)
+  })).filter((line) => line.d || line.t || line.p);
+}
+
+function compactToCapatazResult(raw: CompactExtraction, diagnostics?: CapatazAIDiagnostics): CapatazAIResult {
+  const entities: CapatazAIEntities = {
+    contacto_nombre: raw.e.cn,
+    contacto_telefono: raw.e.ct,
+    contacto_email: raw.e.ce,
+    empresa_facturacion: raw.e.fc,
+    cliente_nombre: raw.e.cl ?? raw.e.fc ?? raw.e.cn,
+    cliente_tipo: raw.e.typ,
+    cliente_nif: raw.e.nif,
+    direccion_fiscal: raw.e.df,
+    obra_nombre: raw.e.on,
+    obra_tipo: raw.e.ot,
+    obra_localidad: raw.e.ol,
+    obra_direccion: raw.e.od,
+    descripcion_trabajo: raw.e.job,
+    alcance: raw.e.scope,
+    cantidad: raw.e.qty,
+    unidad_cantidad: raw.e.unit,
+    duracion_estimada: raw.e.dur,
+    partidas: raw.e.lines.map((line) => ({
+      descripcion: line.d,
+      cantidad: line.q,
+      unidad: line.u,
+      precioUnitario: line.p,
+      total: line.t,
+      categoria: line.cat
+    })),
+    importe: raw.e.amount,
+    moneda: raw.e.amount ? "EUR" : undefined,
+    iva_incluido: raw.e.iva,
+    material_incluido: raw.e.mat,
+    fecha: raw.e.date,
+    hora: raw.e.time,
+    tipo_actividad: raw.e.act,
+    canal: raw.e.channel,
+    mensaje: raw.e.msg,
+    documento_tipo: raw.e.doc,
+    estado: raw.e.state,
+    metodo_pago: raw.e.method,
+    notas: raw.e.notes,
+    datos_pendientes: raw.e.pending,
+    referencias_contexto: raw.e.refs
+  };
+
+  return {
+    intent: raw.i,
+    confidence: raw.c,
+    entities,
+    actionPlan: raw.a.map((action) => ({ action, reason: "Extraccion IA compacta" })),
+    shouldExecute: raw.x,
+    requiresConfirmation: raw.rc,
+    clarificationQuestions: raw.q,
+    userResponse: "",
+    diagnostics
+  };
+}
+
+function shouldEscalate(raw: CompactExtraction, result: CapatazAIResult) {
+  if (raw.c < 0.72) return "confidence_baja";
+  if (raw.er) return raw.er;
+  if (["crear_presupuesto", "crear_factura"].includes(result.intent)) {
+    if (!result.entities.importe || !(result.entities.empresa_facturacion ?? result.entities.cliente_nombre ?? result.entities.contacto_nombre)) return "faltan_campos_clave_documento";
+  }
+  if ((result.intent === "registrar_visita" || result.intent === "registrar_reunion") && !result.entities.contacto_nombre && !result.entities.cliente_nombre) {
+    return "falta_cliente_actividad";
+  }
+  return null;
+}
+
+function byteLength(value: string) {
+  return new TextEncoder().encode(value).length;
+}
+
+function normalizeBasic(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function classifyOpenAIError(status: number, message: string) {
+  const normalized = normalizeBasic(message);
+  if (status === 401 || normalized.includes("incorrect api key")) return "auth";
+  if (status === 404 || normalized.includes("model")) return "model";
+  if (status === 429 || normalized.includes("rate")) return "rate_limit";
+  if (status >= 500) return "openai_server";
+  if (normalized.includes("schema") || normalized.includes("json")) return "validation";
+  return "api_error";
 }
 
 export function validateCapatazAIResult(raw: unknown): CapatazAIResult {

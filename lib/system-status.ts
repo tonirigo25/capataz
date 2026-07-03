@@ -23,6 +23,11 @@ export type SystemStatus = {
   ai: {
     openai: "ok" | "missing";
     model: string;
+    fastModel: string;
+    reasoningModel: string;
+    reasoningEffort: string;
+    fastTimeoutMs: number;
+    reasoningTimeoutMs: number;
     required: boolean;
   };
   database: "ok" | "error";
@@ -50,6 +55,11 @@ export async function getSystemStatus(): Promise<SystemStatus> {
     ai: {
       openai: aiStatus.configured ? "ok" : "missing",
       model: aiStatus.model,
+      fastModel: aiStatus.fastModel,
+      reasoningModel: aiStatus.reasoningModel,
+      reasoningEffort: aiStatus.reasoningEffort,
+      fastTimeoutMs: aiStatus.fastTimeoutMs,
+      reasoningTimeoutMs: aiStatus.reasoningTimeoutMs,
       required: openAIRequired
     },
     database,

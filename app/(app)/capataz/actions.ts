@@ -26,6 +26,7 @@ import {
   type ParsedPdfCommand
 } from "@/lib/capataz-chat-parser";
 import {
+  getCapatazAIErrorMeta,
   interpretCapatazMessageWithAI,
   isCapatazAIConfigured,
   type CapatazAIResult
@@ -353,7 +354,11 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
       invoices: data.invoices.length
     });
     const ai = await interpretCapatazMessageWithAI({ message: text, context, data });
-    await logChatPerf(trace, "ai:interpret", aiStarted, "ok", { intent: ai.intent, confidence: ai.confidence });
+    await logChatPerf(trace, "ai:interpret", aiStarted, "ok", {
+      intent: ai.intent,
+      confidence: ai.confidence,
+      ...(ai.diagnostics ?? {})
+    });
     debugChat("ai_result", ai);
     const executeStarted = nowMs();
     const result = await executeAIChatCommand(ai, context);
@@ -363,7 +368,8 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
     });
     return result;
   } catch (error) {
-    await logChatPerf(trace, "ai:interpret", aiStarted, "error", error instanceof Error ? { message: sanitizeAIError(error.message) } : undefined);
+    const aiMeta = getCapatazAIErrorMeta(error);
+    await logChatPerf(trace, "ai:interpret", aiStarted, "error", error instanceof Error ? { message: sanitizeAIError(error.message), ...(aiMeta ?? {}) } : aiMeta ?? undefined);
     debugChat("ai_error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
     const detail = process.env.NEXT_PUBLIC_APP_ENV !== "production" && error instanceof Error
       ? `\n\nDetalle técnico staging: ${sanitizeAIError(error.message)}`
@@ -465,7 +471,7 @@ async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandCon
   if (ai.confidence < 0.45) {
     return {
       handled: true,
-      text: ai.userResponse || "Necesito un poco más de contexto para preparar una acción segura.",
+      text: buildAIClarificationResponse(ai),
       context
     };
   }
@@ -496,7 +502,7 @@ async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandCon
   if (ai.intent === "registrar_gasto" || ai.intent === "registrar_pago" || ai.intent === "registrar_seguimiento") {
     return {
       handled: true,
-      text: withQuestions(ai.userResponse, ai.clarificationQuestions) + "\n\nAntes de guardar o programar esta acción necesito confirmación explícita. No he enviado WhatsApp, email ni he registrado movimientos definitivos.",
+      text: buildAIClarificationResponse(ai) + "\n\nAntes de guardar o programar esta acción necesito confirmación explícita. No he enviado WhatsApp, email ni he registrado movimientos definitivos.",
       context
     };
   }
@@ -504,7 +510,7 @@ async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandCon
   if (ai.requiresConfirmation || !ai.shouldExecute || ai.intent === "preguntar_aclaracion") {
     return {
       handled: true,
-      text: withQuestions(ai.userResponse, ai.clarificationQuestions),
+      text: buildAIClarificationResponse(ai),
       context
     };
   }
@@ -512,7 +518,7 @@ async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandCon
   if (ai.intent === "sin_accion") {
     return {
       handled: true,
-      text: withQuestions(ai.userResponse, ai.clarificationQuestions) || "Dime si quieres preparar un presupuesto, factura, visita, seguimiento, gasto, pago o PDF.",
+      text: buildAIClarificationResponse(ai) || "Dime si quieres preparar un presupuesto, factura, visita, seguimiento, gasto, pago o PDF.",
       context
     };
   }
@@ -2145,33 +2151,43 @@ function buildAIBudgetMessage(ai: CapatazAIResult, details: {
   pendingFields: string[];
   clientWasCreated: boolean;
 }) {
-  const contact = details.contactName && details.contactName !== details.clientName
-    ? `\nContacto: ${details.contactName}`
-    : "";
   const pending = details.pendingFields.length || ai.clarificationQuestions.length
-    ? `\n\nPara dejarlo listo antes de enviar necesito confirmar:\n${[
+    ? `\n\nPara dejarlo bien cerrado me falta:\n\n${[
         ...new Set([
           ...ai.clarificationQuestions,
-          details.pendingFields.includes("iva") ? `Si los ${formatEuros(details.amount)} incluyen IVA o hay que añadirlo aparte.` : null,
+          details.pendingFields.includes("iva") ? `Confirmar si los ${formatEuros(details.amount)} son con IVA incluido o más IVA.` : null,
           details.pendingFields.includes("datos_fiscales") ? "CIF/NIF y dirección fiscal del cliente de facturación." : null,
           details.pendingFields.includes("direccion_obra") ? "Dirección exacta de la obra." : null,
-          details.pendingFields.includes("datos_cliente") ? "Teléfono o email de contacto." : null
+          details.pendingFields.includes("datos_cliente") ? `Teléfono o email de ${details.contactName ?? "contacto"}.` : null
         ].filter(Boolean) as string[])
       ].map((question, index) => `${index + 1}. ${question}`).join("\n")}`
     : "";
+  const contact = details.contactName && details.contactName !== details.clientName ? `Contacto: ${details.contactName}\n` : "";
+  const location = ai.entities.obra_localidad ? `\nUbicación: ${ai.entities.obra_localidad}` : "";
+  const duration = ai.entities.duracion_estimada ? `\nDuración estimada: ${ai.entities.duracion_estimada}` : "";
 
-  return `He preparado un presupuesto en borrador para ${details.clientName}.${contact}
+  return `He preparado el nuevo trabajo en borrador.
 
-Cliente fiscal: ${details.clientName}${details.clientWasCreated ? " (provisional)" : ""}
-Trabajo: ${details.workTitle}
-Importe: ${formatEuros(details.amount)}
-IVA: ${invoiceIvaLabel(details.ivaMode)}
-Estado: Borrador
+${contact}Cliente de facturación: ${details.clientName}${details.clientWasCreated ? " (provisional)" : ""}
+Obra: ${details.workTitle}${location}
+Importe acordado: ${formatEuros(details.amount)}
+Material incluido: ${ai.entities.material_incluido ? "Sí" : "No indicado"}${duration}
 Presupuesto: ${details.budgetNumber}
 
 Puedes revisarlo y editarlo aquí: /presupuestos/${details.budgetId}${pending}
 
 No he enviado ningún documento al cliente.`;
+}
+
+function buildAIClarificationResponse(ai: CapatazAIResult) {
+  const entitySummary = [
+    ai.entities.contacto_nombre ? `Contacto: ${ai.entities.contacto_nombre}` : null,
+    ai.entities.empresa_facturacion ? `Cliente de facturación: ${ai.entities.empresa_facturacion}` : null,
+    ai.entities.descripcion_trabajo ? `Trabajo: ${ai.entities.descripcion_trabajo}` : null,
+    ai.entities.importe ? `Importe: ${formatEuros(ai.entities.importe)}` : null
+  ].filter(Boolean).join("\n");
+  const intro = entitySummary ? `He entendido estos datos:\n\n${entitySummary}` : "Necesito un poco más de contexto para preparar una acción segura.";
+  return withQuestions(intro, ai.clarificationQuestions);
 }
 
 function withQuestions(response: string, questions: string[]) {
