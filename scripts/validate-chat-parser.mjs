@@ -67,6 +67,15 @@ const cases = [
     }
   },
   {
+    text: "Haz factura para cliente Prueba Factura Codex por una cocina de 4200 euros más IVA",
+    expected: {
+      intent: "crear_factura",
+      clientName: "Prueba Factura Codex",
+      amount: 4200,
+      ivaMode: "plus"
+    }
+  },
+  {
     text: "he tenido una visita con Laura referente a la obra completa, hemos revisado los materiales y me tiene que confirmar, la visita ha sido a las 17H",
     expected: {
       intent: "registrar_visita",

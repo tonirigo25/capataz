@@ -2561,10 +2561,15 @@ async function findClientMatches(name: string) {
     select: { id: true, nombre: true, direccion: true, notas: true }
   });
 
+  const exactMatches = clients.filter((client) => normalizeName(client.nombre) === target);
+  if (exactMatches.length) return exactMatches;
+
+  const targetTokens = target.split(" ").filter(Boolean);
+  if (targetTokens.length < 2) return [];
+
   return clients.filter((client) => {
     const normalized = normalizeName(client.nombre);
-    const first = normalized.split(" ")[0];
-    return normalized === target || first === target || normalized.startsWith(`${target} `);
+    return normalized.startsWith(`${target} `);
   });
 }
 

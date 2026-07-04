@@ -338,19 +338,21 @@ function parseFollowUpCommand(original: string, normalized: string): ParsedFollo
 function extractClientName(original: string, normalized: string, document: "budget" | "invoice") {
   const documentWord = document === "budget" ? "presupuesto" : "factura";
   const commandWords = "(?:hazme|haz|creame|créame|crea|crear|prepara|preparame|prepárame)";
+  const nameWord = "[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+";
+  const namePhrase = `${nameWord}(?:\\s+${nameWord}){0,3}?`;
+  const beforeWorkOrAmount = "(?=\\s+(?:de|por|para|un|una|el|la|baño|bano|cocina|reforma|pintar|pintura|cambiar|alicatar|obra|piso|\\d)|\\s*$)";
   const patterns = document === "budget"
     ? [
-        /presupuesto\s+para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)\s+(?=baño|bano|cocina|reforma|pintar|pintura|cambiar|alicatar|obra|piso)/i,
-        /(?:para\s+el\s+cliente|para\s+la\s+cliente|cliente)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-        /presupuesto\s+para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-        /para\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)\s+(?:un\s+)?presupuesto/i,
-        new RegExp(`${commandWords}\\s+(?:un\\s+)?${documentWord}\\s+para\\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)`, "i")
+        new RegExp(`(?:para\\s+el\\s+cliente|para\\s+la\\s+cliente|cliente)\\s+(${namePhrase})${beforeWorkOrAmount}`, "i"),
+        new RegExp(`presupuesto\\s+para\\s+(?:el\\s+cliente\\s+|la\\s+cliente\\s+|cliente\\s+)?(${namePhrase})${beforeWorkOrAmount}`, "i"),
+        new RegExp(`para\\s+(${namePhrase})\\s+(?:un\\s+)?presupuesto`, "i"),
+        new RegExp(`${commandWords}\\s+(?:un\\s+)?${documentWord}\\s+para\\s+(?:el\\s+cliente\\s+|la\\s+cliente\\s+|cliente\\s+)?(${namePhrase})${beforeWorkOrAmount}`, "i")
       ]
     : [
-        /factura\s+(?:a|para)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)\s+(?=baño|bano|cocina|reforma|pintar|pintura|cambiar|alicatar|obra|piso|la\s+|el\s+)/i,
-        /(?:factura\s+a|factura\s+para|a\s+el\s+cliente|a\s+la\s+cliente|cliente)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-        /(?:hazme|haz|creame|créame|crea|crear|prepara|preparame|prepárame)\s+(?:una\s+)?factura\s+(?:a|para)\s+([A-Za-zÁÉÍÓÚÜÑáéÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i,
-        /factura\s+de\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?)/i
+        new RegExp(`factura\\s+(?:a|para)\\s+(?:el\\s+cliente\\s+|la\\s+cliente\\s+|cliente\\s+)?(${namePhrase})${beforeWorkOrAmount}`, "i"),
+        new RegExp(`(?:a\\s+el\\s+cliente|a\\s+la\\s+cliente|cliente)\\s+(${namePhrase})${beforeWorkOrAmount}`, "i"),
+        new RegExp(`${commandWords}\\s+(?:una\\s+)?factura\\s+(?:a|para)\\s+(?:el\\s+cliente\\s+|la\\s+cliente\\s+|cliente\\s+)?(${namePhrase})${beforeWorkOrAmount}`, "i"),
+        new RegExp(`factura\\s+de\\s+(${namePhrase})${beforeWorkOrAmount}`, "i")
       ];
 
   for (const pattern of patterns) {
@@ -358,8 +360,8 @@ function extractClientName(original: string, normalized: string, document: "budg
     if (match?.[1]) return cleanClientName(match[1]);
   }
 
-  const normalizedMatch = normalized.match(new RegExp(`${documentWord} para ([a-z]+(?: [a-z]+)?)`))
-    ?? normalized.match(new RegExp(`${documentWord} a ([a-z]+(?: [a-z]+)?)`));
+  const normalizedMatch = normalized.match(new RegExp(`${documentWord} para ([a-z]+(?: [a-z]+){0,3})${beforeWorkOrAmount}`))
+    ?? normalized.match(new RegExp(`${documentWord} a ([a-z]+(?: [a-z]+){0,3})${beforeWorkOrAmount}`));
   return normalizedMatch?.[1] ? titleCase(cleanClientName(normalizedMatch[1])) : null;
 }
 
@@ -451,8 +453,10 @@ function cleanClientName(value: string) {
   const words = value
     .split(/\s+/)
     .map((word) => word.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, ""))
-    .filter((word) => word && !stopWords.has(normalizeText(word)));
-  return titleCase(words.slice(0, 2).join(" "));
+    .filter(Boolean);
+  while (words.length && stopWords.has(normalizeText(words[0]))) words.shift();
+  while (words.length && stopWords.has(normalizeText(words[words.length - 1]))) words.pop();
+  return titleCase(words.slice(0, 4).join(" "));
 }
 
 function extractWorkText(original: string, normalized: string, document: "budget" | "invoice") {
