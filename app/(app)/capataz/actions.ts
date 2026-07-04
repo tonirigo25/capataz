@@ -1992,7 +1992,7 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
   }
 
   if (!budgetId) {
-    return { handled: true, text: "Necesito saber qué presupuesto aceptado quieres convertir en factura. Dime, por ejemplo: “convierte el presupuesto aceptado de Juana en factura”." };
+    return { handled: true, text: "Necesito saber qué presupuesto aceptado quieres convertir en factura. Dime, por ejemplo: “convierte el presupuesto aceptado del cliente en factura”." };
   }
 
   const budget = await prisma.budget.findUnique({ where: { id: budgetId }, include: { client: true } });

@@ -94,7 +94,7 @@ export default async function TodayPage() {
       </section>
 
       <form action="/buscar" className="card mb-5 flex gap-2 p-3">
-        <input className="field" name="q" placeholder="Buscar Marta, factura vencida, cemento cola..." />
+        <input className="field" name="q" placeholder="Buscar cliente, factura vencida, cemento cola..." />
         <button type="submit" className="icon-button shrink-0" aria-label="Buscar">
           <Search size={20} />
         </button>

@@ -252,10 +252,10 @@ type ProfileCardFields = Extract<ActionCard, { type: "user-profile" }>["profile"
 type CompanyCardFields = Extract<ActionCard, { type: "company-settings" }>["company"];
 
 const samples = [
-  "Créame para el cliente Juana un presupuesto de la reforma integral, cocina + baño de 14000 euros, con material incluido",
-  "Hazme un presupuesto para Juan de cambiar el baño por 6.500",
-  "Presupuesto para Pedro de pintar piso completo por 2300 más IVA",
-  "Apunta 86 euros de material para la obra de Juan.",
+  "Créame un presupuesto para un cliente nuevo de reforma integral, cocina + baño, por 14000 euros con material incluido",
+  "Hazme un presupuesto para cambiar un baño por 6.500 euros",
+  "Presupuesto para pintar un piso completo por 2300 más IVA",
+  "Apunta 86 euros de material para una obra.",
   "¿Quién me debe dinero?"
 ];
 
@@ -1337,7 +1337,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
     };
   }
 
-  return { text: "Necesito un poco más de contexto. Dime, por ejemplo: “crear presupuesto para Juana por 14000”, “haz factura a Laura por 4200” o “genera el PDF del último documento”." };
+  return { text: "Necesito un poco más de contexto. Dime, por ejemplo: “crear presupuesto para un cliente por 14000”, “haz factura de una cocina por 4200” o “genera el PDF del último documento”." };
 }
 
 function ActionCardView({ card, data }: { card: ActionCard; data: ChatData }) {
@@ -1945,7 +1945,7 @@ function findMentionedName(text: string) {
   if (explicit?.[1]) return explicit[1];
 
   const matches = text.match(/\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\b/g) ?? [];
-  return matches.find((match) => !["Ha", "Agenda", "Haz", "Crea", "Cierra", "Marta", "Juan"].includes(match)) ?? matches.find((match) => ["Marta", "Juan", "Laura"].includes(match)) ?? null;
+  return matches.find((match) => !["Ha", "Agenda", "Haz", "Crea", "Cierra"].includes(match)) ?? null;
 }
 
 function findClient(text: string, clients: ChatData["clients"]) {

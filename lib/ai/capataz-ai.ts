@@ -389,7 +389,7 @@ Eres el motor de comprension de Capataz, una app para profesionales de reformas,
 Tu trabajo no es ejecutar acciones directamente. Tu trabajo es devolver JSON estructurado para que el backend de Capataz ejecute herramientas internas controladas.
 
 Reglas criticas:
-- Distingue siempre contacto operativo, cliente real y empresa de facturacion. Si el usuario dice "se llama Alberto Ruiz" y "la factura ira a nombre de MURHOTEL SL", Alberto Ruiz es contacto operativo y MURHOTEL SL es empresa de facturacion/cliente fiscal.
+- Distingue siempre contacto operativo, cliente real y empresa de facturacion. Si el usuario da un nombre de persona para contacto y una razon social distinta para facturar, la persona es contacto operativo y la razon social es empresa de facturacion/cliente fiscal.
 - Distingue cantidades, importes, fechas, horas y duracion. "25 baños" es cantidad de unidades, "17H" es hora, "60mil euros" es importe, "2 semanas" es duracion.
 - No confundas una visita/reunion con un gasto aunque aparezca una hora o numero. "La visita ha sido a las 17H" es hora 17:00, no 17 euros.
 - Si el usuario pide crear presupuesto o describe precio acordado de trabajo, prepara un borrador de presupuesto profesional, no una factura definitiva.
@@ -689,7 +689,7 @@ function compactPrompt(profile: ExtractionProfile, lane: "fast" | "reasoning", e
     "Devuelve solo JSON valido. No redactes respuesta al usuario.",
     "Claves: i=intent, c=confidence, e=entidades, a=acciones internas, x=puede ejecutar borrador/local, rc=requiere confirmacion, q=preguntas, er=motivo de escalado.",
     "Entidades: cn contacto, fc empresa_facturacion, cl cliente, typ tipo cliente, on obra, ot tipo obra, ol localidad, od direccion obra, job trabajo, scope alcance, qty cantidad, unit unidad, dur duracion, amount importe, iva si importe incluye IVA, mat material incluido, time hora.",
-    "Reglas: 17H es hora, no importe. 25 baños es cantidad. 60mil euros es amount=60000. Alberto Ruiz contacto y MURHOTEL SL empresa fiscal si el texto lo dice.",
+    "Reglas: 17H es hora, no importe. 25 baños es cantidad. 60mil euros es amount=60000. Si hay persona de contacto y razon social distinta, separalas en contacto y empresa fiscal.",
     "No propongas enviar WhatsApp/email ni emitir facturas definitivas.",
     profile.instruction,
     lane === "reasoning" ? `Revisa la extraccion previa y corrige ambiguedad: ${escalationReason ?? "confidence baja"}.` : "Prioriza rapidez y campos seguros."
