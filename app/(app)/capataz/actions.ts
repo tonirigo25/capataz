@@ -12,9 +12,11 @@ import {
   mergeBudgetCommandWithEntities,
   normalizeChatContext,
   planChatMessage,
+  summarizeActiveTask,
   type ChatContext,
   type ChatEntities
 } from "@/lib/capataz-chat-engine";
+import { CHAT_INACTIVITY_MS, shouldShowConversationInHistory } from "@/lib/chat-conversation-rules";
 import {
   normalizeName,
   type IvaMode,
@@ -42,6 +44,7 @@ export type ChatCommandContext = ChatContext;
 export type ChatCommandResult = {
   handled: boolean;
   text: string;
+  result?: ChatActionResult;
   created?: {
     clientId?: string;
     workId?: string;
@@ -61,6 +64,23 @@ export type ChatCommandOptions = {
   clientStartedAt?: number;
 };
 
+export type ChatActionButton = {
+  label: string;
+  href?: string;
+  action?: "confirm_send" | "retry" | "show_pending" | "continue_task";
+  style?: "primary" | "secondary" | "danger";
+};
+
+export type ChatActionResult = {
+  type: "created" | "updated" | "registered" | "generated" | "failed" | "partial";
+  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf";
+  entityId?: string;
+  title: string;
+  summary: Record<string, string | number | boolean | null>;
+  pendingFields?: { key: string; label: string; requiredFor?: string }[];
+  actions: ChatActionButton[];
+};
+
 export type ChatHistoryMessage = {
   id: string;
   role: "assistant" | "user" | "system";
@@ -68,6 +88,7 @@ export type ChatHistoryMessage = {
   status: string;
   createdAt: string;
   metadata?: unknown;
+  result?: ChatActionResult;
 };
 
 export type ChatHistoryConversation = {
@@ -75,20 +96,26 @@ export type ChatHistoryConversation = {
   title: string;
   status: string;
   updatedAt: string;
+  lastActivityAt: string;
   createdAt: string;
+  activeTask?: ChatCommandContext | null;
+  metadata?: unknown;
   messages: ChatHistoryMessage[];
 };
 
 type ChatPerfTrace = {
   messageId?: string;
+  conversationId?: string;
+  idempotencyKey?: string;
   startedAt: number;
 };
 
 export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}): Promise<ChatCommandResult> {
-  const trace: ChatPerfTrace = { messageId: options.messageId, startedAt: nowMs() };
+  const trace: ChatPerfTrace = { messageId: options.messageId, conversationId: options.conversationId, idempotencyKey: options.idempotencyKey, startedAt: nowMs() };
   const persistStarted = nowMs();
   const persisted = await persistIncomingChatMessage(text, context ?? null, options);
   trace.messageId = persisted.messageId ?? trace.messageId;
+  trace.conversationId = persisted.conversationId;
   await logChatPerf(trace, "db:save_user_message", persistStarted, "ok", { duplicate: persisted.duplicate });
 
   if (persisted.result) {
@@ -100,14 +127,15 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
     const result = {
       handled: true,
       text: "Ya estoy procesando ese mensaje. Lo mantengo en la conversación y no duplicaré acciones.",
-      context
+      context: persisted.context
     };
     await logChatPerf(trace, "total", trace.startedAt, "duplicate_processing");
     return result;
   }
 
   try {
-    const result = await runChatCommandCore(text, context ?? null, trace);
+    const rawResult = await runChatCommandCore(text, persisted.context, trace);
+    const result = await withStructuredResult(rawResult);
     await completeChatMessage(trace.messageId, result);
     await logChatPerf(trace, "total", trace.startedAt, "ok", { handled: result.handled });
     return result;
@@ -121,6 +149,16 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
 async function runChatCommandCore(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult> {
   const enrichedContext = await enrichChatContext(context);
   debugChat("received", { text, context: enrichedContext });
+
+  if (wantsGlobalPendingList(text) && !enrichedContext?.activeTask) {
+    await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "list_global_pending" });
+    return listGlobalPendingTasks(enrichedContext);
+  }
+
+  if (wantsExplicitContinueTask(text) && !enrichedContext?.activeTask) {
+    await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "continue_latest_task" });
+    return continueLatestPendingTask();
+  }
 
   const planStarted = nowMs();
   const plan = planChatMessage(text, enrichedContext);
@@ -330,6 +368,228 @@ async function executeLocalChatPlan(text: string, plan: ReturnType<typeof planCh
   return { handled: false, text: "" };
 }
 
+async function withStructuredResult(result: ChatCommandResult): Promise<ChatCommandResult> {
+  if (result.result || !result.created) return result;
+  const actionResult = await buildActionResult(result);
+  return actionResult ? { ...result, result: actionResult } : result;
+}
+
+async function listGlobalPendingTasks(context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const [budgets, invoices, reminders, events] = await Promise.all([
+    prisma.budget.findMany({
+      where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] } },
+      orderBy: { fechaCreacion: "desc" },
+      take: 5,
+      include: { client: true }
+    }),
+    prisma.invoice.findMany({
+      where: { pendiente: { gt: 0 } },
+      orderBy: { fechaVencimiento: "asc" },
+      take: 5,
+      include: { client: true }
+    }),
+    prisma.reminder.findMany({
+      where: { estado: { in: ["pendiente_confirmacion", "programado"] } },
+      orderBy: { fechaProgramada: "asc" },
+      take: 5,
+      include: { client: true }
+    }),
+    prisma.eventoAgenda.findMany({
+      where: { estado: { in: ["pendiente", "confirmado"] } },
+      orderBy: { fechaInicio: "asc" },
+      take: 5,
+      include: { client: true }
+    })
+  ]);
+
+  const lines = [
+    ...budgets.map((budget) => `Presupuesto ${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · /presupuestos/${budget.id}`),
+    ...invoices.map((invoice) => `Factura ${invoice.numero} · ${invoice.client.nombre} · ${formatEuros(invoice.pendiente)} pendiente · /dinero/${invoice.id}`),
+    ...reminders.map((reminder) => `Recordatorio · ${reminder.client?.nombre ?? "sin cliente"} · ${reminder.fechaProgramada.toLocaleString("es-ES")}`),
+    ...events.map((event) => `${event.tipo} · ${event.client?.nombre ?? "sin cliente"} · ${event.fechaInicio.toLocaleString("es-ES")} · /agenda`)
+  ].slice(0, 12);
+
+  return {
+    handled: true,
+    context,
+    text: lines.length
+      ? `Estas son las tareas pendientes reales que veo ahora:\n\n${lines.map((line, index) => `${index + 1}. ${line}`).join("\n")}\n\nNo he cambiado de conversación ni he retomado ninguna tarea.`
+      : "No veo tareas pendientes relevantes ahora mismo. No he cambiado de conversación."
+  };
+}
+
+async function continueLatestPendingTask(): Promise<ChatCommandResult> {
+  const conversations = await prisma.chatConversation.findMany({
+    where: { status: "active", messages: { some: {} } },
+    orderBy: { lastActivityAt: "desc" },
+    take: 20
+  });
+  const taskContext = conversations
+    .map((conversation) => normalizeConversationContext(conversation.activeTask))
+    .find((context) => context?.activeTask || context?.parkedTask);
+
+  if (!taskContext?.activeTask && !taskContext?.parkedTask) {
+    return {
+      handled: true,
+      text: "No encuentro una tarea pendiente reciente para retomar. Puedes abrir una conversación del historial o decirme cliente y documento.",
+      context: null
+    };
+  }
+
+  const activeTask = taskContext.activeTask ?? taskContext.parkedTask!;
+  const resumedContext = {
+    ...taskContext,
+    activeTask: { ...activeTask, status: "activo" as const, updatedAt: new Date().toISOString() },
+    parkedTask: undefined
+  };
+
+  return {
+    handled: true,
+    context: resumedContext,
+    text: `${summarizeActiveTask(resumedContext.activeTask)}\n\nHe retomado esta tarea porque lo has pedido explícitamente.`
+  };
+}
+
+async function buildActionResult(result: ChatCommandResult): Promise<ChatActionResult | null> {
+  const created = result.created;
+  if (!created) return null;
+
+  if (created.budgetId) {
+    const budget = await prisma.budget.findUnique({
+      where: { id: created.budgetId },
+      include: { client: true, work: true }
+    }).catch(() => null);
+    if (!budget) return null;
+    return {
+      type: result.text.toLowerCase().includes("actualizado") ? "updated" : "created",
+      entityType: "quote",
+      entityId: budget.id,
+      title: result.text.toLowerCase().includes("pdf") ? "PDF de presupuesto listo" : "Presupuesto creado",
+      summary: {
+        numero: budget.numero,
+        cliente: budget.client.nombre,
+        obra: budget.work?.titulo ?? budget.titulo,
+        importe: budget.total,
+        estado: budget.estado
+      },
+      pendingFields: result.context?.activeTask?.pendingFieldDetails,
+      actions: [
+        { label: "Ver presupuesto", href: `/presupuestos/${budget.id}`, style: "primary" },
+        { label: "Editar", href: `/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/capataz` },
+        { label: "Generar PDF", href: `/presupuestos/${budget.id}/pdf?preview=1` }
+      ]
+    };
+  }
+
+  if (created.invoiceId) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: created.invoiceId },
+      include: { client: true, work: true }
+    }).catch(() => null);
+    if (!invoice) return null;
+    return {
+      type: result.text.toLowerCase().includes("pago") ? "registered" : result.text.toLowerCase().includes("actualizado") ? "updated" : "created",
+      entityType: result.text.toLowerCase().includes("pago") ? "payment" : "invoice",
+      entityId: invoice.id,
+      title: result.text.toLowerCase().includes("pago") ? "Pago registrado" : "Factura creada",
+      summary: {
+        numero: invoice.numero,
+        cliente: invoice.client.nombre,
+        concepto: invoice.concepto,
+        total: invoice.total,
+        pagado: invoice.pagado,
+        pendiente: invoice.pendiente,
+        estado: invoice.estado
+      },
+      pendingFields: result.context?.activeTask?.pendingFieldDetails,
+      actions: [
+        { label: "Ver factura", href: `/dinero/${invoice.id}`, style: "primary" },
+        { label: "Editar", href: `/gestion?tipo=factura&id=${invoice.id}&returnTo=/capataz` },
+        { label: "Ver PDF", href: `/dinero/${invoice.id}/pdf?preview=1` },
+        { label: "Registrar pago", href: `/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/capataz` }
+      ]
+    };
+  }
+
+  if (created.agendaEventId) {
+    const event = await prisma.eventoAgenda.findUnique({
+      where: { id: created.agendaEventId },
+      include: { client: true, work: true }
+    }).catch(() => null);
+    if (!event) return null;
+    return {
+      type: "registered",
+      entityType: event.tipo === "llamada" ? "followup" : "visit",
+      entityId: event.id,
+      title: event.tipo === "llamada" ? "Seguimiento registrado" : "Visita registrada",
+      summary: {
+        cliente: event.client?.nombre ?? "Sin cliente",
+        obra: event.work?.titulo ?? null,
+        fecha: event.fechaInicio.toISOString(),
+        hora: event.horaInicio,
+        estado: event.estado,
+        tema: event.titulo
+      },
+      actions: [
+        { label: "Ver agenda", href: "/agenda", style: "primary" },
+        { label: "Editar", href: `/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=/capataz` },
+        { label: "Crear seguimiento", href: `/gestion?tipo=recordatorio&clienteId=${event.clienteId ?? ""}&returnTo=/capataz` }
+      ]
+    };
+  }
+
+  if (created.clientId && !created.workId && !created.budgetId && !created.invoiceId) {
+    const client = await prisma.client.findUnique({ where: { id: created.clientId } }).catch(() => null);
+    if (!client) return null;
+    return {
+      type: "created",
+      entityType: "client",
+      entityId: client.id,
+      title: "Cliente creado",
+      summary: {
+        nombre: client.nombre,
+        tipo: client.tipo,
+        telefono: client.telefono,
+        email: client.email,
+        direccion: client.direccion,
+        estado: client.estado
+      },
+      actions: [
+        { label: "Ver cliente", href: `/clientes/${client.id}`, style: "primary" },
+        { label: "Editar cliente", href: `/gestion?tipo=cliente&id=${client.id}&returnTo=/capataz` },
+        { label: "Crear obra", href: `/gestion?tipo=obra&clienteId=${client.id}&returnTo=/capataz` },
+        { label: "Crear presupuesto", href: `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=/capataz` }
+      ]
+    };
+  }
+
+  if (created.workId) {
+    const work = await prisma.work.findUnique({ where: { id: created.workId }, include: { client: true } }).catch(() => null);
+    if (!work) return null;
+    return {
+      type: "created",
+      entityType: "project",
+      entityId: work.id,
+      title: "Obra creada",
+      summary: {
+        cliente: work.client.nombre,
+        obra: work.titulo,
+        direccion: work.direccion,
+        tipo: work.tipoTrabajo,
+        estado: work.estado
+      },
+      actions: [
+        { label: "Ver obras", href: "/obras", style: "primary" },
+        { label: "Editar obra", href: `/gestion?tipo=obra&id=${work.id}&returnTo=/capataz` },
+        { label: "Añadir gasto", href: `/gestion?tipo=gasto&obraId=${work.id}&returnTo=/capataz` },
+        { label: "Registrar visita", href: `/gestion?tipo=eventoAgenda&tipoEvento=visita&obraId=${work.id}&returnTo=/capataz` }
+      ]
+    };
+  }
+
+  return null;
+}
+
 async function enrichChatContext(context: ChatCommandContext | null): Promise<ChatCommandContext | null> {
   if (!context) return null;
   const normalized = normalizeChatContext(context);
@@ -404,13 +664,16 @@ function replaceContextTask(context: ChatCommandContext, task: NonNullable<ChatC
 }
 
 async function personalizeContextGreeting(response: string) {
-  if (!response.startsWith("Hola.")) return response;
+  if (!response.startsWith("Hola.") && !response.startsWith("Hola,")) return response;
   try {
     const profile = await prisma.usuarioPerfil.findFirst({
       select: { nombrePreferido: true, nombre: true }
     });
     const name = (profile?.nombrePreferido ?? profile?.nombre ?? "").trim();
-    return name ? response.replace(/^Hola\./, `Hola ${name}.`) : response;
+    if (!name) return response;
+    return response.startsWith("Hola,")
+      ? response.replace(/^Hola,/, `Hola ${name},`)
+      : response.replace(/^Hola\./, `Hola ${name}.`);
   } catch {
     return response;
   }
@@ -462,6 +725,16 @@ function shouldResolveBeforeAI(text: string, plan: ReturnType<typeof planChatMes
   if ((plan.action === "create_budget" || plan.action === "create_invoice") && words <= 18) return true;
 
   return false;
+}
+
+function wantsGlobalPendingList(text: string) {
+  const normalized = normalizeName(text);
+  return /^(ver pendientes|pendientes|que tengo pendiente|qué tengo pendiente|tareas pendientes)$/.test(normalized);
+}
+
+function wantsExplicitContinueTask(text: string) {
+  const normalized = normalizeName(text);
+  return /^(continuar tarea|continua tarea|continuar la tarea|volver a tarea|retomar tarea|seguir con esto|sigamos con eso|volver al presupuesto|vuelve al presupuesto)(\b|$)/.test(normalized);
 }
 
 async function runAIChatCommand(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult | null> {
@@ -1821,6 +2094,22 @@ function pdfResult(kind: ChatDocumentKind, id: string, clientId?: string, workId
   return {
     handled: true,
     context: latestDocumentContext(kind, id, clientId, workId, clientName),
+    result: {
+      type: "generated",
+      entityType: "pdf",
+      entityId: id,
+      title: "PDF generado",
+      summary: {
+        tipo: kind === "budget" ? "Presupuesto" : "Factura",
+        cliente: clientName ?? null,
+        url: `${path}?preview=1`
+      },
+      actions: [
+        { label: "Ver PDF", href: `${path}?preview=1`, style: "primary" },
+        { label: "Descargar PDF", href: path },
+        { label: kind === "budget" ? "Editar presupuesto" : "Editar factura", href: kind === "budget" ? `/gestion?tipo=presupuesto&id=${id}&returnTo=/capataz` : `/gestion?tipo=factura&id=${id}&returnTo=/capataz` }
+      ]
+    },
     text: `PDF listo para revisar aquí: ${path}?preview=1
 Descarga directa: ${path}.
 No he enviado nada al cliente.`
@@ -1842,8 +2131,9 @@ function debugChat(step: string, payload: unknown) {
 
 async function persistIncomingChatMessage(text: string, context: ChatCommandContext | null, options: ChatCommandOptions) {
   const idempotencyKey = options.idempotencyKey ?? options.messageId;
-  const conversationId = options.conversationId || "default";
-  await ensureChatConversation(conversationId, text);
+  const conversation = await ensureChatConversation(options.conversationId, text);
+  const conversationId = conversation.id;
+  const conversationContext = normalizeConversationContext(conversation.activeTask) ?? context ?? null;
   if (!idempotencyKey) {
     const message = await prisma.chatMessage.create({
       data: {
@@ -1851,18 +2141,19 @@ async function persistIncomingChatMessage(text: string, context: ChatCommandCont
         role: "user",
         content: text,
         status: "processing",
-        context: toJsonValue(context),
+        context: toJsonValue(conversationContext),
         metadata: toJsonValue({ clientStartedAt: options.clientStartedAt })
       }
     });
-    return { messageId: message.id, duplicate: false, result: null as ChatCommandResult | null };
+    await touchChatConversation(conversationId);
+    return { messageId: message.id, conversationId, context: conversationContext, duplicate: false, result: null as ChatCommandResult | null };
   }
 
   const existing = await prisma.chatMessage.findUnique({ where: { idempotencyKey } });
   if (existing) {
     const completed = resultFromChatMetadata(existing.metadata);
-    if (completed) return { messageId: existing.id, duplicate: true, result: completed };
-    if (existing.status === "processing") return { messageId: existing.id, duplicate: true, result: null };
+    if (completed) return { messageId: existing.id, conversationId: existing.conversationId, context: conversationContext, duplicate: true, result: completed };
+    if (existing.status === "processing") return { messageId: existing.id, conversationId: existing.conversationId, context: conversationContext, duplicate: true, result: null };
   }
 
   const message = await prisma.chatMessage.upsert({
@@ -1874,14 +2165,15 @@ async function persistIncomingChatMessage(text: string, context: ChatCommandCont
       role: "user",
       content: text,
       status: "saved",
-      context: toJsonValue(context),
+      context: toJsonValue(conversationContext),
       metadata: toJsonValue({ clientStartedAt: options.clientStartedAt })
     },
     update: {
-      context: toJsonValue(context),
+      context: toJsonValue(conversationContext),
       metadata: toJsonValue({ clientStartedAt: options.clientStartedAt, retriedAt: new Date().toISOString() })
     }
   });
+  await touchChatConversation(message.conversationId);
 
   const lock = await prisma.chatMessage.updateMany({
     where: { id: message.id, status: { in: ["saved", "failed"] } },
@@ -1891,16 +2183,17 @@ async function persistIncomingChatMessage(text: string, context: ChatCommandCont
   if (lock.count === 0) {
     const latest = await prisma.chatMessage.findUnique({ where: { id: message.id } });
     const completed = resultFromChatMetadata(latest?.metadata);
-    return { messageId: message.id, duplicate: true, result: completed };
+    return { messageId: message.id, conversationId: message.conversationId, context: conversationContext, duplicate: true, result: completed };
   }
 
-  return { messageId: message.id, duplicate: false, result: null as ChatCommandResult | null };
+  return { messageId: message.id, conversationId: message.conversationId, context: conversationContext, duplicate: false, result: null as ChatCommandResult | null };
 }
 
 async function completeChatMessage(messageId: string | undefined, result: ChatCommandResult) {
   if (!messageId) return;
-  const sourceMessage = await prisma.chatMessage.findUnique({ where: { id: messageId }, select: { conversationId: true } });
-  const conversationId = sourceMessage?.conversationId ?? "default";
+  const sourceMessage = await prisma.chatMessage.findUnique({ where: { id: messageId }, select: { conversationId: true, idempotencyKey: true } });
+  const conversationId = sourceMessage?.conversationId;
+  if (!conversationId) return;
   const metadata = toJsonValue({
     result,
     completedAt: new Date().toISOString()
@@ -1917,11 +2210,26 @@ async function completeChatMessage(messageId: string | undefined, result: ChatCo
         role: "assistant",
         content: result.text,
         status: "completed",
-        metadata: toJsonValue({ replyTo: messageId, created: result.created ?? null })
+        metadata: toJsonValue({ replyTo: messageId, created: result.created ?? null, result: result.result ?? null })
       }
     });
   }
-  await updateConversationTitleAndTimestamp(conversationId, result.text);
+  if (result.result) {
+    await prisma.chatActionLog.create({
+      data: {
+        conversationId,
+        messageId,
+        stage: "action_result",
+        actionType: result.result.entityType,
+        status: result.result.type,
+        idempotencyKey: sourceMessage.idempotencyKey ?? undefined,
+        summary: result.result.title,
+        result: toJsonValue(result.result),
+        metadata: toJsonValue({ created: result.created ?? null })
+      }
+    }).catch(() => undefined);
+  }
+  await updateConversationAfterResult(conversationId, result, sourceMessage.idempotencyKey);
 }
 
 async function failChatMessage(messageId: string | undefined, error: unknown) {
@@ -1939,10 +2247,9 @@ async function failChatMessage(messageId: string | undefined, error: unknown) {
 }
 
 export async function loadChatConversations(includeArchived = false): Promise<ChatHistoryConversation[]> {
-  await ensureChatConversation("default", "Conversación principal");
   const conversations = await prisma.chatConversation.findMany({
     where: includeArchived ? undefined : { status: "active" },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { lastActivityAt: "desc" },
     take: 40,
     include: {
       messages: {
@@ -1952,12 +2259,94 @@ export async function loadChatConversations(includeArchived = false): Promise<Ch
     }
   });
 
-  return conversations.map((conversation) => ({
+  return conversations
+    .filter((conversation) => shouldShowConversationInHistory(conversation.messages.length, isRecord(conversation.metadata) && conversation.metadata.keepVisible === true))
+    .map((conversation) => chatConversationToHistory(conversation));
+}
+
+export async function getOrCreateInitialConversation(preferredConversationId?: string | null): Promise<{ selected: ChatHistoryConversation; conversations: ChatHistoryConversation[]; reason: "restored_preferred" | "restored_recent" | "created_inactive" | "created_empty" }> {
+  const now = new Date();
+  const threshold = new Date(now.getTime() - CHAT_INACTIVITY_MS);
+  const preferred = preferredConversationId
+    ? await prisma.chatConversation.findFirst({
+        where: { id: preferredConversationId, status: "active" },
+        include: { messages: { orderBy: { createdAt: "asc" }, take: 80 } }
+      })
+    : null;
+
+  if (preferred && preferred.lastActivityAt >= threshold) {
+    const conversations = await loadChatConversations(false);
+    safeChatLog("conversation:init", { conversationId: preferred.id, reason: "restored_preferred" });
+    return { selected: chatConversationToHistory(preferred), conversations: includeSelectedConversation(conversations, preferred), reason: "restored_preferred" };
+  }
+
+  const recent = await prisma.chatConversation.findFirst({
+    where: { status: "active", lastActivityAt: { gte: threshold } },
+    orderBy: { lastActivityAt: "desc" },
+    include: { messages: { orderBy: { createdAt: "asc" }, take: 80 } }
+  });
+
+  if (recent) {
+    const conversations = await loadChatConversations(false);
+    safeChatLog("conversation:init", { conversationId: recent.id, reason: "restored_recent" });
+    return { selected: chatConversationToHistory(recent), conversations: includeSelectedConversation(conversations, recent), reason: "restored_recent" };
+  }
+
+  const reusableEmpty = await prisma.chatConversation.findMany({
+    where: {
+      status: "active",
+      messages: { none: {} }
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: { messages: { orderBy: { createdAt: "asc" }, take: 80 } }
+  }).catch(() => null);
+  const empty = reusableEmpty?.find((conversation) => !conversation.activeTask) ?? null;
+
+  const selected = empty ?? await prisma.chatConversation.create({
+    data: {
+      title: "Nueva conversación",
+      status: "active",
+      activeTask: undefined,
+      metadata: toJsonValue({ reason: preferred ? "inactive_preferred" : "initial_empty" }),
+      lastActivityAt: now
+    },
+    include: { messages: true }
+  });
+
+  const conversations = await loadChatConversations(false);
+  const reason = preferred ? "created_inactive" as const : "created_empty" as const;
+  safeChatLog("conversation:init", { conversationId: selected.id, previousConversationId: preferred?.id, reason });
+  return { selected: chatConversationToHistory(selected), conversations: includeSelectedConversation(conversations, selected), reason };
+}
+
+function chatConversationToHistory(conversation: {
+  id: string;
+  title: string;
+  status: string;
+  activeTask?: unknown;
+  metadata?: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+  lastActivityAt: Date;
+  messages: Array<{
+    id: string;
+    role: string;
+    content: string;
+    status: string;
+    createdAt: Date;
+    metadata: unknown;
+  }>;
+}): ChatHistoryConversation {
+  return {
     id: conversation.id,
     title: conversation.title,
     status: conversation.status,
     createdAt: conversation.createdAt.toISOString(),
     updatedAt: conversation.updatedAt.toISOString(),
+    lastActivityAt: conversation.lastActivityAt.toISOString(),
+    activeTask: normalizeConversationContext(conversation.activeTask),
+    metadata: conversation.metadata ?? undefined,
     messages: conversation.messages
       .filter((message) => message.role === "user" || message.role === "assistant" || message.role === "system")
       .map((message) => ({
@@ -1966,24 +2355,30 @@ export async function loadChatConversations(includeArchived = false): Promise<Ch
         text: message.content,
         status: message.status,
         createdAt: message.createdAt.toISOString(),
-        metadata: message.metadata ?? undefined
+        metadata: message.metadata ?? undefined,
+        result: actionResultFromMessageMetadata(message.metadata)
       }))
-  }));
+  };
+}
+
+function includeSelectedConversation(conversations: ChatHistoryConversation[], selected: Parameters<typeof chatConversationToHistory>[0]) {
+  if (conversations.some((conversation) => conversation.id === selected.id)) return conversations;
+  return selected.messages.length ? [chatConversationToHistory(selected), ...conversations] : conversations;
 }
 
 export async function createChatConversation(title = "Nueva conversación") {
   const conversation = await prisma.chatConversation.create({
-    data: { title: cleanConversationTitle(title) || "Nueva conversación" }
+    data: {
+      title: cleanConversationTitle(title) || "Nueva conversación",
+      activeTask: undefined,
+      metadata: toJsonValue({ createdFrom: "new_chat_button" }),
+      lastActivityAt: new Date()
+    },
+    include: { messages: true }
   });
+  safeChatLog("conversation:new", { conversationId: conversation.id });
   revalidatePath("/capataz");
-  return {
-    id: conversation.id,
-    title: conversation.title,
-    status: conversation.status,
-    createdAt: conversation.createdAt.toISOString(),
-    updatedAt: conversation.updatedAt.toISOString(),
-    messages: [] as ChatHistoryMessage[]
-  } satisfies ChatHistoryConversation;
+  return chatConversationToHistory(conversation);
 }
 
 export async function renameChatConversation(conversationId: string, title: string) {
@@ -1994,39 +2389,60 @@ export async function renameChatConversation(conversationId: string, title: stri
 }
 
 export async function archiveChatConversation(conversationId: string) {
-  await prisma.chatConversation.update({ where: { id: conversationId }, data: { status: "archived" } });
+  await prisma.chatConversation.update({ where: { id: conversationId }, data: { status: "archived", archivedAt: new Date(), activeTask: undefined } });
+  safeChatLog("conversation:archive", { conversationId });
   revalidatePath("/capataz");
 }
 
 export async function deleteChatConversation(conversationId: string) {
   await prisma.chatConversation.delete({ where: { id: conversationId } }).catch(() => undefined);
+  safeChatLog("conversation:delete", { conversationId });
   revalidatePath("/capataz");
 }
 
-async function ensureChatConversation(conversationId: string, firstText: string) {
-  const title = conversationId === "default" ? "Conversación principal" : titleFromUserMessage(firstText);
-  await prisma.chatConversation.upsert({
-    where: { id: conversationId },
-    create: { id: conversationId, title, status: "active" },
-    update: { updatedAt: new Date() }
-  }).catch(async () => {
-    await prisma.chatConversation.create({ data: { id: conversationId, title, status: "active" } }).catch(() => undefined);
+async function ensureChatConversation(conversationId: string | undefined, firstText: string) {
+  if (conversationId) {
+    const existing = await prisma.chatConversation.findFirst({ where: { id: conversationId, status: "active" } });
+    if (existing) return existing;
+    safeChatLog("conversation:missing_selected", { conversationId });
+  }
+
+  const created = await prisma.chatConversation.create({
+    data: {
+      title: titleFromUserMessage(firstText),
+      status: "active",
+      activeTask: undefined,
+      metadata: toJsonValue({ createdFrom: conversationId ? "missing_selected_fallback" : "message_without_conversation" }),
+      lastActivityAt: new Date()
+    }
   });
+  safeChatLog("conversation:create_for_message", { conversationId: created.id, previousConversationId: conversationId });
+  return created;
 }
 
-async function updateConversationTitleAndTimestamp(conversationId: string, fallbackText: string) {
+async function updateConversationAfterResult(conversationId: string, result: ChatCommandResult, idempotencyKey?: string | null) {
   const conversation = await prisma.chatConversation.findUnique({ where: { id: conversationId }, select: { title: true } });
   if (!conversation) return;
-  const generic = !conversation.title || conversation.title === "Nueva conversación" || conversation.title === "Conversación anterior";
+  const generic = !conversation.title || conversation.title === "Nueva conversación" || conversation.title === "Conversación anterior" || conversation.title === "Conversación principal";
   const firstUserMessage = generic
     ? await prisma.chatMessage.findFirst({ where: { conversationId, role: "user" }, orderBy: { createdAt: "asc" }, select: { content: true } })
     : null;
+  const nextContext = result.clearContext ? null : result.context ?? undefined;
   await prisma.chatConversation.update({
     where: { id: conversationId },
     data: {
-      title: generic ? titleFromUserMessage(firstUserMessage?.content ?? fallbackText) : conversation.title,
-      updatedAt: new Date()
+      title: generic ? titleFromUserMessage(firstUserMessage?.content ?? result.text) : conversation.title,
+      activeTask: nextContext === undefined ? undefined : toJsonValue(nextContext),
+      lastActivityAt: new Date(),
+      metadata: result.result ? toJsonValue({ lastResult: result.result, lastIdempotencyKey: idempotencyKey ?? null }) : undefined
     }
+  }).catch(() => undefined);
+}
+
+async function touchChatConversation(conversationId: string) {
+  await prisma.chatConversation.update({
+    where: { id: conversationId },
+    data: { lastActivityAt: new Date() }
   }).catch(() => undefined);
 }
 
@@ -2052,17 +2468,22 @@ function cleanConversationTitle(title: string) {
 
 async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt: number, status: string, metadata?: Record<string, unknown>) {
   const durationMs = Math.max(0, Math.round(nowMs() - startedAt));
-  const payload = { stage, status, durationMs, messageId: trace.messageId, ...(metadata ?? {}) };
+  const payload = { stage, status, durationMs, messageId: trace.messageId, conversationId: trace.conversationId, ...(metadata ?? {}) };
   if (process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production") {
     console.info("[capataz-chat-perf]", JSON.stringify(payload));
   }
 
   await prisma.chatActionLog.create({
     data: {
+      conversationId: trace.conversationId,
       messageId: trace.messageId,
       stage,
+      actionType: stage,
       status,
+      idempotencyKey: trace.idempotencyKey,
+      summary: typeof metadata?.action === "string" ? metadata.action : stage,
       durationMs,
+      payload: toJsonValue({ stage, status }),
       metadata: toJsonValue(metadata ?? {})
     }
   }).catch(() => undefined);
@@ -2073,6 +2494,37 @@ function resultFromChatMetadata(value: unknown): ChatCommandResult | null {
   const result = isRecord(metadata?.result) ? metadata.result : null;
   if (!result || typeof result.text !== "string" || typeof result.handled !== "boolean") return null;
   return result as ChatCommandResult;
+}
+
+function actionResultFromMessageMetadata(value: unknown): ChatActionResult | undefined {
+  const metadata = isRecord(value) ? value : null;
+  const result = isRecord(metadata?.result) ? metadata.result : null;
+  if (isChatActionResult(result)) return result;
+  const commandResult = isRecord(result?.result) ? result.result : null;
+  return isChatActionResult(commandResult) ? commandResult : undefined;
+}
+
+function isChatActionResult(value: unknown): value is ChatActionResult {
+  if (!isRecord(value)) return false;
+  return typeof value.type === "string"
+    && typeof value.entityType === "string"
+    && typeof value.title === "string"
+    && isRecord(value.summary)
+    && Array.isArray(value.actions);
+}
+
+function normalizeConversationContext(value: unknown): ChatCommandContext | null {
+  if (!isRecord(value)) return null;
+  if (isRecord(value.activeTask) || isRecord(value.parkedTask) || typeof value.lastDocumentType === "string") {
+    return normalizeChatContext(value as ChatCommandContext);
+  }
+  return null;
+}
+
+function safeChatLog(event: string, metadata: Record<string, unknown>) {
+  const enabled = process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production";
+  if (!enabled) return;
+  console.info("[capataz-chat-state]", JSON.stringify({ event, ...metadata }));
 }
 
 function toJsonValue(value: unknown) {

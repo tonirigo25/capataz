@@ -28,9 +28,11 @@ import {
   archiveChatConversation,
   createChatConversation,
   deleteChatConversation,
+  getOrCreateInitialConversation,
   loadChatConversations,
   renameChatConversation,
   runChatCommand,
+  type ChatActionResult,
   type ChatCommandContext,
   type ChatHistoryConversation
 } from "@/app/(app)/capataz/actions";
@@ -40,6 +42,7 @@ import { saveManualRecord } from "@/app/(app)/gestion/actions";
 import { convertBudgetToWork } from "@/app/(app)/presupuestos/actions";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { DemoLimitButton } from "@/components/demo-limit-button";
+import { canApplyConversationLoad } from "@/lib/chat-conversation-rules";
 import { formatCurrency } from "@/lib/format";
 
 type ChatData = {
@@ -239,6 +242,7 @@ type Message = {
   id: string;
   role: "assistant" | "user";
   text: string;
+  result?: ChatActionResult;
   card?: ActionCard;
   status?: string;
   retryText?: string;
@@ -265,7 +269,7 @@ const quickCreates = [
   { href: "/gestion?tipo=recordatorio&returnTo=/capataz", label: "Recordatorio" }
 ];
 
-const chatContextStorageKey = "capataz-chat-context";
+const chatConversationStorageKey = "capataz-chat-conversation-id";
 const defaultProgressSteps = [
   "Leyendo tu mensaje...",
   "Analizando datos...",
@@ -284,12 +288,16 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const [showExamples, setShowExamples] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [chatContext, setChatContext] = useState<ChatCommandContext | null>(null);
-  const [conversationId, setConversationId] = useState("default");
+  const [conversationId, setConversationId] = useState("");
   const [conversations, setConversations] = useState<ChatHistoryConversation[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [chatState, setChatState] = useState<"booting" | "ready" | "sending" | "failed">("booting");
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "recording" | "transcribing" | "error">("idle");
   const [voiceError, setVoiceError] = useState("");
   const inFlightRef = useRef(false);
+  const mountedRef = useRef(false);
+  const loadRequestRef = useRef(0);
+  const activeConversationRef = useRef("");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -320,30 +328,46 @@ export function CapatazChat({ data }: { data: ChatData }) {
   }, [isSending]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    bootConversation();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  async function bootConversation() {
+    const requestId = ++loadRequestRef.current;
+    setChatState("booting");
     try {
-      const stored = window.localStorage.getItem(chatContextStorageKey);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as ChatCommandContext & { type?: string; fechaCreacion?: string };
-      if (parsed?.activeTask || parsed?.parkedTask || parsed?.lastDocumentType || parsed?.type) setChatContext(parsed);
+      const preferred = safeLocalStorageGet(chatConversationStorageKey);
+      const initial = await getOrCreateInitialConversation(preferred);
+      if (!mountedRef.current || requestId !== loadRequestRef.current) return;
+      activeConversationRef.current = initial.selected.id;
+      setConversationId(initial.selected.id);
+      setConversations(initial.conversations);
+      setMessages(messagesFromConversation(initial.selected, displayName));
+      setChatContext(contextFromConversation(initial.selected));
+      safeLocalStorageSet(chatConversationStorageKey, initial.selected.id);
+      setChatState("ready");
     } catch {
-      window.localStorage.removeItem(chatContextStorageKey);
+      if (!mountedRef.current || requestId !== loadRequestRef.current) return;
+      setMessages([welcomeMessage(displayName)]);
+      setChatState("failed");
     }
-  }, []);
+  }
 
-  useEffect(() => {
-    refreshConversations();
-  }, []);
-
-  async function refreshConversations(nextSelectedId = conversationId) {
+  async function refreshConversations(nextSelectedId = conversationId, syncSelected = false) {
+    const expectedId = nextSelectedId || activeConversationRef.current;
+    const requestId = ++loadRequestRef.current;
     try {
       const loaded = await loadChatConversations(false);
+      if (!mountedRef.current || !canApplyConversationLoad(expectedId, activeConversationRef.current || expectedId, requestId, loadRequestRef.current)) return;
       setConversations(loaded);
-      const selected = loaded.find((item) => item.id === nextSelectedId) ?? loaded[0];
-      if (selected) {
+      const selected = loaded.find((item) => item.id === expectedId);
+      if (syncSelected && selected && selected.id === activeConversationRef.current) {
         setConversationId(selected.id);
-        const restored = messagesFromConversation(selected, displayName);
-        if (restored.length) setMessages(restored);
-        persistChatContext(contextFromConversation(selected));
+        setMessages(messagesFromConversation(selected, displayName));
+        setChatContext(contextFromConversation(selected));
       }
     } catch {
       // Si falla el historial, mantenemos vivo el chat actual en pantalla.
@@ -352,21 +376,16 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
   function persistChatContext(nextContext: ChatCommandContext | null) {
     setChatContext(nextContext);
-    try {
-      if (nextContext) window.localStorage.setItem(chatContextStorageKey, JSON.stringify(nextContext));
-      else window.localStorage.removeItem(chatContextStorageKey);
-    } catch {
-      // localStorage is only a convenience for chat continuity. The records are already in Prisma.
-    }
   }
 
   async function submit(event?: FormEvent<HTMLFormElement>, forced?: string) {
     event?.preventDefault();
     const text = (forced ?? input).trim();
-    if (!text || inFlightRef.current) return;
+    if (!text || inFlightRef.current || !conversationId) return;
 
     const userMessageId = crypto.randomUUID();
     const idempotencyKey = `chat:${userMessageId}`;
+    const sendingConversationId = conversationId;
     const userMessage: Message = { id: userMessageId, role: "user", text };
     const startedAt = Date.now();
     setProgressSteps(progressStepsForMessage(text));
@@ -375,20 +394,25 @@ export function CapatazChat({ data }: { data: ChatData }) {
     setInput("");
     inFlightRef.current = true;
     setIsSending(true);
+    setChatState("sending");
+    let failed = false;
 
     try {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", { text, chatContext });
-      const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, conversationId, clientStartedAt: startedAt });
+      const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, conversationId: sendingConversationId, clientStartedAt: startedAt });
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
+      if (!mountedRef.current || activeConversationRef.current !== sendingConversationId) return;
       const assistantMessage: Message = command.handled
-        ? { id: crypto.randomUUID(), role: "assistant", text: command.text }
+        ? { id: crypto.randomUUID(), role: "assistant", text: command.text, result: command.result }
         : { id: crypto.randomUUID(), role: "assistant", ...respond(text, data, pendingDebt) };
       setMessages((current) => [...current, assistantMessage]);
       if (command.clearContext) persistChatContext(null);
       else if (command.context !== undefined) persistChatContext(command.context);
       if (command.created) router.refresh();
-      refreshConversations(conversationId);
+      refreshConversations(sendingConversationId);
     } catch {
+      failed = true;
+      if (!mountedRef.current || activeConversationRef.current !== sendingConversationId) return;
       setMessages((current) => [
         ...current,
         {
@@ -399,26 +423,36 @@ export function CapatazChat({ data }: { data: ChatData }) {
           retryText: text
         }
       ]);
+      setChatState("failed");
     } finally {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] render total", { durationMs: Date.now() - startedAt });
       inFlightRef.current = false;
       setIsSending(false);
+      if (mountedRef.current && activeConversationRef.current === sendingConversationId && !failed) setChatState("ready");
     }
   }
 
   async function startNewConversation() {
+    if (inFlightRef.current) return;
     const conversation = await createChatConversation("Nueva conversación");
+    activeConversationRef.current = conversation.id;
     setConversationId(conversation.id);
     persistChatContext(null);
     setMessages([welcomeMessage(displayName)]);
+    setInput("");
+    setChatState("ready");
+    safeLocalStorageSet(chatConversationStorageKey, conversation.id);
     setShowHistory(false);
     await refreshConversations(conversation.id);
   }
 
   function openConversation(conversation: ChatHistoryConversation) {
+    activeConversationRef.current = conversation.id;
     setConversationId(conversation.id);
     setMessages(messagesFromConversation(conversation, displayName));
     persistChatContext(contextFromConversation(conversation));
+    safeLocalStorageSet(chatConversationStorageKey, conversation.id);
+    setChatState("ready");
     setShowHistory(false);
   }
 
@@ -432,11 +466,10 @@ export function CapatazChat({ data }: { data: ChatData }) {
   async function archiveConversation(conversation: ChatHistoryConversation) {
     await archiveChatConversation(conversation.id);
     if (conversation.id === conversationId) {
-      setConversationId("default");
-      setMessages([welcomeMessage(displayName)]);
-      persistChatContext(null);
+      await startNewConversation();
+      return;
     }
-    await refreshConversations("default");
+    await refreshConversations(conversationId);
   }
 
   async function removeConversation(conversation: ChatHistoryConversation) {
@@ -444,11 +477,10 @@ export function CapatazChat({ data }: { data: ChatData }) {
     if (!ok) return;
     await deleteChatConversation(conversation.id);
     if (conversation.id === conversationId) {
-      setConversationId("default");
-      setMessages([welcomeMessage(displayName)]);
-      persistChatContext(null);
+      await startNewConversation();
+      return;
     }
-    await refreshConversations("default");
+    await refreshConversations(conversationId);
   }
 
   async function toggleDictation() {
@@ -545,10 +577,10 @@ export function CapatazChat({ data }: { data: ChatData }) {
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={startNewConversation} disabled={isSending}>
           Nueva conversación
         </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "qué datos faltan?")} disabled={isSending}>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Ver pendientes")} disabled={isSending}>
           Ver pendientes
         </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "volver al presupuesto")} disabled={isSending}>
+        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Continuar tarea")} disabled={isSending}>
           Continuar tarea
         </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "déjalo pendiente")} disabled={isSending}>
@@ -595,6 +627,15 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
       <div className="card flex-1 overflow-hidden">
         <div className="max-h-[62dvh] min-h-[360px] space-y-3 overflow-y-auto p-4">
+          {chatState === "booting" ? (
+            <div className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">Cargando conversación...</div>
+          ) : null}
+          {chatState === "failed" ? (
+            <div className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+              No he podido cargar el historial. Puedes seguir usando el chat y reintentar la carga.
+              <button type="button" className="secondary-button ml-2 px-3 py-1 text-xs" onClick={bootConversation}>Reintentar</button>
+            </div>
+          ) : null}
           {messages.map((message) => (
             <div key={message.id} className={`flex gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
               {message.role === "assistant" ? (
@@ -609,6 +650,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
               >
                 <MessageText text={message.text} />
                 {pdfPreviewPathFromText(message.text) ? <PdfInlinePreview path={pdfPreviewPathFromText(message.text)!} /> : null}
+                {message.result ? <ActionResultCard result={message.result} /> : null}
                 {message.card ? <ActionCardView card={message.card} data={data} /> : null}
                 {message.retryText ? (
                   <button type="button" className="secondary-button mt-2 text-xs" onClick={() => submit(undefined, message.retryText)} disabled={isSending}>
@@ -661,7 +703,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
             >
               {voiceStatus === "recording" ? <Square size={18} /> : <Mic size={20} />}
             </button>
-            <button type="submit" className="icon-button shrink-0 disabled:opacity-50" aria-label="Enviar mensaje" disabled={isSending}>
+            <button type="submit" className="icon-button shrink-0 disabled:opacity-50" aria-label="Enviar mensaje" disabled={isSending || chatState === "booting" || !conversationId}>
               <Send size={20} />
             </button>
           </div>
@@ -689,6 +731,7 @@ function messagesFromConversation(conversation: ChatHistoryConversation, display
       id: message.id,
       role: message.role as "assistant" | "user",
       text: message.status === "failed" ? `${message.text}\n\nNo se realizó ninguna acción. Puedes reintentar.` : message.text,
+      result: message.result,
       status: message.status,
       retryText: message.status === "failed" && message.role === "user" ? message.text : undefined
     } satisfies Message));
@@ -733,8 +776,71 @@ function PdfInlinePreview({ path }: { path: string }) {
   );
 }
 
+function ActionResultCard({ result }: { result: ChatActionResult }) {
+  const entries = Object.entries(result.summary).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const safeActions = result.actions.filter((action) => action.href || action.action);
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-obra-ink shadow-sm">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-black">{result.title}</p>
+          <p className="text-[11px] font-bold uppercase text-slate-400">{result.entityType}</p>
+        </div>
+        <span className="rounded-full bg-obra-yellow/20 px-2 py-1 text-[11px] font-black text-obra-yellowDark">{result.type}</span>
+      </div>
+      {entries.length ? (
+        <dl className="grid gap-1">
+          {entries.slice(0, 8).map(([key, value]) => (
+            <div key={key} className="grid grid-cols-[110px_1fr] gap-2">
+              <dt className="font-bold capitalize text-slate-500">{key.replace(/_/g, " ")}</dt>
+              <dd className="font-semibold text-slate-700">{formatSummaryValue(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {result.pendingFields?.length ? (
+        <div className="mt-2 rounded-md bg-amber-50 p-2 text-amber-800">
+          <p className="font-black">Datos pendientes</p>
+          <ul className="mt-1 list-disc pl-4">
+            {result.pendingFields.slice(0, 5).map((field) => (
+              <li key={field.key}>{field.label}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {safeActions.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {safeActions.map((action) => action.href ? (
+            <Link key={`${action.label}-${action.href}`} href={action.href} target={action.href.includes("/pdf") ? "_blank" : undefined} className={action.style === "primary" ? "primary-button px-3 py-2 text-xs" : "secondary-button px-3 py-2 text-xs"}>
+              {action.label}
+            </Link>
+          ) : (
+            <button key={action.label} type="button" className="secondary-button px-3 py-2 text-xs" disabled>
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {safeActions.some((action) => /enviar/i.test(action.label)) ? (
+        <p className="mt-2 text-[11px] font-semibold text-slate-500">Antes de enviar a cliente se pedirá confirmación explícita.</p>
+      ) : null}
+    </div>
+  );
+}
+
+function formatSummaryValue(value: string | number | boolean | null) {
+  if (value === null) return "";
+  if (typeof value === "number") {
+    return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 }).format(value);
+  }
+  if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
+  return value;
+}
+
 
 function contextFromConversation(conversation: ChatHistoryConversation): ChatCommandContext | null {
+  if (conversation.activeTask) return conversation.activeTask;
   for (const message of [...conversation.messages].reverse()) {
     const metadata = isObject(message.metadata) ? message.metadata : null;
     const result = isObject(metadata?.result) ? metadata.result : null;
@@ -747,6 +853,22 @@ function contextFromConversation(conversation: ChatHistoryConversation): ChatCom
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function safeLocalStorageGet(key: string) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // PostgreSQL is the source of truth. localStorage only remembers the last selected conversation id.
+  }
 }
 
 function ChatHistoryPanel({

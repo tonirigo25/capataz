@@ -112,10 +112,10 @@ const cases = [
     expected: { action: "resume_task", activeStatus: "activo", parkedStatus: undefined, responseIncludes: "MURHOTEL SL" }
   },
   {
-    name: "completar tarea aparcada con datos fiscales no crea presupuesto nuevo",
+    name: "datos sueltos no completan tarea aparcada sin intención explícita",
     message: "b82837238 Calle francesc Frontera n13 3A. La obra es en florencio n13, seran 60 mil euros + IVA",
     context: murhotelParkedContext,
-    expected: { action: "complete_budget", activeStatus: "activo", parkedStatus: undefined, ivaMode: "plus", workAddress: "Florencio N13", amount: 60000 }
+    expected: { action: "answer_context", activeStatus: undefined, parkedStatus: "aparcado", ivaMode: "plus", workAddress: "Florencio N13", amount: 60000, responseIncludes: "No lo retomo automáticamente" }
   },
   {
     name: "frase ya te lo he dado no inventa nif ni direccion",

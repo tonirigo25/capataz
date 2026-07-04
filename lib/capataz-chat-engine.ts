@@ -447,10 +447,27 @@ export function resolveContextMetaQuestion(message: string, rawContext: ChatCont
         response: `Hola. Tengo aparcado ${taskTitle(parkedTask)}. Puedes decir "volver al presupuesto" para retomarlo o pedirme otra cosa.`
       };
     }
-    return null;
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context,
+      response: "Hola, dime qué necesitas y lo dejamos ordenado."
+    };
   }
 
   if (!task) {
+    if (asksPendingFields(normalized)) {
+      return {
+        handled: true,
+        source: "context",
+        action: "answer_context",
+        entities,
+        context,
+        response: "No tengo una tarea activa en esta conversación. Si quieres, pulsa Ver pendientes o dime qué cliente, presupuesto, factura o visita quieres revisar."
+      };
+    }
     if (asksPdfPreview(normalized) && context.lastDocumentType && (context.lastBudgetId || context.lastInvoiceId)) {
       return {
         handled: true,
@@ -474,15 +491,15 @@ export function resolveContextMetaQuestion(message: string, rawContext: ChatCont
     };
   }
 
-  if (!activeTask && parkedTask && hasUsefulEntities(entities) && !asksPendingFields(normalized) && !asksActiveSummary(normalized)) {
-    const resumed = { ...parkedTask, status: "activo" as const, pendingFields: mergePendingFields(parkedTask.pendingFields, entities), updatedAt: now() };
-    const nextContext = withTask({ ...context, activeTask: resumed, parkedTask: undefined }, resumed);
-    if (resumed.type === "complete_budget" || resumed.type === "create_budget") {
-      return { handled: true, source: "context", action: "complete_budget", entities, context: nextContext };
-    }
-    if (resumed.type === "complete_invoice" || resumed.type === "create_invoice") {
-      return { handled: true, source: "context", action: "complete_invoice", entities, context: nextContext };
-    }
+  if (!activeTask && parkedTask && hasUsefulEntities(entities) && !asksPendingFields(normalized) && !asksActiveSummary(normalized) && !asksClientIdentity(normalized) && !asksAmount(normalized) && !asksWorkInfo(normalized)) {
+    return {
+      handled: true,
+      source: "context",
+      action: "answer_context",
+      entities,
+      context,
+      response: `Tengo aparcado ${taskTitle(parkedTask)}. No lo retomo automáticamente para no mezclar datos. Si quieres aplicarlos a esa tarea, dime "volver al presupuesto" o abre la conversación anterior.`
+    };
   }
 
   if (asksPendingFields(normalized)) {

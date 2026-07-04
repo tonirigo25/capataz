@@ -315,7 +315,7 @@ model EventoAgenda {
 
 model ChatMessage {
   id             String   @id @default(cuid())
-  conversationId String   @default("default")
+  conversationId String
   role           String
   content        String
   status         String   @default("saved")
@@ -331,25 +331,39 @@ model ChatMessage {
 }
 
 model ChatConversation {
-  id        String        @id @default(cuid())
-  title     String
-  status    String        @default("active")
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  messages  ChatMessage[]
+  id             String          @id @default(cuid())
+  title          String
+  status         String          @default("active")
+  activeTask     Json?
+  metadata       Json?
+  lastActivityAt DateTime        @default(now())
+  archivedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  messages       ChatMessage[]
 
+  @@index([status, lastActivityAt])
   @@index([status, updatedAt])
 }
 
 model ChatActionLog {
-  id         String   @id @default(cuid())
-  messageId  String?
-  stage      String
-  status     String
-  durationMs Int?
-  metadata   Json?
-  createdAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  conversationId String?
+  messageId      String?
+  stage          String
+  actionType     String?
+  status         String
+  idempotencyKey String?
+  summary        String?
+  durationMs     Int?
+  payload        Json?
+  result         Json?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
 
+  @@index([conversationId])
+  @@index([idempotencyKey])
   @@index([messageId])
   @@index([stage])
   @@index([createdAt])
