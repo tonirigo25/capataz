@@ -116,12 +116,21 @@ En local incompleto, el 503 es esperado si faltan variables publicas. No es un f
 - Start: `npm run start`.
 - Healthcheck: `/api/status`.
 
-Railway CLI no esta instalada y Codex no tiene acceso al dashboard de Railway en esta sesion. Por tanto:
+Railway CLI no esta instalada y Codex no tiene acceso al dashboard de Railway en esta sesion. GitHub si expuso un status de Railway para el commit de `main`, por lo que el push fue detectado por Railway, pero el status seguia en `pending` durante la auditoria.
 
-- No se puede afirmar que Railway haya detectado el commit final.
-- No se puede afirmar que haya empezado o terminado un deploy.
+Por tanto:
+
+- No se puede afirmar que el deploy haya terminado correctamente.
 - No se puede comprobar desde aqui el log remoto de `preDeployCommand`.
-- No se puede validar produccion real desde Codex sin URL/acceso operativo.
+- No se puede confirmar desde aqui que Railway haya ejecutado `npm run db:deploy` en remoto.
+
+La URL publica documentada en el repo es `https://capataz.app`. La comprobacion HTTP desde Codex no valido produccion:
+
+- DNS resuelve el dominio.
+- HTTPS falla con certificado revocado.
+- Con verificacion TLS desactivada, Cloudflare devuelve 403 para `/api/status`, `/hoy`, `/clientes` y `/capataz`.
+
+Por tanto, produccion no queda validada.
 
 Comprobacion manual pendiente en Railway:
 
