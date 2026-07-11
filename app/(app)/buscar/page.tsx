@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { SectionHeader } from "@/components/section-header";
+import { EmptyState } from "@/components/ui-primitives";
 import { globalSearch } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
@@ -51,9 +52,11 @@ export default async function SearchPage({
       </div>
 
       {query && total === 0 ? (
-        <div className="card p-4 text-sm leading-6 text-slate-600">
-          No he encontrado resultados. Prueba con cliente, obra, factura, material, importe o una nota.
-        </div>
+        <EmptyState
+          title="No hay resultados"
+          description="Prueba con cliente, obra, factura, material, importe o una nota. La búsqueda usa datos reales de Capataz."
+          icon={Search}
+        />
       ) : null}
     </main>
   );

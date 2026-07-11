@@ -3,6 +3,7 @@ import { CalendarClock, FileText, MessageCircle, Pencil, Phone, Plus, Receipt, S
 import { DemoLimitButton } from "@/components/demo-limit-button";
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
+import { EmptyState } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -132,6 +133,19 @@ export default async function ClientsPage({
           );
         })}
       </div>
+
+      {filteredClients.length === 0 ? (
+        <EmptyState
+          title="No hay clientes con este filtro"
+          description="Cambia la búsqueda o crea un cliente nuevo para empezar a organizar obras, presupuestos y cobros."
+          icon={Search}
+          action={
+            <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={clients.length} limit={3}>
+              Añadir cliente
+            </DemoLimitButton>
+          }
+        />
+      ) : null}
     </main>
   );
 }
