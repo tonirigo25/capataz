@@ -79,7 +79,9 @@ export type ChatQueryAction =
   | "signals_risks"
   | "signals_client_attention"
   | "signals_work_attention"
-  | "signals_priority_invoices";
+  | "signals_priority_invoices"
+  | "signals_explain_alert"
+  | "signals_critical_count";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -348,6 +350,12 @@ function classifyTreasuryIntent(normalized: string, period: ChatQueryPeriod): Ch
 }
 
 function classifySignalIntent(normalized: string, period: ChatQueryPeriod): ChatIntentClassification | null {
+  if (/(cuantas|cuantos|cuántas|cuántos)\b/.test(normalized) && /(alerta|alertas|senal|senales|señal|señales)\b/.test(normalized) && /(critica|criticas|critico|criticos|crítica|críticas|crítico|críticos)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "signals_critical_count", confidence: 0.94, period, rule: "signals_critical_count" };
+  }
+  if (/(por que|por qué|porque|explica|explicame|explícame)\b/.test(normalized) && /(alerta|senal|señal|riesgo)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_explain_alert", confidence: 0.9, period, rule: "signals_explain_alert" };
+  }
   if (/(factura|facturas|cobro|cobros)\b/.test(normalized) && /(prioritaria|prioritarias|prioritario|prioritarios|urgente|urgentes|revisar primero)\b/.test(normalized)) {
     return { kind: "database_query", action: "signals_priority_invoices", confidence: 0.94, period, rule: "signals_priority_invoices" };
   }

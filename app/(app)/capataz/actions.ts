@@ -569,6 +569,10 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryBusinessSignals(intent, "works"), text, intent, "queryBusinessSignals/works", "business_signals:works");
     case "signals_priority_invoices":
       return withQueryDiagnostics(await queryBusinessSignals(intent, "invoices"), text, intent, "queryBusinessSignals/invoices", "business_signals:invoices");
+    case "signals_explain_alert":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "explain_top"), text, intent, "queryBusinessSignals/explain_top", "business_signals:explanation");
+    case "signals_critical_count":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "critical_count"), text, intent, "queryBusinessSignals/critical_count", "business_signals:critical_count");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "paused_projects":
@@ -1549,12 +1553,44 @@ async function queryBusinessReviewToday(intent: ChatIntentClassification): Promi
   };
 }
 
-type BusinessSignalsChatMode = "review_today" | "urgent" | "problems" | "risks" | "clients" | "works" | "invoices";
+type BusinessSignalsChatMode = "review_today" | "urgent" | "problems" | "risks" | "clients" | "works" | "invoices" | "explain_top" | "critical_count";
 
 async function queryBusinessSignals(intent: ChatIntentClassification, mode: BusinessSignalsChatMode): Promise<ChatCommandResult> {
   const result = await getBusinessSignals({ status: "active", limit: 120 });
   const filtered = filterSignalsForChat(result.signals, mode).slice(0, 7);
   const title = signalChatTitle(mode);
+  if (mode === "critical_count") {
+    const critical = result.signals.filter((signal) => signal.level === "critico");
+    return {
+      handled: true,
+      diagnostics: { resultCount: critical.length },
+      result: {
+        type: "found",
+        entityType: "business",
+        title,
+        summary: { criticas: critical.length, activas: result.summary.active },
+        actions: [{ label: "Abrir alertas", href: "/alertas?nivel=critico", style: "primary" }]
+      },
+      text: `Tienes ${critical.length} alertas CRÍTICAS activas. ${critical.length ? `Las principales son:\n${critical.slice(0, 5).map((signal, index) => `${index + 1}. ${signal.title}: ${signal.explanation.why}${signal.entity ? ` · ${signal.entity.href}` : ""}`).join("\n")}` : "No hay señales críticas activas ahora mismo."}\n\nNo he cambiado ningún registro.`
+    };
+  }
+  if (mode === "explain_top") {
+    const top = result.summary.top;
+    if (!top) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay alertas activas que explicar ahora mismo." };
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      result: {
+        type: "found",
+        entityType: top.entity?.type === "cliente" ? "client" : top.entity?.type === "obra" ? "project" : top.entity?.type === "factura" ? "invoice" : "business",
+        entityId: top.entity?.id,
+        title: "Explicación de alerta prioritaria",
+        summary: { prioridad: top.prioridad, nivel: top.levelText, origen: top.sourceLabel },
+        actions: [{ label: "Abrir alertas", href: "/alertas", style: "primary" }]
+      },
+      text: `${top.title}\n\nPor qué: ${top.explanation.why}\n\nRegla: ${top.explanation.rule}\n\nDatos usados:\n${top.explanation.dataUsed.map((item) => `- ${item}`).join("\n")}\n\nScore: ${top.prioridad}/100. ${top.explanation.scoreBreakdown.map((item) => `${item.label} ${item.value}`).join("; ")}.\n\nSi no haces nada: ${top.explanation.consequence}\n\nNo he cambiado ningún registro.`
+    };
+  }
   if (!filtered.length) {
     return {
       handled: true,
@@ -1607,6 +1643,7 @@ function filterSignalsForChat(signals: BusinessSignal[], mode: BusinessSignalsCh
   if (mode === "clients") return sorted.filter((signal) => signal.client || signal.entity?.type === "cliente");
   if (mode === "works") return sorted.filter((signal) => signal.work || signal.entity?.type === "obra" || signal.type.startsWith("work_") || signal.type.includes("materials"));
   if (mode === "invoices") return sorted.filter((signal) => signal.entity?.type === "factura" || signal.type.includes("invoice") || ["facturas", "cobros"].includes(signal.source));
+  if (mode === "critical_count") return sorted.filter((signal) => signal.level === "critico");
   return sorted;
 }
 
@@ -1618,7 +1655,9 @@ function signalChatTitle(mode: BusinessSignalsChatMode) {
     risks: "Riesgos importantes",
     clients: "Clientes que requieren atención",
     works: "Obras que revisar",
-    invoices: "Facturas prioritarias"
+    invoices: "Facturas prioritarias",
+    explain_top: "Explicación de alerta",
+    critical_count: "Alertas críticas"
   };
   return labels[mode];
 }
@@ -1631,6 +1670,8 @@ function signalChatIntro(mode: BusinessSignalsChatMode, activeCount: number) {
   if (mode === "invoices") return `${base} Facturas prioritarias:`;
   if (mode === "risks") return `${base} Riesgos importantes detectados:`;
   if (mode === "problems") return `${base} Problemas principales:`;
+  if (mode === "explain_top") return `${base} Explicación de la alerta prioritaria:`;
+  if (mode === "critical_count") return `${base} Alertas críticas:`;
   return `${base} Revisaría esto hoy:`;
 }
 

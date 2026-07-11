@@ -218,17 +218,19 @@ function runEngineChecks() {
 function runChatChecks() {
   const { classifyChatIntent } = loadTsModule("lib/capataz-chat-query.ts");
   const cases = [
-    ["¿Qué debería revisar hoy?", "signals_review_today"],
-    ["¿Qué es lo más urgente?", "signals_urgent"],
-    ["¿Qué problemas tengo?", "signals_problems"],
-    ["¿Qué riesgos importantes detectas?", "signals_risks"],
-    ["¿Qué cliente requiere atención?", "signals_client_attention"],
-    ["¿Qué obra debo revisar?", "signals_work_attention"],
-    ["¿Qué facturas son prioritarias?", "signals_priority_invoices"]
+    ["¿Qué debería revisar hoy?", "signals_review_today", "database_query"],
+    ["¿Qué es lo más urgente?", "signals_urgent", "database_query"],
+    ["¿Qué problemas tengo?", "signals_problems", "database_query"],
+    ["¿Qué riesgos importantes detectas?", "signals_risks", "database_query"],
+    ["¿Qué cliente requiere atención?", "signals_client_attention", "database_query"],
+    ["¿Qué obra debo revisar?", "signals_work_attention", "database_query"],
+    ["¿Qué facturas son prioritarias?", "signals_priority_invoices", "database_query"],
+    ["¿Por qué esta alerta es importante?", "signals_explain_alert", "database_query"],
+    ["¿Cuántas alertas críticas tengo?", "signals_critical_count", "aggregate_query"]
   ];
-  for (const [text, action] of cases) {
+  for (const [text, action, kind] of cases) {
     const result = classifyChatIntent(text);
-    expect(result.kind === "database_query" && result.action === action, `[business-signals] bad chat classification for ${text}`, result);
+    expect(result.kind === kind && result.action === action, `[business-signals] bad chat classification for ${text}`, result);
   }
 
   const actionsSource = fs.readFileSync("app/(app)/capataz/actions.ts", "utf8");
