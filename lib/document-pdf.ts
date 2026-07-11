@@ -1,10 +1,13 @@
 import type { DocumentTemplateKind } from "@/lib/document-templates";
 
 export type ProfessionalDocumentLine = {
+  codigo?: string | null;
   descripcion: string;
   cantidad: number;
   unidad: string;
   precioUnitario: number;
+  descuento?: number | null;
+  ivaPercent?: number | null;
   total: number;
   categoria?: string;
 };
@@ -106,7 +109,7 @@ export function createProfessionalDocumentPdf(input: ProfessionalDocumentPdf) {
     y = paragraph(current, margin, y, note, 95, 9, false, [0.32, 0.36, 0.4]) - 6;
   }
 
-  pages.forEach((page, index) => drawFooter(page, index + 1, pages.length));
+  pages.forEach((page, index) => drawFooter(page, index + 1, pages.length, input));
   return buildPdf(pages);
 }
 
@@ -199,18 +202,26 @@ function drawLinesTable(
   setY: (value: number) => void
 ) {
   let y = startY;
-  const widths = [238, 42, 45, 92, 94];
+  const columns = [
+    { label: "Cod.", width: 42 },
+    { label: "Descripción", width: 178 },
+    { label: "Cant.", width: 35 },
+    { label: "Ud.", width: 34 },
+    { label: "P. unit.", width: 62 },
+    { label: "Dto.", width: 38 },
+    { label: "IVA", width: 36 },
+    { label: "Total", width: 76 }
+  ];
   const x = margin;
 
   function header(target: PdfPage) {
     text(target, x, y, "Partidas", 13, true, [0.12, 0.14, 0.16]);
     y -= 22;
     rect(target, x, y - 22, pageWidth - margin * 2, 22, [0.12, 0.14, 0.16]);
-    const labels = ["Descripción", "Cant.", "Ud.", "Precio", "Total"];
-    let cx = x + 8;
-    labels.forEach((label, index) => {
-      text(target, cx, y - 15, label, 8, true, [1, 1, 1]);
-      cx += widths[index];
+    let cx = x + 7;
+    columns.forEach((column) => {
+      text(target, cx, y - 15, column.label, 7.2, true, [1, 1, 1]);
+      cx += column.width;
     });
     y -= 26;
   }
@@ -222,7 +233,7 @@ function drawLinesTable(
   for (const line of lines) {
     const lineDescription = clientVisibleText(line.descripcion) || title;
     const description = line.categoria ? `${lineDescription} (${line.categoria})` : lineDescription;
-    const wrapped = wrap(description, 45);
+    const wrapped = wrap(description, 34);
     const rowHeight = Math.max(28, wrapped.length * 11 + 12);
     ensure(rowHeight + 36);
     let target = currentPage();
@@ -232,11 +243,22 @@ function drawLinesTable(
       header(target);
     }
     strokeRect(target, x, y - rowHeight, pageWidth - margin * 2, rowHeight, [0.88, 0.9, 0.93]);
-    wrapped.forEach((item, index) => text(target, x + 8, y - 16 - index * 11, item, 8.5, false, [0.18, 0.21, 0.24]));
-    text(target, x + widths[0] + 10, y - 17, String(line.cantidad), 8.5, false, [0.18, 0.21, 0.24]);
-    text(target, x + widths[0] + widths[1] + 10, y - 17, line.unidad, 8.5, false, [0.18, 0.21, 0.24]);
-    text(target, x + widths[0] + widths[1] + widths[2] + 10, y - 17, documentMoney(line.precioUnitario), 8.5, false, [0.18, 0.21, 0.24]);
-    text(target, x + widths[0] + widths[1] + widths[2] + widths[3] + 10, y - 17, documentMoney(line.total), 8.5, true, [0.12, 0.14, 0.16]);
+    let cx = x + 7;
+    text(target, cx, y - 17, clientVisibleText(line.codigo) || "-", 7.2, false, [0.18, 0.21, 0.24]);
+    cx += columns[0].width;
+    wrapped.forEach((item, index) => text(target, cx, y - 16 - index * 11, item, 7.8, false, [0.18, 0.21, 0.24]));
+    cx += columns[1].width;
+    text(target, cx, y - 17, String(line.cantidad), 7.6, false, [0.18, 0.21, 0.24]);
+    cx += columns[2].width;
+    text(target, cx, y - 17, line.unidad, 7.6, false, [0.18, 0.21, 0.24]);
+    cx += columns[3].width;
+    text(target, cx, y - 17, documentMoney(line.precioUnitario), 7.2, false, [0.18, 0.21, 0.24]);
+    cx += columns[4].width;
+    text(target, cx, y - 17, line.descuento ? documentMoney(line.descuento) : "-", 7.2, false, [0.18, 0.21, 0.24]);
+    cx += columns[5].width;
+    text(target, cx, y - 17, formatPercent(line.ivaPercent ?? input.totals.ivaPercent), 7.2, false, [0.18, 0.21, 0.24]);
+    cx += columns[6].width;
+    text(target, cx, y - 17, documentMoney(line.total), 7.2, true, [0.12, 0.14, 0.16]);
     y -= rowHeight;
     setY(y);
   }
@@ -280,9 +302,10 @@ function drawCard(page: PdfPage, x: number, y: number, width: number, height: nu
   }
 }
 
-function drawFooter(page: PdfPage, current: number, total: number) {
+function drawFooter(page: PdfPage, current: number, total: number, input: ProfessionalDocumentPdf) {
   line(page, margin, 34, pageWidth - margin, 34, [0.88, 0.9, 0.93]);
-  text(page, margin, 20, "Documento generado por Capataz", 7, false, [0.48, 0.52, 0.57]);
+  const footerCompany = clientVisibleText(input.company.legalName) || clientVisibleText(input.company.name) || "Empresa";
+  text(page, margin, 20, `${footerCompany} · ${input.documentNumber}`, 7, false, [0.48, 0.52, 0.57]);
   text(page, pageWidth - 92, 20, `Página ${current}/${total}`, 7, false, [0.48, 0.52, 0.57]);
 }
 
