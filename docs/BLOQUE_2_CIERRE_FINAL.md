@@ -132,10 +132,32 @@ Validacion local ejecutada:
 
 ## Railway y produccion
 
-Estado antes del merge:
+Estado tras merge a `main`:
 
+- Commit funcional desplegado: `5d0f723`.
 - Build local: OK.
 - Migracion aplicada mediante Prisma deploy: OK.
-- Railway: pendiente de confirmar tras push a `origin/main`.
-- Produccion a validar solo en `https://capataz-production.up.railway.app`.
+- Railway/GitHub: success.
+- Produccion validada solo en `https://capataz-production.up.railway.app`.
 - No se valida ni se modifica `capataz.app` en esta fase.
+
+Rutas validadas en produccion:
+
+- `/api/status`: 200, `ok: true`, base de datos OK, AI OK.
+- `/hoy`: 200.
+- `/clientes`: 200.
+- `/clientes/cmqnwxrmo0000pb01ub5vkn09`: 200.
+- `/obras`: 200.
+- `/obras/cmqo8wdsn0001n201bkxsvf12`: 200.
+- `/capataz`: 200.
+- `/agenda`: 200.
+- `/buscar?q=Juana`: 200.
+- `/actividad`: 200.
+- `/notificaciones`: 200.
+- `/configuracion`: 200.
+- `/presupuestos/cmqo8wdst0003n201muzu1r4o/pdf`: 200, `application/pdf`.
+- `/dinero/cmqr2s0me000mo50pu9ofa65y/pdf`: 200, `application/pdf`.
+
+Consola:
+
+- Pasada ligera con navegador integrado sobre rutas principales: 0 errores de consola.
