@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { validWorkStatus } from "@/lib/works";
 
 export async function updateWorkStatus(formData: FormData) {
@@ -26,6 +27,8 @@ export async function updateWorkStatus(formData: FormData) {
       }
     });
   }
+
+  await reevaluateProactiveAfterMutation({ entityType: "work", entityId: id, clientId: work.clienteId, workId: id, reason: "work_status_updated" });
 
   revalidatePath("/obras");
   revalidatePath(`/obras/${id}`);

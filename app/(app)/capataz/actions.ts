@@ -43,6 +43,8 @@ import { getAgendaItems, itemsForDay as agendaItemsForDay, itemsBetween as agend
 import {
   dismissBusinessRecommendation,
   getBusinessRecommendations,
+  markRecommendationViewed,
+  reactivateBusinessRecommendation,
   snoozeBusinessRecommendation,
   snoozeBusinessRecommendationUntil,
   type BusinessRecommendation
@@ -52,6 +54,7 @@ import { getBusinessIntelligenceSummary, metricDefinitionText } from "@/lib/busi
 import type { BusinessPeriodId } from "@/lib/business-periods";
 import { getNotificationItems } from "@/lib/notifications";
 import { nextDocumentNumber } from "@/lib/numbering";
+import { getProactiveControlData } from "@/lib/proactive-evaluation";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
@@ -602,6 +605,24 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryBusinessRecommendations(intent, "dismiss_current", context), text, intent, "queryBusinessRecommendations/dismiss_current", "recommendations:dismiss");
     case "recommendations_change_date_current":
       return withQueryDiagnostics(await queryBusinessRecommendations(intent, "change_date_current", context), text, intent, "queryBusinessRecommendations/change_date_current", "recommendations:change_date");
+    case "recommendations_reviewed_at":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "reviewed_at", context), text, intent, "queryBusinessRecommendations/reviewed_at", "recommendations:reviewed_at");
+    case "recommendations_reactivated":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "reactivated", context), text, intent, "queryBusinessRecommendations/reactivated", "recommendations:reactivated");
+    case "recommendations_resolved_week":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "resolved_week", context), text, intent, "queryBusinessRecommendations/resolved_week", "recommendations:resolved_week");
+    case "recommendations_snoozed":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "snoozed", context), text, intent, "queryBusinessRecommendations/snoozed", "recommendations:snoozed");
+    case "recommendations_due_today":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "due_today", context), text, intent, "queryBusinessRecommendations/due_today", "recommendations:due_today");
+    case "recommendations_history":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "history", context), text, intent, "queryBusinessRecommendations/history", "recommendations:history");
+    case "recommendations_noisy_rules":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "noisy_rules", context), text, intent, "queryBusinessRecommendations/noisy_rules", "recommendations:noisy_rules");
+    case "recommendations_mark_reviewed":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "mark_reviewed_current", context), text, intent, "queryBusinessRecommendations/mark_reviewed_current", "recommendations:mark_reviewed");
+    case "recommendations_reactivate_current":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "reactivate_current", context), text, intent, "queryBusinessRecommendations/reactivate_current", "recommendations:reactivate");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "paused_projects":
@@ -1675,10 +1696,22 @@ type BusinessRecommendationsChatMode =
   | "do_current"
   | "snooze_current"
   | "dismiss_current"
-  | "change_date_current";
+  | "change_date_current"
+  | "reviewed_at"
+  | "reactivated"
+  | "resolved_week"
+  | "snoozed"
+  | "due_today"
+  | "history"
+  | "noisy_rules"
+  | "mark_reviewed_current"
+  | "reactivate_current";
 
 async function queryBusinessRecommendations(intent: ChatIntentClassification, mode: BusinessRecommendationsChatMode, context: ChatCommandContext | null): Promise<ChatCommandResult> {
-  if (mode === "explain_current" || mode === "do_current" || mode === "snooze_current" || mode === "dismiss_current" || mode === "change_date_current") {
+  if (["reviewed_at", "reactivated", "resolved_week", "snoozed", "due_today", "history", "noisy_rules"].includes(mode)) {
+    return queryProactiveRecommendationLifecycle(mode);
+  }
+  if (mode === "explain_current" || mode === "do_current" || mode === "snooze_current" || mode === "dismiss_current" || mode === "change_date_current" || mode === "mark_reviewed_current" || mode === "reactivate_current") {
     return handleCurrentRecommendation(mode, context);
   }
 
@@ -1733,6 +1766,116 @@ He guardado la primera recomendación como contexto. Puedes preguntar "por qué"
   };
 }
 
+async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendationsChatMode): Promise<ChatCommandResult> {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = addDays(todayStart, 1);
+
+  if (mode === "reviewed_at") {
+    const data = await getProactiveControlData(now);
+    const latest = data.latestRun;
+    return {
+      handled: true,
+      diagnostics: { resultCount: data.runs.length },
+      result: {
+        type: "found",
+        entityType: "business",
+        title: "Evaluación proactiva",
+        summary: { ejecuciones: data.runs.length, ultima: latest ? formatDateShort(latest.startedAt) : "sin ejecución" },
+        actions: [{ label: "Abrir control", href: "/recomendaciones/control", style: "primary" }]
+      },
+      text: latest
+        ? `La última reevaluación proactiva fue el ${formatDateTime(latest.startedAt)}. Estado: ${latest.status}. Disparador: ${latest.triggeredBy}. Procesó ${latest.processedSignals} señales y ${latest.processedRecommendations} recomendaciones. No he cambiado ningún registro.`
+        : "El sistema proactivo todavía no se ha evaluado. Puedes ejecutarlo desde /recomendaciones/control. No he cambiado ningún registro."
+    };
+  }
+
+  if (mode === "noisy_rules") {
+    const data = await getProactiveControlData(now);
+    const lines = data.noisyRules.slice(0, 6).map((rule, index) => `${index + 1}. ${rule.ruleId}: ${rule.warning} (${rule.dismissed}/${rule.total} descartadas).`);
+    return {
+      handled: true,
+      diagnostics: { resultCount: data.noisyRules.length },
+      result: {
+        type: "found",
+        entityType: "business",
+        title: "Reglas con ruido",
+        summary: { reglas: data.noisyRules.length },
+        actions: [{ label: "Abrir control", href: "/recomendaciones/control", style: "primary" }]
+      },
+      text: lines.length
+        ? `Reglas con posible ruido:\n\n${lines.join("\n")}\n\nNo he desactivado ninguna regla automáticamente.`
+        : "No veo reglas con alto descarte o exceso de recomendaciones activas. No he cambiado ningún registro."
+    };
+  }
+
+  if (mode === "history") {
+    const events = await prisma.proactiveAuditEvent.findMany({
+      where: { recommendationFingerprint: { not: null } },
+      orderBy: { createdAt: "desc" },
+      take: 8
+    });
+    const lines = events.map((event, index) => `${index + 1}. ${formatDateTime(event.createdAt)} · ${event.eventType}${event.previousStatus ? ` · ${event.previousStatus} -> ${event.nextStatus ?? "sin cambio"}` : ""}. ${event.reason ?? ""}`.trim());
+    return {
+      handled: true,
+      diagnostics: { resultCount: events.length },
+      result: {
+        type: "found",
+        entityType: "business",
+        title: "Historial de recomendaciones",
+        summary: { eventos: events.length },
+        actions: [{ label: "Abrir control", href: "/recomendaciones/control", style: "primary" }]
+      },
+      text: lines.length ? `Historial reciente de recomendaciones:\n\n${lines.join("\n")}\n\nNo he cambiado ningún registro.` : "Aún no hay actividad del sistema proactivo. No he cambiado ningún registro."
+    };
+  }
+
+  const params = mode === "snoozed"
+    ? { status: "snoozed" as const, limit: 12 }
+    : mode === "reactivated"
+      ? { status: "all" as const, limit: 80 }
+      : { status: "all" as const, limit: 80 };
+  const result = await getBusinessRecommendations(params);
+  let items = result.recommendations;
+  if (mode === "reactivated") items = items.filter((item) => item.reactivatedAt).slice(0, 8);
+  if (mode === "resolved_week") {
+    const weekStart = startOfWeek(now);
+    items = items.filter((item) => (item.completedAt && item.completedAt >= weekStart) || item.status === "obsolete").slice(0, 8);
+  }
+  if (mode === "due_today") {
+    items = items.filter((item) =>
+      (item.dueAt && item.dueAt >= todayStart && item.dueAt < todayEnd) ||
+      (item.snoozedUntil && item.snoozedUntil >= todayStart && item.snoozedUntil < todayEnd)
+    ).slice(0, 8);
+  }
+
+  const lines = items.map((item, index) => {
+    const date = item.reactivatedAt ?? item.snoozedUntil ?? item.completedAt ?? item.dueAt ?? item.updatedAt;
+    return `${index + 1}. ${item.statusLabel} · ${item.title} · ${formatDateShort(date)}. ${reactivationReasonForRecommendation(item)}`;
+  });
+
+  const titleMap: Partial<Record<BusinessRecommendationsChatMode, string>> = {
+    reactivated: "Recomendaciones reactivadas",
+    resolved_week: "Resuelto esta semana",
+    snoozed: "Recomendaciones pospuestas",
+    due_today: "Recomendaciones que vencen hoy"
+  };
+  const title = titleMap[mode] ?? "Recomendaciones";
+
+  return {
+    handled: true,
+    diagnostics: { resultCount: items.length },
+    result: {
+      type: "found",
+      entityType: "business",
+      title,
+      summary: { recomendaciones: items.length },
+      actions: [{ label: "Abrir recomendaciones", href: "/recomendaciones", style: "primary" }]
+    },
+    text: lines.length ? `${title}:\n\n${lines.join("\n")}\n\nNo he cambiado ningún registro.` : `No hay datos para "${title}" ahora mismo. No he cambiado ningún registro.`
+  };
+}
+
 async function handleCurrentRecommendation(mode: BusinessRecommendationsChatMode, context: ChatCommandContext | null): Promise<ChatCommandResult> {
   const current = await findCurrentRecommendation(context);
   if (!current) {
@@ -1765,6 +1908,28 @@ ${current.evidence.dataUsed.map((item) => `- ${item}`).join("\n") || "- Señal a
 
 Acción sugerida: ${current.preferredAction?.label ?? "Revisar en el centro"}.
 No he cambiado ningún registro.`
+    };
+  }
+
+  if (mode === "mark_reviewed_current") {
+    await markRecommendationViewed(current.fingerprint);
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      result: recommendationChatResult(current),
+      context: withLastRecommendationContext(context, { ...current, status: "viewed", reviewedAt: new Date() }),
+      text: `He marcado "${current.title}" como revisada. No la he resuelto: seguirá activa mientras la causa continúe y el cooldown solo reduce su prominencia temporal.`
+    };
+  }
+
+  if (mode === "reactivate_current") {
+    await reactivateBusinessRecommendation(current.fingerprint, "Reactivada desde Capataz Chat por petición explícita.");
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      result: recommendationChatResult(current),
+      context: withLastRecommendationContext(context, { ...current, status: "active", reactivatedAt: new Date() }),
+      text: `He reactivado "${current.title}". No he ejecutado ninguna acción externa ni he modificado facturas, clientes, obras o pagos.`
     };
   }
 
@@ -1918,7 +2083,16 @@ function recommendationChatTitle(mode: BusinessRecommendationsChatMode) {
     do_current: "Confirmación de recomendación",
     snooze_current: "Posponer recomendación",
     dismiss_current: "Descartar recomendación",
-    change_date_current: "Cambiar fecha de recomendación"
+    change_date_current: "Cambiar fecha de recomendación",
+    reviewed_at: "Evaluaciones proactivas",
+    reactivated: "Recomendaciones reactivadas",
+    resolved_week: "Resuelto esta semana",
+    snoozed: "Recomendaciones pospuestas",
+    due_today: "Recomendaciones que vencen hoy",
+    history: "Historial de recomendaciones",
+    noisy_rules: "Reglas con ruido",
+    mark_reviewed_current: "Marcar revisada",
+    reactivate_current: "Reactivar recomendación"
   };
   return labels[mode];
 }
@@ -1931,6 +2105,30 @@ function recommendationChatIntro(mode: BusinessRecommendationsChatMode, activeCo
   if (mode === "client") return `${base} Para este cliente revisaría:`;
   if (mode === "work") return `${base} Para esta obra revisaría:`;
   return `${base} Recomiendo:`;
+}
+
+function reactivationReasonForRecommendation(recommendation: BusinessRecommendation) {
+  if (recommendation.reactivatedAt && recommendation.snoozedUntil && recommendation.snoozedUntil <= new Date()) {
+    return "Ha vuelto a aparecer porque terminó el aplazamiento y la causa sigue activa.";
+  }
+  if (recommendation.reactivatedAt) {
+    return recommendation.outcome?.message ?? "Se reactivó por cambio material o porque volvió la condición.";
+  }
+  if (recommendation.status === "snoozed" && recommendation.snoozedUntil) {
+    return `Volverá si la causa sigue activa al terminar el aplazamiento.`;
+  }
+  if (recommendation.status === "obsolete") {
+    return recommendation.outcome?.message ?? "Quedó obsoleta porque la señal origen ya no está activa.";
+  }
+  return recommendation.detailedExplanation;
+}
+
+function startOfWeek(date: Date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + offset);
+  return start;
 }
 
 function nextWeekday(day: number) {

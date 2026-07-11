@@ -58,6 +58,7 @@ function clean(value: FormDataEntryValue | null) {
 
 function revalidateRecommendationConsumers() {
   revalidatePath("/recomendaciones");
+  revalidatePath("/recomendaciones/control");
   revalidatePath("/hoy");
   revalidatePath("/alertas");
   revalidatePath("/capataz");

@@ -290,7 +290,7 @@ enum RecommendationActionLogStatus {
 }
 
 model Client {
-  id                        String         @id @default(cuid())
+  id                        String             @id @default(cuid())
   nombre                    String
   nombreComercial           String?
   razonSocial               String?
@@ -302,7 +302,7 @@ model Client {
   codigoPostal              String?
   municipio                 String?
   provincia                 String?
-  pais                      String         @default("España")
+  pais                      String             @default("España")
   emailFacturacion          String?
   telefonoFacturacion       String?
   contactoPrincipalNombre   String?
@@ -311,10 +311,10 @@ model Client {
   contactoPrincipalEmail    String?
   contactoFacturacionNombre String?
   tipo                      String
-  estado                    ClientStatus   @default(nuevo)
+  estado                    ClientStatus       @default(nuevo)
   origen                    String
   notas                     String?
-  fechaCreacion             DateTime       @default(now())
+  fechaCreacion             DateTime           @default(now())
   ultimaInteraccion         DateTime?
   archivadoAt               DateTime?
   budgets                   Budget[]
@@ -339,9 +339,9 @@ model Client {
 }
 
 model Work {
-  id                    String         @id @default(cuid())
-  numeroInterno         String?        @unique
-  codigo                String?        @unique
+  id                    String             @id @default(cuid())
+  numeroInterno         String?            @unique
+  codigo                String?            @unique
   clienteId             String
   contactoId            String?
   contactoPrincipal     String?
@@ -352,9 +352,9 @@ model Work {
   latitud               Float?
   longitud              Float?
   tipoTrabajo           String
-  estado                WorkStatus     @default(pendiente_inicio)
-  prioridad             WorkPriority   @default(media)
-  fechaCreacion         DateTime       @default(now())
+  estado                WorkStatus         @default(pendiente_inicio)
+  prioridad             WorkPriority       @default(media)
+  fechaCreacion         DateTime           @default(now())
   fechaInicioPrevista   DateTime?
   fechaInicio           DateTime?
   fechaInicioReal       DateTime?
@@ -367,19 +367,19 @@ model Work {
   observacionesInternas String?
   notasPrivadas         String?
   presupuestoAprobado   Float
-  costePrevisto         Float          @default(0)
-  gastoReal             Float          @default(0)
-  margenEstimado        Float          @default(0)
-  horasEstimadas        Float          @default(0)
-  horasReales           Float          @default(0)
-  subcontratasCoste     Float          @default(0)
-  archivada             Boolean        @default(false)
+  costePrevisto         Float              @default(0)
+  gastoReal             Float              @default(0)
+  margenEstimado        Float              @default(0)
+  horasEstimadas        Float              @default(0)
+  horasReales           Float              @default(0)
+  subcontratasCoste     Float              @default(0)
+  archivada             Boolean            @default(false)
   archivadaAt           DateTime?
   notas                 String?
-  updatedAt             DateTime       @updatedAt
+  updatedAt             DateTime           @updatedAt
   budgets               Budget[]
-  client                Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  contact               Contact?       @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
+  client                Client             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  contact               Contact?           @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
   repositoryDocuments   Document[]
   documents             WorkDocument[]
   expenses              Expense[]
@@ -496,84 +496,84 @@ model Budget {
 }
 
 model Invoice {
-  id               String         @id @default(cuid())
-  clienteId        String
-  obraId           String?
-  numero           String         @unique
-  concepto         String
-  partidas         String?
-  importeBase      Float
-  iva              Float
-  total            Float
-  pagado           Float          @default(0)
-  pendiente        Float
-  fechaEmision     DateTime
-  fechaVencimiento DateTime
-  estado           InvoiceStatus  @default(pendiente_pago)
-  observaciones    String?
-  metodoPago       String?
-  datosBancarios   String?
-  cashMovements    CashMovement[]
-  client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  agendaEvents     EventoAgenda[]
-  documents        Document[]
+  id                String             @id @default(cuid())
+  clienteId         String
+  obraId            String?
+  numero            String             @unique
+  concepto          String
+  partidas          String?
+  importeBase       Float
+  iva               Float
+  total             Float
+  pagado            Float              @default(0)
+  pendiente         Float
+  fechaEmision      DateTime
+  fechaVencimiento  DateTime
+  estado            InvoiceStatus      @default(pendiente_pago)
+  observaciones     String?
+  metodoPago        String?
+  datosBancarios    String?
+  cashMovements     CashMovement[]
+  client            Client             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  agendaEvents      EventoAgenda[]
+  documents         Document[]
   expectedCashFlows ExpectedCashFlow[]
-  internalNotes    InternalNote[]
-  payments         Payment[]
-  reminders        Reminder[]
-  work             Work?          @relation(fields: [obraId], references: [id])
+  internalNotes     InternalNote[]
+  payments          Payment[]
+  reminders         Reminder[]
+  work              Work?              @relation(fields: [obraId], references: [id])
 }
 
 model Payment {
-  id        String      @id @default(cuid())
-  facturaId String
-  clienteId String
-  obraId    String?
-  importe   Float
-  metodo    String
-  fecha     DateTime    @default(now())
-  tipo      PaymentType
-  notas     String?
+  id            String         @id @default(cuid())
+  facturaId     String
+  clienteId     String
+  obraId        String?
+  importe       Float
+  metodo        String
+  fecha         DateTime       @default(now())
+  tipo          PaymentType
+  notas         String?
   cashMovements CashMovement[]
-  client    Client      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  invoice   Invoice     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
-  work      Work?       @relation(fields: [obraId], references: [id])
+  client        Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  invoice       Invoice        @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  work          Work?          @relation(fields: [obraId], references: [id])
 }
 
 model Expense {
-  id            String          @id @default(cuid())
-  obraId        String
-  clienteId     String?
-  proveedor     String
-  concepto      String
-  categoria     ExpenseCategory
-  importe       Float
-  fecha         DateTime
-  paymentStatus ExpenseCashStatus?
-  paymentDueDate DateTime?
-  paidAt        DateTime?
-  costBehavior  CostBehavior     @default(unknown)
-  fotoTicketUrl String?
-  notas         String?
-  cashMovements CashMovement[]
-  client        Client?         @relation(fields: [clienteId], references: [id])
-  documents     Document[]
+  id                String             @id @default(cuid())
+  obraId            String
+  clienteId         String?
+  proveedor         String
+  concepto          String
+  categoria         ExpenseCategory
+  importe           Float
+  fecha             DateTime
+  paymentStatus     ExpenseCashStatus?
+  paymentDueDate    DateTime?
+  paidAt            DateTime?
+  costBehavior      CostBehavior       @default(unknown)
+  fotoTicketUrl     String?
+  notas             String?
+  cashMovements     CashMovement[]
+  client            Client?            @relation(fields: [clienteId], references: [id])
+  documents         Document[]
   expectedCashFlows ExpectedCashFlow[]
-  work          Work            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  work              Work               @relation(fields: [obraId], references: [id], onDelete: Cascade)
 }
 
 model FinancialAccount {
-  id                     String          @id @default(cuid())
+  id                     String               @id @default(cuid())
   name                   String
   type                   FinancialAccountType @default(bank)
-  currency               String          @default("EUR")
-  openingBalance         Float           @default(0)
+  currency               String               @default("EUR")
+  openingBalance         Float                @default(0)
   currentManualBalance   Float?
   manualBalanceUpdatedAt DateTime?
   minimumBalance         Float?
-  isActive               Boolean         @default(true)
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
+  isActive               Boolean              @default(true)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
   archivedAt             DateTime?
   movements              CashMovement[]
 
@@ -621,20 +621,20 @@ model CashMovement {
 }
 
 model RecurringExpense {
-  id          String                    @id @default(cuid())
-  name        String
-  amount      Float
-  frequency   RecurringExpenseFrequency
-  nextDueDate DateTime
-  category    String?
-  workId      String?
-  provider    String?
-  fixedCost   Boolean                   @default(true)
-  isActive    Boolean                   @default(true)
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-  archivedAt  DateTime?
-  work        Work?                     @relation(fields: [workId], references: [id], onDelete: SetNull)
+  id                String                    @id @default(cuid())
+  name              String
+  amount            Float
+  frequency         RecurringExpenseFrequency
+  nextDueDate       DateTime
+  category          String?
+  workId            String?
+  provider          String?
+  fixedCost         Boolean                   @default(true)
+  isActive          Boolean                   @default(true)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  archivedAt        DateTime?
+  work              Work?                     @relation(fields: [workId], references: [id], onDelete: SetNull)
   expectedCashFlows ExpectedCashFlow[]
 
   @@index([isActive, nextDueDate])
@@ -677,14 +677,14 @@ model ExpectedCashFlow {
 }
 
 model TreasurySettings {
-  id                    String   @id @default(cuid())
-  currency              String   @default("EUR")
-  minimumCashBalance    Float?
-  safetyBuffer          Float?
-  targetCoverageDays    Int?
-  includeEstimatedInflows Boolean @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  currency                String   @default("EUR")
+  minimumCashBalance      Float?
+  safetyBuffer            Float?
+  targetCoverageDays      Int?
+  includeEstimatedInflows Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model Material {
@@ -833,41 +833,46 @@ model Notification {
 }
 
 model BusinessSignalState {
-  id              String               @id @default(cuid())
-  fingerprint     String               @unique
-  type            String
-  level           BusinessSignalLevel
-  status          BusinessSignalStatus @default(active)
-  source          BusinessSignalSource
-  ruleId          String?
-  ruleVersion     String?
-  entityType      String?
-  entityId        String?
-  clientId        String?
-  workId          String?
-  invoiceId       String?
-  budgetId        String?
-  title           String
-  summary         String?
-  lastPriority    Int                  @default(0)
-  amount          Float?
-  startsAt        DateTime?
-  expiresAt       DateTime?
-  firstDetectedAt DateTime             @default(now())
-  lastDetectedAt  DateTime             @default(now())
-  shownAt         DateTime?
-  dismissedAt     DateTime?
-  dismissedReason String?
-  dismissedBy     String?
-  snoozedUntil    DateTime?
-  snoozeReason    String?
-  resolvedAt      DateTime?
-  resolution      String?
-  explanation     Json?
+  id               String               @id @default(cuid())
+  fingerprint      String               @unique
+  type             String
+  level            BusinessSignalLevel
+  status           BusinessSignalStatus @default(active)
+  source           BusinessSignalSource
+  ruleId           String?
+  ruleVersion      String?
+  entityType       String?
+  entityId         String?
+  clientId         String?
+  workId           String?
+  invoiceId        String?
+  budgetId         String?
+  title            String
+  summary          String?
+  lastPriority     Int                  @default(0)
+  amount           Float?
+  startsAt         DateTime?
+  expiresAt        DateTime?
+  firstDetectedAt  DateTime             @default(now())
+  lastDetectedAt   DateTime             @default(now())
+  shownAt          DateTime?
+  dismissedAt      DateTime?
+  dismissedReason  String?
+  dismissedBy      String?
+  snoozedUntil     DateTime?
+  snoozeReason     String?
+  reviewedAt       DateTime?
+  resolvedAt       DateTime?
+  resolution       String?
+  reactivatedAt    DateTime?
+  lastEvaluatedAt  DateTime?
+  cooldownUntil    DateTime?
+  changeHash       String?
+  explanation      Json?
   suggestedActions Json?
-  metadata        Json?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  metadata         Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@index([status, lastPriority])
   @@index([type])
@@ -881,7 +886,10 @@ model BusinessSignalState {
   @@index([entityType, entityId])
   @@index([expiresAt])
   @@index([snoozedUntil])
+  @@index([cooldownUntil])
+  @@index([changeHash])
   @@index([resolvedAt])
+  @@index([lastEvaluatedAt])
 }
 
 model BusinessSignalPreference {
@@ -927,6 +935,12 @@ model BusinessRecommendation {
   dueAt                DateTime?
   expiresAt            DateTime?
   shownAt              DateTime?
+  viewedAt             DateTime?
+  reviewedAt           DateTime?
+  reactivatedAt        DateTime?
+  lastEvaluatedAt      DateTime?
+  cooldownUntil        DateTime?
+  changeHash           String?
   preferredActionId    String?
   requiresConfirmation Boolean                      @default(false)
   suggestedActions     Json?
@@ -959,6 +973,10 @@ model BusinessRecommendation {
   @@index([snoozedUntil])
   @@index([dueAt])
   @@index([expiresAt])
+  @@index([cooldownUntil])
+  @@index([changeHash])
+  @@index([lastEvaluatedAt])
+  @@index([reactivatedAt])
   @@index([completedAt])
 }
 
@@ -1002,6 +1020,129 @@ model RecommendationPreference {
   @@unique([userKey, scopeType, scopeValue, rule])
   @@index([scopeType, scopeValue])
   @@index([disabled])
+}
+
+model ProactiveEvaluationRun {
+  id                         String                   @id @default(cuid())
+  type                       String                   @default("full")
+  status                     String                   @default("running")
+  lockKey                    String                   @default("proactive-evaluation")
+  startedAt                  DateTime                 @default(now())
+  completedAt                DateTime?
+  failedAt                   DateTime?
+  archivedAt                 DateTime?
+  processedSignals           Int                      @default(0)
+  createdSignals             Int                      @default(0)
+  updatedSignals             Int                      @default(0)
+  resolvedSignals            Int                      @default(0)
+  reactivatedSignals         Int                      @default(0)
+  expiredSignals             Int                      @default(0)
+  processedRecommendations   Int                      @default(0)
+  createdRecommendations     Int                      @default(0)
+  updatedRecommendations     Int                      @default(0)
+  resolvedRecommendations    Int                      @default(0)
+  obsoleteRecommendations    Int                      @default(0)
+  reactivatedRecommendations Int                      @default(0)
+  errorSummary               String?
+  triggeredBy                String                   @default("manual")
+  durationMs                 Int?
+  metadata                   Json?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  ruleExecutions             ProactiveRuleExecution[]
+  auditEvents                ProactiveAuditEvent[]
+
+  @@index([status, startedAt])
+  @@index([type, startedAt])
+  @@index([lockKey, status])
+  @@index([archivedAt])
+}
+
+model ProactiveRuleExecution {
+  id          String                  @id @default(cuid())
+  runId       String?
+  ruleId      String
+  ruleVersion String?
+  status      String                  @default("completed")
+  entityType  String?
+  processed   Int                     @default(0)
+  created     Int                     @default(0)
+  updated     Int                     @default(0)
+  resolved    Int                     @default(0)
+  reactivated Int                     @default(0)
+  errors      Int                     @default(0)
+  error       String?
+  startedAt   DateTime                @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+  metadata    Json?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  run         ProactiveEvaluationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([runId])
+  @@index([ruleId])
+  @@index([status])
+  @@index([entityType])
+  @@index([startedAt])
+}
+
+model ProactiveAuditEvent {
+  id                        String                  @id @default(cuid())
+  runId                     String?
+  eventType                 String
+  origin                    String                  @default("system")
+  signalFingerprint         String?
+  recommendationFingerprint String?
+  actionId                  String?
+  entityType                String?
+  entityId                  String?
+  userKey                   String?
+  previousStatus            String?
+  nextStatus                String?
+  reason                    String?
+  ruleId                    String?
+  values                    Json?
+  idempotencyKey            String?
+  result                    String?
+  error                     String?
+  confirmation              Boolean                 @default(false)
+  payload                   Json?
+  createdAt                 DateTime                @default(now())
+  run                       ProactiveEvaluationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([runId])
+  @@index([eventType, createdAt])
+  @@index([origin])
+  @@index([signalFingerprint])
+  @@index([recommendationFingerprint])
+  @@index([actionId])
+  @@index([entityType, entityId])
+  @@index([ruleId])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+}
+
+model ProactiveSystemPreference {
+  id                               String   @id @default(cuid())
+  userKey                          String   @default("default")
+  evaluationFrequencyMinutes       Int      @default(360)
+  urgentEvaluationFrequencyMinutes Int      @default(60)
+  maintenanceFrequencyMinutes      Int      @default(1440)
+  todayRecommendationLimit         Int      @default(4)
+  minimumPriority                  Int      @default(1)
+  enabledCategories                Json?
+  quietHoursStart                  String?
+  quietHoursEnd                    String?
+  cooldownDays                     Json?
+  minimumAmount                    Float?
+  showLevels                       Json?
+  groupingMode                     String   @default("type")
+  metadata                         Json?
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
+
+  @@unique([userKey])
 }
 
 model ChatMessage {

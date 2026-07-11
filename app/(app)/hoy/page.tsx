@@ -34,6 +34,7 @@ import { buildTodayDashboard, greetingForDate, invoiceLiveStatus } from "@/lib/d
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion, userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
+import { getProactiveDailySummary } from "@/lib/proactive-evaluation";
 import { getDashboardData } from "@/lib/queries";
 import { getTodayTreasurySignals } from "@/lib/treasury";
 
@@ -50,14 +51,15 @@ const quickActions = [
 
 export default async function TodayPage() {
   const now = new Date();
-  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals, signalBrief, recommendationBrief] = await Promise.all([
+  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals, signalBrief, recommendationBrief, proactiveDailySummary] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findFirst(),
     prisma.empresa.findFirst(),
     getTodayTreasurySignals(),
     getTodaySignalBrief(4),
-    getTodayRecommendationBrief(4)
+    getTodayRecommendationBrief(4),
+    getProactiveDailySummary(now)
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
@@ -132,6 +134,23 @@ export default async function TodayPage() {
             </div>
             <Link href="/recomendaciones" className="secondary-button bg-white">
               Abrir recomendaciones
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {proactiveDailySummary.lines.length ? (
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 font-black text-obra-ink"><Activity size={18} /> {proactiveDailySummary.title}</p>
+              <ul className="mt-2 grid gap-1 text-sm leading-6 text-slate-600">
+                {proactiveDailySummary.lines.map((line) => <li key={line}>- {line}</li>)}
+              </ul>
+            </div>
+            <Link href="/recomendaciones/control" className="secondary-button">
+              Control proactivo
               <ArrowRight size={18} />
             </Link>
           </div>

@@ -26,6 +26,7 @@ import { calculateBudgetTotals, normalizeLine, parseBudgetLines, serializeBudget
 import { clientDraftFromFormData, clientDuplicateRedirectUrl, findClientDuplicateCandidate } from "@/lib/client-crm";
 import { ALLOWED_DOCUMENT_MIME_TYPES } from "@/lib/documents";
 import { nextDocumentNumber } from "@/lib/numbering";
+import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
 
 type ManualEntity =
@@ -90,6 +91,18 @@ export async function saveManualRecord(formData: FormData) {
       break;
     default:
       throw new Error("Tipo de gestión no soportado.");
+  }
+
+  if (["cliente", "obra", "presupuesto", "factura", "pago", "gasto", "material", "recordatorio", "eventoAgenda", "documento"].includes(tipo)) {
+    await reevaluateProactiveAfterMutation({
+      entityType: tipo,
+      entityId: id,
+      clientId: optionalText(formData, "clienteId") ?? optionalText(formData, "clientId"),
+      workId: optionalText(formData, "obraId"),
+      invoiceId: optionalText(formData, "facturaId"),
+      budgetId: optionalText(formData, "presupuestoId") ?? optionalText(formData, "budgetId"),
+      reason: `manual_${tipo}_saved`
+    });
   }
 
   revalidatePath("/hoy");

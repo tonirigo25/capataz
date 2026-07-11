@@ -92,7 +92,16 @@ export type ChatQueryAction =
   | "recommendations_do_current"
   | "recommendations_snooze_current"
   | "recommendations_dismiss_current"
-  | "recommendations_change_date_current";
+  | "recommendations_change_date_current"
+  | "recommendations_reviewed_at"
+  | "recommendations_reactivated"
+  | "recommendations_resolved_week"
+  | "recommendations_snoozed"
+  | "recommendations_due_today"
+  | "recommendations_history"
+  | "recommendations_noisy_rules"
+  | "recommendations_mark_reviewed"
+  | "recommendations_reactivate_current";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -364,6 +373,33 @@ function classifyTreasuryIntent(normalized: string, period: ChatQueryPeriod): Ch
 }
 
 function classifyRecommendationIntent(normalized: string, period: ChatQueryPeriod, original: string): ChatIntentClassification | null {
+  if (/(marca|marcar)\b/.test(normalized) && /(revisada|revisado)\b/.test(normalized) && /(recomendacion|recomendación|esto|la|lo)?/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_mark_reviewed", confidence: 0.9, period, rule: "recommendations_mark_reviewed" };
+  }
+  if (/(reactiva|reactivala|reactivalo|reactivar|vuelve a activar)\b/.test(normalized) && /(recomendacion|recomendación|esto|la|lo)?/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_reactivate_current", confidence: 0.88, period, rule: "recommendations_reactivate_current" };
+  }
+  if (/(cuando|cuándo)\b/.test(normalized) && /(revisaron|revisado|evaluaron|evaluado)\b/.test(normalized) && /(recomendaciones|sistema proactivo)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_reviewed_at", confidence: 0.92, period, rule: "recommendations_reviewed_at" };
+  }
+  if (/(reactivadas|reactivaron|volvieron|ha vuelto|volvio|volvió)\b/.test(normalized) && /(recomendaciones|recomendacion|recomendación)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_reactivated", confidence: 0.92, period, rule: "recommendations_reactivated" };
+  }
+  if (/(que|qué)\b/.test(normalized) && /(quedo resuelto|quedó resuelto|resuelto|resolvio|resolvió)\b/.test(normalized) && /(semana|recomendaciones|sistema)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_resolved_week", confidence: 0.9, period: period === "all" ? "this_week" : period, rule: "recommendations_resolved_week" };
+  }
+  if (/(recomendaciones?)\b/.test(normalized) && /(pospuestas|aplazadas|snoozed)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_snoozed", confidence: 0.92, period, rule: "recommendations_snoozed" };
+  }
+  if (/(recomendaciones?)\b/.test(normalized) && /(vencen hoy|vencen|caducan hoy|caducan)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_due_today", confidence: 0.9, period, rule: "recommendations_due_today" };
+  }
+  if (/(historial|historico|histórico)\b/.test(normalized) && /(recomendaciones|recomendacion|recomendación|sistema proactivo)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_history", confidence: 0.9, period, rule: "recommendations_history" };
+  }
+  if (/(reglas|avisos|ruido)\b/.test(normalized) && /(generan|mas|más|descartadas|avisos|ruido)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_noisy_rules", confidence: 0.9, period, rule: "recommendations_noisy_rules" };
+  }
   if (/^(hazlo|adelante|si|sí|vale|ok|crea el seguimiento|crear seguimiento|haz el seguimiento)$/.test(normalized)) {
     return { kind: "database_query", action: "recommendations_do_current", confidence: 0.9, period, rule: "recommendations_do_current" };
   }
@@ -376,7 +412,7 @@ function classifyRecommendationIntent(normalized: string, period: ChatQueryPerio
   if (/(descarta|descartar|no es importante|olvida)\b/.test(normalized) && /(recomendacion|recomendación|esto|la|lo)?/.test(normalized)) {
     return { kind: "database_query", action: "recommendations_dismiss_current", confidence: 0.9, period, rule: "recommendations_dismiss_current" };
   }
-  if (/(por que|por qué|porque|explica|explicame|explícame)\b/.test(normalized) && /(recomiendas|recomendacion|recomendación|esto)\b/.test(normalized)) {
+  if (/(por que|por qué|porque|explica|explicame|explícame)\b/.test(normalized) && /(recomiendas|recomendacion|recomendación|esto|volvio|volvió|vuelve|aparecio|apareció)\b/.test(normalized)) {
     return { kind: "database_query", action: "recommendations_explain_current", confidence: 0.9, period, rule: "recommendations_explain_current" };
   }
   if (/(recomendaciones?)\b/.test(normalized) && /(cliente|tiene)\b/.test(normalized)) {

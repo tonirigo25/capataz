@@ -1,5 +1,7 @@
 # Bloque 3 - Recomendaciones proactivas
 
+Actualización Parte 3: el cierre del sistema proactivo queda documentado en `docs/BLOQUE_3_SISTEMA_PROACTIVO_CIERRE.md`. La Parte 3 añade reevaluación central, endpoint interno protegido, lock, auditoría, cooldown, reactivación explicable, centro de control, métricas internas, detección de ruido, resumen diario/semanal y chat de ciclo de vida.
+
 ## Arquitectura
 
 La capa central vive en `lib/business-recommendations.ts`. Consume señales reales desde `lib/business-signals.ts` y las convierte en recomendaciones operativas con acciones estructuradas.

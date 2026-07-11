@@ -7,6 +7,8 @@ import type {
 import { calculateWorkFinancials, isActiveWorkStatus, normalizeStatus as normalizeWorkStatus } from "@/lib/works";
 import { invoiceBalance, isBillableInvoiceStatus, safeNumber } from "@/lib/business-metrics";
 import { prisma } from "@/lib/prisma";
+import { logProactiveAuditEvent } from "@/lib/proactive-audit";
+import { materialChangeExceeded, materialChangeExplanation, stableMaterialHash } from "@/lib/proactive-rules";
 import { getTreasuryOverview, type TreasuryAlert, type TreasuryDataQualityIssue } from "@/lib/treasury";
 
 export type BusinessSignalLevel = PrismaBusinessSignalLevel;
@@ -77,8 +79,13 @@ export type BusinessSignal = {
   dismissedBy: string | null;
   snoozedUntil: Date | null;
   snoozeReason: string | null;
+  reviewedAt: Date | null;
   resolvedAt: Date | null;
   resolution: string | null;
+  reactivatedAt: Date | null;
+  lastEvaluatedAt: Date | null;
+  cooldownUntil: Date | null;
+  changeHash: string | null;
 };
 
 export type BusinessSignalGroup = {
@@ -142,8 +149,13 @@ type BusinessSignalDraft = Omit<
   | "dismissedBy"
   | "snoozedUntil"
   | "snoozeReason"
+  | "reviewedAt"
   | "resolvedAt"
   | "resolution"
+  | "reactivatedAt"
+  | "lastEvaluatedAt"
+  | "cooldownUntil"
+  | "changeHash"
 >;
 
 type SignalState = {
@@ -175,8 +187,13 @@ type SignalState = {
   dismissedBy: string | null;
   snoozedUntil: Date | null;
   snoozeReason: string | null;
+  reviewedAt: Date | null;
   resolvedAt: Date | null;
   resolution: string | null;
+  reactivatedAt: Date | null;
+  lastEvaluatedAt: Date | null;
+  cooldownUntil: Date | null;
+  changeHash: string | null;
   explanation: Prisma.JsonValue | null;
   suggestedActions: Prisma.JsonValue | null;
   metadata: Prisma.JsonValue | null;
@@ -437,6 +454,7 @@ export function buildBusinessSignalsFromData(input: BusinessSignalsInput, now: D
 
 export async function dismissBusinessSignal(fingerprint: string, reason: string, dismissedBy = "usuario") {
   const cleanReason = reason.trim() || "Descartada por el usuario";
+  const previous = await prisma.businessSignalState.findUnique({ where: { fingerprint } });
   const state = await prisma.businessSignalState.update({
     where: { fingerprint },
     data: {
@@ -447,6 +465,18 @@ export async function dismissBusinessSignal(fingerprint: string, reason: string,
       snoozedUntil: null,
       snoozeReason: null
     }
+  });
+  await logProactiveAuditEvent({
+    eventType: "signal_status_changed",
+    origin: "user",
+    signalFingerprint: fingerprint,
+    entityType: state.entityType,
+    entityId: state.entityId,
+    previousStatus: previous?.status ?? null,
+    nextStatus: "dismissed",
+    reason: cleanReason,
+    ruleId: state.ruleId,
+    values: { dismissedBy, priority: state.lastPriority, amount: state.amount }
   });
 
   if (shouldLowerFuturePriority(cleanReason, state.amount, state.metadata)) {
@@ -476,6 +506,7 @@ export async function dismissBusinessSignal(fingerprint: string, reason: string,
 export async function snoozeBusinessSignal(fingerprint: string, preset: SignalSnoozePreset, reason?: string) {
   const now = new Date();
   const until = resolveSnoozeUntil(preset, now);
+  const previous = await prisma.businessSignalState.findUnique({ where: { fingerprint } });
   await prisma.businessSignalState.update({
     where: { fingerprint },
     data: {
@@ -486,10 +517,23 @@ export async function snoozeBusinessSignal(fingerprint: string, preset: SignalSn
       resolution: null
     }
   });
+  await logProactiveAuditEvent({
+    eventType: "signal_status_changed",
+    origin: "user",
+    signalFingerprint: fingerprint,
+    entityType: previous?.entityType ?? null,
+    entityId: previous?.entityId ?? null,
+    previousStatus: previous?.status ?? null,
+    nextStatus: "snoozed",
+    reason: reason?.trim() || snoozePresetLabel(preset),
+    ruleId: previous?.ruleId ?? null,
+    values: { until: until.toISOString(), preset }
+  });
   return until;
 }
 
 export async function resolveBusinessSignal(fingerprint: string, resolution = "Resuelta manualmente por el usuario") {
+  const previous = await prisma.businessSignalState.findUnique({ where: { fingerprint } });
   await prisma.businessSignalState.update({
     where: { fingerprint },
     data: {
@@ -499,6 +543,17 @@ export async function resolveBusinessSignal(fingerprint: string, resolution = "R
       snoozedUntil: null,
       snoozeReason: null
     }
+  });
+  await logProactiveAuditEvent({
+    eventType: "signal_status_changed",
+    origin: "user",
+    signalFingerprint: fingerprint,
+    entityType: previous?.entityType ?? null,
+    entityId: previous?.entityId ?? null,
+    previousStatus: previous?.status ?? null,
+    nextStatus: "resolved",
+    reason: resolution,
+    ruleId: previous?.ruleId ?? null
   });
 }
 
@@ -737,16 +792,35 @@ async function loadSignalStates(fingerprints: string[]) {
   return new Map(states.map((state) => [state.fingerprint, state]));
 }
 
+async function loadAllSignalStatesPaged(batchSize = 250) {
+  const states: SignalState[] = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const batch = await prisma.businessSignalState.findMany({
+      take: batchSize,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: { id: "asc" }
+    });
+    states.push(...batch);
+    if (batch.length < batchSize) break;
+    cursor = batch[batch.length - 1]?.id;
+  }
+  return states;
+}
+
 async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date) {
   const fingerprints = drafts.map((signal) => signal.fingerprint);
-  const existing = await prisma.businessSignalState.findMany();
+  const existing = await loadAllSignalStatesPaged();
   const existingByFingerprint = new Map(existing.map((state) => [state.fingerprint, state]));
   const current = new Set(fingerprints);
+  const auditEvents: Array<Parameters<typeof logProactiveAuditEvent>[0]> = [];
 
   await prisma.$transaction(async (tx) => {
     for (const signal of drafts) {
       const state = existingByFingerprint.get(signal.fingerprint);
-      const nextStatus = nextStatusForCurrentSignal(state, signal, now);
+      const changeHash = signalChangeHash(signal);
+      const nextStatus = nextStatusForCurrentSignal(state, signal, now, changeHash);
+      const materiallyChanged = Boolean(state?.changeHash && state.changeHash !== changeHash);
       const baseData = {
         type: signal.type,
         level: signal.level,
@@ -766,6 +840,8 @@ async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date
         startsAt: signal.startsAt,
         expiresAt: signal.expiresAt,
         lastDetectedAt: now,
+        lastEvaluatedAt: now,
+        changeHash,
         explanation: signal.explanation as unknown as Prisma.InputJsonValue,
         suggestedActions: signal.suggestedActions as unknown as Prisma.InputJsonValue,
         metadata: signalMetadata(signal)
@@ -778,8 +854,21 @@ async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date
             ...baseData,
             status: "active",
             firstDetectedAt: signal.detectedAt,
-            shownAt: now
+            shownAt: now,
+            lastEvaluatedAt: now,
+            changeHash
           }
+        });
+        auditEvents.push({
+          eventType: "signal_created",
+          origin: "evaluation",
+          signalFingerprint: signal.fingerprint,
+          entityType: signal.entity?.type ?? null,
+          entityId: signal.entity?.id ?? null,
+          nextStatus: "active",
+          reason: "Nueva condición detectada por regla determinista.",
+          ruleId: signal.ruleId,
+          values: { priority: signal.prioridad, level: signal.level, changeHash }
         });
         continue;
       }
@@ -792,10 +881,29 @@ async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date
           shownAt: state.shownAt ?? now,
           snoozedUntil: nextStatus === "snoozed" ? state.snoozedUntil : null,
           snoozeReason: nextStatus === "snoozed" ? state.snoozeReason : null,
+          reviewedAt: state.reviewedAt,
+          reactivatedAt: nextStatus === "active" && state.status !== "active" ? now : state.reactivatedAt,
+          cooldownUntil: materiallyChanged ? null : state.cooldownUntil,
           resolvedAt: nextStatus === "active" && state.status === "resolved" ? null : state.resolvedAt,
           resolution: nextStatus === "active" && state.status === "resolved" ? null : state.resolution
         }
       });
+      if (state.status !== nextStatus) {
+        auditEvents.push({
+          eventType: "signal_status_changed",
+          origin: "evaluation",
+          signalFingerprint: signal.fingerprint,
+          entityType: signal.entity?.type ?? state.entityType,
+          entityId: signal.entity?.id ?? state.entityId,
+          previousStatus: state.status,
+          nextStatus,
+          reason: nextStatus === "active" && state.status !== "active"
+            ? materialChangeExplanation({ previousPriority: state.lastPriority, nextPriority: signal.prioridad, previousHash: state.changeHash, nextHash: changeHash, ruleId: signal.ruleId })
+            : `Estado actualizado por evaluación determinista: ${nextStatus}.`,
+          ruleId: signal.ruleId,
+          values: { previousPriority: state.lastPriority, nextPriority: signal.prioridad, changeHash }
+        });
+      }
     }
 
     const toResolve = existing.filter((state) => !current.has(state.fingerprint) && state.status !== "resolved");
@@ -808,13 +916,31 @@ async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date
           resolvedAt: missingStatus === "expired" ? state.resolvedAt : now,
           resolution: missingStatus === "expired" ? "Expirada automáticamente: la señal temporal ya no tiene relevancia operativa." : "Resuelta automáticamente: la condición que generaba la señal ya no aparece en los datos actuales.",
           snoozedUntil: null,
-          snoozeReason: null
+          snoozeReason: null,
+          lastEvaluatedAt: now,
+          cooldownUntil: null
         }
+      });
+      auditEvents.push({
+        eventType: "signal_status_changed",
+        origin: "evaluation",
+        signalFingerprint: state.fingerprint,
+        entityType: state.entityType,
+        entityId: state.entityId,
+        previousStatus: state.status,
+        nextStatus: missingStatus,
+        reason: missingStatus === "expired"
+          ? "Expirada automáticamente: la señal temporal ya no tiene relevancia operativa."
+          : "Resuelta automáticamente: la condición que generaba la señal ya no aparece en los datos actuales.",
+        ruleId: state.ruleId,
+        values: { previousPriority: state.lastPriority, amount: state.amount }
       });
     }
   });
 
-  const states = await prisma.businessSignalState.findMany();
+  await Promise.all(auditEvents.map((event) => logProactiveAuditEvent(event)));
+
+  const states = await loadAllSignalStatesPaged();
   return new Map(states.map((state) => [state.fingerprint, state]));
 }
 
@@ -834,8 +960,13 @@ function mergeSignalStates(drafts: BusinessSignalDraft[], states: Map<string, Si
       dismissedBy: state?.dismissedBy ?? null,
       snoozedUntil: state?.snoozedUntil ?? null,
       snoozeReason: state?.snoozeReason ?? null,
+      reviewedAt: state?.reviewedAt ?? null,
       resolvedAt: state?.resolvedAt ?? null,
-      resolution: state?.resolution ?? null
+      resolution: state?.resolution ?? null,
+      reactivatedAt: state?.reactivatedAt ?? null,
+      lastEvaluatedAt: state?.lastEvaluatedAt ?? null,
+      cooldownUntil: state?.cooldownUntil ?? null,
+      changeHash: state?.changeHash ?? null
     };
   });
 
@@ -896,8 +1027,13 @@ function signalFromState(state: SignalState): BusinessSignal {
     dismissedBy: state.dismissedBy,
     snoozedUntil: state.snoozedUntil,
     snoozeReason: state.snoozeReason,
+    reviewedAt: state.reviewedAt,
     resolvedAt: state.resolvedAt,
-    resolution: state.resolution
+    resolution: state.resolution,
+    reactivatedAt: state.reactivatedAt,
+    lastEvaluatedAt: state.lastEvaluatedAt,
+    cooldownUntil: state.cooldownUntil,
+    changeHash: state.changeHash
   };
 }
 
@@ -1965,15 +2101,48 @@ function compareSignals(a: Pick<BusinessSignal, "score" | "relatedAmount" | "dat
     || timeValue(b.detectedAt) - timeValue(a.detectedAt);
 }
 
-function nextStatusForCurrentSignal(state: { status: BusinessSignalStatus; snoozedUntil: Date | null; lastPriority?: number; ruleVersion?: string | null } | undefined, signal: BusinessSignalDraft, now: Date): BusinessSignalStatus {
+function nextStatusForCurrentSignal(
+  state: { status: BusinessSignalStatus; snoozedUntil: Date | null; lastPriority?: number; ruleVersion?: string | null; changeHash?: string | null } | undefined,
+  signal: BusinessSignalDraft,
+  now: Date,
+  changeHash = signalChangeHash(signal)
+): BusinessSignalStatus {
   if (signal.expiresAt && signal.expiresAt < now) return "expired";
   if (!state) return "active";
   if (state.status === "dismissed") {
-    const materiallyChanged = signal.prioridad >= (state.lastPriority ?? signal.prioridad) + 20 || Boolean(state.ruleVersion && state.ruleVersion !== signal.ruleVersion);
+    const materiallyChanged = materialChangeExceeded({
+      previousPriority: state.lastPriority,
+      nextPriority: signal.prioridad,
+      previousRuleVersion: state.ruleVersion,
+      nextRuleVersion: signal.ruleVersion,
+      previousHash: state.changeHash,
+      nextHash: changeHash,
+      ruleId: signal.ruleId
+    });
     return materiallyChanged ? "active" : "dismissed";
   }
   if (state.status === "snoozed" && state.snoozedUntil && state.snoozedUntil > now) return "snoozed";
   return "active";
+}
+
+export function signalChangeHashForTest(signal: Pick<BusinessSignalDraft, "type" | "ruleVersion" | "prioridad" | "level" | "relatedAmount" | "entity" | "client" | "work" | "expiresAt" | "startsAt">) {
+  return signalChangeHash(signal as BusinessSignalDraft);
+}
+
+function signalChangeHash(signal: BusinessSignalDraft) {
+  return stableMaterialHash({
+    type: signal.type,
+    ruleVersion: signal.ruleVersion,
+    priorityBucket: Math.floor(signal.prioridad / 5),
+    level: signal.level,
+    amount: signal.relatedAmount,
+    entityType: signal.entity?.type ?? null,
+    entityId: signal.entity?.id ?? null,
+    clientId: signal.client?.id ?? null,
+    workId: signal.work?.id ?? null,
+    startsAt: signal.startsAt,
+    expiresAt: signal.expiresAt
+  });
 }
 
 function signalMetadata(signal: BusinessSignalDraft): Prisma.InputJsonObject {
@@ -2012,8 +2181,13 @@ function signalWithActiveState(signal: BusinessSignalDraft): BusinessSignal {
     dismissedBy: null,
     snoozedUntil: null,
     snoozeReason: null,
+    reviewedAt: null,
     resolvedAt: null,
-    resolution: null
+    resolution: null,
+    reactivatedAt: null,
+    lastEvaluatedAt: null,
+    cooldownUntil: null,
+    changeHash: null
   };
 }
 

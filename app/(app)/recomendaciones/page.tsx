@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Activity,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
@@ -34,6 +35,7 @@ import {
   type BusinessSignalSource
 } from "@/lib/business-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getProactiveAuditEventsForRecommendations } from "@/lib/proactive-evaluation";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +97,7 @@ export default async function RecommendationsPage({
   const origen = validSource(query.origen);
   const q = query.q?.trim() ?? "";
   const result = await getBusinessRecommendations({ status: estado, level: nivel, source: origen, q, limit: 250 });
+  const recommendationHistory = await getProactiveAuditEventsForRecommendations(result.recommendations.map((item) => item.fingerprint));
 
   return (
     <main className="screen">
@@ -103,7 +106,12 @@ export default async function RecommendationsPage({
         title="Centro de recomendaciones"
         description="Acciones operativas derivadas de señales reales. Capataz prioriza y explica; cualquier acción que modifique datos requiere confirmación explícita."
         badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{result.summary.active} activas</span>}
-        secondaryActions={<Link href="/alertas" className="secondary-button"><AlertTriangle size={18} /> Ver alertas</Link>}
+        secondaryActions={
+          <>
+            <Link href="/recomendaciones/control" className="secondary-button"><Activity size={18} /> Control proactivo</Link>
+            <Link href="/alertas" className="secondary-button"><AlertTriangle size={18} /> Ver alertas</Link>
+          </>
+        }
       >
         <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/recomendaciones">
           <FilterSelect name="estado" label="Estado" value={estado} options={STATUS_OPTIONS} />
@@ -166,7 +174,7 @@ export default async function RecommendationsPage({
 
         {result.groups.length ? (
           <div className="grid gap-4">
-            {result.groups.map((group) => <RecommendationGroupCard key={group.key} group={group} />)}
+            {result.groups.map((group) => <RecommendationGroupCard key={group.key} group={group} historyByFingerprint={recommendationHistory} />)}
           </div>
         ) : (
           <EmptyState
@@ -180,7 +188,9 @@ export default async function RecommendationsPage({
   );
 }
 
-function RecommendationGroupCard({ group }: { group: BusinessRecommendationGroup }) {
+type RecommendationHistory = Awaited<ReturnType<typeof getProactiveAuditEventsForRecommendations>>;
+
+function RecommendationGroupCard({ group, historyByFingerprint }: { group: BusinessRecommendationGroup; historyByFingerprint: RecommendationHistory }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -197,14 +207,14 @@ function RecommendationGroupCard({ group }: { group: BusinessRecommendationGroup
 
       <div className="mt-4 grid gap-3">
         {group.topRecommendations.map((recommendation) => (
-          <RecommendationCard key={recommendation.fingerprint} recommendation={recommendation} />
+          <RecommendationCard key={recommendation.fingerprint} recommendation={recommendation} history={historyByFingerprint[recommendation.fingerprint] ?? []} />
         ))}
       </div>
     </section>
   );
 }
 
-function RecommendationCard({ recommendation }: { recommendation: BusinessRecommendation }) {
+function RecommendationCard({ recommendation, history }: { recommendation: BusinessRecommendation; history: RecommendationHistory[string] }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -291,6 +301,25 @@ function RecommendationCard({ recommendation }: { recommendation: BusinessRecomm
             </p>
           )}
         </div>
+
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="font-black text-obra-ink">Historial</p>
+          {history.length ? (
+            <ol className="mt-2 grid gap-2">
+              {history.map((event) => (
+                <li key={`${event.eventType}-${event.createdAt.toISOString()}`} className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-xs font-black uppercase text-slate-500">{formatDate(event.createdAt)} · {eventLabel(event.eventType)}</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {event.previousStatus ? `${event.previousStatus} -> ${event.nextStatus ?? "sin cambio"}. ` : ""}
+                    {event.reason ?? "Evento registrado por el sistema proactivo."}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-1 text-sm text-slate-600">Aún no hay actividad del sistema proactivo para esta recomendación.</p>
+          )}
+        </div>
       </details>
     </article>
   );
@@ -360,6 +389,18 @@ function Mini({ label, value }: { label: string; value: string | number }) {
       <p className="mt-1 truncate text-sm font-black text-obra-ink">{value}</p>
     </div>
   );
+}
+
+function eventLabel(eventType: string) {
+  const labels: Record<string, string> = {
+    recommendation_created: "Creada",
+    recommendation_status_changed: "Cambio de estado",
+    recommendation_action_executed: "Acción ejecutada",
+    recommendation_action_failed: "Acción fallida",
+    evaluation_completed: "Evaluación",
+    evaluation_failed: "Error de evaluación"
+  };
+  return labels[eventType] ?? eventType.replaceAll("_", " ");
 }
 
 function FilterSelect({

@@ -13,10 +13,12 @@ const treasuryMock = { getTreasuryOverview: async () => ({ alerts: [], qualityIs
 const businessSignals = loadTsModule("lib/business-signals.ts", {
   aliases: {
     "@/lib/works": "lib/works.ts",
-    "@/lib/business-metrics": "lib/business-metrics.ts"
+    "@/lib/business-metrics": "lib/business-metrics.ts",
+    "@/lib/proactive-rules": "lib/proactive-rules.ts"
   },
   mocks: {
     "@/lib/prisma": prismaMock,
+    "@/lib/proactive-audit": { logProactiveAuditEvent: async () => undefined },
     "@/lib/treasury": treasuryMock
   }
 });

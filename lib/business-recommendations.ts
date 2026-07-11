@@ -15,6 +15,8 @@ import {
 } from "@/lib/business-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { logProactiveAuditEvent } from "@/lib/proactive-audit";
+import { cooldownUntilForRule, materialChangeExceeded, materialChangeExplanation, stableMaterialHash } from "@/lib/proactive-rules";
 import {
   resolveRecommendationAction,
   serializeRecommendationActions,
@@ -57,6 +59,12 @@ export type BusinessRecommendation = {
   dueAt: Date | null;
   expiresAt: Date | null;
   shownAt: Date | null;
+  viewedAt: Date | null;
+  reviewedAt: Date | null;
+  reactivatedAt: Date | null;
+  lastEvaluatedAt: Date | null;
+  cooldownUntil: Date | null;
+  changeHash: string | null;
   preferredAction: RecommendationAction | null;
   suggestedActions: RecommendationAction[];
   alternativeActions: RecommendationAction[];
@@ -148,6 +156,7 @@ export type BusinessRecommendationsParams = {
   limit?: number;
   now?: Date;
   sync?: boolean;
+  respectCooldown?: boolean;
 };
 
 export type BusinessRecommendationsResult = {
@@ -155,7 +164,7 @@ export type BusinessRecommendationsResult = {
   groups: BusinessRecommendationGroup[];
   summary: BusinessRecommendationSummary;
   generatedAt: Date;
-  filters: Required<Omit<BusinessRecommendationsParams, "now" | "sync" | "clientId" | "workId" | "invoiceId" | "budgetId">> & {
+  filters: Required<Omit<BusinessRecommendationsParams, "now" | "sync" | "respectCooldown" | "clientId" | "workId" | "invoiceId" | "budgetId">> & {
     clientId: string;
     workId: string;
     invoiceId: string;
@@ -166,7 +175,7 @@ export type BusinessRecommendationsResult = {
 
 type RecommendationDraft = Omit<
   BusinessRecommendation,
-  "id" | "status" | "statusLabel" | "shownAt" | "dismissedAt" | "dismissedReason" | "snoozedUntil" | "acceptedAt" | "actionStartedAt" | "completedAt" | "outcome" | "utilityScore" | "createdAt" | "updatedAt"
+  "id" | "status" | "statusLabel" | "shownAt" | "viewedAt" | "reviewedAt" | "reactivatedAt" | "lastEvaluatedAt" | "cooldownUntil" | "changeHash" | "dismissedAt" | "dismissedReason" | "snoozedUntil" | "acceptedAt" | "actionStartedAt" | "completedAt" | "outcome" | "utilityScore" | "createdAt" | "updatedAt"
 > & {
   status: BusinessRecommendationStatus;
 };
@@ -198,6 +207,12 @@ type RecommendationState = {
   dueAt: Date | null;
   expiresAt: Date | null;
   shownAt: Date | null;
+  viewedAt: Date | null;
+  reviewedAt: Date | null;
+  reactivatedAt: Date | null;
+  lastEvaluatedAt: Date | null;
+  cooldownUntil: Date | null;
+  changeHash: string | null;
   preferredActionId: string | null;
   requiresConfirmation: boolean;
   suggestedActions: Prisma.JsonValue | null;
@@ -236,7 +251,7 @@ export async function getBusinessRecommendations(params: BusinessRecommendations
 export async function getTodayRecommendationBrief(limit = 4) {
   const preferences = await loadRecommendationPreferences();
   const maxToday = preferences.find((preference) => preference.scopeType === "today" && preference.maxToday)?.maxToday ?? limit;
-  const result = await getBusinessRecommendations({ status: "active", limit: Math.min(limit, maxToday) });
+  const result = await getBusinessRecommendations({ status: "active", limit: Math.min(limit, maxToday), respectCooldown: true });
   return { recommendations: result.recommendations.slice(0, Math.min(limit, maxToday)), summary: result.summary };
 }
 
@@ -255,15 +270,32 @@ export async function getTreasuryRecommendations(limit = 5) {
 export async function markRecommendationViewed(fingerprint: string) {
   const state = await getRecommendationStateByFingerprint(fingerprint);
   if (!state) throw new Error("La recomendacion no existe o la migracion no esta aplicada.");
+  const now = new Date();
   await prisma.businessRecommendation.update({
     where: { fingerprint },
     data: {
       status: state.status === "active" ? "viewed" : state.status,
-      shownAt: state.shownAt ?? new Date(),
+      shownAt: state.shownAt ?? now,
+      viewedAt: state.viewedAt ?? now,
+      reviewedAt: now,
+      cooldownUntil: cooldownUntilForRule(state.ruleId ?? state.type, state.level, now),
       utilityScore: { increment: 1 }
     }
   });
   await logRecommendationEvent({ recommendationId: state.id, actionId: "mark_reviewed", status: "success", entityType: state.entityType, entityId: state.entityId, result: { status: "viewed" } });
+  await logProactiveAuditEvent({
+    eventType: "recommendation_status_changed",
+    origin: "user",
+    recommendationFingerprint: fingerprint,
+    actionId: "mark_reviewed",
+    entityType: state.entityType,
+    entityId: state.entityId,
+    previousStatus: state.status,
+    nextStatus: state.status === "active" ? "viewed" : state.status,
+    reason: "Revisada por el usuario; sigue activa mientras persista la causa.",
+    ruleId: state.ruleId,
+    values: { cooldownUntil: cooldownUntilForRule(state.ruleId ?? state.type, state.level, now).toISOString() }
+  });
 }
 
 export async function snoozeBusinessRecommendation(fingerprint: string, preset: SignalSnoozePreset, reason?: string) {
@@ -280,6 +312,7 @@ export async function snoozeBusinessRecommendationUntil(fingerprint: string, unt
       status: "snoozed",
       snoozedUntil: until,
       snoozeReason: reason ?? null,
+      cooldownUntil: until,
       utilityScore: { increment: 1 }
     }
   });
@@ -290,6 +323,19 @@ export async function snoozeBusinessRecommendationUntil(fingerprint: string, unt
     entityType: state.entityType,
     entityId: state.entityId,
     result: { status: "snoozed", until: until.toISOString(), reason: reason ?? null }
+  });
+  await logProactiveAuditEvent({
+    eventType: "recommendation_status_changed",
+    origin: "user",
+    recommendationFingerprint: fingerprint,
+    actionId: "snooze_recommendation",
+    entityType: state.entityType,
+    entityId: state.entityId,
+    previousStatus: state.status,
+    nextStatus: "snoozed",
+    reason: reason ?? "Pospuesta por el usuario",
+    ruleId: state.ruleId,
+    values: { until: until.toISOString() }
   });
 }
 
@@ -314,6 +360,19 @@ export async function dismissBusinessRecommendation(fingerprint: string, reason 
     entityId: state.entityId,
     result: { status: "dismissed", reason: reason || null }
   });
+  await logProactiveAuditEvent({
+    eventType: "recommendation_status_changed",
+    origin: "user",
+    recommendationFingerprint: fingerprint,
+    actionId: "dismiss_recommendation",
+    entityType: state.entityType,
+    entityId: state.entityId,
+    previousStatus: state.status,
+    nextStatus: "dismissed",
+    reason: reason || "Descartada por el usuario",
+    ruleId: state.ruleId,
+    values: { dismissedBy }
+  });
 }
 
 export async function acceptBusinessRecommendation(fingerprint: string) {
@@ -334,6 +393,55 @@ export async function acceptBusinessRecommendation(fingerprint: string) {
     entityType: state.entityType,
     entityId: state.entityId,
     result: { status: "accepted" }
+  });
+  await logProactiveAuditEvent({
+    eventType: "recommendation_status_changed",
+    origin: "user",
+    recommendationFingerprint: fingerprint,
+    actionId: state.preferredActionId ?? "accept",
+    entityType: state.entityType,
+    entityId: state.entityId,
+    previousStatus: state.status,
+    nextStatus: "accepted",
+    reason: "Aceptada por el usuario; no implica ejecución externa automática.",
+    ruleId: state.ruleId
+  });
+}
+
+export async function reactivateBusinessRecommendation(fingerprint: string, reason = "Reactivada manualmente por el usuario") {
+  const state = await getRecommendationStateByFingerprint(fingerprint);
+  if (!state) throw new Error("La recomendacion no existe o la migracion no esta aplicada.");
+  const now = new Date();
+  await prisma.businessRecommendation.update({
+    where: { fingerprint },
+    data: {
+      status: "active",
+      snoozedUntil: null,
+      snoozeReason: null,
+      cooldownUntil: null,
+      reactivatedAt: now,
+      outcome: { status: "reactivated", message: reason, at: now.toISOString() }
+    }
+  });
+  await logRecommendationEvent({
+    recommendationId: state.id,
+    actionId: "reactivate_recommendation",
+    status: "success",
+    entityType: state.entityType,
+    entityId: state.entityId,
+    result: { status: "active", reason }
+  });
+  await logProactiveAuditEvent({
+    eventType: "recommendation_status_changed",
+    origin: "user",
+    recommendationFingerprint: fingerprint,
+    actionId: "reactivate_recommendation",
+    entityType: state.entityType,
+    entityId: state.entityId,
+    previousStatus: state.status,
+    nextStatus: "active",
+    reason,
+    ruleId: state.ruleId
   });
 }
 
@@ -372,6 +480,20 @@ export async function executeConfirmedRecommendationAction({
       data: { status: "obsolete", outcome: { status: "obsolete", message: "La señal origen ya no esta activa." } }
     });
     await logRecommendationEvent({ recommendationId: state.id, actionId, status: "skipped", idempotencyKey: key, entityType: state.entityType, entityId: state.entityId, result: { status: "obsolete" } });
+    await logProactiveAuditEvent({
+      eventType: "recommendation_status_changed",
+      origin: "action",
+      recommendationFingerprint: fingerprint,
+      actionId,
+      entityType: state.entityType,
+      entityId: state.entityId,
+      previousStatus: state.status,
+      nextStatus: "obsolete",
+      reason: "La señal origen ya no está activa.",
+      ruleId: state.ruleId,
+      idempotencyKey: key,
+      result: "skipped"
+    });
     return { status: "obsolete", message: "Esta recomendacion ya no es necesaria.", recommendation };
   }
 
@@ -399,6 +521,22 @@ export async function executeConfirmedRecommendationAction({
       userIntent,
       result: result as unknown as Prisma.InputJsonObject
     });
+    await logProactiveAuditEvent({
+      eventType: "recommendation_action_executed",
+      origin: "action",
+      recommendationFingerprint: fingerprint,
+      actionId,
+      entityType: result.entityType ?? state.entityType,
+      entityId: result.entityId ?? state.entityId,
+      previousStatus: state.status,
+      nextStatus: "in_progress",
+      reason: result.message,
+      ruleId: state.ruleId,
+      idempotencyKey: key,
+      result: result.status,
+      confirmation: true,
+      payload: { safeAction: action.kind, externalAction: false }
+    });
     return { status: "success", message: result.message, recommendation, entityId: result.entityId, href: result.href };
   } catch (error) {
     const message = sanitizeError(error);
@@ -407,6 +545,21 @@ export async function executeConfirmedRecommendationAction({
       data: { status: "failed", outcome: { status: "failed", message } }
     });
     await logRecommendationEvent({ recommendationId: state.id, actionId, status: "failed", idempotencyKey: key, entityType: state.entityType, entityId: state.entityId, userIntent, error: message });
+    await logProactiveAuditEvent({
+      eventType: "recommendation_action_failed",
+      origin: "action",
+      recommendationFingerprint: fingerprint,
+      actionId,
+      entityType: state.entityType,
+      entityId: state.entityId,
+      previousStatus: state.status,
+      nextStatus: "failed",
+      reason: "Falló la acción confirmada.",
+      ruleId: state.ruleId,
+      idempotencyKey: key,
+      error: message,
+      confirmation: true
+    });
     return { status: "failed", message, recommendation };
   }
 }
@@ -422,6 +575,8 @@ export function previewRecommendationStatusForTest({
   priority,
   ruleVersion,
   signalRuleVersion,
+  changeHash,
+  nextChangeHash,
   now = new Date()
 }: {
   status?: BusinessRecommendationStatus;
@@ -430,9 +585,16 @@ export function previewRecommendationStatusForTest({
   priority?: number;
   ruleVersion?: string | null;
   signalRuleVersion?: string | null;
+  changeHash?: string | null;
+  nextChangeHash?: string | null;
   now?: Date;
 }) {
-  return nextRecommendationStatus({ status: status ?? "active", snoozedUntil: snoozedUntil ?? null, priority: lastPriority ?? priority ?? 0, ruleVersion: ruleVersion ?? null }, { priority: priority ?? 0, ruleVersion: signalRuleVersion ?? ruleVersion ?? null }, now);
+  return nextRecommendationStatus(
+    { status: status ?? "active", snoozedUntil: snoozedUntil ?? null, priority: lastPriority ?? priority ?? 0, ruleVersion: ruleVersion ?? null, changeHash: changeHash ?? null },
+    { priority: priority ?? 0, ruleVersion: signalRuleVersion ?? ruleVersion ?? null, type: "test", ruleId: "test" },
+    now,
+    nextChangeHash ?? changeHash ?? null
+  );
 }
 
 function buildRecommendationDraftsFromSignals(signals: BusinessSignal[], now: Date): RecommendationDraft[] {
@@ -672,25 +834,79 @@ async function syncRecommendationStates(drafts: RecommendationDraft[], now: Date
   });
   const existingMap = new Map(existing.map((state) => [state.fingerprint, state as RecommendationState]));
   const current = new Set(fingerprints);
+  const auditEvents: Array<Parameters<typeof logProactiveAuditEvent>[0]> = [];
 
   for (const draft of drafts) {
     const previous = existingMap.get(draft.fingerprint);
-    const status = nextRecommendationStatus(previous, draft, now);
-    const update = recommendationUpdateInput(draft, status, previous, now);
+    const changeHash = recommendationChangeHash(draft);
+    const status = nextRecommendationStatus(previous, draft, now, changeHash);
+    const update = recommendationUpdateInput(draft, status, previous, now, changeHash);
     await prisma.businessRecommendation.upsert({
       where: { fingerprint: draft.fingerprint },
-      create: recommendationCreateInput(draft, status),
+      create: recommendationCreateInput(draft, status, changeHash),
       update
     });
+    if (!previous) {
+      auditEvents.push({
+        eventType: "recommendation_created",
+        origin: "evaluation",
+        recommendationFingerprint: draft.fingerprint,
+        signalFingerprint: draft.signalFingerprint,
+        entityType: draft.entityType,
+        entityId: draft.entityId,
+        nextStatus: status,
+        reason: "Nueva recomendación derivada de señal activa.",
+        ruleId: draft.ruleId,
+        values: { priority: draft.priority, level: draft.level, changeHash }
+      });
+    } else if (previous.status !== status) {
+      auditEvents.push({
+        eventType: "recommendation_status_changed",
+        origin: "evaluation",
+        recommendationFingerprint: draft.fingerprint,
+        signalFingerprint: draft.signalFingerprint,
+        entityType: draft.entityType,
+        entityId: draft.entityId,
+        previousStatus: previous.status,
+        nextStatus: status,
+        reason: status === "active" && previous.status !== "active"
+          ? materialChangeExplanation({ previousPriority: previous.priority, nextPriority: draft.priority, previousHash: previous.changeHash, nextHash: changeHash, ruleId: draft.ruleId })
+          : `Estado actualizado por evaluación determinista: ${status}.`,
+        ruleId: draft.ruleId,
+        values: { previousPriority: previous.priority, nextPriority: draft.priority, changeHash }
+      });
+    }
   }
 
   const obsoleteCandidates = existing.filter((state) => !current.has(state.fingerprint) && ["active", "viewed", "accepted", "in_progress", "snoozed", "failed"].includes(state.status));
   if (obsoleteCandidates.length) {
-    await prisma.businessRecommendation.updateMany({
-      where: { fingerprint: { in: obsoleteCandidates.map((state) => state.fingerprint) } },
-      data: { status: "obsolete", outcome: { status: "obsolete", message: "La señal origen ya no esta activa." } }
-    });
+    for (const state of obsoleteCandidates) {
+      await prisma.businessRecommendation.update({
+        where: { fingerprint: state.fingerprint },
+        data: {
+          status: "obsolete",
+          lastEvaluatedAt: now,
+          cooldownUntil: null,
+          outcome: { status: "obsolete", message: "La señal origen ya no esta activa." }
+        }
+      });
+      auditEvents.push({
+        eventType: "recommendation_status_changed",
+        origin: "evaluation",
+        recommendationFingerprint: state.fingerprint,
+        signalFingerprint: state.signalFingerprint,
+        entityType: state.entityType,
+        entityId: state.entityId,
+        previousStatus: state.status,
+        nextStatus: "obsolete",
+        reason: "La señal origen ya no está activa.",
+        ruleId: state.ruleId,
+        values: { priority: state.priority }
+      });
+    }
   }
+
+  await Promise.all(auditEvents.map((event) => logProactiveAuditEvent(event)));
 
   const refreshed = await prisma.businessRecommendation.findMany({
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
@@ -699,7 +915,7 @@ async function syncRecommendationStates(drafts: RecommendationDraft[], now: Date
   return new Map(refreshed.map((state) => [state.fingerprint, state as RecommendationState]));
 }
 
-function recommendationCreateInput(draft: RecommendationDraft, status: BusinessRecommendationStatus): Prisma.BusinessRecommendationCreateInput {
+function recommendationCreateInput(draft: RecommendationDraft, status: BusinessRecommendationStatus, changeHash: string): Prisma.BusinessRecommendationCreateInput {
   return {
     fingerprint: draft.fingerprint,
     signalFingerprint: draft.signalFingerprint,
@@ -726,6 +942,8 @@ function recommendationCreateInput(draft: RecommendationDraft, status: BusinessR
     dueAt: draft.dueAt,
     expiresAt: draft.expiresAt,
     shownAt: new Date(),
+    lastEvaluatedAt: new Date(),
+    changeHash,
     preferredActionId: draft.preferredAction?.id ?? null,
     requiresConfirmation: draft.requiresConfirmation,
     suggestedActions: serializeRecommendationActions(draft.suggestedActions),
@@ -735,7 +953,8 @@ function recommendationCreateInput(draft: RecommendationDraft, status: BusinessR
   };
 }
 
-function recommendationUpdateInput(draft: RecommendationDraft, status: BusinessRecommendationStatus, previous: RecommendationState | undefined, now: Date): Prisma.BusinessRecommendationUpdateInput {
+function recommendationUpdateInput(draft: RecommendationDraft, status: BusinessRecommendationStatus, previous: RecommendationState | undefined, now: Date, changeHash: string): Prisma.BusinessRecommendationUpdateInput {
+  const materiallyChanged = Boolean(previous?.changeHash && previous.changeHash !== changeHash);
   return {
     signalFingerprint: draft.signalFingerprint,
     type: draft.type,
@@ -761,6 +980,10 @@ function recommendationUpdateInput(draft: RecommendationDraft, status: BusinessR
     dueAt: draft.dueAt,
     expiresAt: draft.expiresAt,
     shownAt: previous?.shownAt ?? now,
+    reactivatedAt: status === "active" && previous?.status && previous.status !== "active" ? now : previous?.reactivatedAt,
+    lastEvaluatedAt: now,
+    cooldownUntil: materiallyChanged ? null : previous?.cooldownUntil ?? null,
+    changeHash,
     preferredActionId: draft.preferredAction?.id ?? null,
     requiresConfirmation: draft.requiresConfirmation,
     suggestedActions: serializeRecommendationActions(draft.suggestedActions),
@@ -809,6 +1032,7 @@ function filterAndGroupRecommendations(
     if (params.invoiceId && recommendation.invoiceId !== params.invoiceId) return false;
     if (params.budgetId && recommendation.budgetId !== params.budgetId) return false;
     if (recommendation.status === "snoozed" && recommendation.snoozedUntil && recommendation.snoozedUntil > now && status === "active") return false;
+    if (params.respectCooldown && status === "active" && recommendation.cooldownUntil && recommendation.cooldownUntil > now && recommendation.level !== "critico") return false;
     if (!q) return true;
     const haystack = [recommendation.title, recommendation.summary, recommendation.detailedExplanation, recommendation.entityLabel, recommendation.type, recommendation.sourceLabel].join(" ").toLowerCase();
     return haystack.includes(q);
@@ -930,6 +1154,12 @@ function recommendationFromState(state: RecommendationState): BusinessRecommenda
     dueAt: state.dueAt,
     expiresAt: state.expiresAt,
     shownAt: state.shownAt,
+    viewedAt: state.viewedAt,
+    reviewedAt: state.reviewedAt,
+    reactivatedAt: state.reactivatedAt,
+    lastEvaluatedAt: state.lastEvaluatedAt,
+    cooldownUntil: state.cooldownUntil,
+    changeHash: state.changeHash,
     preferredAction,
     suggestedActions,
     alternativeActions,
@@ -956,6 +1186,12 @@ function recommendationWithActiveState(draft: RecommendationDraft): BusinessReco
     id: draft.fingerprint,
     statusLabel: recommendationStatusLabel(draft.status),
     shownAt: now,
+    viewedAt: null,
+    reviewedAt: null,
+    reactivatedAt: null,
+    lastEvaluatedAt: null,
+    cooldownUntil: null,
+    changeHash: recommendationChangeHash(draft),
     dismissedAt: null,
     dismissedReason: null,
     snoozedUntil: null,
@@ -970,21 +1206,60 @@ function recommendationWithActiveState(draft: RecommendationDraft): BusinessReco
 }
 
 function nextRecommendationStatus(
-  state: Pick<RecommendationState, "status" | "snoozedUntil" | "priority" | "ruleVersion"> | undefined,
-  draft: Pick<RecommendationDraft, "priority" | "ruleVersion">,
-  now: Date
+  state: Pick<RecommendationState, "status" | "snoozedUntil" | "priority" | "ruleVersion" | "changeHash"> | undefined,
+  draft: Pick<RecommendationDraft, "priority" | "ruleVersion" | "ruleId" | "type">,
+  now: Date,
+  changeHash: string | null = null
 ): BusinessRecommendationStatus {
   if (!state) return "active";
   if (state.status === "snoozed") return state.snoozedUntil && state.snoozedUntil > now ? "snoozed" : "active";
   if (state.status === "dismissed") {
-    const materialPriorityChange = draft.priority - state.priority >= 15;
-    const ruleChanged = Boolean(state.ruleVersion && draft.ruleVersion && state.ruleVersion !== draft.ruleVersion);
-    return materialPriorityChange || ruleChanged ? "active" : "dismissed";
+    return materialChangeExceeded({
+      previousPriority: state.priority,
+      nextPriority: draft.priority,
+      previousRuleVersion: state.ruleVersion,
+      nextRuleVersion: draft.ruleVersion,
+      previousHash: state.changeHash,
+      nextHash: changeHash,
+      ruleId: draft.ruleId ?? draft.type
+    }) ? "active" : "dismissed";
   }
   if (state.status === "obsolete") return "active";
-  if (state.status === "completed") return "completed";
+  if (state.status === "completed") {
+    return materialChangeExceeded({
+      previousPriority: state.priority,
+      nextPriority: draft.priority,
+      previousRuleVersion: state.ruleVersion,
+      nextRuleVersion: draft.ruleVersion,
+      previousHash: state.changeHash,
+      nextHash: changeHash,
+      ruleId: draft.ruleId ?? draft.type
+    }) ? "active" : "completed";
+  }
   if (state.status === "accepted" || state.status === "in_progress" || state.status === "viewed" || state.status === "failed") return state.status;
   return "active";
+}
+
+export function recommendationChangeHashForTest(recommendation: Pick<RecommendationDraft, "type" | "ruleVersion" | "priority" | "score" | "amount" | "entityType" | "entityId" | "clientId" | "workId" | "invoiceId" | "budgetId" | "dueAt" | "expiresAt">) {
+  return recommendationChangeHash(recommendation as RecommendationDraft);
+}
+
+function recommendationChangeHash(recommendation: RecommendationDraft) {
+  return stableMaterialHash({
+    type: recommendation.type,
+    ruleVersion: recommendation.ruleVersion,
+    priorityBucket: Math.floor(recommendation.priority / 5),
+    scoreBucket: Math.floor(recommendation.score / 5),
+    amount: recommendation.amount,
+    entityType: recommendation.entityType,
+    entityId: recommendation.entityId,
+    clientId: recommendation.clientId,
+    workId: recommendation.workId,
+    invoiceId: recommendation.invoiceId,
+    budgetId: recommendation.budgetId,
+    dueAt: recommendation.dueAt,
+    expiresAt: recommendation.expiresAt
+  });
 }
 
 async function executeKnownAction(state: RecommendationState, actionId: string) {
@@ -992,6 +1267,17 @@ async function executeKnownAction(state: RecommendationState, actionId: string) 
     if (!state.invoiceId || !state.clientId) throw new Error("Faltan datos de factura o cliente para crear seguimiento.");
     const invoice = await prisma.invoice.findUnique({ where: { id: state.invoiceId }, include: { client: true } });
     if (!invoice || invoice.pendiente <= 0 || invoice.estado === "pagada") return { status: "obsolete", message: "La factura ya no requiere seguimiento.", entityType: "invoice", entityId: state.invoiceId, href: `/dinero/${state.invoiceId}` };
+    const existingReminder = await prisma.reminder.findFirst({
+      where: {
+        facturaId: state.invoiceId,
+        tipo: "factura_vencida",
+        estado: { in: ["borrador", "pendiente_confirmacion", "programado", "fallido"] }
+      },
+      orderBy: { fechaProgramada: "asc" }
+    });
+    if (existingReminder) {
+      return { status: "skipped", message: "Ya existe un seguimiento interno activo para esta factura.", entityType: "reminder", entityId: existingReminder.id, href: "/recordatorios" };
+    }
     const reminder = await prisma.reminder.create({
       data: {
         clienteId: state.clientId,
@@ -1012,6 +1298,17 @@ async function executeKnownAction(state: RecommendationState, actionId: string) 
     if (!state.budgetId || !state.clientId) throw new Error("Faltan datos de presupuesto o cliente para crear seguimiento.");
     const budget = await prisma.budget.findUnique({ where: { id: state.budgetId }, include: { client: true } });
     if (!budget || ["rechazado", "aceptado"].includes(budget.estado)) return { status: "obsolete", message: "El presupuesto ya no requiere seguimiento.", entityType: "budget", entityId: state.budgetId, href: `/presupuestos/${state.budgetId}` };
+    const existingReminder = await prisma.reminder.findFirst({
+      where: {
+        presupuestoId: state.budgetId,
+        tipo: "seguimiento_presupuesto",
+        estado: { in: ["borrador", "pendiente_confirmacion", "programado", "fallido"] }
+      },
+      orderBy: { fechaProgramada: "asc" }
+    });
+    if (existingReminder) {
+      return { status: "skipped", message: "Ya existe un seguimiento interno activo para este presupuesto.", entityType: "reminder", entityId: existingReminder.id, href: "/recordatorios" };
+    }
     const reminder = await prisma.reminder.create({
       data: {
         clienteId: state.clientId,

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { EventoAgendaEstado } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 
 export async function updateAgendaEventStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -10,7 +11,7 @@ export async function updateAgendaEventStatus(formData: FormData) {
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !estado || !confirmado) return;
 
-  await prisma.eventoAgenda.update({
+  const event = await prisma.eventoAgenda.update({
     where: { id },
     data: {
       estado,
@@ -18,6 +19,7 @@ export async function updateAgendaEventStatus(formData: FormData) {
       requiereConfirmacion: false
     }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "agenda", entityId: id, clientId: event.clienteId, workId: event.obraId, invoiceId: event.facturaId, budgetId: event.presupuestoId, reason: "agenda_status_updated" });
 
   revalidateAgenda();
 }
@@ -32,7 +34,7 @@ export async function reprogramAgendaEvent(formData: FormData) {
   const start = new Date(fechaInicio);
   const end = fechaFin ? new Date(fechaFin) : null;
 
-  await prisma.eventoAgenda.update({
+  const event = await prisma.eventoAgenda.update({
     where: { id },
     data: {
       fechaInicio: start,
@@ -44,6 +46,7 @@ export async function reprogramAgendaEvent(formData: FormData) {
       requiereConfirmacion: false
     }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "agenda", entityId: id, clientId: event.clienteId, workId: event.obraId, invoiceId: event.facturaId, budgetId: event.presupuestoId, reason: "agenda_reprogrammed" });
 
   revalidateAgenda();
 }

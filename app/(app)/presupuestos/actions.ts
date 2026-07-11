@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
 import { findBudgetTemplate } from "@/lib/budget-templates";
 import { nextDocumentNumber } from "@/lib/numbering";
+import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 
 export async function updateBudgetStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -26,6 +27,8 @@ export async function updateBudgetStatus(formData: FormData) {
       await prisma.client.update({ where: { id: budget.clienteId }, data: { estado: "aceptado" } });
     }
   }
+  const updated = await prisma.budget.findUnique({ where: { id }, select: { clienteId: true, obraId: true } });
+  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: id, clientId: updated?.clienteId, workId: updated?.obraId, budgetId: id, reason: "budget_status_updated" });
 
   revalidatePath("/presupuestos");
   revalidatePath(`/presupuestos/${id}`);
@@ -44,6 +47,7 @@ export async function convertBudgetToWork(formData: FormData) {
       prisma.budget.update({ where: { id }, data: { estado: "aceptado" } }),
       prisma.client.update({ where: { id: budget.clienteId }, data: { estado: "obra_activa" } })
     ]);
+    await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: id, clientId: budget.clienteId, workId: budget.obraId, budgetId: id, reason: "budget_converted_existing_work" });
     revalidatePath("/presupuestos");
     revalidatePath("/obras");
     revalidatePath("/clientes");
@@ -71,6 +75,7 @@ export async function convertBudgetToWork(formData: FormData) {
     prisma.budget.update({ where: { id }, data: { estado: "aceptado", obraId: work.id } }),
     prisma.client.update({ where: { id: budget.clienteId }, data: { estado: "obra_activa" } })
   ]);
+  await reevaluateProactiveAfterMutation({ entityType: "work", entityId: work.id, clientId: budget.clienteId, workId: work.id, budgetId: id, reason: "budget_converted_to_work" });
 
   revalidatePath("/presupuestos");
   revalidatePath("/obras");
@@ -105,6 +110,7 @@ export async function convertBudgetToInvoice(formData: FormData) {
       datosBancarios: null
     }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: budget.clienteId, workId: budget.obraId, invoiceId: invoice.id, budgetId: budget.id, reason: "budget_converted_to_invoice" });
 
   revalidatePath("/presupuestos");
   revalidatePath("/dinero");
@@ -139,6 +145,7 @@ export async function duplicateBudget(formData: FormData) {
       formaPago: budget.formaPago
     }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: copy.id, clientId: budget.clienteId, workId: budget.obraId, budgetId: copy.id, reason: "budget_duplicated" });
 
   revalidatePath("/presupuestos");
   redirect(`/presupuestos/${copy.id}`);
@@ -172,6 +179,7 @@ export async function createBudgetFromTemplate(formData: FormData) {
       formaPago: "Transferencia / según acuerdo"
     }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: budget.id, clientId: clienteId, workId: obraId, budgetId: budget.id, reason: "budget_created_from_template" });
 
   revalidatePath("/presupuestos");
   redirect(`/presupuestos/${budget.id}`);
@@ -225,6 +233,8 @@ async function updateBudgetLinesAndTotals(budgetId: string, lines: ReturnType<ty
       total: totals.total
     }
   });
+  const budget = await prisma.budget.findUnique({ where: { id: budgetId }, select: { clienteId: true, obraId: true } });
+  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: budgetId, clientId: budget?.clienteId, workId: budget?.obraId, budgetId, reason: "budget_lines_updated" });
 
   revalidatePath("/presupuestos");
   revalidatePath(`/presupuestos/${budgetId}`);

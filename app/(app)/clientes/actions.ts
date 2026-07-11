@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 
 export async function scheduleBudgetFollowUp(formData: FormData) {
   const clienteId = String(formData.get("clienteId") ?? "");
@@ -54,6 +55,7 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
     where: { id: clienteId },
     data: { ultimaInteraccion: new Date() }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: presupuestoId, clientId: clienteId, workId: obraId, budgetId: presupuestoId, reason: "budget_followup_scheduled" });
 
   revalidatePath(`/clientes/${clienteId}`);
   revalidatePath("/clientes");
@@ -71,6 +73,7 @@ export async function archiveClient(formData: FormData) {
     where: { id },
     data: { archivadoAt: new Date() }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "client", entityId: id, clientId: id, reason: "client_archived" });
 
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);
@@ -86,6 +89,7 @@ export async function restoreClient(formData: FormData) {
     where: { id },
     data: { archivadoAt: null }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "client", entityId: id, clientId: id, reason: "client_restored" });
 
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);

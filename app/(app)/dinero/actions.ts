@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PaymentType, ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
 
 export async function registerPayment(formData: FormData) {
@@ -49,6 +50,7 @@ export async function registerPayment(formData: FormData) {
       }
     })
   ]);
+  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "payment_registered" });
 
   revalidatePath("/dinero");
   revalidatePath(`/dinero/${facturaId}`);
@@ -85,6 +87,7 @@ export async function prepareCollectionReminder(formData: FormData) {
       confirmadoPorUsuario: false
     }
   });
+  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "collection_reminder_prepared" });
 
   revalidatePath("/dinero");
   revalidatePath("/recordatorios");
@@ -122,6 +125,7 @@ export async function markInvoicePaid(formData: FormData) {
       }
     })
   ]);
+  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "invoice_marked_paid" });
 
   revalidatePath("/dinero");
   revalidatePath(`/dinero/${facturaId}`);

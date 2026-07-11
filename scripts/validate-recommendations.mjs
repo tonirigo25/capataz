@@ -27,11 +27,13 @@ const businessSignalMocks = {
 const recommendationModule = () => loadTsModule("lib/business-recommendations.ts", {
   mocks: {
     "@/lib/business-signals": businessSignalMocks,
-    "@/lib/prisma": { prisma: {} }
+    "@/lib/prisma": { prisma: {} },
+    "@/lib/proactive-audit": { logProactiveAuditEvent: async () => undefined }
   },
   aliases: {
     "@/lib/recommendation-actions": "lib/recommendation-actions.ts",
-    "@/lib/format": "lib/format.ts"
+    "@/lib/format": "lib/format.ts",
+    "@/lib/proactive-rules": "lib/proactive-rules.ts"
   }
 });
 
