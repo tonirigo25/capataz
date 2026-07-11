@@ -85,6 +85,14 @@ export type ChatActiveTask = {
 export type ChatContext = {
   activeTask?: ChatActiveTask;
   parkedTask?: ChatActiveTask;
+  lastQuery?: {
+    type: string;
+    category?: string;
+    filters?: Record<string, unknown>;
+    resultIds?: string[];
+    handler?: string;
+    timestamp: string;
+  };
   lastClientId?: string;
   lastWorkId?: string;
   lastBudgetId?: string;

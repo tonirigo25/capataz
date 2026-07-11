@@ -51,6 +51,7 @@ export type ChatCommandResult = {
   handled: boolean;
   text: string;
   result?: ChatActionResult;
+  diagnostics?: ChatRouteDiagnostics;
   created?: {
     clientId?: string;
     workId?: string;
@@ -61,6 +62,19 @@ export type ChatCommandResult = {
   };
   context?: ChatCommandContext | null;
   clearContext?: boolean;
+};
+
+type ChatRouteDiagnostics = {
+  normalizedText?: string;
+  intentKind?: string;
+  action?: string;
+  confidence?: number;
+  rule?: string;
+  handler?: string;
+  query?: string;
+  resultCount?: number;
+  noMutation?: boolean;
+  responseLength?: number;
 };
 
 export type ChatCommandOptions = {
@@ -155,21 +169,60 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
 async function runChatCommandCore(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult> {
   const enrichedContext = await enrichChatContext(context);
   debugChat("received", { text, context: enrichedContext });
-
-  if (wantsGlobalPendingList(text) && !enrichedContext?.activeTask) {
-    await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "list_global_pending" });
-    return listGlobalPendingTasks(enrichedContext);
-  }
+  const normalizedText = normalizeQueryText(text);
 
   if (wantsExplicitContinueTask(text) && !enrichedContext?.activeTask) {
     await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "continue_latest_task" });
     return continueLatestPendingTask();
   }
 
-  const databaseIntent = databaseIntentForMessage(text, classifyChatIntent(text), enrichedContext);
+  const classifiedIntent = classifyChatIntent(text);
+  const databaseIntent = databaseIntentForMessage(text, classifiedIntent, enrichedContext);
+  await logChatPerf(trace, "chat:intent", trace.startedAt, databaseIntent ? "database_candidate" : "not_database", {
+    normalizedText,
+    classifiedKind: classifiedIntent.kind,
+    classifiedAction: classifiedIntent.action,
+    classifiedConfidence: classifiedIntent.confidence,
+    rule: classifiedIntent.rule,
+    routedKind: databaseIntent?.kind,
+    routedAction: databaseIntent?.action,
+    conversationId: trace.conversationId
+  });
   if (databaseIntent) {
-    await logChatPerf(trace, "route", trace.startedAt, "database_query", { kind: databaseIntent.kind, action: databaseIntent.action });
-    return answerDatabaseQuery(text, databaseIntent, enrichedContext);
+    await logChatPerf(trace, "route", trace.startedAt, "database_query", { kind: databaseIntent.kind, action: databaseIntent.action, confidence: databaseIntent.confidence, rule: databaseIntent.rule });
+    const queryStarted = nowMs();
+    try {
+      const result = await answerDatabaseQuery(text, databaseIntent, enrichedContext);
+      await logChatPerf(trace, "chat:database_result", queryStarted, "ok", {
+        ...result.diagnostics,
+        responseLength: result.text.length,
+        conversationId: trace.conversationId
+      });
+      return result;
+    } catch (error) {
+      await logChatPerf(trace, "chat:database_result", queryStarted, "error", {
+        normalizedText,
+        intentKind: databaseIntent.kind,
+        action: databaseIntent.action,
+        confidence: databaseIntent.confidence,
+        rule: databaseIntent.rule,
+        error: error instanceof Error ? sanitizeAIError(error.message) : "unknown"
+      });
+      return {
+        handled: true,
+        context: enrichedContext,
+        diagnostics: {
+          normalizedText,
+          intentKind: databaseIntent.kind,
+          action: databaseIntent.action,
+          confidence: databaseIntent.confidence,
+          rule: databaseIntent.rule,
+          handler: handlerNameForIntent(databaseIntent),
+          noMutation: true
+        },
+        text: "No he podido consultar esos datos ahora mismo. No he creado ni modificado ningún registro; inténtalo de nuevo en unos segundos."
+      };
+    }
   }
 
   const planStarted = nowMs();
@@ -386,107 +439,162 @@ async function withStructuredResult(result: ChatCommandResult): Promise<ChatComm
   return actionResult ? { ...result, result: actionResult } : result;
 }
 
-async function listGlobalPendingTasks(context: ChatCommandContext | null): Promise<ChatCommandResult> {
-  return queryPendingTasksSummary(context);
-}
-
 function databaseIntentForMessage(text: string, classified: ChatIntentClassification, context: ChatCommandContext | null): ChatIntentClassification | null {
   const normalized = normalizeQueryText(text);
-  const activeType = context?.activeTask?.type;
-  if (activeType === "pending_summary" && /^(dimelos|dime cuales|cuales son|detallame|detalle|ver todos|muestrame|ensename)$/i.test(normalized)) {
-    return { kind: "pending_detail", action: "pending_detail", confidence: 0.9 };
+  const lastQuery = context?.lastQuery;
+  if (lastQuery?.type === "pending_summary" && isPendingDetailFollowUp(normalized)) {
+    return {
+      kind: "pending_details",
+      action: "pending_detail",
+      confidence: 0.9,
+      detailCategory: isPendingDetailCategory(lastQuery.category) ? lastQuery.category : undefined,
+      rule: "last_query_pending_detail"
+    };
   }
-  if (classified.kind === "pending" || classified.kind === "pending_detail") return classified;
-  if (classified.kind === "query" || classified.kind === "aggregate" || classified.kind === "compare") return classified;
+  if (lastQuery?.type === "pending_detail" && isPendingDetailFollowUp(normalized)) {
+    return {
+      kind: "pending_details",
+      action: "pending_detail",
+      confidence: 0.88,
+      detailCategory: isPendingDetailCategory(lastQuery.category) ? lastQuery.category : undefined,
+      rule: "last_query_repeat_detail"
+    };
+  }
+  if (classified.kind === "pending_summary" || classified.kind === "pending_details") return classified;
+  if (classified.kind === "database_query" || classified.kind === "aggregate_query" || classified.kind === "comparison_query") return classified;
   return null;
 }
 
 async function answerDatabaseQuery(text: string, intent: ChatIntentClassification, context: ChatCommandContext | null): Promise<ChatCommandResult> {
-  if (intent.kind === "pending") return queryPendingTasksSummary(context);
-  if (intent.kind === "pending_detail") return queryPendingTaskDetails(intent.detailCategory, context);
+  if (intent.kind === "pending_summary") return withQueryDiagnostics(await queryPendingTasksSummary(context), text, intent, "queryPendingTasksSummary", "pending_tasks_counts");
+  if (intent.kind === "pending_details") return withQueryDiagnostics(await queryPendingTaskDetails(intent.detailCategory, context), text, intent, "queryPendingTaskDetails", `pending_task_details:${intent.detailCategory ?? "lastQuery"}`);
 
   switch (intent.action) {
     case "highest_budget":
-      return queryBudgetByAmount("desc", intent);
+      return withQueryDiagnostics(await queryBudgetByAmount("desc", intent), text, intent, "queryBudgetByAmount/highest", "budget.findFirst:total_desc");
     case "lowest_budget":
-      return queryBudgetByAmount("asc", intent);
+      return withQueryDiagnostics(await queryBudgetByAmount("asc", intent), text, intent, "queryBudgetByAmount/lowest", "budget.findFirst:total_asc");
+    case "budget_by_amount":
+      return withQueryDiagnostics(await queryBudgetByExactAmount(intent), text, intent, "queryBudgetByExactAmount", "budget.findMany:total_exact");
     case "latest_budget":
-      return queryLatestBudget(intent);
+      return withQueryDiagnostics(await queryLatestBudget(intent), text, intent, "queryLatestBudget", "budget.findFirst:fechaCreacion_desc");
     case "highest_invoice":
-      return queryInvoiceByAmount("desc", intent);
+      return withQueryDiagnostics(await queryInvoiceByAmount("desc", intent), text, intent, "queryInvoiceByAmount/highest", "invoice.findFirst:total_desc");
     case "lowest_invoice":
-      return queryInvoiceByAmount("asc", intent);
+      return withQueryDiagnostics(await queryInvoiceByAmount("asc", intent), text, intent, "queryInvoiceByAmount/lowest", "invoice.findFirst:total_asc");
     case "outstanding_invoices":
-      return queryOutstandingInvoices(intent);
+      return withQueryDiagnostics(await queryOutstandingInvoices(intent), text, intent, "queryOutstandingInvoices", "invoice.findMany+payments:open_balance");
     case "pending_invoices_count":
-      return queryPendingInvoicesCount(intent);
+      return withQueryDiagnostics(await queryPendingInvoicesCount(intent), text, intent, "queryPendingInvoicesCount", "invoice.findMany+payments:count_open_balance");
     case "pending_budgets_count":
-      return queryPendingBudgetsCount(intent);
+      return withQueryDiagnostics(await queryPendingBudgetsCount(intent), text, intent, "queryPendingBudgetsCount", "budget.count:pending_states");
     case "overdue_invoices":
-      return queryPendingTaskDetails("overdue_invoices", context);
+      return withQueryDiagnostics(await queryPendingTaskDetails("overdue_invoices", context), text, intent, "queryPendingTaskDetails", "invoice.findMany+payments:overdue");
     case "client_highest_debt":
-      return queryClientHighestDebt();
+      return withQueryDiagnostics(await queryClientHighestDebt(context), text, intent, "queryClientHighestDebt", "invoice.findMany+payments:group_by_client");
     case "revenue_summary":
-      return queryRevenueSummary(intent);
+      return withQueryDiagnostics(await queryRevenueSummary(intent), text, intent, "queryRevenueSummary", "invoice.findMany:period_summary");
     case "expenses_summary":
-      return queryExpensesSummary(intent);
+      return withQueryDiagnostics(await queryExpensesSummary(intent), text, intent, "queryExpensesSummary", "expense.findMany:period_summary");
     case "active_projects":
-      return queryPendingTaskDetails("active_projects", context);
+      return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "client_budgets":
-      return queryClientBudgets(intent);
+      return withQueryDiagnostics(await queryClientBudgets(intent), text, intent, "queryClientBudgets", "budget.findMany:client");
     case "client_payments":
-      return queryClientPayments(intent);
+      return withQueryDiagnostics(await queryClientPayments(intent), text, intent, "queryClientPayments", "payment.findMany:client");
     case "clients_missing_tax_id":
-      return queryPendingTaskDetails("clients_incomplete", context);
+      return withQueryDiagnostics(await queryPendingTaskDetails("clients_incomplete", context), text, intent, "queryPendingTaskDetails", "client.findMany:incomplete");
     case "project_highest_expenses":
-      return queryProjectHighestExpenses(intent);
+      return withQueryDiagnostics(await queryProjectHighestExpenses(intent), text, intent, "queryProjectHighestExpenses", "expense.findMany:group_by_work");
     case "recent_documents":
-      return queryRecentDocuments(intent);
+      return withQueryDiagnostics(await queryRecentDocuments(intent), text, intent, "queryRecentDocuments", "budget+invoice.findMany:recent");
     default:
       return {
         handled: true,
         context,
+        diagnostics: {
+          normalizedText: normalizeQueryText(text),
+          intentKind: intent.kind,
+          action: intent.action,
+          confidence: intent.confidence,
+          rule: intent.rule,
+          handler: "answerDatabaseQuery/default",
+          noMutation: true
+        },
         text: "Puedo consultar presupuestos, facturas, cobros, gastos, obras, clientes y pendientes. Dime qué dato quieres ver."
       };
   }
 }
 
-async function queryPendingTasksSummary(context: ChatCommandContext | null): Promise<ChatCommandResult> {
-  const counts = await queryPendingTasksCounts();
-  const rows = [
-    ["Presupuestos pendientes", counts.pendingBudgets],
-    ["Presupuestos pendientes de enviar", counts.budgetsToSend],
-    ["Presupuestos pendientes de aceptar", counts.budgetsToAccept],
-    ["Facturas pendientes de cobro", counts.pendingInvoices],
-    ["Facturas vencidas", counts.overdueInvoices],
-    ["Pagos parciales", counts.partialPayments],
-    ["Visitas pendientes", counts.pendingVisits],
-    ["Visitas por confirmar", counts.visitsToConfirm],
-    ["Seguimientos pendientes", counts.pendingFollowups],
-    ["Recordatorios pendientes", counts.pendingReminders],
-    ["Clientes con datos incompletos", counts.incompleteClients],
-    ["Obras activas con tareas pendientes", counts.activeProjects],
-    ["Documentos pendientes de completar", counts.incompleteDocuments]
-  ].filter(([, count]) => Number(count) > 0) as Array<[string, number]>;
-
-  const nextContext = {
-    ...(context ?? {}),
-    activeTask: {
-      type: "pending_summary" as const,
-      status: "activo" as const,
-      title: "Resumen de pendientes",
-      pendingFields: rows.map(([label]) => label),
-      draftData: counts,
-      lastQuestion: "¿Quieres que te detalle alguna categoría?",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+function withQueryDiagnostics(result: ChatCommandResult, text: string, intent: ChatIntentClassification, handler: string, query: string): ChatCommandResult {
+  return {
+    ...result,
+    diagnostics: {
+      normalizedText: normalizeQueryText(text),
+      intentKind: intent.kind,
+      action: intent.action,
+      confidence: intent.confidence,
+      rule: intent.rule,
+      handler,
+      query,
+      noMutation: true,
+      resultCount: result.diagnostics?.resultCount,
+      responseLength: result.text.length
     }
   };
+}
+
+function handlerNameForIntent(intent: ChatIntentClassification) {
+  if (intent.kind === "pending_summary") return "queryPendingTasksSummary";
+  if (intent.kind === "pending_details") return "queryPendingTaskDetails";
+  if (intent.action === "highest_budget") return "queryBudgetByAmount/highest";
+  if (intent.action === "lowest_budget") return "queryBudgetByAmount/lowest";
+  if (intent.action === "budget_by_amount") return "queryBudgetByExactAmount";
+  if (intent.action === "outstanding_invoices") return "queryOutstandingInvoices";
+  if (intent.action === "client_highest_debt") return "queryClientHighestDebt";
+  return intent.action ?? intent.kind;
+}
+
+function isPendingDetailFollowUp(normalized: string) {
+  return /^(dimelos|dimelas|dime cuales|cuales son|detallame|detalle|ver todos|muestrame|ensename|dime los pendientes|dime las pendientes)$/.test(normalized);
+}
+
+function isPendingDetailCategory(value: unknown): value is PendingDetailCategory {
+  return typeof value === "string" && [
+    "budgets",
+    "budgets_to_send",
+    "budgets_to_accept",
+    "invoices",
+    "overdue_invoices",
+    "partial_payments",
+    "visits",
+    "visits_to_confirm",
+    "followups",
+    "reminders",
+    "clients_incomplete",
+    "active_projects",
+    "documents"
+  ].includes(value);
+}
+
+async function queryPendingTasksSummary(context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const counts = await queryPendingTasksCounts();
+  const rows = pendingSummaryRows(counts);
+  const firstCategory = rows[0]?.category;
+  const nextContext = withLastQuery(context, {
+    type: "pending_summary",
+    category: firstCategory,
+    filters: { categories: rows.map((row) => row.category), counts },
+    resultIds: [],
+    handler: "queryPendingTasksSummary",
+    timestamp: new Date().toISOString()
+  });
 
   if (!rows.length) {
     return {
       handled: true,
       context: nextContext,
+      diagnostics: { resultCount: 0 },
       text: "No tienes tareas pendientes ahora mismo."
     };
   }
@@ -494,19 +602,18 @@ async function queryPendingTasksSummary(context: ChatCommandContext | null): Pro
   return {
     handled: true,
     context: nextContext,
-    text: `Tienes:\n\n${rows.map(([label, count]) => `- ${count} ${pendingCountLabel(label, count)}.`).join("\n")}\n\n¿Quieres que te detalle alguna categoría?`
+    diagnostics: { resultCount: rows.length },
+    text: `Tienes:\n\n${rows.map(({ label, count }) => `- ${count} ${pendingCountLabel(label, count)}.`).join("\n")}\n\n¿Quieres que te detalle alguna categoría?`
   };
 }
 
 async function queryPendingTasksCounts() {
   const today = startOfDay(new Date());
+  const invoiceBalances = await findOpenInvoiceBalances();
   const [
     pendingBudgets,
     budgetsToSend,
     budgetsToAccept,
-    pendingInvoices,
-    overdueInvoices,
-    partialPayments,
     pendingVisits,
     visitsToConfirm,
     pendingFollowups,
@@ -518,9 +625,6 @@ async function queryPendingTasksCounts() {
     prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] } } }),
     prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision"] } } }),
     prisma.budget.count({ where: { estado: { in: ["pendiente_respuesta", "enviado", "visto"] } } }),
-    prisma.invoice.count({ where: { pendiente: { gt: 0 } } }),
-    prisma.invoice.count({ where: { pendiente: { gt: 0 }, OR: [{ estado: "vencida" }, { fechaVencimiento: { lt: today } }] } }),
-    prisma.invoice.count({ where: { pagado: { gt: 0 }, pendiente: { gt: 0 } } }),
     prisma.eventoAgenda.count({ where: { tipo: "visita", estado: { in: ["pendiente", "confirmado"] } } }),
     prisma.eventoAgenda.count({ where: { tipo: "visita", estado: "pendiente", requiereConfirmacion: true } }),
     prisma.reminder.count({ where: { tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
@@ -534,9 +638,9 @@ async function queryPendingTasksCounts() {
     pendingBudgets,
     budgetsToSend,
     budgetsToAccept,
-    pendingInvoices,
-    overdueInvoices,
-    partialPayments,
+    pendingInvoices: invoiceBalances.length,
+    overdueInvoices: invoiceBalances.filter(({ invoice }) => invoice.estado === "vencida" || invoice.fechaVencimiento < today).length,
+    partialPayments: invoiceBalances.filter(({ paid }) => paid > 0).length,
     pendingVisits,
     visitsToConfirm,
     pendingFollowups,
@@ -547,11 +651,38 @@ async function queryPendingTasksCounts() {
   };
 }
 
+function pendingSummaryRows(counts: Awaited<ReturnType<typeof queryPendingTasksCounts>>) {
+  return [
+    { label: "Presupuestos pendientes", count: counts.pendingBudgets, category: "budgets" as PendingDetailCategory },
+    { label: "Presupuestos pendientes de enviar", count: counts.budgetsToSend, category: "budgets_to_send" as PendingDetailCategory },
+    { label: "Presupuestos pendientes de aceptar", count: counts.budgetsToAccept, category: "budgets_to_accept" as PendingDetailCategory },
+    { label: "Facturas pendientes de cobro", count: counts.pendingInvoices, category: "invoices" as PendingDetailCategory },
+    { label: "Facturas vencidas", count: counts.overdueInvoices, category: "overdue_invoices" as PendingDetailCategory },
+    { label: "Pagos parciales", count: counts.partialPayments, category: "partial_payments" as PendingDetailCategory },
+    { label: "Visitas pendientes", count: counts.pendingVisits, category: "visits" as PendingDetailCategory },
+    { label: "Visitas por confirmar", count: counts.visitsToConfirm, category: "visits_to_confirm" as PendingDetailCategory },
+    { label: "Seguimientos pendientes", count: counts.pendingFollowups, category: "followups" as PendingDetailCategory },
+    { label: "Recordatorios pendientes", count: counts.pendingReminders, category: "reminders" as PendingDetailCategory },
+    { label: "Clientes con datos incompletos", count: counts.incompleteClients, category: "clients_incomplete" as PendingDetailCategory },
+    { label: "Obras activas con tareas pendientes", count: counts.activeProjects, category: "active_projects" as PendingDetailCategory },
+    { label: "Documentos pendientes de completar", count: counts.incompleteDocuments, category: "documents" as PendingDetailCategory }
+  ].filter((row) => row.count > 0);
+}
+
+function withLastQuery(context: ChatCommandContext | null, lastQuery: NonNullable<ChatCommandContext["lastQuery"]>): ChatCommandContext {
+  return {
+    ...(context ?? {}),
+    lastQuery
+  };
+}
+
 async function queryPendingTaskDetails(category: PendingDetailCategory | undefined, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  category = category ?? (isPendingDetailCategory(context?.lastQuery?.category) ? context.lastQuery.category : undefined);
   if (!category) {
     return {
       handled: true,
       context,
+      diagnostics: { resultCount: 0 },
       text: "Dime qué categoría quieres detallar: presupuestos, facturas, visitas, seguimientos, recordatorios, clientes, obras o documentos."
     };
   }
@@ -569,21 +700,25 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
       take: 10,
       include: { client: true, work: true }
     });
-    return compactListResult(budgets, "presupuestos pendientes", (budget) => `${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · ${budget.estado} · /presupuestos/${budget.id}`);
+    return compactListResult(budgets, "presupuestos pendientes", (budget) => `${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · ${budget.estado} · /presupuestos/${budget.id}`, {
+      context: withPendingDetailLastQuery(context, category, budgets.map((budget) => budget.id)),
+      resultCount: budgets.length
+    });
   }
 
   if (category === "invoices" || category === "overdue_invoices" || category === "partial_payments") {
-    const invoices = await prisma.invoice.findMany({
-      where: category === "overdue_invoices"
-        ? { pendiente: { gt: 0 }, OR: [{ estado: "vencida" }, { fechaVencimiento: { lt: today } }] }
-        : category === "partial_payments"
-          ? { pagado: { gt: 0 }, pendiente: { gt: 0 } }
-          : { pendiente: { gt: 0 } },
-      orderBy: { fechaVencimiento: "asc" },
-      take: 10,
-      include: { client: true, work: true }
+    const balances = (await findOpenInvoiceBalances())
+      .filter(({ invoice, paid }) => {
+        if (category === "overdue_invoices") return invoice.estado === "vencida" || invoice.fechaVencimiento < today;
+        if (category === "partial_payments") return paid > 0;
+        return true;
+      })
+      .sort((a, b) => a.invoice.fechaVencimiento.getTime() - b.invoice.fechaVencimiento.getTime())
+      .slice(0, 10);
+    return compactListResult(balances, "facturas", ({ invoice, pending }) => `${invoice.numero} · ${invoice.client.nombre} · pendiente ${formatEuros(pending)} · vence ${formatDateShort(invoice.fechaVencimiento)} · /dinero/${invoice.id}`, {
+      context: withPendingDetailLastQuery(context, category, balances.map(({ invoice }) => invoice.id)),
+      resultCount: balances.length
     });
-    return compactListResult(invoices, "facturas", (invoice) => `${invoice.numero} · ${invoice.client.nombre} · pendiente ${formatEuros(invoice.pendiente)} · vence ${formatDateShort(invoice.fechaVencimiento)} · /dinero/${invoice.id}`);
   }
 
   if (category === "visits" || category === "visits_to_confirm") {
@@ -595,7 +730,10 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
       take: 10,
       include: { client: true, work: true }
     });
-    return compactListResult(visits, "visitas", (visit) => `${formatDateShort(visit.fechaInicio)} ${visit.horaInicio ?? ""} · ${visit.client?.nombre ?? "Sin cliente"} · ${visit.titulo} · /agenda`);
+    return compactListResult(visits, "visitas", (visit) => `${formatDateShort(visit.fechaInicio)} ${visit.horaInicio ?? ""} · ${visit.client?.nombre ?? "Sin cliente"} · ${visit.titulo} · /agenda`, {
+      context: withPendingDetailLastQuery(context, category, visits.map((visit) => visit.id)),
+      resultCount: visits.length
+    });
   }
 
   if (category === "followups" || category === "reminders") {
@@ -607,12 +745,18 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
       take: 10,
       include: { client: true, work: true }
     });
-    return compactListResult(reminders, category === "followups" ? "seguimientos" : "recordatorios", (reminder) => `${formatDateShort(reminder.fechaProgramada)} · ${reminder.client?.nombre ?? "Sin cliente"} · ${reminder.tipo.replaceAll("_", " ")} · ${reminder.estado} · /recordatorios`);
+    return compactListResult(reminders, category === "followups" ? "seguimientos" : "recordatorios", (reminder) => `${formatDateShort(reminder.fechaProgramada)} · ${reminder.client?.nombre ?? "Sin cliente"} · ${reminder.tipo.replaceAll("_", " ")} · ${reminder.estado} · /recordatorios`, {
+      context: withPendingDetailLastQuery(context, category, reminders.map((reminder) => reminder.id)),
+      resultCount: reminders.length
+    });
   }
 
   if (category === "clients_incomplete") {
     const clients = (await prisma.client.findMany({ orderBy: { fechaCreacion: "desc" }, take: 60 })).filter(clientLooksIncomplete).slice(0, 10);
-    return compactListResult(clients, "clientes con datos incompletos", (client) => `${client.nombre} · ${client.estado} · /clientes/${client.id}`);
+    return compactListResult(clients, "clientes con datos incompletos", (client) => `${client.nombre} · ${client.estado} · /clientes/${client.id}`, {
+      context: withPendingDetailLastQuery(context, category, clients.map((client) => client.id)),
+      resultCount: clients.length
+    });
   }
 
   const works = await prisma.work.findMany({
@@ -621,7 +765,10 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
     take: 10,
     include: { client: true }
   });
-  return compactListResult(works, "obras activas", (work) => `${work.titulo} · ${work.client.nombre} · ${work.estado} · /obras`);
+  return compactListResult(works, "obras activas", (work) => `${work.titulo} · ${work.client.nombre} · ${work.estado} · /obras`, {
+    context: withPendingDetailLastQuery(context, category, works.map((work) => work.id)),
+    resultCount: works.length
+  });
 }
 
 async function queryBudgetByAmount(direction: "asc" | "desc", intent: ChatIntentClassification): Promise<ChatCommandResult> {
@@ -632,14 +779,47 @@ async function queryBudgetByAmount(direction: "asc" | "desc", intent: ChatIntent
     orderBy: { total: direction },
     include: { client: true, work: true }
   });
-  if (!budget) return { handled: true, text: "No hay presupuestos registrados todavía." };
+  if (!budget) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay presupuestos registrados todavía." };
   const label = direction === "desc" ? "más alto" : "más bajo";
   return {
     handled: true,
+    diagnostics: { resultCount: 1 },
     context: latestDocumentContext("budget", budget.id, budget.clienteId, budget.obraId ?? undefined, budget.client.nombre),
     result: budgetQueryCard(`Presupuesto ${label}`, budget),
     text: `El presupuesto ${label} es el ${budget.numero}, por ${formatEuros(budget.total)}, para ${budget.client.nombre}.\n\n¿Quieres que te muestre los cinco presupuestos ${direction === "desc" ? "más altos" : "más bajos"}?`
   };
+}
+
+async function queryBudgetByExactAmount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  if (typeof intent.amount !== "number" || !Number.isFinite(intent.amount)) {
+    return { handled: true, diagnostics: { resultCount: 0 }, text: "Dime el importe del presupuesto que quieres consultar. No he creado ni modificado nada." };
+  }
+  const budgets = await prisma.budget.findMany({
+    where: { ...budgetPeriodWhere(intent.period), total: { gte: intent.amount - 0.01, lte: intent.amount + 0.01 } },
+    orderBy: { fechaCreacion: "desc" },
+    take: 5,
+    include: { client: true, work: true }
+  });
+  if (!budgets.length) {
+    return {
+      handled: true,
+      diagnostics: { resultCount: 0 },
+      text: `No encuentro ningún presupuesto por ${formatEuros(intent.amount)}. No he creado ni modificado ningún presupuesto.`
+    };
+  }
+  if (budgets.length === 1) {
+    const budget = budgets[0];
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      context: latestDocumentContext("budget", budget.id, budget.clienteId, budget.obraId ?? undefined, budget.client.nombre),
+      result: budgetQueryCard("Presupuesto encontrado", budget),
+      text: `He encontrado el presupuesto ${budget.numero}, por ${formatEuros(budget.total)}, para ${budget.client.nombre}.`
+    };
+  }
+  return compactListResult(budgets, `presupuestos por ${formatEuros(intent.amount)}`, (budget) => `${budget.numero} · ${budget.client.nombre} · ${budget.estado} · /presupuestos/${budget.id}`, {
+    resultCount: budgets.length
+  });
 }
 
 async function queryLatestBudget(intent: ChatIntentClassification): Promise<ChatCommandResult> {
@@ -650,9 +830,10 @@ async function queryLatestBudget(intent: ChatIntentClassification): Promise<Chat
     orderBy: { fechaCreacion: "desc" },
     include: { client: true, work: true }
   });
-  if (!budget) return { handled: true, text: "No hay presupuestos registrados todavía." };
+  if (!budget) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay presupuestos registrados todavía." };
   return {
     handled: true,
+    diagnostics: { resultCount: 1 },
     context: latestDocumentContext("budget", budget.id, budget.clienteId, budget.obraId ?? undefined, budget.client.nombre),
     result: budgetQueryCard("Último presupuesto", budget),
     text: `El último presupuesto es el ${budget.numero}, de ${formatEuros(budget.total)}, para ${budget.client.nombre}.`
@@ -667,10 +848,11 @@ async function queryInvoiceByAmount(direction: "asc" | "desc", intent: ChatInten
     orderBy: { total: direction },
     include: { client: true, work: true }
   });
-  if (!invoice) return { handled: true, text: "No hay facturas registradas todavía." };
+  if (!invoice) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay facturas registradas todavía." };
   const label = direction === "desc" ? "más grande" : "más baja";
   return {
     handled: true,
+    diagnostics: { resultCount: 1 },
     context: latestDocumentContext("invoice", invoice.id, invoice.clienteId, invoice.obraId ?? undefined, invoice.client.nombre),
     result: invoiceQueryCard(`Factura ${label}`, invoice),
     text: `La factura ${label} es la ${invoice.numero}, por ${formatEuros(invoice.total)}, para ${invoice.client.nombre}.`
@@ -680,42 +862,48 @@ async function queryInvoiceByAmount(direction: "asc" | "desc", intent: ChatInten
 async function queryOutstandingInvoices(intent: ChatIntentClassification): Promise<ChatCommandResult> {
   const client = await clientForQuery(intent.clientName);
   if (intent.clientName && !client) return noClientResult(intent.clientName);
-  const invoices = await prisma.invoice.findMany({
-    where: { pendiente: { gt: 0 }, ...invoicePeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
-    orderBy: { pendiente: "desc" },
-    take: 5,
-    include: { client: true }
-  });
-  const total = invoices.reduce((sum, invoice) => sum + invoice.pendiente, 0);
-  if (!invoices.length) return { handled: true, text: "No hay facturas pendientes de cobro." };
+  const balances = (await findOpenInvoiceBalances({ ...invoicePeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) }))
+    .sort((a, b) => b.pending - a.pending);
+  const total = balances.reduce((sum, item) => sum + item.pending, 0);
+  if (!balances.length) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay facturas pendientes de cobro." };
+  const top = balances.slice(0, 5);
   return {
     handled: true,
-    text: `Tienes ${invoices.length} facturas pendientes de cobro por ${formatEuros(total)} en total.\n\nLas 5 mayores son:\n${invoices.map((invoice, index) => `${index + 1}. ${invoice.numero} · ${invoice.client.nombre} · ${formatEuros(invoice.pendiente)} · /dinero/${invoice.id}`).join("\n")}`
+    diagnostics: { resultCount: balances.length },
+    text: `Tienes ${balances.length} facturas pendientes de cobro por ${formatEuros(total)} en total.\n\nLas 5 mayores son:\n${top.map(({ invoice, pending }, index) => `${index + 1}. ${invoice.numero} · ${invoice.client.nombre} · ${formatEuros(pending)} · /dinero/${invoice.id}`).join("\n")}`
   };
 }
 
 async function queryPendingInvoicesCount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
-  const count = await prisma.invoice.count({ where: { pendiente: { gt: 0 }, ...invoicePeriodWhere(intent.period) } });
-  return { handled: true, text: count ? `Tienes ${count} facturas pendientes de cobro.` : "No hay facturas pendientes de cobro." };
+  const count = (await findOpenInvoiceBalances(invoicePeriodWhere(intent.period))).length;
+  return { handled: true, diagnostics: { resultCount: count }, text: count ? `Tienes ${count} facturas pendientes de cobro.` : "No hay facturas pendientes de cobro." };
 }
 
 async function queryPendingBudgetsCount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
   const count = await prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] }, ...budgetPeriodWhere(intent.period) } });
-  return { handled: true, text: count ? `Tienes ${count} presupuestos pendientes.` : "No hay presupuestos pendientes." };
+  return { handled: true, diagnostics: { resultCount: count }, text: count ? `Tienes ${count} presupuestos pendientes.` : "No hay presupuestos pendientes." };
 }
 
-async function queryClientHighestDebt(): Promise<ChatCommandResult> {
-  const invoices = await prisma.invoice.findMany({ where: { pendiente: { gt: 0 } }, include: { client: true } });
+async function queryClientHighestDebt(context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const balances = await findOpenInvoiceBalances();
   const totals = new Map<string, { name: string; total: number; clientId: string }>();
-  for (const invoice of invoices) {
+  for (const { invoice, pending } of balances) {
     const current = totals.get(invoice.clienteId) ?? { name: invoice.client.nombre, total: 0, clientId: invoice.clienteId };
-    current.total += invoice.pendiente;
+    current.total += pending;
     totals.set(invoice.clienteId, current);
   }
   const top = [...totals.values()].sort((a, b) => b.total - a.total)[0];
-  if (!top) return { handled: true, text: "No hay clientes con deuda pendiente." };
+  if (!top) return { handled: true, context, diagnostics: { resultCount: 0 }, text: "No hay clientes con deuda pendiente." };
   return {
     handled: true,
+    context: withLastQuery(context, {
+      type: "client_highest_debt",
+      filters: {},
+      resultIds: [top.clientId],
+      handler: "queryClientHighestDebt",
+      timestamp: new Date().toISOString()
+    }),
+    diagnostics: { resultCount: totals.size },
     result: {
       type: "found",
       entityType: "client",
@@ -811,10 +999,35 @@ async function queryRecentDocuments(intent: ChatIntentClassification): Promise<C
   return compactListResult(docs, "documentos recientes", (doc) => doc.line);
 }
 
-function compactListResult<T>(items: T[], label: string, render: (item: T) => string): ChatCommandResult {
-  if (!items.length) return { handled: true, text: `No hay ${label} registrados ahora mismo.` };
+function withPendingDetailLastQuery(context: ChatCommandContext | null, category: PendingDetailCategory, resultIds: string[]) {
+  return withLastQuery(context, {
+    type: "pending_detail",
+    category,
+    filters: { category },
+    resultIds,
+    handler: "queryPendingTaskDetails",
+    timestamp: new Date().toISOString()
+  });
+}
+
+function compactListResult<T>(
+  items: T[],
+  label: string,
+  render: (item: T) => string,
+  options: { context?: ChatCommandContext | null; resultCount?: number } = {}
+): ChatCommandResult {
+  if (!items.length) {
+    return {
+      handled: true,
+      context: options.context,
+      diagnostics: { resultCount: options.resultCount ?? 0 },
+      text: `No hay ${label} registrados ahora mismo.`
+    };
+  }
   return {
     handled: true,
+    context: options.context,
+    diagnostics: { resultCount: options.resultCount ?? items.length },
     text: `Estos son los ${label} que veo ahora:\n\n${items.map((item, index) => `${index + 1}. ${render(item)}`).join("\n")}${items.length >= 10 ? "\n\nTe muestro 10 como máximo. Puedes pedirme que filtre por cliente, estado o fecha." : ""}`
   };
 }
@@ -914,6 +1127,28 @@ function budgetPeriodWhere(period?: ChatIntentClassification["period"]) {
 function invoicePeriodWhere(period?: ChatIntentClassification["period"]) {
   const range = dateRangeForPeriod(period);
   return range ? { fechaEmision: range } : {};
+}
+
+const collectibleInvoiceStates = ["emitida", "enviada", "pendiente", "pendiente_pago", "parcialmente_pagada", "vencida", "reclamada"] as const;
+
+async function findOpenInvoiceBalances(where: Record<string, unknown> = {}) {
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      ...where,
+      estado: { in: [...collectibleInvoiceStates] }
+    },
+    include: { client: true, work: true, payments: true }
+  });
+  return invoices
+    .map((invoice) => {
+      const paymentsTotal = Array.isArray(invoice.payments)
+        ? invoice.payments.reduce((sum, payment) => sum + payment.importe, 0)
+        : 0;
+      const paid = Math.max(paymentsTotal, invoice.pagado ?? 0);
+      const pending = Math.max(0, invoice.total - paid);
+      return { invoice, paid, pending };
+    })
+    .filter(({ pending }) => pending > 0.009);
 }
 
 function expensePeriodWhere(period?: ChatIntentClassification["period"]) {
@@ -1307,11 +1542,6 @@ function shouldResolveBeforeAI(text: string, plan: ReturnType<typeof planChatMes
   if ((plan.action === "create_budget" || plan.action === "create_invoice") && words <= 18) return true;
 
   return false;
-}
-
-function wantsGlobalPendingList(text: string) {
-  const normalized = normalizeName(text);
-  return /^(ver pendientes|pendientes|que tengo pendiente|qué tengo pendiente|tareas pendientes)$/.test(normalized);
 }
 
 function wantsExplicitContinueTask(text: string) {
@@ -3097,7 +3327,7 @@ function isChatActionResult(value: unknown): value is ChatActionResult {
 
 function normalizeConversationContext(value: unknown): ChatCommandContext | null {
   if (!isRecord(value)) return null;
-  if (isRecord(value.activeTask) || isRecord(value.parkedTask) || typeof value.lastDocumentType === "string") {
+  if (isRecord(value.activeTask) || isRecord(value.parkedTask) || isRecord(value.lastQuery) || typeof value.lastDocumentType === "string") {
     return normalizeChatContext(value as ChatCommandContext);
   }
   return null;
