@@ -72,7 +72,14 @@ export type ChatQueryAction =
   | "treasury_coverage"
   | "treasury_scenario_conservative"
   | "treasury_scenario_compare"
-  | "treasury_review";
+  | "treasury_review"
+  | "signals_review_today"
+  | "signals_urgent"
+  | "signals_problems"
+  | "signals_risks"
+  | "signals_client_attention"
+  | "signals_work_attention"
+  | "signals_priority_invoices";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -119,6 +126,10 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
     return { kind: "aggregate_query", action: "pending_notifications", confidence: 0.9, period, rule: "pending_notifications" };
   }
 
+  if (/(factura|facturas|cobro|cobros)\b/.test(normalized) && /(prioritaria|prioritarias|prioritario|prioritarios|urgente|urgentes|revisar primero)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_priority_invoices", confidence: 0.94, period, rule: "signals_priority_invoices" };
+  }
+
   if (isPendingDetailRequest(normalized)) {
     return {
       kind: "pending_details",
@@ -135,6 +146,9 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
 
   const treasuryIntent = classifyTreasuryIntent(normalized, period);
   if (treasuryIntent) return treasuryIntent;
+
+  const signalIntent = classifySignalIntent(normalized, period);
+  if (signalIntent) return signalIntent;
 
   if (/(borra|borrar|elimina|eliminar|archiva|archivar)\b/.test(normalized)) {
     return { kind: "delete_archive", confidence: 0.8, rule: "delete_archive" };
@@ -331,6 +345,31 @@ function classifyTreasuryIntent(normalized: string, period: ChatQueryPeriod): Ch
   if (/(dentro de \d+ dias|dentro de \d+ días|en 30 dias|en 30 días|como estara|cómo estará)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_forecast", confidence: 0.92, period, rule: "treasury_forecast" };
   if (/(dinero disponible|saldo disponible|cuanto dinero tengo|cuánto dinero tengo|cuanto tengo disponible|cuánto tengo disponible)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_available_cash", confidence: 0.92, period, rule: "treasury_available_cash" };
   return { kind: "aggregate_query", action: "treasury_status", confidence: 0.9, period, rule: "treasury_status" };
+}
+
+function classifySignalIntent(normalized: string, period: ChatQueryPeriod): ChatIntentClassification | null {
+  if (/(factura|facturas|cobro|cobros)\b/.test(normalized) && /(prioritaria|prioritarias|prioritario|prioritarios|urgente|urgentes|revisar primero)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_priority_invoices", confidence: 0.94, period, rule: "signals_priority_invoices" };
+  }
+  if (/(cliente|clientes)\b/.test(normalized) && /(requiere atencion|requieren atencion|atencion|problema|riesgo|revisar)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_client_attention", confidence: 0.92, period, rule: "signals_client_attention" };
+  }
+  if (/(obra|obras)\b/.test(normalized) && /(debo revisar|revisar|requiere atencion|requieren atencion|problema|riesgo)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_work_attention", confidence: 0.92, period, rule: "signals_work_attention" };
+  }
+  if (/(riesgo|riesgos)\b/.test(normalized) && /(importante|importantes|critico|criticos|detectas|tengo|hay|empresa|negocio)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_risks", confidence: 0.94, period, rule: "signals_risks" };
+  }
+  if (/(problema|problemas|incidencia|incidencias)\b/.test(normalized) && /(tengo|hay|detectas|principales|urgentes)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_problems", confidence: 0.92, period, rule: "signals_problems" };
+  }
+  if (/(urgente|urgentes|mas urgente|más urgente|lo primero|prioridad principal|prioridades principales)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_urgent", confidence: 0.9, period, rule: "signals_urgent" };
+  }
+  if (/(que deberia revisar|que revisar|revisar hoy|que miro hoy|prioridades de hoy|puntos de atencion)\b/.test(normalized)) {
+    return { kind: "database_query", action: "signals_review_today", confidence: 0.93, period, rule: "signals_review_today" };
+  }
+  return null;
 }
 
 function isConversationControl(normalized: string) {

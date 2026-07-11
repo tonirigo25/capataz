@@ -237,6 +237,39 @@ enum NotificationPriority {
   critica
 }
 
+enum BusinessSignalLevel {
+  info
+  atencion
+  importante
+  critico
+}
+
+enum BusinessSignalStatus {
+  active
+  snoozed
+  dismissed
+  resolved
+  expired
+}
+
+enum BusinessSignalSource {
+  crm
+  obras
+  facturas
+  cobros
+  tesoreria
+  agenda
+  documentos
+  materiales
+  rentabilidad
+  chat
+  recordatorios
+  visitas
+  gastos
+  presupuestos
+  datos
+}
+
 model Client {
   id                        String         @id @default(cuid())
   nombre                    String
@@ -778,6 +811,74 @@ model Notification {
   @@index([archivedAt])
   @@index([priority])
   @@index([entityType, entityId])
+}
+
+model BusinessSignalState {
+  id              String               @id @default(cuid())
+  fingerprint     String               @unique
+  type            String
+  level           BusinessSignalLevel
+  status          BusinessSignalStatus @default(active)
+  source          BusinessSignalSource
+  ruleId          String?
+  ruleVersion     String?
+  entityType      String?
+  entityId        String?
+  clientId        String?
+  workId          String?
+  invoiceId       String?
+  budgetId        String?
+  title           String
+  summary         String?
+  lastPriority    Int                  @default(0)
+  amount          Float?
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  firstDetectedAt DateTime             @default(now())
+  lastDetectedAt  DateTime             @default(now())
+  shownAt         DateTime?
+  dismissedAt     DateTime?
+  dismissedReason String?
+  dismissedBy     String?
+  snoozedUntil    DateTime?
+  snoozeReason    String?
+  resolvedAt      DateTime?
+  resolution      String?
+  explanation     Json?
+  suggestedActions Json?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status, lastPriority])
+  @@index([type])
+  @@index([level])
+  @@index([source])
+  @@index([ruleId])
+  @@index([clientId])
+  @@index([workId])
+  @@index([invoiceId])
+  @@index([budgetId])
+  @@index([entityType, entityId])
+  @@index([expiresAt])
+  @@index([snoozedUntil])
+  @@index([resolvedAt])
+}
+
+model BusinessSignalPreference {
+  id          String   @id @default(cuid())
+  userKey     String   @default("default")
+  scopeType   String
+  scopeValue  String?
+  rule        String
+  weightDelta Int      @default(0)
+  neverHide   Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userKey, scopeType, scopeValue, rule])
+  @@index([scopeType, scopeValue])
 }
 
 model ChatMessage {

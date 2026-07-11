@@ -40,6 +40,7 @@ import {
   type CapatazAIResult
 } from "@/lib/ai/capataz-ai";
 import { getAgendaItems, itemsForDay as agendaItemsForDay, itemsBetween as agendaItemsBetween, addDays as agendaAddDays, startOfDay as agendaStartOfDay } from "@/lib/agenda";
+import { getBusinessSignals, type BusinessSignal } from "@/lib/business-signals";
 import { getBusinessIntelligenceSummary, metricDefinitionText } from "@/lib/business-intelligence";
 import type { BusinessPeriodId } from "@/lib/business-periods";
 import { getNotificationItems } from "@/lib/notifications";
@@ -554,6 +555,20 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryTreasuryScenarioCompare(intent), text, intent, "queryTreasuryScenarioCompare", "treasury:scenario_compare");
     case "treasury_review":
       return withQueryDiagnostics(await queryTreasuryReview(intent), text, intent, "queryTreasuryReview", "treasury:alerts");
+    case "signals_review_today":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "review_today"), text, intent, "queryBusinessSignals/review_today", "business_signals:active_priority");
+    case "signals_urgent":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "urgent"), text, intent, "queryBusinessSignals/urgent", "business_signals:urgent");
+    case "signals_problems":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "problems"), text, intent, "queryBusinessSignals/problems", "business_signals:problems");
+    case "signals_risks":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "risks"), text, intent, "queryBusinessSignals/risks", "business_signals:risks");
+    case "signals_client_attention":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "clients"), text, intent, "queryBusinessSignals/clients", "business_signals:clients");
+    case "signals_work_attention":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "works"), text, intent, "queryBusinessSignals/works", "business_signals:works");
+    case "signals_priority_invoices":
+      return withQueryDiagnostics(await queryBusinessSignals(intent, "invoices"), text, intent, "queryBusinessSignals/invoices", "business_signals:invoices");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "paused_projects":
@@ -645,6 +660,7 @@ function handlerNameForIntent(intent: ChatIntentClassification) {
   if (intent.action === "business_quote_conversion") return "queryBusinessQuoteConversion";
   if (intent.action === "business_compare_periods") return "queryBusinessComparison";
   if (intent.action === "business_review_today") return "queryBusinessReviewToday";
+  if (intent.action?.startsWith("signals_")) return `queryBusinessSignals/${intent.action}`;
   if (intent.action?.startsWith("treasury_")) return `queryTreasury/${intent.action}`;
   if (intent.action === "work_highest_revenue") return "queryWorkHighestRevenue";
   if (intent.action === "work_lowest_margin") return "queryWorkLowestMargin";
@@ -1531,6 +1547,91 @@ async function queryBusinessReviewToday(intent: ChatIntentClassification): Promi
       actions: [{ label: "Abrir inteligencia", href: businessPanelHref(summary.period.id), style: "primary" }]
     }
   };
+}
+
+type BusinessSignalsChatMode = "review_today" | "urgent" | "problems" | "risks" | "clients" | "works" | "invoices";
+
+async function queryBusinessSignals(intent: ChatIntentClassification, mode: BusinessSignalsChatMode): Promise<ChatCommandResult> {
+  const result = await getBusinessSignals({ status: "active", limit: 120 });
+  const filtered = filterSignalsForChat(result.signals, mode).slice(0, 7);
+  const title = signalChatTitle(mode);
+  if (!filtered.length) {
+    return {
+      handled: true,
+      diagnostics: { resultCount: 0 },
+      result: {
+        type: "found",
+        entityType: "business",
+        title,
+        summary: { activas: result.summary.active, criticas: result.summary.critical, importantes: result.summary.important },
+        actions: [{ label: "Abrir alertas", href: "/alertas", style: "primary" }]
+      },
+      text: `No hay señales activas para esa consulta. El centro de alertas tiene ${result.summary.active} señales activas en total.`
+    };
+  }
+
+  const top = filtered[0];
+  const lines = filtered.map((signal, index) => `${index + 1}. ${signal.levelText} · ${signal.title}: ${signal.explanation.why}${signal.entity ? ` · ${signal.entity.href}` : ""}`);
+  return {
+    handled: true,
+    diagnostics: { resultCount: filtered.length },
+    result: {
+      type: "found",
+      entityType: top.entity?.type === "cliente" ? "client" : top.entity?.type === "obra" ? "project" : top.entity?.type === "factura" ? "invoice" : "business",
+      entityId: top.entity?.id,
+      title,
+      summary: {
+        señales: filtered.length,
+        criticas: filtered.filter((signal) => signal.level === "critico").length,
+        importantes: filtered.filter((signal) => signal.level === "importante").length,
+        impacto: filtered.reduce((total, signal) => total + (signal.relatedAmount ?? 0), 0)
+      },
+      actions: [
+        { label: "Abrir alertas", href: "/alertas", style: "primary" },
+        ...(top.entity ? [{ label: "Abrir prioridad", href: top.entity.href, style: "secondary" as const }] : [])
+      ]
+    },
+    text: `${signalChatIntro(mode, result.summary.active)}
+
+${lines.join("\n")}
+
+Regla de orden: prioridad determinista por impacto económico, urgencia, riesgo, tiempo y dependencias. No he cambiado ningún registro.`
+  };
+}
+
+function filterSignalsForChat(signals: BusinessSignal[], mode: BusinessSignalsChatMode) {
+  const sorted = [...signals].sort((a, b) => b.score - a.score || (b.relatedAmount ?? 0) - (a.relatedAmount ?? 0));
+  if (mode === "urgent") return sorted.filter((signal) => ["critico", "importante"].includes(signal.level));
+  if (mode === "problems") return sorted.filter((signal) => signal.level !== "info");
+  if (mode === "risks") return sorted.filter((signal) => ["critico", "importante"].includes(signal.level) || ["cobros", "tesoreria", "rentabilidad", "obras", "gastos"].includes(signal.source));
+  if (mode === "clients") return sorted.filter((signal) => signal.client || signal.entity?.type === "cliente");
+  if (mode === "works") return sorted.filter((signal) => signal.work || signal.entity?.type === "obra" || signal.type.startsWith("work_") || signal.type.includes("materials"));
+  if (mode === "invoices") return sorted.filter((signal) => signal.entity?.type === "factura" || signal.type.includes("invoice") || ["facturas", "cobros"].includes(signal.source));
+  return sorted;
+}
+
+function signalChatTitle(mode: BusinessSignalsChatMode) {
+  const labels: Record<BusinessSignalsChatMode, string> = {
+    review_today: "Qué revisar hoy",
+    urgent: "Lo más urgente",
+    problems: "Problemas detectados",
+    risks: "Riesgos importantes",
+    clients: "Clientes que requieren atención",
+    works: "Obras que revisar",
+    invoices: "Facturas prioritarias"
+  };
+  return labels[mode];
+}
+
+function signalChatIntro(mode: BusinessSignalsChatMode, activeCount: number) {
+  const base = `He revisado ${activeCount} señales activas del motor determinista.`;
+  if (mode === "urgent") return `${base} Lo más urgente ahora es:`;
+  if (mode === "clients") return `${base} Clientes con más atención operativa:`;
+  if (mode === "works") return `${base} Obras que conviene revisar:`;
+  if (mode === "invoices") return `${base} Facturas prioritarias:`;
+  if (mode === "risks") return `${base} Riesgos importantes detectados:`;
+  if (mode === "problems") return `${base} Problemas principales:`;
+  return `${base} Revisaría esto hoy:`;
 }
 
 async function businessSummary(intent: ChatIntentClassification) {

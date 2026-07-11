@@ -24,6 +24,7 @@ import {
   Receipt,
   Search,
   Settings,
+  ShieldAlert,
   UserRound,
   Users,
   WalletCards,
@@ -43,6 +44,7 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
     title: "Operación",
     items: [
       { href: "/hoy", label: "Hoy", icon: Home },
+      { href: "/alertas", label: "Alertas", icon: ShieldAlert },
       { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
       { href: "/tesoreria", label: "Tesorería", icon: Landmark },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
@@ -86,6 +88,7 @@ const quickActions = [
 
 const titles = [
   ["/hoy", "Hoy"],
+  ["/alertas", "Alertas"],
   ["/inteligencia", "Inteligencia"],
   ["/tesoreria", "Tesorería"],
   ["/agenda", "Agenda"],

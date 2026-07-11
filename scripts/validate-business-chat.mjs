@@ -14,7 +14,7 @@ const cases = [
   ["qué cliente tarda más en pagar", { kind: "aggregate_query", action: "business_slowest_client" }],
   ["cuál es la conversión de presupuestos", { kind: "aggregate_query", action: "business_quote_conversion", period: "this_month" }],
   ["compárame este mes con el anterior", { kind: "comparison_query", action: "business_compare_periods", period: "this_month" }],
-  ["qué debería revisar", { kind: "database_query", action: "business_review_today", period: "this_month" }]
+  ["qué debería revisar", { kind: "database_query", action: "signals_review_today" }]
 ];
 
 for (const [text, expected] of cases) {
@@ -35,7 +35,8 @@ for (const action of [
   "business_slowest_client",
   "business_quote_conversion",
   "business_compare_periods",
-  "business_review_today"
+  "business_review_today",
+  "signals_review_today"
 ]) {
   expect(actionsSource.includes(`case "${action}"`), `[business-chat] missing action handler for ${action}`);
 }

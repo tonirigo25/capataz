@@ -16,6 +16,7 @@ import {
   Plus,
   Receipt,
   Search,
+  ShieldAlert,
   Users,
   WalletCards
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
+import { getTodaySignalBrief } from "@/lib/business-signals";
 import { buildTodayDashboard, greetingForDate, invoiceLiveStatus } from "@/lib/dashboard-hoy";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion, userDisplayName } from "@/lib/profile-completeness";
@@ -46,12 +48,13 @@ const quickActions = [
 
 export default async function TodayPage() {
   const now = new Date();
-  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals] = await Promise.all([
+  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals, signalBrief] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findFirst(),
     prisma.empresa.findFirst(),
-    getTodayTreasurySignals()
+    getTodayTreasurySignals(),
+    getTodaySignalBrief(4)
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
@@ -107,6 +110,27 @@ export default async function TodayPage() {
               </div>
             </div>
             <Link href="/tesoreria" className="secondary-button bg-white">Abrir tesorería</Link>
+          </div>
+        </section>
+      ) : null}
+
+      {signalBrief.signals.length ? (
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 font-black text-obra-ink"><ShieldAlert size={18} /> Alertas operativas</p>
+              <div className="mt-2 grid gap-1 text-sm leading-6 text-slate-600">
+                {signalBrief.signals.slice(0, 3).map((signal) => (
+                  <p key={signal.fingerprint}>
+                    <span className="font-black text-obra-ink">{signal.levelText}</span> · {signal.title}: {signal.explanation.why}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <Link href="/alertas" className="secondary-button">
+              Abrir alertas
+              <ArrowRight size={18} />
+            </Link>
           </div>
         </section>
       ) : null}
