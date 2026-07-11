@@ -33,6 +33,7 @@ import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { getClientCrmSummary } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
+import { getTreasuryOverview } from "@/lib/treasury";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ const tabs = [
   ["presupuestos", "Presupuestos"],
   ["facturas", "Facturas"],
   ["pagos", "Pagos"],
+  ["finanzas", "Finanzas"],
   ["visitas", "Visitas y seguimientos"],
   ["documentos", "Documentos"],
   ["actividad", "Actividad"],
@@ -60,7 +62,10 @@ export default async function ClientDetailPage({
   searchParams: Promise<DetailSearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const summary = await getClientCrmSummary(id);
+  const [summary, treasury] = await Promise.all([
+    getClientCrmSummary(id),
+    getTreasuryOverview({ clientId: id, horizon: "30d", scenario: "base" })
+  ]);
   if (!summary) notFound();
 
   const activeTab = tabs.some(([tab]) => tab === query.tab) ? query.tab ?? "resumen" : "resumen";
@@ -128,6 +133,7 @@ export default async function ClientDetailPage({
         {activeTab === "presupuestos" ? <BudgetsTab summary={summary} returnTo={returnTo} /> : null}
         {activeTab === "facturas" ? <InvoicesTab summary={summary} returnTo={returnTo} /> : null}
         {activeTab === "pagos" ? <PaymentsTab summary={summary} /> : null}
+        {activeTab === "finanzas" ? <ClientFinanceTab treasury={treasury} clientId={client.id} /> : null}
         {activeTab === "visitas" ? <VisitsTab summary={summary} returnTo={returnTo} /> : null}
         {activeTab === "documentos" ? <DocumentsTab summary={summary} /> : null}
         {activeTab === "actividad" ? <ActivityTab summary={summary} /> : null}
@@ -361,6 +367,59 @@ function PaymentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<type
         </div>
       ) : null}
     </SectionList>
+  );
+}
+
+function ClientFinanceTab({ treasury, clientId }: { treasury: Awaited<ReturnType<typeof getTreasuryOverview>>; clientId: string }) {
+  const client = treasury.clientProfitability.find((item) => item.clientId === clientId);
+  const receivables = treasury.receivables.filter((item) => item.clientId === clientId).slice(0, 5);
+  if (!client) {
+    return (
+      <SectionList title="Finanzas" emptyTitle="Sin datos financieros suficientes.">
+        {null}
+      </SectionList>
+    );
+  }
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <SectionList title="Rentabilidad del cliente" emptyTitle="Sin métricas financieras.">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <FinanceBox label="Facturado" value={formatCurrency(client.invoiced)} />
+          <FinanceBox label="Cobrado" value={formatCurrency(client.collected)} />
+          <FinanceBox label="Pendiente" value={formatCurrency(client.pending)} tone={client.pending ? "warning" : "neutral"} />
+          <FinanceBox label="Vencido" value={formatCurrency(client.overdue)} tone={client.overdue ? "danger" : "neutral"} />
+          <FinanceBox label="Gastos asociados" value={formatCurrency(client.expenses)} />
+          <FinanceBox label="Beneficio" value={formatCurrency(client.profit)} tone={client.profit < 0 ? "danger" : "success"} />
+          <FinanceBox label="Margen" value={`${client.margin.toFixed(1)}%`} />
+          <FinanceBox label="Plazo medio" value={client.averageCollectionDays === null ? "Sin datos" : `${client.averageCollectionDays.toFixed(1)} días`} />
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Concentración: {client.debtShare.toFixed(1)}% del pendiente total y {client.revenueShare.toFixed(1)}% de la facturación calculada.</p>
+      </SectionList>
+      <SectionList title="Próximos cobros" emptyTitle="Sin cobros próximos registrados.">
+        {receivables.length ? (
+          <div className="grid gap-3">
+            {receivables.map((item) => (
+              <Link key={item.id} href={item.href ?? "/tesoreria"} className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="label">{item.status}</p>
+                <h3 className="mt-1 font-black text-obra-ink">{item.title}</h3>
+                <p className="mt-1 text-sm text-slate-500">{formatCurrency(item.amount)} · {formatDate(item.effectiveDate ?? item.date)}</p>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+        <Link href={`/tesoreria?cliente=${clientId}`} className="primary-button mt-4 inline-flex">Abrir tesorería filtrada</Link>
+      </SectionList>
+    </div>
+  );
+}
+
+function FinanceBox({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "warning" | "danger" | "success" }) {
+  const toneClass = tone === "danger" ? "bg-red-50 text-red-700" : tone === "warning" ? "bg-amber-50 text-amber-800" : tone === "success" ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-obra-ink";
+  return (
+    <div className={`rounded-lg p-3 ${toneClass}`}>
+      <p className="text-xs font-bold uppercase opacity-75">{label}</p>
+      <p className="mt-1 font-black tabular-nums">{value}</p>
+    </div>
   );
 }
 

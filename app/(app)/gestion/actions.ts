@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import type {
   BudgetStatus,
   ClientStatus,
+  CostBehavior,
   DocumentCategory,
   EventoAgendaEstado,
   EventoAgendaTipo,
   ExpenseCategory,
+  ExpenseCashStatus,
   InvoiceStatus,
   MaterialStatus,
   PaymentType,
@@ -298,6 +300,10 @@ async function saveExpense(formData: FormData, id: string | null) {
     categoria: text(formData, "categoria") as ExpenseCategory,
     importe: number(formData, "importe"),
     fecha: requiredDate(formData, "fecha"),
+    paymentStatus: optionalText(formData, "paymentStatus") as ExpenseCashStatus | null,
+    paymentDueDate: optionalDate(formData, "paymentDueDate"),
+    paidAt: optionalDate(formData, "paidAt"),
+    costBehavior: (optionalText(formData, "costBehavior") ?? "unknown") as CostBehavior,
     fotoTicketUrl: optionalText(formData, "fotoTicketUrl"),
     notas: optionalText(formData, "notas")
   };

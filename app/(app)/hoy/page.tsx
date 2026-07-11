@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
   Banknote,
   Bot,
@@ -30,6 +31,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion, userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { getDashboardData } from "@/lib/queries";
+import { getTodayTreasurySignals } from "@/lib/treasury";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +46,12 @@ const quickActions = [
 
 export default async function TodayPage() {
   const now = new Date();
-  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company] = await Promise.all([
+  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findFirst(),
-    prisma.empresa.findFirst()
+    prisma.empresa.findFirst(),
+    getTodayTreasurySignals()
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
@@ -90,6 +93,22 @@ export default async function TodayPage() {
             </Link>
           }
         />
+      ) : null}
+
+      {treasurySignals.length ? (
+        <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 font-black"><AlertTriangle size={18} /> Tesorería</p>
+              <div className="mt-2 grid gap-1 text-sm leading-6">
+                {treasurySignals.slice(0, 3).map((alert) => (
+                  <p key={alert.id}>{alert.title}: {alert.detail}</p>
+                ))}
+              </div>
+            </div>
+            <Link href="/tesoreria" className="secondary-button bg-white">Abrir tesorería</Link>
+          </div>
+        </section>
       ) : null}
 
       <section className="mt-5 grid gap-4 xl:grid-cols-[1.45fr_0.9fr]">

@@ -17,6 +17,7 @@ import {
   FileText,
   Files,
   Home,
+  Landmark,
   Menu,
   Package,
   Plus,
@@ -43,6 +44,7 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { href: "/hoy", label: "Hoy", icon: Home },
       { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
+      { href: "/tesoreria", label: "Tesorería", icon: Landmark },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
       { href: "/actividad", label: "Actividad", icon: Activity },
       { href: "/capataz", label: "Capataz IA", icon: Bot }
@@ -76,6 +78,7 @@ const quickActions = [
   { href: "/gestion?tipo=presupuesto&returnTo=/presupuestos", label: "Nuevo presupuesto", icon: FileText },
   { href: "/gestion?tipo=factura&returnTo=/dinero", label: "Nueva factura", icon: Receipt },
   { href: "/gestion?tipo=pago&returnTo=/dinero", label: "Registrar pago", icon: WalletCards },
+  { href: "/tesoreria#acciones", label: "Movimiento caja", icon: Landmark },
   { href: "/gestion?tipo=gasto&returnTo=/gastos-materiales", label: "Nuevo gasto", icon: Package },
   { href: "/gestion?tipo=material&returnTo=/gastos-materiales", label: "Nuevo material", icon: Package },
   { href: "/gestion?tipo=recordatorio&returnTo=/recordatorios", label: "Nuevo recordatorio", icon: Bell }
@@ -84,6 +87,7 @@ const quickActions = [
 const titles = [
   ["/hoy", "Hoy"],
   ["/inteligencia", "Inteligencia"],
+  ["/tesoreria", "Tesorería"],
   ["/agenda", "Agenda"],
   ["/actividad", "Actividad"],
   ["/clientes", "Clientes"],

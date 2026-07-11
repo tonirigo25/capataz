@@ -46,6 +46,7 @@ import { getNotificationItems } from "@/lib/notifications";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { getTreasuryOverview } from "@/lib/treasury";
 import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
 
 type ChatDocumentKind = "budget" | "invoice";
@@ -524,6 +525,35 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryBusinessComparison(intent), text, intent, "queryBusinessComparison", "business_intelligence:period_compare");
     case "business_review_today":
       return withQueryDiagnostics(await queryBusinessReviewToday(intent), text, intent, "queryBusinessReviewToday", "business_intelligence:deterministic_alerts");
+    case "treasury_status":
+      return withQueryDiagnostics(await queryTreasuryStatus(intent), text, intent, "queryTreasuryStatus", "treasury:overview");
+    case "treasury_available_cash":
+      return withQueryDiagnostics(await queryTreasuryAvailableCash(intent), text, intent, "queryTreasuryAvailableCash", "treasury:accounts");
+    case "treasury_collect_week":
+      return withQueryDiagnostics(await queryTreasuryCollections(intent), text, intent, "queryTreasuryCollections", "treasury:receivables");
+    case "treasury_pay_month":
+    case "treasury_upcoming_payments":
+      return withQueryDiagnostics(await queryTreasuryPayments(intent), text, intent, "queryTreasuryPayments", "treasury:payables");
+    case "treasury_forecast":
+      return withQueryDiagnostics(await queryTreasuryForecast(intent), text, intent, "queryTreasuryForecast", "treasury:forecast");
+    case "treasury_minimum_breach":
+      return withQueryDiagnostics(await queryTreasuryMinimumBreach(intent), text, intent, "queryTreasuryMinimumBreach", "treasury:minimum");
+    case "treasury_due_invoices":
+      return withQueryDiagnostics(await queryTreasuryDueInvoices(intent), text, intent, "queryTreasuryDueInvoices", "treasury:due_invoices");
+    case "treasury_cashflow_month":
+      return withQueryDiagnostics(await queryTreasuryCashflow(intent), text, intent, "queryTreasuryCashflow", "treasury:cashflow");
+    case "treasury_work_cash_consumption":
+      return withQueryDiagnostics(await queryTreasuryWorkCashConsumption(intent), text, intent, "queryTreasuryWorkCashConsumption", "treasury:work_cash");
+    case "treasury_break_even":
+      return withQueryDiagnostics(await queryTreasuryBreakEven(intent), text, intent, "queryTreasuryBreakEven", "treasury:break_even");
+    case "treasury_coverage":
+      return withQueryDiagnostics(await queryTreasuryCoverage(intent), text, intent, "queryTreasuryCoverage", "treasury:coverage");
+    case "treasury_scenario_conservative":
+      return withQueryDiagnostics(await queryTreasuryScenario(intent, "conservative"), text, intent, "queryTreasuryScenario/conservative", "treasury:scenario");
+    case "treasury_scenario_compare":
+      return withQueryDiagnostics(await queryTreasuryScenarioCompare(intent), text, intent, "queryTreasuryScenarioCompare", "treasury:scenario_compare");
+    case "treasury_review":
+      return withQueryDiagnostics(await queryTreasuryReview(intent), text, intent, "queryTreasuryReview", "treasury:alerts");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "paused_projects":
@@ -615,6 +645,7 @@ function handlerNameForIntent(intent: ChatIntentClassification) {
   if (intent.action === "business_quote_conversion") return "queryBusinessQuoteConversion";
   if (intent.action === "business_compare_periods") return "queryBusinessComparison";
   if (intent.action === "business_review_today") return "queryBusinessReviewToday";
+  if (intent.action?.startsWith("treasury_")) return `queryTreasury/${intent.action}`;
   if (intent.action === "work_highest_revenue") return "queryWorkHighestRevenue";
   if (intent.action === "work_lowest_margin") return "queryWorkLowestMargin";
   if (intent.action === "paused_projects") return "queryWorksByStatus/paused";
@@ -988,6 +1019,315 @@ async function queryClientHighestDebt(context: ChatCommandContext | null): Promi
       actions: [{ label: "Ver cliente", href: `/clientes/${top.clientId}`, style: "primary" }, { label: "Ver facturas", href: "/dinero?filtro=pendientes" }]
     },
     text: `El cliente que más debe ahora mismo es ${top.name}, con ${formatEuros(top.total)} pendiente.`
+  };
+}
+
+async function queryTreasuryStatus(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent);
+  const forecast = summary.forecast.summary;
+  return treasuryResult({
+    title: "Estado de tesorería",
+    text: `${treasuryIntro(summary)}
+
+- Saldo registrado: ${summary.registeredBalance === null ? "sin cuentas configuradas" : formatEuros(summary.registeredBalance)}
+- Cobros previstos: ${formatEuros(forecast.inflows)} (${formatEuros(forecast.confirmedInflows)} confirmados)
+- Pagos previstos: ${formatEuros(forecast.outflows)}
+- Flujo neto previsto: ${formatEuros(forecast.net)}
+- Saldo final previsto: ${forecast.finalBalance === null ? "sin saldo calculable" : formatEuros(forecast.finalBalance)}
+- Punto mínimo: ${forecast.minBalance === null ? "sin saldo calculable" : `${formatEuros(forecast.minBalance)}${forecast.minBalanceDate ? ` el ${formatDateShort(forecast.minBalanceDate)}` : ""}`}
+
+No incluye movimientos bancarios no registrados.`,
+    summary: { saldo: summary.registeredBalance, cobros_previstos: forecast.inflows, pagos_previstos: forecast.outflows, saldo_final: forecast.finalBalance },
+    resultCount: summary.forecast.items.length
+  });
+}
+
+async function queryTreasuryAvailableCash(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent);
+  if (!summary.hasAccounts) {
+    return treasuryResult({
+      title: "Saldo no disponible",
+      text: "No hay cuentas o cajas configuradas, así que Capataz no puede afirmar cuánto dinero disponible tienes. Configura una cuenta manual o caja en /tesoreria para empezar a controlar tesorería.",
+      summary: { cuentas: 0 },
+      resultCount: 0
+    });
+  }
+  return treasuryResult({
+    title: "Dinero disponible registrado",
+    text: `Saldo de tesorería registrado: ${formatEuros(summary.registeredBalance ?? 0)}.
+
+Este saldo sale de ${summary.accounts.length} cuentas/cajas activas. Si una cuenta tiene saldo manual, se usa ese saldo; si no, se usa saldo inicial más movimientos confirmados.
+
+No es saldo bancario conectado: solo refleja datos registrados en Capataz.`,
+    summary: { saldo_registrado: summary.registeredBalance, cuentas: summary.accounts.length },
+    resultCount: summary.accounts.length
+  });
+}
+
+async function queryTreasuryCollections(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, intent.period === "this_month" ? "month_end" : "7d");
+  const collections = summary.receivables.filter((item) => item.effectiveDate).slice(0, 6);
+  const total = summary.forecast.items.filter((item) => item.direction === "inflow" && !item.isTransfer).reduce((sum, item) => sum + item.amount, 0);
+  return treasuryResult({
+    title: "Cobros previstos",
+    text: `${treasuryIntro(summary)}
+
+Cobros previstos en el horizonte: ${formatEuros(total)}.
+
+${collections.length ? collections.map((item, index) => `${index + 1}. ${formatDateShort(item.effectiveDate ?? item.date ?? new Date())} · ${item.clientName ?? "Cliente"} · ${item.title} · ${formatEuros(item.amount)}`).join("\n") : "No hay cobros previstos con fecha dentro del horizonte."}
+
+Las facturas pendientes son previsiones de cobro, no dinero disponible.`,
+    summary: { cobros_previstos: total },
+    resultCount: collections.length
+  });
+}
+
+async function queryTreasuryPayments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, intent.period === "this_week" ? "7d" : "month_end");
+  const payments = summary.payables.filter((item) => item.effectiveDate).slice(0, 6);
+  const total = summary.forecast.items.filter((item) => item.direction === "outflow" && !item.isTransfer).reduce((sum, item) => sum + item.amount, 0);
+  return treasuryResult({
+    title: "Pagos previstos",
+    text: `${treasuryIntro(summary)}
+
+Pagos previstos en el horizonte: ${formatEuros(total)}.
+
+${payments.length ? payments.map((item, index) => `${index + 1}. ${formatDateShort(item.effectiveDate ?? item.date ?? new Date())} · ${item.title} · ${formatEuros(item.amount)}`).join("\n") : "No hay pagos previstos con fecha dentro del horizonte."}
+
+Los gastos pendientes sin fecha se muestran como sin fecha prevista y no se colocan artificialmente en el calendario.`,
+    summary: { pagos_previstos: total, sin_fecha: summary.payablesSummary.unscheduledTotal },
+    resultCount: payments.length
+  });
+}
+
+async function queryTreasuryForecast(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, "30d");
+  const forecast = summary.forecast.summary;
+  return treasuryResult({
+    title: "Forecast a 30 días",
+    text: `${treasuryIntro(summary)}
+
+- Saldo inicial: ${forecast.initialBalance === null ? "sin cuentas configuradas" : formatEuros(forecast.initialBalance)}
+- Cobros previstos: ${formatEuros(forecast.inflows)}
+- Pagos previstos: ${formatEuros(forecast.outflows)}
+- Saldo final previsto: ${forecast.finalBalance === null ? "sin saldo calculable" : formatEuros(forecast.finalBalance)}
+- Punto mínimo: ${forecast.minBalance === null ? "sin saldo calculable" : `${formatEuros(forecast.minBalance)}${forecast.minBalanceDate ? ` el ${formatDateShort(forecast.minBalanceDate)}` : ""}`}
+
+Supuestos: facturas pendientes por vencimiento, gastos pendientes con fecha, recurrentes activos y previsiones manuales. No incluye bancos no conectados ni movimientos externos no registrados.`,
+    summary: { saldo_final: forecast.finalBalance, punto_minimo: forecast.minBalance, necesidad_caja: forecast.cashNeed },
+    resultCount: summary.forecast.items.length
+  });
+}
+
+async function queryTreasuryMinimumBreach(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent);
+  const date = summary.forecast.summary.minimumBreachDate;
+  const text = date
+    ? `Con los datos registrados, el saldo previsto cae por debajo del mínimo el ${formatDateShort(date)}. Necesidad estimada frente al mínimo: ${formatEuros(summary.forecast.summary.minimumCashNeed)}.`
+    : summary.effectiveMinimumBalance === null
+      ? "No hay saldo mínimo configurado. Puedes definir saldo mínimo, colchón y días de cobertura en /tesoreria."
+      : "No se detecta incumplimiento del saldo mínimo dentro del horizonte seleccionado.";
+  return treasuryResult({
+    title: "Saldo mínimo",
+    text: `${treasuryIntro(summary)}
+
+${text}`,
+    summary: { saldo_minimo: summary.effectiveMinimumBalance, fecha_incumplimiento: date ? formatDateShort(date) : null },
+    resultCount: date ? 1 : 0
+  });
+}
+
+async function queryTreasuryDueInvoices(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, "7d");
+  const due = summary.receivables.filter((item) => item.effectiveDate).slice(0, 8);
+  return treasuryResult({
+    title: "Facturas que vencen",
+    text: `${treasuryIntro(summary)}
+
+${due.length ? due.map((item, index) => `${index + 1}. ${formatDateShort(item.effectiveDate ?? item.date ?? new Date())} · ${item.clientName ?? "Cliente"} · ${item.title} · ${formatEuros(item.amount)}`).join("\n") : "No hay facturas pendientes con vencimiento dentro del horizonte."}`,
+    summary: { facturas: due.length, importe: due.reduce((sum, item) => sum + item.amount, 0) },
+    resultCount: due.length
+  });
+}
+
+async function queryTreasuryCashflow(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, "month_end");
+  const forecast = summary.forecast.summary;
+  return treasuryResult({
+    title: "Flujo de caja",
+    text: `${treasuryIntro(summary)}
+
+Flujo de caja previsto = cobros menos pagos.
+
+- Cobros: ${formatEuros(forecast.inflows)}
+- Pagos: ${formatEuros(forecast.outflows)}
+- Flujo neto: ${formatEuros(forecast.net)}
+
+Las transferencias entre cuentas no cuentan como ingresos o gastos del negocio.`,
+    summary: { cobros: forecast.inflows, pagos: forecast.outflows, flujo_neto: forecast.net },
+    resultCount: summary.forecast.items.length
+  });
+}
+
+async function queryTreasuryWorkCashConsumption(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent);
+  const work = [...summary.workProfitability].sort((a, b) => a.cashFlow - b.cashFlow)[0];
+  if (!work || work.cashFlow >= 0) {
+    return treasuryResult({
+      title: "Caja por obra",
+      text: "No hay obras con flujo de caja negativo calculado con los datos registrados.",
+      summary: { obras_negativas: 0 },
+      resultCount: 0
+    });
+  }
+  return treasuryResult({
+    title: "Obra que consume más caja",
+    text: `${work.title}, de ${work.clientName}, tiene el flujo de caja de obra más bajo: ${formatEuros(work.cashFlow)}.
+
+Entradas cobradas: ${formatEuros(work.collected)}.
+Salidas pagadas/costes pagados: ${formatEuros(work.paidCost)}.
+Necesidad de caja de la obra: ${formatEuros(work.cashNeed)}.
+
+El presupuesto no se considera entrada de caja.`,
+    summary: { obra: work.title, flujo_caja: work.cashFlow, necesidad_caja: work.cashNeed },
+    resultCount: 1,
+    href: `/obras/${work.workId}`
+  });
+}
+
+async function queryTreasuryBreakEven(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, "month_end");
+  const breakEven = summary.breakEven;
+  const text = breakEven.canCalculate
+    ? `Punto de equilibrio estimado: ${formatEuros(breakEven.breakEvenRevenue ?? 0)} de facturación.
+
+Costes fijos: ${formatEuros(breakEven.fixedCosts)}.
+Costes variables: ${formatEuros(breakEven.variableCosts)}.
+Margen de contribución: ${roundForChat(breakEven.contributionMarginPercent)}%.
+
+${breakEven.explanation}`
+    : breakEven.explanation;
+  return treasuryResult({
+    title: "Punto de equilibrio",
+    text,
+    summary: { puede_calcular: breakEven.canCalculate, facturacion_necesaria: breakEven.breakEvenRevenue },
+    resultCount: breakEven.canCalculate ? 1 : 0
+  });
+}
+
+async function queryTreasuryCoverage(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent);
+  const coverage = summary.coverage;
+  const text = coverage.canCalculate
+    ? `Cobertura con saldo: ${roundForChat(coverage.daysWithBalance)} días.
+Cobertura incluyendo cobros confirmados próximos: ${roundForChat(coverage.daysWithConfirmedInflows)} días.
+Gasto medio mensual usado: ${formatEuros(coverage.monthlyExpenseAverage)}.
+
+${coverage.explanation}`
+    : coverage.explanation;
+  return treasuryResult({
+    title: "Cobertura de gastos",
+    text,
+    summary: { cobertura_dias: coverage.daysWithBalance, cobertura_con_cobros_confirmados: coverage.daysWithConfirmedInflows },
+    resultCount: coverage.canCalculate ? 1 : 0
+  });
+}
+
+async function queryTreasuryScenario(intent: ChatIntentClassification, scenario: "conservative" | "base" | "optimistic"): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, "30d", scenario);
+  const forecast = summary.forecast.summary;
+  return treasuryResult({
+    title: `Escenario ${scenario === "conservative" ? "conservador" : scenario}`,
+    text: `${treasuryIntro(summary)}
+
+- Cobros incluidos: ${formatEuros(forecast.inflows)}
+- Pagos incluidos: ${formatEuros(forecast.outflows)}
+- Flujo neto: ${formatEuros(forecast.net)}
+- Saldo final: ${forecast.finalBalance === null ? "sin saldo calculable" : formatEuros(forecast.finalBalance)}
+
+Este escenario no modifica datos reales.`,
+    summary: { escenario: scenario, saldo_final: forecast.finalBalance, flujo_neto: forecast.net },
+    resultCount: summary.forecast.items.length
+  });
+}
+
+async function queryTreasuryScenarioCompare(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent, "30d");
+  return treasuryResult({
+    title: "Comparativa de escenarios",
+    text: `Comparativa a ${summary.horizon.label}:
+
+${summary.scenarioComparison.map((item) => `- ${item.label}: flujo ${formatEuros(item.net)}, saldo final ${item.finalBalance === null ? "sin saldo" : formatEuros(item.finalBalance)}${item.deficitDate ? `, déficit ${formatDateShort(item.deficitDate)}` : ""}`).join("\n")}
+
+Los escenarios son simulaciones deterministas y no modifican datos reales.`,
+    summary: {
+      conservador: summary.scenarioComparison.find((item) => item.scenario === "conservative")?.finalBalance,
+      base: summary.scenarioComparison.find((item) => item.scenario === "base")?.finalBalance,
+      optimista: summary.scenarioComparison.find((item) => item.scenario === "optimistic")?.finalBalance
+    },
+    resultCount: summary.scenarioComparison.length
+  });
+}
+
+async function queryTreasuryReview(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await treasurySummaryForIntent(intent);
+  const alerts = summary.alerts.slice(0, 5);
+  const issues = summary.qualityIssues.filter((issue) => issue.count > 0).slice(0, 4);
+  return treasuryResult({
+    title: "Revisión de tesorería",
+    text: `${treasuryIntro(summary)}
+
+Alertas:
+${alerts.length ? alerts.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail}`).join("\n") : "No hay alertas deterministas relevantes."}
+
+Calidad de datos:
+${issues.length ? issues.map((issue, index) => `${index + 1}. ${issue.title}: ${issue.count}`).join("\n") : "No hay incidencias principales de calidad de datos."}`,
+    summary: { alertas: alerts.length, incidencias_datos: issues.reduce((total, issue) => total + issue.count, 0) },
+    resultCount: alerts.length + issues.length
+  });
+}
+
+async function treasurySummaryForIntent(intent: ChatIntentClassification, horizon?: string, scenario: "conservative" | "base" | "optimistic" = "base") {
+  return getTreasuryOverview({
+    horizon: horizon ?? treasuryHorizonForPeriod(intent.period),
+    scenario
+  });
+}
+
+function treasuryHorizonForPeriod(period: ChatIntentClassification["period"]) {
+  if (period === "this_week") return "7d";
+  if (period === "this_month") return "month_end";
+  return "30d";
+}
+
+function treasuryIntro(summary: Awaited<ReturnType<typeof getTreasuryOverview>>) {
+  return `Con el escenario ${summary.scenarioOptions.find((item) => item.id === summary.scenario)?.label ?? "Base"} y datos registrados a ${formatDateShort(summary.updatedAt)} (${summary.horizon.label}):`;
+}
+
+function treasuryResult({
+  title,
+  text,
+  summary,
+  resultCount,
+  href = "/tesoreria"
+}: {
+  title: string;
+  text: string;
+  summary: Record<string, string | number | boolean | null | undefined>;
+  resultCount: number;
+  href?: string;
+}): ChatCommandResult {
+  return {
+    handled: true,
+    diagnostics: { resultCount },
+    result: {
+      type: "found",
+      entityType: "business",
+      title,
+      summary: Object.fromEntries(Object.entries(summary).map(([key, value]) => [key, value ?? null])),
+      actions: [{ label: "Abrir tesorería", href, style: "primary" }]
+    },
+    text
   };
 }
 

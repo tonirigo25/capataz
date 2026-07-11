@@ -34,6 +34,7 @@ import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusClass } from "@/lib/status";
+import { getTreasuryOverview } from "@/lib/treasury";
 import {
   buildWorkDocuments,
   buildWorkRisks,
@@ -54,6 +55,7 @@ const tabs = [
   ["presupuestos", "Presupuestos", FileText],
   ["facturas", "Facturas", Receipt],
   ["cobros", "Cobros", WalletCards],
+  ["tesoreria", "Tesorería", Euro],
   ["gastos", "Gastos", Banknote],
   ["materiales", "Materiales", Package],
   ["horas", "Horas", Hammer],
@@ -77,24 +79,27 @@ export default async function WorkDetailPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const work = await prisma.work.findUnique({
-    where: { id },
-    include: {
-      client: true,
-      contact: true,
-      repositoryDocuments: { orderBy: { createdAt: "desc" } },
-      internalNotes: { orderBy: { createdAt: "desc" } },
-      budgets: { orderBy: { fechaCreacion: "desc" }, include: { reminders: true, agendaEvents: true } },
-      invoices: { orderBy: { fechaEmision: "desc" }, include: { payments: true, reminders: true, agendaEvents: true } },
-      payments: { orderBy: { fecha: "desc" }, include: { invoice: true } },
-      expenses: { orderBy: { fecha: "desc" } },
-      materials: true,
-      reminders: { orderBy: { fechaProgramada: "asc" }, include: { invoice: true, budget: true } },
-      agendaEvents: { orderBy: { fechaInicio: "asc" }, include: { invoice: true, budget: true } },
-      documents: { orderBy: { fecha: "desc" } },
-      photos: { orderBy: { tomadaEn: "desc" } }
-    }
-  });
+  const [work, treasury] = await Promise.all([
+    prisma.work.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        contact: true,
+        repositoryDocuments: { orderBy: { createdAt: "desc" } },
+        internalNotes: { orderBy: { createdAt: "desc" } },
+        budgets: { orderBy: { fechaCreacion: "desc" }, include: { reminders: true, agendaEvents: true } },
+        invoices: { orderBy: { fechaEmision: "desc" }, include: { payments: true, reminders: true, agendaEvents: true } },
+        payments: { orderBy: { fecha: "desc" }, include: { invoice: true } },
+        expenses: { orderBy: { fecha: "desc" } },
+        materials: true,
+        reminders: { orderBy: { fechaProgramada: "asc" }, include: { invoice: true, budget: true } },
+        agendaEvents: { orderBy: { fechaInicio: "asc" }, include: { invoice: true, budget: true } },
+        documents: { orderBy: { fecha: "desc" } },
+        photos: { orderBy: { tomadaEn: "desc" } }
+      }
+    }),
+    getTreasuryOverview({ workId: id, horizon: "30d", scenario: "base" })
+  ]);
   if (!work) notFound();
 
   const activeTab = tabs.some(([id]) => id === query.tab) ? query.tab! : "resumen";
@@ -204,6 +209,7 @@ export default async function WorkDetailPage({
       {activeTab === "presupuestos" ? <CardsTab items={work.budgets} empty="No hay presupuestos asociados." render={(budget) => <BudgetCard key={budget.id} budget={budget} />} /> : null}
       {activeTab === "facturas" ? <CardsTab items={work.invoices} empty="No hay facturas asociadas." render={(invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />} /> : null}
       {activeTab === "cobros" ? <CardsTab items={work.payments} empty="No hay cobros registrados en esta obra." render={(payment) => <PaymentCard key={payment.id} payment={payment} />} /> : null}
+      {activeTab === "tesoreria" ? <WorkTreasuryTab treasury={treasury} workId={work.id} /> : null}
       {activeTab === "gastos" ? <CardsTab items={work.expenses} empty="No hay gastos registrados." render={(expense) => <ExpenseCard key={expense.id} expense={expense} />} /> : null}
       {activeTab === "materiales" ? <MaterialsTab materials={work.materials} pendingCount={pendingMaterials.length} workId={work.id} /> : null}
       {activeTab === "horas" ? <HoursTab work={work} /> : null}
@@ -307,6 +313,53 @@ function MaterialsTab({ materials, pendingCount, workId }: { materials: any[]; p
         <EmptyState title="No hay materiales registrados" description="Los materiales aparecerán aquí cuando se registren desde gestión o Capataz." icon={Package} action={<Link href={`/gestion?tipo=material&obraId=${workId}&returnTo=/obras/${workId}`} className="secondary-button">Añadir material</Link>} />
       )}
     </Section>
+  );
+}
+
+function WorkTreasuryTab({ treasury, workId }: { treasury: Awaited<ReturnType<typeof getTreasuryOverview>>; workId: string }) {
+  const work = treasury.workProfitability.find((item) => item.workId === workId);
+  const upcomingCollections = treasury.receivables.filter((item) => item.workId === workId).slice(0, 5);
+  const upcomingPayments = treasury.payables.filter((item) => item.workId === workId).slice(0, 5);
+  if (!work) return <Section title="Tesorería de obra"><EmptyState title="Sin datos financieros de obra" description="No hay facturas, cobros, gastos o movimientos asociados." icon={Euro} /></Section>;
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <Section title="Caja y rentabilidad">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Finance label="Entradas cobradas" value={work.collected} />
+          <Finance label="Salidas pagadas" value={work.paidCost} />
+          <Finance label="Flujo neto" value={work.cashFlow} tone={work.cashFlow < 0 ? "danger" : "success"} />
+          <Finance label="Necesidad caja" value={work.cashNeed} tone={work.cashNeed > 0 ? "warning" : "neutral"} />
+          <Finance label="Presupuestado" value={work.budgeted} />
+          <Finance label="Coste real" value={work.realCost} />
+          <Finance label="Desviación" value={work.costDeviation} tone={work.costDeviation > 0 ? "warning" : "success"} />
+          <PlainMetric label="Margen real" value={`${work.marginOnInvoiced.toFixed(1)}%`} tone={work.marginOnInvoiced < 0 ? "danger" : "neutral"} />
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">El presupuesto no se considera entrada de caja. La caja de obra usa cobros, pagos y gastos registrados explícitamente.</p>
+      </Section>
+      <Section title="Próximos cobros y pagos">
+        <div className="grid gap-4">
+          <MiniTimeline title="Cobros previstos" items={upcomingCollections} empty="Sin cobros previstos para esta obra." />
+          <MiniTimeline title="Pagos previstos" items={upcomingPayments} empty="Sin pagos previstos para esta obra." />
+        </div>
+        <Link href={`/tesoreria?obra=${workId}`} className="primary-button mt-4 inline-flex">Abrir tesorería filtrada</Link>
+      </Section>
+    </div>
+  );
+}
+
+function MiniTimeline({ title, items, empty }: { title: string; items: Awaited<ReturnType<typeof getTreasuryOverview>>["forecast"]["items"]; empty: string }) {
+  return (
+    <div>
+      <h3 className="font-black text-obra-ink">{title}</h3>
+      <div className="mt-2 grid gap-2">
+        {items.length ? items.map((item) => (
+          <Link key={item.id} href={item.href ?? "/tesoreria"} className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+            <span className="font-black text-obra-ink">{formatCurrency(item.amount)}</span>
+            <span className="ml-2 text-slate-600">{item.title} · {formatDate(item.effectiveDate ?? item.date)}</span>
+          </Link>
+        )) : <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{empty}</p>}
+      </div>
+    </div>
   );
 }
 

@@ -57,7 +57,22 @@ export type ChatQueryAction =
   | "business_slowest_client"
   | "business_quote_conversion"
   | "business_compare_periods"
-  | "business_review_today";
+  | "business_review_today"
+  | "treasury_status"
+  | "treasury_available_cash"
+  | "treasury_collect_week"
+  | "treasury_pay_month"
+  | "treasury_forecast"
+  | "treasury_minimum_breach"
+  | "treasury_due_invoices"
+  | "treasury_upcoming_payments"
+  | "treasury_cashflow_month"
+  | "treasury_work_cash_consumption"
+  | "treasury_break_even"
+  | "treasury_coverage"
+  | "treasury_scenario_conservative"
+  | "treasury_scenario_compare"
+  | "treasury_review";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -118,6 +133,9 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
     return { kind: "pending_summary", action: "pending_summary", confidence: 0.94, period, rule: "pending_summary" };
   }
 
+  const treasuryIntent = classifyTreasuryIntent(normalized, period);
+  if (treasuryIntent) return treasuryIntent;
+
   if (/(borra|borrar|elimina|eliminar|archiva|archivar)\b/.test(normalized)) {
     return { kind: "delete_archive", confidence: 0.8, rule: "delete_archive" };
   }
@@ -139,6 +157,9 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
   }
 
   if (/(compara|comparar|comparame|diferencia|frente a|versus|vs)\b/.test(normalized)) {
+    if (/(escenario|caja|tesoreria|tesorería|flujo)\b/.test(normalized)) {
+      return { kind: "comparison_query", action: "treasury_scenario_compare", confidence: 0.92, period, rule: "treasury_scenario_compare" };
+    }
     if (/(mes|semana|trimestre|ano|año|negocio|facturacion|facturación|cobros|gastos|beneficio)\b/.test(normalized)) {
       return { kind: "comparison_query", action: "business_compare_periods", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "business_compare_periods" };
     }
@@ -286,6 +307,30 @@ function detectPeriod(normalized: string): ChatQueryPeriod {
   if (/(mes pasado|el mes anterior)\b/.test(normalized)) return "last_month";
   if (/(este ano|ano actual|este año)\b/.test(normalized)) return "this_year";
   return "all";
+}
+
+function classifyTreasuryIntent(normalized: string, period: ChatQueryPeriod): ChatIntentClassification | null {
+  const isTreasury = /(tesoreria|tesorería|caja|saldo|dinero disponible|cuanto dinero tengo|cuánto dinero tengo|cuanto tengo disponible|cuánto tengo disponible|flujo de caja|colchon|colchón|por debajo del minimo|por debajo del mínimo|bajo el minimo|bajo el mínimo|cobertura|punto de equilibrio)\b/.test(normalized)
+    || /(cuanto voy a cobrar|cuánto voy a cobrar|cuanto cobrare|cuánto cobraré|cuanto tengo que pagar|cuánto tengo que pagar|pagos.*proximos|pagos.*próximos|facturas vencen|facturas.*vencen|dentro de \d+ dias|dentro de \d+ días|escenario conservador|base y conservador|conservador y base)/.test(normalized);
+  if (!isTreasury) return null;
+  if (/(compara|comparar|comparame|base y conservador|conservador y base)\b/.test(normalized)) {
+    return { kind: "comparison_query", action: "treasury_scenario_compare", confidence: 0.94, period, rule: "treasury_scenario_compare" };
+  }
+  if (/(escenario conservador|haz escenario conservador|hazme escenario conservador|conservador)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "treasury_scenario_conservative", confidence: 0.94, period, rule: "treasury_scenario_conservative" };
+  }
+  if (/(punto de equilibrio)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_break_even", confidence: 0.92, period, rule: "treasury_break_even" };
+  if (/(cobertura|meses de cobertura|dias de cobertura|días de cobertura)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_coverage", confidence: 0.9, period, rule: "treasury_coverage" };
+  if (/(por debajo del minimo|por debajo del mínimo|bajo el minimo|bajo el mínimo|colchon|colchón)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_minimum_breach", confidence: 0.9, period, rule: "treasury_minimum_breach" };
+  if (/(obra|obras)\b/.test(normalized) && /(consume|consumiendo|caja negativa|mas caja|más caja)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_work_cash_consumption", confidence: 0.92, period, rule: "treasury_work_cash_consumption" };
+  if (/(que deberia revisar|qué debería revisar|que revisar|revisar en tesoreria|revisar en tesorería)\b/.test(normalized)) return { kind: "database_query", action: "treasury_review", confidence: 0.9, period, rule: "treasury_review" };
+  if (/(facturas vencen|facturas.*vencen|vencen esta semana|vencen proximamente|vencen próximamente)\b/.test(normalized)) return { kind: "database_query", action: "treasury_due_invoices", confidence: 0.9, period: period === "all" ? "this_week" : period, rule: "treasury_due_invoices" };
+  if (/(pagos.*proximos|pagos.*próximos|que pagos tengo|qué pagos tengo|tengo que pagar)\b/.test(normalized)) return { kind: "aggregate_query", action: period === "this_month" ? "treasury_pay_month" : "treasury_upcoming_payments", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "treasury_upcoming_payments" };
+  if (/(cuanto voy a cobrar|cuánto voy a cobrar|cuanto cobrare|cuánto cobraré|cobrar esta semana|cobrar este mes)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_collect_week", confidence: 0.9, period: period === "all" ? "this_week" : period, rule: "treasury_collect" };
+  if (/(flujo de caja|cashflow|cash flow)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_cashflow_month", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "treasury_cashflow" };
+  if (/(dentro de \d+ dias|dentro de \d+ días|en 30 dias|en 30 días|como estara|cómo estará)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_forecast", confidence: 0.92, period, rule: "treasury_forecast" };
+  if (/(dinero disponible|saldo disponible|cuanto dinero tengo|cuánto dinero tengo|cuanto tengo disponible|cuánto tengo disponible)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_available_cash", confidence: 0.92, period, rule: "treasury_available_cash" };
+  return { kind: "aggregate_query", action: "treasury_status", confidence: 0.9, period, rule: "treasury_status" };
 }
 
 function isConversationControl(normalized: string) {

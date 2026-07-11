@@ -91,6 +91,74 @@ enum ExpenseCategory {
   otros
 }
 
+enum ExpenseCashStatus {
+  unknown
+  pending
+  paid
+  cancelled
+}
+
+enum CostBehavior {
+  unknown
+  fixed
+  variable
+}
+
+enum FinancialAccountType {
+  bank
+  cash
+  other
+}
+
+enum CashMovementType {
+  inflow
+  outflow
+  transfer_in
+  transfer_out
+  adjustment
+}
+
+enum CashMovementStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum CashMovementSource {
+  manual
+  generated
+  adjustment
+  bank_import
+}
+
+enum RecurringExpenseFrequency {
+  weekly
+  monthly
+  quarterly
+  yearly
+  custom
+}
+
+enum ExpectedCashFlowType {
+  expected_inflow
+  expected_outflow
+}
+
+enum ExpectedCashFlowStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum ExpectedCashFlowSource {
+  manual
+  invoice
+  expense
+  recurring
+  budget
+  scenario
+}
+
 enum MaterialStatus {
   pendiente
   comprado
@@ -204,6 +272,8 @@ model Client {
   invoices                  Invoice[]
   internalNotes             InternalNote[]
   payments                  Payment[]
+  cashMovements             CashMovement[]
+  expectedCashFlows         ExpectedCashFlow[]
   reminders                 Reminder[]
   works                     Work[]
   agendaEvents              EventoAgenda[]
@@ -266,6 +336,9 @@ model Work {
   invoices              Invoice[]
   materials             Material[]
   payments              Payment[]
+  cashMovements         CashMovement[]
+  expectedCashFlows     ExpectedCashFlow[]
+  recurringExpenses     RecurringExpense[]
   reminders             Reminder[]
   agendaEvents          EventoAgenda[]
 
@@ -388,9 +461,11 @@ model Invoice {
   observaciones    String?
   metodoPago       String?
   datosBancarios   String?
+  cashMovements    CashMovement[]
   client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   agendaEvents     EventoAgenda[]
   documents        Document[]
+  expectedCashFlows ExpectedCashFlow[]
   internalNotes    InternalNote[]
   payments         Payment[]
   reminders        Reminder[]
@@ -407,6 +482,7 @@ model Payment {
   fecha     DateTime    @default(now())
   tipo      PaymentType
   notas     String?
+  cashMovements CashMovement[]
   client    Client      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   invoice   Invoice     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
   work      Work?       @relation(fields: [obraId], references: [id])
@@ -421,11 +497,142 @@ model Expense {
   categoria     ExpenseCategory
   importe       Float
   fecha         DateTime
+  paymentStatus ExpenseCashStatus?
+  paymentDueDate DateTime?
+  paidAt        DateTime?
+  costBehavior  CostBehavior     @default(unknown)
   fotoTicketUrl String?
   notas         String?
+  cashMovements CashMovement[]
   client        Client?         @relation(fields: [clienteId], references: [id])
   documents     Document[]
+  expectedCashFlows ExpectedCashFlow[]
   work          Work            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+}
+
+model FinancialAccount {
+  id                     String          @id @default(cuid())
+  name                   String
+  type                   FinancialAccountType @default(bank)
+  currency               String          @default("EUR")
+  openingBalance         Float           @default(0)
+  currentManualBalance   Float?
+  manualBalanceUpdatedAt DateTime?
+  minimumBalance         Float?
+  isActive               Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  archivedAt             DateTime?
+  movements              CashMovement[]
+
+  @@index([isActive])
+  @@index([archivedAt])
+}
+
+model CashMovement {
+  id              String             @id @default(cuid())
+  accountId       String
+  type            CashMovementType
+  amount          Float
+  date            DateTime
+  description     String
+  invoiceId       String?
+  paymentId       String?            @unique
+  expenseId       String?            @unique
+  workId          String?
+  clientId        String?
+  category        String?
+  provider        String?
+  status          CashMovementStatus @default(confirmed)
+  source          CashMovementSource @default(manual)
+  transferGroupId String?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  archivedAt      DateTime?
+  account         FinancialAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  client          Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  expense         Expense?           @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  invoice         Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  payment         Payment?           @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  work            Work?              @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, date])
+  @@index([type])
+  @@index([status])
+  @@index([source])
+  @@index([invoiceId])
+  @@index([workId])
+  @@index([clientId])
+  @@index([transferGroupId])
+  @@index([archivedAt])
+}
+
+model RecurringExpense {
+  id          String                    @id @default(cuid())
+  name        String
+  amount      Float
+  frequency   RecurringExpenseFrequency
+  nextDueDate DateTime
+  category    String?
+  workId      String?
+  provider    String?
+  fixedCost   Boolean                   @default(true)
+  isActive    Boolean                   @default(true)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  archivedAt  DateTime?
+  work        Work?                     @relation(fields: [workId], references: [id], onDelete: SetNull)
+  expectedCashFlows ExpectedCashFlow[]
+
+  @@index([isActive, nextDueDate])
+  @@index([workId])
+  @@index([archivedAt])
+}
+
+model ExpectedCashFlow {
+  id                 String                 @id @default(cuid())
+  type               ExpectedCashFlowType
+  amount             Float
+  expectedDate       DateTime
+  description        String
+  probability        Float?
+  confidenceSource   String?
+  invoiceId          String?
+  expenseId          String?
+  recurringExpenseId String?
+  workId             String?
+  clientId           String?
+  status             ExpectedCashFlowStatus @default(pending)
+  source             ExpectedCashFlowSource @default(manual)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  archivedAt         DateTime?
+  client             Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  expense            Expense?               @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  invoice            Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  recurringExpense   RecurringExpense?      @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  work               Work?                  @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  @@index([expectedDate])
+  @@index([type, status])
+  @@index([source])
+  @@index([invoiceId])
+  @@index([expenseId])
+  @@index([workId])
+  @@index([clientId])
+  @@index([archivedAt])
+}
+
+model TreasurySettings {
+  id                    String   @id @default(cuid())
+  currency              String   @default("EUR")
+  minimumCashBalance    Float?
+  safetyBuffer          Float?
+  targetCoverageDays    Int?
+  includeEstimatedInflows Boolean @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Material {

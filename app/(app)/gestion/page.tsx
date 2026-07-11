@@ -48,6 +48,8 @@ const statusOptions = {
   factura: ["borrador", "enviada", "pendiente", "parcialmente_pagada", "pagada", "vencida", "pendiente_emitir", "emitida", "pendiente_pago", "reclamada"],
   pago: ["senal", "pago_parcial", "pago_final", "regularizacion"],
   gasto: ["material", "mano_obra", "transporte", "herramienta", "gasolina", "subcontrata", "otros"],
+  gastoPago: ["unknown", "pending", "paid", "cancelled"],
+  costBehavior: ["unknown", "fixed", "variable"],
   material: ["pendiente", "comprado", "entregado", "falta", "devuelto"],
   recordatorioTipo: [
     "seguimiento_presupuesto",
@@ -410,6 +412,14 @@ function renderFields({
           <Select name="categoria" label="Categoría" options={statusOptions.gasto} value={record?.categoria ?? "material"} />
           <Field name="importe" label="Importe" type="number" required value={record?.importe ?? 0} />
           <Field name="fecha" label="Fecha" type="datetime-local" value={dateTimeValue(record?.fecha) ?? dateTimeValue(new Date())} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Select name="paymentStatus" label="Estado de pago" options={statusOptions.gastoPago} value={record?.paymentStatus ?? "unknown"} />
+            <Select name="costBehavior" label="Tipo de coste" options={statusOptions.costBehavior} value={record?.costBehavior ?? "unknown"} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field name="paymentDueDate" label="Fecha prevista de pago" type="datetime-local" value={dateTimeValue(record?.paymentDueDate)} />
+            <Field name="paidAt" label="Fecha pagado" type="datetime-local" value={dateTimeValue(record?.paidAt)} />
+          </div>
           <Field name="fotoTicketUrl" label="Foto ticket URL" value={record?.fotoTicketUrl} />
           <Textarea name="notas" label="Notas" value={record?.notas} />
         </>
