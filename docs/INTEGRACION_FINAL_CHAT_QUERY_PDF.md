@@ -66,6 +66,19 @@ En la rama de integracion y despues sobre `main`:
 
 No existe script `lint` en `package.json`.
 
+## Validacion manual local
+
+Se arranco `npm run dev -- --port 3000` y se valido en navegador local:
+
+- `/capataz`: carga autenticada en modo pruebas, historial visible, entrada de chat, boton de voz y envio.
+- Chat: `Hola`, `Que tareas pendientes tengo?`, `Cual es el presupuesto mas alto?`, `Cuanto me deben?` y `Que cliente me debe mas?` respondieron con datos reales y tarjetas/enlaces esperados.
+- PDF: el enlace `Ver PDF` de un presupuesto existente respondio `200`, `application/pdf` y contenido iniciado por `%PDF-`.
+- `/hoy`: carga el dashboard sin bloqueo visible.
+- `/clientes`: carga el CRM con 8 clientes despues de hidratar.
+- Ficha de cliente: carga resumen, obras, presupuestos, facturas, actividad y enlace PDF sin error visible.
+
+No se valido microfono real desde Codex porque requiere permiso de navegador/dispositivo.
+
 ## Cobertura funcional añadida
 
 `test:chat-query` cubre:
@@ -94,13 +107,15 @@ No existe script `lint` en `package.json`.
 
 - La rama de rescate fue `codex/integrate-pending-chat-query-pdf`.
 - Commit de integracion de codigo: `bfe28ff0f0ffec8c533b877b387eb47073efd96e`.
-- `origin/main` fue actualizado con ese commit.
-- La carpeta principal quedo en `main`, sincronizada con `origin/main` y limpia antes de crear este documento.
+- Commit de documentacion inicial: `76d888e17e979bda4415fe8f01fb99ae8f63ee41`.
+- `origin/main` fue actualizado con esos commits.
+- La carpeta principal quedo en `main`, sincronizada con `origin/main` y limpia tras retirar el worktree de release.
 
 ## Estado de Railway
 
 - GitHub/Railway detecto el commit `bfe28ff0f0ffec8c533b877b387eb47073efd96e`.
 - El status remoto paso a `success`.
+- GitHub/Railway tambien detecto el commit de documentacion `76d888e17e979bda4415fe8f01fb99ae8f63ee41` y paso a `success`.
 - No se pudo inspeccionar desde Codex el log interno de Railway ni confirmar visualmente el paso `preDeployCommand`, aunque `railway.json` mantiene `npm run db:deploy`.
 
 ## Estado de produccion
