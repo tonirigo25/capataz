@@ -107,7 +107,7 @@ function runSchedulerChecks() {
   const endpoint = read("app/api/internal/proactive-evaluate/route.ts");
   const railway = read("railway.json");
   const docs = fs.existsSync("docs/BLOQUE_3_SISTEMA_PROACTIVO_CIERRE.md") ? read("docs/BLOQUE_3_SISTEMA_PROACTIVO_CIERRE.md") : "";
-  expect(endpoint.includes("internal_endpoint"), "[proactive] scheduler endpoint must identify trigger");
+  expect(endpoint.includes("railway_cron"), "[proactive] scheduler endpoint must identify the Railway cron trigger");
   expect(railway.includes("preDeployCommand") && railway.includes("npm run db:deploy"), "[proactive] Railway must deploy migrations before start");
   expect(docs.includes("cron") || docs.includes("Cron"), "[proactive] documentation must cover cron limitation/configuration");
 }

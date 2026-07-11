@@ -14,6 +14,7 @@ El sistema automatiza comprobaciones, no decisiones. No envía emails, WhatsApp,
 - `lib/proactive-audit.ts`: auditoría sanitizada.
 - `lib/proactive-evaluation.ts`: run central, lock, batches lógicos, métricas, resumen diario/semanal y control.
 - `app/api/internal/proactive-evaluate/route.ts`: endpoint `POST` protegido por secreto.
+- `scripts/run-proactive-evaluation.mjs`: runner HTTP de una sola ejecución, sin servidor ni handles persistentes.
 - `app/(app)/recomendaciones/control`: centro de control interno.
 
 ## Ciclo De Vida
@@ -52,13 +53,24 @@ Endpoint preparado:
 
 `POST /api/internal/proactive-evaluate`
 
-Autorización:
+Autorización y contrato:
 
 - header `x-capataz-cron-secret`;
 - o `Authorization: Bearer ...`;
 - secreto leído solo de servidor: `PROACTIVE_CRON_SECRET` o `CRON_SECRET`.
+- body obligatorio `{}`; no se aceptan parámetros de tipo, origen o alcance.
+- comparación del secreto mediante digest SHA-256 y `timingSafeEqual`.
+- respuesta limitada a estado, identificador de run y métricas sanitizadas.
 
-Railway ya ejecuta `preDeployCommand: npm run db:deploy`. Este cambio no configura un cron real desde código porque `railway.json` no declara scheduling. Para programarlo en Railway debe configurarse un cron interno o job que invoque el endpoint cada 6 horas para evaluación general, cada hora para urgentes si se separa en un job futuro, y diario para mantenimiento.
+Railway mantiene el servicio web persistente con `npm run start`. La evaluación debe ejecutarse en un servicio separado llamado `capataz-proactive-evaluator`, sin dominio, healthcheck, volumen ni réplica persistente, con:
+
+- comando: `npm run proactive:evaluate`;
+- horario: `10 * * * *`;
+- zona horaria: UTC;
+- URL no secreta: `CAPATAZ_INTERNAL_URL=https://capataz-production.up.railway.app`;
+- secreto: `PROACTIVE_CRON_SECRET`, compartido de forma segura con el servicio web.
+
+El runner aplica un timeout de 15 minutos (configurable a un valor menor mediante `PROACTIVE_EVALUATION_TIMEOUT_MS`), termina `0` al completar o encontrar un lock normal, `2` ante resultado parcial y `1` ante configuración, autorización, red, timeout o servidor fallido. Al usar HTTP no instancia Prisma; la conexión pertenece al servicio web y su lifecycle normal. No inicia Next.js ni escucha en un puerto.
 
 ## Locks Y Errores
 
@@ -71,6 +83,8 @@ Si una evaluación falla:
 - se libera el lock;
 - no se borran señales ni recomendaciones;
 - el endpoint devuelve error genérico.
+
+No hay reintento dentro del runner para evitar dobles evaluaciones. Railway puede iniciar la siguiente ejecución horaria; el unique lock impide concurrencia y los locks huérfanos expiran a los 20 minutos.
 
 ## Lotes Y Rendimiento
 
@@ -132,6 +146,15 @@ Scripts añadidos:
 - `test:proactive-maintenance`
 - `test:proactive-chat`
 - `test:proactive-integration`
+- `test:proactive-cron`
+
+## Operación Segura
+
+Ejecución manual: lanzar una ejecución del servicio cron desde Railway. No colocar el secreto en comandos, URLs o logs locales.
+
+Desactivación: deshabilitar únicamente el horario del servicio cron. Mantener endpoint protegido, histórico, modelos y evaluaciones manuales; no borrar recomendaciones.
+
+Rotación: generar un nuevo valor aleatorio de al menos 32 bytes, actualizar primero el servicio web y después el cron mediante referencia segura, redesplegar ambos, probar autorización y retirar el valor anterior. No documentar ni registrar el valor.
 
 ## Validación De Producción
 
@@ -149,11 +172,10 @@ La migración se considera aplicada en producción porque el centro de control c
 
 ## Limitaciones
 
-- El cron de Railway queda preparado y documentado, pero debe configurarse realmente en Railway si la plataforma/proyecto no expone scheduling desde código.
-- Producción aún debe configurar `PROACTIVE_CRON_SECRET` o `CRON_SECRET` antes de activar cualquier job que invoque el endpoint.
+- La fecha y métricas de la primera ejecución programada deben añadirse tras observar una ejecución disparada por el horario real; una ejecución manual no basta.
 - La reevaluación tras mutaciones reutiliza los motores globales existentes con límites y cooldown; una fase posterior puede convertirla en selección estricta por entidad.
 - No se implementan acciones externas, OCR, machine learning ni agentes autónomos.
 
 ## Decisión
 
-Código integrado, desplegado y validado en producción. PROMPT 3 NO COMPLETADO OPERATIVAMENTE hasta configurar `PROACTIVE_CRON_SECRET`/`CRON_SECRET` y activar/verificar el job real de Railway o equivalente.
+PROMPT 3 NO COMPLETADO OPERATIVAMENTE hasta configurar el secreto, desplegar el servicio cron separado y verificar al menos una ejecución disparada por el horario real.

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { runProactiveEvaluation, type ProactiveEvaluationType } from "@/lib/proactive-evaluation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 900;
 
 export async function POST(request: Request) {
   const auth = authorizeInternalRequest(request);
@@ -10,17 +12,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
-  let body: { type?: ProactiveEvaluationType; triggeredBy?: string } = {};
-  try {
-    body = await request.json();
-  } catch {
-    body = {};
+  const payload = await readEmptyPayload(request);
+  if (!payload.ok) {
+    return NextResponse.json({ ok: false, error: "Payload no permitido." }, { status: 400 });
   }
 
   try {
     const result = await runProactiveEvaluation({
-      type: body.type ?? "scheduled",
-      triggeredBy: body.triggeredBy ?? "internal_endpoint"
+      type: "scheduled" satisfies ProactiveEvaluationType,
+      triggeredBy: "railway_cron"
     });
     return NextResponse.json({
       ok: result.ok,
@@ -43,6 +43,20 @@ function authorizeInternalRequest(request: Request) {
   const auth = request.headers.get("authorization");
   const bearerSecret = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
   const provided = headerSecret ?? bearerSecret;
-  if (!provided || provided !== expected) return { ok: false as const, status: 401, error: "No autorizado." };
+  if (!provided || !secretsMatch(provided, expected)) return { ok: false as const, status: 401, error: "No autorizado." };
   return { ok: true as const, status: 200 };
+}
+
+async function readEmptyPayload(request: Request) {
+  try {
+    const body = await request.json();
+    return { ok: Boolean(body) && typeof body === "object" && !Array.isArray(body) && Object.keys(body).length === 0 };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function secretsMatch(provided: string, expected: string) {
+  const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
+  return timingSafeEqual(digest(provided), digest(expected));
 }
