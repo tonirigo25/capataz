@@ -75,7 +75,7 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
     };
   }
 
-  if (isPendingSummaryRequest(normalized)) {
+  if (isPendingSummaryRequest(normalized) && !isSpecificFinancialPendingRequest(normalized)) {
     return { kind: "pending", action: "pending_summary", confidence: 0.94, period };
   }
 
@@ -112,8 +112,8 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
   if (/(factura|facturas|cobro|cobros|deben|deuda)\b/.test(normalized)) {
     if (/(mas alto|mayor|mas grande|maxima|importe mas alto|de mas importe)\b/.test(normalized)) return { kind: "aggregate", action: "highest_invoice", confidence: 0.94, period, clientName };
     if (/(mas bajo|menor|mas pequena|minima|importe mas bajo)\b/.test(normalized)) return { kind: "aggregate", action: "lowest_invoice", confidence: 0.9, period, clientName };
-    if (/(cuanto|cuanta|total).*(deben|pendiente|cobrar)|cuanto me deben|pendiente de cobro|pendiente cobrar/.test(normalized)) return { kind: "aggregate", action: "outstanding_invoices", confidence: 0.95, period, clientName };
     if (/(cuantos|cuantas|cantidad|numero)\b/.test(normalized) && /(pendiente|pendientes|cobro|cobrar)\b/.test(normalized)) return { kind: "aggregate", action: "pending_invoices_count", confidence: 0.9, period, clientName };
+    if (/(cuanto|cuanta|total).*(deben|pendiente|cobrar)|cuanto me deben|pendiente de cobro|pendiente cobrar/.test(normalized)) return { kind: "aggregate", action: "outstanding_invoices", confidence: 0.95, period, clientName };
     if (/(vencida|vencidas|vencido|vencidos)\b/.test(normalized)) return { kind: "query", action: "overdue_invoices", confidence: 0.91, period, clientName };
   }
 
@@ -173,6 +173,10 @@ function isContextQuestion(normalized: string) {
 
 function isPendingSummaryRequest(normalized: string) {
   return /(que tareas pendientes tengo|dime que tengo pendiente|resumen de pendientes|cuantas cosas tengo pendientes|que queda por hacer|tareas pendientes|pendientes tengo|tengo pendiente|cosas pendientes)/.test(normalized);
+}
+
+function isSpecificFinancialPendingRequest(normalized: string) {
+  return /(presupuesto|presupuestos|factura|facturas|cobro|cobros|deben|deuda)/.test(normalized);
 }
 
 function isPendingDetailRequest(normalized: string) {

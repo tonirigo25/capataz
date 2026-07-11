@@ -51,6 +51,14 @@ const cases = [
     expected: { kind: "aggregate", action: "highest_budget" }
   },
   {
+    text: "cuál es el presupuesto más bajo",
+    expected: { kind: "aggregate", action: "lowest_budget" }
+  },
+  {
+    text: "cuál es el último presupuesto",
+    expected: { kind: "query", action: "latest_budget" }
+  },
+  {
     text: "cuál es la factura más grande",
     expected: { kind: "aggregate", action: "highest_invoice" }
   },
@@ -59,12 +67,28 @@ const cases = [
     expected: { kind: "aggregate", action: "outstanding_invoices" }
   },
   {
+    text: "cuántas facturas tengo pendientes de cobro",
+    expected: { kind: "aggregate", action: "pending_invoices_count" }
+  },
+  {
+    text: "qué cliente me debe más",
+    expected: { kind: "aggregate", action: "client_highest_debt" }
+  },
+  {
     text: "cuánto he facturado este mes",
     expected: { kind: "aggregate", action: "revenue_summary", period: "this_month" }
   },
   {
     text: "cuánto he gastado esta semana",
     expected: { kind: "aggregate", action: "expenses_summary", period: "this_week" }
+  },
+  {
+    text: "cuánto he gastado este mes",
+    expected: { kind: "aggregate", action: "expenses_summary", period: "this_month" }
+  },
+  {
+    text: "compara facturación frente a gastos de este mes",
+    expected: { kind: "compare", period: "this_month" }
   },
   {
     text: "qué obras están activas",
@@ -77,6 +101,10 @@ const cases = [
   {
     text: "qué facturas están vencidas",
     expected: { kind: "query", action: "overdue_invoices" }
+  },
+  {
+    text: "dime cuáles son las facturas pendientes",
+    expected: { kind: "pending_detail", action: "pending_detail", detailCategory: "invoices" }
   },
   {
     text: "cuánto ha pagado Laura",
@@ -93,6 +121,10 @@ const cases = [
   {
     text: "crea un presupuesto para Juan por 1000 euros",
     expected: { kind: "create" }
+  },
+  {
+    text: "quiero ver el último presupuesto",
+    expected: { kind: "navigation" }
   }
 ];
 

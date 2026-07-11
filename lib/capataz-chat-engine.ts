@@ -24,7 +24,8 @@ export type ChatTaskType =
   | "register_payment"
   | "register_expense"
   | "create_reminder"
-  | "complete_activity";
+  | "complete_activity"
+  | "pending_summary";
 
 export type ChatDecisionType =
   | "use_existing_client"
@@ -346,7 +347,7 @@ export function planChatMessage(message: string, rawContext?: ChatContext | Lega
 export function resolveContextMetaQuestion(message: string, rawContext: ChatContext, entities = extractChatEntities(message)): ChatPlan | null {
   const context = normalizeChatContext(rawContext);
   const normalized = normalizeText(message);
-  const activeTask = context.activeTask;
+  const activeTask = context.activeTask?.type === "pending_summary" ? undefined : context.activeTask;
   const parkedTask = context.parkedTask;
   const task = activeTask ?? parkedTask;
 

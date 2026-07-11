@@ -18,6 +18,12 @@ import {
 } from "@/lib/capataz-chat-engine";
 import { CHAT_INACTIVITY_MS, shouldShowConversationInHistory } from "@/lib/chat-conversation-rules";
 import {
+  classifyChatIntent,
+  normalizeQueryText,
+  type ChatIntentClassification,
+  type PendingDetailCategory
+} from "@/lib/capataz-chat-query";
+import {
   normalizeName,
   type IvaMode,
   type ParsedActivityCommand,
@@ -72,8 +78,8 @@ export type ChatActionButton = {
 };
 
 export type ChatActionResult = {
-  type: "created" | "updated" | "registered" | "generated" | "failed" | "partial";
-  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf";
+  type: "created" | "updated" | "registered" | "generated" | "failed" | "partial" | "found";
+  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf" | "query";
   entityId?: string;
   title: string;
   summary: Record<string, string | number | boolean | null>;
@@ -158,6 +164,12 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
   if (wantsExplicitContinueTask(text) && !enrichedContext?.activeTask) {
     await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "continue_latest_task" });
     return continueLatestPendingTask();
+  }
+
+  const databaseIntent = databaseIntentForMessage(text, classifyChatIntent(text), enrichedContext);
+  if (databaseIntent) {
+    await logChatPerf(trace, "route", trace.startedAt, "database_query", { kind: databaseIntent.kind, action: databaseIntent.action });
+    return answerDatabaseQuery(text, databaseIntent, enrichedContext);
   }
 
   const planStarted = nowMs();
@@ -375,47 +387,617 @@ async function withStructuredResult(result: ChatCommandResult): Promise<ChatComm
 }
 
 async function listGlobalPendingTasks(context: ChatCommandContext | null): Promise<ChatCommandResult> {
-  const [budgets, invoices, reminders, events] = await Promise.all([
-    prisma.budget.findMany({
-      where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] } },
-      orderBy: { fechaCreacion: "desc" },
-      take: 5,
-      include: { client: true }
-    }),
-    prisma.invoice.findMany({
-      where: { pendiente: { gt: 0 } },
-      orderBy: { fechaVencimiento: "asc" },
-      take: 5,
-      include: { client: true }
-    }),
-    prisma.reminder.findMany({
-      where: { estado: { in: ["pendiente_confirmacion", "programado"] } },
-      orderBy: { fechaProgramada: "asc" },
-      take: 5,
-      include: { client: true }
-    }),
-    prisma.eventoAgenda.findMany({
-      where: { estado: { in: ["pendiente", "confirmado"] } },
-      orderBy: { fechaInicio: "asc" },
-      take: 5,
-      include: { client: true }
-    })
-  ]);
+  return queryPendingTasksSummary(context);
+}
 
-  const lines = [
-    ...budgets.map((budget) => `Presupuesto ${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · /presupuestos/${budget.id}`),
-    ...invoices.map((invoice) => `Factura ${invoice.numero} · ${invoice.client.nombre} · ${formatEuros(invoice.pendiente)} pendiente · /dinero/${invoice.id}`),
-    ...reminders.map((reminder) => `Recordatorio · ${reminder.client?.nombre ?? "sin cliente"} · ${reminder.fechaProgramada.toLocaleString("es-ES")}`),
-    ...events.map((event) => `${event.tipo} · ${event.client?.nombre ?? "sin cliente"} · ${event.fechaInicio.toLocaleString("es-ES")} · /agenda`)
-  ].slice(0, 12);
+function databaseIntentForMessage(text: string, classified: ChatIntentClassification, context: ChatCommandContext | null): ChatIntentClassification | null {
+  const normalized = normalizeQueryText(text);
+  const activeType = context?.activeTask?.type;
+  if (activeType === "pending_summary" && /^(dimelos|dime cuales|cuales son|detallame|detalle|ver todos|muestrame|ensename)$/i.test(normalized)) {
+    return { kind: "pending_detail", action: "pending_detail", confidence: 0.9 };
+  }
+  if (classified.kind === "pending" || classified.kind === "pending_detail") return classified;
+  if (classified.kind === "query" || classified.kind === "aggregate" || classified.kind === "compare") return classified;
+  return null;
+}
+
+async function answerDatabaseQuery(text: string, intent: ChatIntentClassification, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  if (intent.kind === "pending") return queryPendingTasksSummary(context);
+  if (intent.kind === "pending_detail") return queryPendingTaskDetails(intent.detailCategory, context);
+
+  switch (intent.action) {
+    case "highest_budget":
+      return queryBudgetByAmount("desc", intent);
+    case "lowest_budget":
+      return queryBudgetByAmount("asc", intent);
+    case "latest_budget":
+      return queryLatestBudget(intent);
+    case "highest_invoice":
+      return queryInvoiceByAmount("desc", intent);
+    case "lowest_invoice":
+      return queryInvoiceByAmount("asc", intent);
+    case "outstanding_invoices":
+      return queryOutstandingInvoices(intent);
+    case "pending_invoices_count":
+      return queryPendingInvoicesCount(intent);
+    case "pending_budgets_count":
+      return queryPendingBudgetsCount(intent);
+    case "overdue_invoices":
+      return queryPendingTaskDetails("overdue_invoices", context);
+    case "client_highest_debt":
+      return queryClientHighestDebt();
+    case "revenue_summary":
+      return queryRevenueSummary(intent);
+    case "expenses_summary":
+      return queryExpensesSummary(intent);
+    case "active_projects":
+      return queryPendingTaskDetails("active_projects", context);
+    case "client_budgets":
+      return queryClientBudgets(intent);
+    case "client_payments":
+      return queryClientPayments(intent);
+    case "clients_missing_tax_id":
+      return queryPendingTaskDetails("clients_incomplete", context);
+    case "project_highest_expenses":
+      return queryProjectHighestExpenses(intent);
+    case "recent_documents":
+      return queryRecentDocuments(intent);
+    default:
+      return {
+        handled: true,
+        context,
+        text: "Puedo consultar presupuestos, facturas, cobros, gastos, obras, clientes y pendientes. Dime qué dato quieres ver."
+      };
+  }
+}
+
+async function queryPendingTasksSummary(context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const counts = await queryPendingTasksCounts();
+  const rows = [
+    ["Presupuestos pendientes", counts.pendingBudgets],
+    ["Presupuestos pendientes de enviar", counts.budgetsToSend],
+    ["Presupuestos pendientes de aceptar", counts.budgetsToAccept],
+    ["Facturas pendientes de cobro", counts.pendingInvoices],
+    ["Facturas vencidas", counts.overdueInvoices],
+    ["Pagos parciales", counts.partialPayments],
+    ["Visitas pendientes", counts.pendingVisits],
+    ["Visitas por confirmar", counts.visitsToConfirm],
+    ["Seguimientos pendientes", counts.pendingFollowups],
+    ["Recordatorios pendientes", counts.pendingReminders],
+    ["Clientes con datos incompletos", counts.incompleteClients],
+    ["Obras activas con tareas pendientes", counts.activeProjects],
+    ["Documentos pendientes de completar", counts.incompleteDocuments]
+  ].filter(([, count]) => Number(count) > 0) as Array<[string, number]>;
+
+  const nextContext = {
+    ...(context ?? {}),
+    activeTask: {
+      type: "pending_summary" as const,
+      status: "activo" as const,
+      title: "Resumen de pendientes",
+      pendingFields: rows.map(([label]) => label),
+      draftData: counts,
+      lastQuestion: "¿Quieres que te detalle alguna categoría?",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  };
+
+  if (!rows.length) {
+    return {
+      handled: true,
+      context: nextContext,
+      text: "No tienes tareas pendientes ahora mismo."
+    };
+  }
 
   return {
     handled: true,
-    context,
-    text: lines.length
-      ? `Estas son las tareas pendientes reales que veo ahora:\n\n${lines.map((line, index) => `${index + 1}. ${line}`).join("\n")}\n\nNo he cambiado de conversación ni he retomado ninguna tarea.`
-      : "No veo tareas pendientes relevantes ahora mismo. No he cambiado de conversación."
+    context: nextContext,
+    text: `Tienes:\n\n${rows.map(([label, count]) => `- ${count} ${pendingCountLabel(label, count)}.`).join("\n")}\n\n¿Quieres que te detalle alguna categoría?`
   };
+}
+
+async function queryPendingTasksCounts() {
+  const today = startOfDay(new Date());
+  const [
+    pendingBudgets,
+    budgetsToSend,
+    budgetsToAccept,
+    pendingInvoices,
+    overdueInvoices,
+    partialPayments,
+    pendingVisits,
+    visitsToConfirm,
+    pendingFollowups,
+    pendingReminders,
+    clients,
+    activeProjects,
+    incompleteDocuments
+  ] = await Promise.all([
+    prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] } } }),
+    prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision"] } } }),
+    prisma.budget.count({ where: { estado: { in: ["pendiente_respuesta", "enviado", "visto"] } } }),
+    prisma.invoice.count({ where: { pendiente: { gt: 0 } } }),
+    prisma.invoice.count({ where: { pendiente: { gt: 0 }, OR: [{ estado: "vencida" }, { fechaVencimiento: { lt: today } }] } }),
+    prisma.invoice.count({ where: { pagado: { gt: 0 }, pendiente: { gt: 0 } } }),
+    prisma.eventoAgenda.count({ where: { tipo: "visita", estado: { in: ["pendiente", "confirmado"] } } }),
+    prisma.eventoAgenda.count({ where: { tipo: "visita", estado: "pendiente", requiereConfirmacion: true } }),
+    prisma.reminder.count({ where: { tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
+    prisma.reminder.count({ where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
+    prisma.client.findMany({ select: { telefono: true, email: true, direccion: true, estado: true, notas: true } }),
+    prisma.work.count({ where: { estado: { in: ["en_curso", "pendiente_material", "pendiente_remates", "pendiente_cobro", "pendiente_inicio"] } } }),
+    prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision"] } } })
+  ]);
+
+  return {
+    pendingBudgets,
+    budgetsToSend,
+    budgetsToAccept,
+    pendingInvoices,
+    overdueInvoices,
+    partialPayments,
+    pendingVisits,
+    visitsToConfirm,
+    pendingFollowups,
+    pendingReminders,
+    incompleteClients: clients.filter(clientLooksIncomplete).length,
+    activeProjects,
+    incompleteDocuments
+  };
+}
+
+async function queryPendingTaskDetails(category: PendingDetailCategory | undefined, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  if (!category) {
+    return {
+      handled: true,
+      context,
+      text: "Dime qué categoría quieres detallar: presupuestos, facturas, visitas, seguimientos, recordatorios, clientes, obras o documentos."
+    };
+  }
+
+  const today = startOfDay(new Date());
+  if (category === "budgets" || category === "budgets_to_send" || category === "budgets_to_accept" || category === "documents") {
+    const states = category === "budgets_to_send"
+      ? (["borrador", "pendiente_revision"] as const)
+      : category === "budgets_to_accept"
+        ? (["pendiente_respuesta", "enviado", "visto"] as const)
+        : (["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] as const);
+    const budgets = await prisma.budget.findMany({
+      where: { estado: { in: [...states] } },
+      orderBy: { fechaCreacion: "desc" },
+      take: 10,
+      include: { client: true, work: true }
+    });
+    return compactListResult(budgets, "presupuestos pendientes", (budget) => `${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · ${budget.estado} · /presupuestos/${budget.id}`);
+  }
+
+  if (category === "invoices" || category === "overdue_invoices" || category === "partial_payments") {
+    const invoices = await prisma.invoice.findMany({
+      where: category === "overdue_invoices"
+        ? { pendiente: { gt: 0 }, OR: [{ estado: "vencida" }, { fechaVencimiento: { lt: today } }] }
+        : category === "partial_payments"
+          ? { pagado: { gt: 0 }, pendiente: { gt: 0 } }
+          : { pendiente: { gt: 0 } },
+      orderBy: { fechaVencimiento: "asc" },
+      take: 10,
+      include: { client: true, work: true }
+    });
+    return compactListResult(invoices, "facturas", (invoice) => `${invoice.numero} · ${invoice.client.nombre} · pendiente ${formatEuros(invoice.pendiente)} · vence ${formatDateShort(invoice.fechaVencimiento)} · /dinero/${invoice.id}`);
+  }
+
+  if (category === "visits" || category === "visits_to_confirm") {
+    const visits = await prisma.eventoAgenda.findMany({
+      where: category === "visits_to_confirm"
+        ? { tipo: "visita", estado: "pendiente", requiereConfirmacion: true }
+        : { tipo: "visita", estado: { in: ["pendiente", "confirmado"] } },
+      orderBy: { fechaInicio: "asc" },
+      take: 10,
+      include: { client: true, work: true }
+    });
+    return compactListResult(visits, "visitas", (visit) => `${formatDateShort(visit.fechaInicio)} ${visit.horaInicio ?? ""} · ${visit.client?.nombre ?? "Sin cliente"} · ${visit.titulo} · /agenda`);
+  }
+
+  if (category === "followups" || category === "reminders") {
+    const reminders = await prisma.reminder.findMany({
+      where: category === "followups"
+        ? { tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } }
+        : { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
+      orderBy: { fechaProgramada: "asc" },
+      take: 10,
+      include: { client: true, work: true }
+    });
+    return compactListResult(reminders, category === "followups" ? "seguimientos" : "recordatorios", (reminder) => `${formatDateShort(reminder.fechaProgramada)} · ${reminder.client?.nombre ?? "Sin cliente"} · ${reminder.tipo.replaceAll("_", " ")} · ${reminder.estado} · /recordatorios`);
+  }
+
+  if (category === "clients_incomplete") {
+    const clients = (await prisma.client.findMany({ orderBy: { fechaCreacion: "desc" }, take: 60 })).filter(clientLooksIncomplete).slice(0, 10);
+    return compactListResult(clients, "clientes con datos incompletos", (client) => `${client.nombre} · ${client.estado} · /clientes/${client.id}`);
+  }
+
+  const works = await prisma.work.findMany({
+    where: { estado: { in: ["en_curso", "pendiente_material", "pendiente_remates", "pendiente_cobro", "pendiente_inicio"] } },
+    orderBy: { fechaInicio: "desc" },
+    take: 10,
+    include: { client: true }
+  });
+  return compactListResult(works, "obras activas", (work) => `${work.titulo} · ${work.client.nombre} · ${work.estado} · /obras`);
+}
+
+async function queryBudgetByAmount(direction: "asc" | "desc", intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const client = await clientForQuery(intent.clientName);
+  if (intent.clientName && !client) return noClientResult(intent.clientName);
+  const budget = await prisma.budget.findFirst({
+    where: { ...budgetPeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    orderBy: { total: direction },
+    include: { client: true, work: true }
+  });
+  if (!budget) return { handled: true, text: "No hay presupuestos registrados todavía." };
+  const label = direction === "desc" ? "más alto" : "más bajo";
+  return {
+    handled: true,
+    context: latestDocumentContext("budget", budget.id, budget.clienteId, budget.obraId ?? undefined, budget.client.nombre),
+    result: budgetQueryCard(`Presupuesto ${label}`, budget),
+    text: `El presupuesto ${label} es el ${budget.numero}, por ${formatEuros(budget.total)}, para ${budget.client.nombre}.\n\n¿Quieres que te muestre los cinco presupuestos ${direction === "desc" ? "más altos" : "más bajos"}?`
+  };
+}
+
+async function queryLatestBudget(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const client = await clientForQuery(intent.clientName);
+  if (intent.clientName && !client) return noClientResult(intent.clientName);
+  const budget = await prisma.budget.findFirst({
+    where: { ...budgetPeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    orderBy: { fechaCreacion: "desc" },
+    include: { client: true, work: true }
+  });
+  if (!budget) return { handled: true, text: "No hay presupuestos registrados todavía." };
+  return {
+    handled: true,
+    context: latestDocumentContext("budget", budget.id, budget.clienteId, budget.obraId ?? undefined, budget.client.nombre),
+    result: budgetQueryCard("Último presupuesto", budget),
+    text: `El último presupuesto es el ${budget.numero}, de ${formatEuros(budget.total)}, para ${budget.client.nombre}.`
+  };
+}
+
+async function queryInvoiceByAmount(direction: "asc" | "desc", intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const client = await clientForQuery(intent.clientName);
+  if (intent.clientName && !client) return noClientResult(intent.clientName);
+  const invoice = await prisma.invoice.findFirst({
+    where: { ...invoicePeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    orderBy: { total: direction },
+    include: { client: true, work: true }
+  });
+  if (!invoice) return { handled: true, text: "No hay facturas registradas todavía." };
+  const label = direction === "desc" ? "más grande" : "más baja";
+  return {
+    handled: true,
+    context: latestDocumentContext("invoice", invoice.id, invoice.clienteId, invoice.obraId ?? undefined, invoice.client.nombre),
+    result: invoiceQueryCard(`Factura ${label}`, invoice),
+    text: `La factura ${label} es la ${invoice.numero}, por ${formatEuros(invoice.total)}, para ${invoice.client.nombre}.`
+  };
+}
+
+async function queryOutstandingInvoices(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const client = await clientForQuery(intent.clientName);
+  if (intent.clientName && !client) return noClientResult(intent.clientName);
+  const invoices = await prisma.invoice.findMany({
+    where: { pendiente: { gt: 0 }, ...invoicePeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    orderBy: { pendiente: "desc" },
+    take: 5,
+    include: { client: true }
+  });
+  const total = invoices.reduce((sum, invoice) => sum + invoice.pendiente, 0);
+  if (!invoices.length) return { handled: true, text: "No hay facturas pendientes de cobro." };
+  return {
+    handled: true,
+    text: `Tienes ${invoices.length} facturas pendientes de cobro por ${formatEuros(total)} en total.\n\nLas 5 mayores son:\n${invoices.map((invoice, index) => `${index + 1}. ${invoice.numero} · ${invoice.client.nombre} · ${formatEuros(invoice.pendiente)} · /dinero/${invoice.id}`).join("\n")}`
+  };
+}
+
+async function queryPendingInvoicesCount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const count = await prisma.invoice.count({ where: { pendiente: { gt: 0 }, ...invoicePeriodWhere(intent.period) } });
+  return { handled: true, text: count ? `Tienes ${count} facturas pendientes de cobro.` : "No hay facturas pendientes de cobro." };
+}
+
+async function queryPendingBudgetsCount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const count = await prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] }, ...budgetPeriodWhere(intent.period) } });
+  return { handled: true, text: count ? `Tienes ${count} presupuestos pendientes.` : "No hay presupuestos pendientes." };
+}
+
+async function queryClientHighestDebt(): Promise<ChatCommandResult> {
+  const invoices = await prisma.invoice.findMany({ where: { pendiente: { gt: 0 } }, include: { client: true } });
+  const totals = new Map<string, { name: string; total: number; clientId: string }>();
+  for (const invoice of invoices) {
+    const current = totals.get(invoice.clienteId) ?? { name: invoice.client.nombre, total: 0, clientId: invoice.clienteId };
+    current.total += invoice.pendiente;
+    totals.set(invoice.clienteId, current);
+  }
+  const top = [...totals.values()].sort((a, b) => b.total - a.total)[0];
+  if (!top) return { handled: true, text: "No hay clientes con deuda pendiente." };
+  return {
+    handled: true,
+    result: {
+      type: "found",
+      entityType: "client",
+      entityId: top.clientId,
+      title: "Cliente con más pendiente",
+      summary: { cliente: top.name, pendiente: top.total },
+      actions: [{ label: "Ver cliente", href: `/clientes/${top.clientId}`, style: "primary" }, { label: "Ver facturas", href: "/dinero?filtro=pendientes" }]
+    },
+    text: `El cliente que más debe ahora mismo es ${top.name}, con ${formatEuros(top.total)} pendiente.`
+  };
+}
+
+async function queryRevenueSummary(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const where = invoicePeriodWhere(intent.period);
+  const invoices = await prisma.invoice.findMany({ where, select: { total: true, pagado: true, pendiente: true } });
+  const total = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+  const paid = invoices.reduce((sum, invoice) => sum + invoice.pagado, 0);
+  const pending = invoices.reduce((sum, invoice) => sum + invoice.pendiente, 0);
+  return {
+    handled: true,
+    text: invoices.length
+      ? `${periodText(intent.period, "facturación")}: ${formatEuros(total)} facturados en ${invoices.length} facturas. Cobrado: ${formatEuros(paid)}. Pendiente: ${formatEuros(pending)}.`
+      : `${periodText(intent.period, "facturación")}: no hay facturas registradas.`
+  };
+}
+
+async function queryExpensesSummary(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const expenses = await prisma.expense.findMany({ where: expensePeriodWhere(intent.period), select: { importe: true } });
+  const total = expenses.reduce((sum, expense) => sum + expense.importe, 0);
+  return {
+    handled: true,
+    text: expenses.length
+      ? `${periodText(intent.period, "gastos")}: ${formatEuros(total)} en ${expenses.length} gastos registrados.`
+      : `${periodText(intent.period, "gastos")}: no hay gastos registrados.`
+  };
+}
+
+async function queryClientBudgets(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  if (!intent.clientName) return { handled: true, text: "Dime de qué cliente quieres consultar los presupuestos." };
+  const client = await clientForQuery(intent.clientName);
+  if (!client) return noClientResult(intent.clientName);
+  const budgets = await prisma.budget.findMany({ where: { clienteId: client.id }, orderBy: { fechaCreacion: "desc" }, take: 10, include: { client: true, work: true } });
+  return compactListResult(budgets, `presupuestos de ${client.nombre}`, (budget) => `${budget.numero} · ${budget.titulo} · ${formatEuros(budget.total)} · ${budget.estado} · /presupuestos/${budget.id}`);
+}
+
+async function queryClientPayments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  if (!intent.clientName) return { handled: true, text: "Dime de qué cliente quieres consultar los pagos." };
+  const client = await clientForQuery(intent.clientName);
+  if (!client) return noClientResult(intent.clientName);
+  const payments = await prisma.payment.findMany({ where: { clienteId: client.id }, orderBy: { fecha: "desc" }, take: 10, include: { invoice: true } });
+  const total = payments.reduce((sum, payment) => sum + payment.importe, 0);
+  return {
+    handled: true,
+    text: payments.length
+      ? `${client.nombre} ha pagado ${formatEuros(total)} en ${payments.length} pagos registrados.\n${payments.map((payment, index) => `${index + 1}. ${formatDateShort(payment.fecha)} · ${formatEuros(payment.importe)} · ${payment.invoice.numero} · /dinero/${payment.facturaId}`).join("\n")}`
+      : `No hay pagos registrados para ${client.nombre}.`
+  };
+}
+
+async function queryProjectHighestExpenses(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const expenses = await prisma.expense.findMany({ where: expensePeriodWhere(intent.period), include: { work: { include: { client: true } } } });
+  const totals = new Map<string, { workId: string; title: string; client: string; total: number }>();
+  for (const expense of expenses) {
+    const current = totals.get(expense.obraId) ?? { workId: expense.obraId, title: expense.work.titulo, client: expense.work.client.nombre, total: 0 };
+    current.total += expense.importe;
+    totals.set(expense.obraId, current);
+  }
+  const top = [...totals.values()].sort((a, b) => b.total - a.total)[0];
+  if (!top) return { handled: true, text: "No hay gastos asociados a obras en ese periodo." };
+  return {
+    handled: true,
+    result: {
+      type: "found",
+      entityType: "project",
+      entityId: top.workId,
+      title: "Obra con más gastos",
+      summary: { obra: top.title, cliente: top.client, gastos: top.total },
+      actions: [{ label: "Ver obras", href: "/obras", style: "primary" }, { label: "Ver gastos", href: "/gastos-materiales" }]
+    },
+    text: `La obra con más gastos es ${top.title}, de ${top.client}, con ${formatEuros(top.total)} registrados.`
+  };
+}
+
+async function queryRecentDocuments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const [budgets, invoices] = await Promise.all([
+    prisma.budget.findMany({ where: budgetPeriodWhere(intent.period), orderBy: { fechaCreacion: "desc" }, take: 5, include: { client: true } }),
+    prisma.invoice.findMany({ where: invoicePeriodWhere(intent.period), orderBy: { fechaEmision: "desc" }, take: 5, include: { client: true } })
+  ]);
+  const docs = [
+    ...budgets.map((budget) => ({ date: budget.fechaCreacion, line: `Presupuesto ${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · /presupuestos/${budget.id}` })),
+    ...invoices.map((invoice) => ({ date: invoice.fechaEmision, line: `Factura ${invoice.numero} · ${invoice.client.nombre} · ${formatEuros(invoice.total)} · /dinero/${invoice.id}` }))
+  ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
+  return compactListResult(docs, "documentos recientes", (doc) => doc.line);
+}
+
+function compactListResult<T>(items: T[], label: string, render: (item: T) => string): ChatCommandResult {
+  if (!items.length) return { handled: true, text: `No hay ${label} registrados ahora mismo.` };
+  return {
+    handled: true,
+    text: `Estos son los ${label} que veo ahora:\n\n${items.map((item, index) => `${index + 1}. ${render(item)}`).join("\n")}${items.length >= 10 ? "\n\nTe muestro 10 como máximo. Puedes pedirme que filtre por cliente, estado o fecha." : ""}`
+  };
+}
+
+function budgetQueryCard(title: string, budget: {
+  id: string;
+  numero: string;
+  titulo: string;
+  subtotal: number;
+  iva: number;
+  total: number;
+  estado: string;
+  fechaCreacion: Date;
+  client: { nombre: string };
+  work: { titulo: string } | null;
+}): ChatActionResult {
+  return {
+    type: "found",
+    entityType: "quote",
+    entityId: budget.id,
+    title,
+    summary: {
+      numero: budget.numero,
+      cliente: budget.client.nombre,
+      obra: budget.work?.titulo ?? budget.titulo,
+      importe: budget.subtotal,
+      iva: budget.iva,
+      total: budget.total,
+      estado: budget.estado,
+      fecha: formatDateShort(budget.fechaCreacion)
+    },
+    actions: [
+      { label: "Ver presupuesto", href: `/presupuestos/${budget.id}`, style: "primary" },
+      { label: "Editar", href: `/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/capataz` },
+      { label: "Ver PDF", href: `/presupuestos/${budget.id}/pdf?preview=1` }
+    ]
+  };
+}
+
+function invoiceQueryCard(title: string, invoice: {
+  id: string;
+  numero: string;
+  concepto: string;
+  importeBase: number;
+  iva: number;
+  total: number;
+  pagado: number;
+  pendiente: number;
+  estado: string;
+  fechaEmision: Date;
+  client: { nombre: string };
+  work: { titulo: string } | null;
+}): ChatActionResult {
+  return {
+    type: "found",
+    entityType: "invoice",
+    entityId: invoice.id,
+    title,
+    summary: {
+      numero: invoice.numero,
+      cliente: invoice.client.nombre,
+      obra: invoice.work?.titulo ?? invoice.concepto,
+      base: invoice.importeBase,
+      iva: invoice.iva,
+      total: invoice.total,
+      pagado: invoice.pagado,
+      pendiente: invoice.pendiente,
+      estado: invoice.estado,
+      fecha: formatDateShort(invoice.fechaEmision)
+    },
+    actions: [
+      { label: "Ver factura", href: `/dinero/${invoice.id}`, style: "primary" },
+      { label: "Editar", href: `/gestion?tipo=factura&id=${invoice.id}&returnTo=/capataz` },
+      { label: "Ver PDF", href: `/dinero/${invoice.id}/pdf?preview=1` }
+    ]
+  };
+}
+
+async function clientForQuery(clientName?: string) {
+  if (!clientName) return null;
+  const matches = await findClientMatches(clientName);
+  return matches[0] ?? null;
+}
+
+function noClientResult(clientName: string): ChatCommandResult {
+  return {
+    handled: true,
+    text: `No encuentro ningún cliente llamado ${clientName}. No he creado ni modificado nada.`
+  };
+}
+
+function budgetPeriodWhere(period?: ChatIntentClassification["period"]) {
+  const range = dateRangeForPeriod(period);
+  return range ? { fechaCreacion: range } : {};
+}
+
+function invoicePeriodWhere(period?: ChatIntentClassification["period"]) {
+  const range = dateRangeForPeriod(period);
+  return range ? { fechaEmision: range } : {};
+}
+
+function expensePeriodWhere(period?: ChatIntentClassification["period"]) {
+  const range = dateRangeForPeriod(period);
+  return range ? { fecha: range } : {};
+}
+
+function dateRangeForPeriod(period?: ChatIntentClassification["period"]) {
+  const now = new Date();
+  if (!period || period === "all") return null;
+  if (period === "this_week") {
+    const start = startOfDay(now);
+    const day = start.getDay() || 7;
+    start.setDate(start.getDate() - day + 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    return { gte: start, lt: end };
+  }
+  if (period === "this_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return { gte: start, lt: end };
+  }
+  if (period === "last_month") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { gte: start, lt: end };
+  }
+  const start = new Date(now.getFullYear(), 0, 1);
+  const end = new Date(now.getFullYear() + 1, 0, 1);
+  return { gte: start, lt: end };
+}
+
+function periodText(period: ChatIntentClassification["period"], label: string) {
+  if (period === "this_week") return `Resumen de ${label} de esta semana`;
+  if (period === "this_month") return `Resumen de ${label} de este mes`;
+  if (period === "last_month") return `Resumen de ${label} del mes pasado`;
+  if (period === "this_year") return `Resumen de ${label} de este año`;
+  return `Resumen de ${label}`;
+}
+
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function formatDateShort(date: Date) {
+  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
+
+function lowerInitial(value: string) {
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
+function pendingCountLabel(label: string, count: number) {
+  if (count !== 1) return lowerInitial(label);
+  const singular: Record<string, string> = {
+    "Presupuestos pendientes": "presupuesto pendiente",
+    "Presupuestos pendientes de enviar": "presupuesto pendiente de enviar",
+    "Presupuestos pendientes de aceptar": "presupuesto pendiente de aceptar",
+    "Facturas pendientes de cobro": "factura pendiente de cobro",
+    "Facturas vencidas": "factura vencida",
+    "Pagos parciales": "pago parcial",
+    "Visitas pendientes": "visita pendiente",
+    "Visitas por confirmar": "visita por confirmar",
+    "Seguimientos pendientes": "seguimiento pendiente",
+    "Recordatorios pendientes": "recordatorio pendiente",
+    "Clientes con datos incompletos": "cliente con datos incompletos",
+    "Obras activas con tareas pendientes": "obra activa con tareas pendientes",
+    "Documentos pendientes de completar": "documento pendiente de completar"
+  };
+  return singular[label] ?? lowerInitial(label);
+}
+
+function clientLooksIncomplete(client: { telefono: string | null; email?: string | null; direccion: string | null; estado?: string | null; notas?: string | null }) {
+  const notes = normalizeQueryText(client.notas ?? "");
+  return client.estado === "pendiente_datos"
+    || !client.telefono
+    || client.telefono === "Pendiente"
+    || !client.email
+    || !client.direccion
+    || client.direccion === "Dirección pendiente"
+    || (!notes.includes("nif") && !notes.includes("cif"));
 }
 
 async function continueLatestPendingTask(): Promise<ChatCommandResult> {

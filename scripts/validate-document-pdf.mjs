@@ -75,9 +75,63 @@ const forbidden = ["borrador interno", "plantilla", "creado desde chat", "revisa
 const missing = required.filter((item) => !text.includes(item));
 const foundForbidden = forbidden.filter((item) => text.toLowerCase().includes(item.toLowerCase()));
 
-if (missing.length || foundForbidden.length) {
-  console.error("[document-pdf] FAIL", { missing, foundForbidden });
+const longPdf = createProfessionalDocumentPdf({
+  kind: "invoice",
+  documentNumber: "F-TEST-002",
+  title: "Certificación completa de obra",
+  status: "emitida",
+  issueDate: new Date("2026-07-11T10:00:00Z"),
+  dueDate: new Date("2026-08-11T10:00:00Z"),
+  company: {
+    name: "Empresa Demo",
+    legalName: "Empresa Demo SL",
+    taxId: "B00000000",
+    address: "Calle Fiscal 1, Palma",
+    contact: "600000000 · demo@example.com",
+    iban: "ES00 0000 0000 0000 0000 0000",
+    brandColor: "#f6c945"
+  },
+  client: {
+    name: "Cliente Demo",
+    taxId: "00000000T",
+    address: "Calle Cliente 2",
+    contact: "cliente@example.com"
+  },
+  work: {
+    title: "Obra completa",
+    address: "Calle Obra 3"
+  },
+  lines: Array.from({ length: 36 }, (_, index) => ({
+    codigo: `LIN-${String(index + 1).padStart(3, "0")}`,
+    descripcion: `Partida profesional ${index + 1} con descripción suficiente para validar salto de página sin cortar textos ni perder columnas`,
+    cantidad: 1,
+    unidad: "ud",
+    precioUnitario: 100 + index,
+    descuento: index % 3 === 0 ? 5 : 0,
+    ivaPercent: 21,
+    total: 95 + index,
+    categoria: "Obra"
+  })),
+  totals: {
+    base: 4050,
+    discount: 60,
+    ivaPercent: 21,
+    ivaTotal: 837.9,
+    total: 4827.9,
+    paid: 1200,
+    pending: 3627.9
+  },
+  conditions: "Condiciones profesionales visibles.",
+  paymentMethod: "Transferencia bancaria."
+});
+
+const longText = longPdf.toString("latin1");
+const pageCount = (longText.match(/\/Type \/Page\b/g) ?? []).length;
+const longFoundForbidden = forbidden.filter((item) => longText.toLowerCase().includes(item.toLowerCase()));
+
+if (missing.length || foundForbidden.length || pageCount < 2 || longFoundForbidden.length) {
+  console.error("[document-pdf] FAIL", { missing, foundForbidden, pageCount, longFoundForbidden });
   process.exit(1);
 }
 
-console.log("[document-pdf] OK presupuesto profesional sin textos internos");
+console.log("[document-pdf] OK presupuesto/factura profesional sin textos internos y multipágina");
