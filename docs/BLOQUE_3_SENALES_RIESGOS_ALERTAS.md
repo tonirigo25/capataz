@@ -140,6 +140,8 @@ El chat usa `getBusinessSignals` para:
 - “qué cliente requiere atención”
 - “qué obra debo revisar”
 - “qué facturas son prioritarias”
+- “por qué esta alerta es importante”
+- “cuántas alertas críticas tengo”
 
 Las respuestas son de solo lectura, enlazan datos reales y declaran que no se ha cambiado ningún registro.
 
@@ -199,6 +201,18 @@ Rutas a validar:
 - `/tesoreria`
 
 La validación de persistencia debe usar una señal real no crítica. No debe modificar facturas, pagos, obras, clientes ni importes para generar datos.
+
+Resultado de cierre, 2026-07-11:
+
+- Commits de cierre: `3b5ad3d` para motor/centro/migración y `680a26d` para las consultas finales de chat.
+- Railway usa `preDeployCommand: npm run db:deploy`.
+- `npx prisma migrate status` queda al día con 10 migraciones aplicadas.
+- `/api/status`, `/alertas`, `/hoy`, `/capataz`, `/clientes`, `/obras`, `/tesoreria` y `/alertas?estado=active&nivel=critico` devolvieron 200.
+- Producción cargó 21 señales activas: 0 críticas y 4 importantes.
+- La señal prioritaria de producción tiene explicación y acciones sugeridas.
+- Posponer, descartar y resolver persistieron sobre una señal real no crítica y se restauró su estado original.
+- El chat clasificó las 7 consultas de señales contra datos reales sin crear mensajes ni mutar entidades.
+- Tests específicos, regresión principal, `typecheck` y `build` pasaron antes del despliegue.
 
 ## Limitaciones
 
