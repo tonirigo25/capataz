@@ -230,12 +230,90 @@ Scripts nuevos:
 Validacion local ejecutada:
 
 - `npx prisma validate`: OK.
-- `npx prisma migrate status`: migracion `20260711200000_treasury_cashflow_profitability` pendiente en la base configurada; no se aplico desde esta rama.
+- `npx prisma migrate status`: antes del deploy, migracion `20260711200000_treasury_cashflow_profitability` pendiente.
 - `npx prisma generate`: OK.
 - `npm run typecheck`: OK.
 - `npm run test:treasury-chat`: OK.
 - `npm run test:treasury-integration`: OK.
 - `npm run build`: OK.
+
+Validacion de release ejecutada:
+
+- Suite de tesoreria completa: OK.
+- Regresion de negocio, dashboard, CRM, obras, chat, PDF y AI fixture: OK.
+- `npm run typecheck`: OK.
+- `npm run build`: OK.
+- Hotfix de chat para `cuanto pagare este mes`: `test:treasury-chat`, `test:treasury-integration`, `typecheck` y `build` OK.
+
+## Cierre de release
+
+Rama de trabajo:
+
+- `codex/treasury-cashflow-profitability`
+
+Commits:
+
+- Commit funcional de rama: `175f858` (`feat: add treasury cashflow profitability module`).
+- Commit de hotfix en `main`: `ee68c5a` (`fix: classify treasury payment forecast query`).
+
+Git:
+
+- `origin/main` actualizado sin force push.
+- No se incluyeron `.env`, `node_modules`, `.next`, temporales ni secretos.
+- No se uso `git reset --hard`, `git clean -fd` ni `git push --force`.
+
+Railway:
+
+- `railway.json` usa `buildCommand: npm run build`.
+- `railway.json` usa `preDeployCommand: npm run db:deploy`.
+- CLI local de Railway no autenticado, por lo que el estado se valido por rutas de produccion y estado de migraciones.
+- Durante el despliegue, `/tesoreria` paso de 404 a 200 y `npx prisma migrate status` paso a `Database schema is up to date!`.
+- Migracion aplicada en la base configurada: `20260711200000_treasury_cashflow_profitability`.
+
+Produccion validada solo en:
+
+- `https://capataz-production.up.railway.app`
+
+Rutas validadas:
+
+- `/api/status`: 200.
+- `/tesoreria`: 200.
+- `/hoy`: 200.
+- `/clientes`: 200.
+- `/clientes/cmr60ximn0003p60p7846qcgd`: 200.
+- `/obras`: 200.
+- `/obras/cmqr2rg9o000co50pc8szpefu`: 200.
+- `/capataz`: 200.
+- `/tesoreria/export?tipo=forecast`: 200, `text/csv`.
+- `/presupuestos/cmqo8wdst0003n201muzu1r4o/pdf`: 200, `application/pdf`.
+- `/dinero/cmqr2s0me000mo50pu9ofa65y/pdf`: 200, `application/pdf`.
+
+Estado de datos en produccion:
+
+- No hay cuentas financieras configuradas.
+- `/tesoreria` muestra estado vacio correcto y no inventa saldo.
+- No se crearon cuentas, saldos, movimientos, transferencias, recurrentes ni previsiones manuales de prueba.
+
+Validacion navegador:
+
+- `/tesoreria`, `/hoy`, Cliente 360, Obra 360 y `/capataz` cargan con cuerpo visible.
+- Consola sin errores nuevos en esas rutas durante la validacion.
+
+Chat en produccion:
+
+- `como esta mi caja`: responde con escenario base, sin cuentas configuradas y sin saldo calculable.
+- `cuanto cobrare esta semana`: responde con cobros previstos y aclara que facturas pendientes no son dinero disponible.
+- `cuanto pagare este mes`: responde con pagos previstos 0 y explica gastos pendientes sin fecha.
+- `como estara mi caja dentro de 30 dias`: responde forecast a 30 dias, saldo sin calculo por falta de cuentas y supuestos.
+- `que obra consume mas caja`: responde sin obras con flujo de caja negativo con los datos registrados.
+- `que obra tiene mejor margen`: responde ranking de obra rentable sin mutar datos.
+- `que cliente tarda mas en pagar`: responde plazo medio de cobro.
+- `cual es mi punto de equilibrio`: indica que no hay datos suficientes clasificados.
+- `hazme un escenario conservador`: responde escenario conservador y confirma que no modifica datos reales.
+
+Decision:
+
+- LISTO para Prompt 3 del Bloque 3.
 
 ## Limitaciones
 
