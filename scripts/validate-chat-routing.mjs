@@ -31,6 +31,7 @@ function resetState() {
         direccion: "Calle Alta 1",
         tipo: "Empresa",
         estado: "activo",
+        archivadoAt: null,
         origen: "fixture",
         notas: "CIF A00000001",
         ultimaInteraccion: now,
@@ -45,6 +46,7 @@ function resetState() {
         direccion: "Calle Deuda 2",
         tipo: "Empresa",
         estado: "activo",
+        archivadoAt: null,
         origen: "fixture",
         notas: "CIF B00000002",
         ultimaInteraccion: now,
@@ -59,6 +61,7 @@ function resetState() {
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
+        archivadoAt: null,
         origen: "fixture",
         notas: "",
         ultimaInteraccion: now,
@@ -194,6 +197,8 @@ function resetState() {
       { id: "payment-deuda", facturaId: "invoice-deuda", clienteId: "client-deuda", importe: 1000, fecha: past },
       { id: "payment-paid", facturaId: "invoice-paid", clienteId: "client-deuda", importe: 1000, fecha: past }
     ],
+    expenses: [],
+    documents: [],
     events: [
       {
         id: "event-visit",
@@ -454,7 +459,10 @@ const mockPrisma = {
     }
   },
   expense: {
-    findMany: async () => []
+    findMany: async (args = {}) => applyFindMany("expense", state.expenses, args)
+  },
+  document: {
+    findMany: async (args = {}) => applyFindMany("document", state.documents, args)
   },
   empresa: {
     findFirst: async () => ({ ivaDefecto: 21, condicionesPorDefecto: "Condiciones de prueba" })
@@ -585,16 +593,16 @@ async function testHighestBudget() {
 async function testOutstandingDebt() {
   resetState();
   const result = await runMessage("cuánto me deben");
-  expectRoute(result, { intentKind: "aggregate_query", handler: "queryOutstandingInvoices" });
+  expectRoute(result, { intentKind: "aggregate_query", handler: "queryBusinessMetric/outstanding" });
   expectNoQueryMutation(result);
-  expect(result.text.includes("2 facturas pendientes de cobro"), "outstanding debt did not count open invoices", result.text);
+  expect(/pendiente de cobro/i.test(result.text), "outstanding debt did not use BI pending collection wording", result.text);
   expect(result.text.includes("11.000"), "outstanding debt did not calculate invoices minus payments", result.text);
 }
 
 async function testClientHighestDebt() {
   resetState();
   const result = await runMessage("qué cliente me debe más");
-  expectRoute(result, { intentKind: "comparison_query", handler: "queryClientHighestDebt" });
+  expectRoute(result, { intentKind: "comparison_query", handler: "queryBusinessClientHighestDebt" });
   expectNoQueryMutation(result);
   expect(result.text.includes("Cliente Alto"), "client highest debt did not group by client", result.text);
   expect(/7\.000|7000/.test(result.text), "client highest debt did not use computed open balance", result.text);
@@ -694,36 +702,66 @@ function applyFindMany(model, rows, args = {}) {
 }
 
 function includeModel(model, row, include, select) {
+  if (model === "client") return includeClient(row, include, select);
   if (model === "budget") return includeBudget(row, include, select);
   if (model === "invoice") return includeInvoice(row, include, select);
   if (model === "work") return includeWork(row, include, select);
+  if (model === "payment") return includePayment(row, include, select);
+  if (model === "expense") return includeExpense(row, include, select);
   if (model === "event") return includeEvent(row, include, select);
   if (model === "reminder") return includeReminder(row, include, select);
   if (model === "chatConversation") return includeChatConversation(row, include, select);
   return selectMaybe(clone(row), select);
 }
 
+function includeClient(row, include, select) {
+  if (!row) return null;
+  const item = clone(row);
+  if (include?.invoices || select?.invoices) item.invoices = state.invoices.filter((invoice) => invoice.clienteId === row.id).map((invoice) => includeInvoice(invoice, select?.invoices?.include, select?.invoices?.select));
+  if (include?.payments || select?.payments) item.payments = clone(state.payments.filter((payment) => payment.clienteId === row.id));
+  if (include?.works || select?.works) item.works = clone(state.works.filter((work) => work.clienteId === row.id));
+  return selectMaybe(item, select);
+}
+
 function includeBudget(row, include, select) {
   if (!row) return null;
   const item = clone(row);
-  if (include?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId));
-  if (include?.work) item.work = clone(state.works.find((work) => work.id === row.obraId) ?? null);
+  if (include?.client || select?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId));
+  if (include?.work || select?.work) item.work = clone(state.works.find((work) => work.id === row.obraId) ?? null);
   return selectMaybe(item, select);
 }
 
 function includeInvoice(row, include, select) {
   if (!row) return null;
   const item = clone(row);
-  if (include?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId));
-  if (include?.work) item.work = clone(state.works.find((work) => work.id === row.obraId) ?? null);
-  if (include?.payments) item.payments = clone(state.payments.filter((payment) => payment.facturaId === row.id));
+  if (include?.client || select?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId));
+  if (include?.work || select?.work) item.work = clone(state.works.find((work) => work.id === row.obraId) ?? null);
+  if (include?.payments || select?.payments) item.payments = clone(state.payments.filter((payment) => payment.facturaId === row.id));
   return selectMaybe(item, select);
 }
 
 function includeWork(row, include, select) {
   if (!row) return null;
   const item = clone(row);
-  if (include?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId));
+  if (include?.client || select?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId));
+  if (include?.invoices || select?.invoices) item.invoices = state.invoices.filter((invoice) => invoice.obraId === row.id).map((invoice) => includeInvoice(invoice, select?.invoices?.include, select?.invoices?.select));
+  if (include?.expenses || select?.expenses) item.expenses = clone(state.expenses.filter((expense) => expense.obraId === row.id));
+  if (include?.budgets || select?.budgets) item.budgets = clone(state.budgets.filter((budget) => budget.obraId === row.id));
+  return selectMaybe(item, select);
+}
+
+function includePayment(row, include, select) {
+  if (!row) return null;
+  const item = clone(row);
+  if (include?.invoice || select?.invoice) item.invoice = clone(state.invoices.find((invoice) => invoice.id === row.facturaId) ?? null);
+  if (include?.client || select?.client) item.client = clone(state.clients.find((client) => client.id === row.clienteId) ?? null);
+  return selectMaybe(item, select);
+}
+
+function includeExpense(row, include, select) {
+  if (!row) return null;
+  const item = clone(row);
+  if (include?.work || select?.work) item.work = includeWork(state.works.find((work) => work.id === row.obraId) ?? null, select?.work?.include, select?.work?.select);
   return selectMaybe(item, select);
 }
 
@@ -792,6 +830,8 @@ function matchesWhere(row, where) {
 function matchesValue(actual, expected) {
   if (expected && typeof expected === "object" && !(expected instanceof Date) && !Array.isArray(expected)) {
     if ("in" in expected) return expected.in.includes(actual);
+    if ("notIn" in expected) return !expected.notIn.includes(actual);
+    if ("not" in expected && actual === expected.not) return false;
     if ("gte" in expected && !(actual >= expected.gte)) return false;
     if ("gt" in expected && !(actual > expected.gt)) return false;
     if ("lte" in expected && !(actual <= expected.lte)) return false;

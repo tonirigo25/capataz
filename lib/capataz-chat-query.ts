@@ -46,7 +46,18 @@ export type ChatQueryAction =
   | "client_payments"
   | "clients_missing_tax_id"
   | "project_highest_expenses"
-  | "recent_documents";
+  | "recent_documents"
+  | "business_health"
+  | "business_collected"
+  | "business_outstanding"
+  | "business_overdue"
+  | "business_profit"
+  | "business_margin"
+  | "business_best_work"
+  | "business_slowest_client"
+  | "business_quote_conversion"
+  | "business_compare_periods"
+  | "business_review_today";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -127,12 +138,51 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
     return { kind: "navigation", confidence: 0.76, rule: "navigation" };
   }
 
-  if (/(compara|comparar|diferencia|frente a|versus|vs)\b/.test(normalized)) {
+  if (/(compara|comparar|comparame|diferencia|frente a|versus|vs)\b/.test(normalized)) {
+    if (/(mes|semana|trimestre|ano|año|negocio|facturacion|facturación|cobros|gastos|beneficio)\b/.test(normalized)) {
+      return { kind: "comparison_query", action: "business_compare_periods", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "business_compare_periods" };
+    }
     return { kind: "comparison_query", confidence: 0.82, period, rule: "comparison" };
   }
 
   const clientName = extractClientFromQuery(message, normalized);
   const amount = extractQueryAmount(normalized);
+
+  if (/(como va|cómo va|salud|estado|situacion|situación)\b/.test(normalized) && /(negocio|empresa|capataz)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_health", confidence: 0.94, period: period === "all" ? "this_month" : period, rule: "business_health" };
+  }
+
+  if (/(que deberia revisar|qué debería revisar|que revisar|prioridades|puntos de atencion|puntos de atención)\b/.test(normalized)) {
+    return { kind: "database_query", action: "business_review_today", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "business_review_today" };
+  }
+
+  if (/(cliente|clientes)\b/.test(normalized) && /(tarda mas en pagar|tarda más en pagar|plazo medio|mas lento|más lento)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_slowest_client", confidence: 0.9, period, rule: "business_slowest_client" };
+  }
+
+  if (/(obra|obras)\b/.test(normalized) && /(mas rentable|más rentable|mayor beneficio|mejor margen)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_best_work", confidence: 0.9, period, rule: "business_best_work" };
+  }
+
+  if (/(conversion|conversión|tasa de conversion|tasa de conversión|presupuestos aceptados|cuantos presupuestos he aceptado|cuántos presupuestos he aceptado)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_quote_conversion", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "business_quote_conversion" };
+  }
+
+  if (/(beneficio|ganancia|rentabilidad)\b/.test(normalized) && /(cuanto|cuánto|cual|cuál|tengo|hay|negocio)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_profit", confidence: 0.88, period: period === "all" ? "this_month" : period, rule: "business_profit" };
+  }
+
+  if (/(margen)\b/.test(normalized) && /(cuanto|cuánto|cual|cuál|tengo|hay)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_margin", confidence: 0.88, period: period === "all" ? "this_month" : period, rule: "business_margin" };
+  }
+
+  if (/(cobrado|cobros|he cobrado)\b/.test(normalized) && /(cuanto|cuánto|total|este|mes|semana|ano|año)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_collected", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "business_collected" };
+  }
+
+  if (/(vencido|vencida|vencidas|esta vencido|está vencido)\b/.test(normalized) && /(cuanto|cuánto|total|pendiente)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "business_overdue", confidence: 0.9, period: period === "all" ? "this_month" : period, rule: "business_overdue" };
+  }
 
   if (!/(factura|facturas)\b/.test(normalized) && /(maximo presupuesto|presupuesto.*(mas alto|mayor importe|mas grande|mas importe)|cual tiene mas importe)\b/.test(normalized)) {
     return { kind: "aggregate_query", action: "highest_budget", confidence: 0.93, period, clientName, rule: "highest_budget" };
@@ -155,7 +205,7 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
     if (/(mas alto|mayor|mas grande|maxima|importe mas alto|de mas importe)\b/.test(normalized)) return { kind: "aggregate_query", action: "highest_invoice", confidence: 0.94, period, clientName, rule: "highest_invoice" };
     if (/(mas bajo|menor|mas pequena|minima|importe mas bajo)\b/.test(normalized)) return { kind: "aggregate_query", action: "lowest_invoice", confidence: 0.9, period, clientName, rule: "lowest_invoice" };
     if (/(cuantos|cuantas|cantidad|numero)\b/.test(normalized) && /(pendiente|pendientes|cobro|cobrar)\b/.test(normalized)) return { kind: "aggregate_query", action: "pending_invoices_count", confidence: 0.9, period, clientName, rule: "pending_invoices_count" };
-    if (/(cuanto|cuanta|total).*(deben|debe|pendiente|cobrar)|cuanto me deben|pendiente de cobro|pendiente cobrar|pendiente de cobrar|deuda total|cobros pendientes/.test(normalized)) return { kind: "aggregate_query", action: "outstanding_invoices", confidence: 0.95, period, clientName, rule: "outstanding_invoices" };
+    if (/(cuanto|cuanta|total).*(deben|debe|pendiente|cobrar)|cuanto me deben|pendiente de cobro|pendiente cobrar|pendiente de cobrar|deuda total|cobros pendientes/.test(normalized)) return { kind: "aggregate_query", action: "business_outstanding", confidence: 0.95, period, clientName, rule: "business_outstanding" };
     if (/(vencida|vencidas|vencido|vencidos)\b/.test(normalized)) return { kind: "database_query", action: "overdue_invoices", confidence: 0.91, period, clientName, rule: "overdue_invoices" };
   }
 

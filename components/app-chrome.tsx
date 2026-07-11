@@ -9,6 +9,7 @@ import {
   BellRing,
   Bot,
   Activity,
+  BarChart3,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -41,6 +42,7 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
     title: "Operación",
     items: [
       { href: "/hoy", label: "Hoy", icon: Home },
+      { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
       { href: "/actividad", label: "Actividad", icon: Activity },
       { href: "/capataz", label: "Capataz IA", icon: Bot }
@@ -81,6 +83,7 @@ const quickActions = [
 
 const titles = [
   ["/hoy", "Hoy"],
+  ["/inteligencia", "Inteligencia"],
   ["/agenda", "Agenda"],
   ["/actividad", "Actividad"],
   ["/clientes", "Clientes"],

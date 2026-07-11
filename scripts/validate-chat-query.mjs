@@ -96,11 +96,11 @@ const cases = [
   },
   {
     text: "cuánto me deben",
-    expected: { kind: "aggregate_query", action: "outstanding_invoices" }
+    expected: { kind: "aggregate_query", action: "business_outstanding" }
   },
   {
     text: "cuánto tengo pendiente de cobrar",
-    expected: { kind: "aggregate_query", action: "outstanding_invoices" }
+    expected: { kind: "aggregate_query", action: "business_outstanding" }
   },
   {
     text: "cuántas facturas tengo pendientes de cobro",
@@ -121,6 +121,26 @@ const cases = [
   {
     text: "cuánto he facturado este mes",
     expected: { kind: "aggregate_query", action: "revenue_summary", period: "this_month" }
+  },
+  {
+    text: "cuánto he cobrado este mes",
+    expected: { kind: "aggregate_query", action: "business_collected", period: "this_month" }
+  },
+  {
+    text: "cómo va mi negocio",
+    expected: { kind: "aggregate_query", action: "business_health", period: "this_month" }
+  },
+  {
+    text: "qué obra es más rentable",
+    expected: { kind: "aggregate_query", action: "business_best_work" }
+  },
+  {
+    text: "qué cliente tarda más en pagar",
+    expected: { kind: "aggregate_query", action: "business_slowest_client" }
+  },
+  {
+    text: "compárame este mes con el anterior",
+    expected: { kind: "comparison_query", action: "business_compare_periods", period: "this_month" }
   },
   {
     text: "cuánto he gastado esta semana",

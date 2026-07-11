@@ -40,6 +40,8 @@ import {
   type CapatazAIResult
 } from "@/lib/ai/capataz-ai";
 import { getAgendaItems, itemsForDay as agendaItemsForDay, itemsBetween as agendaItemsBetween, addDays as agendaAddDays, startOfDay as agendaStartOfDay } from "@/lib/agenda";
+import { getBusinessIntelligenceSummary, metricDefinitionText } from "@/lib/business-intelligence";
+import type { BusinessPeriodId } from "@/lib/business-periods";
 import { getNotificationItems } from "@/lib/notifications";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
@@ -97,7 +99,7 @@ export type ChatActionButton = {
 
 export type ChatActionResult = {
   type: "created" | "updated" | "registered" | "generated" | "failed" | "partial" | "found";
-  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf" | "query";
+  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf" | "query" | "business" | "business_metric";
   entityId?: string;
   title: string;
   summary: Record<string, string | number | boolean | null>;
@@ -487,7 +489,7 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
     case "lowest_invoice":
       return withQueryDiagnostics(await queryInvoiceByAmount("asc", intent), text, intent, "queryInvoiceByAmount/lowest", "invoice.findFirst:total_asc");
     case "outstanding_invoices":
-      return withQueryDiagnostics(await queryOutstandingInvoices(intent), text, intent, "queryOutstandingInvoices", "invoice.findMany+payments:open_balance");
+      return withQueryDiagnostics(await queryBusinessMetric(intent, "outstanding"), text, intent, "queryBusinessMetric/outstanding", "business_intelligence:outstanding");
     case "pending_invoices_count":
       return withQueryDiagnostics(await queryPendingInvoicesCount(intent), text, intent, "queryPendingInvoicesCount", "invoice.findMany+payments:count_open_balance");
     case "pending_budgets_count":
@@ -495,11 +497,33 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
     case "overdue_invoices":
       return withQueryDiagnostics(await queryPendingTaskDetails("overdue_invoices", context), text, intent, "queryPendingTaskDetails", "invoice.findMany+payments:overdue");
     case "client_highest_debt":
-      return withQueryDiagnostics(await queryClientHighestDebt(context), text, intent, "queryClientHighestDebt", "invoice.findMany+payments:group_by_client");
+      return withQueryDiagnostics(await queryBusinessClientHighestDebt(intent), text, intent, "queryBusinessClientHighestDebt", "business_intelligence:client_debt");
     case "revenue_summary":
-      return withQueryDiagnostics(await queryRevenueSummary(intent), text, intent, "queryRevenueSummary", "invoice.findMany:period_summary");
+      return withQueryDiagnostics(await queryBusinessMetric(intent, "invoiced"), text, intent, "queryBusinessMetric/invoiced", "business_intelligence:invoiced");
     case "expenses_summary":
-      return withQueryDiagnostics(await queryExpensesSummary(intent), text, intent, "queryExpensesSummary", "expense.findMany:period_summary");
+      return withQueryDiagnostics(await queryBusinessMetric(intent, "expenses"), text, intent, "queryBusinessMetric/expenses", "business_intelligence:expenses");
+    case "business_health":
+      return withQueryDiagnostics(await queryBusinessHealth(intent), text, intent, "queryBusinessHealth", "business_intelligence:health");
+    case "business_collected":
+      return withQueryDiagnostics(await queryBusinessMetric(intent, "collected"), text, intent, "queryBusinessMetric/collected", "business_intelligence:collected");
+    case "business_outstanding":
+      return withQueryDiagnostics(await queryBusinessMetric(intent, "outstanding"), text, intent, "queryBusinessMetric/outstanding", "business_intelligence:outstanding");
+    case "business_overdue":
+      return withQueryDiagnostics(await queryBusinessMetric(intent, "overdue"), text, intent, "queryBusinessMetric/overdue", "business_intelligence:overdue");
+    case "business_profit":
+      return withQueryDiagnostics(await queryBusinessProfit(intent), text, intent, "queryBusinessProfit", "business_intelligence:profit");
+    case "business_margin":
+      return withQueryDiagnostics(await queryBusinessMargin(intent), text, intent, "queryBusinessMargin", "business_intelligence:margin");
+    case "business_best_work":
+      return withQueryDiagnostics(await queryBusinessBestWork(intent), text, intent, "queryBusinessBestWork", "business_intelligence:work_profitability");
+    case "business_slowest_client":
+      return withQueryDiagnostics(await queryBusinessSlowestClient(intent), text, intent, "queryBusinessSlowestClient", "business_intelligence:client_collection_days");
+    case "business_quote_conversion":
+      return withQueryDiagnostics(await queryBusinessQuoteConversion(intent), text, intent, "queryBusinessQuoteConversion", "business_intelligence:quote_conversion");
+    case "business_compare_periods":
+      return withQueryDiagnostics(await queryBusinessComparison(intent), text, intent, "queryBusinessComparison", "business_intelligence:period_compare");
+    case "business_review_today":
+      return withQueryDiagnostics(await queryBusinessReviewToday(intent), text, intent, "queryBusinessReviewToday", "business_intelligence:deterministic_alerts");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "paused_projects":
@@ -578,8 +602,19 @@ function handlerNameForIntent(intent: ChatIntentClassification) {
   if (intent.action === "highest_budget") return "queryBudgetByAmount/highest";
   if (intent.action === "lowest_budget") return "queryBudgetByAmount/lowest";
   if (intent.action === "budget_by_amount") return "queryBudgetByExactAmount";
-  if (intent.action === "outstanding_invoices") return "queryOutstandingInvoices";
-  if (intent.action === "client_highest_debt") return "queryClientHighestDebt";
+  if (intent.action === "outstanding_invoices") return "queryBusinessMetric/outstanding";
+  if (intent.action === "client_highest_debt") return "queryBusinessClientHighestDebt";
+  if (intent.action === "business_health") return "queryBusinessHealth";
+  if (intent.action === "business_collected") return "queryBusinessMetric/collected";
+  if (intent.action === "business_outstanding") return "queryBusinessMetric/outstanding";
+  if (intent.action === "business_overdue") return "queryBusinessMetric/overdue";
+  if (intent.action === "business_profit") return "queryBusinessProfit";
+  if (intent.action === "business_margin") return "queryBusinessMargin";
+  if (intent.action === "business_best_work") return "queryBusinessBestWork";
+  if (intent.action === "business_slowest_client") return "queryBusinessSlowestClient";
+  if (intent.action === "business_quote_conversion") return "queryBusinessQuoteConversion";
+  if (intent.action === "business_compare_periods") return "queryBusinessComparison";
+  if (intent.action === "business_review_today") return "queryBusinessReviewToday";
   if (intent.action === "work_highest_revenue") return "queryWorkHighestRevenue";
   if (intent.action === "work_lowest_margin") return "queryWorkLowestMargin";
   if (intent.action === "paused_projects") return "queryWorksByStatus/paused";
@@ -954,6 +989,228 @@ async function queryClientHighestDebt(context: ChatCommandContext | null): Promi
     },
     text: `El cliente que más debe ahora mismo es ${top.name}, con ${formatEuros(top.total)} pendiente.`
   };
+}
+
+async function queryBusinessHealth(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const attention = summary.alerts.slice(0, 3);
+  return {
+    handled: true,
+    diagnostics: { resultCount: attention.length },
+    result: {
+      type: "found",
+      entityType: "business",
+      title: "Salud del negocio",
+      summary: {
+        periodo: summary.period.label,
+        facturado: summary.money.invoiced,
+        cobrado: summary.money.collected,
+        pendiente: summary.money.outstanding,
+        vencido: summary.money.overdue,
+        gastos: summary.money.expenses,
+        salud: summary.health.score
+      },
+      actions: [{ label: "Abrir inteligencia", href: businessPanelHref(summary.period.id), style: "primary" }]
+    },
+    text: [
+      summary.summaryText,
+      summary.health.canCalculate ? `Índice de salud: ${summary.health.score}/100 (${summary.health.label}).` : "No hay datos suficientes para calcular el índice de salud.",
+      attention.length ? `Conviene revisar:\n${attention.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail} · ${alert.href}`).join("\n")}` : "No hay alertas deterministas relevantes ahora mismo.",
+      `Definición: ${metricDefinitionText("invoiced")}`
+    ].join("\n\n")
+  };
+}
+
+async function queryBusinessMetric(intent: ChatIntentClassification, metric: "invoiced" | "collected" | "outstanding" | "overdue" | "expenses"): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const values = {
+    invoiced: { label: "Facturado", value: summary.money.invoiced, definition: metricDefinitionText("invoiced"), href: "/dinero" },
+    collected: { label: "Cobrado", value: summary.money.collected, definition: metricDefinitionText("collected"), href: "/dinero" },
+    outstanding: { label: "Pendiente de cobro", value: summary.money.outstanding, definition: metricDefinitionText("outstanding"), href: "/dinero?filtro=pendientes" },
+    overdue: { label: "Vencido", value: summary.money.overdue, definition: metricDefinitionText("overdue"), href: "/dinero?filtro=vencidas" },
+    expenses: { label: "Gastos", value: summary.money.expenses, definition: metricDefinitionText("expenses"), href: "/gastos-materiales" }
+  };
+  const item = values[metric];
+  return {
+    handled: true,
+    diagnostics: { resultCount: 1 },
+    result: {
+      type: "found",
+      entityType: "business_metric",
+      title: item.label,
+      summary: { periodo: summary.period.label, valor: item.value },
+      actions: [{ label: "Ver detalle", href: item.href, style: "primary" }, { label: "Abrir inteligencia", href: businessPanelHref(summary.period.id) }]
+    },
+    text: `${summary.period.label}: ${item.label.toLowerCase()} ${formatEuros(item.value)}.\n\n${item.definition}`
+  };
+}
+
+async function queryBusinessProfit(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  return {
+    handled: true,
+    diagnostics: { resultCount: 2 },
+    text: `${summary.period.label}: beneficio sobre facturado ${formatEuros(summary.money.profitOnInvoiced)} y beneficio sobre cobrado ${formatEuros(summary.money.profitOnCollected)}.\n\nBeneficio es ambiguo: sobre facturado usa facturas emitidas menos gastos; sobre cobrado usa pagos reales menos gastos. ${metricDefinitionText("profit_invoiced")}`,
+    result: {
+      type: "found",
+      entityType: "business_metric",
+      title: "Beneficio",
+      summary: { sobreFacturado: summary.money.profitOnInvoiced, sobreCobrado: summary.money.profitOnCollected },
+      actions: [{ label: "Abrir inteligencia", href: `${businessPanelHref(summary.period.id)}#rentabilidad`, style: "primary" }]
+    }
+  };
+}
+
+async function queryBusinessMargin(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  return {
+    handled: true,
+    diagnostics: { resultCount: 2 },
+    text: `${summary.period.label}: margen sobre facturado ${roundForChat(summary.money.marginOnInvoiced)}% y margen sobre cobrado ${roundForChat(summary.money.marginOnCollected)}%.\n\n${metricDefinitionText("margin_invoiced")}`,
+    result: {
+      type: "found",
+      entityType: "business_metric",
+      title: "Margen",
+      summary: { margenFacturado: summary.money.marginOnInvoiced, margenCobrado: summary.money.marginOnCollected },
+      actions: [{ label: "Abrir inteligencia", href: `${businessPanelHref(summary.period.id)}#rentabilidad`, style: "primary" }]
+    }
+  };
+}
+
+async function queryBusinessBestWork(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const top = summary.works.byProfit.find((work) => work.hasEnoughData);
+  if (!top) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay datos suficientes para calcular la obra más rentable." };
+  return {
+    handled: true,
+    diagnostics: { resultCount: summary.works.byProfit.length },
+    result: {
+      type: "found",
+      entityType: "project",
+      entityId: top.workId,
+      title: "Obra más rentable",
+      summary: { obra: top.title, beneficio: top.profitOnInvoiced, margen: top.marginOnInvoiced },
+      actions: [{ label: "Ver obra", href: `/obras/${top.workId}`, style: "primary" }, { label: "Abrir inteligencia", href: `${businessPanelHref(summary.period.id)}#rentabilidad` }]
+    },
+    text: `La obra más rentable es ${top.title}, de ${top.clientName}: beneficio sobre facturado ${formatEuros(top.profitOnInvoiced)} y margen ${roundForChat(top.marginOnInvoiced)}%.\n\nRentabilidad de obra = ingresos relacionados con la obra menos gastos relacionados.`
+  };
+}
+
+async function queryBusinessClientHighestDebt(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const top = summary.clients.byDebt[0];
+  if (!top || top.debt <= 0) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay clientes con saldo pendiente calculado." };
+  return {
+    handled: true,
+    diagnostics: { resultCount: summary.clients.byDebt.length },
+    result: {
+      type: "found",
+      entityType: "client",
+      entityId: top.clientId,
+      title: "Cliente con mayor saldo pendiente",
+      summary: { cliente: top.name, pendiente: top.debt },
+      actions: [{ label: "Ver cliente", href: top.href, style: "primary" }, { label: "Ver facturas", href: "/dinero?filtro=pendientes" }]
+    },
+    text: `El cliente con mayor saldo pendiente es ${top.name}, con ${formatEuros(top.debt)}. Representa ${roundForChat(top.debtShare)}% del pendiente total.`
+  };
+}
+
+async function queryBusinessSlowestClient(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const top = summary.clients.bySlowestPayment[0];
+  if (!top) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay facturas completamente cobradas suficientes para calcular plazo medio de cobro por cliente." };
+  return {
+    handled: true,
+    diagnostics: { resultCount: summary.clients.bySlowestPayment.length },
+    text: `${top.name} tiene el mayor plazo medio de cobro calculado: ${roundForChat(top.averageCollectionDays ?? 0)} días.\n\nRegla: días entre fecha de factura y fecha en que los pagos acumulados cubren el total de la factura.`,
+    result: {
+      type: "found",
+      entityType: "client",
+      entityId: top.clientId,
+      title: "Mayor plazo medio de cobro",
+      summary: { cliente: top.name, dias: top.averageCollectionDays },
+      actions: [{ label: "Ver cliente", href: top.href, style: "primary" }]
+    }
+  };
+}
+
+async function queryBusinessQuoteConversion(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const conversion = summary.quotes.conversionRate;
+  return {
+    handled: true,
+    diagnostics: { resultCount: summary.quotes.count },
+    text: conversion === null
+      ? `${summary.period.label}: no hay presupuestos decididos suficientes para calcular conversión. Aceptados: ${summary.quotes.acceptedCount}, decididos: ${summary.quotes.decidedCount}.`
+      : `${summary.period.label}: conversión de presupuestos ${roundForChat(conversion)}%. Aceptados: ${summary.quotes.acceptedCount}; decididos: ${summary.quotes.decidedCount}.\n\n${metricDefinitionText("quote_conversion")}`,
+    result: {
+      type: "found",
+      entityType: "business_metric",
+      title: "Conversión de presupuestos",
+      summary: { conversion, aceptados: summary.quotes.acceptedCount, decididos: summary.quotes.decidedCount },
+      actions: [{ label: "Abrir presupuestos", href: "/presupuestos", style: "primary" }]
+    }
+  };
+}
+
+async function queryBusinessComparison(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const rows = [
+    ["Facturado", summary.comparisons.invoiced],
+    ["Cobrado", summary.comparisons.collected],
+    ["Gastos", summary.comparisons.expenses],
+    ["Beneficio", summary.comparisons.profit]
+  ] as const;
+  return {
+    handled: true,
+    diagnostics: { resultCount: rows.length },
+    text: `${summary.period.label} frente al periodo anterior:\n${rows.map(([label, item]) => `- ${label}: ${formatEuros(item.current)} vs ${item.previous === null ? "sin dato" : formatEuros(item.previous)} (${item.label}).`).join("\n")}\n\nLa semántica de tendencia distingue gastos y vencido como métricas donde subir puede ser negativo.`,
+    result: {
+      type: "found",
+      entityType: "business_metric",
+      title: "Comparativa temporal",
+      summary: { periodo: summary.period.label },
+      actions: [{ label: "Abrir inteligencia", href: businessPanelHref(summary.period.id), style: "primary" }]
+    }
+  };
+}
+
+async function queryBusinessReviewToday(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const summary = await businessSummary(intent);
+  const alerts = summary.alerts.slice(0, 5);
+  if (!alerts.length) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay avisos deterministas relevantes para revisar ahora mismo." };
+  return {
+    handled: true,
+    diagnostics: { resultCount: alerts.length },
+    text: `Revisaría esto:\n${alerts.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail} · ${alert.href}`).join("\n")}`,
+    result: {
+      type: "found",
+      entityType: "business",
+      title: "Puntos de revisión",
+      summary: { alertas: alerts.length },
+      actions: [{ label: "Abrir inteligencia", href: businessPanelHref(summary.period.id), style: "primary" }]
+    }
+  };
+}
+
+async function businessSummary(intent: ChatIntentClassification) {
+  return getBusinessIntelligenceSummary({ period: businessPeriodForIntent(intent.period) });
+}
+
+function businessPeriodForIntent(period: ChatIntentClassification["period"]): BusinessPeriodId {
+  if (period === "this_week") return "this_week";
+  if (period === "this_month") return "this_month";
+  if (period === "last_month") return "previous_month";
+  if (period === "this_year") return "this_year";
+  return "this_month";
+}
+
+function businessPanelHref(periodId: BusinessPeriodId) {
+  return `/inteligencia?periodo=${periodId}`;
+}
+
+function roundForChat(value: number | null | undefined) {
+  return Math.round((value ?? 0) * 10) / 10;
 }
 
 async function queryRevenueSummary(intent: ChatIntentClassification): Promise<ChatCommandResult> {
