@@ -133,12 +133,27 @@ Scripts añadidos:
 - `test:proactive-chat`
 - `test:proactive-integration`
 
+## Validación De Producción
+
+Estado validado el 2026-07-12:
+
+- `main` contiene el commit `ebc1e01`.
+- GitHub/Railway marcó el despliegue `merry-quietude - capataz` como `success`.
+- `https://capataz-production.up.railway.app/api/status` responde 200 con base de datos `ok`.
+- `https://capataz-production.up.railway.app/recomendaciones/control` responde 200 sin página de error.
+- `https://capataz-production.up.railway.app/hoy` responde 200 y contiene resumen proactivo.
+- `https://capataz-production.up.railway.app/recomendaciones` responde 200 y contiene historial/enlace al control.
+- `POST /api/internal/proactive-evaluate` responde 503 sin secreto porque `PROACTIVE_CRON_SECRET`/`CRON_SECRET` no está configurado en producción.
+
+La migración se considera aplicada en producción porque el centro de control consulta las tablas nuevas y responde 200. No se pudo inspeccionar el log interno de Railway desde Codex porque Railway CLI no está instalado.
+
 ## Limitaciones
 
 - El cron de Railway queda preparado y documentado, pero debe configurarse realmente en Railway si la plataforma/proyecto no expone scheduling desde código.
+- Producción aún debe configurar `PROACTIVE_CRON_SECRET` o `CRON_SECRET` antes de activar cualquier job que invoque el endpoint.
 - La reevaluación tras mutaciones reutiliza los motores globales existentes con límites y cooldown; una fase posterior puede convertirla en selección estricta por entidad.
 - No se implementan acciones externas, OCR, machine learning ni agentes autónomos.
 
 ## Decisión
 
-PROMPT 3 NO COMPLETADO hasta integrar en `main`, desplegar en Railway, aplicar migración, configurar o documentar cron en la infraestructura real y validar producción.
+Código integrado, desplegado y validado en producción. PROMPT 3 NO COMPLETADO OPERATIVAMENTE hasta configurar `PROACTIVE_CRON_SECRET`/`CRON_SECRET` y activar/verificar el job real de Railway o equivalente.
