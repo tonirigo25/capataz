@@ -15,6 +15,7 @@ El sistema automatiza comprobaciones, no decisiones. No envía emails, WhatsApp,
 - `lib/proactive-evaluation.ts`: run central, lock, batches lógicos, métricas, resumen diario/semanal y control.
 - `app/api/internal/proactive-evaluate/route.ts`: endpoint `POST` protegido por secreto.
 - `scripts/run-proactive-evaluation.mjs`: runner HTTP de una sola ejecución, sin servidor ni handles persistentes.
+- `railway.cron.json`: configuración exclusiva del servicio cron, sin migración ni healthcheck web.
 - `app/(app)/recomendaciones/control`: centro de control interno.
 
 ## Ciclo De Vida
@@ -65,6 +66,7 @@ Autorización y contrato:
 Railway mantiene el servicio web persistente con `npm run start`. La evaluación debe ejecutarse en un servicio separado llamado `capataz-proactive-evaluator`, sin dominio, healthcheck, volumen ni réplica persistente, con:
 
 - comando: `npm run proactive:evaluate`;
+- config-as-code: `/railway.cron.json`;
 - horario: `10 * * * *`;
 - zona horaria: UTC;
 - URL no secreta: `CAPATAZ_INTERNAL_URL=https://capataz-production.up.railway.app`;
