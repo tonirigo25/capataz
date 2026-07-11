@@ -40,6 +40,13 @@ import {
   type CapatazAIResult
 } from "@/lib/ai/capataz-ai";
 import { getAgendaItems, itemsForDay as agendaItemsForDay, itemsBetween as agendaItemsBetween, addDays as agendaAddDays, startOfDay as agendaStartOfDay } from "@/lib/agenda";
+import {
+  dismissBusinessRecommendation,
+  getBusinessRecommendations,
+  snoozeBusinessRecommendation,
+  snoozeBusinessRecommendationUntil,
+  type BusinessRecommendation
+} from "@/lib/business-recommendations";
 import { getBusinessSignals, type BusinessSignal } from "@/lib/business-signals";
 import { getBusinessIntelligenceSummary, metricDefinitionText } from "@/lib/business-intelligence";
 import type { BusinessPeriodId } from "@/lib/business-periods";
@@ -573,6 +580,28 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryBusinessSignals(intent, "explain_top"), text, intent, "queryBusinessSignals/explain_top", "business_signals:explanation");
     case "signals_critical_count":
       return withQueryDiagnostics(await queryBusinessSignals(intent, "critical_count"), text, intent, "queryBusinessSignals/critical_count", "business_signals:critical_count");
+    case "recommendations_today":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "today", context), text, intent, "queryBusinessRecommendations/today", "recommendations:active_priority");
+    case "recommendations_first":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "first", context), text, intent, "queryBusinessRecommendations/first", "recommendations:first");
+    case "recommendations_quick_wins":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "quick_wins", context), text, intent, "queryBusinessRecommendations/quick_wins", "recommendations:quick_wins");
+    case "recommendations_important":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "important", context), text, intent, "queryBusinessRecommendations/important", "recommendations:important");
+    case "recommendations_client":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "client", context), text, intent, "queryBusinessRecommendations/client", "recommendations:client");
+    case "recommendations_work":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "work", context), text, intent, "queryBusinessRecommendations/work", "recommendations:work");
+    case "recommendations_explain_current":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "explain_current", context), text, intent, "queryBusinessRecommendations/explain_current", "recommendations:explanation");
+    case "recommendations_do_current":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "do_current", context), text, intent, "queryBusinessRecommendations/do_current", "recommendations:confirm");
+    case "recommendations_snooze_current":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "snooze_current", context), text, intent, "queryBusinessRecommendations/snooze_current", "recommendations:snooze");
+    case "recommendations_dismiss_current":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "dismiss_current", context), text, intent, "queryBusinessRecommendations/dismiss_current", "recommendations:dismiss");
+    case "recommendations_change_date_current":
+      return withQueryDiagnostics(await queryBusinessRecommendations(intent, "change_date_current", context), text, intent, "queryBusinessRecommendations/change_date_current", "recommendations:change_date");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
     case "paused_projects":
@@ -1633,6 +1662,283 @@ ${lines.join("\n")}
 
 Regla de orden: prioridad determinista por impacto económico, urgencia, riesgo, tiempo y dependencias. No he cambiado ningún registro.`
   };
+}
+
+type BusinessRecommendationsChatMode =
+  | "today"
+  | "first"
+  | "quick_wins"
+  | "important"
+  | "client"
+  | "work"
+  | "explain_current"
+  | "do_current"
+  | "snooze_current"
+  | "dismiss_current"
+  | "change_date_current";
+
+async function queryBusinessRecommendations(intent: ChatIntentClassification, mode: BusinessRecommendationsChatMode, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  if (mode === "explain_current" || mode === "do_current" || mode === "snooze_current" || mode === "dismiss_current" || mode === "change_date_current") {
+    return handleCurrentRecommendation(mode, context);
+  }
+
+  const params = await recommendationParamsForChat(intent, mode, context);
+  const result = await getBusinessRecommendations({ ...params, status: "active", limit: mode === "first" ? 5 : 12 });
+  const filtered = filterRecommendationsForChat(result.recommendations, mode).slice(0, mode === "first" ? 1 : 6);
+  if (!filtered.length) {
+    return {
+      handled: true,
+      diagnostics: { resultCount: 0 },
+      result: {
+        type: "found",
+        entityType: "business",
+        title: "Recomendaciones",
+        summary: { activas: result.summary.active },
+        actions: [{ label: "Abrir recomendaciones", href: "/recomendaciones", style: "primary" }]
+      },
+      text: "No tienes recomendaciones prioritarias para esa consulta ahora mismo. No he cambiado ningún registro."
+    };
+  }
+
+  const top = filtered[0];
+  const lines = filtered.map((recommendation, index) => {
+    const action = recommendation.preferredAction ? ` Acción sugerida: ${recommendation.preferredAction.label}.` : "";
+    return `${index + 1}. Prioridad ${recommendation.priority} · ${recommendation.title}: ${recommendation.summary}.${action}${recommendation.entityHref ? ` ${recommendation.entityHref}` : ""}`;
+  });
+
+  return {
+    handled: true,
+    diagnostics: { resultCount: filtered.length },
+    result: {
+      type: "found",
+      entityType: top.entityType === "client" ? "client" : top.entityType === "work" ? "project" : top.entityType === "invoice" ? "invoice" : "business",
+      entityId: top.entityId ?? undefined,
+      title: recommendationChatTitle(mode),
+      summary: {
+        recomendaciones: filtered.length,
+        prioridad: top.priority,
+        requiereConfirmacion: top.requiresConfirmation
+      },
+      actions: [
+        { label: "Abrir recomendaciones", href: "/recomendaciones", style: "primary" },
+        ...(top.entityHref ? [{ label: "Abrir entidad", href: top.entityHref, style: "secondary" as const }] : [])
+      ]
+    },
+    context: withLastRecommendationContext(context, top),
+    text: `${recommendationChatIntro(mode, result.summary.active)}
+
+${lines.join("\n")}
+
+He guardado la primera recomendación como contexto. Puedes preguntar "por qué", "recuérdamelo mañana" o "descártalo". Si una acción modifica datos, pediré confirmación. No he cambiado ningún registro.`
+  };
+}
+
+async function handleCurrentRecommendation(mode: BusinessRecommendationsChatMode, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const current = await findCurrentRecommendation(context);
+  if (!current) {
+    return {
+      handled: true,
+      diagnostics: { resultCount: 0 },
+      result: {
+        type: "found",
+        entityType: "business",
+        title: "Sin recomendación activa en contexto",
+        summary: { requiereContexto: true },
+        actions: [{ label: "Ver recomendaciones", href: "/recomendaciones", style: "primary" }]
+      },
+      text: "Necesito una recomendación concreta en contexto. Pregúntame primero qué te recomiendo hacer hoy o abre el centro de recomendaciones. No he cambiado ningún registro."
+    };
+  }
+
+  if (mode === "explain_current") {
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      result: recommendationChatResult(current),
+      context: withLastRecommendationContext(context, current),
+      text: `${current.title}
+
+Por qué: ${current.detailedExplanation}
+
+Datos usados:
+${current.evidence.dataUsed.map((item) => `- ${item}`).join("\n") || "- Señal activa y entidad relacionada."}
+
+Acción sugerida: ${current.preferredAction?.label ?? "Revisar en el centro"}.
+No he cambiado ningún registro.`
+    };
+  }
+
+  if (mode === "do_current") {
+    const action = current.preferredAction ?? current.suggestedActions[0];
+    if (!action) {
+      return { handled: true, diagnostics: { resultCount: 1 }, context: withLastRecommendationContext(context, current), text: "Esta recomendación no tiene una acción automática disponible. Puedo abrir el centro de recomendaciones para revisarla. No he cambiado ningún registro." };
+    }
+    if (action.requiresConfirmation) {
+      return {
+        handled: true,
+        diagnostics: { resultCount: 1 },
+        result: recommendationChatResult(current),
+        context: withLastRecommendationContext(context, current),
+        text: `Puedo preparar "${action.label}" para esta recomendación, pero requiere confirmación explícita antes de modificar nada.
+
+Vista previa:
+${(action.preview ?? []).map((row) => `- ${row.label}: ${row.value}`).join("\n") || `- Recomendación: ${current.title}`}
+
+Confírmalo desde /recomendaciones o dime la acción concreta con todos los datos. No he cambiado ningún registro.`
+      };
+    }
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      result: recommendationChatResult(current),
+      context: withLastRecommendationContext(context, current),
+      text: `La siguiente acción es "${action.label}". Es una navegación o revisión, no una mutación. Puedes abrirla aquí: ${action.href ?? "/recomendaciones"}\n\nNo he cambiado ningún registro.`
+    };
+  }
+
+  if (mode === "snooze_current") {
+    await snoozeBusinessRecommendation(current.fingerprint, "tomorrow", "Pospuesta desde Capataz Chat");
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      context: withLastRecommendationContext(context, { ...current, status: "snoozed" }),
+      text: `He pospuesto "${current.title}" hasta mañana. Solo he cambiado el estado de la recomendación; no he modificado facturas, clientes, obras ni pagos.`
+    };
+  }
+
+  if (mode === "change_date_current") {
+    const friday = nextWeekday(5);
+    await snoozeBusinessRecommendationUntil(current.fingerprint, friday, "Reprogramada al viernes desde Capataz Chat");
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      context: withLastRecommendationContext(context, { ...current, status: "snoozed", snoozedUntil: friday }),
+      text: `He cambiado el recordatorio de esta recomendación al viernes ${formatDateShort(friday)}. No he creado tareas nuevas ni he modificado entidades de negocio.`
+    };
+  }
+
+  if (mode === "dismiss_current") {
+    await dismissBusinessRecommendation(current.fingerprint, "Descartada desde Capataz Chat");
+    return {
+      handled: true,
+      diagnostics: { resultCount: 1 },
+      context: withLastRecommendationContext(context, { ...current, status: "dismissed" }),
+      text: `He descartado "${current.title}" y lo he dejado registrado en el histórico. No he modificado entidades de negocio.`
+    };
+  }
+
+  return { handled: false, text: "" };
+}
+
+async function recommendationParamsForChat(intent: ChatIntentClassification, mode: BusinessRecommendationsChatMode, context: ChatCommandContext | null) {
+  if (mode === "client") {
+    const clientId = context?.lastClientId ?? await findClientIdForRecommendation(intent.clientName);
+    return clientId ? { clientId } : {};
+  }
+  if (mode === "work") {
+    return context?.lastWorkId ? { workId: context.lastWorkId } : {};
+  }
+  return {};
+}
+
+function filterRecommendationsForChat(recommendations: BusinessRecommendation[], mode: BusinessRecommendationsChatMode) {
+  const sorted = [...recommendations].sort((a, b) => b.priority - a.priority || b.score - a.score || (b.amount ?? 0) - (a.amount ?? 0));
+  if (mode === "quick_wins") return sorted.filter((recommendation) => !recommendation.requiresConfirmation || ["view_invoice", "view_client", "view_work", "view_treasury"].includes(recommendation.preferredAction?.id ?? ""));
+  if (mode === "important") return sorted.filter((recommendation) => ["critico", "importante"].includes(recommendation.level));
+  return sorted;
+}
+
+async function findCurrentRecommendation(context: ChatCommandContext | null) {
+  const fingerprint = context?.lastRecommendation?.fingerprint;
+  const result = await getBusinessRecommendations({ status: "active", limit: 80 });
+  if (fingerprint) {
+    const current = result.recommendations.find((recommendation) => recommendation.fingerprint === fingerprint);
+    if (current) return current;
+  }
+  return result.summary.top;
+}
+
+function withLastRecommendationContext(context: ChatCommandContext | null, recommendation: BusinessRecommendation): ChatCommandContext {
+  return {
+    ...(context ?? {}),
+    lastRecommendation: {
+      recommendationId: recommendation.id,
+      fingerprint: recommendation.fingerprint,
+      signalFingerprint: recommendation.signalFingerprint,
+      entityType: recommendation.entityType,
+      entityId: recommendation.entityId,
+      actionId: recommendation.preferredAction?.id ?? null,
+      shownAt: new Date().toISOString(),
+      status: recommendation.status
+    },
+    lastClientId: recommendation.clientId ?? context?.lastClientId,
+    lastWorkId: recommendation.workId ?? context?.lastWorkId,
+    lastInvoiceId: recommendation.invoiceId ?? context?.lastInvoiceId,
+    lastBudgetId: recommendation.budgetId ?? context?.lastBudgetId
+  };
+}
+
+function recommendationChatResult(recommendation: BusinessRecommendation): ChatActionResult {
+  return {
+    type: "found",
+    entityType: recommendation.entityType === "client" ? "client" : recommendation.entityType === "work" ? "project" : recommendation.entityType === "invoice" ? "invoice" : "business",
+    entityId: recommendation.entityId ?? undefined,
+    title: recommendation.title,
+    summary: {
+      prioridad: recommendation.priority,
+      nivel: recommendation.levelText,
+      accion: recommendation.preferredAction?.label ?? "Revisar",
+      requiereConfirmacion: recommendation.requiresConfirmation
+    },
+    actions: [
+      { label: "Abrir recomendaciones", href: "/recomendaciones", style: "primary" },
+      ...(recommendation.entityHref ? [{ label: "Abrir entidad", href: recommendation.entityHref, style: "secondary" as const }] : [])
+    ]
+  };
+}
+
+async function findClientIdForRecommendation(clientName: string | undefined) {
+  if (!clientName) return undefined;
+  const client = await prisma.client.findFirst({
+    where: { nombre: { contains: clientName, mode: "insensitive" } },
+    select: { id: true }
+  });
+  return client?.id;
+}
+
+function recommendationChatTitle(mode: BusinessRecommendationsChatMode) {
+  const labels: Record<BusinessRecommendationsChatMode, string> = {
+    today: "Recomendaciones para hoy",
+    first: "Siguiente mejor acción",
+    quick_wins: "Acciones rápidas",
+    important: "Recomendaciones importantes",
+    client: "Recomendaciones del cliente",
+    work: "Recomendaciones de obra",
+    explain_current: "Explicación de recomendación",
+    do_current: "Confirmación de recomendación",
+    snooze_current: "Posponer recomendación",
+    dismiss_current: "Descartar recomendación",
+    change_date_current: "Cambiar fecha de recomendación"
+  };
+  return labels[mode];
+}
+
+function recommendationChatIntro(mode: BusinessRecommendationsChatMode, activeCount: number) {
+  const base = `He revisado ${activeCount} recomendaciones activas derivadas de señales reales.`;
+  if (mode === "first") return `${base} Haría primero:`;
+  if (mode === "quick_wins") return `${base} Lo más rápido de resolver es:`;
+  if (mode === "important") return `${base} Las importantes son:`;
+  if (mode === "client") return `${base} Para este cliente revisaría:`;
+  if (mode === "work") return `${base} Para esta obra revisaría:`;
+  return `${base} Recomiendo:`;
+}
+
+function nextWeekday(day: number) {
+  const date = new Date();
+  const diff = (day + 7 - date.getDay()) % 7 || 7;
+  date.setDate(date.getDate() + diff);
+  date.setHours(9, 0, 0, 0);
+  return date;
 }
 
 function filterSignalsForChat(signals: BusinessSignal[], mode: BusinessSignalsChatMode) {

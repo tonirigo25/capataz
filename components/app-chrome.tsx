@@ -18,6 +18,7 @@ import {
   Files,
   Home,
   Landmark,
+  Lightbulb,
   Menu,
   Package,
   Plus,
@@ -45,6 +46,7 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { href: "/hoy", label: "Hoy", icon: Home },
       { href: "/alertas", label: "Alertas", icon: ShieldAlert },
+      { href: "/recomendaciones", label: "Recomendaciones", icon: Lightbulb },
       { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
       { href: "/tesoreria", label: "Tesorería", icon: Landmark },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
@@ -89,6 +91,7 @@ const quickActions = [
 const titles = [
   ["/hoy", "Hoy"],
   ["/alertas", "Alertas"],
+  ["/recomendaciones", "Recomendaciones"],
   ["/inteligencia", "Inteligencia"],
   ["/tesoreria", "Tesorería"],
   ["/agenda", "Agenda"],

@@ -7,6 +7,7 @@ import {
   Clock3,
   Filter,
   Info,
+  Lightbulb,
   PauseCircle,
   Search,
   ShieldAlert,
@@ -91,6 +92,7 @@ export default async function AlertsPage({
         title="Centro de alertas"
         description="Señales deterministas de riesgo, prioridad y calidad de datos. Capataz propone; no envía mensajes externos ni cambia registros de negocio sin autorización explícita."
         badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{result.summary.active} activas</span>}
+        secondaryActions={<Link href="/recomendaciones" className="secondary-button"><Lightbulb size={18} /> Ver recomendaciones</Link>}
       >
         <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/alertas">
           <FilterSelect name="estado" label="Estado" value={estado} options={STATUS_OPTIONS} />

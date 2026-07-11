@@ -270,6 +270,25 @@ enum BusinessSignalSource {
   datos
 }
 
+enum BusinessRecommendationStatus {
+  active
+  viewed
+  accepted
+  in_progress
+  completed
+  snoozed
+  dismissed
+  obsolete
+  failed
+}
+
+enum RecommendationActionLogStatus {
+  pending
+  success
+  failed
+  skipped
+}
+
 model Client {
   id                        String         @id @default(cuid())
   nombre                    String
@@ -879,6 +898,110 @@ model BusinessSignalPreference {
 
   @@unique([userKey, scopeType, scopeValue, rule])
   @@index([scopeType, scopeValue])
+}
+
+model BusinessRecommendation {
+  id                   String                       @id @default(cuid())
+  fingerprint          String                       @unique
+  signalFingerprint    String?
+  type                 String
+  title                String
+  summary              String
+  detailedExplanation  String
+  level                BusinessSignalLevel
+  status               BusinessRecommendationStatus @default(active)
+  source               BusinessSignalSource
+  ruleId               String?
+  ruleVersion          String?
+  entityType           String?
+  entityId             String?
+  clientId             String?
+  workId               String?
+  invoiceId            String?
+  budgetId             String?
+  amount               Float?
+  score                Int                          @default(0)
+  priority             Int                          @default(0)
+  detectedAt           DateTime                     @default(now())
+  recommendedAt        DateTime                     @default(now())
+  dueAt                DateTime?
+  expiresAt            DateTime?
+  shownAt              DateTime?
+  preferredActionId    String?
+  requiresConfirmation Boolean                      @default(false)
+  suggestedActions     Json?
+  alternativeActions   Json?
+  evidence             Json?
+  context              Json?
+  dismissedAt          DateTime?
+  dismissedReason      String?
+  snoozedUntil         DateTime?
+  snoozeReason         String?
+  acceptedAt           DateTime?
+  actionStartedAt      DateTime?
+  completedAt          DateTime?
+  outcome              Json?
+  utilityScore         Int                          @default(0)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+
+  @@index([status, priority])
+  @@index([type])
+  @@index([level])
+  @@index([source])
+  @@index([ruleId])
+  @@index([clientId])
+  @@index([workId])
+  @@index([invoiceId])
+  @@index([budgetId])
+  @@index([entityType, entityId])
+  @@index([signalFingerprint])
+  @@index([snoozedUntil])
+  @@index([dueAt])
+  @@index([expiresAt])
+  @@index([completedAt])
+}
+
+model RecommendationActionLog {
+  id               String                        @id @default(cuid())
+  recommendationId String?
+  actionId         String
+  status           RecommendationActionLogStatus @default(pending)
+  idempotencyKey   String?                       @unique
+  entityType       String?
+  entityId         String?
+  userIntent       String?
+  payload          Json?
+  result           Json?
+  error            String?
+  metadata         Json?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  @@index([recommendationId])
+  @@index([actionId])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model RecommendationPreference {
+  id            String   @id @default(cuid())
+  userKey       String   @default("default")
+  scopeType     String
+  scopeValue    String?
+  rule          String
+  disabled      Boolean  @default(false)
+  priorityDelta Int      @default(0)
+  minAmount     Float?
+  maxToday      Int?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userKey, scopeType, scopeValue, rule])
+  @@index([scopeType, scopeValue])
+  @@index([disabled])
 }
 
 model ChatMessage {

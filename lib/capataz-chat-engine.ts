@@ -85,6 +85,16 @@ export type ChatActiveTask = {
 export type ChatContext = {
   activeTask?: ChatActiveTask;
   parkedTask?: ChatActiveTask;
+  lastRecommendation?: {
+    recommendationId?: string;
+    fingerprint: string;
+    signalFingerprint?: string | null;
+    entityType?: string | null;
+    entityId?: string | null;
+    actionId?: string | null;
+    shownAt: string;
+    status?: string;
+  };
   lastQuery?: {
     type: string;
     category?: string;

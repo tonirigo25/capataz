@@ -13,6 +13,7 @@ import {
   ClipboardList,
   FileText,
   FolderOpen,
+  Lightbulb,
   Mail,
   MapPin,
   MessageCircle,
@@ -31,6 +32,7 @@ import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { getClientCrmSummary } from "@/lib/client-crm";
+import { getRecommendationsForClient, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
@@ -62,9 +64,10 @@ export default async function ClientDetailPage({
   searchParams: Promise<DetailSearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const [summary, treasury] = await Promise.all([
+  const [summary, treasury, recommendations] = await Promise.all([
     getClientCrmSummary(id),
-    getTreasuryOverview({ clientId: id, horizon: "30d", scenario: "base" })
+    getTreasuryOverview({ clientId: id, horizon: "30d", scenario: "base" }),
+    getRecommendationsForClient(id, 3)
   ]);
   if (!summary) notFound();
 
@@ -112,6 +115,10 @@ export default async function ClientDetailPage({
         <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
         <StatCard title="Vencidas" value={String(summary.kpis.overdueInvoices)} detail={`Contacto: ${formatDate(summary.kpis.lastContactAt)}`} icon={Bell} tone={summary.kpis.overdueInvoices > 0 ? "danger" : "neutral"} />
       </section>
+
+      {recommendations.recommendations.length ? (
+        <RecommendationStrip title="Recomendaciones de este cliente" recommendations={recommendations.recommendations} href={`/recomendaciones?estado=active&q=${encodeURIComponent(summary.listItem.displayName)}`} />
+      ) : null}
 
       <nav className="mt-5 flex gap-2 overflow-x-auto pb-2" aria-label="Secciones de la ficha de cliente">
         {tabs.map(([tab, label]) => (
@@ -178,6 +185,26 @@ function PrimaryActions({ clientId, clientName, returnTo }: { clientId: string; 
         Contacto
       </Link>
     </div>
+  );
+}
+
+function RecommendationStrip({ title, recommendations, href }: { title: string; recommendations: BusinessRecommendation[]; href: string }) {
+  return (
+    <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 font-black"><Lightbulb size={18} /> {title}</p>
+          <div className="mt-2 grid gap-2 text-sm leading-6">
+            {recommendations.slice(0, 3).map((recommendation) => (
+              <p key={recommendation.fingerprint}>
+                <span className="font-black">Prioridad {recommendation.priority}</span> · {recommendation.title}: {recommendation.summary}
+              </p>
+            ))}
+          </div>
+        </div>
+        <Link href={href} className="secondary-button bg-white">Ver todas</Link>
+      </div>
+    </section>
   );
 }
 

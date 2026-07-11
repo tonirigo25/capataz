@@ -12,6 +12,7 @@ import {
   Clock,
   Euro,
   FileText,
+  Lightbulb,
   Package,
   Plus,
   Receipt,
@@ -27,6 +28,7 @@ import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
+import { getTodayRecommendationBrief } from "@/lib/business-recommendations";
 import { getTodaySignalBrief } from "@/lib/business-signals";
 import { buildTodayDashboard, greetingForDate, invoiceLiveStatus } from "@/lib/dashboard-hoy";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -48,13 +50,14 @@ const quickActions = [
 
 export default async function TodayPage() {
   const now = new Date();
-  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals, signalBrief] = await Promise.all([
+  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals, signalBrief, recommendationBrief] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findFirst(),
     prisma.empresa.findFirst(),
     getTodayTreasurySignals(),
-    getTodaySignalBrief(4)
+    getTodaySignalBrief(4),
+    getTodayRecommendationBrief(4)
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
@@ -110,6 +113,27 @@ export default async function TodayPage() {
               </div>
             </div>
             <Link href="/tesoreria" className="secondary-button bg-white">Abrir tesorería</Link>
+          </div>
+        </section>
+      ) : null}
+
+      {recommendationBrief.recommendations.length ? (
+        <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 font-black"><Lightbulb size={18} /> Recomendaciones operativas</p>
+              <div className="mt-2 grid gap-1 text-sm leading-6">
+                {recommendationBrief.recommendations.slice(0, 3).map((recommendation) => (
+                  <p key={recommendation.fingerprint}>
+                    <span className="font-black">Prioridad {recommendation.priority}</span> · {recommendation.title}: {recommendation.summary}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <Link href="/recomendaciones" className="secondary-button bg-white">
+              Abrir recomendaciones
+              <ArrowRight size={18} />
+            </Link>
           </div>
         </section>
       ) : null}

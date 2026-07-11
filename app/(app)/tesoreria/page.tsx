@@ -11,6 +11,7 @@ import {
   FileQuestion,
   Info,
   Landmark,
+  Lightbulb,
   Plus,
   Repeat,
   ShieldAlert,
@@ -28,6 +29,7 @@ import {
   saveTreasurySettings
 } from "@/app/(app)/tesoreria/actions";
 import { EmptyState, Notice, PageHeader, TableShell } from "@/components/ui-primitives";
+import { getTreasuryRecommendations, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { prisma } from "@/lib/prisma";
 import {
   TREASURY_DEFINITIONS,
@@ -69,12 +71,13 @@ export default async function TreasuryPage({
     from: query.from,
     to: query.to
   });
-  const [overview, clients, works, invoices, expenses] = await Promise.all([
+  const [overview, clients, works, invoices, expenses, recommendations] = await Promise.all([
     overviewPromise,
     prisma.client.findMany({ where: { archivadoAt: null }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
     prisma.work.findMany({ where: { archivada: false }, select: { id: true, titulo: true, client: { select: { nombre: true } } }, orderBy: { titulo: "asc" } }),
     prisma.invoice.findMany({ where: { pendiente: { gt: 0 } }, select: { id: true, numero: true, client: { select: { nombre: true } } }, orderBy: { fechaVencimiento: "asc" } }),
-    prisma.expense.findMany({ select: { id: true, concepto: true, proveedor: true }, orderBy: { fecha: "desc" }, take: 80 })
+    prisma.expense.findMany({ select: { id: true, concepto: true, proveedor: true }, orderBy: { fecha: "desc" }, take: 80 }),
+    getTreasuryRecommendations(5)
   ]);
 
   const queryString = exportQueryString(query, overview.scenario);
@@ -141,12 +144,15 @@ export default async function TreasuryPage({
         <Panel title="Alertas de tesorería" icon={ShieldAlert} action={<Link href="/hoy" className="secondary-button">Ver Hoy</Link>}>
           <AlertList alerts={overview.alerts} />
         </Panel>
-        <Panel title="Cuentas y cajas" icon={Landmark} action={<a href="#crear-cuenta" className="secondary-button">Nueva cuenta</a>}>
-          <AccountList accounts={overview.accounts} returnTo={returnTo} />
+        <Panel title="Recomendaciones de tesorería" icon={Lightbulb} action={<Link href="/recomendaciones?origen=tesoreria" className="secondary-button">Ver centro</Link>}>
+          <TreasuryRecommendationList recommendations={recommendations.recommendations.slice(0, 5)} />
         </Panel>
       </section>
 
       <section className="mt-5 grid gap-5 xl:grid-cols-2">
+        <Panel title="Cuentas y cajas" icon={Landmark} action={<a href="#crear-cuenta" className="secondary-button">Nueva cuenta</a>}>
+          <AccountList accounts={overview.accounts} returnTo={returnTo} />
+        </Panel>
         <Panel title="Calendario de cobros" icon={ArrowUpRight} action={<Link href={`/tesoreria/export?tipo=receivables&${queryString}`} className="secondary-button"><Download size={18} /> CSV</Link>}>
           <ForecastList items={overview.receivables.slice(0, 12)} empty="No hay cobros previstos dentro del horizonte." />
         </Panel>
@@ -305,6 +311,21 @@ function AlertList({ alerts }: { alerts: Awaited<ReturnType<typeof getTreasuryOv
           <p className="font-black">{alert.title}</p>
           <p className="mt-1 text-sm leading-6">{alert.detail}</p>
           {alert.amount !== null ? <p className="mt-1 text-xs font-black uppercase">Importe: {formatCurrency(alert.amount)}</p> : null}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function TreasuryRecommendationList({ recommendations }: { recommendations: BusinessRecommendation[] }) {
+  if (!recommendations.length) return <EmptyState title="Sin recomendaciones de tesorería" description="No hay acciones de caja prioritarias derivadas de señales reales." icon={Lightbulb} />;
+  return (
+    <div className="grid gap-2">
+      {recommendations.map((recommendation) => (
+        <Link key={recommendation.fingerprint} href="/recomendaciones?origen=tesoreria" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-950">
+          <p className="text-xs font-black uppercase">Prioridad {recommendation.priority} · {recommendation.statusLabel}</p>
+          <p className="mt-1 font-black">{recommendation.title}</p>
+          <p className="mt-1 text-sm leading-6">{recommendation.summary}</p>
         </Link>
       ))}
     </div>

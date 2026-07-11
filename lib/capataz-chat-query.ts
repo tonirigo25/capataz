@@ -81,7 +81,18 @@ export type ChatQueryAction =
   | "signals_work_attention"
   | "signals_priority_invoices"
   | "signals_explain_alert"
-  | "signals_critical_count";
+  | "signals_critical_count"
+  | "recommendations_today"
+  | "recommendations_first"
+  | "recommendations_quick_wins"
+  | "recommendations_important"
+  | "recommendations_client"
+  | "recommendations_work"
+  | "recommendations_explain_current"
+  | "recommendations_do_current"
+  | "recommendations_snooze_current"
+  | "recommendations_dismiss_current"
+  | "recommendations_change_date_current";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -148,6 +159,9 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
 
   const treasuryIntent = classifyTreasuryIntent(normalized, period);
   if (treasuryIntent) return treasuryIntent;
+
+  const recommendationIntent = classifyRecommendationIntent(normalized, period, message);
+  if (recommendationIntent) return recommendationIntent;
 
   const signalIntent = classifySignalIntent(normalized, period);
   if (signalIntent) return signalIntent;
@@ -347,6 +361,43 @@ function classifyTreasuryIntent(normalized: string, period: ChatQueryPeriod): Ch
   if (/(dentro de \d+ dias|dentro de \d+ días|en 30 dias|en 30 días|como estara|cómo estará)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_forecast", confidence: 0.92, period, rule: "treasury_forecast" };
   if (/(dinero disponible|saldo disponible|cuanto dinero tengo|cuánto dinero tengo|cuanto tengo disponible|cuánto tengo disponible)\b/.test(normalized)) return { kind: "aggregate_query", action: "treasury_available_cash", confidence: 0.92, period, rule: "treasury_available_cash" };
   return { kind: "aggregate_query", action: "treasury_status", confidence: 0.9, period, rule: "treasury_status" };
+}
+
+function classifyRecommendationIntent(normalized: string, period: ChatQueryPeriod, original: string): ChatIntentClassification | null {
+  if (/^(hazlo|adelante|si|sí|vale|ok|crea el seguimiento|crear seguimiento|haz el seguimiento)$/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_do_current", confidence: 0.9, period, rule: "recommendations_do_current" };
+  }
+  if (/(recuerdamelo|recuérdamelo|no me lo recuerdes|pospon|posponer|esta semana no|manana|mañana)\b/.test(normalized) && /(recomendacion|recomendación|esto|lo|me lo|recuerd)/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_snooze_current", confidence: 0.9, period, rule: "recommendations_snooze_current" };
+  }
+  if (/(mejor el viernes|cambia la fecha al viernes|ponlo el viernes)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_change_date_current", confidence: 0.88, period, rule: "recommendations_change_date_current" };
+  }
+  if (/(descarta|descartar|no es importante|olvida)\b/.test(normalized) && /(recomendacion|recomendación|esto|la|lo)?/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_dismiss_current", confidence: 0.9, period, rule: "recommendations_dismiss_current" };
+  }
+  if (/(por que|por qué|porque|explica|explicame|explícame)\b/.test(normalized) && /(recomiendas|recomendacion|recomendación|esto)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_explain_current", confidence: 0.9, period, rule: "recommendations_explain_current" };
+  }
+  if (/(recomendaciones?)\b/.test(normalized) && /(cliente|tiene)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_client", confidence: 0.88, period, clientName: extractClientFromQuery(original, normalized), rule: "recommendations_client" };
+  }
+  if (/(que deberia hacer|qué debería hacer|recomendaciones?)\b/.test(normalized) && /(obra|esta obra|con esta obra)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_work", confidence: 0.88, period, clientName: extractClientFromQuery(original, normalized), rule: "recommendations_work" };
+  }
+  if (/(resolver rapido|resolver rápido|facil|fácil|rapido|rápido)\b/.test(normalized) && /(recomend|hacer|puedo)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_quick_wins", confidence: 0.9, period, rule: "recommendations_quick_wins" };
+  }
+  if (/(recomendaciones?)\b/.test(normalized) && /(importantes|urgentes|prioritarias|prioridad)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_important", confidence: 0.92, period, rule: "recommendations_important" };
+  }
+  if (/(que deberia hacer primero|qué debería hacer primero|siguiente mejor accion|siguiente mejor acción|que hago primero|qué hago primero)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_first", confidence: 0.94, period, rule: "recommendations_first" };
+  }
+  if (/(que me recomiendas|qué me recomiendas|recomiendas hacer hoy|recomendaciones de hoy|recomendaciones tengo|que recomendaciones tengo|qué recomendaciones tengo)\b/.test(normalized)) {
+    return { kind: "database_query", action: "recommendations_today", confidence: 0.94, period, rule: "recommendations_today" };
+  }
+  return null;
 }
 
 function classifySignalIntent(normalized: string, period: ChatQueryPeriod): ChatIntentClassification | null {

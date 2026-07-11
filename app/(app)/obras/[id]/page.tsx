@@ -19,6 +19,7 @@ import {
   FileText,
   Hammer,
   Image,
+  Lightbulb,
   Mail,
   Package,
   Phone,
@@ -31,6 +32,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { getRecommendationsForWork, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusClass } from "@/lib/status";
@@ -79,7 +81,7 @@ export default async function WorkDetailPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const [work, treasury] = await Promise.all([
+  const [work, treasury, recommendations] = await Promise.all([
     prisma.work.findUnique({
       where: { id },
       include: {
@@ -98,7 +100,8 @@ export default async function WorkDetailPage({
         photos: { orderBy: { tomadaEn: "desc" } }
       }
     }),
-    getTreasuryOverview({ workId: id, horizon: "30d", scenario: "base" })
+    getTreasuryOverview({ workId: id, horizon: "30d", scenario: "base" }),
+    getRecommendationsForWork(id, 3)
   ]);
   if (!work) notFound();
 
@@ -139,6 +142,10 @@ export default async function WorkDetailPage({
       </PageHeader>
 
       <QuickActions workId={work.id} clientId={work.clienteId} />
+
+      {recommendations.recommendations.length ? (
+        <RecommendationStrip title="Recomendaciones de esta obra" recommendations={recommendations.recommendations} href={`/recomendaciones?estado=active&q=${encodeURIComponent(work.titulo)}`} />
+      ) : null}
 
       <nav className="my-5 flex gap-2 overflow-x-auto pb-1" aria-label="Pestañas de obra">
         {tabs.map(([id, label, Icon]) => (
@@ -257,6 +264,26 @@ function QuickActions({ workId, clientId }: { workId: string; clientId: string }
         <Mail size={17} />
         Email
       </button>
+    </section>
+  );
+}
+
+function RecommendationStrip({ title, recommendations, href }: { title: string; recommendations: BusinessRecommendation[]; href: string }) {
+  return (
+    <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 font-black"><Lightbulb size={18} /> {title}</p>
+          <div className="mt-2 grid gap-2 text-sm leading-6">
+            {recommendations.slice(0, 3).map((recommendation) => (
+              <p key={recommendation.fingerprint}>
+                <span className="font-black">Prioridad {recommendation.priority}</span> · {recommendation.title}: {recommendation.summary}
+              </p>
+            ))}
+          </div>
+        </div>
+        <Link href={href} className="secondary-button bg-white">Ver todas</Link>
+      </div>
     </section>
   );
 }
