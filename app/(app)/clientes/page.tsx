@@ -1,200 +1,379 @@
 import Link from "next/link";
-import { CalendarClock, FileText, MessageCircle, Pencil, Phone, Plus, Receipt, Search, WalletCards } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
+import { AlertTriangle, Archive, ArrowLeft, ArrowRight, BriefcaseBusiness, CircleDollarSign, Eraser, Eye, FileClock, Search, SlidersHorizontal, UserPlus } from "lucide-react";
 import { DemoLimitButton } from "@/components/demo-limit-button";
-import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState } from "@/components/ui-primitives";
+import { EmptyState, PageHeader, TableShell } from "@/components/ui-primitives";
+import { getClientList, type ClientListItem, type ClientListQuery } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const filters = [
+type RawSearchParams = Record<string, string | string[] | undefined>;
+
+const statusOptions = [
   ["todos", "Todos"],
-  ["nuevo", "Nuevos"],
+  ["nuevo", "Nuevo"],
   ["pendiente_datos", "Pendiente datos"],
   ["visita_pendiente", "Visita pendiente"],
+  ["presupuesto_pendiente", "Presupuesto pendiente"],
   ["presupuesto_enviado", "Presupuesto enviado"],
-  ["seguimiento_pendiente", "En seguimiento"],
+  ["seguimiento_pendiente", "Seguimiento pendiente"],
+  ["aceptado", "Aceptado"],
+  ["rechazado", "Rechazado"],
   ["obra_activa", "Obra activa"],
   ["pendiente_cobro", "Pendiente cobro"],
   ["finalizado", "Finalizado"]
 ];
 
+const filterOptions = [
+  ["obras_activas", "Con obras activas"],
+  ["facturas_pendientes", "Con facturas pendientes"],
+  ["facturas_vencidas", "Con facturas vencidas"],
+  ["presupuestos_pendientes", "Con presupuestos pendientes"],
+  ["datos_incompletos", "Con datos incompletos"],
+  ["seguimiento_pendiente", "Con seguimiento pendiente"],
+  ["sin_actividad_reciente", "Sin actividad reciente"]
+];
+
+const orderOptions = [
+  ["ultimaActividad_desc", "Última actividad primero"],
+  ["ultimaActividad_asc", "Última actividad antigua"],
+  ["nombre_asc", "Nombre A-Z"],
+  ["nombre_desc", "Nombre Z-A"],
+  ["saldo_desc", "Mayor saldo pendiente"],
+  ["facturacion_desc", "Mayor facturación"],
+  ["obras_desc", "Más obras activas"]
+];
+
 export default async function ClientsPage({
   searchParams
 }: {
-  searchParams: Promise<{ estado?: string; buscar?: string }>;
+  searchParams: Promise<RawSearchParams>;
 }) {
-  const query = await searchParams;
-  const clients = await prisma.client.findMany({
-    orderBy: { ultimaInteraccion: "desc" },
-    include: {
-      budgets: { orderBy: { fechaCreacion: "desc" } },
-      invoices: true,
-      works: true,
-      reminders: { orderBy: { fechaProgramada: "asc" } },
-      agendaEvents: { orderBy: { fechaInicio: "asc" } }
-    }
-  });
-
-  const filteredClients = clients.filter((client) => {
-    const statusMatch = !query.estado || query.estado === "todos" || client.estado === query.estado;
-    const search = normalize(query.buscar ?? "");
-    const text = normalize(`${client.nombre} ${client.telefono} ${client.email ?? ""} ${client.direccion} ${client.notas ?? ""}`);
-    return statusMatch && (!search || text.includes(search));
-  });
+  const raw = await searchParams;
+  const query = normalizeQuery(raw);
+  const result = await getClientList(query);
+  const activeFilterSet = new Set((query.filtros ?? "").split(",").filter(Boolean));
 
   return (
     <main className="screen">
-      <SectionHeader
-        title="Clientes y leads"
-        description="Vista compacta con próximos pasos, cobros y actividad."
+      <PageHeader
+        eyebrow="CRM"
+        title="Clientes"
+        description="Listado operativo con deuda, obras activas, datos pendientes y próxima acción."
         action={
-          <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={clients.length} limit={3}>
-            Añadir
+          <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={result.total} limit={3}>
+            <UserPlus size={18} />
+            Añadir cliente
           </DemoLimitButton>
         }
-      />
+      >
+        <form action="/clientes" className="grid gap-3" aria-label="Buscar y filtrar clientes">
+          <div className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_13rem_13rem_13rem_13rem_auto]">
+            <label>
+              <span className="label mb-1 block">Buscar</span>
+              <span className="flex gap-2">
+                <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Nombre, CIF/NIF, email, teléfono..." />
+                <button className="icon-button lg:hidden" type="submit" aria-label="Buscar clientes">
+                  <Search size={19} />
+                </button>
+              </span>
+            </label>
 
-      <form action="/clientes" className="card mb-3 flex gap-2 p-3">
-        <input type="hidden" name="estado" value={query.estado ?? "todos"} />
-        <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Buscar cliente, teléfono, nota..." />
-        <button className="icon-button shrink-0" type="submit" aria-label="Buscar">
-          <Search size={20} />
-        </button>
-      </form>
+            <Select name="tipo" label="Tipo" value={query.tipo ?? "todos"} options={[["todos", "Todos"], ...result.typeOptions.map((type) => [type, type])]} />
+            <Select name="estado" label="Estado" value={query.estado ?? "todos"} options={statusOptions} />
+            <Select name="archivo" label="Archivo" value={query.archivo ?? "activos"} options={[["activos", "Activos"], ["archivados", "Archivados"], ["todos", "Todos"]]} />
+            <Select name="ordenar" label="Orden" value={query.ordenar ?? "ultimaActividad_desc"} options={orderOptions} />
 
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-        {filters.map(([id, label]) => (
-          <Link key={id} href={`/clientes?estado=${id}${query.buscar ? `&buscar=${encodeURIComponent(query.buscar)}` : ""}`} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${((query.estado ?? "todos") === id) ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>
-            {label}
-          </Link>
-        ))}
+            <button type="submit" className="primary-button hidden self-end lg:inline-flex">
+              <Search size={18} />
+              Aplicar
+            </button>
+          </div>
+
+          <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <legend className="mb-2 flex items-center gap-2 text-sm font-black text-obra-ink">
+              <SlidersHorizontal size={17} />
+              Filtros operativos
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {filterOptions.map(([id, label]) => (
+                <label key={id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-sm font-semibold text-slate-700">
+                  <input className="mt-1" type="checkbox" name="filtro" value={id} defaultChecked={activeFilterSet.has(id)} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          {result.activeFilters.length ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {result.activeFilters.map((filter) => (
+                <span key={filter.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-600">
+                  {filter.label}
+                </span>
+              ))}
+              <Link href="/clientes" className="secondary-button min-h-9 px-3 py-1 text-xs">
+                <Eraser size={15} />
+                Limpiar
+              </Link>
+            </div>
+          ) : null}
+        </form>
+      </PageHeader>
+
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-bold text-slate-600">
+          {result.total} clientes · página {result.page} de {result.totalPages}
+        </p>
+        {query.archivo === "archivados" ? (
+          <p className="inline-flex items-center gap-2 text-sm font-bold text-slate-600">
+            <Archive size={16} />
+            Mostrando clientes archivados
+          </p>
+        ) : null}
       </div>
 
-      <div className="grid gap-3">
-        {filteredClients.map((client) => {
-          const lastBudget = client.budgets[0];
-          const activeWork = client.works.find((work) => !["cerrada", "finalizada"].includes(work.estado));
-          const pendingInvoices = client.invoices.filter((invoice) => invoice.pendiente > 0);
-          const pendingTotal = pendingInvoices.reduce((sum, invoice) => sum + invoice.pendiente, 0);
-          const nextEvent = client.agendaEvents.find((event) => event.estado !== "cancelado");
-          const priority = priorityLabel(client.estado, pendingTotal);
+      {result.items.length ? (
+        <>
+          <div className="hidden lg:block">
+            <TableShell label="Clientes">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+                  <tr>
+                    <th scope="col" className="px-4 py-3">Cliente</th>
+                    <th scope="col" className="px-4 py-3">Tipo</th>
+                    <th scope="col" className="px-4 py-3">Contacto principal</th>
+                    <th scope="col" className="px-4 py-3">Obras</th>
+                    <th scope="col" className="px-4 py-3">Saldo</th>
+                    <th scope="col" className="px-4 py-3">Última actividad</th>
+                    <th scope="col" className="px-4 py-3">Estado</th>
+                    <th scope="col" className="px-4 py-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {result.items.map((client) => (
+                    <tr key={client.id} className="align-top">
+                      <td className="px-4 py-4">
+                        <ClientName client={client} />
+                      </td>
+                      <td className="px-4 py-4 font-bold text-slate-700">{client.typeLabel}</td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-obra-ink">{client.primaryContact}</p>
+                        <p className="mt-1 text-xs text-slate-500">{(client.email ?? client.phone) || "Sin contacto directo"}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-black text-obra-ink">{client.activeWorksCount}</p>
+                        <p className="text-xs text-slate-500">{client.totalWorksCount} totales</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className={`font-black ${client.pendingTotal > 0 ? "text-obra-red" : "text-obra-green"}`}>{formatCurrency(client.pendingTotal)}</p>
+                        <p className="text-xs text-slate-500">{formatCurrency(client.billedTotal)} facturado</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-slate-700">{formatDate(client.lastActivityAt)}</p>
+                        <p className="text-xs text-slate-500">Contacto: {formatDate(client.lastContactAt)}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusPill status={client.status} />
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-2">
+                          <Link href={`/clientes/${client.id}`} className="secondary-button min-h-10 px-3" aria-label={`Ver ficha de ${client.displayName}`}>
+                            <Eye size={17} />
+                            Ver
+                          </Link>
+                          <Link href={`/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(client.displayName)}&returnTo=/clientes`} className="icon-button" aria-label={`Crear seguimiento para ${client.displayName}`}>
+                            <FileClock size={17} />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableShell>
+          </div>
 
-          return (
-            <details key={client.id} className="card p-4">
-              <summary className="cursor-pointer list-none">
+          <div className="grid gap-3 lg:hidden">
+            {result.items.map((client) => (
+              <article key={client.id} className="card p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-black text-obra-ink">{client.nombre}</h2>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{priority}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-500">{nextAction(client.estado)}</p>
-                  </div>
-                  <StatusPill status={client.estado} />
+                  <ClientName client={client} />
+                  <StatusPill status={client.status} />
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <Mini label="Pendiente" value={formatCurrency(pendingTotal)} />
-                  <Mini label="Última" value={formatDate(client.ultimaInteraccion)} />
-                  <Mini label="Presupuesto" value={lastBudget ? `${lastBudget.numero}` : "Sin presupuesto"} />
-                  <Mini label="Obra" value={activeWork?.titulo ?? "Sin obra activa"} />
+                  <Mini icon={BriefcaseBusiness} label="Obras activas" value={String(client.activeWorksCount)} />
+                  <Mini icon={CircleDollarSign} label="Pendiente" value={formatCurrency(client.pendingTotal)} danger={client.pendingTotal > 0} />
+                  <Mini icon={FileClock} label="Última actividad" value={formatDate(client.lastActivityAt)} />
+                  <Mini icon={AlertTriangle} label="Datos pendientes" value={String(client.pendingFields.length)} danger={client.pendingFields.length > 0} />
                 </div>
-              </summary>
-
-              <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
-                <div className="grid gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                  <p><strong className="text-obra-ink">Teléfono:</strong> {client.telefono}</p>
-                  <p><strong className="text-obra-ink">Email:</strong> {client.email ?? "Sin email"}</p>
-                  <p><strong className="text-obra-ink">Dirección:</strong> {client.direccion}</p>
-                  <p><strong className="text-obra-ink">Origen:</strong> {client.origen}</p>
-                  <p><strong className="text-obra-ink">Notas:</strong> {client.notas ?? "Sin notas"}</p>
+                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+                  <p><strong className="text-obra-ink">Contacto:</strong> {(client.email ?? client.phone) || "Sin contacto directo"}</p>
+                  <p className="mt-1"><strong className="text-obra-ink">Siguiente:</strong> {client.nextAction}</p>
                 </div>
-
-                <div className="grid gap-2 text-sm">
-                  <Row icon={FileText} label="Presupuestos" value={client.budgets.map((budget) => `${budget.numero} · ${budget.estado}`).join(", ") || "Sin presupuestos"} />
-                  <Row icon={Receipt} label="Facturas" value={`${client.invoices.length} facturas · ${formatCurrency(pendingTotal)} pendiente`} />
-                  <Row icon={CalendarClock} label="Agenda" value={nextEvent ? `${nextEvent.titulo} · ${formatDate(nextEvent.fechaInicio)}` : "Sin citas manuales"} />
-                  <Row icon={MessageCircle} label="Recordatorios" value={`${client.reminders.length} recordatorios`} />
+                <div className="mt-3 flex gap-2">
+                  <Link href={`/clientes/${client.id}`} className="primary-button flex-1">
+                    <Eye size={18} />
+                    Ver ficha
+                  </Link>
+                  <Link href={`/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`} className="secondary-button">
+                    Editar
+                  </Link>
                 </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/clientes/${client.id}`} className="secondary-button">Historial</Link>
-                  <Link href={`/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`} className="secondary-button"><Pencil size={18} /> Editar</Link>
-                  <Link href={`/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=visita&titulo=Visita%20con%20${encodeURIComponent(client.nombre)}&direccion=${encodeURIComponent(client.direccion)}&returnTo=/clientes`} className="secondary-button"><CalendarClock size={18} /> Visita</Link>
-                  <Link href={`/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=/clientes`} className="secondary-button"><Plus size={18} /> Presupuesto</Link>
-                  <Link href={`/gestion?tipo=factura&clienteId=${client.id}&returnTo=/clientes`} className="secondary-button"><Receipt size={18} /> Factura</Link>
-                  <Link href={`/gestion?tipo=pago&returnTo=/clientes`} className="secondary-button"><WalletCards size={18} /> Pago</Link>
-                  <Link href={`/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(client.nombre)}&returnTo=/clientes`} className="secondary-button"><MessageCircle size={18} /> Seguimiento</Link>
-                </div>
-              </div>
-            </details>
-          );
-        })}
-      </div>
-
-      {filteredClients.length === 0 ? (
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
         <EmptyState
-          title="No hay clientes con este filtro"
-          description="Cambia la búsqueda o crea un cliente nuevo para empezar a organizar obras, presupuestos y cobros."
+          title="No hay clientes con estos criterios"
+          description="Cambia filtros o crea un cliente nuevo. El CRM no usa datos de muestra en esta vista."
           icon={Search}
           action={
-            <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={clients.length} limit={3}>
+            <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={result.total} limit={3}>
+              <UserPlus size={18} />
               Añadir cliente
             </DemoLimitButton>
           }
+          secondaryAction={<Link href="/clientes" className="secondary-button">Limpiar filtros</Link>}
         />
-      ) : null}
+      )}
+
+      <Pagination query={query} page={result.page} totalPages={result.totalPages} />
     </main>
   );
 }
 
-function Mini({ label, value }: { label: string; value: string }) {
+function ClientName({ client }: { client: ClientListItem }) {
   return (
-    <div className="rounded-lg bg-slate-50 p-2">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate font-black text-obra-ink">{value}</p>
+    <div className="min-w-0">
+      <Link href={`/clientes/${client.id}`} className="text-base font-black text-obra-ink hover:underline">
+        {client.displayName}
+      </Link>
+      <p className="mt-1 text-xs font-semibold text-slate-500">{client.fiscalName}</p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {client.fiscalId ? <Badge>{client.fiscalId}</Badge> : null}
+        {client.pendingFields.length ? <Badge tone="warning">{client.pendingFields.length} pendientes</Badge> : null}
+        {client.overdueInvoicesCount ? <Badge tone="danger">{client.overdueInvoicesCount} vencidas</Badge> : null}
+      </div>
     </div>
   );
 }
 
-function Row({ icon: Icon, label, value }: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; value: string }) {
+function Mini({
+  icon: Icon,
+  label,
+  value,
+  danger = false
+}: {
+  icon: ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  value: string;
+  danger?: boolean;
+}) {
   return (
-    <p className="flex gap-2 rounded-lg border border-slate-100 p-3 text-slate-600">
-      <Icon size={17} className="mt-0.5 shrink-0 text-obra-graphite" />
-      <span><strong className="text-obra-ink">{label}:</strong> {value}</span>
-    </p>
+    <div className="rounded-lg bg-slate-50 p-2">
+      <p className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500">
+        <Icon size={14} />
+        {label}
+      </p>
+      <p className={`mt-1 truncate font-black ${danger ? "text-obra-red" : "text-obra-ink"}`}>{value}</p>
+    </div>
   );
 }
 
-function nextAction(status: string) {
-  const actions: Record<string, string> = {
-    nuevo: "Completar datos y llamar",
-    pendiente_datos: "Pedir fotos o medidas",
-    visita_pendiente: "Confirmar visita",
-    presupuesto_pendiente: "Crear presupuesto",
-    presupuesto_enviado: "Esperar revisión",
-    seguimiento_pendiente: "Preparar seguimiento",
-    aceptado: "Crear obra",
-    obra_activa: "Revisar obra y materiales",
-    pendiente_cobro: "Preparar recordatorio de cobro",
-    finalizado: "Archivar o pedir reseña",
-    rechazado: "Cerrar lead"
+function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "warning" | "danger" }) {
+  const className = {
+    neutral: "bg-slate-100 text-slate-600",
+    warning: "bg-amber-100 text-amber-900",
+    danger: "bg-red-50 text-obra-red"
+  }[tone];
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${className}`}>{children}</span>;
+}
+
+function Select({
+  name,
+  label,
+  value,
+  options
+}: {
+  name: string;
+  label: string;
+  value: string;
+  options: string[][];
+}) {
+  return (
+    <label>
+      <span className="label mb-1 block">{label}</span>
+      <select className="field" name={name} defaultValue={value}>
+        {options.map(([id, optionLabel]) => (
+          <option key={id} value={id}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function Pagination({ query, page, totalPages }: { query: ClientListQuery; page: number; totalPages: number }) {
+  if (totalPages <= 1) return null;
+  return (
+    <nav className="mt-4 flex items-center justify-between gap-3" aria-label="Paginación de clientes">
+      {page > 1 ? (
+        <Link href={hrefWith(query, { pagina: String(page - 1) })} className="secondary-button">
+          <ArrowLeft size={18} />
+          Anterior
+        </Link>
+      ) : (
+        <span />
+      )}
+      <span className="text-sm font-bold text-slate-600">
+        {page} / {totalPages}
+      </span>
+      {page < totalPages ? (
+        <Link href={hrefWith(query, { pagina: String(page + 1) })} className="secondary-button">
+          Siguiente
+          <ArrowRight size={18} />
+        </Link>
+      ) : (
+        <span />
+      )}
+    </nav>
+  );
+}
+
+function normalizeQuery(raw: RawSearchParams): ClientListQuery {
+  const filters = arrayValue(raw.filtro);
+  return {
+    buscar: stringValue(raw.buscar),
+    estado: stringValue(raw.estado),
+    tipo: stringValue(raw.tipo),
+    archivo: stringValue(raw.archivo),
+    ordenar: stringValue(raw.ordenar),
+    pagina: stringValue(raw.pagina),
+    filtros: filters.length ? filters.join(",") : stringValue(raw.filtros)
   };
-  return actions[status] ?? "Revisar ficha";
 }
 
-function priorityLabel(status: string, pendingTotal: number) {
-  if (pendingTotal > 0) return "Cobro";
-  if (["nuevo", "seguimiento_pendiente", "pendiente_datos"].includes(status)) return "Alta";
-  if (status === "obra_activa") return "Obra";
-  return "Normal";
+function hrefWith(query: ClientListQuery, changes: Partial<ClientListQuery>) {
+  const next = { ...query, ...changes };
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(next)) {
+    if (!value || value === "todos" || value === "activos") continue;
+    params.set(key, value);
+  }
+  const suffix = params.toString();
+  return suffix ? `/clientes?${suffix}` : "/clientes";
 }
 
-function normalize(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+function stringValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function arrayValue(value: string | string[] | undefined) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }

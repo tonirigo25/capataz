@@ -133,15 +133,31 @@ enum EventoAgendaEstado {
 model Client {
   id                String       @id @default(cuid())
   nombre            String
+  nombreComercial   String?
+  razonSocial       String?
+  nifCif            String?
   telefono          String
   email             String?
   direccion         String
+  direccionFiscal   String?
+  codigoPostal      String?
+  municipio         String?
+  provincia         String?
+  pais              String       @default("España")
+  emailFacturacion  String?
+  telefonoFacturacion String?
+  contactoPrincipalNombre   String?
+  contactoPrincipalCargo    String?
+  contactoPrincipalTelefono String?
+  contactoPrincipalEmail    String?
+  contactoFacturacionNombre String?
   tipo              String
   estado            ClientStatus @default(nuevo)
   origen            String
   notas             String?
   fechaCreacion     DateTime     @default(now())
   ultimaInteraccion DateTime?
+  archivadoAt       DateTime?
   budgets           Budget[]
   expenses          Expense[]
   invoices          Invoice[]
@@ -149,6 +165,13 @@ model Client {
   reminders         Reminder[]
   works             Work[]
   agendaEvents      EventoAgenda[]
+
+  @@index([nombre])
+  @@index([nifCif])
+  @@index([email])
+  @@index([telefono])
+  @@index([estado])
+  @@index([archivadoAt])
 }
 
 model Work {

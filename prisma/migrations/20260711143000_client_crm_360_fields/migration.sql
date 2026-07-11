@@ -1,0 +1,23 @@
+ALTER TABLE "Client" ADD COLUMN "nombreComercial" TEXT;
+ALTER TABLE "Client" ADD COLUMN "razonSocial" TEXT;
+ALTER TABLE "Client" ADD COLUMN "nifCif" TEXT;
+ALTER TABLE "Client" ADD COLUMN "direccionFiscal" TEXT;
+ALTER TABLE "Client" ADD COLUMN "codigoPostal" TEXT;
+ALTER TABLE "Client" ADD COLUMN "municipio" TEXT;
+ALTER TABLE "Client" ADD COLUMN "provincia" TEXT;
+ALTER TABLE "Client" ADD COLUMN "pais" TEXT NOT NULL DEFAULT 'España';
+ALTER TABLE "Client" ADD COLUMN "emailFacturacion" TEXT;
+ALTER TABLE "Client" ADD COLUMN "telefonoFacturacion" TEXT;
+ALTER TABLE "Client" ADD COLUMN "contactoPrincipalNombre" TEXT;
+ALTER TABLE "Client" ADD COLUMN "contactoPrincipalCargo" TEXT;
+ALTER TABLE "Client" ADD COLUMN "contactoPrincipalTelefono" TEXT;
+ALTER TABLE "Client" ADD COLUMN "contactoPrincipalEmail" TEXT;
+ALTER TABLE "Client" ADD COLUMN "contactoFacturacionNombre" TEXT;
+ALTER TABLE "Client" ADD COLUMN "archivadoAt" TIMESTAMP(3);
+
+CREATE INDEX "Client_nombre_idx" ON "Client"("nombre");
+CREATE INDEX "Client_nifCif_idx" ON "Client"("nifCif");
+CREATE INDEX "Client_email_idx" ON "Client"("email");
+CREATE INDEX "Client_telefono_idx" ON "Client"("telefono");
+CREATE INDEX "Client_estado_idx" ON "Client"("estado");
+CREATE INDEX "Client_archivadoAt_idx" ON "Client"("archivadoAt");

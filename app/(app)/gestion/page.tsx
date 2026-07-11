@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Save, X } from "lucide-react";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
 import { SectionHeader } from "@/components/section-header";
+import { Notice } from "@/components/ui-primitives";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
@@ -91,6 +92,10 @@ export default async function ManualManagementPage({
   const suggestedBudgetNumber = tipo === "presupuesto" && !query.id ? await nextDocumentNumber("budget") : "";
   const suggestedInvoiceNumber = tipo === "factura" && !query.id ? await nextDocumentNumber("invoice") : "";
   const record = query.id ? await fetchRecord(tipo, query.id) : null;
+  const duplicateClient =
+    tipo === "cliente" && query.duplicateOf
+      ? await prisma.client.findUnique({ where: { id: query.duplicateOf }, select: { id: true, nombre: true, telefono: true, email: true, nifCif: true } })
+      : null;
   const title = `${record ? "Editar" : "Añadir"} ${entityLabels[tipo]}`;
   const returnTo = query.returnTo ?? defaultReturnTo(tipo);
 
@@ -110,6 +115,16 @@ export default async function ManualManagementPage({
         <input type="hidden" name="tipo" value={tipo} />
         <input type="hidden" name="id" value={query.id ?? ""} />
         <input type="hidden" name="returnTo" value={returnTo} />
+        {duplicateClient ? <input type="hidden" name="confirmDuplicate" value="true" /> : null}
+
+        {duplicateClient ? (
+          <Notice
+            tone={query.duplicateStrength === "weak" ? "warning" : "danger"}
+            title="Puede que este cliente ya exista"
+            description={`${query.duplicateReason ?? "Coincidencia detectada"} con ${duplicateClient.nombre}. Revisa la ficha existente o continúa sólo si quieres crear otro registro.`}
+            action={<Link href={`/clientes/${duplicateClient.id}`} className="secondary-button">Ver existente</Link>}
+          />
+        ) : null}
 
         {renderFields({ tipo, record, defaults: query, clients, works, budgets, invoices, reminders, company, suggestedBudgetNumber, suggestedInvoiceNumber })}
 
@@ -120,7 +135,7 @@ export default async function ManualManagementPage({
           </Link>
           <button type="submit" className="primary-button w-full">
             <Save size={18} />
-            Guardar
+            {duplicateClient ? "Continuar creando" : "Guardar"}
           </button>
         </div>
       </form>
@@ -180,15 +195,49 @@ function renderFields({
     case "cliente":
       return (
         <>
-          <Field name="nombre" label="Nombre" required value={record?.nombre} />
-          <Field name="telefono" label="Teléfono" required value={record?.telefono} />
-          <Field name="email" label="Email" type="email" value={record?.email} />
-          <Field name="direccion" label="Dirección" required value={record?.direccion} />
-          <Field name="tipoCliente" label="Tipo" required value={record?.tipo ?? "Particular"} />
-          <Select name="estado" label="Estado" options={statusOptions.cliente} value={record?.estado ?? "nuevo"} />
-          <Field name="origen" label="Origen" required value={record?.origen ?? "Manual"} />
-          <Field name="ultimaInteraccion" label="Última interacción" type="datetime-local" value={dateTimeValue(record?.ultimaInteraccion)} />
-          <Textarea name="notas" label="Notas" value={record?.notas} />
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Identidad del cliente</p>
+            <Field name="nombre" label="Nombre visible" value={valueFor(record, defaults, "nombre")} />
+            <Field name="nombreComercial" label="Nombre comercial" value={valueFor(record, defaults, "nombreComercial")} />
+            <Field name="razonSocial" label="Razón social" value={valueFor(record, defaults, "razonSocial")} />
+            <Field name="nifCif" label="NIF/CIF" value={valueFor(record, defaults, "nifCif")} />
+            <ClientTypeSelect value={record?.tipo ?? defaults.tipoCliente ?? "Particular"} />
+            <Select name="estado" label="Estado" options={statusOptions.cliente} value={record?.estado ?? defaults.estado ?? "pendiente_datos"} />
+            <Field name="origen" label="Origen" value={valueFor(record, defaults, "origen", "Manual")} />
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Contacto operativo</p>
+            <Field name="telefono" label="Teléfono del cliente" value={valueFor(record, defaults, "telefono")} />
+            <Field name="email" label="Email del cliente" type="email" value={valueFor(record, defaults, "email")} />
+            <Field name="contactoPrincipalNombre" label="Contacto principal" value={valueFor(record, defaults, "contactoPrincipalNombre")} />
+            <Field name="contactoPrincipalCargo" label="Cargo o relación" value={valueFor(record, defaults, "contactoPrincipalCargo")} />
+            <Field name="contactoPrincipalTelefono" label="Teléfono contacto principal" value={valueFor(record, defaults, "contactoPrincipalTelefono")} />
+            <Field name="contactoPrincipalEmail" label="Email contacto principal" type="email" value={valueFor(record, defaults, "contactoPrincipalEmail")} />
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Datos fiscales y facturación</p>
+            <Field name="direccionFiscal" label="Dirección fiscal" value={valueFor(record, defaults, "direccionFiscal")} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="codigoPostal" label="Código postal" value={valueFor(record, defaults, "codigoPostal")} />
+              <Field name="municipio" label="Municipio" value={valueFor(record, defaults, "municipio")} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="provincia" label="Provincia" value={valueFor(record, defaults, "provincia")} />
+              <Field name="pais" label="País" value={valueFor(record, defaults, "pais", "España")} />
+            </div>
+            <Field name="emailFacturacion" label="Email de facturación" type="email" value={valueFor(record, defaults, "emailFacturacion")} />
+            <Field name="telefonoFacturacion" label="Teléfono de facturación" value={valueFor(record, defaults, "telefonoFacturacion")} />
+            <Field name="contactoFacturacionNombre" label="Persona de facturación" value={valueFor(record, defaults, "contactoFacturacionNombre")} />
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Dirección y notas internas</p>
+            <Field name="direccion" label="Dirección principal o postal" value={valueFor(record, defaults, "direccion")} />
+            <Field name="ultimaInteraccion" label="Última interacción" type="datetime-local" value={dateTimeValue(record?.ultimaInteraccion ?? defaults.ultimaInteraccion)} />
+            <Textarea name="notas" label="Notas internas" value={record?.notas ?? defaults.notas} />
+          </div>
         </>
       );
     case "obra":
@@ -396,6 +445,23 @@ function Select({ name, label, options, value }: { name: string; label: string; 
   );
 }
 
+function ClientTypeSelect({ value }: { value?: string | null }) {
+  const options = ["Particular", "Autónomo", "Empresa", "Comunidad de propietarios", "Otro"];
+  const allOptions = value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <label>
+      <span className="label mb-1 block">Tipo</span>
+      <select className="field" name="tipoCliente" defaultValue={value ?? "Particular"}>
+        {allOptions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function RelationSelect({
   name,
   label,
@@ -422,6 +488,12 @@ function RelationSelect({
       </select>
     </label>
   );
+}
+
+function valueFor(record: Record<string, any> | null, defaults: Record<string, string | undefined>, key: string, fallback = "") {
+  const value = record?.[key];
+  if (value !== null && value !== undefined && value !== "") return value;
+  return defaults[key] ?? fallback;
 }
 
 function dateTimeValue(value?: Date | string | null) {

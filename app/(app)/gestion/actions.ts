@@ -18,6 +18,7 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateBudgetTotals, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
+import { clientDraftFromFormData, clientDuplicateRedirectUrl, findClientDuplicateCandidate } from "@/lib/client-crm";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { deriveInvoiceStatus } from "@/lib/status";
 
@@ -81,15 +82,40 @@ export async function saveManualRecord(formData: FormData) {
 }
 
 async function saveClient(formData: FormData, id: string | null) {
+  const draft = clientDraftFromFormData(formData);
+  const duplicateConfirmed = optionalText(formData, "confirmDuplicate") === "true";
+  if (!id && !duplicateConfirmed) {
+    const duplicate = await findClientDuplicateCandidate(draft);
+    if (duplicate) {
+      const target = optionalText(formData, "returnTo") ?? "/clientes";
+      redirect(`${clientDuplicateRedirectUrl(draft, duplicate)}&returnTo=${encodeURIComponent(target)}`);
+    }
+  }
+
   const data = {
-    nombre: text(formData, "nombre"),
-    telefono: text(formData, "telefono"),
-    email: optionalText(formData, "email"),
-    direccion: text(formData, "direccion"),
-    tipo: text(formData, "tipoCliente"),
-    estado: text(formData, "estado") as ClientStatus,
-    origen: text(formData, "origen"),
-    notas: optionalText(formData, "notas"),
+    nombre: draft.nombre ?? draft.razonSocial ?? draft.nombreComercial ?? "Cliente sin nombre",
+    nombreComercial: draft.nombreComercial,
+    razonSocial: draft.razonSocial,
+    nifCif: draft.nifCif,
+    telefono: draft.telefono ?? "",
+    email: draft.email,
+    direccion: draft.direccion ?? "",
+    direccionFiscal: draft.direccionFiscal,
+    codigoPostal: draft.codigoPostal,
+    municipio: draft.municipio,
+    provincia: draft.provincia,
+    pais: draft.pais ?? "España",
+    emailFacturacion: draft.emailFacturacion,
+    telefonoFacturacion: draft.telefonoFacturacion,
+    contactoPrincipalNombre: draft.contactoPrincipalNombre,
+    contactoPrincipalCargo: draft.contactoPrincipalCargo,
+    contactoPrincipalTelefono: draft.contactoPrincipalTelefono,
+    contactoPrincipalEmail: draft.contactoPrincipalEmail,
+    contactoFacturacionNombre: draft.contactoFacturacionNombre,
+    tipo: draft.tipo ?? "Particular",
+    estado: (draft.estado ?? "pendiente_datos") as ClientStatus,
+    origen: draft.origen ?? "Manual",
+    notas: draft.notas,
     ultimaInteraccion: optionalDate(formData, "ultimaInteraccion")
   };
 

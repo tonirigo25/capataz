@@ -62,3 +62,33 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
   revalidatePath("/hoy");
   redirect("/recordatorios");
 }
+
+export async function archiveClient(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Falta el cliente.");
+
+  await prisma.client.update({
+    where: { id },
+    data: { archivadoAt: new Date() }
+  });
+
+  revalidatePath("/clientes");
+  revalidatePath(`/clientes/${id}`);
+  revalidatePath("/hoy");
+  redirect("/clientes?archivo=archivados");
+}
+
+export async function restoreClient(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Falta el cliente.");
+
+  await prisma.client.update({
+    where: { id },
+    data: { archivadoAt: null }
+  });
+
+  revalidatePath("/clientes");
+  revalidatePath(`/clientes/${id}`);
+  revalidatePath("/hoy");
+  redirect(`/clientes/${id}`);
+}

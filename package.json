@@ -13,6 +13,7 @@
     "test:chat-conversations": "node scripts/validate-chat-conversations.mjs",
     "test:chat-query": "node scripts/validate-chat-query.mjs",
     "test:dashboard-hoy": "node scripts/validate-dashboard-hoy.mjs",
+    "test:crm-clientes": "node scripts/validate-crm-clientes.mjs",
     "test:document-pdf": "node scripts/validate-document-pdf.mjs",
     "db:deploy": "prisma generate && prisma migrate deploy",
     "db:push": "prisma db push && npm run db:seed",

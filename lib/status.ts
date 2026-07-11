@@ -12,6 +12,7 @@ export const statusLabels: Record<string, string> = {
   rechazado: "Rechazado",
   obra_activa: "Obra activa",
   finalizado: "Finalizado",
+  archivado: "Archivado",
   pendiente_cobro: "Pendiente cobro",
   pendiente_inicio: "Pendiente inicio",
   en_curso: "En curso",
@@ -86,7 +87,7 @@ export function statusClass(status: string) {
     "border-obra-green/20 bg-obra-green/10 text-obra-green":
       ["pagada", "aceptado", "finalizada", "cerrada", "entregado", "comprado", "programado", "confirmado", "realizado"].includes(status),
     "border-obra-red/20 bg-obra-red/10 text-obra-red":
-      ["vencida", "rechazado", "fallido", "falta", "reclamada", "cancelado"].includes(status),
+      ["vencida", "rechazado", "fallido", "falta", "reclamada", "cancelado", "archivado"].includes(status),
     "border-obra-orange/25 bg-obra-orange/10 text-obra-orange":
       [
         "pendiente_cobro",
@@ -122,6 +123,7 @@ export function statusClass(status: string) {
         "falta",
         "reclamada",
         "cancelado",
+        "archivado",
         "pendiente_cobro",
         "pendiente",
         "pendiente_pago",
