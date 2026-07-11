@@ -197,6 +197,7 @@ Consultas soportadas:
 - `cuanto dinero tengo disponible`
 - `cuanto voy a cobrar esta semana`
 - `cuanto tengo que pagar este mes`
+- `cuanto pagare este mes`
 - `como estara mi caja dentro de 30 dias`
 - `cuando me quedare por debajo del minimo`
 - `que facturas vencen esta semana`

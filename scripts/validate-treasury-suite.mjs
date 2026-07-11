@@ -414,6 +414,7 @@ async function validateChat() {
     ["cuanto dinero tengo disponible", "treasury_available_cash"],
     ["cuanto voy a cobrar esta semana", "treasury_collect_week"],
     ["cuanto tengo que pagar este mes", "treasury_pay_month"],
+    ["cuanto pagare este mes", "treasury_pay_month"],
     ["como estara mi caja dentro de 30 dias", "treasury_forecast"],
     ["cuando me quedare por debajo del minimo", "treasury_minimum_breach"],
     ["que facturas vencen esta semana", "treasury_due_invoices"],
