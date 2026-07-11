@@ -139,6 +139,30 @@ const cases = [
     expected: { kind: "database_query", action: "active_projects" }
   },
   {
+    text: "qué obras están paradas",
+    expected: { kind: "database_query", action: "paused_projects" }
+  },
+  {
+    text: "qué obras están en curso",
+    expected: { kind: "database_query", action: "active_projects" }
+  },
+  {
+    text: "qué obra factura más",
+    expected: { kind: "aggregate_query", action: "work_highest_revenue" }
+  },
+  {
+    text: "qué obra tiene menos margen",
+    expected: { kind: "aggregate_query", action: "work_lowest_margin" }
+  },
+  {
+    text: "qué obras empiezan esta semana",
+    expected: { kind: "database_query", action: "works_starting_this_week" }
+  },
+  {
+    text: "qué obras terminan hoy",
+    expected: { kind: "database_query", action: "works_ending_today" }
+  },
+  {
     text: "qué presupuesto tiene Juana",
     expected: { kind: "database_query", action: "client_budgets", clientName: "Juana" }
   },

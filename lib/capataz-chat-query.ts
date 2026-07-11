@@ -30,6 +30,11 @@ export type ChatQueryAction =
   | "revenue_summary"
   | "expenses_summary"
   | "active_projects"
+  | "paused_projects"
+  | "work_highest_revenue"
+  | "work_lowest_margin"
+  | "works_starting_this_week"
+  | "works_ending_today"
   | "client_budgets"
   | "client_payments"
   | "clients_missing_tax_id"
@@ -152,8 +157,13 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
   }
 
   if (/(obra|obras)\b/.test(normalized)) {
+    if (/(paradas|parada|pausadas|pausada|detenidas|bloqueadas)\b/.test(normalized)) return { kind: "database_query", action: "paused_projects", confidence: 0.9, period, clientName, rule: "paused_projects" };
+    if (/(factura mas|factura más|facturan mas|facturan más|mayor facturacion|mayor facturación|mas facturacion|más facturación)\b/.test(normalized)) return { kind: "aggregate_query", action: "work_highest_revenue", confidence: 0.9, period, rule: "work_highest_revenue" };
+    if (/(menos margen|menor margen|peor margen|margen mas bajo|margen más bajo)\b/.test(normalized)) return { kind: "aggregate_query", action: "work_lowest_margin", confidence: 0.9, period, rule: "work_lowest_margin" };
+    if (/(empiezan esta semana|empieza esta semana|inicio esta semana|inician esta semana|arrancan esta semana)\b/.test(normalized)) return { kind: "database_query", action: "works_starting_this_week", confidence: 0.88, period: "this_week", rule: "works_starting_this_week" };
+    if (/(terminan hoy|acaban hoy|finalizan hoy|fin hoy)\b/.test(normalized)) return { kind: "database_query", action: "works_ending_today", confidence: 0.88, period, rule: "works_ending_today" };
     if (/(activas|en curso|abiertas)\b/.test(normalized)) return { kind: "database_query", action: "active_projects", confidence: 0.88, period, clientName, rule: "active_projects" };
-    if (/(mas gastos|mayor gasto|gasto mas alto)\b/.test(normalized)) return { kind: "aggregate_query", action: "project_highest_expenses", confidence: 0.88, period, rule: "project_highest_expenses" };
+    if (/(mas gastos|mayor gasto|gasto mas alto|gasta mas|gasta más)\b/.test(normalized)) return { kind: "aggregate_query", action: "project_highest_expenses", confidence: 0.88, period, rule: "project_highest_expenses" };
   }
 
   if (/(cliente|clientes)\b/.test(normalized) && /(sin cif|sin nif|no tienen cif|no tienen nif|datos incompletos)\b/.test(normalized)) {

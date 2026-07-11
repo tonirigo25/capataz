@@ -22,14 +22,32 @@ enum ClientStatus {
 }
 
 enum WorkStatus {
+  borrador
+  pendiente_aprobacion
+  planificada
+  preparacion
   pendiente_inicio
   en_curso
   pausada
+  parcialmente_terminada
   pendiente_material
+  pendiente_cliente
+  parada
   pendiente_remates
   finalizada
+  facturada_parcialmente
+  facturada
   pendiente_cobro
+  cobrada
   cerrada
+  archivada
+}
+
+enum WorkPriority {
+  baja
+  media
+  alta
+  urgente
 }
 
 enum BudgetStatus {
@@ -131,40 +149,40 @@ enum EventoAgendaEstado {
 }
 
 model Client {
-  id                String       @id @default(cuid())
-  nombre            String
-  nombreComercial   String?
-  razonSocial       String?
-  nifCif            String?
-  telefono          String
-  email             String?
-  direccion         String
-  direccionFiscal   String?
-  codigoPostal      String?
-  municipio         String?
-  provincia         String?
-  pais              String       @default("España")
-  emailFacturacion  String?
-  telefonoFacturacion String?
+  id                        String         @id @default(cuid())
+  nombre                    String
+  nombreComercial           String?
+  razonSocial               String?
+  nifCif                    String?
+  telefono                  String
+  email                     String?
+  direccion                 String
+  direccionFiscal           String?
+  codigoPostal              String?
+  municipio                 String?
+  provincia                 String?
+  pais                      String         @default("España")
+  emailFacturacion          String?
+  telefonoFacturacion       String?
   contactoPrincipalNombre   String?
   contactoPrincipalCargo    String?
   contactoPrincipalTelefono String?
   contactoPrincipalEmail    String?
   contactoFacturacionNombre String?
-  tipo              String
-  estado            ClientStatus @default(nuevo)
-  origen            String
-  notas             String?
-  fechaCreacion     DateTime     @default(now())
-  ultimaInteraccion DateTime?
-  archivadoAt       DateTime?
-  budgets           Budget[]
-  expenses          Expense[]
-  invoices          Invoice[]
-  payments          Payment[]
-  reminders         Reminder[]
-  works             Work[]
-  agendaEvents      EventoAgenda[]
+  tipo                      String
+  estado                    ClientStatus   @default(nuevo)
+  origen                    String
+  notas                     String?
+  fechaCreacion             DateTime       @default(now())
+  ultimaInteraccion         DateTime?
+  archivadoAt               DateTime?
+  budgets                   Budget[]
+  expenses                  Expense[]
+  invoices                  Invoice[]
+  payments                  Payment[]
+  reminders                 Reminder[]
+  works                     Work[]
+  agendaEvents              EventoAgenda[]
 
   @@index([nombre])
   @@index([nifCif])
@@ -175,77 +193,145 @@ model Client {
 }
 
 model Work {
-  id                   String     @id @default(cuid())
-  clienteId            String
-  titulo               String
-  direccion            String
-  tipoTrabajo          String
-  estado               WorkStatus @default(pendiente_inicio)
-  fechaInicio          DateTime?
-  fechaFinPrevista     DateTime?
-  presupuestoAprobado  Float
-  gastoReal            Float      @default(0)
-  margenEstimado       Float      @default(0)
-  notas                String?
-  budgets              Budget[]
-  client               Client     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  expenses             Expense[]
-  invoices             Invoice[]
-  materials            Material[]
-  payments             Payment[]
-  reminders            Reminder[]
-  agendaEvents         EventoAgenda[]
+  id                    String         @id @default(cuid())
+  numeroInterno         String?        @unique
+  codigo                String?        @unique
+  clienteId             String
+  contactoPrincipal     String?
+  contactoTelefono      String?
+  contactoEmail         String?
+  titulo                String
+  direccion             String
+  latitud               Float?
+  longitud              Float?
+  tipoTrabajo           String
+  estado                WorkStatus     @default(pendiente_inicio)
+  prioridad             WorkPriority   @default(media)
+  fechaCreacion         DateTime       @default(now())
+  fechaInicioPrevista   DateTime?
+  fechaInicio           DateTime?
+  fechaInicioReal       DateTime?
+  fechaFinPrevista      DateTime?
+  fechaFinReal          DateTime?
+  responsable           String?
+  comercial             String?
+  jefeObra              String?
+  descripcion           String?
+  observacionesInternas String?
+  notasPrivadas         String?
+  presupuestoAprobado   Float
+  costePrevisto         Float          @default(0)
+  gastoReal             Float          @default(0)
+  margenEstimado        Float          @default(0)
+  horasEstimadas        Float          @default(0)
+  horasReales           Float          @default(0)
+  subcontratasCoste     Float          @default(0)
+  archivada             Boolean        @default(false)
+  archivadaAt           DateTime?
+  notas                 String?
+  updatedAt             DateTime       @updatedAt
+  budgets               Budget[]
+  client                Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  documents             WorkDocument[]
+  expenses              Expense[]
+  photos                WorkPhoto[]
+  invoices              Invoice[]
+  materials             Material[]
+  payments              Payment[]
+  reminders             Reminder[]
+  agendaEvents          EventoAgenda[]
+
+  @@index([estado])
+  @@index([prioridad])
+  @@index([fechaInicioPrevista])
+  @@index([fechaFinPrevista])
+  @@index([archivada])
+}
+
+model WorkDocument {
+  id         String   @id @default(cuid())
+  obraId     String
+  tipo       String
+  nombre     String
+  url        String?
+  entityType String?
+  entityId   String?
+  notas      String?
+  fecha      DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  work       Work     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tipo])
+  @@index([entityType, entityId])
+}
+
+model WorkPhoto {
+  id        String   @id @default(cuid())
+  obraId    String
+  categoria String
+  titulo    String
+  url       String?
+  notas     String?
+  tomadaEn  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  work      Work     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([categoria])
 }
 
 model Budget {
-  id               String       @id @default(cuid())
+  id               String         @id @default(cuid())
   clienteId        String
   obraId           String?
-  numero           String       @unique
+  numero           String         @unique
   titulo           String
   partidas         String
   subtotal         Float
   iva              Float
-  descuento        Float        @default(0)
+  descuento        Float          @default(0)
   total            Float
   margenEstimado   Float
-  estado           BudgetStatus @default(borrador)
-  fechaCreacion    DateTime     @default(now())
+  estado           BudgetStatus   @default(borrador)
+  fechaCreacion    DateTime       @default(now())
   fechaEnvio       DateTime?
   fechaValidez     DateTime?
   fechaSeguimiento DateTime?
   condiciones      String?
   observaciones    String?
   formaPago        String?
-  client           Client       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   agendaEvents     EventoAgenda[]
   reminders        Reminder[]
-  work             Work?        @relation(fields: [obraId], references: [id])
+  work             Work?          @relation(fields: [obraId], references: [id])
 }
 
 model Invoice {
-  id               String        @id @default(cuid())
+  id               String         @id @default(cuid())
   clienteId        String
   obraId           String?
-  numero           String        @unique
+  numero           String         @unique
   concepto         String
   partidas         String?
   importeBase      Float
   iva              Float
   total            Float
-  pagado           Float         @default(0)
+  pagado           Float          @default(0)
   pendiente        Float
   fechaEmision     DateTime
   fechaVencimiento DateTime
-  estado           InvoiceStatus @default(pendiente_pago)
+  estado           InvoiceStatus  @default(pendiente_pago)
   observaciones    String?
   metodoPago       String?
   datosBancarios   String?
-  client           Client        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   agendaEvents     EventoAgenda[]
   payments         Payment[]
   reminders        Reminder[]
-  work             Work?         @relation(fields: [obraId], references: [id])
+  work             Work?          @relation(fields: [obraId], references: [id])
 }
 
 model Payment {
@@ -289,64 +375,64 @@ model Material {
 }
 
 model Reminder {
-  id                    String          @id @default(cuid())
-  clienteId             String?
-  obraId                String?
-  facturaId             String?
-  presupuestoId         String?
-  tipo                  ReminderType
-  canal                 ReminderChannel @default(interno)
-  mensaje               String
-  fechaProgramada       DateTime
-  estado                ReminderStatus  @default(borrador)
-  requiereConfirmacion  Boolean         @default(true)
-  confirmadoPorUsuario  Boolean         @default(false)
-  budget                Budget?         @relation(fields: [presupuestoId], references: [id])
-  client                Client?         @relation(fields: [clienteId], references: [id])
-  invoice               Invoice?        @relation(fields: [facturaId], references: [id])
-  work                  Work?           @relation(fields: [obraId], references: [id])
-  agendaEvents          EventoAgenda[]
+  id                   String          @id @default(cuid())
+  clienteId            String?
+  obraId               String?
+  facturaId            String?
+  presupuestoId        String?
+  tipo                 ReminderType
+  canal                ReminderChannel @default(interno)
+  mensaje              String
+  fechaProgramada      DateTime
+  estado               ReminderStatus  @default(borrador)
+  requiereConfirmacion Boolean         @default(true)
+  confirmadoPorUsuario Boolean         @default(false)
+  budget               Budget?         @relation(fields: [presupuestoId], references: [id])
+  client               Client?         @relation(fields: [clienteId], references: [id])
+  invoice              Invoice?        @relation(fields: [facturaId], references: [id])
+  work                 Work?           @relation(fields: [obraId], references: [id])
+  agendaEvents         EventoAgenda[]
 }
 
 model EventoAgenda {
-  id                    String              @id @default(cuid())
-  titulo                String
-  descripcion           String?
-  tipo                  EventoAgendaTipo
-  estado                EventoAgendaEstado  @default(pendiente)
-  fechaInicio           DateTime
-  fechaFin              DateTime?
-  horaInicio            String?
-  horaFin               String?
-  clienteId             String?
-  obraId                String?
-  presupuestoId         String?
-  facturaId             String?
-  recordatorioId        String?
-  direccion             String?
-  notas                 String?
-  requiereConfirmacion  Boolean             @default(false)
-  confirmadoPorUsuario  Boolean             @default(false)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  budget                Budget?             @relation(fields: [presupuestoId], references: [id])
-  client                Client?             @relation(fields: [clienteId], references: [id])
-  invoice               Invoice?            @relation(fields: [facturaId], references: [id])
-  reminder              Reminder?           @relation(fields: [recordatorioId], references: [id])
-  work                  Work?               @relation(fields: [obraId], references: [id])
+  id                   String             @id @default(cuid())
+  titulo               String
+  descripcion          String?
+  tipo                 EventoAgendaTipo
+  estado               EventoAgendaEstado @default(pendiente)
+  fechaInicio          DateTime
+  fechaFin             DateTime?
+  horaInicio           String?
+  horaFin              String?
+  clienteId            String?
+  obraId               String?
+  presupuestoId        String?
+  facturaId            String?
+  recordatorioId       String?
+  direccion            String?
+  notas                String?
+  requiereConfirmacion Boolean            @default(false)
+  confirmadoPorUsuario Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  budget               Budget?            @relation(fields: [presupuestoId], references: [id])
+  client               Client?            @relation(fields: [clienteId], references: [id])
+  invoice              Invoice?           @relation(fields: [facturaId], references: [id])
+  reminder             Reminder?          @relation(fields: [recordatorioId], references: [id])
+  work                 Work?              @relation(fields: [obraId], references: [id])
 }
 
 model ChatMessage {
-  id             String   @id @default(cuid())
+  id             String           @id @default(cuid())
   conversationId String
   role           String
   content        String
-  status         String   @default("saved")
-  idempotencyKey String?  @unique
+  status         String           @default("saved")
+  idempotencyKey String?          @unique
   context        Json?
   metadata       Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
@@ -354,15 +440,15 @@ model ChatMessage {
 }
 
 model ChatConversation {
-  id             String          @id @default(cuid())
+  id             String        @id @default(cuid())
   title          String
-  status         String          @default("active")
+  status         String        @default("active")
   activeTask     Json?
   metadata       Json?
-  lastActivityAt DateTime        @default(now())
+  lastActivityAt DateTime      @default(now())
   archivedAt     DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   messages       ChatMessage[]
 
   @@index([status, lastActivityAt])
@@ -393,44 +479,44 @@ model ChatActionLog {
 }
 
 model UsuarioPerfil {
-  id               String   @id @default(cuid())
-  nombre           String?
-  apellidos        String?
-  nombrePreferido  String?
-  telefono         String?
-  email            String?
-  cargo            String?
-  oficioPrincipal  String?
-  tonoPreferido    String   @default("directo")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(cuid())
+  nombre          String?
+  apellidos       String?
+  nombrePreferido String?
+  telefono        String?
+  email           String?
+  cargo           String?
+  oficioPrincipal String?
+  tonoPreferido   String   @default("directo")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Empresa {
-  id                       String   @id @default(cuid())
-  nombreComercial          String
-  razonSocial              String?
-  nifCif                   String?
-  direccionFiscal          String?
-  codigoPostal             String?
-  ciudad                   String?
-  provincia                String?
-  pais                     String   @default("España")
-  telefono                 String?
-  email                    String?
-  web                      String?
-  personaContacto          String?
-  iban                     String?
-  condicionesPorDefecto    String?
-  textoLegal               String?
-  logoUrl                  String?
-  selloUrl                 String?
-  colorMarca               String   @default("#f6c945")
-  ivaDefecto               Float    @default(21)
-  seriePresupuestos        String   @default("2026")
-  serieFacturas            String   @default("2026")
-  prefijoPresupuesto       String   @default("P")
-  prefijoFactura           String   @default("F")
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  nombreComercial       String
+  razonSocial           String?
+  nifCif                String?
+  direccionFiscal       String?
+  codigoPostal          String?
+  ciudad                String?
+  provincia             String?
+  pais                  String   @default("España")
+  telefono              String?
+  email                 String?
+  web                   String?
+  personaContacto       String?
+  iban                  String?
+  condicionesPorDefecto String?
+  textoLegal            String?
+  logoUrl               String?
+  selloUrl              String?
+  colorMarca            String   @default("#f6c945")
+  ivaDefecto            Float    @default(21)
+  seriePresupuestos     String   @default("2026")
+  serieFacturas         String   @default("2026")
+  prefijoPresupuesto    String   @default("P")
+  prefijoFactura        String   @default("F")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

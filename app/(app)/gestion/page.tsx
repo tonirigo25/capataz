@@ -38,7 +38,8 @@ const statusOptions = {
     "finalizado",
     "pendiente_cobro"
   ],
-  obra: ["pendiente_inicio", "en_curso", "pausada", "pendiente_material", "pendiente_remates", "finalizada", "pendiente_cobro", "cerrada"],
+  obra: ["borrador", "pendiente_aprobacion", "planificada", "preparacion", "pendiente_inicio", "en_curso", "pausada", "parada", "pendiente_material", "pendiente_cliente", "pendiente_remates", "parcialmente_terminada", "finalizada", "facturada_parcialmente", "facturada", "pendiente_cobro", "cobrada", "cerrada", "archivada"],
+  obraPrioridad: ["baja", "media", "alta", "urgente"],
   presupuesto: ["borrador", "pendiente_revision", "enviado", "visto", "pendiente_respuesta", "aceptado", "rechazado", "caducado"],
   factura: ["borrador", "enviada", "pendiente", "parcialmente_pagada", "pagada", "vencida", "pendiente_emitir", "emitida", "pendiente_pago", "reclamada"],
   pago: ["senal", "pago_parcial", "pago_final", "regularizacion"],
@@ -243,17 +244,80 @@ function renderFields({
     case "obra":
       return (
         <>
-          <RelationSelect name="clienteId" label="Cliente" options={clients.map((client) => [client.id, client.nombre])} value={record?.clienteId ?? defaults.clienteId} />
-          <Field name="titulo" label="Título" required value={record?.titulo} />
-          <Field name="direccion" label="Dirección" required value={record?.direccion} />
-          <Field name="tipoTrabajo" label="Tipo de trabajo" required value={record?.tipoTrabajo} />
-          <Select name="estado" label="Estado" options={statusOptions.obra} value={record?.estado ?? "pendiente_inicio"} />
-          <Field name="fechaInicio" label="Fecha inicio" type="datetime-local" value={dateTimeValue(record?.fechaInicio)} />
-          <Field name="fechaFinPrevista" label="Fin previsto" type="datetime-local" value={dateTimeValue(record?.fechaFinPrevista)} />
-          <Field name="presupuestoAprobado" label="Presupuesto aprobado" type="number" value={record?.presupuestoAprobado ?? 0} />
-          <Field name="gastoReal" label="Gasto real" type="number" value={record?.gastoReal ?? 0} />
-          <Field name="margenEstimado" label="Margen estimado" type="number" value={record?.margenEstimado ?? 0} />
-          <Textarea name="notas" label="Notas" value={record?.notas} />
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Identificación</p>
+            <RelationSelect name="clienteId" label="Cliente" options={clients.map((client) => [client.id, client.nombre])} value={record?.clienteId ?? defaults.clienteId} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="numeroInterno" label="Número interno" value={record?.numeroInterno ?? defaults.numeroInterno} />
+              <Field name="codigo" label="Código" value={record?.codigo ?? defaults.codigo} />
+            </div>
+            <Field name="titulo" label="Nombre de obra" required value={record?.titulo ?? defaults.titulo} />
+            <Field name="tipoTrabajo" label="Tipo de trabajo" required value={record?.tipoTrabajo ?? defaults.tipoTrabajo} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Select name="estado" label="Estado" options={statusOptions.obra} value={record?.estado ?? defaults.estado ?? "pendiente_inicio"} />
+              <Select name="prioridad" label="Prioridad" options={statusOptions.obraPrioridad} value={record?.prioridad ?? defaults.prioridad ?? "media"} />
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Cliente y equipo</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field name="contactoPrincipal" label="Contacto principal" value={record?.contactoPrincipal ?? defaults.contactoPrincipal} />
+              <Field name="contactoTelefono" label="Teléfono contacto" value={record?.contactoTelefono ?? defaults.contactoTelefono} />
+              <Field name="contactoEmail" label="Email contacto" type="email" value={record?.contactoEmail ?? defaults.contactoEmail} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field name="responsable" label="Responsable" value={record?.responsable ?? defaults.responsable} />
+              <Field name="comercial" label="Comercial" value={record?.comercial ?? defaults.comercial} />
+              <Field name="jefeObra" label="Jefe de obra" value={record?.jefeObra ?? defaults.jefeObra} />
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Ubicación y planificación</p>
+            <Field name="direccion" label="Dirección exacta" required value={record?.direccion ?? defaults.direccion} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="latitud" label="Latitud GPS" type="number" value={record?.latitud ?? defaults.latitud} />
+              <Field name="longitud" label="Longitud GPS" type="number" value={record?.longitud ?? defaults.longitud} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="fechaInicioPrevista" label="Inicio previsto" type="datetime-local" value={dateTimeValue(record?.fechaInicioPrevista ?? defaults.fechaInicioPrevista)} />
+              <Field name="fechaInicio" label="Fecha inicio legacy" type="datetime-local" value={dateTimeValue(record?.fechaInicio ?? defaults.fechaInicio)} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="fechaInicioReal" label="Inicio real" type="datetime-local" value={dateTimeValue(record?.fechaInicioReal ?? defaults.fechaInicioReal)} />
+              <Field name="fechaFinPrevista" label="Fin previsto" type="datetime-local" value={dateTimeValue(record?.fechaFinPrevista ?? defaults.fechaFinPrevista)} />
+            </div>
+            <Field name="fechaFinReal" label="Fin real" type="datetime-local" value={dateTimeValue(record?.fechaFinReal ?? defaults.fechaFinReal)} />
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Economía y recursos</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field name="presupuestoAprobado" label="Presupuesto aprobado" type="number" value={record?.presupuestoAprobado ?? defaults.presupuestoAprobado ?? 0} />
+              <Field name="costePrevisto" label="Coste previsto" type="number" value={record?.costePrevisto ?? defaults.costePrevisto ?? 0} />
+              <Field name="gastoReal" label="Gasto real manual" type="number" value={record?.gastoReal ?? defaults.gastoReal ?? 0} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field name="margenEstimado" label="Margen estimado" type="number" value={record?.margenEstimado ?? defaults.margenEstimado ?? 0} />
+              <Field name="horasEstimadas" label="Horas estimadas" type="number" value={record?.horasEstimadas ?? defaults.horasEstimadas ?? 0} />
+              <Field name="horasReales" label="Horas reales" type="number" value={record?.horasReales ?? defaults.horasReales ?? 0} />
+            </div>
+            <Field name="subcontratasCoste" label="Coste subcontratas no imputado" type="number" value={record?.subcontratasCoste ?? defaults.subcontratasCoste ?? 0} />
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Descripción y notas</p>
+            <Textarea name="descripcion" label="Descripción de la obra" value={record?.descripcion ?? defaults.descripcion} />
+            <Textarea name="notas" label="Notas legacy visibles" value={record?.notas ?? defaults.notas} />
+            <Textarea name="observacionesInternas" label="Observaciones internas" value={record?.observacionesInternas ?? defaults.observacionesInternas} />
+            <Textarea name="notasPrivadas" label="Notas privadas" value={record?.notasPrivadas ?? defaults.notasPrivadas} />
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <input name="archivada" type="checkbox" defaultChecked={record?.archivada ?? defaults.archivada === "true"} />
+              Obra archivada
+            </label>
+            <Field name="archivadaAt" label="Fecha archivo" type="datetime-local" value={dateTimeValue(record?.archivadaAt ?? defaults.archivadaAt)} />
+          </div>
         </>
       );
     case "presupuesto":

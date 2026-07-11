@@ -1,4 +1,4 @@
-export const ACTIVE_WORK_STATUSES = ["pendiente_inicio", "en_curso", "pausada", "pendiente_material", "pendiente_remates", "pendiente_cobro"];
+export const ACTIVE_WORK_STATUSES = ["pendiente_inicio", "planificada", "preparacion", "en_curso", "pausada", "parada", "pendiente_material", "pendiente_cliente", "pendiente_remates", "parcialmente_terminada", "facturada_parcialmente", "pendiente_cobro"];
 export const ATTENTION_BUDGET_STATUSES = ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"];
 export const BILLABLE_INVOICE_EXCLUDED_STATUSES = ["borrador"];
 

@@ -1,9 +1,15 @@
 export const ACTIVE_WORK_STATUSES = [
   "pendiente_inicio",
+  "planificada",
+  "preparacion",
   "en_curso",
   "pausada",
+  "parada",
   "pendiente_material",
+  "pendiente_cliente",
   "pendiente_remates",
+  "parcialmente_terminada",
+  "facturada_parcialmente",
   "pendiente_cobro"
 ];
 

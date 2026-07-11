@@ -41,6 +41,7 @@ import {
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { ACTIVE_WORK_STATUSES, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
 
 type ChatDocumentKind = "budget" | "invoice";
 type PendingField = "iva" | "direccion_obra" | "datos_cliente" | "datos_fiscales";
@@ -498,6 +499,16 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryExpensesSummary(intent), text, intent, "queryExpensesSummary", "expense.findMany:period_summary");
     case "active_projects":
       return withQueryDiagnostics(await queryPendingTaskDetails("active_projects", context), text, intent, "queryPendingTaskDetails", "work.findMany:active");
+    case "paused_projects":
+      return withQueryDiagnostics(await queryWorksByStatus(["pausada", "parada"], "obras paradas"), text, intent, "queryWorksByStatus/paused", "work.findMany:paused");
+    case "work_highest_revenue":
+      return withQueryDiagnostics(await queryWorkHighestRevenue(intent), text, intent, "queryWorkHighestRevenue", "work.findMany+invoices:highest_revenue");
+    case "work_lowest_margin":
+      return withQueryDiagnostics(await queryWorkLowestMargin(intent), text, intent, "queryWorkLowestMargin", "work.findMany+financials:lowest_margin");
+    case "works_starting_this_week":
+      return withQueryDiagnostics(await queryWorksStartingThisWeek(), text, intent, "queryWorksStartingThisWeek", "work.findMany:fechaInicioPrevista_this_week");
+    case "works_ending_today":
+      return withQueryDiagnostics(await queryWorksEndingToday(), text, intent, "queryWorksEndingToday", "work.findMany:fechaFinPrevista_today");
     case "client_budgets":
       return withQueryDiagnostics(await queryClientBudgets(intent), text, intent, "queryClientBudgets", "budget.findMany:client");
     case "client_payments":
@@ -552,6 +563,11 @@ function handlerNameForIntent(intent: ChatIntentClassification) {
   if (intent.action === "budget_by_amount") return "queryBudgetByExactAmount";
   if (intent.action === "outstanding_invoices") return "queryOutstandingInvoices";
   if (intent.action === "client_highest_debt") return "queryClientHighestDebt";
+  if (intent.action === "work_highest_revenue") return "queryWorkHighestRevenue";
+  if (intent.action === "work_lowest_margin") return "queryWorkLowestMargin";
+  if (intent.action === "paused_projects") return "queryWorksByStatus/paused";
+  if (intent.action === "works_starting_this_week") return "queryWorksStartingThisWeek";
+  if (intent.action === "works_ending_today") return "queryWorksEndingToday";
   return intent.action ?? intent.kind;
 }
 
@@ -630,7 +646,7 @@ async function queryPendingTasksCounts() {
     prisma.reminder.count({ where: { tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
     prisma.reminder.count({ where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
     prisma.client.findMany({ select: { telefono: true, email: true, direccion: true, estado: true, notas: true } }),
-    prisma.work.count({ where: { estado: { in: ["en_curso", "pendiente_material", "pendiente_remates", "pendiente_cobro", "pendiente_inicio"] } } }),
+    prisma.work.count({ where: { estado: { in: ACTIVE_WORK_STATUSES as any[] } } }),
     prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision"] } } })
   ]);
 
@@ -760,7 +776,7 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
   }
 
   const works = await prisma.work.findMany({
-    where: { estado: { in: ["en_curso", "pendiente_material", "pendiente_remates", "pendiente_cobro", "pendiente_inicio"] } },
+    where: { estado: { in: ACTIVE_WORK_STATUSES as any[] } },
     orderBy: { fechaInicio: "desc" },
     take: 10,
     include: { client: true }
@@ -963,6 +979,93 @@ async function queryClientPayments(intent: ChatIntentClassification): Promise<Ch
   };
 }
 
+async function queryWorksByStatus(statuses: string[], label: string): Promise<ChatCommandResult> {
+  const works = await prisma.work.findMany({
+    where: { estado: { in: statuses as any[] } },
+    orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
+    take: 10,
+    include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
+  });
+  return compactListResult(works, label, (work) => renderWorkQueryLine(work), { resultCount: works.length });
+}
+
+async function queryWorkHighestRevenue(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const works = await prisma.work.findMany({
+    include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
+  });
+  const ranked = works
+    .map((work) => ({ work, financial: calculateWorkFinancials(work) }))
+    .filter((item) => item.financial.invoiced > 0)
+    .sort((a, b) => b.financial.invoiced - a.financial.invoiced);
+  const top = ranked[0];
+  if (!top) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay obras con facturación registrada." };
+  return {
+    handled: true,
+    diagnostics: { resultCount: ranked.length },
+    result: {
+      type: "found",
+      entityType: "project",
+      entityId: top.work.id,
+      title: "Obra que más factura",
+      summary: { obra: top.work.titulo, cliente: top.work.client.nombre, facturado: top.financial.invoiced, margen: top.financial.marginPercent },
+      actions: [{ label: "Ver obra", href: `/obras/${top.work.id}`, style: "primary" }, { label: "Ver facturas", href: "/dinero" }]
+    },
+    text: `La obra que más factura es ${top.work.titulo}, de ${top.work.client.nombre}, con ${formatEuros(top.financial.invoiced)} facturados y margen del ${top.financial.marginPercent}%.`
+  };
+}
+
+async function queryWorkLowestMargin(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const works = await prisma.work.findMany({
+    include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
+  });
+  const ranked = works
+    .map((work) => ({ work, financial: calculateWorkFinancials(work) }))
+    .filter((item) => item.financial.budgeted > 0 || item.financial.invoiced > 0)
+    .sort((a, b) => a.financial.marginPercent - b.financial.marginPercent);
+  const top = ranked[0];
+  if (!top) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay obras con presupuesto o facturación suficiente para calcular margen." };
+  return {
+    handled: true,
+    diagnostics: { resultCount: ranked.length },
+    result: {
+      type: "found",
+      entityType: "project",
+      entityId: top.work.id,
+      title: "Obra con menor margen",
+      summary: { obra: top.work.titulo, cliente: top.work.client.nombre, margen: top.financial.marginPercent, beneficio: top.financial.benefit },
+      actions: [{ label: "Ver obra", href: `/obras/${top.work.id}`, style: "primary" }, { label: "Ver gastos", href: "/gastos-materiales" }]
+    },
+    text: `La obra con menor margen es ${top.work.titulo}, de ${top.work.client.nombre}: ${top.financial.marginPercent}% y beneficio estimado ${formatEuros(top.financial.benefit)}.`
+  };
+}
+
+async function queryWorksStartingThisWeek(): Promise<ChatCommandResult> {
+  const range = currentWeekRange();
+  const works = await prisma.work.findMany({
+    where: {
+      OR: [
+        { fechaInicioPrevista: range },
+        { fechaInicio: range }
+      ]
+    },
+    orderBy: [{ fechaInicioPrevista: "asc" }, { fechaInicio: "asc" }],
+    take: 10,
+    include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
+  });
+  return compactListResult(works, "obras que empiezan esta semana", (work) => `${work.titulo} · ${work.client.nombre} · inicio ${formatDateShort(work.fechaInicioPrevista ?? work.fechaInicio ?? new Date())} · /obras/${work.id}`, { resultCount: works.length });
+}
+
+async function queryWorksEndingToday(): Promise<ChatCommandResult> {
+  const range = todayRange();
+  const works = await prisma.work.findMany({
+    where: { fechaFinPrevista: range },
+    orderBy: { fechaFinPrevista: "asc" },
+    take: 10,
+    include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
+  });
+  return compactListResult(works, "obras que terminan hoy", (work) => `${work.titulo} · ${work.client.nombre} · estado ${work.estado} · /obras/${work.id}`, { resultCount: works.length });
+}
+
 async function queryProjectHighestExpenses(intent: ChatIntentClassification): Promise<ChatCommandResult> {
   const expenses = await prisma.expense.findMany({ where: expensePeriodWhere(intent.period), include: { work: { include: { client: true } } } });
   const totals = new Map<string, { workId: string; title: string; client: string; total: number }>();
@@ -985,6 +1088,19 @@ async function queryProjectHighestExpenses(intent: ChatIntentClassification): Pr
     },
     text: `La obra con más gastos es ${top.title}, de ${top.client}, con ${formatEuros(top.total)} registrados.`
   };
+}
+
+function renderWorkQueryLine(work: {
+  id: string;
+  titulo: string;
+  estado: string;
+  client: { nombre: string };
+  budgets: Array<{ total: number; estado: string }>;
+  invoices: Array<{ total: number; pagado: number | null; pendiente: number | null; estado: string; payments: Array<{ importe: number }> }>;
+  expenses: Array<{ importe: number; categoria: string }>;
+}) {
+  const financial = calculateWorkFinancials(work);
+  return `${work.titulo} · ${work.client.nombre} · ${work.estado} · facturado ${formatEuros(financial.invoiced)} · margen ${financial.marginPercent}% · /obras/${work.id}`;
 }
 
 async function queryRecentDocuments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
@@ -1179,6 +1295,22 @@ function dateRangeForPeriod(period?: ChatIntentClassification["period"]) {
   }
   const start = new Date(now.getFullYear(), 0, 1);
   const end = new Date(now.getFullYear() + 1, 0, 1);
+  return { gte: start, lt: end };
+}
+
+function currentWeekRange() {
+  const start = startOfDay(new Date());
+  const day = start.getDay() || 7;
+  start.setDate(start.getDate() - day + 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { gte: start, lt: end };
+}
+
+function todayRange() {
+  const start = startOfDay(new Date());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
   return { gte: start, lt: end };
 }
 

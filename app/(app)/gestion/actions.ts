@@ -14,6 +14,7 @@ import type {
   ReminderChannel,
   ReminderStatus,
   ReminderType,
+  WorkPriority,
   WorkStatus
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -125,16 +126,39 @@ async function saveClient(formData: FormData, id: string | null) {
 
 async function saveWork(formData: FormData, id: string | null) {
   const data = {
+    numeroInterno: optionalText(formData, "numeroInterno"),
+    codigo: optionalText(formData, "codigo"),
     clienteId: text(formData, "clienteId"),
+    contactoPrincipal: optionalText(formData, "contactoPrincipal"),
+    contactoTelefono: optionalText(formData, "contactoTelefono"),
+    contactoEmail: optionalText(formData, "contactoEmail"),
     titulo: text(formData, "titulo"),
     direccion: text(formData, "direccion"),
+    latitud: optionalNumber(formData, "latitud"),
+    longitud: optionalNumber(formData, "longitud"),
     tipoTrabajo: text(formData, "tipoTrabajo"),
     estado: text(formData, "estado") as WorkStatus,
+    prioridad: text(formData, "prioridad") as WorkPriority,
+    fechaInicioPrevista: optionalDate(formData, "fechaInicioPrevista"),
     fechaInicio: optionalDate(formData, "fechaInicio"),
+    fechaInicioReal: optionalDate(formData, "fechaInicioReal"),
     fechaFinPrevista: optionalDate(formData, "fechaFinPrevista"),
+    fechaFinReal: optionalDate(formData, "fechaFinReal"),
+    responsable: optionalText(formData, "responsable"),
+    comercial: optionalText(formData, "comercial"),
+    jefeObra: optionalText(formData, "jefeObra"),
+    descripcion: optionalText(formData, "descripcion"),
+    observacionesInternas: optionalText(formData, "observacionesInternas"),
+    notasPrivadas: optionalText(formData, "notasPrivadas"),
     presupuestoAprobado: number(formData, "presupuestoAprobado"),
+    costePrevisto: number(formData, "costePrevisto"),
     gastoReal: number(formData, "gastoReal"),
     margenEstimado: number(formData, "margenEstimado"),
+    horasEstimadas: number(formData, "horasEstimadas"),
+    horasReales: number(formData, "horasReales"),
+    subcontratasCoste: number(formData, "subcontratasCoste"),
+    archivada: formData.get("archivada") === "on",
+    archivadaAt: formData.get("archivada") === "on" ? optionalDate(formData, "archivadaAt") ?? new Date() : null,
     notas: optionalText(formData, "notas")
   };
 
@@ -357,6 +381,13 @@ function number(formData: FormData, key: string, fallback = 0) {
   if (!value) return fallback;
   const parsed = Number(value.replace(",", "."));
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function optionalNumber(formData: FormData, key: string) {
+  const value = optionalText(formData, key);
+  if (!value) return null;
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function optionalDate(formData: FormData, key: string) {

@@ -13,13 +13,23 @@ export const statusLabels: Record<string, string> = {
   obra_activa: "Obra activa",
   finalizado: "Finalizado",
   archivado: "Archivado",
+  borrador_obra: "Borrador obra",
+  pendiente_aprobacion: "Pendiente aprobación",
+  planificada: "Planificada",
+  preparacion: "Preparación",
   pendiente_cobro: "Pendiente cobro",
   pendiente_inicio: "Pendiente inicio",
   en_curso: "En curso",
   pausada: "Pausada",
+  parada: "Parada",
+  parcialmente_terminada: "Parcialmente terminada",
   pendiente_material: "Pendiente material",
+  pendiente_cliente: "Pendiente cliente",
   pendiente_remates: "Pendiente remates",
   cerrada: "Cerrada",
+  facturada_parcialmente: "Facturada parcialmente",
+  facturada: "Facturada",
+  cobrada: "Cobrada",
   borrador: "Borrador",
   pendiente_revision: "Pendiente revisión",
   enviado: "Enviado",
@@ -75,7 +85,11 @@ export const statusLabels: Record<string, string> = {
   vencimiento_factura: "Vencimiento factura",
   tarea_obra: "Tarea de obra",
   confirmado: "Confirmado",
-  reprogramado: "Reprogramado"
+  reprogramado: "Reprogramado",
+  baja: "Baja",
+  media: "Media",
+  alta: "Alta",
+  urgente: "Urgente"
 };
 
 export function statusLabel(status: string) {
@@ -85,9 +99,9 @@ export function statusLabel(status: string) {
 export function statusClass(status: string) {
   return clsx("border", {
     "border-obra-green/20 bg-obra-green/10 text-obra-green":
-      ["pagada", "aceptado", "finalizada", "cerrada", "entregado", "comprado", "programado", "confirmado", "realizado"].includes(status),
+      ["pagada", "aceptado", "finalizada", "cerrada", "cobrada", "entregado", "comprado", "programado", "confirmado", "realizado"].includes(status),
     "border-obra-red/20 bg-obra-red/10 text-obra-red":
-      ["vencida", "rechazado", "fallido", "falta", "reclamada", "cancelado", "archivado"].includes(status),
+      ["vencida", "rechazado", "fallido", "falta", "reclamada", "cancelado", "archivado", "archivada", "pausada", "parada"].includes(status),
     "border-obra-orange/25 bg-obra-orange/10 text-obra-orange":
       [
         "pendiente_cobro",
@@ -98,20 +112,24 @@ export function statusClass(status: string) {
         "pendiente_respuesta",
         "seguimiento_pendiente",
         "pendiente_material",
+        "pendiente_cliente",
         "pendiente_remates",
         "pendiente_datos",
+        "pendiente_aprobacion",
+        "facturada_parcialmente",
         "reprogramado",
         "seguimiento_cobro",
         "vencimiento_factura"
       ].includes(status),
     "border-obra-yellowDark/20 bg-obra-yellow/25 text-obra-yellowDark":
-      ["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "visita", "compra_material"].includes(status),
+      ["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "planificada", "preparacion", "parcialmente_terminada", "facturada", "visita", "compra_material"].includes(status),
     "border-slate-200 bg-white text-slate-600":
       ![
         "pagada",
         "aceptado",
         "finalizada",
         "cerrada",
+        "cobrada",
         "entregado",
         "comprado",
         "programado",
@@ -124,6 +142,9 @@ export function statusClass(status: string) {
         "reclamada",
         "cancelado",
         "archivado",
+        "archivada",
+        "pausada",
+        "parada",
         "pendiente_cobro",
         "pendiente",
         "pendiente_pago",
@@ -132,8 +153,11 @@ export function statusClass(status: string) {
         "pendiente_respuesta",
         "seguimiento_pendiente",
         "pendiente_material",
+        "pendiente_cliente",
         "pendiente_remates",
         "pendiente_datos",
+        "pendiente_aprobacion",
+        "facturada_parcialmente",
         "reprogramado",
         "seguimiento_cobro",
         "vencimiento_factura",
@@ -142,6 +166,10 @@ export function statusClass(status: string) {
         "emitida",
         "enviada",
         "en_curso",
+        "planificada",
+        "preparacion",
+        "parcialmente_terminada",
+        "facturada",
         "visita",
         "compra_material"
       ].includes(status)
