@@ -291,6 +291,7 @@ function EventCard({ item }: { item: AgendaItem }) {
 
         <div className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
           {item.clienteNombre ? <Meta icon={UserRound} label="Cliente" value={item.clienteNombre} /> : null}
+          {item.contactName ? <Meta icon={UserRound} label="Contacto" value={item.contactName} /> : null}
           {item.obraTitulo ? <Meta icon={Hammer} label="Obra" value={item.obraTitulo} /> : null}
           {item.facturaNumero ? <Meta icon={Receipt} label="Factura" value={item.facturaNumero} /> : null}
           {item.presupuestoNumero ? <Meta icon={FileText} label="Presupuesto" value={item.presupuestoNumero} /> : null}
@@ -384,7 +385,7 @@ function filterAgendaItems(items: AgendaItem[], type?: string, query?: string) {
       (type === "presupuestos" && ["seguimiento_presupuesto", "presupuesto_pendiente"].includes(item.tipo)) ||
       (type === "materiales" && item.tipo === "compra_material") ||
       (type === "tareas" && ["recordatorio_interno", "tarea_obra", "llamada", "inicio_obra", "fin_previsto_obra"].includes(item.tipo));
-    const text = normalize(`${item.titulo} ${item.descripcion ?? ""} ${item.clienteNombre ?? ""} ${item.obraTitulo ?? ""} ${item.facturaNumero ?? ""}`);
+    const text = normalize(`${item.titulo} ${item.descripcion ?? ""} ${item.clienteNombre ?? ""} ${item.contactName ?? ""} ${item.obraTitulo ?? ""} ${item.facturaNumero ?? ""}`);
     const queryMatch = !normalizedQuery || text.includes(normalizedQuery);
     return typeMatch && queryMatch;
   });

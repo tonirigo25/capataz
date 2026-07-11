@@ -17,7 +17,7 @@ export default async function SearchPage({
 
   return (
     <main className="screen">
-      <SectionHeader title="Buscador global" description="Clientes, obras, facturas, agenda, gastos, materiales y configuración." />
+      <SectionHeader title="Buscador global" description="Clientes, contactos, obras, presupuestos, facturas, pagos, gastos, visitas y documentos." />
 
       <form action="/buscar" className="card mb-4 flex gap-2 p-3">
         <input className="field" name="q" defaultValue={query} placeholder="Buscar cliente, factura vencida, cemento cola..." />

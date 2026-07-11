@@ -5,12 +5,14 @@ import { redirect } from "next/navigation";
 import type {
   BudgetStatus,
   ClientStatus,
+  DocumentCategory,
   EventoAgendaEstado,
   EventoAgendaTipo,
   ExpenseCategory,
   InvoiceStatus,
   MaterialStatus,
   PaymentType,
+  Prisma,
   ReminderChannel,
   ReminderStatus,
   ReminderType,
@@ -20,6 +22,7 @@ import type {
 import { prisma } from "@/lib/prisma";
 import { calculateBudgetTotals, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
 import { clientDraftFromFormData, clientDuplicateRedirectUrl, findClientDuplicateCandidate } from "@/lib/client-crm";
+import { ALLOWED_DOCUMENT_MIME_TYPES } from "@/lib/documents";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { deriveInvoiceStatus } from "@/lib/status";
 
@@ -32,7 +35,11 @@ type ManualEntity =
   | "gasto"
   | "material"
   | "recordatorio"
-  | "eventoAgenda";
+  | "eventoAgenda"
+  | "contacto"
+  | "notaInterna"
+  | "documento"
+  | "foto";
 
 export async function saveManualRecord(formData: FormData) {
   const tipo = text(formData, "tipo") as ManualEntity;
@@ -67,6 +74,18 @@ export async function saveManualRecord(formData: FormData) {
     case "eventoAgenda":
       await saveAgendaEvent(formData, id);
       break;
+    case "contacto":
+      await saveContact(formData, id);
+      break;
+    case "notaInterna":
+      await saveInternalNote(formData, id);
+      break;
+    case "documento":
+      await saveDocument(formData, id);
+      break;
+    case "foto":
+      await savePhoto(formData, id);
+      break;
     default:
       throw new Error("Tipo de gestión no soportado.");
   }
@@ -79,6 +98,9 @@ export async function saveManualRecord(formData: FormData) {
   revalidatePath("/gastos-materiales");
   revalidatePath("/recordatorios");
   revalidatePath("/agenda");
+  revalidatePath("/documentos");
+  revalidatePath("/notificaciones");
+  revalidatePath("/buscar");
   redirect(returnTo);
 }
 
@@ -129,6 +151,7 @@ async function saveWork(formData: FormData, id: string | null) {
     numeroInterno: optionalText(formData, "numeroInterno"),
     codigo: optionalText(formData, "codigo"),
     clienteId: text(formData, "clienteId"),
+    contactoId: optionalText(formData, "contactoId"),
     contactoPrincipal: optionalText(formData, "contactoPrincipal"),
     contactoTelefono: optionalText(formData, "contactoTelefono"),
     contactoEmail: optionalText(formData, "contactoEmail"),
@@ -303,6 +326,7 @@ async function saveReminder(formData: FormData, id: string | null) {
     obraId: optionalText(formData, "obraId"),
     facturaId: optionalText(formData, "facturaId"),
     presupuestoId: optionalText(formData, "presupuestoId"),
+    contactId: optionalText(formData, "contactId"),
     tipo: text(formData, "tipoRecordatorio") as ReminderType,
     canal: text(formData, "canal") as ReminderChannel,
     mensaje: text(formData, "mensaje"),
@@ -332,6 +356,7 @@ async function saveAgendaEvent(formData: FormData, id: string | null) {
     presupuestoId: optionalText(formData, "presupuestoId"),
     facturaId: optionalText(formData, "facturaId"),
     recordatorioId: optionalText(formData, "recordatorioId"),
+    contactId: optionalText(formData, "contactId"),
     direccion: optionalText(formData, "direccion"),
     notas: optionalText(formData, "notas"),
     requiereConfirmacion: formData.get("requiereConfirmacion") === "on",
@@ -341,6 +366,130 @@ async function saveAgendaEvent(formData: FormData, id: string | null) {
 
   if (id) await prisma.eventoAgenda.update({ where: { id }, data });
   else await prisma.eventoAgenda.create({ data });
+}
+
+async function saveContact(formData: FormData, id: string | null) {
+  const clientId = text(formData, "clientId");
+  const isPrimary = formData.get("isPrimary") === "on";
+  const isBillingContact = formData.get("isBillingContact") === "on";
+  const isSiteContact = formData.get("isSiteContact") === "on";
+  const archivedAt = formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null;
+  const data = {
+    clientId,
+    nombre: text(formData, "nombre"),
+    apellidos: optionalText(formData, "apellidos"),
+    cargo: optionalText(formData, "cargo"),
+    telefono: optionalText(formData, "telefono"),
+    email: optionalText(formData, "email"),
+    isPrimary,
+    isBillingContact,
+    isSiteContact,
+    notes: optionalText(formData, "notes"),
+    archivedAt
+  };
+
+  await prisma.$transaction(async (tx) => {
+    const otherContacts = id ? { clientId, id: { not: id } } : { clientId };
+    if (isPrimary) await tx.contact.updateMany({ where: otherContacts, data: { isPrimary: false } });
+    if (isBillingContact) await tx.contact.updateMany({ where: otherContacts, data: { isBillingContact: false } });
+    if (isSiteContact) await tx.contact.updateMany({ where: otherContacts, data: { isSiteContact: false } });
+    const contact = id ? await tx.contact.update({ where: { id }, data }) : await tx.contact.create({ data });
+    if (!contact.archivedAt) {
+      await syncLegacyContactFields(tx, contact);
+    }
+  });
+}
+
+async function syncLegacyContactFields(tx: PrismaTransaction, contact: {
+  clientId: string;
+  nombre: string;
+  apellidos: string | null;
+  cargo: string | null;
+  telefono: string | null;
+  email: string | null;
+  isPrimary: boolean;
+  isBillingContact: boolean;
+}) {
+  const fullName = [contact.nombre, contact.apellidos].filter(Boolean).join(" ");
+  if (contact.isPrimary) {
+    await tx.client.update({
+      where: { id: contact.clientId },
+      data: {
+        contactoPrincipalNombre: fullName,
+        contactoPrincipalCargo: contact.cargo,
+        contactoPrincipalTelefono: contact.telefono,
+        contactoPrincipalEmail: contact.email
+      }
+    });
+  }
+  if (contact.isBillingContact) {
+    await tx.client.update({
+      where: { id: contact.clientId },
+      data: {
+        contactoFacturacionNombre: fullName,
+        telefonoFacturacion: contact.telefono,
+        emailFacturacion: contact.email
+      }
+    });
+  }
+}
+
+async function saveInternalNote(formData: FormData, id: string | null) {
+  const data = {
+    clientId: optionalText(formData, "clientId"),
+    workId: optionalText(formData, "workId"),
+    invoiceId: optionalText(formData, "invoiceId"),
+    budgetId: optionalText(formData, "budgetId"),
+    authorId: optionalText(formData, "authorId"),
+    content: text(formData, "content"),
+    archivedAt: formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null
+  };
+  if (!data.clientId && !data.workId && !data.invoiceId && !data.budgetId) throw new Error("La nota interna debe estar asociada a una entidad.");
+  if (id) await prisma.internalNote.update({ where: { id }, data });
+  else await prisma.internalNote.create({ data });
+}
+
+async function saveDocument(formData: FormData, id: string | null) {
+  const url = optionalText(formData, "url");
+  const safeUrl = assertSafeDocumentUrl(url);
+  const mimeType = optionalText(formData, "mimeType");
+  if (mimeType && !ALLOWED_DOCUMENT_MIME_TYPES.includes(mimeType)) throw new Error("Tipo de archivo no permitido.");
+  const data = {
+    name: text(formData, "name"),
+    originalName: optionalText(formData, "originalName"),
+    mimeType,
+    size: optionalInteger(formData, "size"),
+    storageKey: optionalText(formData, "storageKey"),
+    url: safeUrl,
+    category: text(formData, "category") as DocumentCategory,
+    clientId: optionalText(formData, "clientId"),
+    workId: optionalText(formData, "workId"),
+    budgetId: optionalText(formData, "budgetId"),
+    invoiceId: optionalText(formData, "invoiceId"),
+    expenseId: optionalText(formData, "expenseId"),
+    uploadedById: optionalText(formData, "uploadedById"),
+    archivedAt: formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null
+  };
+  if (!data.clientId && !data.workId && !data.budgetId && !data.invoiceId && !data.expenseId) throw new Error("El documento debe estar asociado a una entidad.");
+  if (id) await prisma.document.update({ where: { id }, data });
+  else await prisma.document.create({ data });
+}
+
+async function savePhoto(formData: FormData, id: string | null) {
+  const url = assertSafeDocumentUrl(optionalText(formData, "url"));
+  const data = {
+    obraId: text(formData, "obraId"),
+    documentId: optionalText(formData, "documentId"),
+    categoria: text(formData, "categoria"),
+    titulo: text(formData, "titulo"),
+    url,
+    autor: optionalText(formData, "autor"),
+    ubicacion: optionalText(formData, "ubicacion"),
+    notas: optionalText(formData, "notas"),
+    tomadaEn: requiredDate(formData, "tomadaEn")
+  };
+  if (id) await prisma.workPhoto.update({ where: { id }, data });
+  else await prisma.workPhoto.create({ data });
 }
 
 async function recalculateInvoice(facturaId: string) {
@@ -390,6 +539,13 @@ function optionalNumber(formData: FormData, key: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function optionalInteger(formData: FormData, key: string) {
+  const value = optionalText(formData, key);
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function optionalDate(formData: FormData, key: string) {
   const value = optionalText(formData, key);
   return value ? new Date(value) : null;
@@ -419,7 +575,19 @@ function targetFor(tipo: ManualEntity) {
     gasto: "/gastos-materiales",
     material: "/gastos-materiales",
     recordatorio: "/recordatorios",
-    eventoAgenda: "/agenda"
+    eventoAgenda: "/agenda",
+    contacto: "/clientes",
+    notaInterna: "/hoy",
+    documento: "/documentos",
+    foto: "/obras"
   };
   return targets[tipo] ?? "/hoy";
 }
+
+function assertSafeDocumentUrl(value: string | null) {
+  if (!value) return null;
+  if (value.startsWith("/") || value.startsWith("https://")) return value;
+  throw new Error("La URL del documento debe ser relativa o HTTPS.");
+}
+
+type PrismaTransaction = Prisma.TransactionClient;

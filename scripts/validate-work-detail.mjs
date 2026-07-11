@@ -28,6 +28,7 @@ const requiredTabs = [
   "Fotografías",
   "Visitas",
   "Recordatorios",
+  "Notas",
   "Cronología",
   "IA",
   "Configuración"

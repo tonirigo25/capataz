@@ -17,6 +17,7 @@ import {
   type ChatEntities
 } from "@/lib/capataz-chat-engine";
 import { CHAT_INACTIVITY_MS, shouldShowConversationInHistory } from "@/lib/chat-conversation-rules";
+import { buildClientContacts } from "@/lib/contacts";
 import {
   classifyChatIntent,
   normalizeQueryText,
@@ -38,10 +39,12 @@ import {
   isCapatazAIConfigured,
   type CapatazAIResult
 } from "@/lib/ai/capataz-ai";
+import { getAgendaItems, itemsForDay as agendaItemsForDay, itemsBetween as agendaItemsBetween, addDays as agendaAddDays, startOfDay as agendaStartOfDay } from "@/lib/agenda";
+import { getNotificationItems } from "@/lib/notifications";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { ACTIVE_WORK_STATUSES, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
+import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
 
 type ChatDocumentKind = "budget" | "invoice";
 type PendingField = "iva" | "direccion_obra" | "datos_cliente" | "datos_fiscales";
@@ -509,6 +512,20 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       return withQueryDiagnostics(await queryWorksStartingThisWeek(), text, intent, "queryWorksStartingThisWeek", "work.findMany:fechaInicioPrevista_this_week");
     case "works_ending_today":
       return withQueryDiagnostics(await queryWorksEndingToday(), text, intent, "queryWorksEndingToday", "work.findMany:fechaFinPrevista_today");
+    case "client_contacts":
+      return withQueryDiagnostics(await queryClientContacts(intent), text, intent, "queryClientContacts", "contact.findMany:client");
+    case "work_documents":
+      return withQueryDiagnostics(await queryWorkDocuments(intent), text, intent, "queryWorkDocuments", "document+pdfs:work");
+    case "internal_notes":
+      return withQueryDiagnostics(await queryInternalNotes(intent), text, intent, "queryInternalNotes", "internalNote.findMany:entity");
+    case "agenda_today":
+      return withQueryDiagnostics(await queryAgendaToday(), text, intent, "queryAgendaToday", "agenda:today");
+    case "upcoming_visits":
+      return withQueryDiagnostics(await queryUpcomingVisits(), text, intent, "queryUpcomingVisits", "agenda:upcoming_visits");
+    case "pending_reminders_count":
+      return withQueryDiagnostics(await queryPendingRemindersCount(), text, intent, "queryPendingRemindersCount", "reminder.count:open");
+    case "pending_notifications":
+      return withQueryDiagnostics(await queryPendingNotifications(), text, intent, "queryPendingNotifications", "notifications:unread");
     case "client_budgets":
       return withQueryDiagnostics(await queryClientBudgets(intent), text, intent, "queryClientBudgets", "budget.findMany:client");
     case "client_payments":
@@ -568,6 +585,13 @@ function handlerNameForIntent(intent: ChatIntentClassification) {
   if (intent.action === "paused_projects") return "queryWorksByStatus/paused";
   if (intent.action === "works_starting_this_week") return "queryWorksStartingThisWeek";
   if (intent.action === "works_ending_today") return "queryWorksEndingToday";
+  if (intent.action === "client_contacts") return "queryClientContacts";
+  if (intent.action === "work_documents") return "queryWorkDocuments";
+  if (intent.action === "internal_notes") return "queryInternalNotes";
+  if (intent.action === "agenda_today") return "queryAgendaToday";
+  if (intent.action === "upcoming_visits") return "queryUpcomingVisits";
+  if (intent.action === "pending_reminders_count") return "queryPendingRemindersCount";
+  if (intent.action === "pending_notifications") return "queryPendingNotifications";
   return intent.action ?? intent.kind;
 }
 
@@ -977,6 +1001,81 @@ async function queryClientPayments(intent: ChatIntentClassification): Promise<Ch
       ? `${client.nombre} ha pagado ${formatEuros(total)} en ${payments.length} pagos registrados.\n${payments.map((payment, index) => `${index + 1}. ${formatDateShort(payment.fecha)} · ${formatEuros(payment.importe)} · ${payment.invoice.numero} · /dinero/${payment.facturaId}`).join("\n")}`
       : `No hay pagos registrados para ${client.nombre}.`
   };
+}
+
+async function queryClientContacts(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  if (!intent.clientName) return { handled: true, text: "Dime de qué cliente quieres consultar los contactos." };
+  const client = await prisma.client.findFirst({
+    where: { OR: [{ nombre: { contains: intent.clientName, mode: "insensitive" } }, { razonSocial: { contains: intent.clientName, mode: "insensitive" } }, { nombreComercial: { contains: intent.clientName, mode: "insensitive" } }] },
+    include: { contacts: { orderBy: [{ archivedAt: "asc" }, { isPrimary: "desc" }, { nombre: "asc" }] } }
+  });
+  if (!client) return noClientResult(intent.clientName);
+  const contacts = buildClientContacts(client);
+  return compactListResult(contacts, `contactos de ${client.nombre}`, (contact) => `${contact.name} · ${contact.role} · ${contact.flags.join(", ") || "sin marca"} · ${contact.phone ?? contact.email ?? "sin teléfono/email"}`);
+}
+
+async function queryWorkDocuments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  if (!intent.clientName) return { handled: true, text: "Dime de qué obra quieres consultar los documentos." };
+  const work = await prisma.work.findFirst({
+    where: {
+      OR: [
+        { titulo: { contains: intent.clientName, mode: "insensitive" } },
+        { codigo: { contains: intent.clientName, mode: "insensitive" } },
+        { numeroInterno: { contains: intent.clientName, mode: "insensitive" } },
+        { client: { nombre: { contains: intent.clientName, mode: "insensitive" } } }
+      ]
+    },
+    include: {
+      budgets: true,
+      invoices: true,
+      documents: true,
+      repositoryDocuments: true,
+      client: true
+    }
+  });
+  if (!work) return { handled: true, diagnostics: { resultCount: 0 }, text: `No he encontrado una obra que coincida con “${intent.clientName}”.` };
+  const documents = buildWorkDocuments(work);
+  return compactListResult(documents, `documentos de ${work.titulo}`, (document) => `${document.type} · ${document.name} · ${document.source}${document.href ? ` · ${document.href}` : ""}`);
+}
+
+async function queryInternalNotes(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  if (!intent.clientName) return { handled: true, text: "Dime de qué cliente u obra quieres consultar las notas internas." };
+  const notes = await prisma.internalNote.findMany({
+    where: {
+      archivedAt: null,
+      OR: [
+        { client: { nombre: { contains: intent.clientName, mode: "insensitive" } } },
+        { client: { razonSocial: { contains: intent.clientName, mode: "insensitive" } } },
+        { work: { titulo: { contains: intent.clientName, mode: "insensitive" } } }
+      ]
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    include: { client: true, work: true, budget: true, invoice: true }
+  });
+  return compactListResult(notes, `notas internas de ${intent.clientName}`, (note) => `${formatDateShort(note.createdAt)} · ${note.client?.nombre ?? note.work?.titulo ?? note.budget?.numero ?? note.invoice?.numero ?? "Entidad"} · ${note.content}`);
+}
+
+async function queryAgendaToday(): Promise<ChatCommandResult> {
+  const items = agendaItemsForDay(await getAgendaItems(), new Date()).filter((item) => item.estado !== "cancelado");
+  return compactListResult(items, "agenda de hoy", (item) => `${formatDateShort(item.fechaInicio)} · ${item.titulo} · ${item.clienteNombre ?? item.contactName ?? item.obraTitulo ?? "Interno"} · ${item.href}`);
+}
+
+async function queryUpcomingVisits(): Promise<ChatCommandResult> {
+  const start = agendaStartOfDay(new Date());
+  const end = agendaAddDays(start, 7);
+  const items = agendaItemsBetween(await getAgendaItems(), start, end).filter((item) => item.tipo === "visita" && item.estado !== "cancelado");
+  return compactListResult(items, "próximas visitas", (item) => `${formatDateShort(item.fechaInicio)} · ${item.titulo} · ${item.clienteNombre ?? item.contactName ?? item.obraTitulo ?? "Sin entidad"} · ${item.href}`);
+}
+
+async function queryPendingRemindersCount(): Promise<ChatCommandResult> {
+  const count = await prisma.reminder.count({ where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } });
+  return { handled: true, diagnostics: { resultCount: count }, text: count ? `Tienes ${count} recordatorios pendientes o programados.` : "No tienes recordatorios pendientes." };
+}
+
+async function queryPendingNotifications(): Promise<ChatCommandResult> {
+  const notifications = (await getNotificationItems()).filter((item) => !item.readAt);
+  return compactListResult(notifications, "notificaciones pendientes", (item) => `${item.priority} · ${item.title} · ${item.body} · ${item.href}`);
 }
 
 async function queryWorksByStatus(statuses: string[], label: string): Promise<ChatCommandResult> {

@@ -140,11 +140,22 @@ export default async function SettingsPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field name="nombre" label="Nombre" value={profile?.nombre ?? ""} />
             <Field name="apellidos" label="Apellidos" value={profile?.apellidos ?? ""} />
+            <Field name="tratamiento" label="Tratamiento" value={profile?.tratamiento ?? ""} />
             <Field name="nombrePreferido" label="Nombre preferido" value={profile?.nombrePreferido ?? ""} />
             <Field name="telefono" label="Teléfono personal" value={profile?.telefono ?? ""} />
             <Field name="email" label="Email personal" value={profile?.email ?? ""} type="email" />
             <Field name="cargo" label="Cargo" value={profile?.cargo ?? ""} />
             <Field name="oficioPrincipal" label="Oficio principal" value={profile?.oficioPrincipal ?? ""} />
+            <Field name="idioma" label="Idioma" value={profile?.idioma ?? "es-ES"} />
+            <Field name="zonaHoraria" label="Zona horaria" value={profile?.zonaHoraria ?? "Europe/Madrid"} />
+            <label>
+              <span className="label mb-1 block">Preferencia visual</span>
+              <select className="field" name="preferenciaVisual" defaultValue={profile?.preferenciaVisual ?? "sistema"}>
+                <option value="sistema">Sistema</option>
+                <option value="claro">Claro</option>
+                <option value="oscuro">Oscuro futuro</option>
+              </select>
+            </label>
             <label>
               <span className="label mb-1 block">Tono preferido</span>
               <select className="field" name="tonoPreferido" defaultValue={profile?.tonoPreferido ?? "directo"}>
@@ -154,6 +165,10 @@ export default async function SettingsPage() {
                 <option value="muy_educado">Muy educado</option>
               </select>
             </label>
+          </div>
+          <div className="grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-2">
+            <Checkbox name="notificacionesInternas" label="Notificaciones internas" checked={profile?.notificacionesInternas ?? true} />
+            <Checkbox name="notificacionesEmail" label="Avisos por email cuando exista integración" checked={profile?.notificacionesEmail ?? false} />
           </div>
 
           <button type="submit" className="primary-button w-full">
@@ -190,16 +205,22 @@ export default async function SettingsPage() {
             <Field name="direccionFiscal" label="Dirección fiscal" value={company?.direccionFiscal ?? ""} />
             <Field name="codigoPostal" label="Código postal" value={company?.codigoPostal ?? ""} />
             <Field name="ciudad" label="Ciudad" value={company?.ciudad ?? ""} />
+            <Field name="municipio" label="Municipio" value={company?.municipio ?? ""} />
             <Field name="provincia" label="Provincia" value={company?.provincia ?? ""} />
             <Field name="pais" label="País" value={company?.pais ?? "España"} />
             <Field name="personaContacto" label="Persona contacto" value={company?.personaContacto ?? ""} />
             <Field name="iban" label="IBAN / datos bancarios" value={company?.iban ?? ""} />
             <Field name="colorMarca" label="Color marca" value={company?.colorMarca ?? "#f6c945"} type="color" />
             <Field name="ivaDefecto" label="IVA por defecto" value={company?.ivaDefecto ?? 21} type="number" />
+            <Field name="moneda" label="Moneda" value={company?.moneda ?? "EUR"} />
+            <Field name="validezPresupuestoDias" label="Validez presupuestos (días)" value={company?.validezPresupuestoDias ?? 15} type="number" />
+            <Field name="formaPagoDefecto" label="Forma de pago por defecto" value={company?.formaPagoDefecto ?? ""} />
             <Field name="seriePresupuestos" label="Serie presupuestos" value={company?.seriePresupuestos ?? "2026"} />
             <Field name="serieFacturas" label="Serie facturas" value={company?.serieFacturas ?? "2026"} />
+            <Field name="serieObras" label="Serie obras" value={company?.serieObras ?? "2026"} />
             <Field name="prefijoPresupuesto" label="Prefijo presupuesto" value={company?.prefijoPresupuesto ?? "P"} />
             <Field name="prefijoFactura" label="Prefijo factura" value={company?.prefijoFactura ?? "F"} />
+            <Field name="prefijoObra" label="Prefijo obra" value={company?.prefijoObra ?? "OB"} />
           </div>
           <Field name="logoUrl" label="Logo URL o ruta local" value={company?.logoUrl ?? ""} />
           <Field name="selloUrl" label="Sello URL o ruta local" value={company?.selloUrl ?? ""} />
@@ -351,6 +372,15 @@ function Field({
     <label>
       <span className="label mb-1 block">{label}</span>
       <input className="field" name={name} type={type} step={type === "number" ? "0.01" : undefined} defaultValue={value} required={required} />
+    </label>
+  );
+}
+
+function Checkbox({ name, label, checked = false }: { name: string; label: string; checked?: boolean }) {
+  return (
+    <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+      <input name={name} type="checkbox" defaultChecked={checked} className="h-4 w-4" />
+      {label}
     </label>
   );
 }

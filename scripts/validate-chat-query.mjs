@@ -179,6 +179,30 @@ const cases = [
     expected: { kind: "aggregate_query", action: "client_payments", clientName: "Laura" }
   },
   {
+    text: "Quién es el contacto principal de MURHOTEL",
+    expected: { kind: "database_query", action: "client_contacts", clientName: "MURHOTEL" }
+  },
+  {
+    text: "Qué documentos tiene la obra de Menorca",
+    expected: { kind: "database_query", action: "work_documents", clientName: "Menorca" }
+  },
+  {
+    text: "Qué visitas tengo mañana",
+    expected: { kind: "database_query", action: "upcoming_visits" }
+  },
+  {
+    text: "Cuántos recordatorios tengo pendientes",
+    expected: { kind: "aggregate_query", action: "pending_reminders_count" }
+  },
+  {
+    text: "Qué notificaciones tengo pendientes",
+    expected: { kind: "aggregate_query", action: "pending_notifications" }
+  },
+  {
+    text: "Notas internas de la obra de Menorca",
+    expected: { kind: "database_query", action: "internal_notes", clientName: "Menorca" }
+  },
+  {
     text: "qué clientes no tienen CIF",
     expected: { kind: "database_query", action: "clients_missing_tax_id" }
   },

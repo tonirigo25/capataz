@@ -35,6 +35,13 @@ export type ChatQueryAction =
   | "work_lowest_margin"
   | "works_starting_this_week"
   | "works_ending_today"
+  | "client_contacts"
+  | "work_documents"
+  | "internal_notes"
+  | "agenda_today"
+  | "upcoming_visits"
+  | "pending_reminders_count"
+  | "pending_notifications"
   | "client_budgets"
   | "client_payments"
   | "clients_missing_tax_id"
@@ -77,6 +84,14 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
   if (isConversationControl(normalized)) return { kind: "conversation_control", confidence: 0.9, rule: "conversation_control" };
 
   if (isContextQuestion(normalized)) return { kind: "context_question", confidence: 0.86, rule: "context_question" };
+
+  if (/(recordatorios)\b/.test(normalized) && /(cuantos|cuántos|pendientes|tengo)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "pending_reminders_count", confidence: 0.9, period, rule: "pending_reminders_count" };
+  }
+
+  if (/(notificaciones|avisos)\b/.test(normalized) && /(pendientes|sin leer|tengo|cuantas|cuántas)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "pending_notifications", confidence: 0.9, period, rule: "pending_notifications" };
+  }
 
   if (isPendingDetailRequest(normalized)) {
     return {
@@ -148,6 +163,26 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
     return { kind: "aggregate_query", action: "client_payments", confidence: 0.86, period, clientName: clientName ?? extractTrailingPersonName(message), rule: "client_payments" };
   }
 
+  if (/(contacto|contactos)\b/.test(normalized) && /(principal|facturacion|obra|cliente|quien|quién)\b/.test(normalized)) {
+    return { kind: "database_query", action: "client_contacts", confidence: 0.88, clientName: clientName ?? extractTrailingPersonName(message), rule: "client_contacts" };
+  }
+
+  if (/(agenda|visitas|citas)\b/.test(normalized) && /(hoy|dia|día)\b/.test(normalized)) {
+    return { kind: "database_query", action: "agenda_today", confidence: 0.9, period, rule: "agenda_today" };
+  }
+
+  if (/(visitas|citas)\b/.test(normalized) && /(manana|mañana|proximas|próximas|siguientes)\b/.test(normalized)) {
+    return { kind: "database_query", action: "upcoming_visits", confidence: 0.88, period, rule: "upcoming_visits" };
+  }
+
+  if (/(recordatorios)\b/.test(normalized) && /(cuantos|cuántos|pendientes|tengo)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "pending_reminders_count", confidence: 0.9, period, rule: "pending_reminders_count" };
+  }
+
+  if (/(notificaciones|avisos)\b/.test(normalized) && /(pendientes|sin leer|tengo|cuantas|cuántas)\b/.test(normalized)) {
+    return { kind: "aggregate_query", action: "pending_notifications", confidence: 0.9, period, rule: "pending_notifications" };
+  }
+
   if (/(facturado|facturacion|ingresos|he cobrado|cobrado)\b/.test(normalized) && /(cuanto|total|resumen)\b/.test(normalized)) {
     return { kind: "aggregate_query", action: "revenue_summary", confidence: 0.9, period, rule: "revenue_summary" };
   }
@@ -172,6 +207,14 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
 
   if (/(documentos|presupuestos|facturas)\b/.test(normalized) && /(ultimos|recientes|reciente)\b/.test(normalized)) {
     return { kind: "database_query", action: "recent_documents", confidence: 0.82, period, rule: "recent_documents" };
+  }
+
+  if (/(documento|documentos)\b/.test(normalized) && /(obra|tiene|hay)\b/.test(normalized)) {
+    return { kind: "database_query", action: "work_documents", confidence: 0.86, clientName: clientName ?? extractTrailingPersonName(message), rule: "work_documents" };
+  }
+
+  if (/(nota|notas)\b/.test(normalized) && /(interna|internas|cliente|obra)\b/.test(normalized)) {
+    return { kind: "database_query", action: "internal_notes", confidence: 0.84, clientName: clientName ?? extractTrailingPersonName(message), rule: "internal_notes" };
   }
 
   return { kind: "unknown", confidence: 0.35 };

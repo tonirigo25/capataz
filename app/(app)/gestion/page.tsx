@@ -10,7 +10,7 @@ import { statusLabel } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
-type EntityType = "cliente" | "obra" | "presupuesto" | "factura" | "pago" | "gasto" | "material" | "recordatorio" | "eventoAgenda";
+type EntityType = "cliente" | "obra" | "presupuesto" | "factura" | "pago" | "gasto" | "material" | "recordatorio" | "eventoAgenda" | "contacto" | "notaInterna" | "documento" | "foto";
 
 const entityLabels: Record<EntityType, string> = {
   cliente: "cliente",
@@ -21,7 +21,11 @@ const entityLabels: Record<EntityType, string> = {
   gasto: "gasto",
   material: "material",
   recordatorio: "recordatorio",
-  eventoAgenda: "evento de agenda"
+  eventoAgenda: "evento de agenda",
+  contacto: "contacto",
+  notaInterna: "nota interna",
+  documento: "documento",
+  foto: "fotografía"
 };
 
 const statusOptions = {
@@ -70,7 +74,10 @@ const statusOptions = {
     "presupuesto_pendiente",
     "tarea_obra"
   ],
-  eventoEstado: ["pendiente", "confirmado", "realizado", "reprogramado", "cancelado"]
+  eventoEstado: ["pendiente", "confirmado", "realizado", "reprogramado", "cancelado"],
+  documentoCategoria: ["presupuesto", "factura", "contrato", "albaran", "ticket", "fotografia", "garantia", "certificado", "plano", "informe", "otro"],
+  fotoCategoria: ["antes", "durante", "despues", "incidencia", "material", "acabado", "otro"],
+  mimeType: ["application/pdf", "image/jpeg", "image/png", "image/webp", "text/plain"]
 };
 
 export default async function ManualManagementPage({
@@ -82,16 +89,19 @@ export default async function ManualManagementPage({
   const tipo = query.tipo as EntityType | undefined;
   if (!tipo || !(tipo in entityLabels)) notFound();
 
-  const [clients, works, budgets, invoices, reminders, company] = await Promise.all([
+  const [clients, works, budgets, invoices, reminders, contacts, documents, company] = await Promise.all([
     prisma.client.findMany({ orderBy: { nombre: "asc" } }),
     prisma.work.findMany({ orderBy: { titulo: "asc" }, include: { client: true } }),
     prisma.budget.findMany({ orderBy: { numero: "asc" }, include: { client: true } }),
     prisma.invoice.findMany({ orderBy: { numero: "asc" }, include: { client: true } }),
     prisma.reminder.findMany({ orderBy: { fechaProgramada: "asc" }, include: { client: true } }),
+    prisma.contact.findMany({ where: { archivedAt: null }, orderBy: [{ nombre: "asc" }], include: { client: true } }),
+    prisma.document.findMany({ where: { archivedAt: null }, orderBy: { createdAt: "desc" }, include: { client: true, work: true } }),
     prisma.empresa.findFirst()
   ]);
   const suggestedBudgetNumber = tipo === "presupuesto" && !query.id ? await nextDocumentNumber("budget") : "";
   const suggestedInvoiceNumber = tipo === "factura" && !query.id ? await nextDocumentNumber("invoice") : "";
+  const suggestedWorkNumber = tipo === "obra" && !query.id ? await nextDocumentNumber("work") : "";
   const record = query.id ? await fetchRecord(tipo, query.id) : null;
   const duplicateClient =
     tipo === "cliente" && query.duplicateOf
@@ -127,7 +137,7 @@ export default async function ManualManagementPage({
           />
         ) : null}
 
-        {renderFields({ tipo, record, defaults: query, clients, works, budgets, invoices, reminders, company, suggestedBudgetNumber, suggestedInvoiceNumber })}
+        {renderFields({ tipo, record, defaults: query, clients, works, budgets, invoices, reminders, contacts, documents, company, suggestedBudgetNumber, suggestedInvoiceNumber, suggestedWorkNumber })}
 
         <div className="grid grid-cols-2 gap-2 pt-2">
           <Link href={returnTo} className="secondary-button w-full">
@@ -164,6 +174,14 @@ async function fetchRecord(tipo: EntityType, id: string) {
       return prisma.reminder.findUnique({ where: { id } });
     case "eventoAgenda":
       return prisma.eventoAgenda.findUnique({ where: { id } });
+    case "contacto":
+      return prisma.contact.findUnique({ where: { id } });
+    case "notaInterna":
+      return prisma.internalNote.findUnique({ where: { id } });
+    case "documento":
+      return prisma.document.findUnique({ where: { id } });
+    case "foto":
+      return prisma.workPhoto.findUnique({ where: { id } });
   }
 }
 
@@ -176,9 +194,12 @@ function renderFields({
   budgets,
   invoices,
   reminders,
+  contacts,
+  documents,
   company,
   suggestedBudgetNumber,
-  suggestedInvoiceNumber
+  suggestedInvoiceNumber,
+  suggestedWorkNumber
 }: {
   tipo: EntityType;
   record: Record<string, any> | null;
@@ -188,9 +209,12 @@ function renderFields({
   budgets: Array<{ id: string; numero: string; titulo: string; client: { nombre: string } }>;
   invoices: Array<{ id: string; numero: string; concepto: string; client: { nombre: string } }>;
   reminders: Array<{ id: string; tipo: string; mensaje: string; client: { nombre: string } | null }>;
+  contacts: Array<{ id: string; nombre: string; apellidos: string | null; clientId: string; client: { nombre: string } }>;
+  documents: Array<{ id: string; name: string; client: { nombre: string } | null; work: { titulo: string } | null }>;
   company: { ivaDefecto: number; condicionesPorDefecto: string | null; iban: string | null } | null;
   suggestedBudgetNumber: string;
   suggestedInvoiceNumber: string;
+  suggestedWorkNumber: string;
 }) {
   switch (tipo) {
     case "cliente":
@@ -247,9 +271,10 @@ function renderFields({
           <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-black text-obra-ink">Identificación</p>
             <RelationSelect name="clienteId" label="Cliente" options={clients.map((client) => [client.id, client.nombre])} value={record?.clienteId ?? defaults.clienteId} />
+            <RelationSelect name="contactoId" label="Contacto de obra" optional options={contacts.map((contact) => [contact.id, `${contact.nombre}${contact.apellidos ? ` ${contact.apellidos}` : ""} · ${contact.client.nombre}`])} value={record?.contactoId ?? defaults.contactoId} />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field name="numeroInterno" label="Número interno" value={record?.numeroInterno ?? defaults.numeroInterno} />
-              <Field name="codigo" label="Código" value={record?.codigo ?? defaults.codigo} />
+              <Field name="codigo" label="Código" value={record?.codigo ?? defaults.codigo ?? suggestedWorkNumber} />
             </div>
             <Field name="titulo" label="Nombre de obra" required value={record?.titulo ?? defaults.titulo} />
             <Field name="tipoTrabajo" label="Tipo de trabajo" required value={record?.tipoTrabajo ?? defaults.tipoTrabajo} />
@@ -403,6 +428,7 @@ function renderFields({
       return (
         <>
           <RelationSelect name="clienteId" label="Cliente" optional options={clients.map((client) => [client.id, client.nombre])} value={record?.clienteId ?? defaults.clienteId} />
+          <RelationSelect name="contactId" label="Contacto" optional options={contacts.map((contact) => [contact.id, `${contact.nombre}${contact.apellidos ? ` ${contact.apellidos}` : ""} · ${contact.client.nombre}`])} value={record?.contactId ?? defaults.contactId} />
           <RelationSelect name="obraId" label="Obra" optional options={works.map((work) => [work.id, `${work.titulo} · ${work.client.nombre}`])} value={record?.obraId ?? defaults.obraId} />
           <RelationSelect name="facturaId" label="Factura" optional options={invoices.map((invoice) => [invoice.id, `${invoice.numero} · ${invoice.client.nombre}`])} value={record?.facturaId ?? defaults.facturaId} />
           <RelationSelect name="presupuestoId" label="Presupuesto" optional options={budgets.map((budget) => [budget.id, `${budget.numero} · ${budget.client.nombre}`])} value={record?.presupuestoId ?? defaults.presupuestoId} />
@@ -435,6 +461,7 @@ function renderFields({
             <Field name="horaFin" label="Hora fin" type="time" value={record?.horaFin ?? defaults.horaFin} />
           </div>
           <RelationSelect name="clienteId" label="Cliente" optional options={clients.map((client) => [client.id, client.nombre])} value={record?.clienteId ?? defaults.clienteId} />
+          <RelationSelect name="contactId" label="Contacto" optional options={contacts.map((contact) => [contact.id, `${contact.nombre}${contact.apellidos ? ` ${contact.apellidos}` : ""} · ${contact.client.nombre}`])} value={record?.contactId ?? defaults.contactId} />
           <RelationSelect name="obraId" label="Obra" optional options={works.map((work) => [work.id, `${work.titulo} · ${work.client.nombre}`])} value={record?.obraId ?? defaults.obraId} />
           <RelationSelect name="presupuestoId" label="Presupuesto" optional options={budgets.map((budget) => [budget.id, `${budget.numero} · ${budget.client.nombre}`])} value={record?.presupuestoId ?? defaults.presupuestoId} />
           <RelationSelect name="facturaId" label="Factura" optional options={invoices.map((invoice) => [invoice.id, `${invoice.numero} · ${invoice.client.nombre}`])} value={record?.facturaId ?? defaults.facturaId} />
@@ -449,6 +476,76 @@ function renderFields({
             <input name="confirmadoPorUsuario" type="checkbox" defaultChecked={record?.confirmadoPorUsuario ?? defaults.confirmadoPorUsuario === "true"} />
             Confirmado por usuario
           </label>
+        </>
+      );
+    case "contacto":
+      return (
+        <>
+          <RelationSelect name="clientId" label="Cliente" options={clients.map((client) => [client.id, client.nombre])} value={record?.clientId ?? defaults.clientId} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field name="nombre" label="Nombre" required value={record?.nombre ?? defaults.nombre} />
+            <Field name="apellidos" label="Apellidos" value={record?.apellidos ?? defaults.apellidos} />
+          </div>
+          <Field name="cargo" label="Cargo o relación" value={record?.cargo ?? defaults.cargo} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field name="telefono" label="Teléfono" value={record?.telefono ?? defaults.telefono} />
+            <Field name="email" label="Email" type="email" value={record?.email ?? defaults.email} />
+          </div>
+          <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <Checkbox name="isPrimary" label="Contacto principal" checked={record?.isPrimary ?? defaults.isPrimary === "true"} />
+            <Checkbox name="isBillingContact" label="Contacto de facturación" checked={record?.isBillingContact ?? defaults.isBillingContact === "true"} />
+            <Checkbox name="isSiteContact" label="Contacto de obra" checked={record?.isSiteContact ?? defaults.isSiteContact === "true"} />
+          </div>
+          <Textarea name="notes" label="Notas internas del contacto" value={record?.notes ?? defaults.notes} />
+          <Checkbox name="archived" label="Archivar contacto" checked={Boolean(record?.archivedAt) || defaults.archived === "true"} />
+          <Field name="archivedAt" label="Fecha archivo" type="datetime-local" value={dateTimeValue(record?.archivedAt ?? defaults.archivedAt)} />
+        </>
+      );
+    case "notaInterna":
+      return (
+        <>
+          <Notice tone="info" description="Las notas internas no se incluyen en PDFs ni mensajes externos." />
+          <RelationSelect name="clientId" label="Cliente" optional options={clients.map((client) => [client.id, client.nombre])} value={record?.clientId ?? defaults.clientId} />
+          <RelationSelect name="workId" label="Obra" optional options={works.map((work) => [work.id, `${work.titulo} · ${work.client.nombre}`])} value={record?.workId ?? defaults.workId} />
+          <RelationSelect name="budgetId" label="Presupuesto" optional options={budgets.map((budget) => [budget.id, `${budget.numero} · ${budget.client.nombre}`])} value={record?.budgetId ?? defaults.budgetId} />
+          <RelationSelect name="invoiceId" label="Factura" optional options={invoices.map((invoice) => [invoice.id, `${invoice.numero} · ${invoice.client.nombre}`])} value={record?.invoiceId ?? defaults.invoiceId} />
+          <Textarea name="content" label="Contenido" required value={record?.content ?? defaults.content} />
+          <Checkbox name="archived" label="Archivar nota" checked={Boolean(record?.archivedAt) || defaults.archived === "true"} />
+          <Field name="archivedAt" label="Fecha archivo" type="datetime-local" value={dateTimeValue(record?.archivedAt ?? defaults.archivedAt)} />
+        </>
+      );
+    case "documento":
+      return (
+        <>
+          <Notice tone="info" description="No hay almacenamiento de archivos configurado: esta ficha registra metadatos y una URL HTTPS o ruta interna si ya existe un archivo real." />
+          <Field name="name" label="Nombre documental" required value={record?.name ?? defaults.name} />
+          <Field name="originalName" label="Nombre original" value={record?.originalName ?? defaults.originalName} />
+          <Select name="category" label="Categoría" options={statusOptions.documentoCategoria} value={record?.category ?? defaults.category ?? "otro"} />
+          <Select name="mimeType" label="Tipo MIME" options={statusOptions.mimeType} value={record?.mimeType ?? defaults.mimeType ?? "application/pdf"} />
+          <Field name="size" label="Tamaño en bytes" type="number" value={record?.size ?? defaults.size} />
+          <Field name="url" label="URL segura o ruta interna existente" value={record?.url ?? defaults.url} />
+          <RelationSelect name="clientId" label="Cliente" optional options={clients.map((client) => [client.id, client.nombre])} value={record?.clientId ?? defaults.clientId} />
+          <RelationSelect name="workId" label="Obra" optional options={works.map((work) => [work.id, `${work.titulo} · ${work.client.nombre}`])} value={record?.workId ?? defaults.workId} />
+          <RelationSelect name="budgetId" label="Presupuesto" optional options={budgets.map((budget) => [budget.id, `${budget.numero} · ${budget.client.nombre}`])} value={record?.budgetId ?? defaults.budgetId} />
+          <RelationSelect name="invoiceId" label="Factura" optional options={invoices.map((invoice) => [invoice.id, `${invoice.numero} · ${invoice.client.nombre}`])} value={record?.invoiceId ?? defaults.invoiceId} />
+          <Checkbox name="archived" label="Archivar documento" checked={Boolean(record?.archivedAt) || defaults.archived === "true"} />
+          <Field name="archivedAt" label="Fecha archivo" type="datetime-local" value={dateTimeValue(record?.archivedAt ?? defaults.archivedAt)} />
+        </>
+      );
+    case "foto":
+      return (
+        <>
+          <RelationSelect name="obraId" label="Obra" options={works.map((work) => [work.id, `${work.titulo} · ${work.client.nombre}`])} value={record?.obraId ?? defaults.obraId} />
+          <RelationSelect name="documentId" label="Documento relacionado" optional options={documents.map((document) => [document.id, `${document.name} · ${document.work?.titulo ?? document.client?.nombre ?? "Sin entidad"}`])} value={record?.documentId ?? defaults.documentId} />
+          <Select name="categoria" label="Categoría" options={statusOptions.fotoCategoria} value={record?.categoria ?? defaults.categoria ?? "durante"} />
+          <Field name="titulo" label="Título" required value={record?.titulo ?? defaults.titulo} />
+          <Field name="url" label="URL segura de imagen existente" value={record?.url ?? defaults.url} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field name="autor" label="Autor" value={record?.autor ?? defaults.autor} />
+            <Field name="ubicacion" label="Ubicación" value={record?.ubicacion ?? defaults.ubicacion} />
+          </div>
+          <Field name="tomadaEn" label="Fecha" type="datetime-local" value={dateTimeValue(record?.tomadaEn ?? defaults.tomadaEn) || dateTimeValue(new Date())} />
+          <Textarea name="notas" label="Descripción interna" value={record?.notas ?? defaults.notas} />
         </>
       );
   }
@@ -505,6 +602,15 @@ function Select({ name, label, options, value }: { name: string; label: string; 
           </option>
         ))}
       </select>
+    </label>
+  );
+}
+
+function Checkbox({ name, label, checked = false }: { name: string; label: string; checked?: boolean }) {
+  return (
+    <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+      <input name={name} type="checkbox" defaultChecked={checked} className="h-4 w-4" />
+      {label}
     </label>
   );
 }
@@ -611,7 +717,11 @@ function defaultReturnTo(tipo: EntityType) {
     gasto: "/gastos-materiales",
     material: "/gastos-materiales",
     recordatorio: "/recordatorios",
-    eventoAgenda: "/agenda"
+    eventoAgenda: "/agenda",
+    contacto: "/clientes",
+    notaInterna: "/hoy",
+    documento: "/documentos",
+    foto: "/obras"
   };
   return targets[tipo];
 }

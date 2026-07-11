@@ -14,6 +14,8 @@ export type AgendaItem = {
   fechaFin: Date | null;
   clienteId: string | null;
   clienteNombre: string | null;
+  contactId: string | null;
+  contactName: string | null;
   obraId: string | null;
   obraTitulo: string | null;
   presupuestoId: string | null;
@@ -32,11 +34,11 @@ export async function getAgendaItems() {
   const [events, reminders, invoices, works, materials, budgets] = await Promise.all([
     prisma.eventoAgenda.findMany({
       orderBy: { fechaInicio: "asc" },
-      include: { client: true, work: true, budget: true, invoice: true, reminder: true }
+      include: { client: true, contact: true, work: true, budget: true, invoice: true, reminder: true }
     }),
     prisma.reminder.findMany({
       orderBy: { fechaProgramada: "asc" },
-      include: { client: true, work: true, invoice: true, budget: true }
+      include: { client: true, contact: true, work: true, invoice: true, budget: true }
     }),
     prisma.invoice.findMany({
       orderBy: { fechaVencimiento: "asc" },
@@ -70,6 +72,8 @@ export async function getAgendaItems() {
       fechaFin: event.fechaFin,
       clienteId: event.clienteId,
       clienteNombre: event.client?.nombre ?? null,
+      contactId: event.contactId,
+      contactName: event.contact ? `${event.contact.nombre}${event.contact.apellidos ? ` ${event.contact.apellidos}` : ""}` : null,
       obraId: event.obraId,
       obraTitulo: event.work?.titulo ?? null,
       presupuestoId: event.presupuestoId,
@@ -100,6 +104,8 @@ export async function getAgendaItems() {
         fechaFin: null,
         clienteId: reminder.clienteId,
         clienteNombre: reminder.client?.nombre ?? null,
+        contactId: reminder.contactId,
+        contactName: reminder.contact ? `${reminder.contact.nombre}${reminder.contact.apellidos ? ` ${reminder.contact.apellidos}` : ""}` : null,
         obraId: reminder.obraId,
         obraTitulo: reminder.work?.titulo ?? null,
         presupuestoId: reminder.presupuestoId,
@@ -130,6 +136,8 @@ export async function getAgendaItems() {
         fechaFin: null,
         clienteId: invoice.clienteId,
         clienteNombre: invoice.client.nombre,
+        contactId: null,
+        contactName: null,
         obraId: invoice.obraId,
         obraTitulo: invoice.work?.titulo ?? null,
         presupuestoId: null,
@@ -168,6 +176,8 @@ export async function getAgendaItems() {
         fechaFin: null,
         clienteId: material.work.clienteId,
         clienteNombre: material.work.client.nombre,
+        contactId: null,
+        contactName: null,
         obraId: material.obraId,
         obraTitulo: material.work.titulo,
         presupuestoId: null,
@@ -197,6 +207,8 @@ export async function getAgendaItems() {
         fechaFin: null,
         clienteId: budget.clienteId,
         clienteNombre: budget.client.nombre,
+        contactId: null,
+        contactName: null,
         obraId: budget.obraId,
         obraTitulo: budget.work?.titulo ?? null,
         presupuestoId: budget.id,
@@ -286,6 +298,8 @@ function workAgendaItem(
     fechaFin: null,
     clienteId: work.clienteId,
     clienteNombre: work.client.nombre,
+    contactId: null,
+    contactName: null,
     obraId: id,
     obraTitulo: work.titulo,
     presupuestoId: null,

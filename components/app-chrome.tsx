@@ -6,7 +6,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  BellRing,
   Bot,
+  Activity,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -40,6 +42,7 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { href: "/hoy", label: "Hoy", icon: Home },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
+      { href: "/actividad", label: "Actividad", icon: Activity },
       { href: "/capataz", label: "Capataz IA", icon: Bot }
     ]
   },
@@ -52,6 +55,7 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
       { href: "/dinero", label: "Facturas y cobros", icon: WalletCards },
       { href: "/gastos-materiales", label: "Gastos y materiales", icon: Package },
       { href: "/recordatorios", label: "Recordatorios", icon: Bell },
+      { href: "/notificaciones", label: "Notificaciones", icon: BellRing },
       { href: "/documentos", label: "Documentos", icon: Files }
     ]
   },
@@ -78,6 +82,7 @@ const quickActions = [
 const titles = [
   ["/hoy", "Hoy"],
   ["/agenda", "Agenda"],
+  ["/actividad", "Actividad"],
   ["/clientes", "Clientes"],
   ["/obras", "Obras"],
   ["/documentos", "Documentos"],
@@ -85,13 +90,14 @@ const titles = [
   ["/dinero", "Facturas y cobros"],
   ["/gastos-materiales", "Gastos y materiales"],
   ["/recordatorios", "Recordatorios"],
+  ["/notificaciones", "Notificaciones"],
   ["/buscar", "Buscador"],
   ["/capataz", "Capataz IA"],
   ["/configuracion", "Configuración"],
   ["/gestion", "Añadir o editar"]
 ];
 
-export function AppChrome({ children, modeLabel }: { children: ReactNode; modeLabel: string }) {
+export function AppChrome({ children, modeLabel, unreadNotifications }: { children: ReactNode; modeLabel: string; unreadNotifications: number }) {
   const pathname = usePathname();
   const drawerId = useId();
   const actionsId = useId();
@@ -128,7 +134,7 @@ export function AppChrome({ children, modeLabel }: { children: ReactNode; modeLa
   return (
     <div className="min-h-dvh lg:pl-72">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white/95 backdrop-blur lg:block">
-        <NavigationPanel modeLabel={modeLabel} pathname={pathname} onNavigate={() => undefined} />
+        <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} onNavigate={() => undefined} />
       </aside>
 
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -172,6 +178,10 @@ export function AppChrome({ children, modeLabel }: { children: ReactNode; modeLa
             <Link href="/configuracion#perfil" className="icon-button" aria-label="Mi perfil">
               <UserRound size={20} />
             </Link>
+            <Link href="/notificaciones" className="icon-button relative" aria-label={`Notificaciones${unreadNotifications ? `, ${unreadNotifications} sin leer` : ""}`}>
+              <BellRing size={20} />
+              {unreadNotifications ? <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-obra-red px-1 text-center text-[10px] font-black text-white">{Math.min(unreadNotifications, 99)}</span> : null}
+            </Link>
           </div>
         </div>
       </header>
@@ -180,7 +190,7 @@ export function AppChrome({ children, modeLabel }: { children: ReactNode; modeLa
         <div className="fixed inset-0 z-50 lg:hidden" id={drawerId}>
           <button type="button" className="absolute inset-0 bg-obra-ink/55 backdrop-blur-sm" aria-label="Cerrar menú" onClick={() => setDrawerOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-[min(88vw,22rem)] bg-white shadow-card">
-            <NavigationPanel modeLabel={modeLabel} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+            <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} onNavigate={() => setDrawerOpen(false)} />
           </aside>
         </div>
       ) : null}
@@ -228,7 +238,7 @@ export function AppChrome({ children, modeLabel }: { children: ReactNode; modeLa
   );
 }
 
-function NavigationPanel({ modeLabel, pathname, onNavigate }: { modeLabel: string; pathname: string; onNavigate: () => void }) {
+function NavigationPanel({ modeLabel, pathname, unreadNotifications, onNavigate }: { modeLabel: string; pathname: string; unreadNotifications: number; onNavigate: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 p-4">
@@ -253,7 +263,7 @@ function NavigationPanel({ modeLabel, pathname, onNavigate }: { modeLabel: strin
               <p className="px-3 pb-2 text-[11px] font-black uppercase tracking-normal text-slate-400">{section.title}</p>
               <div className="grid gap-1">
                 {section.items.map((item) => (
-                  <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+                  <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} badge={item.href === "/notificaciones" ? unreadNotifications : 0} />
                 ))}
               </div>
             </section>
@@ -281,7 +291,7 @@ function NavigationPanel({ modeLabel, pathname, onNavigate }: { modeLabel: strin
   );
 }
 
-function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate: () => void }) {
+function NavLink({ item, pathname, onNavigate, badge = 0 }: { item: NavItem; pathname: string; onNavigate: () => void; badge?: number }) {
   const active = isActive(pathname, item.href);
   const Icon = item.icon;
 
@@ -297,6 +307,7 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
     >
       <Icon size={19} aria-hidden="true" />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {badge ? <span className="rounded-full bg-obra-red px-2 py-0.5 text-[11px] font-black text-white">{Math.min(badge, 99)}</span> : null}
     </Link>
   );
 }

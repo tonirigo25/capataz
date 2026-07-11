@@ -167,6 +167,10 @@ function PrimaryActions({ clientId, clientName, returnTo }: { clientId: string; 
         <MessageCircle size={18} />
         Seguimiento
       </Link>
+      <Link href={`/gestion?tipo=contacto&clientId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
+        <Plus size={18} />
+        Contacto
+      </Link>
     </div>
   );
 }
@@ -249,9 +253,9 @@ function ContactsTab({ summary, returnTo }: { summary: NonNullable<Awaited<Retur
   return (
     <SectionList
       title="Contactos"
-      description="El modelo actual no tiene tabla de contactos múltiples; se muestran los contactos derivados del cliente y facturación."
-      emptyTitle="No hay contactos separados registrados."
-      emptyAction={<Link href={`/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Completar contactos</Link>}
+      description="Contactos reales del cliente, con respaldo defensivo de los campos antiguos cuando aún no se han migrado manualmente."
+      emptyTitle="No hay contactos registrados."
+      emptyAction={<Link href={`/gestion?tipo=contacto&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Añadir contacto</Link>}
     >
       {summary.contacts.length ? (
         <div className="grid gap-3 md:grid-cols-2">
@@ -272,7 +276,7 @@ function ContactsTab({ summary, returnTo }: { summary: NonNullable<Awaited<Retur
               {contact.notes ? <p><strong className="text-obra-ink">Notas:</strong> {contact.notes}</p> : null}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href={`/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Editar</Link>
+              <Link href={contact.source === "real" ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}` : `/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Editar</Link>
               <Link href={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=llamada&titulo=Llamada%20${encodeURIComponent(contact.name)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear llamada</Link>
             </div>
             </article>
@@ -387,19 +391,22 @@ function VisitsTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnT
 }
 
 function DocumentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>> }) {
+  const returnTo = `/clientes/${summary.client.id}?tab=documentos`;
   return (
     <SectionList
       title="Documentos"
-      description="No existe un centro documental genérico; se centralizan los PDFs de presupuestos y facturas ya disponibles."
+      description="Repositorio documental real y PDFs derivados de presupuestos y facturas. Si no hay almacenamiento configurado, se registra una ficha documental honesta sin simular subidas."
       emptyTitle="No hay documentos asociados."
+      emptyAction={<Link href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Registrar documento</Link>}
     >
       {summary.documents.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {summary.documents.map((document) => (
-            <Link key={document.id} href={document.href} className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-obra-yellowDark hover:bg-obra-muted">
+            <Link key={document.id} href={document.href ?? `/gestion?tipo=documento&id=${document.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-obra-yellowDark hover:bg-obra-muted">
             <p className="label">{document.type}</p>
             <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
             <p className="mt-2 text-sm text-slate-500">{document.relatedLabel}</p>
+            <p className="mt-1 text-xs font-bold uppercase text-slate-500">{document.source}</p>
             <p className="mt-1 text-sm font-bold text-slate-600">{formatDate(document.date)}</p>
             </Link>
           ))}
@@ -435,6 +442,7 @@ function ActivityTab({ summary }: { summary: NonNullable<Awaited<ReturnType<type
 function NotesTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
   const notes = [
     summary.client.notas ? { id: "client", title: "Nota interna del cliente", text: summary.client.notas, date: summary.client.ultimaInteraccion ?? summary.client.fechaCreacion } : null,
+    ...summary.client.internalNotes.filter((note) => !note.archivedAt).map((note) => ({ id: note.id, title: note.work ? `Obra: ${note.work.titulo}` : note.budget ? `Presupuesto: ${note.budget.numero}` : note.invoice ? `Factura: ${note.invoice.numero}` : "Nota interna", text: note.content, date: note.createdAt })),
     ...summary.client.works.filter((work) => work.notas).map((work) => ({ id: `work-${work.id}`, title: `Obra: ${work.titulo}`, text: work.notas ?? "", date: work.fechaInicio ?? summary.client.fechaCreacion })),
     ...summary.client.agendaEvents.filter((event) => event.notas).map((event) => ({ id: `event-${event.id}`, title: event.titulo, text: event.notas ?? "", date: event.fechaInicio })),
     ...summary.client.reminders.filter((reminder) => reminder.mensaje).map((reminder) => ({ id: `reminder-${reminder.id}`, title: statusLabel(reminder.tipo), text: reminder.mensaje, date: reminder.fechaProgramada }))
@@ -443,9 +451,9 @@ function NotesTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnTy
   return (
     <SectionList
       title="Notas internas"
-      description="Estas notas son internas y no se usan en PDFs de cliente."
+      description="Notas internas estructuradas. No se usan en PDFs ni en mensajes a clientes."
       emptyTitle="No hay notas internas registradas."
-      emptyAction={<Link href={`/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Añadir nota</Link>}
+      emptyAction={<Link href={`/gestion?tipo=notaInterna&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Añadir nota</Link>}
     >
       {notes.length ? (
         <div className="grid gap-3">

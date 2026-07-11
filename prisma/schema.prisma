@@ -148,6 +148,27 @@ enum EventoAgendaEstado {
   cancelado
 }
 
+enum DocumentCategory {
+  presupuesto
+  factura
+  contrato
+  albaran
+  ticket
+  fotografia
+  garantia
+  certificado
+  plano
+  informe
+  otro
+}
+
+enum NotificationPriority {
+  baja
+  media
+  alta
+  critica
+}
+
 model Client {
   id                        String         @id @default(cuid())
   nombre                    String
@@ -177,8 +198,11 @@ model Client {
   ultimaInteraccion         DateTime?
   archivadoAt               DateTime?
   budgets                   Budget[]
+  contacts                  Contact[]
+  documents                 Document[]
   expenses                  Expense[]
   invoices                  Invoice[]
+  internalNotes             InternalNote[]
   payments                  Payment[]
   reminders                 Reminder[]
   works                     Work[]
@@ -197,6 +221,7 @@ model Work {
   numeroInterno         String?        @unique
   codigo                String?        @unique
   clienteId             String
+  contactoId            String?
   contactoPrincipal     String?
   contactoTelefono      String?
   contactoEmail         String?
@@ -232,8 +257,11 @@ model Work {
   updatedAt             DateTime       @updatedAt
   budgets               Budget[]
   client                Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  contact               Contact?       @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
+  repositoryDocuments   Document[]
   documents             WorkDocument[]
   expenses              Expense[]
+  internalNotes         InternalNote[]
   photos                WorkPhoto[]
   invoices              Invoice[]
   materials             Material[]
@@ -246,6 +274,33 @@ model Work {
   @@index([fechaInicioPrevista])
   @@index([fechaFinPrevista])
   @@index([archivada])
+  @@index([contactoId])
+}
+
+model Contact {
+  id               String         @id @default(cuid())
+  clientId         String
+  nombre           String
+  apellidos        String?
+  cargo            String?
+  telefono         String?
+  email            String?
+  isPrimary        Boolean        @default(false)
+  isBillingContact Boolean        @default(false)
+  isSiteContact    Boolean        @default(false)
+  notes            String?
+  archivedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agendaEvents     EventoAgenda[]
+  reminders        Reminder[]
+  worksAsSite      Work[]         @relation("WorkSiteContact")
+
+  @@index([clientId])
+  @@index([email])
+  @@index([telefono])
+  @@index([archivedAt])
 }
 
 model WorkDocument {
@@ -268,16 +323,20 @@ model WorkDocument {
 }
 
 model WorkPhoto {
-  id        String   @id @default(cuid())
-  obraId    String
-  categoria String
-  titulo    String
-  url       String?
-  notas     String?
-  tomadaEn  DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  work      Work     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  obraId     String
+  documentId String?   @unique
+  categoria  String
+  titulo     String
+  url        String?
+  autor      String?
+  ubicacion  String?
+  notas      String?
+  tomadaEn   DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  work       Work      @relation(fields: [obraId], references: [id], onDelete: Cascade)
 
   @@index([obraId])
   @@index([categoria])
@@ -305,6 +364,8 @@ model Budget {
   formaPago        String?
   client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   agendaEvents     EventoAgenda[]
+  documents        Document[]
+  internalNotes    InternalNote[]
   reminders        Reminder[]
   work             Work?          @relation(fields: [obraId], references: [id])
 }
@@ -329,6 +390,8 @@ model Invoice {
   datosBancarios   String?
   client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   agendaEvents     EventoAgenda[]
+  documents        Document[]
+  internalNotes    InternalNote[]
   payments         Payment[]
   reminders        Reminder[]
   work             Work?          @relation(fields: [obraId], references: [id])
@@ -361,6 +424,7 @@ model Expense {
   fotoTicketUrl String?
   notas         String?
   client        Client?         @relation(fields: [clienteId], references: [id])
+  documents     Document[]
   work          Work            @relation(fields: [obraId], references: [id], onDelete: Cascade)
 }
 
@@ -380,6 +444,7 @@ model Reminder {
   obraId               String?
   facturaId            String?
   presupuestoId        String?
+  contactId            String?
   tipo                 ReminderType
   canal                ReminderChannel @default(interno)
   mensaje              String
@@ -389,9 +454,12 @@ model Reminder {
   confirmadoPorUsuario Boolean         @default(false)
   budget               Budget?         @relation(fields: [presupuestoId], references: [id])
   client               Client?         @relation(fields: [clienteId], references: [id])
+  contact              Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
   invoice              Invoice?        @relation(fields: [facturaId], references: [id])
   work                 Work?           @relation(fields: [obraId], references: [id])
   agendaEvents         EventoAgenda[]
+
+  @@index([contactId])
 }
 
 model EventoAgenda {
@@ -409,6 +477,7 @@ model EventoAgenda {
   presupuestoId        String?
   facturaId            String?
   recordatorioId       String?
+  contactId            String?
   direccion            String?
   notas                String?
   requiereConfirmacion Boolean            @default(false)
@@ -417,9 +486,91 @@ model EventoAgenda {
   updatedAt            DateTime           @updatedAt
   budget               Budget?            @relation(fields: [presupuestoId], references: [id])
   client               Client?            @relation(fields: [clienteId], references: [id])
+  contact              Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
   invoice              Invoice?           @relation(fields: [facturaId], references: [id])
   reminder             Reminder?          @relation(fields: [recordatorioId], references: [id])
   work                 Work?              @relation(fields: [obraId], references: [id])
+
+  @@index([contactId])
+}
+
+model InternalNote {
+  id         String    @id @default(cuid())
+  clientId   String?
+  workId     String?
+  invoiceId  String?
+  budgetId   String?
+  authorId   String?
+  content    String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  work       Work?     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  invoice    Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  budget     Budget?   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([workId])
+  @@index([invoiceId])
+  @@index([budgetId])
+  @@index([archivedAt])
+}
+
+model Document {
+  id           String           @id @default(cuid())
+  name         String
+  originalName String?
+  mimeType     String?
+  size         Int?
+  storageKey   String?
+  url          String?
+  category     DocumentCategory @default(otro)
+  clientId     String?
+  workId       String?
+  budgetId     String?
+  invoiceId    String?
+  expenseId    String?
+  uploadedById String?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  archivedAt   DateTime?
+  client       Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  work         Work?            @relation(fields: [workId], references: [id], onDelete: Cascade)
+  budget       Budget?          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  invoice      Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expense      Expense?         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  workPhoto    WorkPhoto?
+
+  @@index([clientId])
+  @@index([workId])
+  @@index([budgetId])
+  @@index([invoiceId])
+  @@index([expenseId])
+  @@index([category])
+  @@index([archivedAt])
+}
+
+model Notification {
+  id         String               @id @default(cuid())
+  sourceKey  String               @unique
+  type       String
+  title      String
+  body       String?
+  href       String?
+  priority   NotificationPriority @default(media)
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  archivedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([readAt])
+  @@index([archivedAt])
+  @@index([priority])
+  @@index([entityType, entityId])
 }
 
 model ChatMessage {
@@ -479,44 +630,56 @@ model ChatActionLog {
 }
 
 model UsuarioPerfil {
-  id              String   @id @default(cuid())
-  nombre          String?
-  apellidos       String?
-  nombrePreferido String?
-  telefono        String?
-  email           String?
-  cargo           String?
-  oficioPrincipal String?
-  tonoPreferido   String   @default("directo")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  nombre                 String?
+  apellidos              String?
+  tratamiento            String?
+  nombrePreferido        String?
+  telefono               String?
+  email                  String?
+  cargo                  String?
+  oficioPrincipal        String?
+  idioma                 String   @default("es-ES")
+  zonaHoraria            String   @default("Europe/Madrid")
+  preferenciaVisual      String   @default("sistema")
+  notificacionesInternas Boolean  @default(true)
+  notificacionesEmail    Boolean  @default(false)
+  tonoPreferido          String   @default("directo")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 model Empresa {
-  id                    String   @id @default(cuid())
-  nombreComercial       String
-  razonSocial           String?
-  nifCif                String?
-  direccionFiscal       String?
-  codigoPostal          String?
-  ciudad                String?
-  provincia             String?
-  pais                  String   @default("España")
-  telefono              String?
-  email                 String?
-  web                   String?
-  personaContacto       String?
-  iban                  String?
-  condicionesPorDefecto String?
-  textoLegal            String?
-  logoUrl               String?
-  selloUrl              String?
-  colorMarca            String   @default("#f6c945")
-  ivaDefecto            Float    @default(21)
-  seriePresupuestos     String   @default("2026")
-  serieFacturas         String   @default("2026")
-  prefijoPresupuesto    String   @default("P")
-  prefijoFactura        String   @default("F")
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  nombreComercial        String
+  razonSocial            String?
+  nifCif                 String?
+  direccionFiscal        String?
+  codigoPostal           String?
+  ciudad                 String?
+  provincia              String?
+  pais                   String   @default("España")
+  municipio              String?
+  telefono               String?
+  email                  String?
+  web                    String?
+  personaContacto        String?
+  iban                   String?
+  condicionesPorDefecto  String?
+  textoLegal             String?
+  logoUrl                String?
+  selloUrl               String?
+  colorMarca             String   @default("#f6c945")
+  ivaDefecto             Float    @default(21)
+  moneda                 String   @default("EUR")
+  validezPresupuestoDias Int      @default(15)
+  formaPagoDefecto       String?
+  seriePresupuestos      String   @default("2026")
+  serieFacturas          String   @default("2026")
+  serieObras             String   @default("2026")
+  prefijoPresupuesto     String   @default("P")
+  prefijoFactura         String   @default("F")
+  prefijoObra            String   @default("OB")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }

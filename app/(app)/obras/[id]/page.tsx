@@ -63,6 +63,7 @@ const tabs = [
   ["fotografias", "Fotografías", Camera],
   ["visitas", "Visitas", CalendarClock],
   ["recordatorios", "Recordatorios", Bell],
+  ["notas", "Notas", ClipboardList],
   ["cronologia", "Cronología", Activity],
   ["ia", "IA", Bot],
   ["configuracion", "Configuración", Settings]
@@ -80,6 +81,9 @@ export default async function WorkDetailPage({
     where: { id },
     include: {
       client: true,
+      contact: true,
+      repositoryDocuments: { orderBy: { createdAt: "desc" } },
+      internalNotes: { orderBy: { createdAt: "desc" } },
       budgets: { orderBy: { fechaCreacion: "desc" }, include: { reminders: true, agendaEvents: true } },
       invoices: { orderBy: { fechaEmision: "desc" }, include: { payments: true, reminders: true, agendaEvents: true } },
       payments: { orderBy: { fecha: "desc" }, include: { invoice: true } },
@@ -209,6 +213,7 @@ export default async function WorkDetailPage({
       {activeTab === "fotografias" ? <PhotosTab photos={work.photos} workId={work.id} /> : null}
       {activeTab === "visitas" ? <CardsTab items={work.agendaEvents} empty="No hay visitas o eventos registrados." render={(event) => <EventCard key={event.id} event={event} />} /> : null}
       {activeTab === "recordatorios" ? <CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} /> : null}
+      {activeTab === "notas" ? <NotesTab notes={work.internalNotes} workId={work.id} clientId={work.clienteId} /> : null}
       {activeTab === "cronologia" ? <Section title="Cronología completa"><TimelineList items={timeline} /></Section> : null}
       {activeTab === "ia" ? <AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /> : null}
       {activeTab === "configuracion" ? <ConfigTab work={work} /> : null}
@@ -225,8 +230,8 @@ function QuickActions({ workId, clientId }: { workId: string; clientId: string }
     [`/gestion?tipo=pago&returnTo=${returnTo}`, "Registrar pago", WalletCards],
     [`/gestion?tipo=eventoAgenda&clienteId=${clientId}&obraId=${workId}&tipoEvento=visita&returnTo=${returnTo}`, "Añadir visita", CalendarClock],
     [`/gestion?tipo=material&obraId=${workId}&returnTo=${returnTo}`, "Añadir material", Package],
-    [`/obras/${workId}?tab=documentos`, "Añadir documento", FileArchive],
-    [`/obras/${workId}?tab=fotografias`, "Añadir foto", Camera],
+    [`/gestion?tipo=documento&clientId=${clientId}&workId=${workId}&category=otro&returnTo=${returnTo}`, "Añadir documento", FileArchive],
+    [`/gestion?tipo=foto&obraId=${workId}&returnTo=${returnTo}`, "Añadir foto", Camera],
     [`/gestion?tipo=recordatorio&clienteId=${clientId}&obraId=${workId}&returnTo=${returnTo}`, "Crear recordatorio", Bell],
     [`/capataz`, "Abrir chat IA", Bot]
   ] as const;
@@ -269,14 +274,19 @@ function ClientTab({ work }: { work: any }) {
 
 function ContactsTab({ work }: { work: any }) {
   const rows: Array<[string, string]> = [
-    ["Contacto de obra", work.contactoPrincipal ?? work.client.contactoPrincipalNombre ?? "No registrado"],
-    ["Teléfono obra", work.contactoTelefono ?? work.client.contactoPrincipalTelefono ?? work.client.telefono ?? "No registrado"],
-    ["Email obra", work.contactoEmail ?? work.client.contactoPrincipalEmail ?? work.client.email ?? "No registrado"],
+    ["Contacto de obra", work.contact ? `${work.contact.nombre}${work.contact.apellidos ? ` ${work.contact.apellidos}` : ""}` : work.contactoPrincipal ?? work.client.contactoPrincipalNombre ?? "No registrado"],
+    ["Teléfono obra", work.contact?.telefono ?? work.contactoTelefono ?? work.client.contactoPrincipalTelefono ?? work.client.telefono ?? "No registrado"],
+    ["Email obra", work.contact?.email ?? work.contactoEmail ?? work.client.contactoPrincipalEmail ?? work.client.email ?? "No registrado"],
     ["Facturación", work.client.contactoFacturacionNombre ?? "No registrado"],
     ["Email facturación", work.client.emailFacturacion ?? "No registrado"],
     ["Teléfono facturación", work.client.telefonoFacturacion ?? "No registrado"]
   ];
-  return <Section title="Contactos"><InfoGrid rows={rows} /></Section>;
+  return (
+    <Section title="Contactos">
+      <InfoGrid rows={rows} />
+      <Link href={`/gestion?tipo=contacto&clientId=${work.clienteId}&returnTo=/obras/${work.id}?tab=contactos`} className="secondary-button mt-4 inline-flex">Añadir contacto</Link>
+    </Section>
+  );
 }
 
 function MaterialsTab({ materials, pendingCount, workId }: { materials: any[]; pendingCount: number; workId: string }) {
@@ -340,6 +350,7 @@ function DocumentsTab({ documents, workId, clientId }: { documents: Array<any>; 
       <div className="mb-4 flex flex-wrap gap-2">
         <Link href={`/gestion?tipo=presupuesto&clienteId=${clientId}&obraId=${workId}&returnTo=/obras/${workId}?tab=documentos`} className="secondary-button"><FileText size={17} /> Presupuesto</Link>
         <Link href={`/gestion?tipo=factura&clienteId=${clientId}&obraId=${workId}&returnTo=/obras/${workId}?tab=documentos`} className="secondary-button"><Receipt size={17} /> Factura</Link>
+        <Link href={`/gestion?tipo=documento&clientId=${clientId}&workId=${workId}&returnTo=/obras/${workId}?tab=documentos`} className="secondary-button"><FileArchive size={17} /> Registrar documento</Link>
       </div>
       {documents.length ? (
         <div className="grid gap-3 lg:grid-cols-2">
@@ -348,7 +359,7 @@ function DocumentsTab({ documents, workId, clientId }: { documents: Array<any>; 
               <p className="label">{document.type}</p>
               <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
               <p className="mt-1 text-sm text-slate-500">{document.source} · {formatDate(document.date)}</p>
-              {document.href ? <Link href={document.href} className="secondary-button mt-3">Abrir PDF</Link> : null}
+              {document.href ? <Link href={document.href} className="secondary-button mt-3">Abrir</Link> : null}
             </article>
           ))}
         </div>
@@ -362,6 +373,9 @@ function DocumentsTab({ documents, workId, clientId }: { documents: Array<any>; 
 function PhotosTab({ photos, workId }: { photos: any[]; workId: string }) {
   return (
     <Section title="Fotografías">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Link href={`/gestion?tipo=foto&obraId=${workId}&returnTo=/obras/${workId}?tab=fotografias`} className="secondary-button"><Camera size={17} /> Registrar foto</Link>
+      </div>
       {photos.length ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {photos.map((photo) => (
@@ -369,12 +383,37 @@ function PhotosTab({ photos, workId }: { photos: any[]; workId: string }) {
               <p className="label">{photo.categoria}</p>
               <h3 className="mt-1 font-black text-obra-ink">{photo.titulo}</h3>
               <p className="mt-1 text-sm text-slate-500">{formatDate(photo.tomadaEn)}</p>
+              {photo.notas ? <p className="mt-2 text-sm leading-6 text-slate-600">{photo.notas}</p> : null}
               {photo.url ? <Link href={photo.url} className="secondary-button mt-3">Abrir foto</Link> : null}
             </article>
           ))}
         </div>
       ) : (
-        <EmptyState title="No hay fotografías registradas" description="Estructura preparada por categorías: antes, durante, después, incidencias, material y acabados." icon={Image} action={<Link href={`/gestion?tipo=eventoAgenda&tipoEvento=tarea_obra&obraId=${workId}&returnTo=/obras/${workId}?tab=fotografias`} className="secondary-button">Crear tarea de fotos</Link>} />
+        <EmptyState title="No hay fotografías registradas" description="Estructura preparada por categorías: antes, durante, después, incidencias, material y acabados. No se simula subida de archivos." icon={Image} action={<Link href={`/gestion?tipo=foto&obraId=${workId}&returnTo=/obras/${workId}?tab=fotografias`} className="secondary-button">Registrar foto</Link>} />
+      )}
+    </Section>
+  );
+}
+
+function NotesTab({ notes, workId, clientId }: { notes: any[]; workId: string; clientId: string }) {
+  const activeNotes = notes.filter((note) => !note.archivedAt);
+  return (
+    <Section title="Notas internas">
+      <div className="mb-4">
+        <Link href={`/gestion?tipo=notaInterna&clientId=${clientId}&workId=${workId}&returnTo=/obras/${workId}?tab=notas`} className="secondary-button">Añadir nota</Link>
+      </div>
+      {activeNotes.length ? (
+        <div className="grid gap-3">
+          {activeNotes.map((note) => (
+            <article key={note.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="label">{formatDate(note.createdAt)}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{note.content}</p>
+              <Link href={`/gestion?tipo=notaInterna&id=${note.id}&clientId=${clientId}&workId=${workId}&returnTo=/obras/${workId}?tab=notas`} className="secondary-button mt-3">Editar</Link>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No hay notas internas" description="Las notas internas no se incluyen en PDFs ni mensajes a clientes." icon={ClipboardList} />
       )}
     </Section>
   );

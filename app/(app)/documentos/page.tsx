@@ -3,6 +3,7 @@ import { Archive, ClipboardSignature, Download, Eye, FileArchive, FileText, Fold
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
 import { documentCategories, documentPlaceholders, documentTemplateAssets } from "@/lib/document-templates";
+import { documentDetail, repositoryDocumentDisplay } from "@/lib/documents";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
@@ -19,7 +20,7 @@ const categoryIcons = {
 };
 
 export default async function DocumentsPage() {
-  const [budgets, invoices] = await Promise.all([
+  const [budgets, invoices, repositoryDocuments] = await Promise.all([
     prisma.budget.findMany({
       orderBy: { fechaCreacion: "desc" },
       take: 5,
@@ -29,8 +30,15 @@ export default async function DocumentsPage() {
       orderBy: { fechaEmision: "desc" },
       take: 5,
       include: { client: true, work: true }
+    }),
+    prisma.document.findMany({
+      where: { archivedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { client: true, work: true, budget: true, invoice: true, expense: true }
     })
   ]);
+  const documents = repositoryDocuments.map(repositoryDocumentDisplay);
 
   return (
     <main className="screen">
@@ -46,6 +54,10 @@ export default async function DocumentsPage() {
             <Link href="/gestion?tipo=factura&returnTo=/documentos" className="secondary-button">
               <Plus size={18} />
               Factura
+            </Link>
+            <Link href="/gestion?tipo=documento&returnTo=/documentos" className="secondary-button">
+              <Plus size={18} />
+              Documento
             </Link>
           </div>
         }
@@ -110,14 +122,33 @@ export default async function DocumentsPage() {
         </div>
       </section>
 
-      <section id="albaranes" className="card mb-5 scroll-mt-24 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Albaranes, contratos y archivos</h2>
+      <section id="archivos" className="card mb-5 scroll-mt-24 p-4">
+        <h2 className="text-lg font-black text-obra-ink">Repositorio documental</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Categorías preparadas para la siguiente fase. De momento quedan como archivo interno y no generan envíos externos.
+          Capataz registra documentos reales asociados a cliente, obra, presupuesto, factura o gasto. En este entorno no hay almacenamiento de subida configurado, por lo que no se muestra un botón de upload: se guarda una ficha documental y, si existe, una URL HTTPS o ruta interna segura.
         </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {documents.map((document) => (
+            <article key={document.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="label">{document.type}</p>
+              <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{document.relatedLabel}</p>
+              <p className="mt-1 text-xs font-bold uppercase text-slate-500">{documentDetail(document)}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {document.href ? <Link href={document.href} className="secondary-button">Abrir</Link> : null}
+                <Link href={`/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`} className="secondary-button">Editar ficha</Link>
+              </div>
+            </article>
+          ))}
+          {!documents.length ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm leading-6 text-slate-500">
+              Todavía no hay documentos registrados en el repositorio.
+            </div>
+          ) : null}
+        </div>
       </section>
+      <div id="albaranes" className="scroll-mt-24" aria-hidden="true" />
       <div id="contratos" className="scroll-mt-24" aria-hidden="true" />
-      <div id="archivos" className="scroll-mt-24" aria-hidden="true" />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section>

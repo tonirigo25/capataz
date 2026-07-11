@@ -1,5 +1,7 @@
 import type { BudgetStatus, ClientStatus, EventoAgendaTipo, InvoiceStatus, Prisma, ReminderStatus, WorkStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { buildClientContacts } from "@/lib/contacts";
+import { derivedBudgetDocument, derivedInvoiceDocument, repositoryDocumentDisplay } from "@/lib/documents";
 import {
   ACTIVE_WORK_STATUSES,
   OPEN_REMINDER_STATUSES,
@@ -117,6 +119,57 @@ const clientSelect = {
   fechaCreacion: true,
   ultimaInteraccion: true,
   archivadoAt: true,
+  contacts: {
+    orderBy: [{ archivedAt: "asc" }, { isPrimary: "desc" }, { nombre: "asc" }],
+    select: {
+      id: true,
+      nombre: true,
+      apellidos: true,
+      cargo: true,
+      telefono: true,
+      email: true,
+      isPrimary: true,
+      isBillingContact: true,
+      isSiteContact: true,
+      notes: true,
+      archivedAt: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  },
+  documents: {
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      storageKey: true,
+      url: true,
+      category: true,
+      createdAt: true,
+      archivedAt: true,
+      client: { select: { id: true, nombre: true } },
+      work: { select: { id: true, titulo: true } },
+      budget: { select: { id: true, numero: true, titulo: true } },
+      invoice: { select: { id: true, numero: true, concepto: true } },
+      expense: { select: { id: true, concepto: true } }
+    }
+  },
+  internalNotes: {
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true,
+      archivedAt: true,
+      work: { select: { id: true, titulo: true } },
+      budget: { select: { id: true, numero: true } },
+      invoice: { select: { id: true, numero: true } }
+    }
+  },
   budgets: {
     orderBy: { fechaCreacion: "desc" },
     select: {
@@ -338,25 +391,12 @@ export async function getClientCrmSummary(id: string) {
   const pendingInvoices = client.invoices.filter((invoice) => pendingAmountForInvoice(invoice) > 0);
   const pendingBudgets = client.budgets.filter((budget) => PENDING_BUDGET_STATUSES.includes(normalizeStatus(budget.estado)));
   const payments = client.payments;
-  const contacts = buildDerivedContacts(client);
+  const contacts = buildClientContacts(client);
   const activity = buildActivity(client, now);
   const documents = [
-    ...client.budgets.map((budget) => ({
-      id: `budget-${budget.id}`,
-      name: `Presupuesto ${budget.numero}`,
-      type: "Presupuesto",
-      date: budget.fechaCreacion,
-      relatedLabel: budget.work?.titulo ?? budget.titulo,
-      href: `/presupuestos/${budget.id}/pdf`
-    })),
-    ...client.invoices.map((invoice) => ({
-      id: `invoice-${invoice.id}`,
-      name: `Factura ${invoice.numero}`,
-      type: "Factura",
-      date: invoice.fechaEmision,
-      relatedLabel: invoice.work?.titulo ?? invoice.concepto,
-      href: `/dinero/${invoice.id}/pdf`
-    }))
+    ...client.budgets.map(derivedBudgetDocument),
+    ...client.invoices.map(derivedInvoiceDocument),
+    ...client.documents.filter((document) => !document.archivedAt).map(repositoryDocumentDisplay)
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return {
@@ -639,45 +679,6 @@ async function getClientTypeOptions() {
   return rows.map((row) => row.tipo).filter(Boolean);
 }
 
-function buildDerivedContacts(client: ClientCrmRecord) {
-  const contacts: Array<{
-    id: string;
-    name: string;
-    role: string;
-    phone: string | null;
-    email: string | null;
-    flags: string[];
-    notes: string | null;
-  }> = [];
-
-  const primaryName = client.contactoPrincipalNombre || (classifyClientType(client.tipo) === "Particular" ? client.nombre : null);
-  if (primaryName || client.contactoPrincipalTelefono || client.contactoPrincipalEmail) {
-    contacts.push({
-      id: "primary",
-      name: primaryName ?? "Contacto principal",
-      role: client.contactoPrincipalCargo ?? "Contacto principal",
-      phone: client.contactoPrincipalTelefono ?? client.telefono,
-      email: client.contactoPrincipalEmail ?? client.email,
-      flags: ["Principal"],
-      notes: null
-    });
-  }
-
-  if (client.contactoFacturacionNombre || client.emailFacturacion || client.telefonoFacturacion) {
-    contacts.push({
-      id: "billing",
-      name: client.contactoFacturacionNombre ?? "Facturación",
-      role: "Facturación",
-      phone: client.telefonoFacturacion ?? client.telefono,
-      email: client.emailFacturacion ?? client.email,
-      flags: ["Facturación"],
-      notes: "Contacto derivado de los datos de facturación del cliente."
-    });
-  }
-
-  return contacts;
-}
-
 function buildActivity(client: ClientCrmRecord, now: Date) {
   const events: Array<{ id: string; type: string; text: string; date: Date; href?: string }> = [
     { id: `client-${client.id}`, type: "Cliente", text: "Cliente creado", date: client.fechaCreacion, href: `/clientes/${client.id}` }
@@ -688,6 +689,17 @@ function buildActivity(client: ClientCrmRecord, now: Date) {
     if (work.fechaFinPrevista && ["finalizada", "cerrada"].includes(work.estado)) {
       events.push({ id: `work-closed-${work.id}`, type: "Obra", text: `Obra cerrada: ${work.titulo}`, date: work.fechaFinPrevista, href: `/obras` });
     }
+  }
+  for (const contact of client.contacts) {
+    events.push({ id: `contact-${contact.id}`, type: "Contacto", text: `Contacto creado: ${contact.nombre}`, date: contact.createdAt, href: `/clientes/${client.id}?tab=contactos` });
+  }
+  for (const note of client.internalNotes) {
+    if (note.archivedAt) continue;
+    events.push({ id: `note-${note.id}`, type: "Nota", text: "Nota interna añadida", date: note.createdAt, href: `/clientes/${client.id}?tab=notas` });
+  }
+  for (const document of client.documents) {
+    if (document.archivedAt) continue;
+    events.push({ id: `document-${document.id}`, type: "Documento", text: `Documento registrado: ${document.name}`, date: document.createdAt, href: "/documentos" });
   }
   for (const budget of client.budgets) {
     events.push({ id: `budget-${budget.id}`, type: "Presupuesto", text: `Presupuesto ${budget.numero} creado`, date: budget.fechaCreacion, href: `/presupuestos/${budget.id}` });

@@ -250,6 +250,7 @@ export function buildWorkTimeline(work: WorkTimelineInput) {
 export function buildWorkDocuments(work: {
   id: string;
   documents?: Array<{ id: string; tipo: string; nombre: string; url?: string | null; fecha: DateLike; entityType?: string | null; entityId?: string | null }>;
+  repositoryDocuments?: Array<{ id: string; name: string; category: string; url?: string | null; createdAt: DateLike }>;
   budgets?: Array<{ id: string; numero: string; titulo: string; fechaCreacion: DateLike }>;
   invoices?: Array<{ id: string; numero: string; concepto: string; fechaEmision: DateLike }>;
 }) {
@@ -276,7 +277,15 @@ export function buildWorkDocuments(work: {
       name: document.nombre,
       href: document.url ?? null,
       date: document.fecha,
-      source: "Documento de obra"
+      source: "Documento de obra legacy"
+    })),
+    ...(work.repositoryDocuments ?? []).map((document) => ({
+      key: `repository-${document.id}`,
+      type: document.category.replaceAll("_", " "),
+      name: document.name,
+      href: document.url ?? null,
+      date: document.createdAt,
+      source: document.url ? "Repositorio documental" : "Ficha documental sin archivo adjunto"
     }))
   ].sort((a, b) => timeValue(b.date) - timeValue(a.date));
 }
