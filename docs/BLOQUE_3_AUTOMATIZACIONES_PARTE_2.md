@@ -70,9 +70,7 @@ Hay nueve plantillas disponibles y desactivadas: facturas vencidas, presupuestos
 
 ## Estado de validación
 
-Prisma validate/generate, typecheck, build, las baterías iniciales, las nuevas pruebas de cierre y la regresión existente pasan localmente. La validación visual local queda bloqueada hasta que la migración se aplique: el datasource actual no tiene todavía `EventoAgenda.taskId`, por lo que las rutas dinámicas devuelven el error esperado de esquema pendiente. Por seguridad no se aplica la migración desde una rama incompleta.
-
-Limitación restante antes de declarar Parte 3 lista: validación de Railway y producción después de integrar en main.
+Prisma validate/generate, typecheck, build, las baterías iniciales, las nuevas pruebas de cierre y la regresión existente pasan localmente. La validación visual se realizó sobre PostgreSQL temporal con el esquema completo, sin usar ni alterar producción.
 
 ## Cierre definitivo de UI y QA aislado
 
@@ -88,4 +86,10 @@ La validación de navegador cubrió 84 combinaciones: ocho rutas principales y c
 
 No se afirma conformidad WCAG completa. Se verificaron encabezados, labels, fieldsets, teclado, `aria-current`, `aria-live`, texto de botones y estados no basados únicamente en color.
 
-Pendiente únicamente tras integrar: preDeploy Railway, estado de migraciones remoto, smoke productivo, cron, prueba QA reversible y limpieza de esos registros.
+## Railway y producción
+
+`main` se integró por fast-forward. Railway desplegó el mismo commit tanto en la aplicación como en `capataz-proactive-evaluator`. El preDeploy ejecutó `npm run db:deploy`, encontró 13 migraciones y aplicó `20260712143000_automation_core_tasks_followups` correctamente. Aplicación y cron quedaron en `SUCCESS`.
+
+El smoke HTTP devolvió 200 en `/api/status`, `/hoy`, `/tareas`, `/seguimientos`, `/automatizaciones` y `/capataz`; el healthcheck informó aplicación y base de datos operativas. Se crearon registros técnicos sin datos personales ni importes para Task con checklist y subtarea, FollowUp con intento y resultado, y AutomationRun seco; todos quedaron archivados. Chat productivo validó consultas sin mutación y descubrió una variante lingüística no cubierta para «cuál fue la última ejecución»; se añadió la regla y una regresión transaccional antes del despliegue correctivo.
+
+Limitación operativa preexistente: Railway mantiene `NEXT_PUBLIC_APP_ENV=staging` y `NEXT_PUBLIC_APP_MODE=test` dentro del environment llamado production. No se cambiaron esos valores porque alteran políticas de visibilidad y límites comerciales fuera del alcance funcional de este bloque.

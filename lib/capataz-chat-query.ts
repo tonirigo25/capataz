@@ -143,6 +143,9 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
 
   if (isContextQuestion(normalized)) return { kind: "context_question", confidence: 0.86, rule: "context_question" };
 
+  if (/(cual fue |cuál fue |dime )?(la )?(ultima|última) ejecucion/.test(normalized))
+    return {kind:"database_query",action:"automations_last_run",confidence:.94,rule:"automations_last_run"};
+
   if (/automatizaciones?/.test(normalized)) {
     if (/(activas|habilitadas)/.test(normalized)) return {kind:"database_query",action:"automations_active",confidence:.95,rule:"automations_active"};
     if (/(pausadas|detenidas)/.test(normalized)) return {kind:"database_query",action:"automations_paused",confidence:.95,rule:"automations_paused"};

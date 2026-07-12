@@ -11,6 +11,7 @@ import * as recurrenceModule from "../lib/tasks/task-recurrence.ts";
 import * as retryModule from "../lib/automations/automation-retries.ts";
 import * as eventModule from "../lib/business-events.ts";
 import * as chatModule from "../app/(app)/capataz/actions.ts";
+import * as chatQueryModule from "../lib/capataz-chat-query.ts";
 const { prisma } = moduleValue(prismaModule),
   { runAutomation } = moduleValue(runnerModule),
   {
@@ -26,7 +27,14 @@ const { prisma } = moduleValue(prismaModule),
     moduleValue(recurrenceModule),
   { scheduleRunRetry, retryAutomationRun } = moduleValue(retryModule),
   { publishBusinessEvent } = moduleValue(eventModule),
-  { runChatCommand } = moduleValue(chatModule);
+  { runChatCommand } = moduleValue(chatModule),
+  { classifyChatIntent } = moduleValue(chatQueryModule);
+
+if (
+  classifyChatIntent("cuál fue la última ejecución").action !==
+  "automations_last_run"
+)
+  throw new Error("LAST_AUTOMATION_RUN_QUERY_NOT_CLASSIFIED");
 
 const suffix = randomUUID().slice(0, 8),
   now = new Date();
