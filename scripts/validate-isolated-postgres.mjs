@@ -76,13 +76,12 @@ try {
   cpSync(join(process.cwd(), "prisma"), join(tempRoot, "prisma"), {
     recursive: true,
   });
-  const latest = join(
-    tempRoot,
-    "prisma",
-    "migrations",
+  const incrementalMigrations = [
     "20260712143000_automation_core_tasks_followups",
-  );
-  rmSync(latest, { recursive: true, force: true });
+    "20260712170000_identity_sessions",
+    "20260712180000_company_ownership_nullable",
+  ];
+  for (const migration of incrementalMigrations) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
     "npx.cmd",
     [
@@ -97,6 +96,10 @@ try {
   const upgrade = pg.getPgClient("capataz_upgrade");
   await upgrade.connect();
   const timestamp = new Date();
+  await upgrade.query(
+    'INSERT INTO "Empresa" (id,"nombreComercial","updatedAt") VALUES ($1,$2,$3)',
+    ["qa-legacy-company", "Empresa legacy QA", timestamp],
+  );
   await upgrade.query(
     'INSERT INTO "Client" (id,nombre,telefono,direccion,tipo,origen) VALUES ($1,$2,$3,$4,$5,$6)',
     ["qa-client", "Cliente anterior", "000", "QA", "particular", "qa"],
@@ -159,16 +162,7 @@ try {
     'SELECT (SELECT COUNT(*) FROM "Client")::int clients,(SELECT COUNT(*) FROM "Work")::int works,(SELECT COUNT(*) FROM "Budget")::int budgets,(SELECT COUNT(*) FROM "Invoice")::int invoices,(SELECT COUNT(*) FROM "EventoAgenda")::int events,(SELECT COUNT(*) FROM "Reminder")::int reminders,(SELECT COUNT(*) FROM "ChatConversation")::int conversations',
   );
   await upgrade.end();
-  cpSync(
-    join(
-      process.cwd(),
-      "prisma",
-      "migrations",
-      "20260712143000_automation_core_tasks_followups",
-    ),
-    latest,
-    { recursive: true },
-  );
+  for (const migration of incrementalMigrations) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
   execFileSync(
     "npx.cmd",
     [
@@ -180,6 +174,7 @@ try {
     ],
     { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true },
   );
+  const backfillOutput = execFileSync("npx.cmd", ["tsx", "scripts/backfill-legacy-company.ts"], { cwd: process.cwd(), env: upgradeEnv, stdio: ["ignore", "pipe", "pipe"], shell: true }).toString().trim();
   const upgraded = pg.getPgClient("capataz_upgrade");
   await upgraded.connect();
   const after = await upgraded.query(
@@ -225,6 +220,7 @@ try {
         after: after.rows[0],
         newColumns: newColumns.rows[0].count,
         relatedTasks: related.rows[0].count,
+        backfill: JSON.parse(backfillOutput.split(/\r?\n/).at(-1)),
       },
     }),
   );
