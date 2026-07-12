@@ -5,14 +5,16 @@ import { DemoLimitButton } from "@/components/demo-limit-button";
 import { isUnlimitedMode } from "@/lib/app-mode";
 import { budgetTemplates } from "@/lib/budget-templates";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetTemplatesPage() {
+  const { companyId } = await requireCompanyContext();
   const [clients, works, budgetCount] = await Promise.all([
-    prisma.client.findMany({ orderBy: { nombre: "asc" } }),
-    prisma.work.findMany({ orderBy: { titulo: "asc" }, include: { client: true } }),
-    prisma.budget.count()
+    prisma.client.findMany({ where: { companyId }, orderBy: { nombre: "asc" } }),
+    prisma.work.findMany({ where: { companyId }, orderBy: { titulo: "asc" }, include: { client: true } }),
+    prisma.budget.count({ where: { companyId } })
   ]);
   const groups = Array.from(new Set(budgetTemplates.map((template) => template.group)));
   const demoLimitReached = !isUnlimitedMode() && budgetCount >= 2;

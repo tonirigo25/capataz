@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/status-pill";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,9 @@ export default async function MoneyPage({
 }) {
   const query = await searchParams;
   const filter = query.filtro ?? "pendientes";
+  const { companyId } = await requireCompanyContext();
   const invoices = await prisma.invoice.findMany({
+    where: { companyId },
     orderBy: { fechaVencimiento: "asc" },
     include: { client: true, work: true, payments: true }
   });

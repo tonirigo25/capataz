@@ -39,6 +39,7 @@ import {
   type TreasuryScenarioId
 } from "@/lib/treasury";
 import { round } from "@/lib/business-metrics";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,9 @@ export default async function TreasuryPage({
   searchParams: Promise<TreasurySearchParams>;
 }) {
   const query = await searchParams;
+  const { companyId } = await requireCompanyContext();
   const overviewPromise = getTreasuryOverview({
+    companyId,
     horizon: query.horizonte,
     scenario: query.escenario,
     accountId: query.cuenta,
@@ -73,10 +76,10 @@ export default async function TreasuryPage({
   });
   const [overview, clients, works, invoices, expenses, recommendations] = await Promise.all([
     overviewPromise,
-    prisma.client.findMany({ where: { archivadoAt: null }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
-    prisma.work.findMany({ where: { archivada: false }, select: { id: true, titulo: true, client: { select: { nombre: true } } }, orderBy: { titulo: "asc" } }),
-    prisma.invoice.findMany({ where: { pendiente: { gt: 0 } }, select: { id: true, numero: true, client: { select: { nombre: true } } }, orderBy: { fechaVencimiento: "asc" } }),
-    prisma.expense.findMany({ select: { id: true, concepto: true, proveedor: true }, orderBy: { fecha: "desc" }, take: 80 }),
+    prisma.client.findMany({ where: { companyId, archivadoAt: null }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
+    prisma.work.findMany({ where: { companyId, archivada: false }, select: { id: true, titulo: true, client: { select: { nombre: true } } }, orderBy: { titulo: "asc" } }),
+    prisma.invoice.findMany({ where: { companyId, pendiente: { gt: 0 } }, select: { id: true, numero: true, client: { select: { nombre: true } } }, orderBy: { fechaVencimiento: "asc" } }),
+    prisma.expense.findMany({ where: { companyId }, select: { id: true, concepto: true, proveedor: true }, orderBy: { fecha: "desc" }, take: 80 }),
     getTreasuryRecommendations(5)
   ]);
 

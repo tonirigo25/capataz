@@ -4,18 +4,20 @@ import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf
 import { fillTemplatePlaceholders } from "@/lib/document-templates";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
+  const auth = await requireCompanyContext();
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, companyId: auth.companyId },
     include: { client: true, work: true, payments: { orderBy: { fecha: "asc" } } }
   });
   if (!invoice) notFound();
 
-  const company = await prisma.empresa.findFirst();
+  const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const preview = new URL(request.url).searchParams.get("preview") === "1";
   const liveStatus = invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
   const lines = parseBudgetLines(invoice.partidas);
@@ -27,10 +29,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     total: invoice.importeBase,
     categoria: "Factura"
   }];
-  const ivaPercent = invoice.importeBase > 0 ? (invoice.iva / invoice.importeBase) * 100 : company?.ivaDefecto ?? 21;
+  const ivaPercent = invoice.importeBase > 0 ? (invoice.iva / invoice.importeBase) * 100 : company.defaultVat;
   const placeholderSummary = fillTemplatePlaceholders("[[DOCUMENTO_NUMERO]] [[CLIENTE_NOMBRE]] [[TOTAL]]", {
     EMPRESA_NOMBRE: company?.nombreComercial ?? "Empresa sin configurar",
-    EMPRESA_NIF: company?.nifCif ?? "",
+    EMPRESA_NIF: company.taxId ?? "",
     CLIENTE_NOMBRE: invoice.client.nombre,
     CLIENTE_NIF: "",
     OBRA_DIRECCION: invoice.work?.direccion ?? invoice.client.direccion,
@@ -53,14 +55,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     company: {
       name: company?.nombreComercial ?? "Empresa sin configurar",
       legalName: company?.razonSocial,
-      taxId: company?.nifCif,
-      address: [company?.direccionFiscal, company?.codigoPostal, company?.ciudad, company?.provincia, company?.pais].filter(Boolean).join(", "),
+      taxId: company.taxId,
+      address: [company.direccion, company.codigoPostal, company.ciudad, company.provincia, company.pais].filter(Boolean).join(", "),
       contact: [company?.telefono, company?.email, company?.web].filter(Boolean).join(" · "),
       iban: invoice.datosBancarios ?? company?.iban,
       logoUrl: company?.logoUrl,
-      sealUrl: company?.selloUrl,
-      brandColor: company?.colorMarca,
-      legalText: company?.textoLegal
+      sealUrl: company.sealUrl,
+      brandColor: company.brandColor,
+      legalText: company.legalText
     },
     client: {
       name: invoice.client.nombre,

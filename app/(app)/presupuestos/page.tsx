@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,9 @@ export default async function BudgetsPage({
   searchParams: Promise<{ filtro?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
+  const { companyId } = await requireCompanyContext();
   const budgets = await prisma.budget.findMany({
+    where: { companyId },
     orderBy: { fechaCreacion: "desc" },
     include: { client: true, work: true }
   });

@@ -21,7 +21,7 @@ for (const field of ["municipio", "moneda", "validezPresupuestoDias", "formaPago
 }
 
 expect(page.includes("Mi perfil") && page.includes("Datos de empresa"), "user/company settings are not clearly separated");
-expect(numbering.includes('"work"') && numbering.includes("prefijoObra") && numbering.includes("serieObras"), "work numbering is not configurable");
-expect(numbering.includes("findFirst") && numbering.includes("padStart(3"), "numbering must derive next number defensively");
+expect(numbering.includes('"work"') && numbering.includes("workPrefix") && numbering.includes("workSeries"), "work numbering is not configurable");
+expect(numbering.includes("companyId") && numbering.includes("pg_advisory_xact_lock") && numbering.includes("padStart(3"), "numbering must be tenant-scoped and concurrency-safe");
 
 console.log("[settings] OK user/company separation and configurable numbering");

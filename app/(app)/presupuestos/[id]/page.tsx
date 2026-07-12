@@ -16,20 +16,24 @@ import { parseBudgetLines, units } from "@/lib/budget-lines";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [budget, company] = await Promise.all([
-    prisma.budget.findUnique({
-      where: { id },
+  const auth = await requireCompanyContext();
+  const [budget, companyRecord] = await Promise.all([
+    prisma.budget.findFirst({
+      where: { id, companyId: auth.companyId },
       include: { client: true, work: true, reminders: true, agendaEvents: true }
     }),
-    prisma.empresa.findFirst()
+    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } })
   ]);
 
   if (!budget) notFound();
+  const company = companySettingsView(companyRecord);
   const lines = parseBudgetLines(budget.partidas);
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length;

@@ -3,25 +3,27 @@ import { parseBudgetLines } from "@/lib/budget-lines";
 import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf";
 import { fillTemplatePlaceholders } from "@/lib/document-templates";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const budget = await prisma.budget.findUnique({
-    where: { id },
+  const auth = await requireCompanyContext();
+  const budget = await prisma.budget.findFirst({
+    where: { id, companyId: auth.companyId },
     include: { client: true, work: true }
   });
   if (!budget) notFound();
 
-  const company = await prisma.empresa.findFirst();
+  const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const preview = new URL(request.url).searchParams.get("preview") === "1";
   const lines = parseBudgetLines(budget.partidas);
   const taxable = Math.max(0, budget.subtotal - budget.descuento);
-  const ivaPercent = taxable > 0 ? (budget.iva / taxable) * 100 : company?.ivaDefecto ?? 21;
+  const ivaPercent = taxable > 0 ? (budget.iva / taxable) * 100 : company.defaultVat;
   const placeholderSummary = fillTemplatePlaceholders("[[DOCUMENTO_NUMERO]] [[CLIENTE_NOMBRE]] [[TOTAL]]", {
     EMPRESA_NOMBRE: company?.nombreComercial ?? "Empresa sin configurar",
-    EMPRESA_NIF: company?.nifCif ?? "",
+    EMPRESA_NIF: company.taxId ?? "",
     CLIENTE_NOMBRE: budget.client.nombre,
     CLIENTE_NIF: "",
     OBRA_DIRECCION: budget.work?.direccion ?? budget.client.direccion,
@@ -44,14 +46,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     company: {
       name: company?.nombreComercial ?? "Empresa sin configurar",
       legalName: company?.razonSocial,
-      taxId: company?.nifCif,
-      address: [company?.direccionFiscal, company?.codigoPostal, company?.ciudad, company?.provincia, company?.pais].filter(Boolean).join(", "),
+      taxId: company.taxId,
+      address: [company.direccion, company.codigoPostal, company.ciudad, company.provincia, company.pais].filter(Boolean).join(", "),
       contact: [company?.telefono, company?.email, company?.web].filter(Boolean).join(" · "),
       iban: company?.iban,
       logoUrl: company?.logoUrl,
-      sealUrl: company?.selloUrl,
-      brandColor: company?.colorMarca,
-      legalText: company?.textoLegal
+      sealUrl: company.sealUrl,
+      brandColor: company.brandColor,
+      legalText: company.legalText
     },
     client: {
       name: budget.client.nombre,
@@ -67,7 +69,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       ivaTotal: budget.iva,
       total: budget.total
     },
-    conditions: budget.condiciones ?? company?.condicionesPorDefecto,
+    conditions: budget.condiciones ?? company.defaultConditions,
     paymentMethod: budget.formaPago,
     observations: budget.observaciones,
     watermark: null

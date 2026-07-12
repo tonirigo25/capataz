@@ -335,15 +335,15 @@ const clientSelect = {
 
 type ClientCrmRecord = Prisma.ClientGetPayload<{ select: typeof clientSelect }>;
 
-export async function getClientList(query: ClientListQuery): Promise<ClientListResult> {
+export async function getClientList(query: ClientListQuery, companyId: string): Promise<ClientListResult> {
   const now = new Date();
-  const where = buildClientWhere(query);
+  const where = { AND: [{ companyId }, buildClientWhere(query)] };
   const [clients, typeOptions] = await Promise.all([
     prisma.client.findMany({
       where,
       select: clientSelect
     }),
-    getClientTypeOptions()
+    getClientTypeOptions(companyId)
   ]);
 
   const filters = parseFilters(query.filtros);
@@ -370,9 +370,9 @@ export async function getClientList(query: ClientListQuery): Promise<ClientListR
   };
 }
 
-export async function getClientCrmSummary(id: string) {
+export async function getClientCrmSummary(id: string, companyId: string) {
   const client = await prisma.client.findFirst({
-    where: { id },
+    where: { id, companyId },
     select: clientSelect
   });
 
@@ -425,7 +425,7 @@ export async function getClientCrmSummary(id: string) {
   };
 }
 
-export async function findClientDuplicateCandidate(data: CrmClientFieldsInput, excludeId?: string | null): Promise<DuplicateMatch | null> {
+export async function findClientDuplicateCandidate(data: CrmClientFieldsInput, companyId: string, excludeId?: string | null): Promise<DuplicateMatch | null> {
   const phone = normalizePhone(data.telefono || data.contactoPrincipalTelefono);
   const nifCif = data.nifCif?.trim();
   const email = data.email?.trim() || data.emailFacturacion?.trim() || data.contactoPrincipalEmail?.trim();
@@ -457,7 +457,7 @@ export async function findClientDuplicateCandidate(data: CrmClientFieldsInput, e
   if (!conditions.length) return null;
 
   const candidates = await prisma.client.findMany({
-    where: { OR: conditions },
+    where: { companyId, OR: conditions },
     take: 20,
     select: {
       id: true,
@@ -670,8 +670,9 @@ function activeFilterLabels(query: ClientListQuery, filters: Set<string>) {
   return labels;
 }
 
-async function getClientTypeOptions() {
+async function getClientTypeOptions(companyId: string) {
   const rows = await prisma.client.findMany({
+    where: { companyId },
     select: { tipo: true },
     distinct: ["tipo"],
     orderBy: { tipo: "asc" }

@@ -4,15 +4,17 @@ import { revalidatePath } from "next/cache";
 import type { EventoAgendaEstado } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export async function updateAgendaEventStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const estado = String(formData.get("estado") ?? "") as EventoAgendaEstado;
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !estado || !confirmado) return;
+  const { companyId } = await requireCompanyContext();
 
   const event = await prisma.eventoAgenda.update({
-    where: { id },
+    where: { id: (await prisma.eventoAgenda.findFirstOrThrow({ where: { id, companyId }, select: { id: true } })).id },
     data: {
       estado,
       confirmadoPorUsuario: ["confirmado", "realizado"].includes(estado),
@@ -30,12 +32,13 @@ export async function reprogramAgendaEvent(formData: FormData) {
   const fechaFin = String(formData.get("fechaFin") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !fechaInicio || !confirmado) return;
+  const { companyId } = await requireCompanyContext();
 
   const start = new Date(fechaInicio);
   const end = fechaFin ? new Date(fechaFin) : null;
 
   const event = await prisma.eventoAgenda.update({
-    where: { id },
+    where: { id: (await prisma.eventoAgenda.findFirstOrThrow({ where: { id, companyId }, select: { id: true } })).id },
     data: {
       fechaInicio: start,
       fechaFin: end,

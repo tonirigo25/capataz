@@ -62,6 +62,13 @@ import { handleChatWorkflowContract } from "@/lib/chat-workflow-contract";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
 import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
+
+async function activeCompany() {
+  const context = await requireCompanyContext();
+  return prisma.company.findUniqueOrThrow({ where: { id: context.companyId } }).then(companySettingsView);
+}
 
 type ChatDocumentKind = "budget" | "invoice";
 type PendingField = "iva" | "direccion_obra" | "datos_cliente" | "datos_fiscales";
@@ -196,8 +203,21 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
   const isStructuredMutation = /^(reprograma|cambia|mejor|volver|vuelve|crea|anade|agrega|completa|marca|reabre|esta tarea depende|bloqueala|elimina|retira|archiva|quita|ya no|simula|ejecuta)/.test(normalizedText);
   const earlyDatabaseIntent = isStructuredMutation ? null : databaseIntentForMessage(text, earlyClassifiedIntent, enrichedContext);
   if (earlyDatabaseIntent) {
+    await logChatPerf(trace, "chat:intent", trace.startedAt, "database_candidate", {
+      normalizedText, classifiedKind: earlyClassifiedIntent.kind, classifiedAction: earlyClassifiedIntent.action,
+      classifiedConfidence: earlyClassifiedIntent.confidence, rule: earlyClassifiedIntent.rule,
+      routedKind: earlyDatabaseIntent.kind, routedAction: earlyDatabaseIntent.action, conversationId: trace.conversationId
+    });
     await logChatPerf(trace, "route", trace.startedAt, "database_query", { kind: earlyDatabaseIntent.kind, action: earlyDatabaseIntent.action, confidence: earlyDatabaseIntent.confidence, rule: earlyDatabaseIntent.rule });
-    return answerDatabaseQuery(text, earlyDatabaseIntent, enrichedContext);
+    const queryStarted = nowMs();
+    try {
+      const result = await answerDatabaseQuery(text, earlyDatabaseIntent, enrichedContext);
+      await logChatPerf(trace, "chat:database_result", queryStarted, "ok", { ...result.diagnostics, responseLength: result.text.length, conversationId: trace.conversationId });
+      return result;
+    } catch (error) {
+      await logChatPerf(trace, "chat:database_result", queryStarted, "error", { normalizedText, intentKind: earlyDatabaseIntent.kind, action: earlyDatabaseIntent.action, error: error instanceof Error ? sanitizeAIError(error.message) : "unknown" });
+      return { handled: true, context: enrichedContext, diagnostics: { normalizedText, intentKind: earlyDatabaseIntent.kind, action: earlyDatabaseIntent.action, confidence: earlyDatabaseIntent.confidence, rule: earlyDatabaseIntent.rule, handler: handlerNameForIntent(earlyDatabaseIntent), noMutation: true }, text: "No he podido consultar esos datos ahora mismo. No he creado ni modificado ningún registro; inténtalo de nuevo en unos segundos." };
+    }
   }
 
   const contractResult = await handleChatWorkflowContract(text, enrichedContext, {
@@ -1411,7 +1431,9 @@ ${issues.length ? issues.map((issue, index) => `${index + 1}. ${issue.title}: ${
 }
 
 async function treasurySummaryForIntent(intent: ChatIntentClassification, horizon?: string, scenario: "conservative" | "base" | "optimistic" = "base") {
+  const { companyId } = await requireCompanyContext();
   return getTreasuryOverview({
+    companyId,
     horizon: horizon ?? treasuryHorizonForPeriod(intent.period),
     scenario
   });
@@ -2233,7 +2255,8 @@ function signalChatIntro(mode: BusinessSignalsChatMode, activeCount: number) {
 }
 
 async function businessSummary(intent: ChatIntentClassification) {
-  return getBusinessIntelligenceSummary({ period: businessPeriodForIntent(intent.period) });
+  const { companyId } = await requireCompanyContext();
+  return getBusinessIntelligenceSummary({ companyId, period: businessPeriodForIntent(intent.period) });
 }
 
 function businessPeriodForIntent(period: ChatIntentClassification["period"]): BusinessPeriodId {
@@ -3010,10 +3033,8 @@ function replaceContextTask(context: ChatCommandContext, task: NonNullable<ChatC
 async function personalizeContextGreeting(response: string) {
   if (!response.startsWith("Hola.") && !response.startsWith("Hola,")) return response;
   try {
-    const profile = await prisma.usuarioPerfil.findFirst({
-      select: { nombrePreferido: true, nombre: true }
-    });
-    const name = (profile?.nombrePreferido ?? profile?.nombre ?? "").trim();
+    const session = await requireCompanyContext();
+    const name = session.displayName.trim();
     if (!name) return response;
     return response.startsWith("Hola,")
       ? response.replace(/^Hola,/, `Hola ${name},`)
@@ -3302,9 +3323,9 @@ async function createBudgetDraftFromAI(ai: CapatazAIResult): Promise<ChatCommand
   }
 
   const existingClient = clientMatches[0] ?? null;
-  const company = await prisma.empresa.findFirst();
+  const company = await activeCompany();
   const ivaMode = ivaModeFromAI(ai);
-  const ivaPercent = entities.iva_porcentaje ?? company?.ivaDefecto ?? 21;
+  const ivaPercent = entities.iva_porcentaje ?? company.defaultVat;
   const totals = calculateChatDocumentTotals(amount, ivaMode, ivaPercent);
   const line = buildAIBudgetLine(ai, totals.subtotal);
   const pendingFields = pendingFieldsFromAI(ai, ivaMode);
@@ -3720,8 +3741,8 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
     }
   }
 
-  const company = await prisma.empresa.findFirst();
-  const ivaPercent = company?.ivaDefecto ?? 21;
+  const company = await activeCompany();
+  const ivaPercent = company.defaultVat;
   const totals = calculateChatDocumentTotals(command.amount, command.ivaMode, ivaPercent);
   const line = {
     descripcion: command.lineDescription,
@@ -3856,8 +3877,8 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEn
     return { handled: true, text: "No encuentro el presupuesto anterior. No he creado duplicados. Puedes abrir Documentos y revisar los borradores.", clearContext: true };
   }
 
-  const company = await prisma.empresa.findFirst();
-  const ivaPercent = company?.ivaDefecto ?? 21;
+  const company = await activeCompany();
+  const ivaPercent = company.defaultVat;
   const updates: string[] = [];
   const remaining = new Set(context.activeTask?.pendingFields ?? []);
   let currentBudgetAmount = typeof context.activeTask?.draftData?.amount === "number"
@@ -4202,8 +4223,8 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
 
   const existingClient = clientMatches[0] ?? null;
   const existingWork = existingClient ? await findSimilarWork(existingClient.id, command.workTitle) : null;
-  const company = await prisma.empresa.findFirst();
-  const ivaPercent = company?.ivaDefecto ?? 21;
+  const company = await activeCompany();
+  const ivaPercent = company.defaultVat;
   const totals = calculateChatDocumentTotals(command.amount, command.ivaMode, ivaPercent);
   const line = {
     descripcion: command.lineDescription,

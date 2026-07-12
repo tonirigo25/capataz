@@ -5,6 +5,8 @@ import { appModeDescription, appModeLabel, getAppMode, isUnlimitedMode } from "@
 import { companyCompletion, profileCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { getSystemStatus } from "@/lib/system-status";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
 
 const limits = [
   "Máximo 3 clientes reales",
@@ -56,11 +58,19 @@ const plans = [
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const [company, profile, systemStatus] = await Promise.all([
-    prisma.empresa.findFirst(),
-    prisma.usuarioPerfil.findFirst(),
+  const auth = await requireCompanyContext();
+  const [companyRecord, legacyProfile, systemStatus] = await Promise.all([
+    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }),
+    prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
     getSystemStatus()
   ]);
+  const company = companySettingsView(companyRecord);
+  const profile = legacyProfile ?? {
+    id: auth.userId, nombre: auth.displayName, email: auth.email, apellidos: null, tratamiento: null,
+    nombrePreferido: null, telefono: null, cargo: null, oficioPrincipal: null, idioma: "es-ES",
+    zonaHoraria: "Europe/Madrid", preferenciaVisual: "sistema", notificacionesInternas: true,
+    notificacionesEmail: false, tonoPreferido: "directo"
+  };
   const mode = getAppMode();
   const unlimited = isUnlimitedMode(mode);
   const profileStatus = profileCompletion(profile);

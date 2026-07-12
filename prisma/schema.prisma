@@ -362,8 +362,43 @@ enum FollowUpPriority {
   urgent
 }
 
+enum UserStatus {
+  pending_verification
+  active
+  suspended
+  archived
+}
+
+enum CompanyStatus {
+  active
+  suspended
+  archived
+}
+
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+enum MembershipStatus {
+  invited
+  active
+  suspended
+  archived
+}
+
+enum SecurityAuditOutcome {
+  success
+  failure
+  blocked
+}
+
 model Client {
   id                        String             @id @default(cuid())
+  companyId                 String?
   nombre                    String
   nombreComercial           String?
   razonSocial               String?
@@ -402,6 +437,7 @@ model Client {
   reminders                 Reminder[]
   works                     Work[]
   agendaEvents              EventoAgenda[]
+  company                   Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([nombre])
   @@index([nifCif])
@@ -409,12 +445,14 @@ model Client {
   @@index([telefono])
   @@index([estado])
   @@index([archivadoAt])
+  @@index([companyId])
 }
 
 model Work {
   id                    String             @id @default(cuid())
-  numeroInterno         String?            @unique
-  codigo                String?            @unique
+  companyId             String?
+  numeroInterno         String?
+  codigo                String?
   clienteId             String
   contactoId            String?
   contactoPrincipal     String?
@@ -466,17 +504,22 @@ model Work {
   recurringExpenses     RecurringExpense[]
   reminders             Reminder[]
   agendaEvents          EventoAgenda[]
+  company               Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, numeroInterno])
+  @@unique([companyId, codigo])
   @@index([estado])
   @@index([prioridad])
   @@index([fechaInicioPrevista])
   @@index([fechaFinPrevista])
   @@index([archivada])
   @@index([contactoId])
+  @@index([companyId])
 }
 
 model Contact {
   id               String         @id @default(cuid())
+  companyId        String?
   clientId         String
   nombre           String
   apellidos        String?
@@ -494,11 +537,13 @@ model Contact {
   agendaEvents     EventoAgenda[]
   reminders        Reminder[]
   worksAsSite      Work[]         @relation("WorkSiteContact")
+  company          Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([clientId])
   @@index([email])
   @@index([telefono])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model WorkDocument {
@@ -542,9 +587,10 @@ model WorkPhoto {
 
 model Budget {
   id               String         @id @default(cuid())
+  companyId        String?
   clienteId        String
   obraId           String?
-  numero           String         @unique
+  numero           String
   titulo           String
   partidas         String
   subtotal         Float
@@ -566,13 +612,18 @@ model Budget {
   internalNotes    InternalNote[]
   reminders        Reminder[]
   work             Work?          @relation(fields: [obraId], references: [id])
+  company          Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, numero])
+  @@index([companyId])
 }
 
 model Invoice {
   id                String             @id @default(cuid())
+  companyId         String?
   clienteId         String
   obraId            String?
-  numero            String             @unique
+  numero            String
   concepto          String
   partidas          String?
   importeBase       Float
@@ -595,10 +646,15 @@ model Invoice {
   payments          Payment[]
   reminders         Reminder[]
   work              Work?              @relation(fields: [obraId], references: [id])
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, numero])
+  @@index([companyId])
 }
 
 model Payment {
   id            String         @id @default(cuid())
+  companyId     String?
   facturaId     String
   clienteId     String
   obraId        String?
@@ -611,10 +667,14 @@ model Payment {
   client        Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   invoice       Invoice        @relation(fields: [facturaId], references: [id], onDelete: Cascade)
   work          Work?          @relation(fields: [obraId], references: [id])
+  company       Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
 }
 
 model Expense {
   id                String             @id @default(cuid())
+  companyId         String?
   obraId            String
   clienteId         String?
   proveedor         String
@@ -633,10 +693,14 @@ model Expense {
   documents         Document[]
   expectedCashFlows ExpectedCashFlow[]
   work              Work               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
 }
 
 model FinancialAccount {
   id                     String               @id @default(cuid())
+  companyId              String?
   name                   String
   type                   FinancialAccountType @default(bank)
   currency               String               @default("EUR")
@@ -649,13 +713,16 @@ model FinancialAccount {
   updatedAt              DateTime             @updatedAt
   archivedAt             DateTime?
   movements              CashMovement[]
+  company                Company?             @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([isActive])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model CashMovement {
   id              String             @id @default(cuid())
+  companyId       String?
   accountId       String
   type            CashMovementType
   amount          Float
@@ -681,6 +748,7 @@ model CashMovement {
   invoice         Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   payment         Payment?           @relation(fields: [paymentId], references: [id], onDelete: SetNull)
   work            Work?              @relation(fields: [workId], references: [id], onDelete: SetNull)
+  company         Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([accountId, date])
   @@index([type])
@@ -691,10 +759,12 @@ model CashMovement {
   @@index([clientId])
   @@index([transferGroupId])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model RecurringExpense {
   id                String                    @id @default(cuid())
+  companyId         String?
   name              String
   amount            Float
   frequency         RecurringExpenseFrequency
@@ -709,14 +779,17 @@ model RecurringExpense {
   archivedAt        DateTime?
   work              Work?                     @relation(fields: [workId], references: [id], onDelete: SetNull)
   expectedCashFlows ExpectedCashFlow[]
+  company           Company?                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([isActive, nextDueDate])
   @@index([workId])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model ExpectedCashFlow {
   id                 String                 @id @default(cuid())
+  companyId          String?
   type               ExpectedCashFlowType
   amount             Float
   expectedDate       DateTime
@@ -737,6 +810,7 @@ model ExpectedCashFlow {
   expense            Expense?               @relation(fields: [expenseId], references: [id], onDelete: SetNull)
   invoice            Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   recurringExpense   RecurringExpense?      @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  company            Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
   work               Work?                  @relation(fields: [workId], references: [id], onDelete: SetNull)
 
   @@index([expectedDate])
@@ -747,6 +821,7 @@ model ExpectedCashFlow {
   @@index([workId])
   @@index([clientId])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model TreasurySettings {
@@ -758,20 +833,29 @@ model TreasurySettings {
   includeEstimatedInflows Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  companyId               String?
+  company                 Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
 }
 
 model Material {
-  id       String         @id @default(cuid())
-  obraId   String
-  nombre   String
-  cantidad String
-  estado   MaterialStatus @default(pendiente)
-  notas    String?
-  work     Work           @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  id        String         @id @default(cuid())
+  companyId String?
+  obraId    String
+  nombre    String
+  cantidad  String
+  estado    MaterialStatus @default(pendiente)
+  notas     String?
+  work      Work           @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  company   Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
 }
 
 model Reminder {
   id                   String          @id @default(cuid())
+  companyId            String?
   clienteId            String?
   obraId               String?
   facturaId            String?
@@ -790,12 +874,15 @@ model Reminder {
   invoice              Invoice?        @relation(fields: [facturaId], references: [id])
   work                 Work?           @relation(fields: [obraId], references: [id])
   agendaEvents         EventoAgenda[]
+  company              Company?        @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([contactId])
+  @@index([companyId])
 }
 
 model EventoAgenda {
   id                   String             @id @default(cuid())
+  companyId            String?
   titulo               String
   descripcion          String?
   tipo                 EventoAgendaTipo
@@ -826,14 +913,17 @@ model EventoAgenda {
   work                 Work?              @relation(fields: [obraId], references: [id])
   task                 Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
   followUp             FollowUp?          @relation(fields: [followUpId], references: [id], onDelete: SetNull)
+  company              Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([contactId])
   @@index([taskId])
   @@index([followUpId])
+  @@index([companyId])
 }
 
 model InternalNote {
   id         String    @id @default(cuid())
+  companyId  String?
   clientId   String?
   workId     String?
   invoiceId  String?
@@ -847,16 +937,19 @@ model InternalNote {
   work       Work?     @relation(fields: [workId], references: [id], onDelete: Cascade)
   invoice    Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   budget     Budget?   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([clientId])
   @@index([workId])
   @@index([invoiceId])
   @@index([budgetId])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model Document {
   id           String           @id @default(cuid())
+  companyId    String?
   name         String
   originalName String?
   mimeType     String?
@@ -880,6 +973,7 @@ model Document {
   invoice      Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   expense      Expense?         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   workPhoto    WorkPhoto?
+  company      Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([clientId])
   @@index([workId])
@@ -888,10 +982,12 @@ model Document {
   @@index([expenseId])
   @@index([category])
   @@index([archivedAt])
+  @@index([companyId])
 }
 
 model Notification {
   id         String               @id @default(cuid())
+  companyId  String?
   sourceKey  String               @unique
   type       String
   title      String
@@ -904,15 +1000,18 @@ model Notification {
   archivedAt DateTime?
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
+  company    Company?             @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([readAt])
   @@index([archivedAt])
   @@index([priority])
   @@index([entityType, entityId])
+  @@index([companyId])
 }
 
 model BusinessSignalState {
   id               String               @id @default(cuid())
+  companyId        String?
   fingerprint      String               @unique
   type             String
   level            BusinessSignalLevel
@@ -952,6 +1051,7 @@ model BusinessSignalState {
   metadata         Json?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+  company          Company?             @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, lastPriority])
   @@index([type])
@@ -969,6 +1069,7 @@ model BusinessSignalState {
   @@index([changeHash])
   @@index([resolvedAt])
   @@index([lastEvaluatedAt])
+  @@index([companyId])
 }
 
 model BusinessSignalPreference {
@@ -989,6 +1090,7 @@ model BusinessSignalPreference {
 
 model BusinessRecommendation {
   id                   String                       @id @default(cuid())
+  companyId            String?
   fingerprint          String                       @unique
   signalFingerprint    String?
   type                 String
@@ -1037,6 +1139,7 @@ model BusinessRecommendation {
   utilityScore         Int                          @default(0)
   createdAt            DateTime                     @default(now())
   updatedAt            DateTime                     @updatedAt
+  company              Company?                     @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, priority])
   @@index([type])
@@ -1057,6 +1160,7 @@ model BusinessRecommendation {
   @@index([lastEvaluatedAt])
   @@index([reactivatedAt])
   @@index([completedAt])
+  @@index([companyId])
 }
 
 model RecommendationActionLog {
@@ -1243,6 +1347,7 @@ model ChatMessage {
 
 model ChatConversation {
   id             String        @id @default(cuid())
+  companyId      String?
   title          String
   status         String        @default("active")
   activeTask     Json?
@@ -1252,9 +1357,11 @@ model ChatConversation {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   messages       ChatMessage[]
+  company        Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, lastActivityAt])
   @@index([status, updatedAt])
+  @@index([companyId])
 }
 
 model ChatActionLog {
@@ -1355,8 +1462,10 @@ model AutomationDefinition {
   currentVersion   AutomationVersion?         @relation("CurrentAutomationVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
   schedule         AutomationSchedule?
   runs             AutomationRun[]
+  company          Company?                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, active])
+  @@index([companyId])
 }
 
 model AutomationVersion {
@@ -1454,6 +1563,7 @@ model AutomationSchedule {
 
 model AutomationRun {
   id                     String                   @id @default(cuid())
+  companyId              String?
   automationDefinitionId String
   automationVersionId    String
   status                 AutomationRunStatus      @default(queued)
@@ -1489,12 +1599,14 @@ model AutomationRun {
   tasks                  Task[]
   followUps              FollowUp[]
   confirmations          AutomationConfirmation[]
+  company                Company?                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, startedAt])
   @@index([automationDefinitionId, startedAt])
   @@index([deduplicationKey])
   @@index([status, nextRetryAt])
   @@index([correlationId, chainDepth])
+  @@index([companyId])
 }
 
 model AutomationStepRun {
@@ -1605,6 +1717,7 @@ model Task {
   agendaEvents         EventoAgenda[]
   parentTask           Task?               @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: SetNull)
   subtasks             Task[]              @relation("TaskSubtasks")
+  company              Company?            @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([recurrenceId, occurrenceKey])
   @@index([status, dueAt])
@@ -1613,6 +1726,7 @@ model Task {
   @@index([workId, status])
   @@index([recurrenceId])
   @@index([parentTaskId])
+  @@index([companyId])
 }
 
 model TaskAssignment {
@@ -1739,11 +1853,13 @@ model FollowUp {
   attempts         FollowUpAttempt[]
   outcomes         FollowUpOutcome[]
   agendaEvents     EventoAgenda[]
+  company          Company?          @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, nextActionAt])
   @@index([clientId, status])
   @@index([invoiceId, status])
   @@index([budgetId, status])
+  @@index([companyId])
 }
 
 model FollowUpAttempt {
@@ -1772,4 +1888,174 @@ model FollowUpOutcome {
   followUp     FollowUp @relation(fields: [followUpId], references: [id], onDelete: Restrict)
 
   @@index([followUpId, recordedAt])
+}
+
+model User {
+  id                  String                   @id @default(cuid())
+  email               String
+  emailNormalized     String                   @unique
+  passwordHash        String
+  displayName         String
+  status              UserStatus               @default(pending_verification)
+  emailVerifiedAt     DateTime?
+  failedLoginCount    Int                      @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  passwordChangedAt   DateTime                 @default(now())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  memberships         CompanyMembership[]
+  sessions            Session[]
+  verificationTokens  EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  securityAuditEvents SecurityAuditEvent[]
+
+  @@index([status])
+}
+
+model Company {
+  id                  String                   @id @default(cuid())
+  slug                String                   @unique
+  nombreComercial     String
+  razonSocial         String?
+  taxId               String?
+  email               String?
+  telefono            String?
+  direccion           String?
+  codigoPostal        String?
+  ciudad              String?
+  provincia           String?
+  pais                String                   @default("España")
+  timezone            String                   @default("Europe/Madrid")
+  locale              String                   @default("es-ES")
+  status              CompanyStatus            @default(active)
+  isDemo              Boolean                  @default(false)
+  legacyEmpresaId     String?                  @unique
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  archivedAt          DateTime?
+  web                 String?
+  contactPerson       String?
+  iban                String?
+  defaultConditions   String?
+  legalText           String?
+  logoUrl             String?
+  sealUrl             String?
+  brandColor          String                   @default("#f6c945")
+  defaultVat          Float                    @default(21)
+  currency            String                   @default("EUR")
+  budgetValidityDays  Int                      @default(15)
+  defaultPaymentTerms String?
+  budgetSeries        String                   @default("2026")
+  invoiceSeries       String                   @default("2026")
+  workSeries          String                   @default("2026")
+  budgetPrefix        String                   @default("P")
+  invoicePrefix       String                   @default("F")
+  workPrefix          String                   @default("OB")
+  memberships         CompanyMembership[]
+  securityAuditEvents SecurityAuditEvent[]
+  clients             Client[]
+  contacts            Contact[]
+  works               Work[]
+  budgets             Budget[]
+  invoices            Invoice[]
+  payments            Payment[]
+  expenses            Expense[]
+  materials           Material[]
+  documents           Document[]
+  internalNotes       InternalNote[]
+  reminders           Reminder[]
+  agendaEvents        EventoAgenda[]
+  notifications       Notification[]
+  financialAccounts   FinancialAccount[]
+  cashMovements       CashMovement[]
+  recurringExpenses   RecurringExpense[]
+  expectedCashFlows   ExpectedCashFlow[]
+  chatConversations   ChatConversation[]
+  signalStates        BusinessSignalState[]
+  recommendations     BusinessRecommendation[]
+  automations         AutomationDefinition[]
+  automationRuns      AutomationRun[]
+  tasks               Task[]
+  followUps           FollowUp[]
+  treasurySettings    TreasurySettings[]
+
+  @@index([status])
+  @@index([isDemo])
+}
+
+model CompanyMembership {
+  id         String           @id @default(cuid())
+  userId     String
+  companyId  String
+  role       CompanyRole      @default(MEMBER)
+  status     MembershipStatus @default(invited)
+  invitedAt  DateTime?
+  acceptedAt DateTime?
+  joinedAt   DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, companyId])
+  @@index([companyId, status])
+  @@index([userId, status])
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  userAgent  String?
+  ipHash     String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+}
+
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  requestedAt DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+}
+
+model SecurityAuditEvent {
+  id        String               @id @default(cuid())
+  companyId String?
+  userId    String?
+  type      String
+  outcome   SecurityAuditOutcome
+  requestId String?
+  metadata  Json?
+  createdAt DateTime             @default(now())
+  company   Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }

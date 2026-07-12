@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export async function scheduleBudgetFollowUp(formData: FormData) {
   const clienteId = String(formData.get("clienteId") ?? "");
@@ -18,9 +19,14 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
   if (!clienteId || !presupuestoId || !mensaje || !fecha || !confirmado) {
     throw new Error("Faltan datos para programar el seguimiento.");
   }
+  const { companyId } = await requireCompanyContext();
+  const client = await prisma.client.findFirst({ where: { id: clienteId, companyId }, select: { id: true } });
+  const budget = await prisma.budget.findFirst({ where: { id: presupuestoId, companyId }, select: { id: true } });
+  if (!client || !budget || (obraId && !(await prisma.work.findFirst({ where: { id: obraId, companyId }, select: { id: true } })))) throw new Error("Entidad no disponible.");
 
   const existing = await prisma.reminder.findFirst({
     where: {
+      companyId,
       clienteId,
       presupuestoId,
       tipo: "seguimiento_presupuesto",
@@ -30,6 +36,7 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
   });
 
   const data = {
+    companyId,
     clienteId,
     obraId,
     presupuestoId,
@@ -51,8 +58,8 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
     await prisma.reminder.create({ data });
   }
 
-  await prisma.client.update({
-    where: { id: clienteId },
+  await prisma.client.updateMany({
+    where: { id: clienteId, companyId },
     data: { ultimaInteraccion: new Date() }
   });
   await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: presupuestoId, clientId: clienteId, workId: obraId, budgetId: presupuestoId, reason: "budget_followup_scheduled" });
@@ -68,9 +75,10 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
 export async function archiveClient(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Falta el cliente.");
+  const { companyId } = await requireCompanyContext();
 
-  await prisma.client.update({
-    where: { id },
+  await prisma.client.updateMany({
+    where: { id, companyId },
     data: { archivadoAt: new Date() }
   });
   await reevaluateProactiveAfterMutation({ entityType: "client", entityId: id, clientId: id, reason: "client_archived" });
@@ -84,9 +92,10 @@ export async function archiveClient(formData: FormData) {
 export async function restoreClient(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Falta el cliente.");
+  const { companyId } = await requireCompanyContext();
 
-  await prisma.client.update({
-    where: { id },
+  await prisma.client.updateMany({
+    where: { id, companyId },
     data: { archivadoAt: null }
   });
   await reevaluateProactiveAfterMutation({ entityType: "client", entityId: id, clientId: id, reason: "client_restored" });

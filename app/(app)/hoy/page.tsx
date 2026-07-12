@@ -38,6 +38,8 @@ import { prisma } from "@/lib/prisma";
 import { getProactiveDailySummary } from "@/lib/proactive-evaluation";
 import { getDashboardData } from "@/lib/queries";
 import { getTodayTreasurySignals } from "@/lib/treasury";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +54,13 @@ const quickActions = [
 
 export default async function TodayPage() {
   const now = new Date();
+  const auth = await requireCompanyContext();
   const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals, signalBrief, recommendationBrief, proactiveDailySummary] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
-    prisma.usuarioPerfil.findFirst(),
-    prisma.empresa.findFirst(),
-    getTodayTreasurySignals(),
+    prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
+    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }).then(companySettingsView),
+    getTodayTreasurySignals(auth.companyId),
     getTodaySignalBrief(4),
     getTodayRecommendationBrief(4),
     getProactiveDailySummary(now)

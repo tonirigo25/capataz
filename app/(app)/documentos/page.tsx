@@ -7,6 +7,7 @@ import { documentDetail, repositoryDocumentDisplay } from "@/lib/documents";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -20,19 +21,22 @@ const categoryIcons = {
 };
 
 export default async function DocumentsPage() {
+  const { companyId } = await requireCompanyContext();
   const [budgets, invoices, repositoryDocuments] = await Promise.all([
     prisma.budget.findMany({
+      where: { companyId },
       orderBy: { fechaCreacion: "desc" },
       take: 5,
       include: { client: true, work: true }
     }),
     prisma.invoice.findMany({
+      where: { companyId },
       orderBy: { fechaEmision: "desc" },
       take: 5,
       include: { client: true, work: true }
     }),
     prisma.document.findMany({
-      where: { archivedAt: null },
+      where: { companyId, archivedAt: null },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { client: true, work: true, budget: true, invoice: true, expense: true }

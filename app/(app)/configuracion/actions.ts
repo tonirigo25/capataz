@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext, requireCompanyRole } from "@/lib/auth/session";
 
 export async function saveUserProfile(formData: FormData) {
-  const id = text(formData, "id") || "usuario-demo";
+  const auth = await requireCompanyContext();
+  const id = auth.userId;
   const data = {
     nombre: optionalText(formData, "nombre"),
     apellidos: optionalText(formData, "apellidos"),
@@ -34,7 +36,7 @@ export async function saveUserProfile(formData: FormData) {
 }
 
 export async function saveCompanySettings(formData: FormData) {
-  const id = text(formData, "id") || "empresa-demo";
+  const auth = await requireCompanyRole(["ADMIN"]);
   const data = {
     nombreComercial: text(formData, "nombreComercial") || "Mi empresa",
     razonSocial: optionalText(formData, "razonSocial"),
@@ -67,11 +69,18 @@ export async function saveCompanySettings(formData: FormData) {
     prefijoObra: text(formData, "prefijoObra") || "OB"
   };
 
-  await prisma.empresa.upsert({
-    where: { id },
-    update: data,
-    create: { id, ...data }
-  });
+  await prisma.company.update({ where: { id: auth.companyId }, data: {
+    nombreComercial: data.nombreComercial, razonSocial: data.razonSocial, taxId: data.nifCif,
+    direccion: data.direccionFiscal, codigoPostal: data.codigoPostal, ciudad: data.ciudad,
+    provincia: data.provincia, pais: data.pais, telefono: data.telefono, email: data.email,
+    web: data.web, contactPerson: data.personaContacto, iban: data.iban,
+    defaultConditions: data.condicionesPorDefecto, legalText: data.textoLegal, logoUrl: data.logoUrl,
+    sealUrl: data.selloUrl, brandColor: data.colorMarca, defaultVat: data.ivaDefecto,
+    currency: data.moneda, budgetValidityDays: data.validezPresupuestoDias,
+    defaultPaymentTerms: data.formaPagoDefecto, budgetSeries: data.seriePresupuestos,
+    invoiceSeries: data.serieFacturas, workSeries: data.serieObras, budgetPrefix: data.prefijoPresupuesto,
+    invoicePrefix: data.prefijoFactura, workPrefix: data.prefijoObra
+  } });
 
   revalidatePath("/configuracion");
   revalidatePath("/capataz");

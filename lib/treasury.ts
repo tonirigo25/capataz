@@ -27,6 +27,7 @@ export type TreasuryParams = {
   category?: string | null;
   status?: string | null;
   now?: Date;
+  companyId?: string;
 };
 
 export type TreasuryForecastItem = {
@@ -147,6 +148,7 @@ const invoiceSelect = {
 type TreasuryInvoice = Prisma.InvoiceGetPayload<{ select: typeof invoiceSelect }>;
 
 export async function getTreasuryOverview(params: TreasuryParams = {}) {
+  const companyId = params.companyId;
   const now = params.now ?? new Date();
   const horizon = resolveTreasuryHorizon(params, now);
   const scenario = validScenario(params.scenario);
@@ -169,9 +171,9 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     works,
     clients
   ] = await Promise.all([
-    prisma.treasurySettings.findFirst({ orderBy: { updatedAt: "desc" } }),
+    prisma.treasurySettings.findFirst({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.financialAccount.findMany({
-      where: { archivedAt: null },
+      where: { companyId, archivedAt: null },
       include: {
         movements: {
           where: { archivedAt: null, status: "confirmed" },
@@ -182,6 +184,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     }),
     prisma.cashMovement.findMany({
       where: {
+        companyId,
         archivedAt: null,
         ...(filters.accountId ? { accountId: filters.accountId } : {}),
         ...(filters.workId ? { workId: filters.workId } : {}),
@@ -203,6 +206,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     }),
     prisma.invoice.findMany({
       where: {
+        companyId,
         estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as any },
         ...(filters.workId ? { obraId: filters.workId } : {}),
         ...(filters.clientId ? { clienteId: filters.clientId } : {})
@@ -212,6 +216,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     }),
     prisma.expense.findMany({
       where: {
+        companyId,
         ...(filters.workId ? { obraId: filters.workId } : {}),
         ...(filters.clientId ? { clienteId: filters.clientId } : {}),
         ...(filters.category ? { categoria: filters.category as any } : {})
@@ -225,6 +230,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     }),
     prisma.recurringExpense.findMany({
       where: {
+        companyId,
         archivedAt: null,
         isActive: true,
         nextDueDate: { lte: horizon.end },
@@ -236,6 +242,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     }),
     prisma.expectedCashFlow.findMany({
       where: {
+        companyId,
         archivedAt: null,
         status: { not: "cancelled" },
         expectedDate: { lte: horizon.end },
@@ -252,7 +259,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
       orderBy: { expectedDate: "asc" }
     }),
     prisma.work.findMany({
-      where: { ...(filters.workId ? { id: filters.workId } : { archivada: false }) },
+      where: { companyId, ...(filters.workId ? { id: filters.workId } : { archivada: false }) },
       include: {
         client: { select: { id: true, nombre: true } },
         budgets: { select: { id: true, total: true, estado: true } },
@@ -267,7 +274,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
       }
     }),
     prisma.client.findMany({
-      where: { ...(filters.clientId ? { id: filters.clientId } : { archivadoAt: null }) },
+      where: { companyId, ...(filters.clientId ? { id: filters.clientId } : { archivadoAt: null }) },
       include: {
         invoices: { select: invoiceSelect },
         payments: { select: { id: true, importe: true, fecha: true } },
@@ -531,8 +538,8 @@ export async function buildTreasuryCsvExport(kind: string, params: TreasuryParam
   return toCsv(["clave", "valor"], common);
 }
 
-export async function getTodayTreasurySignals() {
-  const overview = await getTreasuryOverview({ horizon: "30d", scenario: "base" });
+export async function getTodayTreasurySignals(companyId?: string) {
+  const overview = await getTreasuryOverview({ companyId, horizon: "30d", scenario: "base" });
   return overview.alerts.slice(0, 5);
 }
 

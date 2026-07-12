@@ -1,11 +1,14 @@
 import { buildTreasuryCsvExport } from "@/lib/treasury";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const { companyId } = await requireCompanyContext();
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") ?? "forecast";
   const csv = await buildTreasuryCsvExport(tipo, {
+    companyId,
     horizon: url.searchParams.get("horizonte") ?? undefined,
     scenario: url.searchParams.get("escenario") ?? undefined,
     accountId: url.searchParams.get("cuenta"),

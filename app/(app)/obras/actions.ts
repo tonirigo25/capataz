@@ -4,20 +4,22 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { validWorkStatus } from "@/lib/works";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export async function updateWorkStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const estado = validWorkStatus(String(formData.get("estado") ?? ""));
   if (!id || !estado) return;
 
-  const work = await prisma.work.findUnique({ where: { id }, include: { invoices: true } });
+  const { companyId } = await requireCompanyContext();
+  const work = await prisma.work.findFirst({ where: { id, companyId }, include: { invoices: true } });
   if (!work) return;
 
   if (estado === "cerrada" && work.invoices.some((invoice) => invoice.pendiente > 0)) {
-    await prisma.work.update({ where: { id }, data: { estado: "pendiente_cobro" } });
+    await prisma.work.updateMany({ where: { id, companyId }, data: { estado: "pendiente_cobro" } });
   } else {
-    await prisma.work.update({
-      where: { id },
+    await prisma.work.updateMany({
+      where: { id, companyId },
       data: {
         estado,
         fechaInicioReal: estado === "en_curso" && !work.fechaInicioReal ? new Date() : undefined,

@@ -37,6 +37,7 @@ import { getRecommendationsForClient, type BusinessRecommendation } from "@/lib/
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +66,10 @@ export default async function ClientDetailPage({
   searchParams: Promise<DetailSearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  const { companyId } = await requireCompanyContext();
   const [summary, treasury, recommendations] = await Promise.all([
-    getClientCrmSummary(id),
-    getTreasuryOverview({ clientId: id, horizon: "30d", scenario: "base" }),
+    getClientCrmSummary(id, companyId),
+    getTreasuryOverview({ companyId, clientId: id, horizon: "30d", scenario: "base" }),
     getRecommendationsForClient(id, 3)
   ]);
   if (!summary) notFound();

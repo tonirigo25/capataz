@@ -9,25 +9,29 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [invoice, company] = await Promise.all([
-    prisma.invoice.findUnique({
-      where: { id },
+  const auth = await requireCompanyContext();
+  const [invoice, companyRecord] = await Promise.all([
+    prisma.invoice.findFirst({
+      where: { id, companyId: auth.companyId },
       include: {
         client: true,
         work: true,
         payments: { orderBy: { fecha: "desc" } }
       }
     }),
-    prisma.empresa.findFirst()
+    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } })
   ]);
 
   if (!invoice) notFound();
 
+  const company = companySettingsView(companyRecord);
   const liveStatus = invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length;

@@ -23,6 +23,7 @@ import {
   type BusinessKpi
 } from "@/lib/business-intelligence";
 import { round } from "@/lib/business-metrics";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,8 @@ export default async function BusinessIntelligencePage({
   searchParams: Promise<{ periodo?: string; from?: string; to?: string }>;
 }) {
   const query = await searchParams;
-  const summary = await getBusinessIntelligenceSummary({ period: query.periodo, from: query.from, to: query.to });
+  const { companyId } = await requireCompanyContext();
+  const summary = await getBusinessIntelligenceSummary({ companyId, period: query.periodo, from: query.from, to: query.to });
   const periodQuery = new URLSearchParams();
   periodQuery.set("periodo", summary.period.id);
   if (query.from) periodQuery.set("from", query.from);

@@ -118,7 +118,7 @@ const titles = [
   ["/gestion", "Añadir o editar"]
 ];
 
-export function AppChrome({ children, modeLabel, unreadNotifications }: { children: ReactNode; modeLabel: string; unreadNotifications: number }) {
+export function AppChrome({ children, modeLabel, unreadNotifications, companyName, userName, logoutAction }: { children: ReactNode; modeLabel: string; unreadNotifications: number; companyName: string; userName: string; logoutAction: () => Promise<void> }) {
   const pathname = usePathname();
   const drawerId = useId();
   const actionsId = useId();
@@ -155,7 +155,7 @@ export function AppChrome({ children, modeLabel, unreadNotifications }: { childr
   return (
     <div className="min-h-dvh lg:pl-72">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white/95 backdrop-blur lg:block">
-        <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} onNavigate={() => undefined} />
+        <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} companyName={companyName} userName={userName} logoutAction={logoutAction} onNavigate={() => undefined} />
       </aside>
 
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -211,7 +211,7 @@ export function AppChrome({ children, modeLabel, unreadNotifications }: { childr
         <div className="fixed inset-0 z-50 lg:hidden" id={drawerId}>
           <button type="button" className="absolute inset-0 bg-obra-ink/55 backdrop-blur-sm" aria-label="Cerrar menú" onClick={() => setDrawerOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-[min(88vw,22rem)] bg-white shadow-card">
-            <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} onNavigate={() => setDrawerOpen(false)} />
+            <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} companyName={companyName} userName={userName} logoutAction={logoutAction} onNavigate={() => setDrawerOpen(false)} />
           </aside>
         </div>
       ) : null}
@@ -259,7 +259,7 @@ export function AppChrome({ children, modeLabel, unreadNotifications }: { childr
   );
 }
 
-function NavigationPanel({ modeLabel, pathname, unreadNotifications, onNavigate }: { modeLabel: string; pathname: string; unreadNotifications: number; onNavigate: () => void }) {
+function NavigationPanel({ modeLabel, pathname, unreadNotifications, companyName, userName, logoutAction, onNavigate }: { modeLabel: string; pathname: string; unreadNotifications: number; companyName: string; userName: string; logoutAction: () => Promise<void>; onNavigate: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 p-4">
@@ -295,7 +295,8 @@ function NavigationPanel({ modeLabel, pathname, unreadNotifications, onNavigate 
       <div className="border-t border-slate-200 p-3">
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="text-xs font-black uppercase text-slate-500">Empresa</p>
-          <p className="mt-1 truncate text-sm font-black text-obra-ink">Capataz</p>
+          <p className="mt-1 truncate text-sm font-black text-obra-ink">{companyName}</p>
+          <p className="truncate text-xs text-slate-500">{userName}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Link href="/configuracion#empresa" className="toolbar-chip justify-start text-xs" onClick={onNavigate}>
               <Building2 size={15} />
@@ -306,6 +307,9 @@ function NavigationPanel({ modeLabel, pathname, unreadNotifications, onNavigate 
               Plan
             </Link>
           </div>
+          <form action={logoutAction} className="mt-2">
+            <button type="submit" className="secondary-button w-full text-xs">Cerrar sesión</button>
+          </form>
         </div>
       </div>
     </div>

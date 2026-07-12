@@ -15,13 +15,16 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation, type ProactiveEvaluationScope } from "@/lib/proactive-evaluation";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export async function createFinancialAccount(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const currentManualBalance = optionalNumber(formData, "currentManualBalance");
 
   await prisma.financialAccount.create({
     data: {
+      companyId,
       name: text(formData, "name"),
       type: text(formData, "type") as FinancialAccountType,
       currency: optionalText(formData, "currency") ?? "EUR",
@@ -37,12 +40,13 @@ export async function createFinancialAccount(formData: FormData) {
 }
 
 export async function updateFinancialAccount(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const id = text(formData, "id");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const currentManualBalance = optionalNumber(formData, "currentManualBalance");
 
-  await prisma.financialAccount.update({
-    where: { id },
+  await prisma.financialAccount.updateMany({
+    where: { id, companyId },
     data: {
       name: text(formData, "name"),
       type: text(formData, "type") as FinancialAccountType,
@@ -60,10 +64,11 @@ export async function updateFinancialAccount(formData: FormData) {
 }
 
 export async function archiveFinancialAccount(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const id = text(formData, "id");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
-  await prisma.financialAccount.update({
-    where: { id },
+  await prisma.financialAccount.updateMany({
+    where: { id, companyId },
     data: { isActive: false, archivedAt: new Date() }
   });
   await revalidateTreasury({ entityType: "treasury", reason: "financial_account_archived" });
@@ -71,14 +76,17 @@ export async function archiveFinancialAccount(formData: FormData) {
 }
 
 export async function createCashMovement(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const type = text(formData, "type") as CashMovementType;
   const amount = number(formData, "amount");
   if (type !== "adjustment" && amount <= 0) throw new Error("El importe debe ser positivo.");
   if (type === "adjustment" && amount === 0) throw new Error("El ajuste no puede ser cero.");
+  await requireTreasuryReferences(companyId, formData);
 
   await prisma.cashMovement.create({
     data: {
+      companyId,
       accountId: text(formData, "accountId"),
       type,
       amount,
@@ -102,12 +110,15 @@ export async function createCashMovement(formData: FormData) {
 }
 
 export async function createCashTransfer(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const fromAccountId = text(formData, "fromAccountId");
   const toAccountId = text(formData, "toAccountId");
   const amount = number(formData, "amount");
   if (fromAccountId === toAccountId) throw new Error("La cuenta origen y destino deben ser distintas.");
   if (amount <= 0) throw new Error("El importe debe ser positivo.");
+  const accountCount = await prisma.financialAccount.count({ where: { id: { in: [fromAccountId, toAccountId] }, companyId } });
+  if (accountCount !== 2) throw new Error("Cuenta no disponible.");
 
   const groupId = randomUUID();
   const date = requiredDate(formData, "date");
@@ -117,6 +128,7 @@ export async function createCashTransfer(formData: FormData) {
   await prisma.$transaction([
     prisma.cashMovement.create({
       data: {
+        companyId,
         accountId: fromAccountId,
         type: "transfer_out",
         amount,
@@ -130,6 +142,7 @@ export async function createCashTransfer(formData: FormData) {
     }),
     prisma.cashMovement.create({
       data: {
+        companyId,
         accountId: toAccountId,
         type: "transfer_in",
         amount,
@@ -148,12 +161,15 @@ export async function createCashTransfer(formData: FormData) {
 }
 
 export async function createRecurringExpense(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const amount = number(formData, "amount");
   if (amount <= 0) throw new Error("El importe debe ser positivo.");
+  await requireTreasuryReferences(companyId, formData);
 
   await prisma.recurringExpense.create({
     data: {
+      companyId,
       name: text(formData, "name"),
       amount,
       frequency: text(formData, "frequency") as RecurringExpenseFrequency,
@@ -171,12 +187,15 @@ export async function createRecurringExpense(formData: FormData) {
 }
 
 export async function createExpectedCashFlow(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const amount = number(formData, "amount");
   if (amount <= 0) throw new Error("El importe debe ser positivo.");
+  await requireTreasuryReferences(companyId, formData);
 
   await prisma.expectedCashFlow.create({
     data: {
+      companyId,
       type: text(formData, "type") as ExpectedCashFlowType,
       amount,
       expectedDate: requiredDate(formData, "expectedDate"),
@@ -197,8 +216,9 @@ export async function createExpectedCashFlow(formData: FormData) {
 }
 
 export async function saveTreasurySettings(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
-  const existing = await prisma.treasurySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+  const existing = await prisma.treasurySettings.findFirst({ where: { companyId }, orderBy: { updatedAt: "desc" } });
   const data = {
     currency: optionalText(formData, "currency") ?? "EUR",
     minimumCashBalance: optionalNumber(formData, "minimumCashBalance"),
@@ -208,7 +228,7 @@ export async function saveTreasurySettings(formData: FormData) {
   };
 
   if (existing) await prisma.treasurySettings.update({ where: { id: existing.id }, data });
-  else await prisma.treasurySettings.create({ data });
+  else await prisma.treasurySettings.create({ data: { ...data, companyId } });
 
   await revalidateTreasury({ entityType: "treasury", reason: "treasury_settings_saved" });
   redirect(returnTo);
@@ -265,4 +285,20 @@ function optionalProbability(formData: FormData, key: string) {
 function requiredDate(formData: FormData, key: string) {
   const value = optionalText(formData, key);
   return value ? new Date(value) : new Date();
+}
+
+async function requireTreasuryReferences(companyId: string, formData: FormData) {
+  const accountId = optionalText(formData, "accountId");
+  const invoiceId = optionalText(formData, "invoiceId");
+  const expenseId = optionalText(formData, "expenseId");
+  const workId = optionalText(formData, "workId");
+  const clientId = optionalText(formData, "clientId");
+  const checks = await Promise.all([
+    accountId ? prisma.financialAccount.findFirst({ where: { id: accountId, companyId }, select: { id: true } }) : true,
+    invoiceId ? prisma.invoice.findFirst({ where: { id: invoiceId, companyId }, select: { id: true } }) : true,
+    expenseId ? prisma.expense.findFirst({ where: { id: expenseId, companyId }, select: { id: true } }) : true,
+    workId ? prisma.work.findFirst({ where: { id: workId, companyId }, select: { id: true } }) : true,
+    clientId ? prisma.client.findFirst({ where: { id: clientId, companyId }, select: { id: true } }) : true
+  ]);
+  if (checks.some((item) => !item)) throw new Error("Referencia de tesorería no disponible.");
 }

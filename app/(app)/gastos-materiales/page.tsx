@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/status-pill";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +16,15 @@ export default async function ExpensesMaterialsPage({
   searchParams: Promise<{ filtro?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
+  const { companyId } = await requireCompanyContext();
   const [expenses, materials] = await Promise.all([
     prisma.expense.findMany({
+      where: { companyId },
       orderBy: { fecha: "desc" },
       include: { work: { include: { client: true } } }
     }),
     prisma.material.findMany({
+      where: { companyId },
       orderBy: [{ estado: "asc" }, { nombre: "asc" }],
       include: { work: { include: { client: true } } }
     })

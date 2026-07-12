@@ -7,6 +7,8 @@ import { Notice } from "@/components/ui-primitives";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -90,24 +92,26 @@ export default async function ManualManagementPage({
   const query = await searchParams;
   const tipo = query.tipo as EntityType | undefined;
   if (!tipo || !(tipo in entityLabels)) notFound();
+  const auth = await requireCompanyContext();
 
-  const [clients, works, budgets, invoices, reminders, contacts, documents, company] = await Promise.all([
-    prisma.client.findMany({ orderBy: { nombre: "asc" } }),
-    prisma.work.findMany({ orderBy: { titulo: "asc" }, include: { client: true } }),
-    prisma.budget.findMany({ orderBy: { numero: "asc" }, include: { client: true } }),
-    prisma.invoice.findMany({ orderBy: { numero: "asc" }, include: { client: true } }),
-    prisma.reminder.findMany({ orderBy: { fechaProgramada: "asc" }, include: { client: true } }),
-    prisma.contact.findMany({ where: { archivedAt: null }, orderBy: [{ nombre: "asc" }], include: { client: true } }),
-    prisma.document.findMany({ where: { archivedAt: null }, orderBy: { createdAt: "desc" }, include: { client: true, work: true } }),
-    prisma.empresa.findFirst()
+  const [clients, works, budgets, invoices, reminders, contacts, documents, companyRecord] = await Promise.all([
+    prisma.client.findMany({ where: { companyId: auth.companyId }, orderBy: { nombre: "asc" } }),
+    prisma.work.findMany({ where: { companyId: auth.companyId }, orderBy: { titulo: "asc" }, include: { client: true } }),
+    prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { numero: "asc" }, include: { client: true } }),
+    prisma.invoice.findMany({ where: { companyId: auth.companyId }, orderBy: { numero: "asc" }, include: { client: true } }),
+    prisma.reminder.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true } }),
+    prisma.contact.findMany({ where: { companyId: auth.companyId, archivedAt: null }, orderBy: [{ nombre: "asc" }], include: { client: true } }),
+    prisma.document.findMany({ where: { companyId: auth.companyId, archivedAt: null }, orderBy: { createdAt: "desc" }, include: { client: true, work: true } }),
+    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } })
   ]);
-  const suggestedBudgetNumber = tipo === "presupuesto" && !query.id ? await nextDocumentNumber("budget") : "";
-  const suggestedInvoiceNumber = tipo === "factura" && !query.id ? await nextDocumentNumber("invoice") : "";
-  const suggestedWorkNumber = tipo === "obra" && !query.id ? await nextDocumentNumber("work") : "";
-  const record = query.id ? await fetchRecord(tipo, query.id) : null;
+  const company = companySettingsView(companyRecord);
+  const suggestedBudgetNumber = tipo === "presupuesto" && !query.id ? await nextDocumentNumber("budget", auth.companyId) : "";
+  const suggestedInvoiceNumber = tipo === "factura" && !query.id ? await nextDocumentNumber("invoice", auth.companyId) : "";
+  const suggestedWorkNumber = tipo === "obra" && !query.id ? await nextDocumentNumber("work", auth.companyId) : "";
+  const record = query.id ? await fetchRecord(tipo, query.id, auth.companyId) : null;
   const duplicateClient =
     tipo === "cliente" && query.duplicateOf
-      ? await prisma.client.findUnique({ where: { id: query.duplicateOf }, select: { id: true, nombre: true, telefono: true, email: true, nifCif: true } })
+      ? await prisma.client.findFirst({ where: { id: query.duplicateOf, companyId: auth.companyId }, select: { id: true, nombre: true, telefono: true, email: true, nifCif: true } })
       : null;
   const title = `${record ? "Editar" : "Añadir"} ${entityLabels[tipo]}`;
   const returnTo = query.returnTo ?? defaultReturnTo(tipo);
@@ -156,34 +160,34 @@ export default async function ManualManagementPage({
   );
 }
 
-async function fetchRecord(tipo: EntityType, id: string) {
+async function fetchRecord(tipo: EntityType, id: string, companyId: string) {
   switch (tipo) {
     case "cliente":
-      return prisma.client.findUnique({ where: { id } });
+      return prisma.client.findFirst({ where: { id, companyId } });
     case "obra":
-      return prisma.work.findUnique({ where: { id } });
+      return prisma.work.findFirst({ where: { id, companyId } });
     case "presupuesto":
-      return prisma.budget.findUnique({ where: { id } });
+      return prisma.budget.findFirst({ where: { id, companyId } });
     case "factura":
-      return prisma.invoice.findUnique({ where: { id } });
+      return prisma.invoice.findFirst({ where: { id, companyId } });
     case "pago":
-      return prisma.payment.findUnique({ where: { id } });
+      return prisma.payment.findFirst({ where: { id, companyId } });
     case "gasto":
-      return prisma.expense.findUnique({ where: { id } });
+      return prisma.expense.findFirst({ where: { id, companyId } });
     case "material":
-      return prisma.material.findUnique({ where: { id } });
+      return prisma.material.findFirst({ where: { id, companyId } });
     case "recordatorio":
-      return prisma.reminder.findUnique({ where: { id } });
+      return prisma.reminder.findFirst({ where: { id, companyId } });
     case "eventoAgenda":
-      return prisma.eventoAgenda.findUnique({ where: { id } });
+      return prisma.eventoAgenda.findFirst({ where: { id, companyId } });
     case "contacto":
-      return prisma.contact.findUnique({ where: { id } });
+      return prisma.contact.findFirst({ where: { id, companyId } });
     case "notaInterna":
-      return prisma.internalNote.findUnique({ where: { id } });
+      return prisma.internalNote.findFirst({ where: { id, companyId } });
     case "documento":
-      return prisma.document.findUnique({ where: { id } });
+      return prisma.document.findFirst({ where: { id, companyId } });
     case "foto":
-      return prisma.workPhoto.findUnique({ where: { id } });
+      return prisma.workPhoto.findFirst({ where: { id, work: { companyId } } });
   }
 }
 
