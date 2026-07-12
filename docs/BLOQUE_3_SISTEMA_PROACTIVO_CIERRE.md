@@ -67,7 +67,7 @@ Railway mantiene el servicio web persistente con `npm run start`. La evaluación
 
 - comando: `npm run proactive:evaluate`;
 - config-as-code: `/railway.cron.json`;
-- horario: `10 * * * *`;
+- horario validado: `20 * * * *` (una ejecución por hora, minuto 20);
 - zona horaria: UTC;
 - URL no secreta: `CAPATAZ_INTERNAL_URL=https://capataz-production.up.railway.app`;
 - secreto: `PROACTIVE_CRON_SECRET`, compartido de forma segura con el servicio web.
@@ -168,7 +168,12 @@ Estado validado el 2026-07-12:
 - `https://capataz-production.up.railway.app/recomendaciones/control` responde 200 sin página de error.
 - `https://capataz-production.up.railway.app/hoy` responde 200 y contiene resumen proactivo.
 - `https://capataz-production.up.railway.app/recomendaciones` responde 200 y contiene historial/enlace al control.
-- `POST /api/internal/proactive-evaluate` responde 503 sin secreto porque `PROACTIVE_CRON_SECRET`/`CRON_SECRET` no está configurado en producción.
+- `PROACTIVE_CRON_SECRET` está configurado en el servicio web y referenciado de forma segura por el cron; su valor no se documenta.
+- `POST /api/internal/proactive-evaluate` responde 405 por GET y 401 por POST sin secreto o con secreto incorrecto.
+- Una llamada autorizada segura completó 21 señales y 18 recomendaciones en 694 ms, sin errores.
+- El servicio `capataz-proactive-evaluator` usa `/railway.cron.json`, `npm run proactive:evaluate`, no tiene dominio y no recibe `DATABASE_URL`.
+- Railway ejecutó el cron programado repetidamente. La última observada fue `completed`, origen `railway_cron`, el 2026-07-12 a las 06:21 (hora mostrada por la aplicación): 21 señales, 18 recomendaciones, 0 reactivadas, 0 resueltas u obsoletas, 395 ms y 0 errores globales.
+- Ejecuciones horarias sucesivas mantuvieron 21 señales y 18 recomendaciones, sin reactivaciones ni resoluciones espurias; no aparecieron duplicados.
 
 La migración se considera aplicada en producción porque el centro de control consulta las tablas nuevas y responde 200. No se pudo inspeccionar el log interno de Railway desde Codex porque Railway CLI no está instalado.
 
@@ -180,4 +185,4 @@ La migración se considera aplicada en producción porque el centro de control c
 
 ## Decisión
 
-PROMPT 3 NO COMPLETADO OPERATIVAMENTE hasta configurar el secreto, desplegar el servicio cron separado y verificar al menos una ejecución disparada por el horario real.
+El cron está activo y verificado operativamente. PROMPT 3 permanece NO COMPLETADO según el criterio estricto del encargo hasta ejecutar interactivamente en producción toda la matriz de chat, PDF, voz y consola del navegador y registrar sus evidencias; los tests automatizados, typecheck, build, endpoint, centro de control y cron sí están validados.
