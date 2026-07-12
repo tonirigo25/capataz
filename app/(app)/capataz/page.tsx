@@ -1,5 +1,5 @@
 import { CapatazChat } from "@/components/capataz-chat";
-import { SectionHeader } from "@/components/section-header";
+import { PageHeader } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
 import { companyCompletion, profileCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +22,7 @@ export default async function CapatazPage() {
 
   return (
     <main className="screen">
-      <SectionHeader title="Capataz" />
+      <PageHeader eyebrow="Asistente operativo" title="Capataz" description="Consulta y gestiona trabajo interno con contexto estructurado." />
 
       <CapatazChat
         data={{

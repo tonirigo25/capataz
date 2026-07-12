@@ -289,6 +289,79 @@ enum RecommendationActionLogStatus {
   skipped
 }
 
+enum AutomationDefinitionStatus {
+  draft
+  active
+  paused
+  disabled
+  archived
+}
+
+enum AutomationVersionStatus {
+  draft
+  published
+  retired
+}
+
+enum AutomationRunStatus {
+  queued
+  running
+  waiting_confirmation
+  completed
+  partial
+  failed
+  skipped
+  cancelled
+  duplicate
+}
+
+enum AutomationStepStatus {
+  pending
+  running
+  waiting_confirmation
+  completed
+  failed
+  skipped
+  cancelled
+}
+
+enum TaskStatus {
+  inbox
+  planned
+  in_progress
+  blocked
+  waiting
+  completed
+  cancelled
+  archived
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum FollowUpStatus {
+  planned
+  due
+  in_progress
+  waiting_response
+  promised
+  completed
+  unsuccessful
+  cancelled
+  archived
+}
+
+enum FollowUpPriority {
+  low
+  medium
+  high
+  urgent
+}
+
 model Client {
   id                        String             @id @default(cuid())
   nombre                    String
@@ -737,6 +810,8 @@ model EventoAgenda {
   facturaId            String?
   recordatorioId       String?
   contactId            String?
+  taskId               String?
+  followUpId           String?
   direccion            String?
   notas                String?
   requiereConfirmacion Boolean            @default(false)
@@ -749,8 +824,12 @@ model EventoAgenda {
   invoice              Invoice?           @relation(fields: [facturaId], references: [id])
   reminder             Reminder?          @relation(fields: [recordatorioId], references: [id])
   work                 Work?              @relation(fields: [obraId], references: [id])
+  task                 Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  followUp             FollowUp?          @relation(fields: [followUpId], references: [id], onDelete: SetNull)
 
   @@index([contactId])
+  @@index([taskId])
+  @@index([followUpId])
 }
 
 model InternalNote {
@@ -1254,4 +1333,443 @@ model Empresa {
   prefijoObra            String   @default("OB")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+}
+
+model AutomationDefinition {
+  id               String                     @id @default(cuid())
+  name             String
+  description      String?
+  category         String                     @default("general")
+  status           AutomationDefinitionStatus @default(draft)
+  priority         Int                        @default(0)
+  source           String                     @default("manual")
+  createdById      String?
+  responsibleId    String?
+  companyId        String?
+  currentVersionId String?                    @unique
+  active           Boolean                    @default(false)
+  archivedAt       DateTime?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  versions         AutomationVersion[]        @relation("AutomationVersions")
+  currentVersion   AutomationVersion?         @relation("CurrentAutomationVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  schedule         AutomationSchedule?
+  runs             AutomationRun[]
+
+  @@index([status, active])
+}
+
+model AutomationVersion {
+  id                     String                  @id @default(cuid())
+  automationDefinitionId String
+  version                Int
+  status                 AutomationVersionStatus @default(draft)
+  triggerMode            String                  @default("manual")
+  cooldownSeconds        Int?
+  timeoutSeconds         Int                     @default(60)
+  retryPolicy            Json
+  requiresConfirmation   Boolean                 @default(false)
+  confirmationMode       String                  @default("per_action")
+  deduplicationStrategy  String                  @default("occurrence")
+  definitionHash         String
+  publishedAt            DateTime?
+  retiredAt              DateTime?
+  createdAt              DateTime                @default(now())
+  definition             AutomationDefinition    @relation("AutomationVersions", fields: [automationDefinitionId], references: [id], onDelete: Restrict)
+  currentFor             AutomationDefinition?   @relation("CurrentAutomationVersion")
+  triggers               AutomationTrigger[]
+  conditions             AutomationCondition[]
+  actions                AutomationAction[]
+  runs                   AutomationRun[]
+
+  @@unique([automationDefinitionId, version])
+  @@index([status])
+}
+
+model AutomationTrigger {
+  id                  String            @id @default(cuid())
+  automationVersionId String
+  type                String
+  eventType           String?
+  scheduleId          String?
+  entityType          String?
+  configuration       Json
+  createdAt           DateTime          @default(now())
+  version             AutomationVersion @relation(fields: [automationVersionId], references: [id], onDelete: Restrict)
+
+  @@index([automationVersionId, type])
+  @@index([eventType])
+}
+
+model AutomationCondition {
+  id                  String            @id @default(cuid())
+  automationVersionId String
+  group               Int               @default(0)
+  operator            String            @default("and")
+  field               String
+  comparator          String
+  value               Json?
+  valueType           String
+  order               Int
+  createdAt           DateTime          @default(now())
+  version             AutomationVersion @relation(fields: [automationVersionId], references: [id], onDelete: Restrict)
+
+  @@index([automationVersionId, group, order])
+}
+
+model AutomationAction {
+  id                   String              @id @default(cuid())
+  automationVersionId  String
+  actionType           String
+  order                Int
+  configuration        Json
+  requiresConfirmation Boolean             @default(false)
+  confirmationMode     String              @default("per_action")
+  onFailure            String              @default("stop")
+  createdAt            DateTime            @default(now())
+  version              AutomationVersion   @relation(fields: [automationVersionId], references: [id], onDelete: Restrict)
+  stepRuns             AutomationStepRun[]
+
+  @@unique([automationVersionId, order])
+}
+
+model AutomationSchedule {
+  id                     String               @id @default(cuid())
+  automationDefinitionId String               @unique
+  timezone               String               @default("Europe/Madrid")
+  rrule                  String?
+  cronExpression         String?
+  startsAt               DateTime?
+  endsAt                 DateTime?
+  nextRunAt              DateTime?
+  lastRunAt              DateTime?
+  active                 Boolean              @default(false)
+  lockUntil              DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  definition             AutomationDefinition @relation(fields: [automationDefinitionId], references: [id], onDelete: Restrict)
+
+  @@index([active, nextRunAt])
+}
+
+model AutomationRun {
+  id                     String                   @id @default(cuid())
+  automationDefinitionId String
+  automationVersionId    String
+  status                 AutomationRunStatus      @default(queued)
+  triggerType            String
+  triggeredBy            String
+  triggerEntityType      String?
+  triggerEntityId        String?
+  correlationId          String
+  causationId            String?
+  idempotencyKey         String                   @unique
+  deduplicationKey       String?
+  startedAt              DateTime                 @default(now())
+  completedAt            DateTime?
+  failedAt               DateTime?
+  durationMs             Int?
+  inputSnapshot          Json?
+  outputSummary          Json?
+  errorCode              String?
+  errorSummary           String?
+  dryRun                 Boolean                  @default(false)
+  lockUntil              DateTime?
+  nextRetryAt            DateTime?
+  attemptCount           Int                      @default(0)
+  lastAttemptAt          DateTime?
+  lastErrorCode          String?
+  lastErrorSummary       String?
+  chainDepth             Int                      @default(0)
+  sourceAutomationId     String?
+  createdAt              DateTime                 @default(now())
+  definition             AutomationDefinition     @relation(fields: [automationDefinitionId], references: [id], onDelete: Restrict)
+  version                AutomationVersion        @relation(fields: [automationVersionId], references: [id], onDelete: Restrict)
+  steps                  AutomationStepRun[]
+  tasks                  Task[]
+  followUps              FollowUp[]
+  confirmations          AutomationConfirmation[]
+
+  @@index([status, startedAt])
+  @@index([automationDefinitionId, startedAt])
+  @@index([deduplicationKey])
+  @@index([status, nextRetryAt])
+  @@index([correlationId, chainDepth])
+}
+
+model AutomationStepRun {
+  id                 String               @id @default(cuid())
+  automationRunId    String
+  automationActionId String
+  order              Int
+  attempt            Int                  @default(1)
+  status             AutomationStepStatus @default(pending)
+  startedAt          DateTime             @default(now())
+  completedAt        DateTime?
+  durationMs         Int?
+  inputSummary       Json?
+  outputSummary      Json?
+  errorCode          String?
+  errorSummary       String?
+  idempotencyKey     String               @unique
+  approvedBy         String?
+  approvedAt         DateTime?
+  createdAt          DateTime             @default(now())
+  run                AutomationRun        @relation(fields: [automationRunId], references: [id], onDelete: Restrict)
+  action             AutomationAction     @relation(fields: [automationActionId], references: [id], onDelete: Restrict)
+
+  @@index([automationRunId, order])
+}
+
+model AutomationConfirmation {
+  id               String        @id @default(cuid())
+  automationRunId  String
+  actionId         String
+  actorType        String
+  actorId          String?
+  origin           String
+  confirmedAt      DateTime      @default(now())
+  entityType       String?
+  entityId         String?
+  payloadSanitized Json?
+  correlationId    String
+  idempotencyKey   String        @unique
+  run              AutomationRun @relation(fields: [automationRunId], references: [id], onDelete: Restrict)
+
+  @@index([automationRunId, confirmedAt])
+  @@index([actorType, confirmedAt])
+}
+
+model BusinessEvent {
+  id               String   @id @default(cuid())
+  type             String
+  companyId        String?
+  actorId          String?
+  entityType       String
+  entityId         String
+  relatedEntities  Json?
+  correlationId    String
+  causationId      String?
+  payloadSanitized Json?
+  occurredAt       DateTime
+  recordedAt       DateTime @default(now())
+  schemaVersion    Int      @default(1)
+
+  @@index([type, occurredAt])
+  @@index([entityType, entityId])
+  @@index([correlationId])
+}
+
+model Task {
+  id                   String              @id @default(cuid())
+  title                String
+  description          String?
+  category             String              @default("general")
+  priority             TaskPriority        @default(medium)
+  status               TaskStatus          @default(inbox)
+  origin               String              @default("manual")
+  createdById          String?
+  assigneeId           String?
+  companyId            String?
+  clientId             String?
+  workId               String?
+  budgetId             String?
+  invoiceId            String?
+  documentId           String?
+  recommendationId     String?
+  signalId             String?
+  automationRunId      String?
+  startsAt             DateTime?
+  dueAt                DateTime?
+  completedAt          DateTime?
+  cancelledAt          DateTime?
+  estimatedMinutes     Int?
+  actualMinutes        Int?
+  blockedReason        String?
+  requiresConfirmation Boolean             @default(false)
+  recurrenceId         String?
+  occurrenceKey        String?
+  parentTaskId         String?
+  archivedAt           DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  automationRun        AutomationRun?      @relation(fields: [automationRunId], references: [id], onDelete: SetNull)
+  recurrence           TaskRecurrence?     @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  assignments          TaskAssignment[]
+  dependencies         TaskDependency[]    @relation("TaskDependencies")
+  blocking             TaskDependency[]    @relation("DependsOnTask")
+  history              TaskStatusHistory[]
+  comments             TaskComment[]
+  entityLinks          TaskEntityLink[]
+  checklist            TaskChecklistItem[]
+  agendaEvents         EventoAgenda[]
+  parentTask           Task?               @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks             Task[]              @relation("TaskSubtasks")
+
+  @@unique([recurrenceId, occurrenceKey])
+  @@index([status, dueAt])
+  @@index([assigneeId, status, dueAt])
+  @@index([clientId, status])
+  @@index([workId, status])
+  @@index([recurrenceId])
+  @@index([parentTaskId])
+}
+
+model TaskAssignment {
+  id         String    @id @default(cuid())
+  taskId     String
+  userId     String?
+  role       String    @default("responsible")
+  assignedAt DateTime  @default(now())
+  removedAt  DateTime?
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, removedAt])
+}
+
+model TaskDependency {
+  id              String   @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+  type            String   @default("finish_to_start")
+  createdAt       DateTime @default(now())
+  task            Task     @relation("TaskDependencies", fields: [taskId], references: [id], onDelete: Restrict)
+  dependsOnTask   Task     @relation("DependsOnTask", fields: [dependsOnTaskId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, dependsOnTaskId])
+}
+
+model TaskStatusHistory {
+  id             String      @id @default(cuid())
+  taskId         String
+  previousStatus TaskStatus?
+  newStatus      TaskStatus
+  actorId        String?
+  reason         String?
+  createdAt      DateTime    @default(now())
+  task           Task        @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+}
+
+model TaskComment {
+  id         String    @id @default(cuid())
+  taskId     String
+  content    String
+  authorId   String?
+  createdAt  DateTime  @default(now())
+  editedAt   DateTime?
+  archivedAt DateTime?
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+}
+
+model TaskEntityLink {
+  id         String   @id @default(cuid())
+  taskId     String
+  entityType String
+  entityId   String
+  relation   String   @default("related")
+  createdAt  DateTime @default(now())
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, entityType, entityId, relation])
+}
+
+model TaskChecklistItem {
+  id          String    @id @default(cuid())
+  taskId      String
+  title       String
+  order       Int
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  completedBy String?
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, order])
+}
+
+model TaskRecurrence {
+  id                   String    @id @default(cuid())
+  frequency            String
+  rrule                String
+  timezone             String    @default("Europe/Madrid")
+  startsAt             DateTime
+  endsAt               DateTime?
+  nextOccurrenceAt     DateTime?
+  generationWindowDays Int       @default(45)
+  active               Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  tasks                Task[]
+  exdates              Json?
+
+  @@index([active, nextOccurrenceAt])
+}
+
+model FollowUp {
+  id               String            @id @default(cuid())
+  title            String
+  type             String            @default("general")
+  status           FollowUpStatus    @default(planned)
+  priority         FollowUpPriority  @default(medium)
+  origin           String            @default("manual")
+  companyId        String?
+  createdById      String?
+  responsibleId    String?
+  clientId         String?
+  contactId        String?
+  workId           String?
+  budgetId         String?
+  invoiceId        String?
+  recommendationId String?
+  signalId         String?
+  automationRunId  String?
+  nextActionAt     DateTime?
+  dueAt            DateTime?
+  expectedOutcome  String?
+  resultSummary    String?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  automationRun    AutomationRun?    @relation(fields: [automationRunId], references: [id], onDelete: SetNull)
+  attempts         FollowUpAttempt[]
+  outcomes         FollowUpOutcome[]
+  agendaEvents     EventoAgenda[]
+
+  @@index([status, nextActionAt])
+  @@index([clientId, status])
+  @@index([invoiceId, status])
+  @@index([budgetId, status])
+}
+
+model FollowUpAttempt {
+  id            String    @id @default(cuid())
+  followUpId    String
+  attemptedAt   DateTime  @default(now())
+  channel       String
+  responsibleId String?
+  summary       String?
+  response      String?
+  nextActionAt  DateTime?
+  createdAt     DateTime  @default(now())
+  followUp      FollowUp  @relation(fields: [followUpId], references: [id], onDelete: Restrict)
+
+  @@index([followUpId, attemptedAt])
+}
+
+model FollowUpOutcome {
+  id           String   @id @default(cuid())
+  followUpId   String
+  type         String
+  summary      String?
+  recordedById String?
+  recordedAt   DateTime @default(now())
+  metadata     Json?
+  followUp     FollowUp @relation(fields: [followUpId], references: [id], onDelete: Restrict)
+
+  @@index([followUpId, recordedAt])
 }

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardCreateMenu } from "@/components/dashboard-create-menu";
+import { TodayWorkflowSummary } from "@/components/today-workflow-summary";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
@@ -89,6 +90,7 @@ export default async function TodayPage() {
           </>
         }
       />
+      <TodayWorkflowSummary />
 
       {companyMissing ? (
         <Notice

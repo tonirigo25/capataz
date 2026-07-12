@@ -32,6 +32,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getRecommendationsForWork, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -140,6 +141,7 @@ export default async function WorkDetailPage({
           <Kpi icon={AlertTriangle} label="Riesgos" value={String(risks.length)} detail={nextAction.label} tone={risks.length ? "warning" : "success"} />
         </div>
       </PageHeader>
+      <EntityWorkflowSummary clientId={work.clienteId} workId={work.id} />
 
       <QuickActions workId={work.id} clientId={work.clienteId} />
 

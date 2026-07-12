@@ -31,6 +31,7 @@ import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
 import { getRecommendationsForClient, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -97,6 +98,7 @@ export default async function ClientDetailPage({
           <HeaderFact icon={MapPin} label="Dirección fiscal" value={client.direccionFiscal ?? "Sin dirección fiscal"} detail={client.nifCif ? `NIF/CIF ${client.nifCif}` : "Sin NIF/CIF"} />
         </div>
       </PageHeader>
+      <EntityWorkflowSummary clientId={client.id} />
 
       {summary.listItem.pendingFields.length ? (
         <Notice

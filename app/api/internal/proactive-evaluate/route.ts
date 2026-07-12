@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { runProactiveEvaluation, type ProactiveEvaluationType } from "@/lib/proactive-evaluation";
+import { processAutomationMaintenance } from "@/lib/automations/automation-scheduler";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,17 +19,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runProactiveEvaluation({
+    const [result,automations] = await Promise.all([runProactiveEvaluation({
       type: "scheduled" satisfies ProactiveEvaluationType,
       triggeredBy: "railway_cron"
-    });
+    }),processAutomationMaintenance()]);
     return NextResponse.json({
       ok: result.ok,
       locked: result.locked,
       runId: result.runId,
       status: result.status,
       message: result.message,
-      summary: result.summary
+      summary: result.summary,
+      proactive: result.summary,
+      automations
     }, { status: result.locked ? 423 : 200 });
   } catch {
     return NextResponse.json({ ok: false, error: "La reevaluación proactiva falló. Revisa el centro de control interno." }, { status: 500 });

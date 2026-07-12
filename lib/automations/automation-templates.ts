@@ -1,0 +1,81 @@
+export const AUTOMATION_TEMPLATES = [
+  {
+    id: "invoice_overdue_7",
+    name: "Factura vencida 7 días",
+    trigger: "invoice.overdue",
+    condition: {
+      field: "daysOverdue",
+      comparator: "greater_or_equal",
+      value: 7,
+    },
+    action: "create_recommendation",
+  },
+  {
+    id: "invoice_overdue_15",
+    name: "Factura vencida 15 días",
+    trigger: "invoice.overdue",
+    condition: {
+      field: "daysOverdue",
+      comparator: "greater_or_equal",
+      value: 15,
+    },
+    action: "create_followup",
+  },
+  {
+    id: "budget_no_response",
+    name: "Presupuesto enviado sin respuesta",
+    trigger: "budget.status_changed",
+    condition: { field: "status", comparator: "equals", value: "enviado" },
+    action: "create_followup",
+  },
+  {
+    id: "budget_expiring",
+    name: "Presupuesto próximo a caducar",
+    trigger: "periodic.daily",
+    condition: { field: "daysToExpiry", comparator: "less_or_equal", value: 3 },
+    action: "create_recommendation",
+  },
+  {
+    id: "work_inactive",
+    name: "Obra sin actividad",
+    trigger: "periodic.daily",
+    condition: {
+      field: "daysWithoutActivity",
+      comparator: "greater_or_equal",
+      value: 7,
+    },
+    action: "create_task",
+  },
+  {
+    id: "work_negative_margin",
+    name: "Obra con margen negativo",
+    trigger: "work.metrics_updated",
+    condition: { field: "margin", comparator: "less_than", value: 0 },
+    action: "create_alert",
+  },
+  {
+    id: "visit_upcoming",
+    name: "Visita próxima",
+    trigger: "periodic.hourly",
+    condition: {
+      field: "hoursToVisit",
+      comparator: "less_or_equal",
+      value: 24,
+    },
+    action: "create_reminder",
+  },
+  {
+    id: "forecast_deficit",
+    name: "Déficit previsto",
+    trigger: "treasury.forecast_updated",
+    condition: { field: "projectedBalance", comparator: "less_than", value: 0 },
+    action: "create_alert",
+  },
+  {
+    id: "company_missing_tax_id",
+    name: "Cliente empresa sin CIF",
+    trigger: "client.updated",
+    condition: { field: "taxId", comparator: "is_empty", value: null },
+    action: "create_task",
+  },
+] as const;

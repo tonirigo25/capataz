@@ -101,7 +101,10 @@ export type ChatQueryAction =
   | "recommendations_history"
   | "recommendations_noisy_rules"
   | "recommendations_mark_reviewed"
-  | "recommendations_reactivate_current";
+  | "recommendations_reactivate_current"
+  | "automations_list" | "automations_active" | "automations_paused" | "automations_failed" | "automations_last_run" | "automations_next"
+  | "tasks_today" | "tasks_overdue" | "tasks_week" | "tasks_blocked" | "tasks_next"
+  | "followups_pending" | "followups_overdue" | "followups_budget" | "followups_invoice" | "followups_success" | "followups_next";
 
 export type ChatQueryPeriod = "this_week" | "this_month" | "last_month" | "this_year" | "all";
 
@@ -139,6 +142,30 @@ export function classifyChatIntent(message: string): ChatIntentClassification {
   if (isConversationControl(normalized)) return { kind: "conversation_control", confidence: 0.9, rule: "conversation_control" };
 
   if (isContextQuestion(normalized)) return { kind: "context_question", confidence: 0.86, rule: "context_question" };
+
+  if (/automatizaciones?/.test(normalized)) {
+    if (/(activas|habilitadas)/.test(normalized)) return {kind:"database_query",action:"automations_active",confidence:.95,rule:"automations_active"};
+    if (/(pausadas|detenidas)/.test(normalized)) return {kind:"database_query",action:"automations_paused",confidence:.95,rule:"automations_paused"};
+    if (/(fallo|falló|fallida|error)/.test(normalized)) return {kind:"database_query",action:"automations_failed",confidence:.95,rule:"automations_failed"};
+    if (/(ultima ejecucion|última ejecución|que hizo)/.test(normalized)) return {kind:"database_query",action:"automations_last_run",confidence:.94,rule:"automations_last_run"};
+    if (/(cuando|cuándo|siguiente|proxima|próxima)/.test(normalized)) return {kind:"database_query",action:"automations_next",confidence:.94,rule:"automations_next"};
+    if (/(que|qué|cuales|cuáles|tengo)/.test(normalized)) return {kind:"database_query",action:"automations_list",confidence:.92,rule:"automations_list"};
+  }
+  if (/tareas?/.test(normalized)&&!/(crea|crear|completa|marca|cambia)/.test(normalized)) {
+    if (/atrasad|vencid/.test(normalized)) return {kind:"database_query",action:"tasks_overdue",confidence:.95,rule:"tasks_overdue"};
+    if (/bloquead/.test(normalized)) return {kind:"database_query",action:"tasks_blocked",confidence:.95,rule:"tasks_blocked"};
+    if (/semana/.test(normalized)) return {kind:"database_query",action:"tasks_week",confidence:.94,rule:"tasks_week"};
+    if (/(siguiente|proxima|próxima)/.test(normalized)) return {kind:"database_query",action:"tasks_next",confidence:.94,rule:"tasks_next"};
+    if (/hoy/.test(normalized)) return {kind:"database_query",action:"tasks_today",confidence:.95,rule:"tasks_today"};
+  }
+  if (/seguimientos?/.test(normalized)&&!/(crea|crear|anota|registra|completa|detalla)/.test(normalized)) {
+    if (/vencid/.test(normalized)) return {kind:"database_query",action:"followups_overdue",confidence:.95,rule:"followups_overdue"};
+    if (/presupuestos?/.test(normalized)) return {kind:"database_query",action:"followups_budget",confidence:.94,rule:"followups_budget"};
+    if (/facturas?/.test(normalized)) return {kind:"database_query",action:"followups_invoice",confidence:.94,rule:"followups_invoice"};
+    if (/(exito|éxito|completad)/.test(normalized)) return {kind:"database_query",action:"followups_success",confidence:.94,rule:"followups_success"};
+    if (/(cuando|cuándo|volver|siguiente)/.test(normalized)) return {kind:"database_query",action:"followups_next",confidence:.94,rule:"followups_next"};
+    return {kind:"database_query",action:"followups_pending",confidence:.92,rule:"followups_pending"};
+  }
 
   if (/(recordatorios)\b/.test(normalized) && /(cuantos|cuántos|pendientes|tengo)\b/.test(normalized)) {
     return { kind: "aggregate_query", action: "pending_reminders_count", confidence: 0.9, period, rule: "pending_reminders_count" };

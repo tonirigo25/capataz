@@ -56,6 +56,8 @@ import { getNotificationItems } from "@/lib/notifications";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { getProactiveControlData } from "@/lib/proactive-evaluation";
 import { prisma } from "@/lib/prisma";
+import { createTask, changeTaskStatus } from "@/lib/tasks/task-engine";
+import { createFollowUp, addFollowUpAttempt } from "@/lib/followups/followup-engine";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
 import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
@@ -111,7 +113,7 @@ export type ChatActionButton = {
 
 export type ChatActionResult = {
   type: "created" | "updated" | "registered" | "generated" | "failed" | "partial" | "found";
-  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf" | "query" | "business" | "business_metric";
+  entityType: "client" | "contact" | "company" | "project" | "quote" | "invoice" | "expense" | "payment" | "visit" | "followup" | "reminder" | "pdf" | "query" | "business" | "business_metric" | "task" | "automation";
   entityId?: string;
   title: string;
   summary: Record<string, string | number | boolean | null>;
@@ -188,6 +190,9 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
   const enrichedContext = await enrichChatContext(context);
   debugChat("received", { text, context: enrichedContext });
   const normalizedText = normalizeQueryText(text);
+
+  const workflowMutation = await runExplicitWorkflowMutation(text, normalizedText, enrichedContext);
+  if (workflowMutation) return workflowMutation;
 
   if (wantsExplicitContinueTask(text) && !enrichedContext?.activeTask) {
     await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "continue_latest_task" });
@@ -488,6 +493,12 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
   if (intent.kind === "pending_details") return withQueryDiagnostics(await queryPendingTaskDetails(intent.detailCategory, context), text, intent, "queryPendingTaskDetails", `pending_task_details:${intent.detailCategory ?? "lastQuery"}`);
 
   switch (intent.action) {
+    case "automations_list": case "automations_active": case "automations_paused": case "automations_failed": case "automations_last_run": case "automations_next":
+      return withQueryDiagnostics(await queryAutomations(intent.action, context), text, intent, "queryAutomations", `automation:${intent.action}`);
+    case "tasks_today": case "tasks_overdue": case "tasks_week": case "tasks_blocked": case "tasks_next":
+      return withQueryDiagnostics(await queryProfessionalTasks(intent.action, context), text, intent, "queryProfessionalTasks", `task:${intent.action}`);
+    case "followups_pending": case "followups_overdue": case "followups_budget": case "followups_invoice": case "followups_success": case "followups_next":
+      return withQueryDiagnostics(await queryProfessionalFollowUps(intent.action, context), text, intent, "queryProfessionalFollowUps", `followup:${intent.action}`);
     case "highest_budget":
       return withQueryDiagnostics(await queryBudgetByAmount("desc", intent), text, intent, "queryBudgetByAmount/highest", "budget.findFirst:total_desc");
     case "lowest_budget":
@@ -676,6 +687,32 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
       };
   }
 }
+
+async function runExplicitWorkflowMutation(text:string,normalized:string,context:ChatCommandContext|null):Promise<ChatCommandResult|null>{
+  const shownAt=new Date().toISOString();
+  if(/^(crea|crear) una tarea\b/.test(normalized)){const title=text.replace(/^.*?tarea\s+(para\s+)?/i,"").trim();if(!title)return null;const dueAt=/mañana|manana/.test(normalized)?tomorrowAt(10):undefined;const task=await createTask({title,dueAt,origin:"chat",clientId:context?.lastClientId,workId:context?.lastWorkId,budgetId:context?.lastBudgetId,invoiceId:context?.lastInvoiceId});return mutationResult(`He creado la tarea “${task.title}”.`,context,"task",task.id,"Tarea creada","/tareas",{lastTask:{taskId:task.id,action:"created",shownAt}})}
+  if(/^(crea|crear) un seguimiento\b/.test(normalized)){const title=text.replace(/^.*?seguimiento\s+(para\s+)?/i,"").trim();if(!title)return null;const days=Number(normalized.match(/en (\d+) dias?/)?.[1]??0);const nextActionAt=days?new Date(Date.now()+days*86400000):undefined;const item=await createFollowUp({title,nextActionAt,origin:"chat",clientId:context?.lastClientId,workId:context?.lastWorkId,budgetId:context?.lastBudgetId,invoiceId:context?.lastInvoiceId});return mutationResult(`He creado el seguimiento “${item.title}”.`,context,"followup",item.id,"Seguimiento creado","/seguimientos",{lastFollowUp:{followUpId:item.id,action:"created",shownAt}})}
+  if(/^(anota|registra) que no respondio/.test(normalized)){if(!context?.lastFollowUp)return clarification("¿En qué seguimiento debo registrar que no respondió?",context);const attempt=await addFollowUpAttempt(context.lastFollowUp.followUpId,{channel:"internal",summary:"No respondió",nextActionAt:new Date(Date.now()+3*86400000)});return mutationResult("He registrado el intento interno. No se ha enviado ninguna comunicación.",context,"followup",context.lastFollowUp.followUpId,"Intento registrado","/seguimientos",{lastFollowUp:{...context.lastFollowUp,attemptId:attempt.id,action:"attempt",shownAt}})}
+  if(/(marca|completa|complétala|completala).*tarea|^completala$/.test(normalized)){if(!context?.lastTask)return clarification("¿Qué tarea quieres completar?",context);await changeTaskStatus(context.lastTask.taskId,"completed","chat","Orden explícita desde chat");return mutationResult("He completado la tarea indicada.",context,"task",context.lastTask.taskId,"Tarea completada","/tareas",{lastTask:{...context.lastTask,action:"completed",shownAt}})}
+  if(/^(pausala|páusala|pausa esta automatizacion|pausa esta automatización)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres pausar?",context);await prisma.automationDefinition.update({where:{id:context.lastAutomation.automationId},data:{active:false,status:"paused"}});return mutationResult("He pausado la automatización.",context,"automation",context.lastAutomation.automationId,"Automatización pausada","/automatizaciones",{lastAutomation:{...context.lastAutomation,action:"paused",shownAt}})}
+  if(/^(reanúdala|reanudala|reanuda esta automatizacion|reanuda esta automatización)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres reanudar?",context);await prisma.automationDefinition.update({where:{id:context.lastAutomation.automationId},data:{active:true,status:"active"}});return mutationResult("He reanudado la automatización.",context,"automation",context.lastAutomation.automationId,"Automatización activa","/automatizaciones",{lastAutomation:{...context.lastAutomation,action:"resumed",shownAt}})}
+  if(/^(ejecutala en seco|ejecútala en seco)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres ejecutar en seco?",context);const {runAutomation}=await import("@/lib/automations/automation-runner");const run=await runAutomation({definitionId:context.lastAutomation.automationId,idempotencyKey:`chat:dry-run:${context.lastAutomation.automationId}:${Date.now()}`,triggerType:"manual",triggeredBy:"chat",dryRun:true});return mutationResult(`Dry run completado con estado ${run.status}.`,context,"automation",run.automationDefinitionId,"Dry run","/automatizaciones",{lastAutomation:{automationId:run.automationDefinitionId,versionId:run.automationVersionId,runId:run.id,action:"dry_run",shownAt}})}
+  return null;
+}
+const tomorrowAt=(hour:number)=>{const date=new Date();date.setDate(date.getDate()+1);date.setHours(hour,0,0,0);return date};
+function clarification(text:string,context:ChatCommandContext|null):ChatCommandResult{return{handled:true,context,text}}
+function mutationResult(text:string,context:ChatCommandContext|null,entityType:"task"|"followup"|"automation",entityId:string,title:string,href:string,extra:Partial<ChatCommandContext>):ChatCommandResult{return{handled:true,context:{...(context??{}),...extra},text,result:{type:"created",entityType,entityId,title,summary:{ok:true},actions:[{label:"Abrir",href}]}}}
+
+async function queryAutomations(action: string, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const now=new Date();
+  if(action==="automations_failed"){const runs=await prisma.automationRun.findMany({where:{status:"failed"},include:{definition:true},orderBy:{startedAt:"desc"},take:5});return queryResult(runs.length?`${runs.length} ejecuciones fallidas:\n${runs.map(r=>`- ${r.definition.name}: ${r.errorSummary??r.lastErrorSummary??"falló"}`).join("\n")}`:"No hay ejecuciones fallidas.",context,"automation",runs[0]?.automationDefinitionId,"Automatizaciones fallidas","/automatizaciones",runs.map(r=>r.id),runs[0]?{lastAutomation:{automationId:runs[0].automationDefinitionId,versionId:runs[0].automationVersionId,runId:runs[0].id,action:"failed",shownAt:now.toISOString()}}:{});}
+  if(action==="automations_last_run"){const run=await prisma.automationRun.findFirst({include:{definition:true,steps:true},orderBy:{startedAt:"desc"}});return queryResult(run?`${run.definition.name}: ${run.status}; ${run.steps.filter(s=>s.status==="completed").length}/${run.steps.length} pasos completados.`:"Todavía no hay ejecuciones.",context,"automation",run?.automationDefinitionId,"Última ejecución","/automatizaciones",run?[run.id]:[],run?{lastAutomation:{automationId:run.automationDefinitionId,versionId:run.automationVersionId,runId:run.id,action:"shown",shownAt:now.toISOString()}}:{});}
+  if(action==="automations_next"){const schedule=await prisma.automationSchedule.findFirst({where:{active:true,nextRunAt:{gte:now}},include:{definition:true},orderBy:{nextRunAt:"asc"}});return queryResult(schedule?`${schedule.definition.name} se ejecutará ${schedule.nextRunAt?.toLocaleString("es-ES")}.`:"No hay una próxima automatización programada.",context,"automation",schedule?.automationDefinitionId,"Próxima automatización","/automatizaciones",schedule?[schedule.id]:[],{});}
+  const status=action==="automations_active"?{active:true}:action==="automations_paused"?{status:"paused" as const}:{};const items=await prisma.automationDefinition.findMany({where:{...status,archivedAt:null},orderBy:{updatedAt:"desc"},take:10});return queryResult(items.length?`${items.length} automatizaciones:\n${items.map(i=>`- ${i.name} · ${i.status}`).join("\n")}`:"No hay automatizaciones con ese estado.",context,"automation",items[0]?.id,"Automatizaciones","/automatizaciones",items.map(i=>i.id),items[0]?{lastAutomation:{automationId:items[0].id,versionId:items[0].currentVersionId??undefined,action:"shown",shownAt:now.toISOString()}}:{});
+}
+async function queryProfessionalTasks(action:string,context:ChatCommandContext|null):Promise<ChatCommandResult>{const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);end.setHours(23,59,59,999);let date:Record<string,unknown>={};if(action==="tasks_today")date={dueAt:{gte:start,lte:end}};if(action==="tasks_overdue")date={dueAt:{lt:start}};if(action==="tasks_week")date={dueAt:{gte:start,lte:new Date(start.getTime()+7*86400000)}};const items=await prisma.task.findMany({where:{...date,status:action==="tasks_blocked"?"blocked":{notIn:["completed","cancelled","archived"]},archivedAt:null},orderBy:{dueAt:"asc"},take:action==="tasks_next"?1:10});return queryResult(items.length?`${items.length} tareas:\n${items.map(i=>`- ${i.title}${i.dueAt?` · ${i.dueAt.toLocaleString("es-ES")}`:""} · ${i.status}`).join("\n")}`:"No hay tareas con ese filtro.",context,"task",items[0]?.id,"Tareas","/tareas",items.map(i=>i.id),items[0]?{lastTask:{taskId:items[0].id,action:"shown",shownAt:now.toISOString()}}:{});}
+async function queryProfessionalFollowUps(action:string,context:ChatCommandContext|null):Promise<ChatCommandResult>{const now=new Date();const where:Record<string,unknown>={archivedAt:null};if(action==="followups_overdue")where.nextActionAt={lt:now};else if(action==="followups_budget")where.budgetId={not:null};else if(action==="followups_invoice")where.invoiceId={not:null};else if(action==="followups_success")where.status="completed";else where.status={notIn:["completed","cancelled","archived"]};const items=await prisma.followUp.findMany({where,include:{attempts:{orderBy:{attemptedAt:"desc"},take:1}},orderBy:{nextActionAt:"asc"},take:action==="followups_next"?1:10});return queryResult(items.length?`${items.length} seguimientos:\n${items.map(i=>`- ${i.title}${i.nextActionAt?` · ${i.nextActionAt.toLocaleString("es-ES")}`:""} · ${i.status}`).join("\n")}`:"No hay seguimientos con ese filtro.",context,"followup",items[0]?.id,"Seguimientos","/seguimientos",items.map(i=>i.id),items[0]?{lastFollowUp:{followUpId:items[0].id,attemptId:items[0].attempts[0]?.id,action:"shown",shownAt:now.toISOString()}}:{});}
+function queryResult(text:string,context:ChatCommandContext|null,entityType:"task"|"followup"|"automation",entityId:string|undefined,title:string,href:string,resultIds:string[],extra:Partial<ChatCommandContext>):ChatCommandResult{return{handled:true,context:{...(context??{}),...extra,lastQuery:{type:entityType,resultIds,timestamp:new Date().toISOString()}},text,result:{type:"found",entityType,entityId,title,summary:{count:resultIds.length},actions:[{label:"Abrir",href}]}}}
 
 function withQueryDiagnostics(result: ChatCommandResult, text: string, intent: ChatIntentClassification, handler: string, query: string): ChatCommandResult {
   return {

@@ -26,6 +26,8 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  ListChecks,
+  Workflow,
   UserRound,
   Users,
   WalletCards,
@@ -50,6 +52,9 @@ const navSections: Array<{ title: string; items: NavItem[] }> = [
       { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
       { href: "/tesoreria", label: "Tesorería", icon: Landmark },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
+      { href: "/tareas", label: "Tareas", icon: ListChecks },
+      { href: "/seguimientos", label: "Seguimientos", icon: Activity },
+      { href: "/automatizaciones", label: "Automatizaciones", icon: Workflow },
       { href: "/actividad", label: "Actividad", icon: Activity },
       { href: "/capataz", label: "Capataz IA", icon: Bot }
     ]
@@ -95,6 +100,9 @@ const titles = [
   ["/inteligencia", "Inteligencia"],
   ["/tesoreria", "Tesorería"],
   ["/agenda", "Agenda"],
+  ["/tareas", "Tareas"],
+  ["/seguimientos", "Seguimientos"],
+  ["/automatizaciones", "Automatizaciones"],
   ["/actividad", "Actividad"],
   ["/clientes", "Clientes"],
   ["/obras", "Obras"],

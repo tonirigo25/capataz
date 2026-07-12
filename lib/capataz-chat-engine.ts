@@ -107,6 +107,11 @@ export type ChatContext = {
   lastWorkId?: string;
   lastBudgetId?: string;
   lastInvoiceId?: string;
+  lastAutomation?: { automationId: string; versionId?: string; runId?: string; action: string; shownAt: string };
+  lastTask?: { taskId: string; action: string; shownAt: string };
+  lastFollowUp?: { followUpId: string; attemptId?: string; action: string; shownAt: string };
+  lastReminder?: { reminderId: string };
+  lastEvent?: { eventId: string };
   lastDocumentType?: ChatDocumentType;
   lastClientName?: string;
 };

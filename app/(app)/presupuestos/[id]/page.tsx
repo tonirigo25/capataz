@@ -10,6 +10,7 @@ import {
   updateBudgetStatus
 } from "@/app/(app)/presupuestos/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { StatusPill } from "@/components/status-pill";
 import { parseBudgetLines, units } from "@/lib/budget-lines";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -100,6 +101,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         </div>
       </section>
 
+      <EntityWorkflowSummary clientId={budget.clienteId} workId={budget.obraId ?? undefined} budgetId={budget.id} />
       <section className="mt-4">
         <h2 className="mb-3 text-lg font-black text-obra-ink">Partidas editables</h2>
         <div className="grid gap-3">

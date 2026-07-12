@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarClock, Download, Eye, Pencil, Plus, Receipt, WalletCards } from "lucide-react";
 import { markInvoicePaid } from "@/app/(app)/dinero/actions";
 import { ConfirmedPaymentForm } from "@/components/confirmed-payment-form";
+import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { StatusPill } from "@/components/status-pill";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
@@ -95,6 +96,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
+      <EntityWorkflowSummary clientId={invoice.clienteId} workId={invoice.obraId ?? undefined} invoiceId={invoice.id} />
       {invoice.pendiente > 0 ? (
         <>
           <section className="mt-4">

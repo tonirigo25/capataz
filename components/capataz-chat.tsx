@@ -692,6 +692,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
               className="field"
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              aria-label="Mensaje para Capataz"
               placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Capataz..."}
             />
             <button
