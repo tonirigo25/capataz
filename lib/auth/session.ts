@@ -4,6 +4,7 @@ import type { CompanyRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authConfig, SESSION_COOKIE_NAME } from "@/lib/auth/config";
 import { createOpaqueToken, hashToken } from "@/lib/auth/crypto";
+import { recordSecurityEvent } from "@/lib/auth/audit";
 
 export type AuthenticatedSession = {
   sessionId: string;
@@ -87,6 +88,11 @@ export async function requireCompanyRole(roles: CompanyRole[]) {
 export async function revokeCurrentSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (token) await prisma.session.updateMany({ where: { tokenHash: hashToken(token), revokedAt: null }, data: { revokedAt: new Date() } });
+  if (token) {
+    const tokenHash = hashToken(token);
+    const session = await prisma.session.findUnique({ where: { tokenHash }, select: { userId: true } });
+    await prisma.session.updateMany({ where: { tokenHash, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (session) await recordSecurityEvent({ type: "logout", outcome: "success", userId: session.userId });
+  }
   cookieStore.set(SESSION_COOKIE_NAME, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
 }
