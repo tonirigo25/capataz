@@ -1,6 +1,5 @@
 import { ArrowRight, Bot, ClipboardCheck, ShieldCheck, WalletCards } from "lucide-react";
 import Link from "next/link";
-import { DemoEntry } from "@/components/demo-entry";
 
 const highlights = [
   { icon: Bot, label: "Chat de obra", text: "Apunta gastos, pagos y seguimientos con frases normales." },
@@ -43,34 +42,23 @@ export default function LoginPage() {
 
       <section className="card p-5">
         <div className="mb-5">
-          <h2 className="text-xl font-black text-obra-ink">Acceso demo</h2>
+          <h2 className="text-xl font-black text-obra-ink">Tu empresa, bien separada</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Entra con datos ficticios para probar clientes, obras, presupuestos, cobros y el asistente.
+            Entra en tu espacio de trabajo o crea una empresa nueva con sus propios datos y miembros.
           </p>
         </div>
 
-        <div className="grid gap-3">
-          <label>
-            <span className="label mb-1 block">Teléfono o email</span>
-            <input className="field" value="demo@capataz.app" readOnly />
-          </label>
-          <label>
-            <span className="label mb-1 block">Contraseña</span>
-            <input className="field" type="password" value="demodemo" readOnly />
-          </label>
-        </div>
-
         <div className="mt-5 grid gap-3">
-          <DemoEntry />
-          <button type="button" className="secondary-button w-full">
+          <Link href="/login" className="primary-button w-full">Entrar</Link>
+          <Link href="/registro" className="secondary-button w-full">
             <ShieldCheck size={18} />
             Crear cuenta
             <ArrowRight size={17} />
-          </button>
+          </Link>
         </div>
 
         <div className="mt-5 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-          Modo demo: los datos son ficticios y no se envía nada fuera de la app.
+          La sesión se valida en el servidor y la empresa activa no se toma de campos enviados por el navegador.
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold text-slate-600">

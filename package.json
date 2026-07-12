@@ -8,6 +8,7 @@
     "start": "node scripts/start-standalone.mjs",
     "typecheck": "prisma generate && tsc --noEmit",
     "test:ai": "node scripts/validate-capataz-ai.mjs",
+    "test:auth-crypto": "tsx scripts/validate-auth-crypto.ts",
     "test:chat-parser": "node scripts/validate-chat-parser.mjs",
     "test:chat-engine": "node scripts/validate-chat-engine.mjs",
     "test:chat-conversations": "node scripts/validate-chat-conversations.mjs",

@@ -362,6 +362,40 @@ enum FollowUpPriority {
   urgent
 }
 
+enum UserStatus {
+  pending_verification
+  active
+  suspended
+  archived
+}
+
+enum CompanyStatus {
+  active
+  suspended
+  archived
+}
+
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+enum MembershipStatus {
+  invited
+  active
+  suspended
+  archived
+}
+
+enum SecurityAuditOutcome {
+  success
+  failure
+  blocked
+}
+
 model Client {
   id                        String             @id @default(cuid())
   nombre                    String
@@ -1772,4 +1806,131 @@ model FollowUpOutcome {
   followUp     FollowUp @relation(fields: [followUpId], references: [id], onDelete: Restrict)
 
   @@index([followUpId, recordedAt])
+}
+
+model User {
+  id                  String                   @id @default(cuid())
+  email               String
+  emailNormalized     String                   @unique
+  passwordHash        String
+  displayName         String
+  status              UserStatus               @default(pending_verification)
+  emailVerifiedAt     DateTime?
+  failedLoginCount    Int                      @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  passwordChangedAt   DateTime                 @default(now())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  memberships         CompanyMembership[]
+  sessions            Session[]
+  verificationTokens  EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  securityAuditEvents SecurityAuditEvent[]
+
+  @@index([status])
+}
+
+model Company {
+  id                  String               @id @default(cuid())
+  slug                String               @unique
+  nombreComercial     String
+  razonSocial         String?
+  taxId               String?
+  email               String?
+  telefono            String?
+  direccion           String?
+  codigoPostal        String?
+  ciudad              String?
+  provincia           String?
+  pais                String               @default("España")
+  timezone            String               @default("Europe/Madrid")
+  locale              String               @default("es-ES")
+  status              CompanyStatus        @default(active)
+  isDemo              Boolean              @default(false)
+  legacyEmpresaId     String?              @unique
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  archivedAt          DateTime?
+  memberships         CompanyMembership[]
+  securityAuditEvents SecurityAuditEvent[]
+
+  @@index([status])
+  @@index([isDemo])
+}
+
+model CompanyMembership {
+  id         String           @id @default(cuid())
+  userId     String
+  companyId  String
+  role       CompanyRole      @default(MEMBER)
+  status     MembershipStatus @default(invited)
+  invitedAt  DateTime?
+  acceptedAt DateTime?
+  joinedAt   DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, companyId])
+  @@index([companyId, status])
+  @@index([userId, status])
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  userAgent  String?
+  ipHash     String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+}
+
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  requestedAt DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+}
+
+model SecurityAuditEvent {
+  id        String               @id @default(cuid())
+  companyId String?
+  userId    String?
+  type      String
+  outcome   SecurityAuditOutcome
+  requestId String?
+  metadata  Json?
+  createdAt DateTime             @default(now())
+  company   Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }
