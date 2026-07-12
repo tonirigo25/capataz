@@ -23,7 +23,15 @@ async function main() {
 
   const company = await prisma.company.upsert({
     where: { legacyEmpresaId: legacy.id },
-    update: {},
+    update: {
+      web: legacy.web, contactPerson: legacy.personaContacto, iban: legacy.iban,
+      defaultConditions: legacy.condicionesPorDefecto, legalText: legacy.textoLegal,
+      logoUrl: legacy.logoUrl, sealUrl: legacy.selloUrl, brandColor: legacy.colorMarca,
+      defaultVat: legacy.ivaDefecto, currency: legacy.moneda, budgetValidityDays: legacy.validezPresupuestoDias,
+      defaultPaymentTerms: legacy.formaPagoDefecto, budgetSeries: legacy.seriePresupuestos,
+      invoiceSeries: legacy.serieFacturas, workSeries: legacy.serieObras, budgetPrefix: legacy.prefijoPresupuesto,
+      invoicePrefix: legacy.prefijoFactura, workPrefix: legacy.prefijoObra
+    },
     create: {
       slug: `legacy-${legacy.id.toLowerCase()}`,
       nombreComercial: legacy.nombreComercial,
@@ -37,12 +45,20 @@ async function main() {
       provincia: legacy.provincia,
       pais: legacy.pais,
       legacyEmpresaId: legacy.id
+      ,web: legacy.web, contactPerson: legacy.personaContacto, iban: legacy.iban,
+      defaultConditions: legacy.condicionesPorDefecto, legalText: legacy.textoLegal,
+      logoUrl: legacy.logoUrl, sealUrl: legacy.selloUrl, brandColor: legacy.colorMarca,
+      defaultVat: legacy.ivaDefecto, currency: legacy.moneda, budgetValidityDays: legacy.validezPresupuestoDias,
+      defaultPaymentTerms: legacy.formaPagoDefecto, budgetSeries: legacy.seriePresupuestos,
+      invoiceSeries: legacy.serieFacturas, workSeries: legacy.serieObras, budgetPrefix: legacy.prefijoPresupuesto,
+      invoicePrefix: legacy.prefijoFactura, workPrefix: legacy.prefijoObra
     }
   });
 
   const before = await Promise.all(tables.map(async (table) => ({ table, rows: await count(table), nulls: await count(table, true) })));
   await prisma.$transaction(async (tx) => {
     for (const table of tables) await tx.$executeRawUnsafe(`UPDATE "${table}" SET "companyId" = $1 WHERE "companyId" IS NULL`, company.id);
+    await tx.treasurySettings.updateMany({ where: { companyId: null }, data: { companyId: company.id } });
   }, { timeout: 120_000 });
   const after = await Promise.all(tables.map(async (table) => ({ table, rows: await count(table), nulls: await count(table, true) })));
   const report = before.map((entry, index) => ({

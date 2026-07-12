@@ -37,10 +37,12 @@ async function main() {
     const wa = await coreA.createWork({ clienteId: ca.id, titulo: "Obra A", direccion: "A", tipoTrabajo: "QA", presupuestoAprobado: 1000 });
     const wb = await coreB.createWork({ clienteId: cb.id, titulo: "Obra B", direccion: "B", tipoTrabajo: "QA", presupuestoAprobado: 9000 });
     await assert.rejects(() => coreA.createWork({ clienteId: cb.id, titulo: "Cruce", direccion: "X", tipoTrabajo: "QA", presupuestoAprobado: 1 }), /ENTITY_NOT_FOUND/);
-    const ba = await prisma.budget.create({ data: { companyId: a.id, clienteId: ca.id, obraId: wa.id, numero: "P-A-001", titulo: "A", partidas: "[]", subtotal: 100, iva: 21, total: 121, margenEstimado: 20 } });
-    const bb = await prisma.budget.create({ data: { companyId: b.id, clienteId: cb.id, obraId: wb.id, numero: "P-B-001", titulo: "B", partidas: "[]", subtotal: 1000, iva: 21, total: 1210, margenEstimado: 200 } });
-    const ia = await coreA.createInvoice({ clienteId: ca.id, obraId: wa.id, numero: "F-A-001", concepto: "A", importeBase: 100, iva: 21, total: 121, pendiente: 71, fechaEmision: new Date(), fechaVencimiento: new Date() });
-    const ib = await coreB.createInvoice({ clienteId: cb.id, obraId: wb.id, numero: "F-B-001", concepto: "B", importeBase: 1000, iva: 21, total: 1210, pendiente: 1210, fechaEmision: new Date(), fechaVencimiento: new Date() });
+    const ba = await prisma.budget.create({ data: { companyId: a.id, clienteId: ca.id, obraId: wa.id, numero: "P-2026-001", titulo: "A", partidas: "[]", subtotal: 100, iva: 21, total: 121, margenEstimado: 20 } });
+    const bb = await prisma.budget.create({ data: { companyId: b.id, clienteId: cb.id, obraId: wb.id, numero: "P-2026-001", titulo: "B", partidas: "[]", subtotal: 1000, iva: 21, total: 1210, margenEstimado: 200 } });
+    await assert.rejects(() => prisma!.budget.create({ data: { companyId: a.id, clienteId: ca.id, numero: "P-2026-001", titulo: "Duplicado", partidas: "[]", subtotal: 1, iva: 0, total: 1, margenEstimado: 0 } }));
+    const ia = await coreA.createInvoice({ clienteId: ca.id, obraId: wa.id, numero: "F-2026-001", concepto: "A", importeBase: 100, iva: 21, total: 121, pendiente: 71, fechaEmision: new Date(), fechaVencimiento: new Date() });
+    const ib = await coreB.createInvoice({ clienteId: cb.id, obraId: wb.id, numero: "F-2026-001", concepto: "B", importeBase: 1000, iva: 21, total: 1210, pendiente: 1210, fechaEmision: new Date(), fechaVencimiento: new Date() });
+    await assert.rejects(() => coreA.createInvoice({ clienteId: ca.id, numero: "F-2026-001", concepto: "Duplicada", importeBase: 1, iva: 0, total: 1, pendiente: 1, fechaEmision: new Date(), fechaVencimiento: new Date() }));
     await assert.rejects(() => coreA.createInvoice({ clienteId: cb.id, numero: "F-X", concepto: "X", importeBase: 1, iva: 0, total: 1, pendiente: 1, fechaEmision: new Date(), fechaVencimiento: new Date() }), /ENTITY_NOT_FOUND/);
     await prisma.payment.create({ data: { companyId: a.id, facturaId: ia.id, clienteId: ca.id, obraId: wa.id, importe: 50, metodo: "qa", tipo: "pago_parcial" } });
     await prisma.expense.create({ data: { companyId: a.id, obraId: wa.id, clienteId: ca.id, proveedor: "Proveedor A", concepto: "A", categoria: "material", importe: 10, fecha: new Date() } });
@@ -60,7 +62,7 @@ async function main() {
     assert.deepEqual(await coreB.totals(), { invoiced: 1210, pending: 1210, collected: 0, expenses: 0 });
     assert.equal((await coreA.listDocuments()).length, 1);
     assert.equal((await coreB.listDocuments()).length, 0);
-    console.log(JSON.stringify({ ok: true, listIsolation: true, idIsolation: true, mutationIsolation: true, relationIsolation: true, aggregateIsolation: true, documentsIsolation: true }));
+    console.log(JSON.stringify({ ok: true, listIsolation: true, idIsolation: true, mutationIsolation: true, relationIsolation: true, aggregateIsolation: true, documentsIsolation: true, companyNumbering: true }));
   } finally { await prisma?.$disconnect(); await pg.stop(); }
 }
 

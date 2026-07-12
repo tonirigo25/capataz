@@ -8,6 +8,7 @@ import { StatusPill } from "@/components/status-pill";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,9 @@ export default async function RemindersPage({
   searchParams: Promise<{ filtro?: string }>;
 }) {
   const query = await searchParams;
+  const { companyId } = await requireCompanyContext();
   const reminders = await prisma.reminder.findMany({
+    where: { companyId },
     orderBy: { fechaProgramada: "asc" },
     include: { client: true, work: true, invoice: true, budget: true }
   });

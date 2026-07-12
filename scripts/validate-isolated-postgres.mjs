@@ -80,6 +80,8 @@ try {
     "20260712143000_automation_core_tasks_followups",
     "20260712170000_identity_sessions",
     "20260712180000_company_ownership_nullable",
+    "20260712190000_company_settings_and_treasury_ownership",
+    "20260712210000_company_numbering_and_settings",
   ];
   for (const migration of incrementalMigrations) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
@@ -162,7 +164,7 @@ try {
     'SELECT (SELECT COUNT(*) FROM "Client")::int clients,(SELECT COUNT(*) FROM "Work")::int works,(SELECT COUNT(*) FROM "Budget")::int budgets,(SELECT COUNT(*) FROM "Invoice")::int invoices,(SELECT COUNT(*) FROM "EventoAgenda")::int events,(SELECT COUNT(*) FROM "Reminder")::int reminders,(SELECT COUNT(*) FROM "ChatConversation")::int conversations',
   );
   await upgrade.end();
-  for (const migration of incrementalMigrations) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
+  for (const migration of incrementalMigrations.slice(0, -1)) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
   execFileSync(
     "npx.cmd",
     [
@@ -175,6 +177,9 @@ try {
     { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true },
   );
   const backfillOutput = execFileSync("npx.cmd", ["tsx", "scripts/backfill-legacy-company.ts"], { cwd: process.cwd(), env: upgradeEnv, stdio: ["ignore", "pipe", "pipe"], shell: true }).toString().trim();
+  const numberingMigration = incrementalMigrations.at(-1);
+  cpSync(join(process.cwd(), "prisma", "migrations", numberingMigration), join(tempRoot, "prisma", "migrations", numberingMigration), { recursive: true });
+  execFileSync("npx.cmd", ["prisma", "migrate", "deploy", "--schema", join(tempRoot, "prisma", "schema.prisma")], { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true });
   const upgraded = pg.getPgClient("capataz_upgrade");
   await upgraded.connect();
   const after = await upgraded.query(

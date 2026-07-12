@@ -36,6 +36,7 @@ import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getRecommendationsForWork, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 import { statusClass } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
 import {
@@ -82,9 +83,10 @@ export default async function WorkDetailPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  const { companyId } = await requireCompanyContext();
   const [work, treasury, recommendations] = await Promise.all([
-    prisma.work.findUnique({
-      where: { id },
+    prisma.work.findFirst({
+      where: { id, companyId },
       include: {
         client: true,
         contact: true,
@@ -101,7 +103,7 @@ export default async function WorkDetailPage({
         photos: { orderBy: { tomadaEn: "desc" } }
       }
     }),
-    getTreasuryOverview({ workId: id, horizon: "30d", scenario: "base" }),
+    getTreasuryOverview({ companyId, workId: id, horizon: "30d", scenario: "base" }),
     getRecommendationsForWork(id, 3)
   ]);
   if (!work) notFound();

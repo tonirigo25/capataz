@@ -236,6 +236,7 @@ function resetState() {
 resetState();
 
 const mockPrisma = {
+  company: { findUniqueOrThrow: async () => ({ id: "test-company", defaultVat: 21, defaultConditions: null }) },
   chatConversation: {
     findFirst: async (args = {}) => applyFindMany("chatConversation", state.conversations, args)[0] ?? null,
     findUnique: async (args = {}) => selectMaybe(state.conversations.find((item) => item.id === args.where?.id) ?? null, args.select),
@@ -497,6 +498,8 @@ function loadTsModule(relativePath) {
       };
     }
     if (specifier === "@/lib/numbering") return { nextDocumentNumber: async () => "P-TEST-001" };
+    if (specifier === "@/lib/auth/session") return { requireCompanyContext: async () => ({ companyId: undefined, userId: "test-user", displayName: "Test" }) };
+    if (specifier === "@/lib/tenant/company-settings") return { companySettingsView: (company) => company };
     if (specifier === "@/lib/status") return { deriveInvoiceStatus: () => "pendiente_pago" };
     if (specifier === "@/lib/chat-workflow-contract") return { handleChatWorkflowContract: async () => null };
     if (specifier.startsWith("@/")) return loadTsModule(`${specifier.slice(2)}.ts`);

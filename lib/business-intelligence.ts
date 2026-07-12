@@ -31,6 +31,7 @@ export type BusinessIntelligenceParams = {
   from?: string | null;
   to?: string | null;
   now?: Date;
+  companyId?: string;
 };
 
 export type BusinessKpi = {
@@ -106,8 +107,8 @@ type BusinessBudget = Prisma.BudgetGetPayload<{ select: typeof budgetSelect }>;
 
 export async function getBusinessIntelligenceSummary(params: BusinessIntelligenceParams = {}) {
   const now = params.now ?? new Date();
-  const profile = await prisma.usuarioPerfil.findFirst({ select: { zonaHoraria: true } });
-  const period = resolveBusinessPeriod({ id: params.period, from: params.from, to: params.to, timezone: profile?.zonaHoraria, now });
+  const tenant = params.companyId ? { companyId: params.companyId } : {};
+  const period = resolveBusinessPeriod({ id: params.period, from: params.from, to: params.to, timezone: "Europe/Madrid", now });
   const previousPeriod = period.previousStart && period.previousEnd
     ? { ...period, start: period.previousStart, end: period.previousEnd, previousStart: null, previousEnd: null, label: `Anterior a ${period.label}` } satisfies BusinessPeriod
     : null;
@@ -129,26 +130,26 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
     openReminders,
     documents
   ] = await Promise.all([
-    prisma.invoice.findMany({ where: invoicePeriodWhere(period), select: invoiceSelect, orderBy: { fechaEmision: "desc" } }),
-    previousPeriod ? prisma.invoice.findMany({ where: invoicePeriodWhere(previousPeriod), select: invoiceSelect }) : Promise.resolve([]),
-    prisma.payment.findMany({ where: dateWhere("fecha", period), select: { id: true, importe: true, fecha: true, invoice: { select: { id: true, numero: true } }, client: { select: { id: true, nombre: true } } } }),
-    previousPeriod ? prisma.payment.findMany({ where: dateWhere("fecha", previousPeriod), select: { id: true, importe: true, fecha: true } }) : Promise.resolve([]),
-    prisma.expense.findMany({ where: dateWhere("fecha", period), select: expenseSelect, orderBy: { fecha: "desc" } }),
-    previousPeriod ? prisma.expense.findMany({ where: dateWhere("fecha", previousPeriod), select: expenseSelect }) : Promise.resolve([]),
-    prisma.budget.findMany({ where: dateWhere("fechaCreacion", period), select: budgetSelect, orderBy: { fechaCreacion: "desc" } }),
-    previousPeriod ? prisma.budget.findMany({ where: dateWhere("fechaCreacion", previousPeriod), select: budgetSelect }) : Promise.resolve([]),
+    prisma.invoice.findMany({ where: { ...tenant, ...invoicePeriodWhere(period) }, select: invoiceSelect, orderBy: { fechaEmision: "desc" } }),
+    previousPeriod ? prisma.invoice.findMany({ where: { ...tenant, ...invoicePeriodWhere(previousPeriod) }, select: invoiceSelect }) : Promise.resolve([]),
+    prisma.payment.findMany({ where: { ...tenant, ...dateWhere("fecha", period) }, select: { id: true, importe: true, fecha: true, invoice: { select: { id: true, numero: true } }, client: { select: { id: true, nombre: true } } } }),
+    previousPeriod ? prisma.payment.findMany({ where: { ...tenant, ...dateWhere("fecha", previousPeriod) }, select: { id: true, importe: true, fecha: true } }) : Promise.resolve([]),
+    prisma.expense.findMany({ where: { ...tenant, ...dateWhere("fecha", period) }, select: expenseSelect, orderBy: { fecha: "desc" } }),
+    previousPeriod ? prisma.expense.findMany({ where: { ...tenant, ...dateWhere("fecha", previousPeriod) }, select: expenseSelect }) : Promise.resolve([]),
+    prisma.budget.findMany({ where: { ...tenant, ...dateWhere("fechaCreacion", period) }, select: budgetSelect, orderBy: { fechaCreacion: "desc" } }),
+    previousPeriod ? prisma.budget.findMany({ where: { ...tenant, ...dateWhere("fechaCreacion", previousPeriod) }, select: budgetSelect }) : Promise.resolve([]),
     prisma.invoice.findMany({
-      where: { estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] }, fechaEmision: { lt: period.end } },
+      where: { ...tenant, estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] }, fechaEmision: { lt: period.end } },
       select: { ...invoiceSelect, payments: { where: { fecha: { lt: period.end } }, select: { id: true, importe: true, fecha: true } } },
       orderBy: { fechaVencimiento: "asc" }
     }),
     previousPeriod ? prisma.invoice.findMany({
-      where: { estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] }, fechaEmision: { lt: previousPeriod.end } },
+      where: { ...tenant, estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] }, fechaEmision: { lt: previousPeriod.end } },
       select: { ...invoiceSelect, payments: { where: { fecha: { lt: previousPeriod.end } }, select: { id: true, importe: true, fecha: true } } },
       orderBy: { fechaVencimiento: "asc" }
     }) : Promise.resolve([]),
     prisma.work.findMany({
-      where: { archivada: false },
+      where: { ...tenant, archivada: false },
       select: {
         id: true,
         titulo: true,
@@ -163,7 +164,7 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
       }
     }),
     prisma.client.findMany({
-      where: { archivadoAt: null },
+      where: { ...tenant, archivadoAt: null },
       select: {
         id: true,
         nombre: true,
@@ -176,19 +177,19 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
       }
     }),
     prisma.budget.findMany({
-      where: { estado: { in: PENDING_BUDGET_STATUSES as BudgetStatus[] }, fechaValidez: { not: null, gte: now, lte: addDays(now, 7) } },
+      where: { ...tenant, estado: { in: PENDING_BUDGET_STATUSES as BudgetStatus[] }, fechaValidez: { not: null, gte: now, lte: addDays(now, 7) } },
       select: budgetSelect,
       orderBy: { fechaValidez: "asc" },
       take: 10
     }),
     prisma.reminder.findMany({
-      where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
+      where: { ...tenant, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
       select: { id: true, mensaje: true, fechaProgramada: true, client: { select: { id: true, nombre: true } }, work: { select: { id: true, titulo: true } } },
       orderBy: { fechaProgramada: "asc" },
       take: 20
     }),
     prisma.document.findMany({
-      where: { archivedAt: null, category: { in: ["factura", "ticket"] } },
+      where: { ...tenant, archivedAt: null, category: { in: ["factura", "ticket"] } },
       select: { id: true, name: true, category: true, metadata: true },
       take: 100
     })
@@ -337,7 +338,7 @@ export async function buildBusinessCsvExport(kind: string, params: BusinessIntel
     ]));
   }
   if (kind === "expenses") {
-    const data = await prisma.expense.findMany({ where: dateWhere("fecha", summary.period), select: expenseSelect, orderBy: { fecha: "desc" } });
+    const data = await prisma.expense.findMany({ where: { ...(params.companyId ? { companyId: params.companyId } : {}), ...dateWhere("fecha", summary.period) }, select: expenseSelect, orderBy: { fecha: "desc" } });
     return toCsv(["fecha", "proveedor", "concepto", "categoria", "obra", "importe"], data.map((expense) => [
       expense.fecha.toISOString().slice(0, 10),
       expense.proveedor,

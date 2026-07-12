@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/status-pill";
 import { EmptyState, PageHeader, TableShell } from "@/components/ui-primitives";
 import { getClientList, type ClientListItem, type ClientListQuery } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,8 @@ export default async function ClientsPage({
 }) {
   const raw = await searchParams;
   const query = normalizeQuery(raw);
-  const result = await getClientList(query);
+  const { companyId } = await requireCompanyContext();
+  const result = await getClientList(query, companyId);
   const activeFilterSet = new Set((query.filtros ?? "").split(",").filter(Boolean));
 
   return (

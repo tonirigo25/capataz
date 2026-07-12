@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companyCore } from "@/lib/tenant/core";
 
 export type AgendaSource = "evento" | "recordatorio" | "factura" | "obra" | "material" | "presupuesto";
 
@@ -31,32 +33,8 @@ export type AgendaItem = {
 };
 
 export async function getAgendaItems() {
-  const [events, reminders, invoices, works, materials, budgets] = await Promise.all([
-    prisma.eventoAgenda.findMany({
-      orderBy: { fechaInicio: "asc" },
-      include: { client: true, contact: true, work: true, budget: true, invoice: true, reminder: true }
-    }),
-    prisma.reminder.findMany({
-      orderBy: { fechaProgramada: "asc" },
-      include: { client: true, contact: true, work: true, invoice: true, budget: true }
-    }),
-    prisma.invoice.findMany({
-      orderBy: { fechaVencimiento: "asc" },
-      include: { client: true, work: true }
-    }),
-    prisma.work.findMany({
-      orderBy: { fechaInicio: "asc" },
-      include: { client: true }
-    }),
-    prisma.material.findMany({
-      orderBy: { nombre: "asc" },
-      include: { work: { include: { client: true } } }
-    }),
-    prisma.budget.findMany({
-      orderBy: { fechaSeguimiento: "asc" },
-      include: { client: true, work: true }
-    })
-  ]);
+  const { companyId } = await requireCompanyContext();
+  const [events, reminders, invoices, works, materials, budgets] = await companyCore(prisma, companyId).agendaSources();
 
   const items: AgendaItem[] = [];
 

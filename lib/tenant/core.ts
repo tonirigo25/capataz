@@ -4,6 +4,8 @@ type Db = PrismaClient | Prisma.TransactionClient;
 
 export function companyCore(db: Db, companyId: string) {
   return {
+    companyId,
+    company: () => db.company.findUniqueOrThrow({ where: { id: companyId } }),
     listClients: () => db.client.findMany({ where: { companyId, archivadoAt: null }, orderBy: { nombre: "asc" } }),
     getClient: (id: string) => db.client.findFirst({ where: { id, companyId } }),
     updateClient: (id: string, data: Prisma.ClientUpdateManyMutationInput) => db.client.updateMany({ where: { id, companyId }, data }),
@@ -18,6 +20,26 @@ export function companyCore(db: Db, companyId: string) {
     listDocuments: () => db.document.findMany({ where: { companyId, archivedAt: null } }),
     listAccounts: () => db.financialAccount.findMany({ where: { companyId, archivedAt: null } }),
     listMovements: () => db.cashMovement.findMany({ where: { companyId, archivedAt: null } }),
+    dashboard: async () => {
+      const [clients, works, budgets, invoices, materials, reminders, expenses] = await Promise.all([
+        db.client.findMany({ where: { companyId }, orderBy: { ultimaInteraccion: "desc" }, include: { budgets: true, invoices: true, works: true } }),
+        db.work.findMany({ where: { companyId }, orderBy: { fechaFinPrevista: "asc" }, include: { client: true, materials: true, invoices: true } }),
+        db.budget.findMany({ where: { companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true, work: true } }),
+        db.invoice.findMany({ where: { companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true, payments: true } }),
+        db.material.findMany({ where: { companyId }, orderBy: { nombre: "asc" }, include: { work: { include: { client: true } } } }),
+        db.reminder.findMany({ where: { companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true, work: true, invoice: true, budget: true } }),
+        db.expense.findMany({ where: { companyId }, orderBy: { fecha: "desc" }, include: { work: { include: { client: true } } } })
+      ]);
+      return { clients, works, budgets, invoices, materials, reminders, expenses };
+    },
+    agendaSources: () => Promise.all([
+      db.eventoAgenda.findMany({ where: { companyId }, orderBy: { fechaInicio: "asc" }, include: { client: true, contact: true, work: true, budget: true, invoice: true, reminder: true } }),
+      db.reminder.findMany({ where: { companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true, contact: true, work: true, invoice: true, budget: true } }),
+      db.invoice.findMany({ where: { companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true } }),
+      db.work.findMany({ where: { companyId }, orderBy: { fechaInicio: "asc" }, include: { client: true } }),
+      db.material.findMany({ where: { companyId }, orderBy: { nombre: "asc" }, include: { work: { include: { client: true } } } }),
+      db.budget.findMany({ where: { companyId }, orderBy: { fechaSeguimiento: "asc" }, include: { client: true, work: true } })
+    ]),
     totals: async () => {
       const [invoices, payments, expenses] = await Promise.all([
         db.invoice.aggregate({ where: { companyId }, _sum: { total: true, pendiente: true } }),

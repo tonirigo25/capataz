@@ -28,6 +28,7 @@ import { ALLOWED_DOCUMENT_MIME_TYPES } from "@/lib/documents";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 type ManualEntity =
   | "cliente"
@@ -120,10 +121,11 @@ export async function saveManualRecord(formData: FormData) {
 }
 
 async function saveClient(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const draft = clientDraftFromFormData(formData);
   const duplicateConfirmed = optionalText(formData, "confirmDuplicate") === "true";
   if (!id && !duplicateConfirmed) {
-    const duplicate = await findClientDuplicateCandidate(draft);
+    const duplicate = await findClientDuplicateCandidate(draft, companyId);
     if (duplicate) {
       const target = optionalText(formData, "returnTo") ?? "/clientes";
       redirect(`${clientDuplicateRedirectUrl(draft, duplicate)}&returnTo=${encodeURIComponent(target)}`);
@@ -131,6 +133,7 @@ async function saveClient(formData: FormData, id: string | null) {
   }
 
   const data = {
+    companyId,
     nombre: draft.nombre ?? draft.razonSocial ?? draft.nombreComercial ?? "Cliente sin nombre",
     nombreComercial: draft.nombreComercial,
     razonSocial: draft.razonSocial,
@@ -157,12 +160,14 @@ async function saveClient(formData: FormData, id: string | null) {
     ultimaInteraccion: optionalDate(formData, "ultimaInteraccion")
   };
 
-  if (id) await prisma.client.update({ where: { id }, data });
+  if (id) await prisma.client.updateMany({ where: { id, companyId }, data });
   else await prisma.client.create({ data });
 }
 
 async function saveWork(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const data = {
+    companyId,
     numeroInterno: optionalText(formData, "numeroInterno"),
     codigo: optionalText(formData, "codigo"),
     clienteId: text(formData, "clienteId"),
@@ -200,11 +205,12 @@ async function saveWork(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas")
   };
 
-  if (id) await prisma.work.update({ where: { id }, data });
+  if (id) await prisma.work.updateMany({ where: { id, companyId }, data });
   else await prisma.work.create({ data });
 }
 
 async function saveBudget(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
   const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
   const descuento = number(formData, "descuento");
@@ -213,9 +219,10 @@ async function saveBudget(formData: FormData, id: string | null) {
   const iva = number(formData, "iva", calculated.iva);
   const total = number(formData, "total", Math.max(0, subtotal - descuento + iva));
   const data = {
+    companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
-    numero: optionalText(formData, "numero") ?? await nextDocumentNumber("budget"),
+    numero: optionalText(formData, "numero") ?? await nextDocumentNumber("budget", companyId),
     titulo: text(formData, "titulo"),
     partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), subtotal),
     subtotal,
@@ -232,11 +239,12 @@ async function saveBudget(formData: FormData, id: string | null) {
     formaPago: optionalText(formData, "formaPago")
   };
 
-  if (id) await prisma.budget.update({ where: { id }, data });
+  if (id) await prisma.budget.updateMany({ where: { id, companyId }, data });
   else await prisma.budget.create({ data });
 }
 
 async function saveInvoice(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
   const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
   const calculated = calculateBudgetTotals(lines, number(formData, "ivaPercent", 21), 0);
@@ -249,9 +257,10 @@ async function saveInvoice(formData: FormData, id: string | null) {
   const manualStatus = optionalText(formData, "estado") as InvoiceStatus | null;
   const autoStatus = deriveInvoiceStatus(total, pendiente, fechaVencimiento);
   const data = {
+    companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
-    numero: optionalText(formData, "numero") ?? await nextDocumentNumber("invoice"),
+    numero: optionalText(formData, "numero") ?? await nextDocumentNumber("invoice", companyId),
     concepto: text(formData, "concepto"),
     partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), importeBase),
     importeBase,
@@ -267,7 +276,7 @@ async function saveInvoice(formData: FormData, id: string | null) {
     datosBancarios: optionalText(formData, "datosBancarios")
   };
 
-  if (id) await prisma.invoice.update({ where: { id }, data });
+  if (id) await prisma.invoice.updateMany({ where: { id, companyId }, data });
   else await prisma.invoice.create({ data });
 }
 
@@ -281,11 +290,13 @@ function startOfToday() {
 }
 
 async function savePayment(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const facturaId = text(formData, "facturaId");
-  const invoice = await prisma.invoice.findUnique({ where: { id: facturaId } });
+  const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice) throw new Error("Factura no encontrada.");
 
   const data = {
+    companyId,
     facturaId,
     clienteId: invoice.clienteId,
     obraId: invoice.obraId,
@@ -296,16 +307,18 @@ async function savePayment(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas")
   };
 
-  if (id) await prisma.payment.update({ where: { id }, data });
+  if (id) await prisma.payment.updateMany({ where: { id, companyId }, data });
   else await prisma.payment.create({ data });
 
   await recalculateInvoice(invoice.id);
 }
 
 async function saveExpense(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const obraId = text(formData, "obraId");
-  const work = await prisma.work.findUnique({ where: { id: obraId } });
+  const work = await prisma.work.findFirst({ where: { id: obraId, companyId } });
   const data = {
+    companyId,
     obraId,
     clienteId: work?.clienteId ?? null,
     proveedor: text(formData, "proveedor"),
@@ -321,12 +334,14 @@ async function saveExpense(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas")
   };
 
-  if (id) await prisma.expense.update({ where: { id }, data });
+  if (id) await prisma.expense.updateMany({ where: { id, companyId }, data });
   else await prisma.expense.create({ data });
 }
 
 async function saveMaterial(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const data = {
+    companyId,
     obraId: text(formData, "obraId"),
     nombre: text(formData, "nombre"),
     cantidad: text(formData, "cantidad"),
@@ -334,13 +349,15 @@ async function saveMaterial(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas")
   };
 
-  if (id) await prisma.material.update({ where: { id }, data });
+  if (id) await prisma.material.updateMany({ where: { id, companyId }, data });
   else await prisma.material.create({ data });
 }
 
 async function saveReminder(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const estado = text(formData, "estado") as ReminderStatus;
   const data = {
+    companyId,
     clienteId: optionalText(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
     facturaId: optionalText(formData, "facturaId"),
@@ -355,13 +372,15 @@ async function saveReminder(formData: FormData, id: string | null) {
     confirmadoPorUsuario: estado === "programado" || formData.get("confirmadoPorUsuario") === "on"
   };
 
-  if (id) await prisma.reminder.update({ where: { id }, data });
+  if (id) await prisma.reminder.updateMany({ where: { id, companyId }, data });
   else await prisma.reminder.create({ data });
 }
 
 async function saveAgendaEvent(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const estado = text(formData, "estado") as EventoAgendaEstado;
   const data = {
+    companyId,
     titulo: text(formData, "titulo"),
     descripcion: optionalText(formData, "descripcion"),
     tipo: text(formData, "tipoEvento") as EventoAgendaTipo,
@@ -383,17 +402,20 @@ async function saveAgendaEvent(formData: FormData, id: string | null) {
       ["confirmado", "realizado"].includes(estado) || formData.get("confirmadoPorUsuario") === "on"
   };
 
-  if (id) await prisma.eventoAgenda.update({ where: { id }, data });
+  if (id) await prisma.eventoAgenda.updateMany({ where: { id, companyId }, data });
   else await prisma.eventoAgenda.create({ data });
 }
 
 async function saveContact(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const clientId = text(formData, "clientId");
   const isPrimary = formData.get("isPrimary") === "on";
   const isBillingContact = formData.get("isBillingContact") === "on";
   const isSiteContact = formData.get("isSiteContact") === "on";
   const archivedAt = formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null;
+  if (!(await prisma.client.findFirst({ where: { id: clientId, companyId }, select: { id: true } }))) throw new Error("Cliente no disponible.");
   const data = {
+    companyId,
     clientId,
     nombre: text(formData, "nombre"),
     apellidos: optionalText(formData, "apellidos"),
@@ -408,11 +430,12 @@ async function saveContact(formData: FormData, id: string | null) {
   };
 
   await prisma.$transaction(async (tx) => {
-    const otherContacts = id ? { clientId, id: { not: id } } : { clientId };
+    const otherContacts = id ? { companyId, clientId, id: { not: id } } : { companyId, clientId };
     if (isPrimary) await tx.contact.updateMany({ where: otherContacts, data: { isPrimary: false } });
     if (isBillingContact) await tx.contact.updateMany({ where: otherContacts, data: { isBillingContact: false } });
     if (isSiteContact) await tx.contact.updateMany({ where: otherContacts, data: { isSiteContact: false } });
-    const contact = id ? await tx.contact.update({ where: { id }, data }) : await tx.contact.create({ data });
+    const ownedId = id ? (await tx.contact.findFirstOrThrow({ where: { id, companyId }, select: { id: true } })).id : null;
+    const contact = ownedId ? await tx.contact.update({ where: { id: ownedId }, data }) : await tx.contact.create({ data });
     if (!contact.archivedAt) {
       await syncLegacyContactFields(tx, contact);
     }
@@ -454,7 +477,9 @@ async function syncLegacyContactFields(tx: PrismaTransaction, contact: {
 }
 
 async function saveInternalNote(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const data = {
+    companyId,
     clientId: optionalText(formData, "clientId"),
     workId: optionalText(formData, "workId"),
     invoiceId: optionalText(formData, "invoiceId"),
@@ -464,16 +489,18 @@ async function saveInternalNote(formData: FormData, id: string | null) {
     archivedAt: formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null
   };
   if (!data.clientId && !data.workId && !data.invoiceId && !data.budgetId) throw new Error("La nota interna debe estar asociada a una entidad.");
-  if (id) await prisma.internalNote.update({ where: { id }, data });
+  if (id) await prisma.internalNote.updateMany({ where: { id, companyId }, data });
   else await prisma.internalNote.create({ data });
 }
 
 async function saveDocument(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const url = optionalText(formData, "url");
   const safeUrl = assertSafeDocumentUrl(url);
   const mimeType = optionalText(formData, "mimeType");
   if (mimeType && !ALLOWED_DOCUMENT_MIME_TYPES.includes(mimeType)) throw new Error("Tipo de archivo no permitido.");
   const data = {
+    companyId,
     name: text(formData, "name"),
     originalName: optionalText(formData, "originalName"),
     mimeType,
@@ -490,11 +517,12 @@ async function saveDocument(formData: FormData, id: string | null) {
     archivedAt: formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null
   };
   if (!data.clientId && !data.workId && !data.budgetId && !data.invoiceId && !data.expenseId) throw new Error("El documento debe estar asociado a una entidad.");
-  if (id) await prisma.document.update({ where: { id }, data });
+  if (id) await prisma.document.updateMany({ where: { id, companyId }, data });
   else await prisma.document.create({ data });
 }
 
 async function savePhoto(formData: FormData, id: string | null) {
+  const { companyId } = await requireCompanyContext();
   const url = assertSafeDocumentUrl(optionalText(formData, "url"));
   const data = {
     obraId: text(formData, "obraId"),
@@ -507,13 +535,20 @@ async function savePhoto(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas"),
     tomadaEn: requiredDate(formData, "tomadaEn")
   };
-  if (id) await prisma.workPhoto.update({ where: { id }, data });
+  if (!(await prisma.work.findFirst({ where: { id: data.obraId, companyId }, select: { id: true } }))) throw new Error("Obra no disponible.");
+  if (data.documentId && !(await prisma.document.findFirst({ where: { id: data.documentId, companyId }, select: { id: true } }))) throw new Error("Documento no disponible.");
+  if (id) {
+    const photo = await prisma.workPhoto.findFirst({ where: { id, work: { companyId } }, select: { id: true } });
+    if (!photo) throw new Error("Foto no disponible.");
+    await prisma.workPhoto.update({ where: { id: photo.id }, data });
+  }
   else await prisma.workPhoto.create({ data });
 }
 
 async function recalculateInvoice(facturaId: string) {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: facturaId },
+  const { companyId } = await requireCompanyContext();
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: facturaId, companyId },
     include: { payments: true }
   });
   if (!invoice) return;
@@ -521,8 +556,8 @@ async function recalculateInvoice(facturaId: string) {
   const pagado = invoice.payments.reduce((sum, payment) => sum + payment.importe, 0);
   const pendiente = Math.max(0, invoice.total - pagado);
 
-  await prisma.invoice.update({
-    where: { id: facturaId },
+  await prisma.invoice.updateMany({
+    where: { id: facturaId, companyId },
     data: {
       pagado,
       pendiente,

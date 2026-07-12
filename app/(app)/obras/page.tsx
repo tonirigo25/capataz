@@ -31,6 +31,7 @@ import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { EmptyState, PageHeader, Toolbar } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 import { statusClass } from "@/lib/status";
 import {
   calculateWorkFinancials,
@@ -71,7 +72,9 @@ type WorksQuery = {
 
 export default async function WorksPage({ searchParams }: { searchParams: Promise<WorksQuery> }) {
   const query = await searchParams;
+  const { companyId } = await requireCompanyContext();
   const works = await prisma.work.findMany({
+    where: { companyId },
     orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
     include: {
       client: true,

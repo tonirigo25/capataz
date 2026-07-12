@@ -6,6 +6,7 @@ import type { PaymentType, ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export async function registerPayment(formData: FormData) {
   const facturaId = String(formData.get("facturaId") ?? "");
@@ -21,7 +22,8 @@ export async function registerPayment(formData: FormData) {
     throw new Error("Importe o factura no válidos.");
   }
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: facturaId } });
+  const { companyId } = await requireCompanyContext();
+  const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice) throw new Error("Factura no encontrada.");
 
   const nuevoPagado = Math.min(invoice.total, invoice.pagado + importe);
@@ -32,6 +34,7 @@ export async function registerPayment(formData: FormData) {
     prisma.payment.create({
       data: {
         facturaId: invoice.id,
+        companyId,
         clienteId: invoice.clienteId,
         obraId: invoice.obraId,
         importe,
@@ -64,8 +67,9 @@ export async function prepareCollectionReminder(formData: FormData) {
   const canal = String(formData.get("canal") ?? "whatsapp") as ReminderChannel;
   const fecha = String(formData.get("fechaProgramada") ?? "");
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: facturaId },
+  const { companyId } = await requireCompanyContext();
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: facturaId, companyId },
     include: { client: true, work: true }
   });
   if (!invoice) throw new Error("Factura no encontrada.");
@@ -76,6 +80,7 @@ export async function prepareCollectionReminder(formData: FormData) {
   await prisma.reminder.create({
     data: {
       clienteId: invoice.clienteId,
+      companyId,
       obraId: invoice.obraId,
       facturaId: invoice.id,
       tipo: isOverdue ? "factura_vencida" : "recordatorio_factura",
@@ -100,13 +105,15 @@ export async function markInvoicePaid(formData: FormData) {
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!facturaId || !confirmado) throw new Error("Confirmación requerida.");
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: facturaId } });
+  const { companyId } = await requireCompanyContext();
+  const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice || invoice.pendiente <= 0) return;
 
   await prisma.$transaction([
     prisma.payment.create({
       data: {
         facturaId: invoice.id,
+        companyId,
         clienteId: invoice.clienteId,
         obraId: invoice.obraId,
         importe: invoice.pendiente,

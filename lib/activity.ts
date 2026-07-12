@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export type ActivityKind =
   | "cliente"
@@ -57,64 +58,65 @@ export async function getActivityFeed({
   period?: ActivityPeriod;
 } = {}) {
   const since = periodStart(period);
+  const { companyId } = await requireCompanyContext();
 
   const [clients, contacts, works, budgets, invoices, payments, expenses, agendaEvents, notes, documents] = await Promise.all([
     prisma.client.findMany({
-      where: since ? { OR: [{ fechaCreacion: { gte: since } }, { ultimaInteraccion: { gte: since } }] } : undefined,
+      where: { companyId, ...(since ? { OR: [{ fechaCreacion: { gte: since } }, { ultimaInteraccion: { gte: since } }] } : {}) },
       select: { id: true, nombre: true, estado: true, fechaCreacion: true, ultimaInteraccion: true },
       orderBy: { fechaCreacion: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.contact.findMany({
-      where: since ? { createdAt: { gte: since } } : undefined,
+      where: { companyId, ...(since ? { createdAt: { gte: since } } : {}) },
       select: { id: true, nombre: true, apellidos: true, isPrimary: true, isBillingContact: true, isSiteContact: true, createdAt: true, client: { select: { id: true, nombre: true } } },
       orderBy: { createdAt: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.work.findMany({
-      where: since ? { OR: [{ fechaCreacion: { gte: since } }, { updatedAt: { gte: since } }] } : undefined,
+      where: { companyId, ...(since ? { OR: [{ fechaCreacion: { gte: since } }, { updatedAt: { gte: since } }] } : {}) },
       select: { id: true, titulo: true, estado: true, fechaCreacion: true, updatedAt: true, client: { select: { nombre: true } } },
       orderBy: { updatedAt: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.budget.findMany({
-      where: since ? { OR: [{ fechaCreacion: { gte: since } }, { fechaEnvio: { gte: since } }] } : undefined,
+      where: { companyId, ...(since ? { OR: [{ fechaCreacion: { gte: since } }, { fechaEnvio: { gte: since } }] } : {}) },
       select: { id: true, numero: true, titulo: true, estado: true, fechaCreacion: true, fechaEnvio: true, client: { select: { nombre: true } } },
       orderBy: { fechaCreacion: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.invoice.findMany({
-      where: since ? { fechaEmision: { gte: since } } : undefined,
+      where: { companyId, ...(since ? { fechaEmision: { gte: since } } : {}) },
       select: { id: true, numero: true, concepto: true, estado: true, total: true, pendiente: true, fechaEmision: true, client: { select: { nombre: true } } },
       orderBy: { fechaEmision: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.payment.findMany({
-      where: since ? { fecha: { gte: since } } : undefined,
+      where: { companyId, ...(since ? { fecha: { gte: since } } : {}) },
       select: { id: true, importe: true, metodo: true, fecha: true, invoice: { select: { id: true, numero: true } }, client: { select: { nombre: true } } },
       orderBy: { fecha: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.expense.findMany({
-      where: since ? { fecha: { gte: since } } : undefined,
+      where: { companyId, ...(since ? { fecha: { gte: since } } : {}) },
       select: { id: true, proveedor: true, concepto: true, importe: true, fecha: true, work: { select: { id: true, titulo: true } } },
       orderBy: { fecha: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.eventoAgenda.findMany({
-      where: since ? { OR: [{ createdAt: { gte: since } }, { fechaInicio: { gte: since } }] } : undefined,
+      where: { companyId, ...(since ? { OR: [{ createdAt: { gte: since } }, { fechaInicio: { gte: since } }] } : {}) },
       select: { id: true, titulo: true, tipo: true, estado: true, createdAt: true, fechaInicio: true, client: { select: { nombre: true } }, work: { select: { id: true, titulo: true } } },
       orderBy: { fechaInicio: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.internalNote.findMany({
-      where: since ? { archivedAt: null, createdAt: { gte: since } } : { archivedAt: null },
+      where: { companyId, archivedAt: null, ...(since ? { createdAt: { gte: since } } : {}) },
       select: { id: true, content: true, createdAt: true, authorId: true, client: { select: { id: true, nombre: true } }, work: { select: { id: true, titulo: true } }, budget: { select: { id: true, numero: true } }, invoice: { select: { id: true, numero: true } } },
       orderBy: { createdAt: "desc" },
       take: TAKE_PER_SOURCE
     }),
     prisma.document.findMany({
-      where: since ? { archivedAt: null, createdAt: { gte: since } } : { archivedAt: null },
+      where: { companyId, archivedAt: null, ...(since ? { createdAt: { gte: since } } : {}) },
       select: { id: true, name: true, category: true, createdAt: true, uploadedById: true, client: { select: { id: true, nombre: true } }, work: { select: { id: true, titulo: true } }, budget: { select: { id: true, numero: true } }, invoice: { select: { id: true, numero: true } } },
       orderBy: { createdAt: "desc" },
       take: TAKE_PER_SOURCE

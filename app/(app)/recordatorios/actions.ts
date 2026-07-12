@@ -3,11 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
+import { requireCompanyContext } from "@/lib/auth/session";
+
+async function ownedReminder(id: string) {
+  const { companyId } = await requireCompanyContext();
+  return prisma.reminder.findFirst({ where: { id, companyId } });
+}
 
 export async function confirmReminder(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !confirmado) return;
+  if (!(await ownedReminder(id))) return;
 
   const reminder = await prisma.reminder.update({
     where: { id },
@@ -28,6 +35,7 @@ export async function cancelReminder(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !confirmado) return;
+  if (!(await ownedReminder(id))) return;
 
   const reminder = await prisma.reminder.update({
     where: { id },
@@ -44,6 +52,7 @@ export async function markReminderDone(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !confirmado) return;
+  if (!(await ownedReminder(id))) return;
 
   const reminder = await prisma.reminder.update({
     where: { id },

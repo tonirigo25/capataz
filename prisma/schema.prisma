@@ -451,8 +451,8 @@ model Client {
 model Work {
   id                    String             @id @default(cuid())
   companyId             String?
-  numeroInterno         String?            @unique
-  codigo                String?            @unique
+  numeroInterno         String?
+  codigo                String?
   clienteId             String
   contactoId            String?
   contactoPrincipal     String?
@@ -506,6 +506,8 @@ model Work {
   agendaEvents          EventoAgenda[]
   company               Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, numeroInterno])
+  @@unique([companyId, codigo])
   @@index([estado])
   @@index([prioridad])
   @@index([fechaInicioPrevista])
@@ -588,7 +590,7 @@ model Budget {
   companyId        String?
   clienteId        String
   obraId           String?
-  numero           String         @unique
+  numero           String
   titulo           String
   partidas         String
   subtotal         Float
@@ -612,6 +614,7 @@ model Budget {
   work             Work?          @relation(fields: [obraId], references: [id])
   company          Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, numero])
   @@index([companyId])
 }
 
@@ -620,7 +623,7 @@ model Invoice {
   companyId         String?
   clienteId         String
   obraId            String?
-  numero            String             @unique
+  numero            String
   concepto          String
   partidas          String?
   importeBase       Float
@@ -645,6 +648,7 @@ model Invoice {
   work              Work?              @relation(fields: [obraId], references: [id])
   company           Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, numero])
   @@index([companyId])
 }
 
@@ -829,6 +833,10 @@ model TreasurySettings {
   includeEstimatedInflows Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  companyId               String?
+  company                 Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
 }
 
 model Material {
@@ -1926,6 +1934,24 @@ model Company {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   archivedAt          DateTime?
+  web                 String?
+  contactPerson       String?
+  iban                String?
+  defaultConditions   String?
+  legalText           String?
+  logoUrl             String?
+  sealUrl             String?
+  brandColor          String                   @default("#f6c945")
+  defaultVat          Float                    @default(21)
+  currency            String                   @default("EUR")
+  budgetValidityDays  Int                      @default(15)
+  defaultPaymentTerms String?
+  budgetSeries        String                   @default("2026")
+  invoiceSeries       String                   @default("2026")
+  workSeries          String                   @default("2026")
+  budgetPrefix        String                   @default("P")
+  invoicePrefix       String                   @default("F")
+  workPrefix          String                   @default("OB")
   memberships         CompanyMembership[]
   securityAuditEvents SecurityAuditEvent[]
   clients             Client[]
@@ -1952,6 +1978,7 @@ model Company {
   automationRuns      AutomationRun[]
   tasks               Task[]
   followUps           FollowUp[]
+  treasurySettings    TreasurySettings[]
 
   @@index([status])
   @@index([isDemo])

@@ -3,20 +3,23 @@ import { PageHeader } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
 import { companyCompletion, profileCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function CapatazPage() {
+  const auth = await requireCompanyContext();
   const activeWorkStatuses = ["pendiente_inicio", "en_curso", "pausada", "pendiente_material", "pendiente_remates", "pendiente_cobro"];
   const [profile, company, clients, works, invoices, budgets, materials, programmedReminders, agendaItems] = await Promise.all([
-    prisma.usuarioPerfil.findFirst(),
-    prisma.empresa.findFirst(),
-    prisma.client.findMany({ orderBy: { nombre: "asc" } }),
-    prisma.work.findMany({ orderBy: { titulo: "asc" }, include: { client: true } }),
-    prisma.invoice.findMany({ orderBy: { fechaVencimiento: "asc" }, include: { client: true } }),
-    prisma.budget.findMany({ orderBy: { fechaCreacion: "desc" }, include: { client: true } }),
-    prisma.material.findMany({ include: { work: { include: { client: true } } } }),
-    prisma.reminder.count({ where: { estado: "programado" } }),
+    prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
+    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }).then(companySettingsView),
+    prisma.client.findMany({ where: { companyId: auth.companyId }, orderBy: { nombre: "asc" } }),
+    prisma.work.findMany({ where: { companyId: auth.companyId }, orderBy: { titulo: "asc" }, include: { client: true } }),
+    prisma.invoice.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true } }),
+    prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true } }),
+    prisma.material.findMany({ where: { companyId: auth.companyId }, include: { work: { include: { client: true } } } }),
+    prisma.reminder.count({ where: { companyId: auth.companyId, estado: "programado" } }),
     getAgendaItems()
   ]);
 
