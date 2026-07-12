@@ -93,3 +93,22 @@ No se afirma conformidad WCAG completa. Se verificaron encabezados, labels, fiel
 El smoke HTTP devolvió 200 en `/api/status`, `/hoy`, `/tareas`, `/seguimientos`, `/automatizaciones` y `/capataz`; el healthcheck informó aplicación y base de datos operativas. Se crearon registros técnicos sin datos personales ni importes para Task con checklist y subtarea, FollowUp con intento y resultado, y AutomationRun seco; todos quedaron archivados. Chat productivo validó consultas sin mutación y descubrió una variante lingüística no cubierta para «cuál fue la última ejecución»; se añadió la regla y una regresión transaccional antes del despliegue correctivo.
 
 Limitación operativa preexistente: Railway mantiene `NEXT_PUBLIC_APP_ENV=staging` y `NEXT_PUBLIC_APP_MODE=test` dentro del environment llamado production. No se cambiaron esos valores porque alteran políticas de visibilidad y límites comerciales fuera del alcance funcional de este bloque.
+
+## Cierre del contrato conversacional
+
+El pipeline conserva una única entrada productiva (`runChatCommand`) y añade una capa estructurada antes del parser genérico para mutaciones profesionales. El contexto persistido incluye Task, elemento de checklist, padre, dependencia, FollowUp, intento, próxima acción, AutomationDefinition, versión, run, paso del borrador y una desambiguación temporal con candidatos sin exponer IDs.
+
+Chat permite añadir, completar y reabrir checklist; crear subtareas y abrir su padre; añadir o retirar dependencias con selección explícita; consultar bloqueos; reprogramar seguimientos con fechas naturales; crear y modificar Automation drafts; añadir condiciones; cambiar la acción; simular sin mutaciones; crear una nueva versión draft y archivar borradores, tareas o seguimientos con advertencias según su estado. Los ciclos, profundidad, duplicados, versiones publicadas y referencias ambiguas se validan en servidor.
+
+La idempotencia primaria usa el mensaje persistido de conversación y se complementa con comprobaciones semánticas para checklist, subtareas, dependencias y drafts. `ChatActionLog` registra intención, acción, resultado, candidatos, actor `user`, origen `chat`, conversación e idempotencyKey con payloads reducidos y sin secretos.
+
+`test:automation-chat-contract` ejecuta 37 casos contra la misma capa de routing de producción. Se integra también en la prueba PostgreSQL aislada. Pasan el contrato, las pruebas transaccionales, todos los scripts de regresión, Prisma validate/generate, typecheck y build.
+
+### Auditoría de variables Railway
+
+| Variable | Uso real | Valor auditado | Recomendación | Riesgo |
+| --- | --- | --- | --- | --- |
+| `NEXT_PUBLIC_APP_ENV` | Healthcheck, detalle de errores, logging y depuración de Chat, obligatoriedad de IA | `staging` | `production` | Bajo y favorable: reduce diagnóstico expuesto; exige validar Chat/voz tras redespliegue |
+| `NEXT_PUBLIC_APP_MODE` | Etiqueta UI y límites demo/comerciales mediante `isUnlimitedMode` | `test` | Mantener `test` hasta activar suscripción real | Cambiarlo prematuramente podría activar límites comerciales sin plan configurado |
+
+Decisión: cambiar sólo `NEXT_PUBLIC_APP_ENV` a `production` en Railway después del commit y conservar `NEXT_PUBLIC_APP_MODE=test`. No es una migración de datos ni una afirmación basada únicamente en la etiqueta; la aplicación, base, cron y rutas se validan por separado.

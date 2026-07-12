@@ -47,6 +47,13 @@ try {
   )
     .toString()
     .trim();
+  const chatContractOutput = execFileSync(
+    "npx.cmd",
+    ["tsx", "scripts/validate-automation-chat-contract.mjs"],
+    { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"], shell: true },
+  )
+    .toString()
+    .trim();
   const client = pg.getPgClient("capataz_fresh");
   await client.connect();
   const migrations = await client.query(
@@ -212,6 +219,7 @@ try {
       indexes: indexes.rows[0].count,
       newDangerousCascades: dangerous.rows[0].count,
       transaction: JSON.parse(transactionOutput.split(/\r?\n/).at(-1)),
+      chatContract: JSON.parse(chatContractOutput.split(/\r?\n/).at(-1)),
       incremental: {
         before: before.rows[0],
         after: after.rows[0],

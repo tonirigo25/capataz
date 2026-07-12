@@ -58,6 +58,7 @@ import { getProactiveControlData } from "@/lib/proactive-evaluation";
 import { prisma } from "@/lib/prisma";
 import { createTask, changeTaskStatus } from "@/lib/tasks/task-engine";
 import { createFollowUp, addFollowUpAttempt } from "@/lib/followups/followup-engine";
+import { handleChatWorkflowContract } from "@/lib/chat-workflow-contract";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
 import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
@@ -190,6 +191,21 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
   const enrichedContext = await enrichChatContext(context);
   debugChat("received", { text, context: enrichedContext });
   const normalizedText = normalizeQueryText(text);
+
+  const earlyClassifiedIntent = classifyChatIntent(text);
+  const isStructuredMutation = /^(reprograma|cambia|mejor|volver|vuelve|crea|anade|agrega|completa|marca|reabre|esta tarea depende|bloqueala|elimina|retira|archiva|quita|ya no|simula|ejecuta)/.test(normalizedText);
+  const earlyDatabaseIntent = isStructuredMutation ? null : databaseIntentForMessage(text, earlyClassifiedIntent, enrichedContext);
+  if (earlyDatabaseIntent) {
+    await logChatPerf(trace, "route", trace.startedAt, "database_query", { kind: earlyDatabaseIntent.kind, action: earlyDatabaseIntent.action, confidence: earlyDatabaseIntent.confidence, rule: earlyDatabaseIntent.rule });
+    return answerDatabaseQuery(text, earlyDatabaseIntent, enrichedContext);
+  }
+
+  const contractResult = await handleChatWorkflowContract(text, enrichedContext, {
+    conversationId: trace.conversationId,
+    messageId: trace.messageId,
+    idempotencyKey: trace.idempotencyKey,
+  });
+  if (contractResult) return contractResult;
 
   const workflowMutation = await runExplicitWorkflowMutation(text, normalizedText, enrichedContext);
   if (workflowMutation) return workflowMutation;

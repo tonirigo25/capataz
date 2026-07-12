@@ -90,6 +90,7 @@
     "test:automation-cron-integration": "node scripts/validate-automation-completion.mjs cron-integration",
     "test:automation-postgres-isolated": "node scripts/validate-isolated-postgres.mjs",
     "test:automation-transactional": "tsx scripts/validate-automation-transaction.mjs",
+    "test:automation-chat-contract": "tsx scripts/validate-automation-chat-contract.mjs",
     "test:treasury-accounts": "node scripts/validate-treasury-suite.mjs accounts",
     "test:cash-movements": "node scripts/validate-treasury-suite.mjs movements",
     "test:cashflow-forecast": "node scripts/validate-treasury-suite.mjs forecast",

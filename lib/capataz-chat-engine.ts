@@ -107,9 +107,16 @@ export type ChatContext = {
   lastWorkId?: string;
   lastBudgetId?: string;
   lastInvoiceId?: string;
-  lastAutomation?: { automationId: string; versionId?: string; runId?: string; action: string; shownAt: string };
-  lastTask?: { taskId: string; action: string; shownAt: string };
-  lastFollowUp?: { followUpId: string; attemptId?: string; action: string; shownAt: string };
+  lastAutomation?: { automationId: string; automationDefinitionId?: string; versionId?: string; automationVersionId?: string; runId?: string; action: string; draftStep?: string; title?: string; shownAt: string };
+  lastTask?: { taskId: string; title?: string; action: string; checklistItemId?: string; parentTaskId?: string; dependencyTaskId?: string; shownAt: string };
+  lastFollowUp?: { followUpId: string; title?: string; attemptId?: string; nextActionAt?: string; action: string; shownAt: string };
+  pendingDisambiguation?: {
+    type: "task_dependency" | "checklist_item";
+    candidates: { id: string; label: string }[];
+    requestedAction: "add" | "remove" | "complete" | "reopen";
+    sourceEntityId: string;
+    expiresAt: string;
+  };
   lastReminder?: { reminderId: string };
   lastEvent?: { eventId: string };
   lastDocumentType?: ChatDocumentType;

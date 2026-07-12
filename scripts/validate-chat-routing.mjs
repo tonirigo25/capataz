@@ -498,6 +498,7 @@ function loadTsModule(relativePath) {
     }
     if (specifier === "@/lib/numbering") return { nextDocumentNumber: async () => "P-TEST-001" };
     if (specifier === "@/lib/status") return { deriveInvoiceStatus: () => "pendiente_pago" };
+    if (specifier === "@/lib/chat-workflow-contract") return { handleChatWorkflowContract: async () => null };
     if (specifier.startsWith("@/")) return loadTsModule(`${specifier.slice(2)}.ts`);
     return require(specifier);
   };
