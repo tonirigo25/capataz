@@ -112,7 +112,7 @@
     "test:break-even": "node scripts/validate-treasury-suite.mjs break-even",
     "test:treasury-chat": "node scripts/validate-treasury-suite.mjs chat",
     "test:treasury-integration": "node scripts/validate-treasury-suite.mjs integration",
-    "db:deploy": "prisma generate && prisma migrate deploy",
+    "db:deploy": "prisma generate && node scripts/deploy-database.mjs",
     "db:push": "prisma db push && npm run db:seed",
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
