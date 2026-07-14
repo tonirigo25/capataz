@@ -497,7 +497,7 @@ function loadTsModule(relativePath) {
         interpretCapatazMessageWithAI: async () => null
       };
     }
-    if (specifier === "@/lib/numbering") return { nextDocumentNumber: async () => "P-TEST-001" };
+    if (specifier === "@/lib/numbering") return { nextDocumentNumber: async () => "P-TEST-001", reserveDocumentNumberInTransaction: async () => "P-TEST-001" };
     if (specifier === "@/lib/auth/session") return { requireCompanyContext: async () => ({ companyId: undefined, userId: "test-user", displayName: "Test" }) };
     if (specifier === "@/lib/tenant/company-settings") return { companySettingsView: (company) => company };
     if (specifier === "@/lib/status") return { deriveInvoiceStatus: () => "pendiente_pago" };

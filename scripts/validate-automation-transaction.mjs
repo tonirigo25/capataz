@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 import * as prismaModule from "../lib/prisma.ts";
 import * as registry from "../lib/automations/automation-registry.ts";
 const moduleValue = (m) => m.default ?? m;
@@ -29,6 +30,8 @@ const { prisma } = moduleValue(prismaModule),
   { publishBusinessEvent } = moduleValue(eventModule),
   { runChatCommand } = moduleValue(chatModule),
   { classifyChatIntent } = moduleValue(chatQueryModule);
+
+assertIsolatedTestDatabase();
 
 if (
   classifyChatIntent("cuál fue la última ejecución").action !==

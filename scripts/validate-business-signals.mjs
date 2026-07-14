@@ -269,7 +269,7 @@ function runUiChecks() {
   expect(page.includes("snoozeSignalAction") && page.includes("dismissSignalAction") && page.includes("resolveSignalAction"), "[business-signals] /alertas must expose lifecycle actions");
   expect(actions.includes("snoozeBusinessSignal") && actions.includes("dismissBusinessSignal") && actions.includes("resolveBusinessSignal"), "[business-signals] actions must call engine lifecycle helpers");
   expect(chrome.includes('href: "/alertas"') && bottomNav.includes('href: "/alertas"'), "[business-signals] navigation must expose /alertas");
-  expect(today.includes("getTodaySignalBrief") && today.includes("/alertas"), "[business-signals] Hoy must show signal brief");
+  expect(!today.includes("getTodaySignalBrief"), "[business-signals] Hoy must keep proactive signal brief blocked during recovery");
   expect(docs.includes("Fallback") && docs.includes("Railway") && docs.includes("Producción"), "[business-signals] docs must cover fallback, Railway and production");
 }
 

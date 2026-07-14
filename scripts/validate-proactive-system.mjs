@@ -197,7 +197,7 @@ function runIntegrationChecks() {
   }
   expect(page.includes("Centro de control") && page.includes("Evaluar ahora"), "[proactive] control center missing manual evaluation");
   expect(recPage.includes("Historial") && recPage.includes("getProactiveAuditEventsForRecommendations"), "[proactive] recommendation center must show history");
-  expect(today.includes("getProactiveDailySummary"), "[proactive] Hoy must show proactive daily summary");
+  expect(!today.includes("getProactiveDailySummary"), "[proactive] Hoy must keep proactive daily summary blocked during recovery");
   for (const forbidden of ["DROP TABLE", "DROP COLUMN", "TRUNCATE", "DELETE FROM"]) {
     expect(!migration.toUpperCase().includes(forbidden), `[proactive] migration must not include ${forbidden}`);
   }

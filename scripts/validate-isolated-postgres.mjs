@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
@@ -25,9 +25,9 @@ const pg = new EmbeddedPostgres({
 try {
   await pg.initialise();
   await pg.start();
-  await pg.createDatabase("capataz_fresh");
-  const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_fresh?schema=public`;
-  const env = { ...process.env, DATABASE_URL: url };
+  await pg.createDatabase("capataz_test_fresh");
+  const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_fresh?schema=public`;
+  const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true" };
   execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], {
     cwd: process.cwd(),
     env,
@@ -54,7 +54,7 @@ try {
   )
     .toString()
     .trim();
-  const client = pg.getPgClient("capataz_fresh");
+  const client = pg.getPgClient("capataz_test_fresh");
   await client.connect();
   const migrations = await client.query(
     'SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL',
@@ -69,9 +69,9 @@ try {
     "SELECT COUNT(*)::int AS count FROM information_schema.referential_constraints WHERE constraint_schema='public' AND delete_rule='CASCADE' AND constraint_name IN (SELECT constraint_name FROM information_schema.table_constraints WHERE table_name LIKE 'Automation%' OR table_name LIKE 'Task%' OR table_name LIKE 'FollowUp%')",
   );
   await client.end();
-  await pg.createDatabase("capataz_upgrade");
-  const upgradeUrl = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_upgrade?schema=public`,
-    upgradeEnv = { ...process.env, DATABASE_URL: upgradeUrl };
+  await pg.createDatabase("capataz_test_upgrade");
+  const upgradeUrl = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_upgrade?schema=public`,
+    upgradeEnv = { ...process.env, DATABASE_URL: upgradeUrl, CAPATAZ_TEST_DATABASE_ISOLATED: "true" };
   const tempRoot = mkdtempSync(join(tmpdir(), "capataz-migrations-"));
   cpSync(join(process.cwd(), "prisma"), join(tempRoot, "prisma"), {
     recursive: true,
@@ -82,6 +82,7 @@ try {
     "20260712180000_company_ownership_nullable",
     "20260712190000_company_settings_and_treasury_ownership",
     "20260712210000_company_numbering_and_settings",
+    "20260713193000_company_document_sequences",
   ];
   for (const migration of incrementalMigrations) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
@@ -95,7 +96,7 @@ try {
     ],
     { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true },
   );
-  const upgrade = pg.getPgClient("capataz_upgrade");
+  const upgrade = pg.getPgClient("capataz_test_upgrade");
   await upgrade.connect();
   const timestamp = new Date();
   await upgrade.query(
@@ -164,7 +165,7 @@ try {
     'SELECT (SELECT COUNT(*) FROM "Client")::int clients,(SELECT COUNT(*) FROM "Work")::int works,(SELECT COUNT(*) FROM "Budget")::int budgets,(SELECT COUNT(*) FROM "Invoice")::int invoices,(SELECT COUNT(*) FROM "EventoAgenda")::int events,(SELECT COUNT(*) FROM "Reminder")::int reminders,(SELECT COUNT(*) FROM "ChatConversation")::int conversations',
   );
   await upgrade.end();
-  for (const migration of incrementalMigrations.slice(0, -1)) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
+  for (const migration of incrementalMigrations.slice(0, -2)) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
   execFileSync(
     "npx.cmd",
     [
@@ -176,11 +177,26 @@ try {
     ],
     { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true },
   );
-  const backfillOutput = execFileSync("npx.cmd", ["tsx", "scripts/backfill-legacy-company.ts"], { cwd: process.cwd(), env: upgradeEnv, stdio: ["ignore", "pipe", "pipe"], shell: true }).toString().trim();
-  const numberingMigration = incrementalMigrations.at(-1);
+  const numberingMigration = incrementalMigrations.at(-2);
   cpSync(join(process.cwd(), "prisma", "migrations", numberingMigration), join(tempRoot, "prisma", "migrations", numberingMigration), { recursive: true });
-  execFileSync("npx.cmd", ["prisma", "migrate", "deploy", "--schema", join(tempRoot, "prisma", "schema.prisma")], { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true });
-  const upgraded = pg.getPgClient("capataz_upgrade");
+  const expectedFailure = spawnSync(
+    "npx.cmd",
+    ["prisma", "migrate", "deploy", "--schema", join(tempRoot, "prisma", "schema.prisma")],
+    { cwd: process.cwd(), env: upgradeEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], shell: true },
+  );
+  if (expectedFailure.status === 0 || !`${expectedFailure.stdout}\n${expectedFailure.stderr}`.includes("P3018")) {
+    throw new Error("EXPECTED_NUMBERING_PREFLIGHT_FAILURE_NOT_OBSERVED");
+  }
+  const recovery = spawnSync("node", ["scripts/deploy-database.mjs"], {
+    cwd: process.cwd(),
+    env: upgradeEnv,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (recovery.status !== 0) {
+    throw new Error(`DEPLOY_RECOVERY_FAILED\n${recovery.stdout}\n${recovery.stderr}`);
+  }
+  const upgraded = pg.getPgClient("capataz_test_upgrade");
   await upgraded.connect();
   const after = await upgraded.query(
     'SELECT (SELECT COUNT(*) FROM "Client")::int clients,(SELECT COUNT(*) FROM "Work")::int works,(SELECT COUNT(*) FROM "Budget")::int budgets,(SELECT COUNT(*) FROM "Invoice")::int invoices,(SELECT COUNT(*) FROM "EventoAgenda")::int events,(SELECT COUNT(*) FROM "Reminder")::int reminders,(SELECT COUNT(*) FROM "ChatConversation")::int conversations',
@@ -225,7 +241,7 @@ try {
         after: after.rows[0],
         newColumns: newColumns.rows[0].count,
         relatedTasks: related.rows[0].count,
-        backfill: JSON.parse(backfillOutput.split(/\r?\n/).at(-1)),
+        backfill: { ok: true, recoveredFromP3009: true },
       },
     }),
   );

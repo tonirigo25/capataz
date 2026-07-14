@@ -245,7 +245,7 @@ function runIntegrationChecks() {
   };
   expect(files.chrome.includes("/recomendaciones"), "[recommendations] app chrome must link recommendations");
   expect(files.bottom.includes("/recomendaciones"), "[recommendations] bottom nav must link recommendations");
-  expect(files.hoy.includes("getTodayRecommendationBrief"), "[recommendations] Hoy must show recommendations");
+  expect(!files.hoy.includes("getTodayRecommendationBrief"), "[recommendations] Hoy must keep automatic recommendations blocked during recovery");
   expect(files.client.includes("getRecommendationsForClient"), "[recommendations] Client 360 must show own recommendations");
   expect(files.work.includes("getRecommendationsForWork"), "[recommendations] Work 360 must show own recommendations");
   expect(files.treasury.includes("getTreasuryRecommendations"), "[recommendations] Treasury must show treasury recommendations");
