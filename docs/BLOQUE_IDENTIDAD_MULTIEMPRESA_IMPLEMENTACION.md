@@ -170,7 +170,7 @@ La inspección de presencia de variables, sin mostrar valores, confirma `DATABAS
 
 ## Dependencias y vulnerabilidades
 
-`npm audit` informa 2 vulnerabilidades moderadas y ninguna alta o crítica. La advertencia llega por PostCSS anidado bajo Next.js. La corrección automática propuesta por npm implicaría un cambio mayor/incoherente (sugiere Next 9.3.3 frente al 15.5.19 instalado), por lo que no se ejecutó `npm audit fix` ni se alteró el lockfile de forma insegura. Debe resolverse en una actualización de dependencias separada, con revisión de compatibilidad y regresión completa.
+`npm audit --omit=dev` informa 2 vulnerabilidades moderadas y ninguna alta o crítica: `next` directo y `postcss` transitivo bajo Next.js. No se ejecutó `npm audit fix` ni se alteró el lockfile; la remediación queda para una actualización de dependencias separada, con revisión de compatibilidad y regresión completa.
 
 ## Módulos que permanecen cerrados
 
