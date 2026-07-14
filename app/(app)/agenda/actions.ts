@@ -5,6 +5,7 @@ import type { EventoAgendaEstado } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { companyCore } from "@/lib/tenant/core";
 
 export async function updateAgendaEventStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -12,16 +13,15 @@ export async function updateAgendaEventStatus(formData: FormData) {
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !estado || !confirmado) return;
   const { companyId } = await requireCompanyContext();
+  const core = companyCore(prisma, companyId);
+  if (!(await core.getAgendaEvent(id))) return;
 
-  const event = await prisma.eventoAgenda.update({
-    where: { id: (await prisma.eventoAgenda.findFirstOrThrow({ where: { id, companyId }, select: { id: true } })).id },
-    data: {
+  const event = await core.updateAgendaEvent(id, {
       estado,
       confirmadoPorUsuario: ["confirmado", "realizado"].includes(estado),
       requiereConfirmacion: false
-    }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "agenda", entityId: id, clientId: event.clienteId, workId: event.obraId, invoiceId: event.facturaId, budgetId: event.presupuestoId, reason: "agenda_status_updated" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "agenda", entityId: id, clientId: event.clienteId, workId: event.obraId, invoiceId: event.facturaId, budgetId: event.presupuestoId, reason: "agenda_status_updated" });
 
   revalidateAgenda();
 }
@@ -33,13 +33,13 @@ export async function reprogramAgendaEvent(formData: FormData) {
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !fechaInicio || !confirmado) return;
   const { companyId } = await requireCompanyContext();
+  const core = companyCore(prisma, companyId);
+  if (!(await core.getAgendaEvent(id))) return;
 
   const start = new Date(fechaInicio);
   const end = fechaFin ? new Date(fechaFin) : null;
 
-  const event = await prisma.eventoAgenda.update({
-    where: { id: (await prisma.eventoAgenda.findFirstOrThrow({ where: { id, companyId }, select: { id: true } })).id },
-    data: {
+  const event = await core.updateAgendaEvent(id, {
       fechaInicio: start,
       fechaFin: end,
       horaInicio: timeValue(start),
@@ -47,9 +47,8 @@ export async function reprogramAgendaEvent(formData: FormData) {
       estado: "reprogramado",
       confirmadoPorUsuario: true,
       requiereConfirmacion: false
-    }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "agenda", entityId: id, clientId: event.clienteId, workId: event.obraId, invoiceId: event.facturaId, budgetId: event.presupuestoId, reason: "agenda_reprogrammed" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "agenda", entityId: id, clientId: event.clienteId, workId: event.obraId, invoiceId: event.facturaId, budgetId: event.presupuestoId, reason: "agenda_reprogrammed" });
 
   revalidateAgenda();
 }

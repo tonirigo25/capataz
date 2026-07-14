@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 import * as prismaModule from "../lib/prisma.ts";
 import * as chatModule from "../app/(app)/capataz/actions.ts";
 import * as taskModule from "../lib/tasks/task-engine.ts";
@@ -11,6 +12,7 @@ const { runChatCommand } = value(chatModule);
 const { createTask, createSubtask, addTaskDependency } = value(taskModule);
 const { publishAutomationVersion } = value(registryModule);
 const { parseNaturalFollowUpDate } = value(contractModule);
+assertIsolatedTestDatabase();
 const suffix = randomUUID().slice(0, 8);
 let sequence = 0;
 const send = (text, context = null, key = `contract-${suffix}-${++sequence}`) =>

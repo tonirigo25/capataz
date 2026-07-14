@@ -5,19 +5,18 @@ import { fillTemplatePlaceholders } from "@/lib/document-templates";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { companyCore } from "@/lib/tenant/core";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const auth = await requireCompanyContext();
-  const invoice = await prisma.invoice.findFirst({
-    where: { id, companyId: auth.companyId },
-    include: { client: true, work: true, payments: { orderBy: { fecha: "asc" } } }
-  });
+  const core = companyCore(prisma, auth.companyId);
+  const invoice = await core.getInvoiceDocument(id);
   if (!invoice) notFound();
 
-  const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
+  const company = await core.company();
   const preview = new URL(request.url).searchParams.get("preview") === "1";
   const liveStatus = invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
   const lines = parseBudgetLines(invoice.partidas);

@@ -53,7 +53,7 @@ import { getBusinessSignals, type BusinessSignal } from "@/lib/business-signals"
 import { getBusinessIntelligenceSummary, metricDefinitionText } from "@/lib/business-intelligence";
 import type { BusinessPeriodId } from "@/lib/business-periods";
 import { getNotificationItems } from "@/lib/notifications";
-import { nextDocumentNumber } from "@/lib/numbering";
+import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { getProactiveControlData } from "@/lib/proactive-evaluation";
 import { prisma } from "@/lib/prisma";
 import { createTask, changeTaskStatus } from "@/lib/tasks/task-engine";
@@ -3329,9 +3329,8 @@ async function createBudgetDraftFromAI(ai: CapatazAIResult): Promise<ChatCommand
   const totals = calculateChatDocumentTotals(amount, ivaMode, ivaPercent);
   const line = buildAIBudgetLine(ai, totals.subtotal);
   const pendingFields = pendingFieldsFromAI(ai, ivaMode);
-  const number = await nextDocumentNumber("budget");
-
   const result = await prisma.$transaction(async (tx) => {
+    const number = await reserveDocumentNumberInTransaction(tx, company.id, "budget");
     const client = existingClient ?? await tx.client.create({
       data: {
         nombre: clientName,
@@ -3752,9 +3751,8 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
     total: totals.subtotal,
     categoria: command.materialIncluded ? "Material incluido" : "General"
   };
-  const number = await nextDocumentNumber("budget");
-
   const result = await prisma.$transaction(async (tx) => {
+    const number = await reserveDocumentNumberInTransaction(tx, company.id, "budget");
     const client = existingClient ?? await tx.client.create({
       data: {
         nombre: command.clientName,
@@ -4234,9 +4232,8 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
     total: totals.subtotal,
     categoria: command.materialIncluded ? "Material incluido" : "General"
   };
-  const number = await nextDocumentNumber("invoice");
-
   const result = await prisma.$transaction(async (tx) => {
+    const number = await reserveDocumentNumberInTransaction(tx, company.id, "invoice");
     const client = existingClient ?? await tx.client.create({
       data: {
         nombre: command.clientName,
@@ -4378,11 +4375,12 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
     };
   }
 
-  const invoice = await prisma.invoice.create({
+  const company = await activeCompany();
+  const invoice = await prisma.$transaction(async (tx) => tx.invoice.create({
     data: {
       clienteId: budget.clienteId,
       obraId: budget.obraId,
-      numero: await nextDocumentNumber("invoice"),
+      numero: await reserveDocumentNumberInTransaction(tx, company.id, "invoice"),
       concepto: `Factura de ${budget.titulo}`,
       partidas: budget.partidas,
       importeBase: budget.subtotal,
@@ -4397,7 +4395,7 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
       metodoPago: budget.formaPago,
       datosBancarios: null
     }
-  });
+  }));
 
   revalidateInvoicePaths(budget.clienteId, budget.obraId ?? undefined, invoice.id);
   revalidatePath("/presupuestos");

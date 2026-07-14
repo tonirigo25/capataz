@@ -6,6 +6,8 @@ import { pathToFileURL } from "node:url";
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../lib/auth/crypto";
 import { companyCore } from "../lib/tenant/core";
+import { reserveDocumentNumber } from "../lib/numbering";
+import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 async function main() {
   const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
@@ -15,9 +17,11 @@ async function main() {
   const pg = new EmbeddedPostgres({ databaseDir: join(root, `tenant-${Date.now()}`), user: "postgres", password, port, persistent: true });
   let prisma: PrismaClient | undefined;
   try {
-    await pg.initialise(); await pg.start(); await pg.createDatabase("capataz_tenant");
-    const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_tenant?schema=public`;
-    execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env: { ...process.env, DATABASE_URL: url }, stdio: "pipe", shell: true });
+    await pg.initialise(); await pg.start(); await pg.createDatabase("capataz_test_tenant");
+    const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_tenant?schema=public`;
+    const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
+    assertIsolatedTestDatabase(env);
+    execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
     prisma = new PrismaClient({ datasources: { db: { url } } });
     const hash = await hashPassword("Fixtures-seguras-2026!");
     const [a, b] = await Promise.all([
@@ -62,7 +66,15 @@ async function main() {
     assert.deepEqual(await coreB.totals(), { invoiced: 1210, pending: 1210, collected: 0, expenses: 0 });
     assert.equal((await coreA.listDocuments()).length, 1);
     assert.equal((await coreB.listDocuments()).length, 0);
-    console.log(JSON.stringify({ ok: true, listIsolation: true, idIsolation: true, mutationIsolation: true, relationIsolation: true, aggregateIsolation: true, documentsIsolation: true, companyNumbering: true }));
+    const concurrentA = await Promise.all(Array.from({ length: 20 }, () => reserveDocumentNumber(prisma!, a.id, "budget")));
+    const nextB = await reserveDocumentNumber(prisma, b.id, "budget");
+    assert.deepEqual([...new Set(concurrentA)].sort(), Array.from({ length: 20 }, (_, index) => `P-2026-${String(index + 2).padStart(3, "0")}`));
+    assert.equal(nextB, "P-2026-002");
+    const sequences = await prisma.companyDocumentSequence.findMany({ where: { type: "budget" }, orderBy: { companyId: "asc" }, select: { companyId: true, scope: true, nextValue: true } });
+    assert.equal(sequences.length, 2);
+    assert.equal(sequences.find((sequence) => sequence.companyId === a.id)?.nextValue, 22);
+    assert.equal(sequences.find((sequence) => sequence.companyId === b.id)?.nextValue, 3);
+    console.log(JSON.stringify({ ok: true, listIsolation: true, idIsolation: true, mutationIsolation: true, relationIsolation: true, aggregateIsolation: true, documentsIsolation: true, companyNumbering: true, concurrentNumberReservations: concurrentA.length, concurrentRange: [...new Set(concurrentA)].sort(), nextB }));
   } finally { await prisma?.$disconnect(); await pg.stop(); }
 }
 

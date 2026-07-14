@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PrismaClient } from "@prisma/client";
 import { createOpaqueToken, hashPassword, hashToken, normalizeEmail, verifyPassword } from "../lib/auth/crypto";
+import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 async function main() {
   const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
@@ -15,9 +16,11 @@ async function main() {
   const pg = new EmbeddedPostgres({ databaseDir: join(root, `auth-${Date.now()}`), user: "postgres", password, port, persistent: true });
   let prisma: PrismaClient | undefined;
   try {
-    await pg.initialise(); await pg.start(); await pg.createDatabase("capataz_auth");
-    const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_auth?schema=public`;
-    execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env: { ...process.env, DATABASE_URL: url }, stdio: "pipe", shell: true });
+    await pg.initialise(); await pg.start(); await pg.createDatabase("capataz_test_auth");
+    const env = { ...process.env, DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_auth?schema=public`, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
+    assertIsolatedTestDatabase(env);
+    execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
+    const url = env.DATABASE_URL;
     prisma = new PrismaClient({ datasources: { db: { url } } });
     const email = "Owner@Empresa-A.test";
     const normalized = normalizeEmail(email);

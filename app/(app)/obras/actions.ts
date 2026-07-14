@@ -30,7 +30,7 @@ export async function updateWorkStatus(formData: FormData) {
     });
   }
 
-  await reevaluateProactiveAfterMutation({ entityType: "work", entityId: id, clientId: work.clienteId, workId: id, reason: "work_status_updated" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "work", entityId: id, clientId: work.clienteId, workId: id, reason: "work_status_updated" });
 
   revalidatePath("/obras");
   revalidatePath(`/obras/${id}`);

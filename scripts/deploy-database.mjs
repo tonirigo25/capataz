@@ -1,12 +1,13 @@
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const migration = "20260712210000_company_numbering_and_settings";
-const npx = process.platform === "win32" ? "npx.cmd" : "npx";
+const prismaCli = join(process.cwd(), "node_modules", "prisma", "build", "index.js");
 
 function run(args, { allowFailure = false } = {}) {
-  const result = spawnSync(npx, args, {
+  const result = spawnSync(process.execPath, [prismaCli, ...args.slice(1)], {
     cwd: process.cwd(),
     env: process.env,
     encoding: "utf8",
@@ -58,7 +59,11 @@ async function countNulls(table) {
 }
 
 async function backfillLegacyCompany() {
-  const legacy = await prisma.empresa.findFirst({ orderBy: { createdAt: "asc" } });
+  const legacyCompanies = await prisma.empresa.findMany({ orderBy: { createdAt: "asc" }, take: 2 });
+  if (legacyCompanies.length > 1) {
+    throw new Error("LEGACY_COMPANY_AMBIGUOUS");
+  }
+  const legacy = legacyCompanies[0] ?? null;
   const nullCounts = await Promise.all(tables.map((table) => countNulls(table)));
   const pendingRows = nullCounts.reduce((sum, value) => sum + value, 0);
 
@@ -161,15 +166,29 @@ async function backfillLegacyCompany() {
   console.log(`[db:deploy] Legacy company backfill completed for ${company.id}.`);
 }
 
+async function failedMigrations() {
+  return prisma.$queryRaw`
+    SELECT migration_name
+    FROM "_prisma_migrations"
+    WHERE finished_at IS NULL AND rolled_back_at IS NULL
+    ORDER BY started_at ASC
+  `;
+}
+
 async function main() {
   const firstDeploy = run(["prisma", "migrate", "deploy"], { allowFailure: true });
   if (firstDeploy.status === 0) return;
 
   const output = `${firstDeploy.stdout ?? ""}\n${firstDeploy.stderr ?? ""}`;
-  const recoverable =
+  const failures = await failedMigrations();
+  const onlyExpectedMigrationFailed =
+    failures.length === 1 && failures[0]?.migration_name === migration;
+  const initialBackfillFailure =
     output.includes("P3018") &&
     output.includes(migration) &&
     output.includes("company numbering migration requires completed companyId backfill");
+  const blockedByRecordedFailure = output.includes("P3009") && onlyExpectedMigrationFailed;
+  const recoverable = onlyExpectedMigrationFailed && (initialBackfillFailure || blockedByRecordedFailure);
 
   if (!recoverable) {
     process.exitCode = firstDeploy.status ?? 1;

@@ -1914,8 +1914,8 @@ model User {
 }
 
 model Company {
-  id                  String                   @id @default(cuid())
-  slug                String                   @unique
+  id                  String                    @id @default(cuid())
+  slug                String                    @unique
   nombreComercial     String
   razonSocial         String?
   taxId               String?
@@ -1925,14 +1925,14 @@ model Company {
   codigoPostal        String?
   ciudad              String?
   provincia           String?
-  pais                String                   @default("España")
-  timezone            String                   @default("Europe/Madrid")
-  locale              String                   @default("es-ES")
-  status              CompanyStatus            @default(active)
-  isDemo              Boolean                  @default(false)
-  legacyEmpresaId     String?                  @unique
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
+  pais                String                    @default("España")
+  timezone            String                    @default("Europe/Madrid")
+  locale              String                    @default("es-ES")
+  status              CompanyStatus             @default(active)
+  isDemo              Boolean                   @default(false)
+  legacyEmpresaId     String?                   @unique
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
   archivedAt          DateTime?
   web                 String?
   contactPerson       String?
@@ -1941,17 +1941,17 @@ model Company {
   legalText           String?
   logoUrl             String?
   sealUrl             String?
-  brandColor          String                   @default("#f6c945")
-  defaultVat          Float                    @default(21)
-  currency            String                   @default("EUR")
-  budgetValidityDays  Int                      @default(15)
+  brandColor          String                    @default("#f6c945")
+  defaultVat          Float                     @default(21)
+  currency            String                    @default("EUR")
+  budgetValidityDays  Int                       @default(15)
   defaultPaymentTerms String?
-  budgetSeries        String                   @default("2026")
-  invoiceSeries       String                   @default("2026")
-  workSeries          String                   @default("2026")
-  budgetPrefix        String                   @default("P")
-  invoicePrefix       String                   @default("F")
-  workPrefix          String                   @default("OB")
+  budgetSeries        String                    @default("2026")
+  invoiceSeries       String                    @default("2026")
+  workSeries          String                    @default("2026")
+  budgetPrefix        String                    @default("P")
+  invoicePrefix       String                    @default("F")
+  workPrefix          String                    @default("OB")
   memberships         CompanyMembership[]
   securityAuditEvents SecurityAuditEvent[]
   clients             Client[]
@@ -1979,9 +1979,24 @@ model Company {
   tasks               Task[]
   followUps           FollowUp[]
   treasurySettings    TreasurySettings[]
+  documentSequences   CompanyDocumentSequence[]
 
   @@index([status])
   @@index([isDemo])
+}
+
+model CompanyDocumentSequence {
+  id        String   @id @default(cuid())
+  companyId String
+  type      String
+  scope     String
+  nextValue Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, type, scope])
+  @@index([companyId])
 }
 
 model CompanyMembership {

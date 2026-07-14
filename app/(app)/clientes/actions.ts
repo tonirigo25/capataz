@@ -51,7 +51,7 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
 
   if (existing) {
     await prisma.reminder.update({
-      where: { id: existing.id },
+      where: { id: existing.id, companyId },
       data
     });
   } else {
@@ -62,7 +62,7 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
     where: { id: clienteId, companyId },
     data: { ultimaInteraccion: new Date() }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: presupuestoId, clientId: clienteId, workId: obraId, budgetId: presupuestoId, reason: "budget_followup_scheduled" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "budget", entityId: presupuestoId, clientId: clienteId, workId: obraId, budgetId: presupuestoId, reason: "budget_followup_scheduled" });
 
   revalidatePath(`/clientes/${clienteId}`);
   revalidatePath("/clientes");
@@ -81,7 +81,7 @@ export async function archiveClient(formData: FormData) {
     where: { id, companyId },
     data: { archivadoAt: new Date() }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "client", entityId: id, clientId: id, reason: "client_archived" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "client", entityId: id, clientId: id, reason: "client_archived" });
 
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);
@@ -98,7 +98,7 @@ export async function restoreClient(formData: FormData) {
     where: { id, companyId },
     data: { archivadoAt: null }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "client", entityId: id, clientId: id, reason: "client_restored" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "client", entityId: id, clientId: id, reason: "client_restored" });
 
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);

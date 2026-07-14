@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
 import { findBudgetTemplate } from "@/lib/budget-templates";
-import { nextDocumentNumber } from "@/lib/numbering";
+import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { requireCompanyContext } from "@/lib/auth/session";
 
@@ -34,7 +34,7 @@ export async function updateBudgetStatus(formData: FormData) {
     await prisma.client.updateMany({ where: { id: budget.clienteId, companyId: auth.companyId }, data: { estado: "aceptado" } });
   }
   const updated = await prisma.budget.findFirst({ where: { id, companyId: auth.companyId }, select: { clienteId: true, obraId: true } });
-  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: id, clientId: updated?.clienteId, workId: updated?.obraId, budgetId: id, reason: "budget_status_updated" });
+  await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "budget", entityId: id, clientId: updated?.clienteId, workId: updated?.obraId, budgetId: id, reason: "budget_status_updated" });
 
   revalidatePath("/presupuestos");
   revalidatePath(`/presupuestos/${id}`);
@@ -53,7 +53,7 @@ export async function convertBudgetToWork(formData: FormData) {
       prisma.budget.updateMany({ where: { id, companyId: auth.companyId }, data: { estado: "aceptado" } }),
       prisma.client.updateMany({ where: { id: budget.clienteId, companyId: auth.companyId }, data: { estado: "obra_activa" } })
     ]);
-    await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: id, clientId: budget.clienteId, workId: budget.obraId, budgetId: id, reason: "budget_converted_existing_work" });
+    await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "budget", entityId: id, clientId: budget.clienteId, workId: budget.obraId, budgetId: id, reason: "budget_converted_existing_work" });
     revalidatePath("/presupuestos");
     revalidatePath("/obras");
     revalidatePath("/clientes");
@@ -82,7 +82,7 @@ export async function convertBudgetToWork(formData: FormData) {
     prisma.budget.updateMany({ where: { id, companyId: auth.companyId }, data: { estado: "aceptado", obraId: work.id } }),
     prisma.client.updateMany({ where: { id: budget.clienteId, companyId: auth.companyId }, data: { estado: "obra_activa" } })
   ]);
-  await reevaluateProactiveAfterMutation({ entityType: "work", entityId: work.id, clientId: budget.clienteId, workId: work.id, budgetId: id, reason: "budget_converted_to_work" });
+  await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "work", entityId: work.id, clientId: budget.clienteId, workId: work.id, budgetId: id, reason: "budget_converted_to_work" });
 
   revalidatePath("/presupuestos");
   revalidatePath("/obras");
@@ -97,12 +97,12 @@ export async function convertBudgetToInvoice(formData: FormData) {
   const { auth, budget } = await budgetContext(id);
   if (!budget) return;
 
-  const invoice = await prisma.invoice.create({
+  const invoice = await prisma.$transaction(async (tx) => tx.invoice.create({
     data: {
       clienteId: budget.clienteId,
       companyId: auth.companyId,
       obraId: budget.obraId,
-      numero: await nextDocumentNumber("invoice", auth.companyId),
+      numero: await reserveDocumentNumberInTransaction(tx, auth.companyId, "invoice"),
       concepto: `Factura de ${budget.titulo}`,
       partidas: budget.partidas,
       importeBase: budget.subtotal,
@@ -117,8 +117,8 @@ export async function convertBudgetToInvoice(formData: FormData) {
       metodoPago: budget.formaPago,
       datosBancarios: null
     }
-  });
-  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: budget.clienteId, workId: budget.obraId, invoiceId: invoice.id, budgetId: budget.id, reason: "budget_converted_to_invoice" });
+  }));
+  await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "invoice", entityId: invoice.id, clientId: budget.clienteId, workId: budget.obraId, invoiceId: invoice.id, budgetId: budget.id, reason: "budget_converted_to_invoice" });
 
   revalidatePath("/presupuestos");
   revalidatePath("/dinero");
@@ -133,12 +133,12 @@ export async function duplicateBudget(formData: FormData) {
   const { auth, budget } = await budgetContext(id);
   if (!budget) return;
 
-  const copy = await prisma.budget.create({
+  const copy = await prisma.$transaction(async (tx) => tx.budget.create({
     data: {
       clienteId: budget.clienteId,
       companyId: auth.companyId,
       obraId: budget.obraId,
-      numero: await nextDocumentNumber("budget", auth.companyId),
+      numero: await reserveDocumentNumberInTransaction(tx, auth.companyId, "budget"),
       titulo: `${budget.titulo} (copia)`,
       partidas: budget.partidas,
       subtotal: budget.subtotal,
@@ -153,8 +153,8 @@ export async function duplicateBudget(formData: FormData) {
       observaciones: budget.observaciones,
       formaPago: budget.formaPago
     }
-  });
-  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: copy.id, clientId: budget.clienteId, workId: budget.obraId, budgetId: copy.id, reason: "budget_duplicated" });
+  }));
+  await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "budget", entityId: copy.id, clientId: budget.clienteId, workId: budget.obraId, budgetId: copy.id, reason: "budget_duplicated" });
 
   revalidatePath("/presupuestos");
   redirect(`/presupuestos/${copy.id}`);
@@ -172,12 +172,12 @@ export async function createBudgetFromTemplate(formData: FormData) {
   const client = await prisma.client.findFirst({ where: { id: clienteId, companyId: auth.companyId }, select: { id: true } });
   if (!client || (obraId && !(await prisma.work.findFirst({ where: { id: obraId, companyId: auth.companyId }, select: { id: true } })))) return;
   const totals = calculateBudgetTotals(template.lines, company.defaultVat, 0);
-  const budget = await prisma.budget.create({
+  const budget = await prisma.$transaction(async (tx) => tx.budget.create({
     data: {
       clienteId,
       companyId: auth.companyId,
       obraId,
-      numero: await nextDocumentNumber("budget", auth.companyId),
+      numero: await reserveDocumentNumberInTransaction(tx, auth.companyId, "budget"),
       titulo: template.name,
       partidas: serializeBudgetLines(template.lines),
       subtotal: totals.subtotal,
@@ -191,8 +191,8 @@ export async function createBudgetFromTemplate(formData: FormData) {
       observaciones: `Creado desde plantilla ${template.name}. Revisar importes antes de enviar.`,
       formaPago: "Transferencia / según acuerdo"
     }
-  });
-  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: budget.id, clientId: clienteId, workId: obraId, budgetId: budget.id, reason: "budget_created_from_template" });
+  }));
+  await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "budget", entityId: budget.id, clientId: clienteId, workId: obraId, budgetId: budget.id, reason: "budget_created_from_template" });
 
   revalidatePath("/presupuestos");
   redirect(`/presupuestos/${budget.id}`);
@@ -248,7 +248,7 @@ async function updateBudgetLinesAndTotals(budgetId: string, lines: ReturnType<ty
     }
   });
   const budget = await prisma.budget.findFirst({ where: { id: budgetId, companyId: auth.companyId }, select: { clienteId: true, obraId: true } });
-  await reevaluateProactiveAfterMutation({ entityType: "budget", entityId: budgetId, clientId: budget?.clienteId, workId: budget?.obraId, budgetId, reason: "budget_lines_updated" });
+  await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "budget", entityId: budgetId, clientId: budget?.clienteId, workId: budget?.obraId, budgetId, reason: "budget_lines_updated" });
 
   revalidatePath("/presupuestos");
   revalidatePath(`/presupuestos/${budgetId}`);
