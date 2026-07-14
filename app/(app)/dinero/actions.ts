@@ -45,7 +45,7 @@ export async function registerPayment(formData: FormData) {
       }
     }),
     prisma.invoice.update({
-      where: { id: invoice.id },
+      where: { id: invoice.id, companyId },
       data: {
         pagado: nuevoPagado,
         pendiente: nuevoPendiente,
@@ -53,7 +53,7 @@ export async function registerPayment(formData: FormData) {
       }
     })
   ]);
-  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "payment_registered" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "payment_registered" });
 
   revalidatePath("/dinero");
   revalidatePath(`/dinero/${facturaId}`);
@@ -92,7 +92,7 @@ export async function prepareCollectionReminder(formData: FormData) {
       confirmadoPorUsuario: false
     }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "collection_reminder_prepared" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "collection_reminder_prepared" });
 
   revalidatePath("/dinero");
   revalidatePath("/recordatorios");
@@ -124,7 +124,7 @@ export async function markInvoicePaid(formData: FormData) {
       }
     }),
     prisma.invoice.update({
-      where: { id: invoice.id },
+      where: { id: invoice.id, companyId },
       data: {
         pagado: invoice.total,
         pendiente: 0,
@@ -132,7 +132,7 @@ export async function markInvoicePaid(formData: FormData) {
       }
     })
   ]);
-  await reevaluateProactiveAfterMutation({ entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "invoice_marked_paid" });
+  await reevaluateProactiveAfterMutation({ companyId, entityType: "invoice", entityId: invoice.id, clientId: invoice.clienteId, workId: invoice.obraId, invoiceId: invoice.id, reason: "invoice_marked_paid" });
 
   revalidatePath("/dinero");
   revalidatePath(`/dinero/${facturaId}`);

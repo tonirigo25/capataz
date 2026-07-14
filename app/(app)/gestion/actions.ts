@@ -25,7 +25,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateBudgetTotals, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
 import { clientDraftFromFormData, clientDuplicateRedirectUrl, findClientDuplicateCandidate } from "@/lib/client-crm";
 import { ALLOWED_DOCUMENT_MIME_TYPES } from "@/lib/documents";
-import { nextDocumentNumber } from "@/lib/numbering";
+import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -46,6 +46,7 @@ type ManualEntity =
   | "foto";
 
 export async function saveManualRecord(formData: FormData) {
+  const { companyId } = await requireCompanyContext();
   const tipo = text(formData, "tipo") as ManualEntity;
   const id = optionalText(formData, "id");
   const returnTo = optionalText(formData, "returnTo") ?? targetFor(tipo);
@@ -96,6 +97,7 @@ export async function saveManualRecord(formData: FormData) {
 
   if (["cliente", "obra", "presupuesto", "factura", "pago", "gasto", "material", "recordatorio", "eventoAgenda", "documento"].includes(tipo)) {
     await reevaluateProactiveAfterMutation({
+      companyId,
       entityType: tipo,
       entityId: id,
       clientId: optionalText(formData, "clienteId") ?? optionalText(formData, "clientId"),
@@ -218,11 +220,11 @@ async function saveBudget(formData: FormData, id: string | null) {
   const subtotal = number(formData, "subtotal", calculated.subtotal);
   const iva = number(formData, "iva", calculated.iva);
   const total = number(formData, "total", Math.max(0, subtotal - descuento + iva));
+  const requestedNumero = optionalText(formData, "numero");
   const data = {
     companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
-    numero: optionalText(formData, "numero") ?? await nextDocumentNumber("budget", companyId),
     titulo: text(formData, "titulo"),
     partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), subtotal),
     subtotal,
@@ -239,8 +241,11 @@ async function saveBudget(formData: FormData, id: string | null) {
     formaPago: optionalText(formData, "formaPago")
   };
 
-  if (id) await prisma.budget.updateMany({ where: { id, companyId }, data });
-  else await prisma.budget.create({ data });
+  if (id) {
+    await prisma.budget.updateMany({ where: { id, companyId }, data: { ...data, ...(requestedNumero ? { numero: requestedNumero } : {}) } });
+  } else {
+    await prisma.$transaction(async (tx) => tx.budget.create({ data: { ...data, numero: requestedNumero ?? await reserveDocumentNumberInTransaction(tx, companyId, "budget") } }));
+  }
 }
 
 async function saveInvoice(formData: FormData, id: string | null) {
@@ -256,11 +261,11 @@ async function saveInvoice(formData: FormData, id: string | null) {
   const fechaVencimiento = requiredDate(formData, "fechaVencimiento");
   const manualStatus = optionalText(formData, "estado") as InvoiceStatus | null;
   const autoStatus = deriveInvoiceStatus(total, pendiente, fechaVencimiento);
+  const requestedNumero = optionalText(formData, "numero");
   const data = {
     companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
-    numero: optionalText(formData, "numero") ?? await nextDocumentNumber("invoice", companyId),
     concepto: text(formData, "concepto"),
     partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), importeBase),
     importeBase,
@@ -276,8 +281,11 @@ async function saveInvoice(formData: FormData, id: string | null) {
     datosBancarios: optionalText(formData, "datosBancarios")
   };
 
-  if (id) await prisma.invoice.updateMany({ where: { id, companyId }, data });
-  else await prisma.invoice.create({ data });
+  if (id) {
+    await prisma.invoice.updateMany({ where: { id, companyId }, data: { ...data, ...(requestedNumero ? { numero: requestedNumero } : {}) } });
+  } else {
+    await prisma.$transaction(async (tx) => tx.invoice.create({ data: { ...data, numero: requestedNumero ?? await reserveDocumentNumberInTransaction(tx, companyId, "invoice") } }));
+  }
 }
 
 function pendingStateRequiresAuto(total: number, paid: number, pending: number, dueDate: Date) {

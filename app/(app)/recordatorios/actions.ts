@@ -4,27 +4,28 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { companyCore } from "@/lib/tenant/core";
 
 async function ownedReminder(id: string) {
   const { companyId } = await requireCompanyContext();
-  return prisma.reminder.findFirst({ where: { id, companyId } });
+  const core = companyCore(prisma, companyId);
+  const reminder = await core.getReminder(id);
+  return { companyId, core, reminder };
 }
 
 export async function confirmReminder(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !confirmado) return;
-  if (!(await ownedReminder(id))) return;
+  const owned = await ownedReminder(id);
+  if (!owned.reminder) return;
 
-  const reminder = await prisma.reminder.update({
-    where: { id },
-    data: {
+  const reminder = await owned.core.updateReminder(id, {
       estado: "programado",
       requiereConfirmacion: false,
       confirmadoPorUsuario: true
-    }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_confirmed" });
+  await reevaluateProactiveAfterMutation({ companyId: owned.companyId, entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_confirmed" });
 
   revalidatePath("/recordatorios");
   revalidatePath("/agenda");
@@ -35,13 +36,11 @@ export async function cancelReminder(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !confirmado) return;
-  if (!(await ownedReminder(id))) return;
+  const owned = await ownedReminder(id);
+  if (!owned.reminder) return;
 
-  const reminder = await prisma.reminder.update({
-    where: { id },
-    data: { estado: "cancelado" }
-  });
-  await reevaluateProactiveAfterMutation({ entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_cancelled" });
+  const reminder = await owned.core.updateReminder(id, { estado: "cancelado" });
+  await reevaluateProactiveAfterMutation({ companyId: owned.companyId, entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_cancelled" });
 
   revalidatePath("/recordatorios");
   revalidatePath("/agenda");
@@ -52,17 +51,15 @@ export async function markReminderDone(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !confirmado) return;
-  if (!(await ownedReminder(id))) return;
+  const owned = await ownedReminder(id);
+  if (!owned.reminder) return;
 
-  const reminder = await prisma.reminder.update({
-    where: { id },
-    data: {
+  const reminder = await owned.core.updateReminder(id, {
       estado: "realizado",
       requiereConfirmacion: false,
       confirmadoPorUsuario: true
-    }
   });
-  await reevaluateProactiveAfterMutation({ entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_completed" });
+  await reevaluateProactiveAfterMutation({ companyId: owned.companyId, entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_completed" });
 
   revalidatePath("/recordatorios");
   revalidatePath("/agenda");

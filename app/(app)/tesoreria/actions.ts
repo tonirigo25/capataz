@@ -35,7 +35,7 @@ export async function createFinancialAccount(formData: FormData) {
     }
   });
 
-  await revalidateTreasury({ entityType: "treasury", reason: "financial_account_created" });
+  await revalidateTreasury(companyId, { entityType: "treasury", reason: "financial_account_created" });
   redirect(returnTo);
 }
 
@@ -59,7 +59,7 @@ export async function updateFinancialAccount(formData: FormData) {
     }
   });
 
-  await revalidateTreasury({ entityType: "treasury", reason: "financial_account_updated" });
+  await revalidateTreasury(companyId, { entityType: "treasury", reason: "financial_account_updated" });
   redirect(returnTo);
 }
 
@@ -71,7 +71,7 @@ export async function archiveFinancialAccount(formData: FormData) {
     where: { id, companyId },
     data: { isActive: false, archivedAt: new Date() }
   });
-  await revalidateTreasury({ entityType: "treasury", reason: "financial_account_archived" });
+  await revalidateTreasury(companyId, { entityType: "treasury", reason: "financial_account_archived" });
   redirect(returnTo);
 }
 
@@ -105,7 +105,7 @@ export async function createCashMovement(formData: FormData) {
     }
   });
 
-  await revalidateTreasury({ entityType: "cashMovement", reason: "cash_movement_created" });
+  await revalidateTreasury(companyId, { entityType: "cashMovement", reason: "cash_movement_created" });
   redirect(returnTo);
 }
 
@@ -156,7 +156,7 @@ export async function createCashTransfer(formData: FormData) {
     })
   ]);
 
-  await revalidateTreasury({ entityType: "cashMovement", reason: "cash_transfer_created" });
+  await revalidateTreasury(companyId, { entityType: "cashMovement", reason: "cash_transfer_created" });
   redirect(returnTo);
 }
 
@@ -182,7 +182,7 @@ export async function createRecurringExpense(formData: FormData) {
     }
   });
 
-  await revalidateTreasury({ entityType: "recurringExpense", reason: "recurring_expense_created" });
+  await revalidateTreasury(companyId, { entityType: "recurringExpense", reason: "recurring_expense_created" });
   redirect(returnTo);
 }
 
@@ -211,7 +211,7 @@ export async function createExpectedCashFlow(formData: FormData) {
     }
   });
 
-  await revalidateTreasury({ entityType: "expectedCashFlow", reason: "expected_cashflow_created" });
+  await revalidateTreasury(companyId, { entityType: "expectedCashFlow", reason: "expected_cashflow_created" });
   redirect(returnTo);
 }
 
@@ -230,12 +230,12 @@ export async function saveTreasurySettings(formData: FormData) {
   if (existing) await prisma.treasurySettings.update({ where: { id: existing.id }, data });
   else await prisma.treasurySettings.create({ data: { ...data, companyId } });
 
-  await revalidateTreasury({ entityType: "treasury", reason: "treasury_settings_saved" });
+  await revalidateTreasury(companyId, { entityType: "treasury", reason: "treasury_settings_saved" });
   redirect(returnTo);
 }
 
-async function revalidateTreasury(scope: ProactiveEvaluationScope) {
-  await reevaluateProactiveAfterMutation(scope);
+async function revalidateTreasury(companyId: string, scope: ProactiveEvaluationScope) {
+  await reevaluateProactiveAfterMutation({ ...scope, companyId });
   revalidatePath("/tesoreria");
   revalidatePath("/hoy");
   revalidatePath("/inteligencia");

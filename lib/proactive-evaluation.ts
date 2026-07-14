@@ -20,6 +20,7 @@ export type ProactiveEvaluationOptions = {
 };
 
 export type ProactiveEvaluationScope = {
+  companyId?: string;
   entityType?: string;
   entityId?: string | null;
   clientId?: string | null;
@@ -171,6 +172,9 @@ export async function runProactiveEvaluation(options: ProactiveEvaluationOptions
 }
 
 export async function reevaluateProactiveAfterMutation(scope: ProactiveEvaluationScope) {
+  // The proactive engine still has global fingerprints and unscoped persistence.
+  // Core ERP mutations must not invoke it until that subsystem is tenant-safe.
+  if (scope.companyId) return null;
   try {
     const since = new Date(Date.now() - MUTATION_MIN_INTERVAL_MS);
     const recent = await prisma.proactiveEvaluationRun.findFirst({

@@ -4,7 +4,6 @@ import { ArrowLeft, Save, X } from "lucide-react";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
 import { SectionHeader } from "@/components/section-header";
 import { Notice } from "@/components/ui-primitives";
-import { nextDocumentNumber } from "@/lib/numbering";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -105,9 +104,10 @@ export default async function ManualManagementPage({
     prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } })
   ]);
   const company = companySettingsView(companyRecord);
-  const suggestedBudgetNumber = tipo === "presupuesto" && !query.id ? await nextDocumentNumber("budget", auth.companyId) : "";
-  const suggestedInvoiceNumber = tipo === "factura" && !query.id ? await nextDocumentNumber("invoice", auth.companyId) : "";
-  const suggestedWorkNumber = tipo === "obra" && !query.id ? await nextDocumentNumber("work", auth.companyId) : "";
+  // Number reservation happens only inside the create transaction in gestion/actions.ts.
+  const suggestedBudgetNumber = "";
+  const suggestedInvoiceNumber = "";
+  const suggestedWorkNumber = "";
   const record = query.id ? await fetchRecord(tipo, query.id, auth.companyId) : null;
   const duplicateClient =
     tipo === "cliente" && query.duplicateOf
