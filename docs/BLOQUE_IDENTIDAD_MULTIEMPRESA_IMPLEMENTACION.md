@@ -16,7 +16,7 @@ Commits creados, sin push:
 - `757a7a9dba4d926bffc3b86509a8297ab100699d` — `feat: enforce tenant context and transactional document numbering`
 - `4288856912bf746704a5b5ea03e681774b8ff816` — `feat: add guarded identity migration and production recovery tooling`
 - `8b648fdd443134aa740c5c0ca405061f72b42638` — `test: enforce isolated regression and numbering contracts`
-- pendiente — `docs: document identity multitenancy and production recovery` (este commit)
+- `acb9f71307eb2e7c347ac2ce3a1d03a92be94e4e` — `docs: document identity multitenancy and production recovery`
 
 La auditoría de secretos no encontró credenciales reales, URLs productivas ni valores de variables; las credenciales visibles en tests son sintéticas y de loopback. La guardia de tests exige `CAPATAZ_TEST_DATABASE_ISOLATED=true`, PostgreSQL loopback y nombres `capataz_test_*`; autenticación, migraciones de prueba y el runner de 105 tests usan esa protección.
 

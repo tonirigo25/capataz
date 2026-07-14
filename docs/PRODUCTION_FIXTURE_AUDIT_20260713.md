@@ -9,7 +9,7 @@ Se revisaron 54 archivos modificados o nuevos. No se incluyeron `.codex-backup`,
 - `757a7a9dba4d926bffc3b86509a8297ab100699d` — `feat: enforce tenant context and transactional document numbering`
 - `4288856912bf746704a5b5ea03e681774b8ff816` — `feat: add guarded identity migration and production recovery tooling`
 - `8b648fdd443134aa740c5c0ca405061f72b42638` — `test: enforce isolated regression and numbering contracts`
-- pendiente — `docs: document identity multitenancy and production recovery` (este commit)
+- `acb9f71307eb2e7c347ac2ce3a1d03a92be94e4e` — `docs: document identity multitenancy and production recovery`
 
 La guardia de pruebas exige `CAPATAZ_TEST_DATABASE_ISOLATED=true`, host PostgreSQL loopback y base `capataz_test_*`; la regresión completa pasó `105/105` en una base embebida limpia. Prisma format/validate/generate, typecheck, build, `test:database-safety`, `test:multitenancy-core`, `test:numbering-contract` y `git diff --check` pasan. Esta fase no consultó ni modificó Railway, producción ni `_prisma_migrations`.
 
