@@ -22,10 +22,10 @@ npm run db:seed
 `db:deploy` ejecuta:
 
 ```bash
-prisma generate && prisma migrate deploy
+prisma generate && node scripts/deploy-database.mjs
 ```
 
-Railway lo ejecuta automaticamente como pre-deploy command mediante `railway.json`, antes de arrancar la nueva version.
+Railway lo ejecuta automaticamente como pre-deploy command mediante `railway.json`, antes de arrancar la nueva version. Ese pre-deploy es el unico responsable automatico de migraciones en produccion.
 
 ## Variables de entorno
 
@@ -123,7 +123,9 @@ node scripts/start-standalone.mjs
 
 El wrapper define `HOSTNAME=0.0.0.0` en Linux/Railway y `127.0.0.1` en Windows local. Usa `PORT` si Railway lo proporciona. Si no existe `PORT`, usa `8080`.
 
-El wrapper conserva una segunda comprobacion de migraciones al arrancar. La migracion principal se ejecuta en pre-deploy; si falla, Railway no publica la version nueva.
+El wrapper de arranque no ejecuta migraciones, no llama a Prisma CLI y no decide en funcion de `DATABASE_URL`. Su unica responsabilidad es definir host/puerto, comprobar que existe `.next/standalone/server.js` y arrancar el servidor generado. Si `npm run db:deploy` falla en pre-deploy, Railway debe detener el despliegue antes de publicar la nueva version.
+
+No ejecutes `prisma migrate deploy` manualmente al mismo tiempo que Railway despliega, porque `railway.json` ya lo ejecuta en pre-deploy. Ante errores Prisma como `P3009` o `P3018`, detén el despliegue y audita el estado; no borres filas de `_prisma_migrations`, no apliques SQL manual y no uses `migrate resolve` sin una autorizacion explicita y documentada.
 
 ## Assets estáticos en standalone
 

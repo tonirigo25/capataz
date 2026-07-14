@@ -104,6 +104,7 @@
     "test:automation-transactional": "tsx scripts/validate-automation-transaction.mjs",
     "test:automation-chat-contract": "tsx scripts/validate-automation-chat-contract.mjs",
     "test:database-safety": "node scripts/validate-test-database-safety.mjs",
+    "test:deploy-migration-owner": "node scripts/validate-deploy-migration-owner.mjs",
     "test:fixture-cleanup-safety": "node scripts/validate-production-fixture-cleanup-guards.mjs",
     "test:treasury-accounts": "node scripts/validate-treasury-suite.mjs accounts",
     "test:cash-movements": "node scripts/validate-treasury-suite.mjs movements",
