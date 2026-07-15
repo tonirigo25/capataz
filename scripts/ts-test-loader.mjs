@@ -43,6 +43,11 @@ export function loadTsModule(file, options = {}) {
     Object,
     Array,
     JSON,
+    Request,
+    Response,
+    Headers,
+    FormData,
+    URL,
     URLSearchParams
   };
 
