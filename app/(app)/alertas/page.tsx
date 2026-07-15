@@ -26,6 +26,7 @@ import {
   type BusinessSignalSource,
   type BusinessSignalStatus
 } from "@/lib/business-signals";
+import { requireCompanyContext } from "@/lib/auth/session";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +84,8 @@ export default async function AlertsPage({
   const nivel = validLevel(query.nivel);
   const origen = validSource(query.origen);
   const q = query.q?.trim() ?? "";
-  const result = await getBusinessSignals({ status: estado, level: nivel, source: origen, q, limit: 250 });
+  const { companyId } = await requireCompanyContext();
+  const result = await getBusinessSignals({ companyId, status: estado, level: nivel, source: origen, q, limit: 250 });
 
   return (
     <main className="screen">

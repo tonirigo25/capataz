@@ -35,6 +35,7 @@ import {
   type BusinessSignalSource
 } from "@/lib/business-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { requireCompanyContext } from "@/lib/auth/session";
 import { getProactiveAuditEventsForRecommendations } from "@/lib/proactive-evaluation";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +97,8 @@ export default async function RecommendationsPage({
   const nivel = validLevel(query.nivel);
   const origen = validSource(query.origen);
   const q = query.q?.trim() ?? "";
-  const result = await getBusinessRecommendations({ status: estado, level: nivel, source: origen, q, limit: 250 });
+  const { companyId } = await requireCompanyContext();
+  const result = await getBusinessRecommendations({ companyId, status: estado, level: nivel, source: origen, q, limit: 250 });
   const recommendationHistory = await getProactiveAuditEventsForRecommendations(result.recommendations.map((item) => item.fingerprint));
 
   return (

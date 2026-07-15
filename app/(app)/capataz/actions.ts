@@ -1681,7 +1681,8 @@ async function queryBusinessReviewToday(intent: ChatIntentClassification): Promi
 type BusinessSignalsChatMode = "review_today" | "urgent" | "problems" | "risks" | "clients" | "works" | "invoices" | "explain_top" | "critical_count";
 
 async function queryBusinessSignals(intent: ChatIntentClassification, mode: BusinessSignalsChatMode): Promise<ChatCommandResult> {
-  const result = await getBusinessSignals({ status: "active", limit: 120 });
+  const { companyId } = await requireCompanyContext();
+  const result = await getBusinessSignals({ companyId, status: "active", limit: 120 });
   const filtered = filterSignalsForChat(result.signals, mode).slice(0, 7);
   const title = signalChatTitle(mode);
   if (mode === "critical_count") {
@@ -1791,7 +1792,8 @@ async function queryBusinessRecommendations(intent: ChatIntentClassification, mo
   }
 
   const params = await recommendationParamsForChat(intent, mode, context);
-  const result = await getBusinessRecommendations({ ...params, status: "active", limit: mode === "first" ? 5 : 12 });
+  const { companyId } = await requireCompanyContext();
+  const result = await getBusinessRecommendations({ ...params, companyId, status: "active", limit: mode === "first" ? 5 : 12 });
   const filtered = filterRecommendationsForChat(result.recommendations, mode).slice(0, mode === "first" ? 1 : 6);
   if (!filtered.length) {
     return {
@@ -1847,7 +1849,8 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
   const todayEnd = addDays(todayStart, 1);
 
   if (mode === "reviewed_at") {
-    const data = await getProactiveControlData(now);
+    const { companyId } = await requireCompanyContext();
+    const data = await getProactiveControlData(now, companyId);
     const latest = data.latestRun;
     return {
       handled: true,
@@ -1866,7 +1869,8 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
   }
 
   if (mode === "noisy_rules") {
-    const data = await getProactiveControlData(now);
+    const { companyId } = await requireCompanyContext();
+    const data = await getProactiveControlData(now, companyId);
     const lines = data.noisyRules.slice(0, 6).map((rule, index) => `${index + 1}. ${rule.ruleId}: ${rule.warning} (${rule.dismissed}/${rule.total} descartadas).`);
     return {
       handled: true,
@@ -1910,7 +1914,8 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
     : mode === "reactivated"
       ? { status: "all" as const, limit: 80 }
       : { status: "all" as const, limit: 80 };
-  const result = await getBusinessRecommendations(params);
+  const { companyId } = await requireCompanyContext();
+  const result = await getBusinessRecommendations({ ...params, companyId });
   let items = result.recommendations;
   if (mode === "reactivated") items = items.filter((item) => item.reactivatedAt).slice(0, 8);
   if (mode === "resolved_week") {
@@ -2090,7 +2095,8 @@ function filterRecommendationsForChat(recommendations: BusinessRecommendation[],
 
 async function findCurrentRecommendation(context: ChatCommandContext | null) {
   const fingerprint = context?.lastRecommendation?.fingerprint;
-  const result = await getBusinessRecommendations({ status: "active", limit: 80 });
+  const { companyId } = await requireCompanyContext();
+  const result = await getBusinessRecommendations({ companyId, status: "active", limit: 80 });
   if (fingerprint) {
     const current = result.recommendations.find((recommendation) => recommendation.fingerprint === fingerprint);
     if (current) return current;

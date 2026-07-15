@@ -80,7 +80,7 @@ export default async function TreasuryPage({
     prisma.work.findMany({ where: { companyId, archivada: false }, select: { id: true, titulo: true, client: { select: { nombre: true } } }, orderBy: { titulo: "asc" } }),
     prisma.invoice.findMany({ where: { companyId, pendiente: { gt: 0 } }, select: { id: true, numero: true, client: { select: { nombre: true } } }, orderBy: { fechaVencimiento: "asc" } }),
     prisma.expense.findMany({ where: { companyId }, select: { id: true, concepto: true, proveedor: true }, orderBy: { fecha: "desc" }, take: 80 }),
-    getTreasuryRecommendations(5)
+    getTreasuryRecommendations(5, companyId)
   ]);
 
   const queryString = exportQueryString(query, overview.scenario);

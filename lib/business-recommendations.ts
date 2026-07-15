@@ -29,6 +29,7 @@ export type BusinessRecommendationStatus = PrismaBusinessRecommendationStatus;
 
 export type BusinessRecommendation = {
   id: string;
+  companyId: string | null;
   fingerprint: string;
   signalFingerprint: string | null;
   type: string;
@@ -145,6 +146,7 @@ export type BusinessRecommendationSummary = {
 };
 
 export type BusinessRecommendationsParams = {
+  companyId?: string;
   status?: BusinessRecommendationStatus | "all" | "history";
   level?: BusinessSignalLevel | "all";
   source?: BusinessSignalSource | "all";
@@ -164,7 +166,7 @@ export type BusinessRecommendationsResult = {
   groups: BusinessRecommendationGroup[];
   summary: BusinessRecommendationSummary;
   generatedAt: Date;
-  filters: Required<Omit<BusinessRecommendationsParams, "now" | "sync" | "respectCooldown" | "clientId" | "workId" | "invoiceId" | "budgetId">> & {
+  filters: Required<Omit<BusinessRecommendationsParams, "companyId" | "now" | "sync" | "respectCooldown" | "clientId" | "workId" | "invoiceId" | "budgetId">> & {
     clientId: string;
     workId: string;
     invoiceId: string;
@@ -175,13 +177,16 @@ export type BusinessRecommendationsResult = {
 
 type RecommendationDraft = Omit<
   BusinessRecommendation,
-  "id" | "status" | "statusLabel" | "shownAt" | "viewedAt" | "reviewedAt" | "reactivatedAt" | "lastEvaluatedAt" | "cooldownUntil" | "changeHash" | "dismissedAt" | "dismissedReason" | "snoozedUntil" | "acceptedAt" | "actionStartedAt" | "completedAt" | "outcome" | "utilityScore" | "createdAt" | "updatedAt"
+  | "companyId"
+  | "id" | "status" | "statusLabel" | "shownAt" | "viewedAt" | "reviewedAt" | "reactivatedAt" | "lastEvaluatedAt" | "cooldownUntil" | "changeHash" | "dismissedAt" | "dismissedReason" | "snoozedUntil" | "acceptedAt" | "actionStartedAt" | "completedAt" | "outcome" | "utilityScore" | "createdAt" | "updatedAt"
 > & {
   status: BusinessRecommendationStatus;
+  companyId: string | null;
 };
 
 type RecommendationState = {
   id: string;
+  companyId: string | null;
   fingerprint: string;
   signalFingerprint: string | null;
   type: string;
@@ -238,33 +243,35 @@ const HISTORICAL_STATUSES: BusinessRecommendationStatus[] = ["completed", "dismi
 
 export async function getBusinessRecommendations(params: BusinessRecommendationsParams = {}): Promise<BusinessRecommendationsResult> {
   const now = params.now ?? new Date();
-  const signalResult = await getBusinessSignals({ status: "active", limit: 300, now });
-  const drafts = buildRecommendationDraftsFromSignals(signalResult.signals, now);
+  const signalResult = await getBusinessSignals({ companyId: params.companyId, status: "active", limit: 300, now });
+  const drafts = scopeRecommendationDrafts(buildRecommendationDraftsFromSignals(signalResult.signals, now), params.companyId);
   const shouldSync = params.sync !== false;
   const { states, persistenceAvailable } = shouldSync
-    ? await loadOrSyncRecommendationStates(drafts, now)
+    ? await loadOrSyncRecommendationStates(drafts, now, params.companyId)
     : { states: new Map<string, RecommendationState>(), persistenceAvailable: false };
   const recommendations = states.size ? mergeRecommendationStates(drafts, states) : drafts.map(recommendationWithActiveState);
   return filterAndGroupRecommendations(recommendations, params, now, persistenceAvailable);
 }
 
-export async function getTodayRecommendationBrief(limit = 4) {
+export async function getTodayRecommendationBrief(limit = 4, companyId?: string) {
   const preferences = await loadRecommendationPreferences();
   const maxToday = preferences.find((preference) => preference.scopeType === "today" && preference.maxToday)?.maxToday ?? limit;
-  const result = await getBusinessRecommendations({ status: "active", limit: Math.min(limit, maxToday), respectCooldown: true });
+  const result = await getBusinessRecommendations({ companyId, status: "active", limit: Math.min(limit, maxToday), respectCooldown: true });
   return { recommendations: result.recommendations.slice(0, Math.min(limit, maxToday)), summary: result.summary };
 }
 
 export async function getRecommendationsForClient(clientId: string, limit = 3) {
-  return getBusinessRecommendations({ status: "active", clientId, limit });
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { companyId: true } });
+  return getBusinessRecommendations({ companyId: client?.companyId ?? undefined, status: "active", clientId, limit });
 }
 
 export async function getRecommendationsForWork(workId: string, limit = 3) {
-  return getBusinessRecommendations({ status: "active", workId, limit });
+  const work = await prisma.work.findUnique({ where: { id: workId }, select: { companyId: true } });
+  return getBusinessRecommendations({ companyId: work?.companyId ?? undefined, status: "active", workId, limit });
 }
 
-export async function getTreasuryRecommendations(limit = 5) {
-  return getBusinessRecommendations({ status: "active", source: "tesoreria", limit });
+export async function getTreasuryRecommendations(limit = 5, companyId?: string) {
+  return getBusinessRecommendations({ companyId, status: "active", source: "tesoreria", limit });
 }
 
 export async function markRecommendationViewed(fingerprint: string) {
@@ -605,6 +612,18 @@ function buildRecommendationDraftsFromSignals(signals: BusinessSignal[], now: Da
   return dedupeRecommendationDrafts(drafts);
 }
 
+function scopeRecommendationDrafts(drafts: RecommendationDraft[], companyId?: string): RecommendationDraft[] {
+  if (!companyId) return drafts.map((draft) => ({ ...draft, companyId: draft.companyId ?? null }));
+  return drafts.map((draft) => ({
+    ...draft,
+    companyId,
+    fingerprint: draft.fingerprint.startsWith(`${companyId}:`) ? draft.fingerprint : `${companyId}:${draft.fingerprint}`,
+    signalFingerprint: draft.signalFingerprint && !draft.signalFingerprint.startsWith(`${companyId}:`)
+      ? `${companyId}:${draft.signalFingerprint}`
+      : draft.signalFingerprint
+  }));
+}
+
 function recommendationFromSignal(signal: BusinessSignal, now: Date): RecommendationDraft | null {
   const ids = idsFromSignal(signal);
   const spec = recommendationSpec(signal, ids);
@@ -630,6 +649,7 @@ function recommendationFromSignal(signal: BusinessSignal, now: Date): Recommenda
   const alternativeActions = actions.filter((action) => action.id !== preferredAction?.id).slice(0, 5);
   const priority = recommendationPriority(signal, preferredAction?.requiresConfirmation ?? false);
   return {
+    companyId: signal.companyId,
     fingerprint: spec.fingerprint,
     signalFingerprint: signal.fingerprint,
     type: spec.type,
@@ -815,9 +835,9 @@ function recommendationSpec(signal: BusinessSignal, ids: ReturnType<typeof idsFr
   };
 }
 
-async function loadOrSyncRecommendationStates(drafts: RecommendationDraft[], now: Date) {
+async function loadOrSyncRecommendationStates(drafts: RecommendationDraft[], now: Date, companyId?: string) {
   try {
-    const states = await syncRecommendationStates(drafts, now);
+    const states = await syncRecommendationStates(drafts, now, companyId);
     return { states, persistenceAvailable: true };
   } catch (error) {
     if (isRecommendationTableMissing(error)) return { states: new Map<string, RecommendationState>(), persistenceAvailable: false };
@@ -825,12 +845,13 @@ async function loadOrSyncRecommendationStates(drafts: RecommendationDraft[], now
   }
 }
 
-async function syncRecommendationStates(drafts: RecommendationDraft[], now: Date) {
+async function syncRecommendationStates(drafts: RecommendationDraft[], now: Date, companyId?: string) {
   const fingerprints = drafts.map((draft) => draft.fingerprint);
+  const companyFilter = companyId ? { companyId } : {};
   const existing = await prisma.businessRecommendation.findMany({
     where: fingerprints.length
-      ? { OR: [{ fingerprint: { in: fingerprints } }, { status: { in: [...ACTIVE_STATUSES, "snoozed"] } }] }
-      : { status: { in: [...ACTIVE_STATUSES, "snoozed"] } }
+      ? { ...companyFilter, OR: [{ fingerprint: { in: fingerprints } }, { status: { in: [...ACTIVE_STATUSES, "snoozed"] } }] }
+      : { ...companyFilter, status: { in: [...ACTIVE_STATUSES, "snoozed"] } }
   });
   const existingMap = new Map(existing.map((state) => [state.fingerprint, state as RecommendationState]));
   const current = new Set(fingerprints);
@@ -917,6 +938,7 @@ async function syncRecommendationStates(drafts: RecommendationDraft[], now: Date
 
 function recommendationCreateInput(draft: RecommendationDraft, status: BusinessRecommendationStatus, changeHash: string): Prisma.BusinessRecommendationCreateInput {
   return {
+    company: draft.companyId ? { connect: { id: draft.companyId } } : undefined,
     fingerprint: draft.fingerprint,
     signalFingerprint: draft.signalFingerprint,
     type: draft.type,
@@ -956,6 +978,7 @@ function recommendationCreateInput(draft: RecommendationDraft, status: BusinessR
 function recommendationUpdateInput(draft: RecommendationDraft, status: BusinessRecommendationStatus, previous: RecommendationState | undefined, now: Date, changeHash: string): Prisma.BusinessRecommendationUpdateInput {
   const materiallyChanged = Boolean(previous?.changeHash && previous.changeHash !== changeHash);
   return {
+    company: draft.companyId ? { connect: { id: draft.companyId } } : undefined,
     signalFingerprint: draft.signalFingerprint,
     type: draft.type,
     title: draft.title,
@@ -1124,6 +1147,7 @@ function recommendationFromState(state: RecommendationState): BusinessRecommenda
     : suggestedActions[0] ?? null;
   return {
     id: state.id,
+    companyId: state.companyId,
     fingerprint: state.fingerprint,
     signalFingerprint: state.signalFingerprint,
     type: state.type,

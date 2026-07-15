@@ -78,6 +78,24 @@ export async function runProactiveEvaluation(options: ProactiveEvaluationOptions
   const startedAt = options.now ?? new Date();
   const type = options.type ?? "full";
   const triggeredBy = options.triggeredBy ?? "manual";
+  if (!options.scope?.companyId) {
+    const companies = await prisma.company.findMany({ where: { status: "active" }, select: { id: true }, orderBy: { createdAt: "asc" } });
+    if (companies.length) {
+      const results = [];
+      for (const company of companies) {
+        results.push(await runProactiveEvaluation({ ...options, scope: { ...options.scope, companyId: company.id } }));
+      }
+      const summary = results.reduce((acc, result) => mergeSummaries(acc, result.summary), emptySummary());
+      return {
+        ok: results.every((result) => result.ok),
+        locked: results.some((result) => result.locked),
+        runId: results.map((result) => result.runId).filter(Boolean).join(",") || null,
+        status: results.some((result) => result.status === "failed" || result.status === "partial") ? "partial" : "completed",
+        message: `Reevaluación proactiva completada para ${results.length} empresa(s).`,
+        summary
+      };
+    }
+  }
   const staleBefore = new Date(startedAt.getTime() - LOCK_TIMEOUT_MS);
 
   await recoverStaleLocks(staleBefore, startedAt);
@@ -100,11 +118,11 @@ export async function runProactiveEvaluation(options: ProactiveEvaluationOptions
   }
 
   try {
-    const before = await snapshotProactiveState();
-    const signals = await getBusinessSignals({ status: "all", limit: 600, now: startedAt });
-    const recommendations = await getBusinessRecommendations({ status: "all", limit: 600, now: startedAt });
+    const before = await snapshotProactiveState(options.scope?.companyId);
+    const signals = await getBusinessSignals({ companyId: options.scope?.companyId, status: "all", limit: 600, now: startedAt });
+    const recommendations = await getBusinessRecommendations({ companyId: options.scope?.companyId, status: "all", limit: 600, now: startedAt });
     await recordRuleExecutions(run.id, signals.signals, recommendations.recommendations, startedAt);
-    const after = await snapshotProactiveState();
+    const after = await snapshotProactiveState(options.scope?.companyId);
     const summary = diffSnapshots(before, after, Date.now() - startedAt.getTime());
 
     await prisma.proactiveEvaluationRun.update({
@@ -211,14 +229,17 @@ export async function reevaluateProactiveAfterMutation(scope: ProactiveEvaluatio
   }
 }
 
-export async function getProactiveControlData(now = new Date()) {
+export async function getProactiveControlData(now = new Date(), companyId?: string) {
   try {
+    const companyWhere = companyId ? { companyId } : {};
     const [runs, signals, recommendations, auditEvents, actionLogs, settings] = await Promise.all([
       prisma.proactiveEvaluationRun.findMany({ orderBy: { startedAt: "desc" }, take: 12 }),
       prisma.businessSignalState.findMany({
+        where: companyWhere,
         select: { type: true, status: true, level: true, ruleId: true, lastPriority: true, createdAt: true, updatedAt: true, resolvedAt: true, reactivatedAt: true }
       }),
       prisma.businessRecommendation.findMany({
+        where: companyWhere,
         select: { type: true, status: true, level: true, ruleId: true, priority: true, recommendedAt: true, updatedAt: true, completedAt: true, dismissedAt: true, reactivatedAt: true, acceptedAt: true, actionStartedAt: true }
       }),
       prisma.proactiveAuditEvent.findMany({ orderBy: { createdAt: "desc" }, take: 25 }),
@@ -235,8 +256,8 @@ export async function getProactiveControlData(now = new Date()) {
       auditEvents,
       metrics,
       noisyRules: detectNoisyRules(recommendations),
-      dailySummary: await getProactiveDailySummary(now),
-      weeklySummary: await getProactiveWeeklySummary(now)
+      dailySummary: await getProactiveDailySummary(now, companyId),
+      weeklySummary: await getProactiveWeeklySummary(now, companyId)
     };
   } catch (error) {
     if (isProactiveTableMissing(error)) {
@@ -256,8 +277,8 @@ export async function getProactiveControlData(now = new Date()) {
   }
 }
 
-export async function getProactiveDailySummary(now = new Date()) {
-  const result = await getBusinessRecommendations({ status: "active", limit: 30, now, respectCooldown: true });
+export async function getProactiveDailySummary(now = new Date(), companyId?: string) {
+  const result = await getBusinessRecommendations({ companyId, status: "active", limit: 30, now, respectCooldown: true });
   const counts = countBy(result.recommendations, (item) => item.type);
   const lines = [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -269,13 +290,14 @@ export async function getProactiveDailySummary(now = new Date()) {
   };
 }
 
-export async function getProactiveWeeklySummary(now = new Date()) {
+export async function getProactiveWeeklySummary(now = new Date(), companyId?: string) {
   const weekStart = startOfWeek(now);
+  const companyWhere = companyId ? { companyId } : {};
   const [newSignals, completedRecommendations, resolvedSignals, openCritical] = await Promise.all([
-    prisma.businessSignalState.count({ where: { firstDetectedAt: { gte: weekStart } } }),
-    prisma.businessRecommendation.count({ where: { completedAt: { gte: weekStart } } }),
-    prisma.businessSignalState.count({ where: { resolvedAt: { gte: weekStart } } }),
-    prisma.businessSignalState.count({ where: { status: "active", level: "critico" } })
+    prisma.businessSignalState.count({ where: { ...companyWhere, firstDetectedAt: { gte: weekStart } } }),
+    prisma.businessRecommendation.count({ where: { ...companyWhere, completedAt: { gte: weekStart } } }),
+    prisma.businessSignalState.count({ where: { ...companyWhere, resolvedAt: { gte: weekStart } } }),
+    prisma.businessSignalState.count({ where: { ...companyWhere, status: "active", level: "critico" } })
   ]);
   const lines = [
     `${newSignals} señales nuevas`,
@@ -374,10 +396,11 @@ async function createEvaluationRun({
   }
 }
 
-async function snapshotProactiveState() {
+async function snapshotProactiveState(companyId?: string) {
+  const companyWhere = companyId ? { companyId } : {};
   const [signals, recommendations] = await Promise.all([
-    prisma.businessSignalState.findMany({ select: { fingerprint: true, status: true, lastPriority: true, changeHash: true, ruleId: true, type: true } }),
-    prisma.businessRecommendation.findMany({ select: { fingerprint: true, status: true, priority: true, changeHash: true, ruleId: true, type: true } })
+    prisma.businessSignalState.findMany({ where: companyWhere, select: { fingerprint: true, status: true, lastPriority: true, changeHash: true, ruleId: true, type: true } }),
+    prisma.businessRecommendation.findMany({ where: companyWhere, select: { fingerprint: true, status: true, priority: true, changeHash: true, ruleId: true, type: true } })
   ]);
   return {
     signals: new Map(signals.map((item) => [item.fingerprint, item as SnapshotSignal])),
@@ -576,6 +599,25 @@ function emptySummary(): ProactiveRunSummary {
     reactivatedRecommendations: 0,
     durationMs: 0,
     errors: 0
+  };
+}
+
+function mergeSummaries(left: ProactiveRunSummary, right: ProactiveRunSummary): ProactiveRunSummary {
+  return {
+    processedSignals: left.processedSignals + right.processedSignals,
+    createdSignals: left.createdSignals + right.createdSignals,
+    updatedSignals: left.updatedSignals + right.updatedSignals,
+    resolvedSignals: left.resolvedSignals + right.resolvedSignals,
+    reactivatedSignals: left.reactivatedSignals + right.reactivatedSignals,
+    expiredSignals: left.expiredSignals + right.expiredSignals,
+    processedRecommendations: left.processedRecommendations + right.processedRecommendations,
+    createdRecommendations: left.createdRecommendations + right.createdRecommendations,
+    updatedRecommendations: left.updatedRecommendations + right.updatedRecommendations,
+    resolvedRecommendations: left.resolvedRecommendations + right.resolvedRecommendations,
+    obsoleteRecommendations: left.obsoleteRecommendations + right.obsoleteRecommendations,
+    reactivatedRecommendations: left.reactivatedRecommendations + right.reactivatedRecommendations,
+    durationMs: left.durationMs + right.durationMs,
+    errors: left.errors + right.errors
   };
 }
 
