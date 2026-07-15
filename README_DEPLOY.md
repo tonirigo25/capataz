@@ -2,6 +2,22 @@
 
 Esta guía prepara Capataz para desplegarse en Railway sin depender del ordenador local.
 
+## Estado productivo verificado — 15 de julio de 2026
+
+Producción está operativa sobre Railway:
+
+- proyecto: `merry-quietude`;
+- entorno: `production`;
+- servicio web: `capataz`;
+- servicio cron: `capataz-proactive-evaluator`;
+- PostgreSQL: `Postgres`;
+- dominio público: `https://capataz-production.up.railway.app`;
+- commit desplegado: `ffb4e0e0c2cd47466830c27fbe75b57bf92827ac`;
+- deployment web final: `bcf5f3ab-5b56-4a43-9701-fd3b9c2b0284`;
+- healthcheck: `/api/status` devuelve HTTP 200.
+
+`APP_BASE_URL` está configurada con el dominio productivo. `EMAIL_FROM` y `RESEND_API_KEY` siguen pendientes; sin ellas, el envío real de verificación y recuperación de contraseña queda limitado aunque el resto de la aplicación esté operativo. El cron actual usa `PROACTIVE_CRON_SECRET`; no depende de `CRON_SECRET`.
+
 ## Stack de producción
 
 - Next.js con build standalone.

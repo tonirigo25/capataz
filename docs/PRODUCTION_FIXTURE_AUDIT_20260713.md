@@ -1,6 +1,25 @@
 # Auditoría de fixtures en producción — 13 de julio de 2026
 
-Estado actual (14 de julio de 2026): **deploy productivo cerrado; corrección local de numeración validada; LISTO PARA AUTORIZAR PUSH DE LA RAMA**.
+Estado actual (15 de julio de 2026): **producción operativa; cero residuos QA; cero `companyId=NULL` operacional; LISTO PARA CONTINUAR MEJORAS**.
+
+## Cierre definitivo de recuperación — 15 de julio de 2026
+
+La recuperación productiva queda cerrada tras el PR #7:
+
+- rama: `codex/final-production-recovery`;
+- commit funcional: `ae325140fcfaa9c1429749d89e99c851c3e2eb57`;
+- PR: #7;
+- merge commit desplegado: `ffb4e0e0c2cd47466830c27fbe75b57bf92827ac`;
+- deployment web final: `bcf5f3ab-5b56-4a43-9701-fd3b9c2b0284`;
+- deployment cron: `60a877c3-7da7-43fd-881c-8e6be9de98d2`.
+
+Corrección adicional aplicada: `BusinessSignalState` y `BusinessRecommendation` se scopean por `companyId`; las ejecuciones proactivas globales iteran empresas activas y las páginas privadas obtienen empresa desde sesión. Antes del fix existían 8 filas proactivas legacy con `companyId=NULL`; se respaldaron y backfillearon de forma acotada a la Company legacy única vinculada a `empresa-demo`. Segunda pasada: no-op. Tras el cierre: cero nulos operacionales.
+
+La QA productiva final creó datos delimitados con fingerprint `qa-final-mrmfut98-203fa0`: 2 usuarios, 2 compañías, 2 memberships, 2 sesiones, 2 clientes, 2 obras, 2 presupuestos, 2 facturas, 2 gastos, 2 recordatorios y 2 eventos. Se validaron rutas privadas, CSV autenticado, PDFs propios/cruzados, aislamiento A/B, numeración separada y neutralización CSV injection. Antes de borrar se guardó respaldo lógico fuera de Git con SHA-256 `c42018330e59e58bcfc17937f37b17f7d5158e0657b5c15013c9d32bfa0937dc`.
+
+Limpieza QA: 22 filas eliminadas exactamente en orden hijo → padre; segunda ejecución eliminó 0 filas; búsquedas posteriores por `qa-final-*` devolvieron 0 compañías, 0 usuarios y 0 entidades QA. No se tocaron datos reales.
+
+Estado Prisma: 18 migraciones locales, base actualizada, cero pendientes, cero fallidas activas. Se conserva sin manipular la migración histórica revertida/reaplicada. No se borró ni editó `_prisma_migrations`.
 
 ## Cierre local y commits — 14 de julio de 2026
 
