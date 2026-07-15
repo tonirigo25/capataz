@@ -538,8 +538,12 @@ function toCsv(headers: string[], rows: Array<Array<string | number | null>>) {
 }
 
 function csvCell(value: string | number | null) {
-  const text = String(value ?? "");
+  const text = neutralizeCsvFormula(String(value ?? ""));
   return `"${text.replaceAll('"', '""')}"`;
+}
+
+function neutralizeCsvFormula(value: string) {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
 
 function metadataHasAmount(value: unknown) {

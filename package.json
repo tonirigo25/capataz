@@ -44,6 +44,8 @@
     "test:business-metrics": "node scripts/validate-business-metrics.mjs",
     "test:business-health": "node scripts/validate-business-health.mjs",
     "test:business-intelligence": "node scripts/validate-business-intelligence.mjs",
+    "test:intelligence-csv-export": "node scripts/validate-intelligence-csv-export.mjs",
+    "validate:intelligence-csv-standalone": "node scripts/validate-intelligence-csv-standalone.mjs",
     "test:business-chat": "node scripts/validate-business-chat.mjs",
     "test:business-signals": "node scripts/validate-business-signals.mjs",
     "test:risk-engine": "node scripts/validate-business-signals.mjs engine",
