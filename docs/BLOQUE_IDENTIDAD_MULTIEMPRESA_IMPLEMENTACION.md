@@ -1,6 +1,32 @@
 # Identidad, autenticación y multiempresa — estado de implementación
 
-Fecha de revisión: 14 de julio de 2026
+Fecha de revisión: 15 de julio de 2026
+
+## Cierre operativo productivo — 15 de julio de 2026
+
+Decisión vigente: **CAPATAZ OPERATIVO — LISTO PARA CONTINUAR MEJORAS**.
+
+El cierre final quedó integrado en `main` mediante el PR #7 y desplegado en Railway sobre el merge commit `ffb4e0e0c2cd47466830c27fbe75b57bf92827ac`. El commit funcional incluido fue `ae325140fcfaa9c1429749d89e99c851c3e2eb57` (`fix: scope proactive intelligence by company`).
+
+La corrección final elimina el último residuo funcional detectado en producción: señales y recomendaciones proactivas sin `companyId`. `BusinessSignalState` y `BusinessRecommendation` quedan evaluadas y persistidas por empresa; los fingerprints incorporan scope empresarial y las páginas/acciones privadas pasan siempre el `companyId` obtenido desde `requireCompanyContext()`.
+
+Validaciones de cierre:
+
+- Railway proyecto `merry-quietude`, entorno `production`, servicio web `capataz`, cron `capataz-proactive-evaluator` y PostgreSQL `Postgres`.
+- Deployment web final `bcf5f3ab-5b56-4a43-9701-fd3b9c2b0284`, `SUCCESS`, commit `ffb4e0e0c2cd47466830c27fbe75b57bf92827ac`.
+- Deployment cron `60a877c3-7da7-43fd-881c-8e6be9de98d2`, `SUCCESS`, mismo commit.
+- `prisma migrate status`: 18 migraciones locales; esquema de base de datos actualizado; cero migraciones pendientes y cero fallidas activas.
+- `_prisma_migrations`: se conserva la fila histórica revertida de `20260712210000_company_numbering_and_settings`; no se manipuló manualmente.
+- Company legacy única vinculada a `empresa-demo`; cero `companyId=NULL` en entidades operacionales revisadas.
+- Cero duplicados de numeración por empresa en presupuestos y facturas.
+- Healthcheck `/api/status`: HTTP 200 con app y base de datos correctas.
+- Regresión local aislada: runner completo `107/107`, sin timeouts, con PostgreSQL embebido loopback y `CAPATAZ_TEST_DATABASE_ISOLATED=true`.
+- QA productiva autenticada con fingerprint `qa-final-mrmfut98-203fa0`: CSV, PDFs, rutas privadas, aislamiento A/B, numeración separada y neutralización CSV injection correctos.
+- Limpieza QA exacta: 22 filas creadas, 22 eliminadas, segunda pasada no-op, cero residuos. Respaldo QA SHA-256 `c42018330e59e58bcfc17937f37b17f7d5158e0657b5c15013c9d32bfa0937dc`.
+
+Variables productivas por nombre: presentes `DATABASE_URL`, `APP_BASE_URL`, `NEXT_PUBLIC_WEB_BASE_URL` y `PROACTIVE_CRON_SECRET`; ausentes `EMAIL_FROM`, `RESEND_API_KEY` y `CRON_SECRET`. El correo real de verificación y recuperación queda limitado hasta configurar proveedor y remitente. `CRON_SECRET` no bloquea el cron actual porque el código vigente usa `PROACTIVE_CRON_SECRET`.
+
+Las dos vulnerabilidades moderadas conocidas de `next`/`postcss` siguen documentadas; no hay vulnerabilidades altas ni críticas y no se ejecutó `npm audit fix`.
 
 Rama de trabajo: `codex/identity-auth-multitenancy`
 
