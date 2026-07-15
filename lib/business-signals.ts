@@ -46,6 +46,7 @@ export type BusinessSignalEntity = {
 
 export type BusinessSignal = {
   id: string;
+  companyId: string | null;
   fingerprint: string;
   type: string;
   tipo: string;
@@ -117,6 +118,7 @@ export type BusinessSignalsSummary = {
 };
 
 export type BusinessSignalsParams = {
+  companyId?: string;
   status?: BusinessSignalStatus | "all" | "history";
   level?: BusinessSignalLevel | "all";
   source?: BusinessSignalSource | "all";
@@ -132,7 +134,7 @@ export type BusinessSignalsResult = {
   groups: BusinessSignalGroup[];
   summary: BusinessSignalsSummary;
   generatedAt: Date;
-  filters: Required<Omit<BusinessSignalsParams, "now" | "limit">> & { limit: number };
+  filters: Required<Omit<BusinessSignalsParams, "companyId" | "now" | "limit">> & { limit: number };
   definitions: typeof BUSINESS_SIGNAL_RULES;
 };
 
@@ -140,6 +142,7 @@ export type SignalSnoozePreset = "tomorrow" | "week" | "month";
 
 type BusinessSignalDraft = Omit<
   BusinessSignal,
+  | "companyId"
   | "id"
   | "status"
   | "statusLabel"
@@ -156,10 +159,11 @@ type BusinessSignalDraft = Omit<
   | "lastEvaluatedAt"
   | "cooldownUntil"
   | "changeHash"
->;
+> & { companyId?: string | null };
 
 type SignalState = {
   id: string;
+  companyId: string | null;
   fingerprint: string;
   type: string;
   level: BusinessSignalLevel;
@@ -419,9 +423,9 @@ const FINAL_WORK_STATUSES = ["finalizada", "facturada", "cobrada", "cerrada", "a
 
 export async function getBusinessSignals(params: BusinessSignalsParams = {}): Promise<BusinessSignalsResult> {
   const now = params.now ?? new Date();
-  const input = await loadBusinessSignalInput(now);
-  const drafts = buildBusinessSignalsFromData(input, now);
-  const states = await loadOrSyncSignalStates(drafts, params.sync !== false, now);
+  const input = await loadBusinessSignalInput(now, params.companyId);
+  const drafts = scopeBusinessSignalDrafts(buildBusinessSignalsFromData(input, now), params.companyId);
+  const states = await loadOrSyncSignalStates(drafts, params.sync !== false, now, params.companyId);
   const signals = mergeSignalStates(drafts, states);
   return filterAndGroupSignals(signals, params, now);
 }
@@ -450,6 +454,15 @@ export function buildBusinessSignalsFromData(input: BusinessSignalsInput, now: D
   ];
 
   return dedupeDrafts(drafts.map((signal) => applySignalPreferences(signal, input.preferences ?? [])));
+}
+
+function scopeBusinessSignalDrafts(drafts: BusinessSignalDraft[], companyId?: string): BusinessSignalDraft[] {
+  if (!companyId) return drafts.map((draft) => ({ ...draft, companyId: null }));
+  return drafts.map((draft) => ({
+    ...draft,
+    companyId,
+    fingerprint: `${companyId}:${draft.fingerprint}`
+  }));
 }
 
 export async function dismissBusinessSignal(fingerprint: string, reason: string, dismissedBy = "usuario") {
@@ -649,7 +662,8 @@ export function signalLevelRank(level: BusinessSignalLevel) {
   return { info: 1, atencion: 2, importante: 3, critico: 4 }[level];
 }
 
-async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput> {
+async function loadBusinessSignalInput(now: Date, companyId?: string): Promise<BusinessSignalsInput> {
+  const companyWhere = companyId ? { companyId } : {};
   const [
     invoices,
     clients,
@@ -663,7 +677,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
     treasury
   ] = await Promise.all([
     prisma.invoice.findMany({
-      where: { estado: { notIn: ["borrador", "pendiente_emitir"] } },
+      where: { ...companyWhere, estado: { notIn: ["borrador", "pendiente_emitir"] } },
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true } },
@@ -673,7 +687,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 300
     }),
     prisma.client.findMany({
-      where: { archivadoAt: null },
+      where: { ...companyWhere, archivadoAt: null },
       include: {
         invoices: {
           where: { estado: { notIn: ["borrador", "pendiente_emitir"] } },
@@ -688,7 +702,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 250
     }),
     prisma.budget.findMany({
-      where: { estado: { in: ["borrador", "pendiente_revision", "enviado", "visto", "pendiente_respuesta"] } },
+      where: { ...companyWhere, estado: { in: ["borrador", "pendiente_revision", "enviado", "visto", "pendiente_respuesta"] } },
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true } }
@@ -697,7 +711,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 250
     }),
     prisma.work.findMany({
-      where: { archivada: false },
+      where: { ...companyWhere, archivada: false },
       include: {
         client: { select: { id: true, nombre: true } },
         invoices: { include: { client: { select: { id: true, nombre: true } }, payments: { select: { id: true, importe: true, fecha: true } } } },
@@ -713,7 +727,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 250
     }),
     prisma.reminder.findMany({
-      where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado", "fallido"] } },
+      where: { ...companyWhere, estado: { in: ["borrador", "pendiente_confirmacion", "programado", "fallido"] } },
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true } },
@@ -724,7 +738,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 250
     }),
     prisma.eventoAgenda.findMany({
-      where: { estado: { notIn: ["realizado", "cancelado"] } },
+      where: { ...companyWhere, estado: { notIn: ["realizado", "cancelado"] } },
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true } },
@@ -735,7 +749,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 250
     }),
     prisma.document.findMany({
-      where: { archivedAt: null },
+      where: { ...companyWhere, archivedAt: null },
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true } },
@@ -746,6 +760,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       take: 250
     }),
     prisma.expense.findMany({
+      where: companyWhere,
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true } }
@@ -757,7 +772,7 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
       if (isBusinessSignalTableMissing(error)) return [];
       throw error;
     }),
-    getTreasuryOverview({ horizon: "30d", scenario: "base", now }).catch(() => null)
+    getTreasuryOverview({ companyId, horizon: "30d", scenario: "base", now }).catch(() => null)
   ]);
 
   return {
@@ -775,10 +790,10 @@ async function loadBusinessSignalInput(now: Date): Promise<BusinessSignalsInput>
   };
 }
 
-async function loadOrSyncSignalStates(drafts: BusinessSignalDraft[], shouldSync: boolean, now: Date) {
+async function loadOrSyncSignalStates(drafts: BusinessSignalDraft[], shouldSync: boolean, now: Date, companyId?: string) {
   try {
     return shouldSync
-      ? await syncBusinessSignalStates(drafts, now)
+      ? await syncBusinessSignalStates(drafts, now, companyId)
       : await loadSignalStates(drafts.map((signal) => signal.fingerprint));
   } catch (error) {
     if (isBusinessSignalTableMissing(error)) return new Map<string, SignalState>();
@@ -792,11 +807,12 @@ async function loadSignalStates(fingerprints: string[]) {
   return new Map(states.map((state) => [state.fingerprint, state]));
 }
 
-async function loadAllSignalStatesPaged(batchSize = 250) {
+async function loadAllSignalStatesPaged(companyId?: string, batchSize = 250) {
   const states: SignalState[] = [];
   let cursor: string | undefined;
   for (;;) {
     const batch = await prisma.businessSignalState.findMany({
+      where: companyId ? { companyId } : undefined,
       take: batchSize,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: { id: "asc" }
@@ -808,9 +824,9 @@ async function loadAllSignalStatesPaged(batchSize = 250) {
   return states;
 }
 
-async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date) {
+async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date, companyId?: string) {
   const fingerprints = drafts.map((signal) => signal.fingerprint);
-  const existing = await loadAllSignalStatesPaged();
+  const existing = await loadAllSignalStatesPaged(companyId);
   const existingByFingerprint = new Map(existing.map((state) => [state.fingerprint, state]));
   const current = new Set(fingerprints);
   const auditEvents: Array<Parameters<typeof logProactiveAuditEvent>[0]> = [];
@@ -822,6 +838,7 @@ async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date
       const nextStatus = nextStatusForCurrentSignal(state, signal, now, changeHash);
       const materiallyChanged = Boolean(state?.changeHash && state.changeHash !== changeHash);
       const baseData = {
+        company: signal.companyId ? { connect: { id: signal.companyId } } : undefined,
         type: signal.type,
         level: signal.level,
         source: signal.source,
@@ -951,6 +968,7 @@ function mergeSignalStates(drafts: BusinessSignalDraft[], states: Map<string, Si
     const status = state?.status ?? "active";
     return {
       ...signal,
+      companyId: signal.companyId ?? null,
       id: state?.id ?? signal.fingerprint,
       status,
       statusLabel: signalStatusLabel(status),
@@ -994,6 +1012,7 @@ function signalFromState(state: SignalState): BusinessSignal {
 
   return {
     id: state.id,
+    companyId: state.companyId,
     fingerprint: state.fingerprint,
     type: state.type,
     tipo: state.type.replaceAll("_", " "),
@@ -2172,6 +2191,7 @@ function isBusinessSignalTableMissing(error: unknown) {
 function signalWithActiveState(signal: BusinessSignalDraft): BusinessSignal {
   return {
     ...signal,
+    companyId: signal.companyId ?? null,
     id: signal.fingerprint,
     status: "active",
     statusLabel: "Activa",
