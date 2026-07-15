@@ -7,6 +7,7 @@ import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../lib/auth/crypto";
 import { companyCore } from "../lib/tenant/core";
 import { reserveDocumentNumber } from "../lib/numbering";
+import { prisma as appPrisma } from "../lib/prisma";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 async function main() {
@@ -75,7 +76,7 @@ async function main() {
     assert.equal(sequences.find((sequence) => sequence.companyId === a.id)?.nextValue, 22);
     assert.equal(sequences.find((sequence) => sequence.companyId === b.id)?.nextValue, 3);
     console.log(JSON.stringify({ ok: true, listIsolation: true, idIsolation: true, mutationIsolation: true, relationIsolation: true, aggregateIsolation: true, documentsIsolation: true, companyNumbering: true, concurrentNumberReservations: concurrentA.length, concurrentRange: [...new Set(concurrentA)].sort(), nextB }));
-  } finally { await prisma?.$disconnect(); await pg.stop(); }
+  } finally { await prisma?.$disconnect(); await appPrisma.$disconnect(); await pg.stop(); }
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
