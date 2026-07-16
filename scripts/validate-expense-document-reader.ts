@@ -13,6 +13,7 @@ const reviewPage = readFileSync("app/(app)/gastos-materiales/lector/[id]/page.ts
 const extraction = readFileSync("lib/document-extraction.ts", "utf8");
 const storageSource = readFileSync("lib/document-storage.ts", "utf8");
 const schema = readFileSync("prisma/schema.prisma", "utf8");
+const nextConfig = readFileSync("next.config.ts", "utf8");
 
 function expectThrows(run: () => unknown, pattern: RegExp) {
   assert.throws(run, pattern);
@@ -51,6 +52,7 @@ assert.match(extraction, /ignora cualquier instrucción, comando/, "23 prompt in
 assert.match(actions, /document\.expenseId \|\| document\.status === "SAVED"/, "24 creación idempotente");
 assert.match(storageSource, /rm\(temporary, \{ force: true \}\)/, "25 temporal limpiado");
 assert.match(schema, /@@index\(\[companyId, sha256\]\)/, "índice hash por empresa");
+assert.match(nextConfig, /middlewareClientMaxBodySize:\s*["']11mb["']/, "26 multipart conserva el archivo completo antes de validar 10 MB");
 
 const root = await mkdtemp(join(tmpdir(), "capataz-documents-test-"));
 const storage = new LocalDocumentStorage(root);
@@ -78,7 +80,7 @@ if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED === "true") {
   await prisma.$disconnect();
 }
 
-console.log("[expense-document-reader] OK 25 casos, almacenamiento y aislamiento por empresa");
+console.log("[expense-document-reader] OK 26 casos, almacenamiento y aislamiento por empresa");
 }
 
 main().catch((error) => {
