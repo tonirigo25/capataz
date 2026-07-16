@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PackageCheck, Pencil, Plus, ReceiptText } from "lucide-react";
+import { FileScan, PackageCheck, Pencil, Plus, ReceiptText } from "lucide-react";
 import { updateMaterialStatus } from "@/app/(app)/gastos-materiales/actions";
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
@@ -39,7 +39,7 @@ export default async function ExpensesMaterialsPage({
   });
   const visibleExpenses = expenses.filter((expense) => {
     const search = normalize(query.buscar ?? "");
-    const text = normalize(`${expense.concepto} ${expense.proveedor} ${expense.categoria} ${expense.work.titulo} ${expense.notas ?? ""}`);
+    const text = normalize(`${expense.concepto} ${expense.proveedor} ${expense.categoria} ${expense.work?.titulo ?? "Gasto general"} ${expense.notas ?? ""}`);
     return !search || text.includes(search);
   });
 
@@ -49,7 +49,11 @@ export default async function ExpensesMaterialsPage({
         title="Gastos y materiales"
         description="Tickets, compras y faltas por obra."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/gastos-materiales/lector" className="primary-button">
+              <FileScan size={18} />
+              Leer factura o ticket
+            </Link>
             <Link href="/gestion?tipo=gasto&returnTo=/gastos-materiales" className="secondary-button">
               <Plus size={18} />
               Gasto
@@ -126,7 +130,7 @@ export default async function ExpensesMaterialsPage({
                 <div>
                   <h3 className="text-base font-black text-obra-ink">{expense.concepto}</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    {expense.proveedor} · {expense.work.titulo}
+                    {expense.proveedor} · {expense.work?.titulo ?? "Gasto general"}
                   </p>
                 </div>
                 <p className="text-base font-black text-obra-ink">{formatCurrency(expense.importe)}</p>

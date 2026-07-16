@@ -489,6 +489,42 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
   });
 }
 
+export async function requestCapatazStructuredResponse(input: {
+  model: string;
+  system: string;
+  content: Array<Record<string, unknown>>;
+  schemaName: string;
+  schema: Record<string, unknown>;
+  timeoutMs?: number;
+}) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY no esta configurada");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? readTimeoutMs("fast"));
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: input.model,
+        input: [
+          { role: "system", content: input.system },
+          { role: "user", content: input.content }
+        ],
+        text: { format: { type: "json_schema", name: input.schemaName, strict: true, schema: input.schema } }
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(extractOpenAIError(payload) || `OpenAI API devolvio HTTP ${response.status}`);
+    const content = extractResponseText(payload);
+    if (!content) throw new Error("OpenAI no devolvio contenido estructurado");
+    return JSON.parse(content) as unknown;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function runCompactExtraction({
   input,
   apiKey,

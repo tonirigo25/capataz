@@ -344,7 +344,7 @@ export async function buildBusinessCsvExport(kind: string, params: BusinessIntel
       expense.proveedor,
       expense.concepto,
       expense.categoria,
-      expense.work.titulo,
+      expense.work?.titulo ?? "Gasto general",
       expense.importe
     ]));
   }

@@ -654,10 +654,10 @@ function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ in
         certainty: "confirmed" as const,
         source: "expense" as const,
         sourceLabel: String(expense.categoria),
-        clientId: expense.clienteId ?? expense.work.client.id,
-        clientName: expense.client?.nombre ?? expense.work.client.nombre,
+        clientId: expense.clienteId ?? expense.work?.client.id ?? null,
+        clientName: expense.client?.nombre ?? expense.work?.client.nombre ?? null,
         workId: expense.obraId,
-        workTitle: expense.work.titulo,
+        workTitle: expense.work?.titulo ?? null,
         expenseId: expense.id,
         href: "/gastos-materiales",
         assumptions: ["Gasto marcado como pendiente, pero sin fecha de pago: no se coloca artificialmente en el calendario."]
@@ -679,10 +679,10 @@ function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ in
       certainty: "confirmed" as const,
       source: "expense" as const,
       sourceLabel: String(expense.categoria),
-      clientId: expense.clienteId ?? expense.work.client.id,
-      clientName: expense.client?.nombre ?? expense.work.client.nombre,
+      clientId: expense.clienteId ?? expense.work?.client.id ?? null,
+      clientName: expense.client?.nombre ?? expense.work?.client.nombre ?? null,
       workId: expense.obraId,
-      workTitle: expense.work.titulo,
+      workTitle: expense.work?.titulo ?? null,
       expenseId: expense.id,
       href: "/gastos-materiales",
       assumptions: ["Gasto registrado como pendiente con fecha de pago explícita."]
@@ -1085,7 +1085,7 @@ function buildFinancialDataQualityIssues({
   accounts: ReturnType<typeof buildAccountSummaries>;
   movements: Array<{ id: string; type: string; amount: number; date: Date; accountId: string; description: string; transferGroupId: string | null; invoiceId: string | null; paymentId: string | null; expenseId: string | null }>;
   invoices: TreasuryInvoice[];
-  expenses: Array<{ id: string; fecha: Date; paymentStatus: string | null; paymentDueDate: Date | null; obraId: string; importe: number; costBehavior: string | null }>;
+  expenses: Array<{ id: string; fecha: Date; paymentStatus: string | null; paymentDueDate: Date | null; obraId: string | null; importe: number; costBehavior: string | null }>;
   recurringExpenses: Array<{ id: string; nextDueDate: Date | null }>;
 }): TreasuryDataQualityIssue[] {
   const overpaid = invoices.filter((invoice) => invoiceBalance(invoice).overpaid > 0);
