@@ -245,10 +245,10 @@ export async function getActivityFeed({
       kind: "gasto",
       label: "Gasto registrado",
       title: expense.concepto,
-      detail: `${expense.proveedor} · ${expense.work.titulo} · ${expense.importe} EUR`,
+      detail: `${expense.proveedor} · ${expense.work?.titulo ?? "Gasto general"} · ${expense.importe} EUR`,
       date: expense.fecha,
       entity: "Gasto",
-      href: `/obras/${expense.work.id}?tab=gastos`
+      href: expense.work ? `/obras/${expense.work.id}?tab=gastos` : "/gastos-materiales"
     });
   }
 

@@ -134,7 +134,7 @@ export async function globalSearch(query: string) {
     results.push({ type: "Facturas", title: `${invoice.numero} · ${invoice.client.nombre}`, detail: `${invoice.concepto} · ${liveStatus} · pendiente ${invoice.pendiente} €`, href: `/dinero/${invoice.id}` });
   });
   payments.forEach((payment) => results.push({ type: "Pagos", title: `${payment.client.nombre} · ${payment.importe} €`, detail: `${payment.invoice.numero} · ${payment.metodo} · ${payment.tipo}`, href: `/dinero/${payment.facturaId}` }));
-  expenses.forEach((expense) => results.push({ type: "Gastos", title: expense.concepto, detail: `${expense.proveedor} · ${expense.work.titulo} · ${expense.importe} €`, href: `/gastos-materiales?buscar=${encodeURIComponent(raw)}` }));
+  expenses.forEach((expense) => results.push({ type: "Gastos", title: expense.concepto, detail: `${expense.proveedor} · ${expense.work?.titulo ?? "Gasto general"} · ${expense.importe} €`, href: `/gastos-materiales?buscar=${encodeURIComponent(raw)}` }));
   agendaEvents.forEach((event) => results.push({ type: "Agenda", title: event.titulo, detail: `${event.tipo} · ${event.client?.nombre ?? event.work?.titulo ?? event.contact?.nombre ?? "sin entidad"}`, href: `/agenda?vista=lista&buscar=${encodeURIComponent(raw)}` }));
   documents.forEach((document) => results.push({ type: "Documentos", title: document.name, detail: `${documentCategoryLabel(document.category)} · ${document.work?.titulo ?? document.client?.nombre ?? document.budget?.numero ?? document.invoice?.numero ?? "sin entidad"}`, href: document.url ?? `/documentos` }));
 

@@ -34,6 +34,7 @@
     "test:work-chat": "node scripts/validate-work-chat.mjs",
     "test:contacts": "node scripts/validate-contacts.mjs",
     "test:documents": "node scripts/validate-documents.mjs",
+    "test:expense-document-reader": "tsx scripts/validate-expense-document-reader.ts",
     "test:internal-notes": "node scripts/validate-internal-notes.mjs",
     "test:agenda": "node scripts/validate-agenda.mjs",
     "test:notifications": "node scripts/validate-notifications.mjs",

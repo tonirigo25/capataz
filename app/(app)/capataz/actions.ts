@@ -2494,6 +2494,7 @@ async function queryProjectHighestExpenses(intent: ChatIntentClassification): Pr
   const expenses = await prisma.expense.findMany({ where: expensePeriodWhere(intent.period), include: { work: { include: { client: true } } } });
   const totals = new Map<string, { workId: string; title: string; client: string; total: number }>();
   for (const expense of expenses) {
+    if (!expense.obraId || !expense.work) continue;
     const current = totals.get(expense.obraId) ?? { workId: expense.obraId, title: expense.work.titulo, client: expense.work.client.nombre, total: 0 };
     current.total += expense.importe;
     totals.set(expense.obraId, current);

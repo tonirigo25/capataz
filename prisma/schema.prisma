@@ -230,6 +230,33 @@ enum DocumentCategory {
   otro
 }
 
+enum ExpenseDocumentStatus {
+  UPLOADED
+  PROCESSING
+  REVIEW_REQUIRED
+  READY
+  SAVED
+  FAILED
+  CANCELLED
+}
+
+enum DocumentExtractionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  NOT_CONFIGURED
+  FAILED
+}
+
+enum ExpenseDocumentType {
+  MATERIAL_INVOICE
+  FUEL_RECEIPT
+  MEAL_RECEIPT
+  SUBCONTRACTOR_INVOICE
+  GENERAL_EXPENSE
+  UNKNOWN
+}
+
 enum NotificationPriority {
   baja
   media
@@ -675,7 +702,7 @@ model Payment {
 model Expense {
   id                String             @id @default(cuid())
   companyId         String?
-  obraId            String
+  obraId            String?
   clienteId         String?
   proveedor         String
   concepto          String
@@ -692,7 +719,7 @@ model Expense {
   client            Client?            @relation(fields: [clienteId], references: [id])
   documents         Document[]
   expectedCashFlows ExpectedCashFlow[]
-  work              Work               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  work              Work?              @relation(fields: [obraId], references: [id], onDelete: SetNull)
   company           Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
@@ -948,38 +975,56 @@ model InternalNote {
 }
 
 model Document {
-  id           String           @id @default(cuid())
-  companyId    String?
-  name         String
-  originalName String?
-  mimeType     String?
-  size         Int?
-  storageKey   String?
-  url          String?
-  category     DocumentCategory @default(otro)
-  clientId     String?
-  workId       String?
-  budgetId     String?
-  invoiceId    String?
-  expenseId    String?
-  uploadedById String?
-  metadata     Json?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  archivedAt   DateTime?
-  client       Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  work         Work?            @relation(fields: [workId], references: [id], onDelete: Cascade)
-  budget       Budget?          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  invoice      Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  expense      Expense?         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  workPhoto    WorkPhoto?
-  company      Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                   String                   @id @default(cuid())
+  companyId            String?
+  name                 String
+  originalName         String?
+  mimeType             String?
+  size                 Int?
+  storageKey           String?
+  sha256               String?
+  url                  String?
+  category             DocumentCategory         @default(otro)
+  clientId             String?
+  workId               String?
+  budgetId             String?
+  invoiceId            String?
+  expenseId            String?
+  uploadedById         String?
+  metadata             Json?
+  status               ExpenseDocumentStatus    @default(UPLOADED)
+  documentType         ExpenseDocumentType?
+  extractionStatus     DocumentExtractionStatus @default(PENDING)
+  extractionConfidence Float?
+  extractedData        Json?
+  extractionError      String?
+  extractedIssuer      String?
+  extractedIssuerTaxId String?
+  extractedInvoiceNo   String?
+  extractedIssueDate   DateTime?
+  extractedTotal       Float?
+  processedAt          DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  archivedAt           DateTime?
+  client               Client?                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  work                 Work?                    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  budget               Budget?                  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  invoice              Invoice?                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expense              Expense?                 @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  workPhoto            WorkPhoto?
+  company              Company?                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  uploadedBy           User?                    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([workId])
   @@index([budgetId])
   @@index([invoiceId])
   @@index([expenseId])
+  @@index([uploadedById])
+  @@index([companyId, status])
+  @@index([companyId, sha256])
+  @@index([companyId, extractedInvoiceNo, extractedIssuerTaxId])
   @@index([category])
   @@index([archivedAt])
   @@index([companyId])
@@ -1909,6 +1954,7 @@ model User {
   verificationTokens  EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   securityAuditEvents SecurityAuditEvent[]
+  uploadedDocuments   Document[]
 
   @@index([status])
 }
