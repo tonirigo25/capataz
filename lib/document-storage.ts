@@ -6,8 +6,8 @@ export type StoredDocument = { storageKey: string; sizeBytes: number };
 
 export interface DocumentStorage {
   put(input: { companyId: string; bytes: Buffer; extension: string }): Promise<StoredDocument>;
-  get(storageKey: string): Promise<Buffer>;
-  delete(storageKey: string): Promise<void>;
+  get(input: { companyId: string; storageKey: string }): Promise<Buffer>;
+  delete(input: { companyId: string; storageKey: string }): Promise<void>;
 }
 
 export function documentStorageRoot() {
@@ -34,12 +34,19 @@ export class LocalDocumentStorage implements DocumentStorage {
     return { storageKey, sizeBytes: bytes.length };
   }
 
-  async get(storageKey: string) {
-    return readFile(this.resolveKey(storageKey));
+  async get({ companyId, storageKey }: { companyId: string; storageKey: string }) {
+    return readFile(this.resolveCompanyKey(companyId, storageKey));
   }
 
-  async delete(storageKey: string) {
-    await rm(this.resolveKey(storageKey), { force: true });
+  async delete({ companyId, storageKey }: { companyId: string; storageKey: string }) {
+    await rm(this.resolveCompanyKey(companyId, storageKey), { force: true });
+  }
+
+  private resolveCompanyKey(companyId: string, storageKey: string) {
+    const safeCompany = safeSegment(companyId);
+    const normalizedKey = storageKey.replace(/\\/g, "/");
+    if (!normalizedKey.startsWith(`${safeCompany}/`)) throw new Error("Invalid storage key");
+    return this.resolveKey(normalizedKey);
   }
 
   private resolveKey(storageKey: string) {

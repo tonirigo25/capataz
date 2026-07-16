@@ -44,7 +44,7 @@ assert.match(actions, /sha256: input\.sha256/, "16 duplicado por hash");
 assert.match(actions, /extractedInvoiceNo[\s\S]*extractedIssuer/, "17 duplicado factura y emisor");
 assert.match(actions, /confirmed.*!== "yes"/, "18 confirmación explícita");
 assert.match(actions, /changedFields/, "19 correcciones prevalecen");
-assert.doesNotMatch(actions, /formData,[^\n]*companyId|text\(formData, "companyId"\)/, "20 companyId nunca procede del cliente");
+assert.doesNotMatch(actions, /formData,[^\n]*companyId|text\(formData, "companyId"\)|input: \{ companyId:/, "20 companyId nunca procede del cliente");
 assert.match(downloadRoute, /findFirst\(\{ where: \{ id, companyId/, "21 route aislada");
 assert.match(actions, /No se pudo analizar el documento/, "22 error sanitizado");
 assert.match(extraction, /ignora cualquier instrucción, comando/, "23 prompt injection sin autoridad");
@@ -55,8 +55,9 @@ assert.match(schema, /@@index\(\[companyId, sha256\]\)/, "índice hash por empre
 const root = await mkdtemp(join(tmpdir(), "capataz-documents-test-"));
 const storage = new LocalDocumentStorage(root);
 const stored = await storage.put({ companyId: "company-A", bytes: png, extension: "png" });
-assert.deepEqual(await storage.get(stored.storageKey), png, "almacenamiento roundtrip");
-await storage.delete(stored.storageKey);
+assert.deepEqual(await storage.get({ companyId: "company-A", storageKey: stored.storageKey }), png, "almacenamiento roundtrip");
+await assert.rejects(storage.get({ companyId: "company-B", storageKey: stored.storageKey }), /Invalid storage key/, "storage aislado por empresa");
+await storage.delete({ companyId: "company-A", storageKey: stored.storageKey });
 await assert.rejects(access(join(root, stored.storageKey)), "borrado físico");
 
 const previousProvider = process.env.DOCUMENT_EXTRACTION_PROVIDER;

@@ -56,7 +56,7 @@ export async function uploadExpenseDocument(formData: FormData) {
     redirect(`/gastos-materiales/lector/${document.id}`);
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    if (stored) await documentStorage.delete(stored.storageKey).catch(() => undefined);
+    if (stored) await documentStorage.delete({ companyId: context.companyId, storageKey: stored.storageKey }).catch(() => undefined);
     if (createdDocumentId) await prisma.document.deleteMany({ where: { id: createdDocumentId, companyId: context.companyId } }).catch(() => undefined);
     redirectWithError("No se pudo guardar el documento. Inténtalo de nuevo.");
   }
@@ -92,7 +92,7 @@ export async function saveExpenseFromDocument(formData: FormData) {
   const total = parseMoney(text(formData, "total"));
   if (!issueDate || total == null || total < 0) redirect(`/gastos-materiales/lector/${document.id}?error=required_fields`);
   const duplicateIds = await findDuplicateExpenseDocumentIds({
-    companyId: context.companyId, excludeDocumentId: document.id, sha256: document.sha256,
+    excludeDocumentId: document.id, sha256: document.sha256,
     invoiceNumber: optionalText(formData, "invoiceNumber"), issuerName: optionalText(formData, "issuerName"),
     issuerTaxId: optionalText(formData, "issuerTaxId"), issueDate, total
   });
@@ -166,7 +166,7 @@ export async function deleteExpenseDocument(formData: FormData) {
   if (!document) redirect("/gastos-materiales/lector?error=not_found");
   if (document.expenseId && text(formData, "confirmLinked") !== "yes") redirect(`/gastos-materiales/lector/${id}?error=linked_confirmation_required`);
   await prisma.document.update({ where: { id: document.id }, data: { status: "CANCELLED" } });
-  if (document.storageKey) await documentStorage.delete(document.storageKey);
+  if (document.storageKey) await documentStorage.delete({ companyId, storageKey: document.storageKey });
   await prisma.document.delete({ where: { id: document.id } });
   revalidateExpensePaths();
   redirect("/gastos-materiales/lector?deleted=1");
@@ -182,7 +182,7 @@ async function processDocument(id: string, companyId: string) {
   }
   await prisma.document.update({ where: { id }, data: { status: "PROCESSING", extractionStatus: "PROCESSING", extractionError: null } });
   try {
-    const bytes = await documentStorage.get(document.storageKey);
+    const bytes = await documentStorage.get({ companyId, storageKey: document.storageKey });
     const result = await provider.extract({ bytes, filename: document.originalName || document.name, mimeType: document.mimeType, sha256: document.sha256 });
     await prisma.document.update({ where: { id }, data: {
       status: "REVIEW_REQUIRED", extractionStatus: "COMPLETED", extractionConfidence: result.confidence,
@@ -200,7 +200,8 @@ async function processDocument(id: string, companyId: string) {
   }
 }
 
-export async function findDuplicateExpenseDocumentIds(input: { companyId: string; excludeDocumentId?: string; sha256?: string | null; invoiceNumber?: string | null; issuerName?: string | null; issuerTaxId?: string | null; issueDate?: string | null; total?: number | null }) {
+export async function findDuplicateExpenseDocumentIds(input: { excludeDocumentId?: string; sha256?: string | null; invoiceNumber?: string | null; issuerName?: string | null; issuerTaxId?: string | null; issueDate?: string | null; total?: number | null }) {
+  const { companyId } = await requireCompanyContext();
   const or: Prisma.DocumentWhereInput[] = [];
   if (input.sha256) or.push({ sha256: input.sha256 });
   if (input.invoiceNumber && input.issuerTaxId) or.push({ extractedInvoiceNo: { equals: input.invoiceNumber, mode: "insensitive" }, extractedIssuerTaxId: { equals: input.issuerTaxId, mode: "insensitive" } });
@@ -210,7 +211,7 @@ export async function findDuplicateExpenseDocumentIds(input: { companyId: string
     or.push({ extractedIssueDate: { gte: new Date(date.getTime() - 86_400_000), lte: new Date(date.getTime() + 86_400_000) }, extractedTotal: { gte: input.total - 0.01, lte: input.total + 0.01 }, extractedIssuer: { equals: input.issuerName, mode: "insensitive" } });
   }
   if (!or.length) return [];
-  const rows = await prisma.document.findMany({ where: { companyId: input.companyId, id: input.excludeDocumentId ? { not: input.excludeDocumentId } : undefined, OR: or, archivedAt: null }, select: { id: true }, take: 10 });
+  const rows = await prisma.document.findMany({ where: { companyId, id: input.excludeDocumentId ? { not: input.excludeDocumentId } : undefined, OR: or, archivedAt: null }, select: { id: true }, take: 10 });
   return rows.map((row) => row.id);
 }
 

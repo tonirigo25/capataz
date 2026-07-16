@@ -20,7 +20,7 @@ export default async function ExpenseDocumentReviewPage({ params, searchParams }
   ]);
   if (!document) notFound();
   const proposal = normalizeExpenseExtraction(document.extractedData);
-  const duplicateIds = await findDuplicateExpenseDocumentIds({ companyId: context.companyId, excludeDocumentId: document.id, sha256: document.sha256, invoiceNumber: proposal.invoiceNumber, issuerName: proposal.issuerName, issuerTaxId: proposal.issuerTaxId, issueDate: proposal.issueDate, total: proposal.total });
+  const duplicateIds = await findDuplicateExpenseDocumentIds({ excludeDocumentId: document.id, sha256: document.sha256, invoiceNumber: proposal.invoiceNumber, issuerName: proposal.issuerName, issuerTaxId: proposal.issuerTaxId, issueDate: proposal.issueDate, total: proposal.total });
   const duplicates = duplicateIds.length ? await prisma.document.findMany({ where: { companyId: context.companyId, id: { in: duplicateIds } }, select: { id: true, name: true, extractedTotal: true } }) : [];
   const saved = Boolean(document.expenseId);
   return <main className="screen">
