@@ -27,27 +27,27 @@ export function StatCard({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-500">{title}</p>
-          <p className="mt-2 break-words text-2xl font-black tabular-nums text-obra-ink">{value}</p>
+          <p className="text-sm font-bold leading-5 text-slate-600">{title}</p>
+          <p className="mt-2 break-words text-2xl font-black leading-none tabular-nums tracking-tight text-obra-ink sm:text-3xl">{value}</p>
         </div>
         <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>
           <Icon size={22} aria-hidden="true" />
         </span>
       </div>
-      {detail ? <p className="mt-3 text-sm text-slate-500">{detail}</p> : null}
+      {detail ? <p className="mt-3 text-xs font-semibold leading-5 text-slate-500">{detail}</p> : null}
     </>
   );
 
   if (href) {
     return (
-      <Link href={href} className="card block p-4 transition active:scale-[0.99] hover:border-obra-yellowDark hover:bg-obra-yellow/10 focus-visible:ring-2 focus-visible:ring-obra-yellow/35">
+      <Link href={href} className="surface block p-4 transition active:scale-[0.99] hover:border-obra-yellowDark hover:bg-obra-yellow/10 focus-visible:ring-2 focus-visible:ring-obra-yellow/35">
         {content}
       </Link>
     );
   }
 
   return (
-    <article className="card p-4">
+    <article className="surface p-4">
       {content}
     </article>
   );
