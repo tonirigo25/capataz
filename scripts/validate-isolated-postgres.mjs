@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 const packageRoot = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
 if (!packageRoot) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
@@ -28,6 +29,7 @@ try {
   await pg.createDatabase("capataz_test_fresh");
   const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_fresh?schema=public`;
   const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true" };
+  assertIsolatedTestDatabase(env);
   execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], {
     cwd: process.cwd(),
     env,
@@ -72,6 +74,7 @@ try {
   await pg.createDatabase("capataz_test_upgrade");
   const upgradeUrl = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_upgrade?schema=public`,
     upgradeEnv = { ...process.env, DATABASE_URL: upgradeUrl, CAPATAZ_TEST_DATABASE_ISOLATED: "true" };
+  assertIsolatedTestDatabase(upgradeEnv);
   const tempRoot = mkdtempSync(join(tmpdir(), "capataz-migrations-"));
   cpSync(join(process.cwd(), "prisma"), join(tempRoot, "prisma"), {
     recursive: true,
@@ -84,7 +87,8 @@ try {
     "20260712210000_company_numbering_and_settings",
     "20260713193000_company_document_sequences",
   ];
-  for (const migration of incrementalMigrations) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
+  const postIdentityMigrations = ["20260717120000_procurement_management"];
+  for (const migration of [...incrementalMigrations, ...postIdentityMigrations]) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
     "npx.cmd",
     [
@@ -196,6 +200,13 @@ try {
   if (recovery.status !== 0) {
     throw new Error(`DEPLOY_RECOVERY_FAILED\n${recovery.stdout}\n${recovery.stderr}`);
   }
+  const postRecoveryMigrations = [incrementalMigrations.at(-1), ...postIdentityMigrations];
+  for (const migration of postRecoveryMigrations) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
+  execFileSync(
+    "npx.cmd",
+    ["prisma", "migrate", "deploy", "--schema", join(tempRoot, "prisma", "schema.prisma")],
+    { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true },
+  );
   const upgraded = pg.getPgClient("capataz_test_upgrade");
   await upgraded.connect();
   const after = await upgraded.query(

@@ -4,6 +4,21 @@ PWA web móvil para autónomos y pequeñas pymes de construcción, reformas e in
 
 Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Esta versión usa datos demo, lógica local para ejecutar acciones controladas, PDFs profesionales en borrador y un motor OpenAI server-side con salida estructurada cuando `OPENAI_API_KEY` está configurada. No integra todavía WhatsApp, email ni Stripe reales.
 
+## Compras, proveedores y subcontratas
+
+El área de compras incorpora módulos separados para:
+
+- proveedores, condiciones económicas, etiquetas, documentos, obras, historial y detección de duplicados;
+- subcontratas, oficio, especialidad, seguro RC, caducidad documental, valoración y coste real;
+- facturas recibidas, pagos parciales, vencimientos, estados y trazabilidad;
+- bandeja documental con clasificación profesional y revisión humana;
+- fiscalidad española (IVA, IRPF, NIF/CIF y facturas completas, simplificadas o rectificativas);
+- aprendizaje de categoría, obra e IVA habitual, aislado por empresa.
+
+Cada factura recibida crea un único gasto enlazado. Ese gasto alimenta la rentabilidad de la obra y la previsión de tesorería, mientras la factura recibida conserva pagos, saldo pendiente e historial. En esta versión una factura se imputa a una sola obra o se registra como gasto general; el modelo mantiene separada esa relación para permitir repartos futuros.
+
+La descripción técnica y los flujos están en `docs/PROVEEDORES_SUBCONTRATAS_GASTOS.md`.
+
 ## Stack
 
 - Next.js + TypeScript.

@@ -54,6 +54,11 @@ export class DeterministicDocumentExtractionProvider implements DocumentExtracti
     const kind = name.includes("gasolina") || name.includes("fuel") ? "FUEL_RECEIPT"
       : name.includes("comida") || name.includes("meal") ? "MEAL_RECEIPT"
       : name.includes("subcontrata") ? "SUBCONTRACTOR_INVOICE"
+      : name.includes("herramient") ? "TOOL_INVOICE"
+      : name.includes("maquinaria") ? "MACHINERY_INVOICE"
+      : name.includes("transporte") ? "TRANSPORT_INVOICE"
+      : name.includes("servicio") ? "SERVICE_INVOICE"
+      : name.includes("suministro") ? "SUPPLY_INVOICE"
       : "MATERIAL_INVOICE";
     return normalizeExpenseExtraction({
       documentType: kind,
@@ -67,7 +72,7 @@ export class DeterministicDocumentExtractionProvider implements DocumentExtracti
       vatRate: 21,
       total: "121,00",
       description: "Extracción determinista para desarrollo y pruebas",
-      suggestedCategory: kind === "FUEL_RECEIPT" ? "gasolina" : kind === "SUBCONTRACTOR_INVOICE" ? "subcontrata" : kind === "MATERIAL_INVOICE" ? "material" : "otros",
+      suggestedCategory: kind === "FUEL_RECEIPT" ? "combustible" : kind === "MEAL_RECEIPT" ? "restauracion" : kind === "TOOL_INVOICE" ? "herramientas" : kind === "MACHINERY_INVOICE" ? "maquinaria" : kind === "TRANSPORT_INVOICE" ? "transportes" : kind === "SUBCONTRACTOR_INVOICE" ? "subcontrata" : kind === "SERVICE_INVOICE" ? "servicios" : kind === "SUPPLY_INVOICE" ? "suministros" : kind === "MATERIAL_INVOICE" ? "materiales" : "otros",
       lines: [{ description: "Concepto de prueba", quantity: 1, unitPrice: 100, total: 100 }],
       confidence: 0.92,
       fieldConfidence: { total: 0.98, issueDate: 0.9, issuerName: 0.88 },
@@ -101,7 +106,7 @@ const expenseDocumentSchema = {
   additionalProperties: false,
   required: ["documentType", "issuerName", "issuerTaxId", "invoiceNumber", "issueDate", "dueDate", "currency", "taxableBase", "vatAmount", "vatRate", "withholdingAmount", "otherTaxes", "total", "paymentMethod", "description", "suggestedCategory", "lines", "confidence", "fieldConfidence", "warnings"],
   properties: {
-    documentType: { type: "string", enum: ["MATERIAL_INVOICE", "FUEL_RECEIPT", "MEAL_RECEIPT", "SUBCONTRACTOR_INVOICE", "GENERAL_EXPENSE", "UNKNOWN"] },
+    documentType: { type: "string", enum: ["MATERIAL_INVOICE", "FUEL_RECEIPT", "MEAL_RECEIPT", "TOOL_INVOICE", "MACHINERY_INVOICE", "TRANSPORT_INVOICE", "SUBCONTRACTOR_INVOICE", "SERVICE_INVOICE", "SUPPLY_INVOICE", "GENERAL_EXPENSE", "UNKNOWN"] },
     issuerName: nullableString, issuerTaxId: nullableString, invoiceNumber: nullableString,
     issueDate: nullableString, dueDate: nullableString, currency: { type: "string" },
     taxableBase: nullableNumber, vatAmount: nullableNumber, vatRate: nullableNumber,

@@ -95,7 +95,7 @@ export default async function WorkDetailPage({
         budgets: { orderBy: { fechaCreacion: "desc" }, include: { reminders: true, agendaEvents: true } },
         invoices: { orderBy: { fechaEmision: "desc" }, include: { payments: true, reminders: true, agendaEvents: true } },
         payments: { orderBy: { fecha: "desc" }, include: { invoice: true } },
-        expenses: { orderBy: { fecha: "desc" } },
+        expenses: { orderBy: { fecha: "desc" }, include: { businessPartner: { select: { id: true, commercialName: true, kind: true } }, purchaseInvoice: { select: { id: true, kind: true, invoiceNumber: true, pendingAmount: true } } } },
         materials: true,
         reminders: { orderBy: { fechaProgramada: "asc" }, include: { invoice: true, budget: true } },
         agendaEvents: { orderBy: { fechaInicio: "asc" }, include: { invoice: true, budget: true } },
@@ -173,6 +173,9 @@ export default async function WorkDetailPage({
                 <Finance label="Cobrado" value={financial.paid} />
                 <Finance label="Pendiente" value={financial.pending} tone={financial.pending ? "warning" : "neutral"} />
                 <Finance label="Gasto real" value={financial.realCost} />
+                <Finance label="Coste materiales" value={financial.materialExpenses} />
+                <Finance label="Coste subcontratas" value={financial.subcontractorExpenses} />
+                <Finance label="Costes generales" value={financial.generalExpenses} />
                 <Finance label="Coste previsto" value={financial.forecastCost} />
                 <Finance label="Beneficio" value={financial.benefit} tone={financial.benefit < 0 ? "danger" : "success"} />
                 <Finance label="Desviación" value={financial.deviation} tone={financial.deviation > 0 ? "warning" : "success"} />
@@ -417,6 +420,7 @@ function SubcontractTab({ work, expenses }: { work: any; expenses: any[] }) {
   return (
     <Section title="Subcontratas">
       <PlainMetric label="Coste total subcontratas" value={formatCurrency(total)} />
+      <div className="mt-3 flex flex-wrap gap-2"><Link className="secondary-button" href="/subcontratas">Abrir subcontratas</Link><Link className="secondary-button" href={`/facturas-subcontratas?nuevo=1&obra=${work.id}#factura`}>Registrar factura</Link></div>
       <div className="mt-4">
         {subcontractExpenses.length ? (
           <div className="grid gap-3 lg:grid-cols-2">{subcontractExpenses.map((expense) => <ExpenseCard key={expense.id} expense={expense} />)}</div>
