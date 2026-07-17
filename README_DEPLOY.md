@@ -16,7 +16,7 @@ Producción está operativa sobre Railway:
 - deployment web final: `bcf5f3ab-5b56-4a43-9701-fd3b9c2b0284`;
 - healthcheck: `/api/status` devuelve HTTP 200.
 
-`APP_BASE_URL` está configurada con el dominio productivo. `EMAIL_FROM` y `RESEND_API_KEY` siguen pendientes; sin ellas, el envío real de verificación y recuperación de contraseña queda limitado aunque el resto de la aplicación esté operativo. El cron actual usa `PROACTIVE_CRON_SECRET`; no depende de `CRON_SECRET`.
+La autenticación real está implementada mediante usuarios, empresas, membresías, sesiones opacas y tokens de un solo uso. `EMAIL_FROM` y `RESEND_API_KEY` son necesarios en producción para enviar verificación y recuperación; nunca deben publicarse ni usar prefijo `NEXT_PUBLIC_`. El cron actual usa `PROACTIVE_CRON_SECRET`; no depende de `CRON_SECRET`.
 
 ## Stack de producción
 
@@ -69,16 +69,17 @@ Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites de
 
 `OPENAI_API_KEY` es privada y debe configurarse solo en el backend de Railway, nunca con prefijo `NEXT_PUBLIC`. Activa el motor de chat con salida JSON estructurada y herramientas internas controladas. `OPENAI_MODEL_FAST` se usa para extracción compacta rápida. `OPENAI_MODEL_REASONING` sólo se usa si la extracción rápida devuelve baja confianza o ambigüedad. `OPENAI_REASONING_EFFORT` permite limitar esfuerzo/coste del carril potente. `OPENAI_FAST_TIMEOUT_MS` y `OPENAI_REASONING_TIMEOUT_MS` separan timeouts por carril; `OPENAI_TIMEOUT_MS` queda como compatibilidad general.
 
-No existe autenticacion real en esta version, por lo que el codigo no usa `NEXTAUTH_SECRET`, `AUTH_SECRET` ni variables de proveedores OAuth.
+No se usa NextAuth ni OAuth. Las sesiones actuales usan tokens opacos aleatorios cuyo hash se persiste en PostgreSQL; por eso no requieren `NEXTAUTH_SECRET` ni `AUTH_SECRET`.
 
 Variables opcionales:
 
 ```bash
 CAPATAZ_MOBILE_SERVER_URL=
+CAPATAZ_MOBILE_MODE=release
 CAPATAZ_CHAT_DEBUG=false
 ```
 
-`CAPATAZ_MOBILE_SERVER_URL` solo es necesaria si el binario Capacitor debe apuntar a una URL distinta de `NEXT_PUBLIC_WEB_BASE_URL`. `CAPATAZ_CHAT_DEBUG` solo activa logs de diagnostico del chat.
+`CAPATAZ_MOBILE_MODE` admite `development`, `staging` o `release` y usa `release` como valor seguro por defecto. Staging/release exigen HTTPS; release rechaza localhost, IP privada y hosts de staging. `CAPATAZ_CHAT_DEBUG` solo activa diagnóstico sanitizado del chat.
 
 ## Pasos de despliegue
 
@@ -164,16 +165,16 @@ Si esos directorios no existen dentro de `.next/standalone`, la app puede arranc
 
 Ahora mismo logo y sello se guardan como URL o ruta configurada en `Datos de empresa`. Los PDFs se generan al vuelo desde el backend y se devuelven como respuesta HTTP.
 
-En Railway, el almacenamiento local del contenedor no debe considerarse persistente. Si más adelante se suben archivos reales, hay que migrarlos a storage externo, por ejemplo Railway Volumes, S3/R2/Supabase Storage o equivalente.
+El lector documental ya guarda uploads fuera de `public` mediante `DOCUMENT_STORAGE_ROOT`. En un despliegue debe apuntar a un volumen persistente y con backup; con múltiples réplicas hará falta almacenamiento de objetos. Logo, sello y fotos aún no comparten este pipeline.
 
 ## Limitaciones pendientes
 
-- No hay autenticación real todavía.
 - No hay WhatsApp/email reales.
 - No hay Stripe real.
 - Seed es destructivo y sólo debe usarse para demo/staging.
-- Los archivos de logo/sello necesitan storage externo antes de producción real con uploads.
+- Logo, sello y fotos necesitan integrarse en el storage privado antes de uploads productivos.
 - Si se usa la app móvil publicada, `CAPATAZ_MOBILE_SERVER_URL` debe apuntar a la URL pública HTTPS.
+- Capacitor release debe generarse con `CAPATAZ_MOBILE_MODE=release`; no se permiten cleartext ni contenido mixto.
 
 ## Diagnostico del despliegue
 
