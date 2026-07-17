@@ -12,6 +12,7 @@ import {
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { StatusPill } from "@/components/status-pill";
+import { ActionMenu, DetailSection, MetricStrip, Notice, PageHeader } from "@/components/ui-primitives";
 import { parseBudgetLines, units } from "@/lib/budget-lines";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
@@ -45,52 +46,33 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         Presupuestos
       </Link>
 
-      <section className="card p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase text-slate-500">{budget.numero}</p>
-            <h1 className="mt-1 text-2xl font-black text-obra-ink">{budget.titulo}</h1>
-            <p className="mt-1 text-sm text-slate-500">{budget.client.nombre}{budget.work ? ` · ${budget.work.titulo}` : ""}</p>
-          </div>
-          <StatusPill status={budget.estado} />
-        </div>
+      <PageHeader
+        eyebrow={budget.numero}
+        title={budget.titulo}
+        description={`${budget.client.nombre}${budget.work ? ` · ${budget.work.titulo}` : " · Sin obra"}`}
+        badge={<StatusPill status={budget.estado} />}
+        action={<Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`} className="primary-button"><Pencil size={18} /> Editar presupuesto</Link>}
+        secondaryActions={<ActionMenu><Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`}><MessageCircle size={18} /> Preparar seguimiento</Link><form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form><Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link><Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
+      />
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <MetricStrip className="mb-4">
           <Mini label="Subtotal" value={formatCurrency(budget.subtotal)} />
           <Mini label="IVA" value={formatCurrency(budget.iva)} />
           <Mini label="Descuento" value={formatCurrency(budget.descuento)} />
           <Mini label="Total" value={formatCurrency(budget.total)} />
-        </div>
+      </MetricStrip>
 
-        <div className="mt-4 grid gap-2 text-sm text-slate-600">
+      {companyMissing ? <Notice className="mb-4" tone="warning" title="Datos de empresa incompletos" description={`Falta ${companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes generar el PDF, pero quedará incompleto.`} /> : null}
+
+      <DetailSection title="Estado y fechas" description="Información de seguimiento del presupuesto.">
+        <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-5">
           <p><strong className="text-obra-ink">Creado:</strong> {formatDate(budget.fechaCreacion)}</p>
           <p><strong className="text-obra-ink">Enviado:</strong> {formatDate(budget.fechaEnvio)}</p>
           <p><strong className="text-obra-ink">Validez:</strong> {formatDate(budget.fechaValidez)}</p>
           <p><strong className="text-obra-ink">Seguimiento:</strong> {formatDate(budget.fechaSeguimiento)}</p>
           <p><strong className="text-obra-ink">Margen estimado:</strong> {formatCurrency(budget.margenEstimado)}</p>
         </div>
-
-        {companyMissing ? (
-          <div className="mt-4 rounded-lg bg-obra-yellow/20 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">
-            Falta {companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes generar el PDF, pero quedará incompleto.
-          </div>
-        ) : null}
-
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`} className="secondary-button">
-            <Pencil size={18} />
-            Editar presupuesto
-          </Link>
-          <Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`} className="secondary-button">
-            <MessageCircle size={18} />
-            Preparar seguimiento
-          </Link>
-          <form action={duplicateBudget}>
-            <input type="hidden" name="id" value={budget.id} />
-            <ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton>
-          </form>
-          <Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank" className="secondary-button"><Eye size={18} /> Vista previa PDF</Link>
-          <Link href={`/presupuestos/${budget.id}/pdf`} className="secondary-button"><Download size={18} /> Descargar PDF</Link>
           <StatusForm id={budget.id} estado="enviado" label="Marcar enviado" icon="send" />
           <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" />
           <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" />
@@ -103,7 +85,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
             <ConfirmSubmitButton message="¿Crear una factura borrador editable desde este presupuesto?">Convertir a factura</ConfirmSubmitButton>
           </form>
         </div>
-      </section>
+      </DetailSection>
 
       <EntityWorkflowSummary clientId={budget.clienteId} workId={budget.obraId ?? undefined} budgetId={budget.id} />
       <section className="mt-4">
