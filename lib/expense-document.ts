@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 
 export const MAX_EXPENSE_DOCUMENT_BYTES = 10 * 1024 * 1024;
 export const EXPENSE_DOCUMENT_TYPES = [
-  "MATERIAL_INVOICE", "FUEL_RECEIPT", "MEAL_RECEIPT", "SUBCONTRACTOR_INVOICE", "GENERAL_EXPENSE", "UNKNOWN"
+  "MATERIAL_INVOICE", "FUEL_RECEIPT", "MEAL_RECEIPT", "TOOL_INVOICE", "MACHINERY_INVOICE",
+  "TRANSPORT_INVOICE", "SUBCONTRACTOR_INVOICE", "SERVICE_INVOICE", "SUPPLY_INVOICE", "GENERAL_EXPENSE", "UNKNOWN"
 ] as const;
 export type ExpenseDocumentTypeValue = (typeof EXPENSE_DOCUMENT_TYPES)[number];
 
@@ -175,10 +176,16 @@ export function categoryForDocument(type: ExpenseDocumentTypeValue, suggested?: 
 
 function normalizeCategory(value: unknown, type: ExpenseDocumentTypeValue) {
   const category = cleanText(value, 40)?.toLowerCase().replace(/\s+/g, "_");
-  if (["material", "mano_obra", "transporte", "herramienta", "gasolina", "subcontrata", "otros"].includes(category || "")) return category!;
-  if (type === "MATERIAL_INVOICE") return "material";
-  if (type === "FUEL_RECEIPT") return "gasolina";
+  if (["materiales", "combustible", "restauracion", "herramientas", "maquinaria", "transportes", "subcontrata", "servicios", "suministros", "otros"].includes(category || "")) return category!;
+  if (type === "MATERIAL_INVOICE") return "materiales";
+  if (type === "FUEL_RECEIPT") return "combustible";
+  if (type === "MEAL_RECEIPT") return "restauracion";
+  if (type === "TOOL_INVOICE") return "herramientas";
+  if (type === "MACHINERY_INVOICE") return "maquinaria";
+  if (type === "TRANSPORT_INVOICE") return "transportes";
   if (type === "SUBCONTRACTOR_INVOICE") return "subcontrata";
+  if (type === "SERVICE_INVOICE") return "servicios";
+  if (type === "SUPPLY_INVOICE") return "suministros";
   return "otros";
 }
 

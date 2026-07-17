@@ -107,6 +107,9 @@ export function calculateWorkFinancials(work: WorkFinancialInput) {
   const pending = sum(billableInvoices.map((invoice) => Math.max(0, invoice.total - invoicePaid(invoice))));
   const registeredExpenses = sum(expenses.map((expense) => expense.importe));
   const subcontractorExpenses = sum(expenses.filter((expense) => normalizeStatus(expense.categoria) === "subcontrata").map((expense) => expense.importe));
+  const materialCategories = new Set(["material", "materiales", "herramienta", "herramientas", "maquinaria", "suministros"]);
+  const materialExpenses = sum(expenses.filter((expense) => materialCategories.has(normalizeStatus(expense.categoria))).map((expense) => expense.importe));
+  const generalExpenses = Math.max(0, registeredExpenses - materialExpenses - subcontractorExpenses);
   const realCost = Math.max(safeNumber(work.gastoReal), registeredExpenses);
   const revenueBase = invoiced || budgeted;
   const benefit = revenueBase - realCost;
@@ -121,6 +124,8 @@ export function calculateWorkFinancials(work: WorkFinancialInput) {
     paid,
     pending,
     registeredExpenses,
+    materialExpenses,
+    generalExpenses,
     subcontractorExpenses: subcontractorExpenses + safeNumber(work.subcontratasCoste),
     realCost,
     benefit,

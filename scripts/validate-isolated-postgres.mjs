@@ -84,7 +84,8 @@ try {
     "20260712210000_company_numbering_and_settings",
     "20260713193000_company_document_sequences",
   ];
-  for (const migration of incrementalMigrations) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
+  const postIdentityMigrations = ["20260717120000_procurement_management"];
+  for (const migration of [...incrementalMigrations, ...postIdentityMigrations]) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
     "npx.cmd",
     [
@@ -196,6 +197,12 @@ try {
   if (recovery.status !== 0) {
     throw new Error(`DEPLOY_RECOVERY_FAILED\n${recovery.stdout}\n${recovery.stderr}`);
   }
+  for (const migration of postIdentityMigrations) cpSync(join(process.cwd(), "prisma", "migrations", migration), join(tempRoot, "prisma", "migrations", migration), { recursive: true });
+  execFileSync(
+    "npx.cmd",
+    ["prisma", "migrate", "deploy", "--schema", join(tempRoot, "prisma", "schema.prisma")],
+    { cwd: process.cwd(), env: upgradeEnv, stdio: "pipe", shell: true },
+  );
   const upgraded = pg.getPgClient("capataz_test_upgrade");
   await upgraded.connect();
   const after = await upgraded.query(

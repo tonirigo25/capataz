@@ -224,6 +224,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
       include: {
         client: { select: { id: true, nombre: true } },
         work: { select: { id: true, titulo: true, client: { select: { id: true, nombre: true } } } },
+        purchaseInvoice: { select: { id: true, kind: true, invoiceNumber: true, pendingAmount: true } },
         cashMovements: { where: { archivedAt: null }, select: { id: true, status: true, type: true, amount: true } }
       },
       orderBy: { fecha: "desc" }
@@ -636,16 +637,17 @@ function buildReceivableForecastItems(invoices: TreasuryInvoice[], collectionDel
   });
 }
 
-function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ include: { client: { select: { id: true; nombre: true } }; work: { select: { id: true; titulo: true; client: { select: { id: true; nombre: true } } } }; cashMovements: { select: { id: true; status: true; type: true; amount: true } } } }>>, horizon: ReturnType<typeof resolveTreasuryHorizon>, now: Date): TreasuryForecastItem[] {
+function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ include: { client: { select: { id: true; nombre: true } }; work: { select: { id: true; titulo: true; client: { select: { id: true; nombre: true } } } }; purchaseInvoice: { select: { id: true; kind: true; invoiceNumber: true; pendingAmount: true } }; cashMovements: { select: { id: true; status: true; type: true; amount: true } } } }>>, horizon: ReturnType<typeof resolveTreasuryHorizon>, now: Date): TreasuryForecastItem[] {
   return expenses.flatMap((expense) => {
     if (expense.paymentStatus !== "pending") return [];
     if (expense.cashMovements.some((movement) => movement.status !== "cancelled")) return [];
+    const payableAmount = expense.purchaseInvoice?.pendingAmount ?? expense.importe;
     if (!expense.paymentDueDate) {
       const item: TreasuryForecastItem = {
         id: `expense-unscheduled:${expense.id}`,
         direction: "outflow" as const,
-        amount: expense.importe,
-        signedAmount: -expense.importe,
+        amount: payableAmount,
+        signedAmount: -payableAmount,
         date: null,
         effectiveDate: null,
         title: expense.proveedor,
@@ -659,7 +661,7 @@ function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ in
         workId: expense.obraId,
         workTitle: expense.work?.titulo ?? null,
         expenseId: expense.id,
-        href: "/gastos-materiales",
+        href: expense.purchaseInvoice ? `/${expense.purchaseInvoice.kind === "SUBCONTRACTOR" ? "facturas-subcontratas" : "facturas-proveedor"}/${expense.purchaseInvoice.id}` : "/gastos-materiales",
         assumptions: ["Gasto marcado como pendiente, pero sin fecha de pago: no se coloca artificialmente en el calendario."]
       };
       return [item];
@@ -669,8 +671,8 @@ function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ in
     const item: TreasuryForecastItem = {
       id: `expense:${expense.id}`,
       direction: "outflow" as const,
-      amount: expense.importe,
-      signedAmount: -expense.importe,
+      amount: payableAmount,
+      signedAmount: -payableAmount,
       date: due,
       effectiveDate: due < horizon.start ? horizon.start : due,
       title: expense.proveedor,
@@ -684,7 +686,7 @@ function buildExpenseForecastItems(expenses: Array<Prisma.ExpenseGetPayload<{ in
       workId: expense.obraId,
       workTitle: expense.work?.titulo ?? null,
       expenseId: expense.id,
-      href: "/gastos-materiales",
+      href: expense.purchaseInvoice ? `/${expense.purchaseInvoice.kind === "SUBCONTRACTOR" ? "facturas-subcontratas" : "facturas-proveedor"}/${expense.purchaseInvoice.id}` : "/gastos-materiales",
       assumptions: ["Gasto registrado como pendiente con fecha de pago explícita."]
     };
     return [item];

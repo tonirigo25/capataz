@@ -83,12 +83,63 @@ enum PaymentType {
 
 enum ExpenseCategory {
   material
+  materiales
   mano_obra
   transporte
+  transportes
   herramienta
+  herramientas
   gasolina
+  combustible
+  restauracion
+  maquinaria
   subcontrata
+  servicios
+  suministros
   otros
+}
+
+enum BusinessPartnerKind {
+  SUPPLIER
+  SUBCONTRACTOR
+}
+
+enum BusinessPartnerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum BusinessPartnerLegalType {
+  SELF_EMPLOYED
+  COMPANY
+}
+
+enum PartnerDocumentStatus {
+  VALID
+  EXPIRING
+  EXPIRED
+  INCOMPLETE
+  NOT_REQUIRED
+}
+
+enum PurchaseInvoiceKind {
+  SUPPLIER
+  SUBCONTRACTOR
+}
+
+enum PurchaseInvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum FiscalDocumentType {
+  FULL_INVOICE
+  SIMPLIFIED_INVOICE
+  CORRECTIVE_INVOICE
 }
 
 enum ExpenseCashStatus {
@@ -234,8 +285,13 @@ enum ExpenseDocumentStatus {
   UPLOADED
   PROCESSING
   REVIEW_REQUIRED
+  AWAITING_PARTNER
+  AWAITING_WORK
+  POSSIBLE_DUPLICATE
   READY
   SAVED
+  REGISTERED
+  ARCHIVED
   FAILED
   CANCELLED
 }
@@ -252,7 +308,12 @@ enum ExpenseDocumentType {
   MATERIAL_INVOICE
   FUEL_RECEIPT
   MEAL_RECEIPT
+  TOOL_INVOICE
+  MACHINERY_INVOICE
+  TRANSPORT_INVOICE
   SUBCONTRACTOR_INVOICE
+  SERVICE_INVOICE
+  SUPPLY_INVOICE
   GENERAL_EXPENSE
   UNKNOWN
 }
@@ -476,7 +537,7 @@ model Client {
 }
 
 model Work {
-  id                    String             @id @default(cuid())
+  id                    String                @id @default(cuid())
   companyId             String?
   numeroInterno         String?
   codigo                String?
@@ -490,9 +551,9 @@ model Work {
   latitud               Float?
   longitud              Float?
   tipoTrabajo           String
-  estado                WorkStatus         @default(pendiente_inicio)
-  prioridad             WorkPriority       @default(media)
-  fechaCreacion         DateTime           @default(now())
+  estado                WorkStatus            @default(pendiente_inicio)
+  prioridad             WorkPriority          @default(media)
+  fechaCreacion         DateTime              @default(now())
   fechaInicioPrevista   DateTime?
   fechaInicio           DateTime?
   fechaInicioReal       DateTime?
@@ -505,22 +566,25 @@ model Work {
   observacionesInternas String?
   notasPrivadas         String?
   presupuestoAprobado   Float
-  costePrevisto         Float              @default(0)
-  gastoReal             Float              @default(0)
-  margenEstimado        Float              @default(0)
-  horasEstimadas        Float              @default(0)
-  horasReales           Float              @default(0)
-  subcontratasCoste     Float              @default(0)
-  archivada             Boolean            @default(false)
+  costePrevisto         Float                 @default(0)
+  gastoReal             Float                 @default(0)
+  margenEstimado        Float                 @default(0)
+  horasEstimadas        Float                 @default(0)
+  horasReales           Float                 @default(0)
+  subcontratasCoste     Float                 @default(0)
+  archivada             Boolean               @default(false)
   archivadaAt           DateTime?
   notas                 String?
-  updatedAt             DateTime           @updatedAt
+  updatedAt             DateTime              @updatedAt
   budgets               Budget[]
-  client                Client             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  contact               Contact?           @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
+  client                Client                @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  contact               Contact?              @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
   repositoryDocuments   Document[]
   documents             WorkDocument[]
   expenses              Expense[]
+  partnerLinks          BusinessPartnerWork[]
+  purchaseInvoices      PurchaseInvoice[]
+  preferredByPartners   PartnerLearning[]     @relation("PartnerPreferredWork")
   internalNotes         InternalNote[]
   photos                WorkPhoto[]
   invoices              Invoice[]
@@ -531,7 +595,7 @@ model Work {
   recurringExpenses     RecurringExpense[]
   reminders             Reminder[]
   agendaEvents          EventoAgenda[]
-  company               Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  company               Company?              @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, numeroInterno])
   @@unique([companyId, codigo])
@@ -704,6 +768,8 @@ model Expense {
   companyId         String?
   obraId            String?
   clienteId         String?
+  businessPartnerId String?
+  purchaseInvoiceId String?            @unique
   proveedor         String
   concepto          String
   categoria         ExpenseCategory
@@ -720,9 +786,12 @@ model Expense {
   documents         Document[]
   expectedCashFlows ExpectedCashFlow[]
   work              Work?              @relation(fields: [obraId], references: [id], onDelete: SetNull)
+  businessPartner   BusinessPartner?   @relation(fields: [businessPartnerId], references: [id], onDelete: SetNull)
+  purchaseInvoice   PurchaseInvoice?   @relation(fields: [purchaseInvoiceId], references: [id], onDelete: SetNull)
   company           Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
+  @@index([businessPartnerId])
 }
 
 model FinancialAccount {
@@ -990,6 +1059,8 @@ model Document {
   budgetId             String?
   invoiceId            String?
   expenseId            String?
+  businessPartnerId    String?
+  purchaseInvoiceId    String?
   uploadedById         String?
   metadata             Json?
   status               ExpenseDocumentStatus    @default(UPLOADED)
@@ -1012,6 +1083,8 @@ model Document {
   budget               Budget?                  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   invoice              Invoice?                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   expense              Expense?                 @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  businessPartner      BusinessPartner?         @relation(fields: [businessPartnerId], references: [id], onDelete: SetNull)
+  purchaseInvoice      PurchaseInvoice?         @relation(fields: [purchaseInvoiceId], references: [id], onDelete: SetNull)
   workPhoto            WorkPhoto?
   company              Company?                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
   uploadedBy           User?                    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -1021,6 +1094,8 @@ model Document {
   @@index([budgetId])
   @@index([invoiceId])
   @@index([expenseId])
+  @@index([businessPartnerId])
+  @@index([purchaseInvoiceId])
   @@index([uploadedById])
   @@index([companyId, status])
   @@index([companyId, sha256])
@@ -2026,9 +2101,185 @@ model Company {
   followUps           FollowUp[]
   treasurySettings    TreasurySettings[]
   documentSequences   CompanyDocumentSequence[]
+  businessPartners    BusinessPartner[]
+  partnerHistory      BusinessPartnerHistory[]
+  partnerWorkLinks    BusinessPartnerWork[]
+  purchaseInvoices    PurchaseInvoice[]
+  purchasePayments    PurchaseInvoicePayment[]
+  purchaseHistory     PurchaseInvoiceHistory[]
+  partnerLearning     PartnerLearning[]
 
   @@index([status])
   @@index([isDemo])
+}
+
+model BusinessPartner {
+  id                     String                    @id @default(cuid())
+  companyId              String
+  kind                   BusinessPartnerKind
+  status                 BusinessPartnerStatus     @default(ACTIVE)
+  commercialName         String
+  legalName              String
+  taxId                  String?
+  address                String?
+  city                   String?
+  province               String?
+  postalCode             String?
+  country                String                    @default("España")
+  phone                  String?
+  email                  String?
+  website                String?
+  contactPerson          String?
+  notes                  String?
+  internalNotes          String?
+  paymentTerms           String?
+  paymentDueDays         Int                       @default(30)
+  preferredPaymentMethod String?
+  tags                   String[]                  @default([])
+  tradeType              String?
+  specialty              String?
+  liabilityInsurance     String?
+  documentExpiresAt      DateTime?
+  legalType              BusinessPartnerLegalType?
+  internalRating         Int?
+  documentStatus         PartnerDocumentStatus     @default(NOT_REQUIRED)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  archivedAt             DateTime?
+  company                Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  documents              Document[]
+  expenses               Expense[]
+  invoices               PurchaseInvoice[]
+  workLinks              BusinessPartnerWork[]
+  history                BusinessPartnerHistory[]
+  learning               PartnerLearning?
+
+  @@unique([companyId, kind, taxId])
+  @@index([companyId, kind, status])
+  @@index([companyId, commercialName])
+  @@index([companyId, legalName])
+  @@index([companyId, archivedAt])
+}
+
+model BusinessPartnerHistory {
+  id                String          @id @default(cuid())
+  companyId         String
+  businessPartnerId String
+  action            String
+  detail            String
+  metadata          Json?
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, businessPartnerId, createdAt])
+}
+
+model BusinessPartnerWork {
+  id                String          @id @default(cuid())
+  companyId         String
+  businessPartnerId String
+  workId            String
+  createdAt         DateTime        @default(now())
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
+  work              Work            @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([businessPartnerId, workId])
+  @@index([companyId, workId])
+}
+
+model PurchaseInvoice {
+  id                String                   @id @default(cuid())
+  companyId         String
+  businessPartnerId String
+  workId            String?
+  kind              PurchaseInvoiceKind
+  status            PurchaseInvoiceStatus    @default(PENDING)
+  fiscalType        FiscalDocumentType       @default(FULL_INVOICE)
+  invoiceNumber     String
+  issueDate         DateTime
+  dueDate           DateTime
+  taxableBase       Float
+  vatRate           Float?
+  vatAmount         Float                    @default(0)
+  withholdingRate   Float?
+  withholdingAmount Float                    @default(0)
+  total             Float
+  paidAmount        Float                    @default(0)
+  pendingAmount     Float
+  currency          String                   @default("EUR")
+  paymentMethod     String?
+  description       String
+  workDescription   String?
+  certifications    Json?
+  notes             String?
+  voidedAt          DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  company           Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  businessPartner   BusinessPartner          @relation(fields: [businessPartnerId], references: [id], onDelete: Restrict)
+  work              Work?                    @relation(fields: [workId], references: [id], onDelete: SetNull)
+  payments          PurchaseInvoicePayment[]
+  documents         Document[]
+  expense           Expense?
+  history           PurchaseInvoiceHistory[]
+
+  @@unique([companyId, businessPartnerId, invoiceNumber])
+  @@index([companyId, kind, status])
+  @@index([companyId, dueDate])
+  @@index([companyId, workId])
+}
+
+model PurchaseInvoicePayment {
+  id                String          @id @default(cuid())
+  companyId         String
+  purchaseInvoiceId String
+  amount            Float
+  paidAt            DateTime
+  method            String
+  reference         String?
+  notes             String?
+  createdAt         DateTime        @default(now())
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, purchaseInvoiceId, paidAt])
+}
+
+model PurchaseInvoiceHistory {
+  id                String          @id @default(cuid())
+  companyId         String
+  purchaseInvoiceId String
+  action            String
+  detail            String
+  metadata          Json?
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, purchaseInvoiceId, createdAt])
+}
+
+model PartnerLearning {
+  id                    String           @id @default(cuid())
+  companyId             String
+  businessPartnerId     String           @unique
+  preferredCategory     ExpenseCategory?
+  preferredWorkId       String?
+  preferredVatRate      Float?
+  categoryConfirmations Int              @default(0)
+  workConfirmations     Int              @default(0)
+  vatConfirmations      Int              @default(0)
+  updatedAt             DateTime         @updatedAt
+  company               Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  businessPartner       BusinessPartner  @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
+  preferredWork         Work?            @relation("PartnerPreferredWork", fields: [preferredWorkId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, preferredCategory])
+  @@index([companyId, preferredWorkId])
 }
 
 model CompanyDocumentSequence {
