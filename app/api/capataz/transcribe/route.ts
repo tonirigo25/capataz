@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { getOptionalSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if (!await getOptionalSession()) {
+    return NextResponse.json({ error: "Inicia sesión para usar el dictado." }, { status: 401 });
+  }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "Falta OPENAI_API_KEY en el backend." }, { status: 500 });
