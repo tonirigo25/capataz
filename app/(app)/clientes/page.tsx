@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from "react";
 import { AlertTriangle, Archive, ArrowLeft, ArrowRight, BriefcaseBusiness, CircleDollarSign, Eraser, Eye, FileClock, Search, SlidersHorizontal, UserPlus } from "lucide-react";
 import { DemoLimitButton } from "@/components/demo-limit-button";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, PageHeader, TableShell } from "@/components/ui-primitives";
+import { EmptyState, FilterBar, PageHeader, ResultSummary, SearchInput, TableShell } from "@/components/ui-primitives";
 import { getClientList, type ClientListItem, type ClientListQuery } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -57,13 +57,14 @@ export default async function ClientsPage({
   const { companyId } = await requireCompanyContext();
   const result = await getClientList(query, companyId);
   const activeFilterSet = new Set((query.filtros ?? "").split(",").filter(Boolean));
+  const hasCriteria = Boolean(query.buscar || (query.estado && query.estado !== "todos") || (query.tipo && query.tipo !== "todos") || result.activeFilters.length);
 
   return (
     <main className="screen">
       <PageHeader
         eyebrow="CRM"
         title="Clientes"
-        description="Listado operativo con deuda, obras activas, datos pendientes y próxima acción."
+        description="Contactos, obras y situación económica con una próxima acción clara para cada cliente."
         action={
           <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={result.total} limit={3}>
             <UserPlus size={18} />
@@ -71,12 +72,13 @@ export default async function ClientsPage({
           </DemoLimitButton>
         }
       >
+        <FilterBar>
         <form action="/clientes" className="grid gap-3" aria-label="Buscar y filtrar clientes">
           <div className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_13rem_13rem_13rem_13rem_auto]">
             <label>
               <span className="label mb-1 block">Buscar</span>
               <span className="flex gap-2">
-                <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Nombre, CIF/NIF, email, teléfono..." />
+                <SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Nombre, CIF/NIF, email, teléfono…" />
                 <button className="icon-button lg:hidden" type="submit" aria-label="Buscar clientes">
                   <Search size={19} />
                 </button>
@@ -123,19 +125,15 @@ export default async function ClientsPage({
             </div>
           ) : null}
         </form>
+        </FilterBar>
       </PageHeader>
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-bold text-slate-600">
-          {result.total} clientes · página {result.page} de {result.totalPages}
-        </p>
-        {query.archivo === "archivados" ? (
-          <p className="inline-flex items-center gap-2 text-sm font-bold text-slate-600">
+      <ResultSummary shown={result.items.length} total={result.total} noun="clientes" context={<>{query.archivo === "archivados" ? (
+          <span className="inline-flex items-center gap-2">
             <Archive size={16} />
             Mostrando clientes archivados
-          </p>
-        ) : null}
-      </div>
+          </span>
+        ) : `Página ${result.page} de ${result.totalPages}`}</>} />
 
       {result.items.length ? (
         <>
@@ -230,8 +228,8 @@ export default async function ClientsPage({
         </>
       ) : (
         <EmptyState
-          title="No hay clientes con estos criterios"
-          description="Cambia filtros o crea un cliente nuevo. El CRM no usa datos de muestra en esta vista."
+          title={hasCriteria ? "No hay clientes para estos filtros" : "Todavía no hay clientes"}
+          description={hasCriteria ? "Cambia la búsqueda o limpia los filtros activos." : "Crea el primer cliente para empezar a relacionar obras, presupuestos y facturas."}
           icon={Search}
           action={
             <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={result.total} limit={3}>

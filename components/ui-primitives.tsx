@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, Info, Loader2, SlidersHorizontal } from "lucide-react";
 import { clsx } from "clsx";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
@@ -131,15 +131,17 @@ export function Notice({
   title,
   description,
   tone = "neutral",
-  action
+  action,
+  className
 }: {
   title?: string;
   description: string;
   tone?: Tone;
   action?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={clsx("rounded-xl border p-4", toneClasses[tone])}>
+    <div className={clsx("rounded-xl border p-4", toneClasses[tone], className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           {title ? <p className="font-black">{title}</p> : null}
@@ -212,4 +214,72 @@ export function Tabs({ children, label, className }: { children: ReactNode; labe
 
 export function SearchInput(props: Omit<ComponentProps<"input">, "type">) {
   return <input {...props} type="search" className={clsx("field", props.className)} />;
+}
+
+export function FilterBar({ children, className, label = "Buscar y filtrar" }: { children: ReactNode; className?: string; label?: string }) {
+  return (
+    <div className={clsx("surface p-3 sm:p-4", className)} aria-label={label}>
+      <div className="mb-3 flex items-center gap-2 text-sm font-black text-obra-ink">
+        <SlidersHorizontal size={17} aria-hidden="true" />
+        <span>Buscar y filtrar</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function ResultSummary({ shown, total, noun, context }: { shown: number; total: number; noun: string; context?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-black text-obra-ink" aria-live="polite">
+        {shown === total ? `${total} ${noun}` : `${shown} de ${total} ${noun}`}
+      </p>
+      {context ? <div className="text-sm font-semibold text-slate-500">{context}</div> : null}
+    </div>
+  );
+}
+
+export function MetricStrip({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={clsx("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>;
+}
+
+export function DetailSection({ title, description, action, children, className }: { title: string; description?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={clsx("section-shell", className)}>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-black text-obra-ink">{title}</h2>
+          {description ? <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p> : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function FormSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <fieldset className="form-section">
+      <legend className="px-1 text-sm font-black text-obra-ink">{title}</legend>
+      {description ? <p className="text-sm leading-6 text-slate-500">{description}</p> : null}
+      <div className="grid gap-3">{children}</div>
+    </fieldset>
+  );
+}
+
+export function StickyFormActions({ children }: { children: ReactNode }) {
+  return <div className="sticky-form-actions">{children}</div>;
+}
+
+export function ActionMenu({ label = "Más acciones", children, className }: { label?: string; children: ReactNode; className?: string }) {
+  return (
+    <details className={clsx("action-menu", className)}>
+      <summary className="secondary-button cursor-pointer list-none">
+        {label}
+        <ChevronDown size={17} aria-hidden="true" />
+      </summary>
+      <div className="action-menu-panel">{children}</div>
+    </details>
+  );
 }
