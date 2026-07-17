@@ -126,11 +126,7 @@ try {
   runCommand("node", ["prisma/seed.js"]);
 
   const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
-  const allTests = Object.keys(packageJson.scripts).filter((name) => name.startsWith("test:"));
-  const startAfter = process.env.CAPATAZ_RUNNER_START_AFTER;
-  const startIndex = startAfter ? allTests.indexOf(startAfter) + 1 : 0;
-  if (startAfter && startIndex === 0) throw new Error(`UNKNOWN_START_AFTER_TEST:${startAfter}`);
-  const tests = allTests.slice(startIndex);
+  const tests = Object.keys(packageJson.scripts).filter((name) => name.startsWith("test:"));
   for (const [index, name] of tests.entries()) {
     const result = await runTest(name, index, tests.length);
     results.push(result);
