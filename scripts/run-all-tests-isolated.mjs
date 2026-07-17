@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, appendFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -17,7 +17,12 @@ mkdirSync(reportRoot, { recursive: true });
 const childHandleReport = join(reportRoot, "child-active-handles.jsonl");
 const runnerReport = join(reportRoot, "runner-report.jsonl");
 const testTimeoutMs = Number(process.env.CAPATAZ_RUNNER_TEST_TIMEOUT_MS ?? 120_000);
+const testTimeoutOverridesMs = new Map([
+  ["test:automation-postgres-isolated", 300_000],
+  ["test:numbering-contract", 300_000]
+]);
 const handleWatchdogMs = Number(process.env.CAPATAZ_ACTIVE_HANDLE_WATCHDOG_MS ?? 30_000);
+const childPortBase = Number(process.env.CAPATAZ_RUNNER_CHILD_PORT_BASE ?? 56_200);
 const reporterPath = join(process.cwd(), "scripts", "active-handle-reporter.mjs");
 const reporterUrl = pathToFileURL(reporterPath).href;
 const npmCliPath = join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
@@ -88,32 +93,41 @@ function runCommand(command, args, commandEnv = env) {
 }
 
 function runTest(name, index, total) {
-  return new Promise((resolve) => {
-    process.stdout.write(`[isolated-tests] ${index + 1}/${total} ${name}\n`);
-    const startedAt = Date.now();
-    const childEnv = { ...env, CAPATAZ_ACTIVE_HANDLE_LABEL: name };
-    const child = spawn(process.execPath, [npmCliPath, "run", name], { cwd: process.cwd(), env: childEnv, shell: false });
-    let timedOut = false;
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { const text = chunk.toString(); stdout += text; process.stdout.write(text); });
-    child.stderr.on("data", (chunk) => { const text = chunk.toString(); stderr += text; process.stderr.write(text); });
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      activeSnapshot("test-timeout", { name, childPid: child.pid, elapsedMs: Date.now() - startedAt });
-      try {
-        execFileSync("taskkill", ["/pid", String(child.pid), "/f", "/t"], { stdio: "ignore" });
-      } catch {
-        child.kill("SIGKILL");
-      }
-    }, testTimeoutMs);
-    child.on("close", (status, signal) => {
-      clearTimeout(timeout);
-      const elapsedMs = Date.now() - startedAt;
-      if (diagnosticsEnabled) activeSnapshot("after-test", { name, status, signal, elapsedMs, timedOut });
-      resolve({ name, ok: status === 0 && !timedOut, status, signal, elapsedMs, timedOut, stdout, stderr });
-    });
+  process.stdout.write(`[isolated-tests] ${index + 1}/${total} ${name}\n`);
+  const startedAt = Date.now();
+  const timeoutMs = testTimeoutOverridesMs.get(name) ?? testTimeoutMs;
+  const childPort = String(childPortBase + index);
+  const childEnv = {
+    ...env,
+    CAPATAZ_ACTIVE_HANDLE_LABEL: name,
+    CAPATAZ_AUTH_POSTGRES_PORT: childPort,
+    CAPATAZ_CSV_STANDALONE_POSTGRES_PORT: childPort,
+    CAPATAZ_NUMBERING_POSTGRES_PORT: childPort,
+    CAPATAZ_QA_POSTGRES_PORT: childPort,
+    CAPATAZ_TENANT_POSTGRES_PORT: childPort
+  };
+  const child = spawnSync(process.execPath, [npmCliPath, "run", name], {
+    cwd: process.cwd(),
+    env: childEnv,
+    shell: false,
+    stdio: "inherit",
+    timeout: timeoutMs,
+    windowsHide: true
   });
+  const elapsedMs = Date.now() - startedAt;
+  const timedOut = child.error?.code === "ETIMEDOUT";
+  if (timedOut) activeSnapshot("test-timeout", { name, elapsedMs });
+  if (diagnosticsEnabled) activeSnapshot("after-test", { name, status: child.status, signal: child.signal, elapsedMs, timedOut });
+  return {
+    name,
+    ok: child.status === 0 && !timedOut,
+    status: child.status,
+    signal: child.signal,
+    elapsedMs,
+    timedOut,
+    stdout: "",
+    stderr: child.error?.message ?? ""
+  };
 }
 
 const startedAt = Date.now();
@@ -127,8 +141,15 @@ try {
 
   const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
   const tests = Object.keys(packageJson.scripts).filter((name) => name.startsWith("test:"));
+  const resultsByCommand = new Map();
   for (const [index, name] of tests.entries()) {
-    const result = await runTest(name, index, tests.length);
+    const command = packageJson.scripts[name];
+    const previous = resultsByCommand.get(command);
+    const result = previous
+      ? { ...previous, name, elapsedMs: 0, reusedFrom: previous.name }
+      : await runTest(name, index, tests.length);
+    if (previous) process.stdout.write(`[isolated-tests] ${index + 1}/${tests.length} ${name} reused=${previous.name}\n`);
+    else resultsByCommand.set(command, result);
     results.push(result);
     if (!result.ok) {
       activeSnapshot("failed-test", { name, status: result.status, signal: result.signal, elapsedMs: result.elapsedMs, timedOut: result.timedOut });

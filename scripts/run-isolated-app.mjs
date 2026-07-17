@@ -49,6 +49,13 @@ execFileSync(
   ["tsx", "scripts/validate-automation-transaction.mjs"],
   { cwd: process.cwd(), env, stdio: "pipe", shell: true },
 );
+if (env.CAPATAZ_VISUAL_EMAIL && env.CAPATAZ_VISUAL_PASSWORD) {
+  execFileSync(
+    "npx.cmd",
+    ["tsx", "scripts/seed-visual-validation.ts"],
+    { cwd: process.cwd(), env, stdio: "pipe", shell: true },
+  );
+}
 child = spawn("npm.cmd", ["run", "dev", "--", "-p", "3000"], {
   cwd: process.cwd(),
   env,
