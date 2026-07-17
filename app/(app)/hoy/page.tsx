@@ -16,6 +16,7 @@ import {
   Plus,
   Receipt,
   Search,
+  Sparkles,
   Users,
   WalletCards
 } from "lucide-react";
@@ -63,134 +64,76 @@ export default async function TodayPage() {
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length + companyStatus.missingRecommended.length;
   const currentDate = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "2-digit", month: "long" }).format(now);
-  const topPriority = dashboard.priorities[0];
 
   return (
     <main className="screen">
       <PageHeader
-        eyebrow={currentDate}
-        title={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}.`}
+        eyebrow={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""} · ${currentDate}`}
+        title="Hoy"
         description={dashboard.dailySummary}
-        action={<DashboardCreateMenu />}
+        action={
+          <div className="hidden lg:block">
+            <DashboardCreateMenu />
+          </div>
+        }
         secondaryActions={
           <>
             <Link href="/buscar" className="secondary-button">
               <Search size={18} />
               Buscar
             </Link>
-            <Link href="/capataz" className="secondary-button">
-              <Bot size={18} />
-              Capataz
-            </Link>
           </>
         }
       />
-      <TodayWorkflowSummary />
 
-      {companyMissing ? (
-        <Notice
-          tone="warning"
-          title="Datos de empresa incompletos"
-          description={`Faltan ${companyMissing} datos de empresa para que presupuestos y facturas salgan completos.`}
-          action={
-            <Link href="/configuracion#empresa" className="secondary-button bg-white">
-              Completar datos
-            </Link>
-          }
-        />
-      ) : null}
-
-      {treasurySignals.length ? (
-        <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="flex items-center gap-2 font-black"><AlertTriangle size={18} /> Tesorería</p>
-              <div className="mt-2 grid gap-1 text-sm leading-6">
-                {treasurySignals.slice(0, 3).map((alert) => (
-                  <p key={alert.id}>{alert.title}: {alert.detail}</p>
-                ))}
-              </div>
-            </div>
-            <Link href="/tesoreria" className="secondary-button bg-white">Abrir tesorería</Link>
+      <Link href="/capataz" className="group mb-7 block rounded-2xl bg-obra-ink p-5 text-white shadow-card transition hover:-translate-y-0.5 hover:bg-obra-graphite sm:p-6">
+        <div className="flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-obra-yellow text-obra-ink"><Sparkles size={23} aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black uppercase tracking-wide text-obra-yellow">Capataz</p>
+            <h2 className="mt-1 text-xl font-black leading-tight sm:text-2xl">¿Qué ha pasado hoy?</h2>
+            <p className="mt-2 text-sm leading-6 text-white/75">Escribe o dicta lo ocurrido. Podrás revisar la transcripción y confirmar antes de guardar.</p>
           </div>
-        </section>
-      ) : null}
-
-      <section className="mt-5 grid gap-4 xl:grid-cols-[1.45fr_0.9fr]">
-        <article className="rounded-xl border border-slate-200 bg-obra-ink p-5 text-white shadow-card">
-          <p className="text-sm font-bold text-obra-yellow">Resumen del día</p>
-          <h2 className="mt-2 text-2xl font-black leading-tight">{dashboard.dailySummary}</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-4">
-            <SummaryMetric label="Eventos" value={dashboard.counts.eventsToday} />
-            <SummaryMetric label="Seguimientos" value={dashboard.counts.followUpsToday} />
-            <SummaryMetric label="Vencidas" value={dashboard.counts.overdueInvoices} />
-            <SummaryMetric label="Por cobrar" value={formatCurrency(dashboard.money.pendingCollection)} />
-          </div>
-          <Link href="#prioridades" className="secondary-button mt-5 border-white/25 bg-white/10 text-white hover:bg-white/15">
-            Ver prioridades
-            <ArrowRight size={18} />
-          </Link>
-        </article>
-
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
-          <p className="label">Próxima acción importante</p>
-          {topPriority ? (
-            <div className="mt-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-black text-obra-ink">{topPriority.title}</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{topPriority.detail}</p>
-                </div>
-                <StatusPill status={topPriority.status} />
-              </div>
-              <p className="mt-3 text-sm font-semibold text-slate-500">{topPriority.type} · {formatDate(topPriority.date)}</p>
-              <Link href={topPriority.href} className="primary-button mt-4 w-full">
-                {topPriority.action}
-              </Link>
-            </div>
-          ) : (
-            <EmptyState title="Sin prioridades urgentes" description="No hay facturas vencidas, visitas ni seguimientos destacados para hoy." icon={CheckCircle2} />
-          )}
-        </article>
-      </section>
-
-      <section className="mt-5">
-        <SectionHeader title="Acciones rápidas" description="Las tareas más habituales sin pasar por el chat." />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-          {quickActions.map((action) => (
-            <QuickAction key={action.href} {...action} />
-          ))}
+          <ArrowRight className="mt-3 shrink-0 text-obra-yellow transition group-hover:translate-x-1" aria-hidden="true" />
         </div>
-      </section>
+      </Link>
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <DashboardSection
+        id="necesita-atencion"
+        title="Necesita tu atención"
+        description="Lo más urgente, ordenado para que puedas actuar sin revisar toda la aplicación."
+        action={<Link href="/agenda?vista=hoy" className="secondary-button">Ver agenda</Link>}
+      >
+        <div className="grid gap-3 lg:grid-cols-2">
+          {dashboard.priorities.length ? dashboard.priorities.map((item) => <PriorityCard key={item.key} item={item} />) : (
+            <div className="lg:col-span-2"><EmptyState title="Todo bajo control" description="No hay cobros vencidos, visitas ni seguimientos urgentes para hoy." icon={CheckCircle2} /></div>
+          )}
+        </div>
+        {treasurySignals.length ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div><p className="flex items-center gap-2 font-black"><AlertTriangle size={18} /> Tesorería</p><div className="mt-2 grid gap-1 text-sm leading-6">{treasurySignals.slice(0, 3).map((alert) => <p key={alert.id}>{alert.title}: {alert.detail}</p>)}</div></div>
+              <Link href="/tesoreria" className="secondary-button bg-white">Abrir tesorería</Link>
+            </div>
+          </div>
+        ) : null}
+        <TodayWorkflowSummary />
+        {companyMissing ? <div className="mt-4"><Notice tone="warning" title="Datos de empresa incompletos" description={`Faltan ${companyMissing} datos para que presupuestos y facturas salgan completos.`} action={<Link href="/configuracion#empresa" className="secondary-button bg-white">Completar datos</Link>} /></div> : null}
+      </DashboardSection>
+
+      <section className="section-shell mt-8">
+        <SectionHeader title="Estado del negocio" description="Una lectura rápida con datos reales del periodo actual." />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard href="/dinero?filtro=pendientes" title="Pendiente de cobro" value={formatCurrency(dashboard.money.pendingCollection)} detail={`${dashboard.counts.pendingInvoices} facturas abiertas`} icon={WalletCards} tone="success" />
         <StatCard href="/dinero?filtro=vencidas" title="Facturas vencidas" value={String(dashboard.counts.overdueInvoices)} detail={`${formatCurrency(dashboard.money.overduePending)} pendientes`} icon={Receipt} tone={dashboard.counts.overdueInvoices ? "danger" : "neutral"} />
         <StatCard href="/presupuestos?filtro=pendientes" title="Presupuestos pendientes" value={String(dashboard.counts.pendingBudgets)} detail="Borradores, enviados y en revisión" icon={FileText} tone="warning" />
         <StatCard href="/obras?estado=en_curso" title="Obras activas" value={String(dashboard.counts.activeWorks)} detail="En curso, pausadas o pendientes" icon={BriefcaseBusiness} />
         <StatCard href="/dinero?filtro=todas" title="Facturación del mes" value={formatCurrency(dashboard.money.billedThisMonth)} detail="Solo facturas, no presupuestos" icon={Euro} />
         <StatCard href="/gastos-materiales" title="Gastos del mes" value={formatCurrency(dashboard.money.expensesThisMonth)} detail={`${dashboard.counts.pendingMaterials} materiales pendientes`} icon={Package} tone="warning" />
+        </div>
       </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="grid gap-6">
-          <DashboardSection
-            id="prioridades"
-            title="Prioridades"
-            description="Máximo 5 elementos ordenados por urgencia real."
-            action={<Link href="/agenda?vista=hoy" className="secondary-button">Agenda</Link>}
-          >
-            {dashboard.priorities.length ? (
-              <div className="grid gap-3">
-                {dashboard.priorities.map((item) => (
-                  <PriorityCard key={item.key} item={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="No hay prioridades urgentes" description="Todo lo crítico está controlado. Puedes revisar obras o preparar nuevos presupuestos." icon={CheckCircle2} />
-            )}
-          </DashboardSection>
-
+      <div className="mt-8 grid gap-8">
           <DashboardSection
             title="Agenda de hoy"
             description="Visitas, llamadas, seguimientos y recordatorios ordenados por hora."
@@ -212,6 +155,13 @@ export default async function TodayPage() {
             )}
           </DashboardSection>
 
+          <section className="section-shell">
+            <SectionHeader title="Acciones rápidas" description="Las tareas habituales, a un toque y sin pasos innecesarios." />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              {quickActions.map((action) => <QuickAction key={action.href} {...action} />)}
+            </div>
+          </section>
+
           <DashboardSection title="Actividad reciente" description="Últimos movimientos reales registrados en Capataz.">
             {dashboard.recentActivity.length ? (
               <div className="grid gap-2">
@@ -223,9 +173,8 @@ export default async function TodayPage() {
               <EmptyState title="Aún no hay actividad" description="Cuando crees clientes, facturas, pagos o gastos aparecerán aquí." icon={Activity} />
             )}
           </DashboardSection>
-        </div>
 
-        <aside className="grid gap-6">
+        <aside className="grid gap-6 xl:grid-cols-3" aria-label="Resumen operativo">
           <DashboardSection
             title="Cobros y facturas"
             description="Vencidas, próximas y de mayor importe pendiente."
@@ -293,19 +242,10 @@ function DashboardSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
+    <section id={id} className={id === "necesita-atencion" ? "scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:p-5" : "scroll-mt-24 section-shell"}>
       <SectionHeader title={title} description={description} action={action} />
       {children}
     </section>
-  );
-}
-
-function SummaryMetric({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg bg-white/10 p-3">
-      <p className="text-xs font-bold uppercase text-white/65">{label}</p>
-      <p className="mt-1 text-lg font-black tabular-nums">{value}</p>
-    </div>
   );
 }
 
