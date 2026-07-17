@@ -2,8 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Save, X } from "lucide-react";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
-import { SectionHeader } from "@/components/section-header";
-import { Notice } from "@/components/ui-primitives";
+import { Notice, PageHeader, StickyFormActions } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -123,12 +122,13 @@ export default async function ManualManagementPage({
         Cancelar
       </Link>
 
-      <SectionHeader
+      <PageHeader
+        eyebrow="Edición manual"
         title={title}
-        description="Modo manual: rellena, corrige estados y guarda sin usar el chat."
+        description="Completa los campos por bloques. Nada se guarda hasta que confirmes la acción final."
       />
 
-      <form action={saveManualRecord} className="card grid gap-4 p-4">
+      <form action={saveManualRecord} className="surface mx-auto grid max-w-4xl gap-5 p-4 sm:p-6">
         <input type="hidden" name="tipo" value={tipo} />
         <input type="hidden" name="id" value={query.id ?? ""} />
         <input type="hidden" name="returnTo" value={returnTo} />
@@ -145,7 +145,7 @@ export default async function ManualManagementPage({
 
         {renderFields({ tipo, record, defaults: query, clients, works, budgets, invoices, reminders, contacts, documents, company, suggestedBudgetNumber, suggestedInvoiceNumber, suggestedWorkNumber })}
 
-        <div className="grid grid-cols-2 gap-2 pt-2">
+        <StickyFormActions>
           <Link href={returnTo} className="secondary-button w-full">
             <X size={18} />
             Cancelar
@@ -154,7 +154,7 @@ export default async function ManualManagementPage({
             <Save size={18} />
             {duplicateClient ? "Continuar creando" : "Guardar"}
           </button>
-        </div>
+        </StickyFormActions>
       </form>
     </main>
   );

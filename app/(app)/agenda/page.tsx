@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CalendarClock,
+  ChevronLeft,
   ChevronRight,
   Clock,
   FileText,
@@ -9,12 +10,13 @@ import {
   Pencil,
   Plus,
   Receipt,
+  Search,
   UserRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AgendaEventControls } from "@/components/agenda-event-controls";
-import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
+import { EmptyState, FilterBar, Notice, PageHeader, SearchInput, Tabs } from "@/components/ui-primitives";
 import {
   addDays,
   getAgendaItems,
@@ -53,38 +55,48 @@ export default async function AgendaPage({
 
   return (
     <main className="screen">
-      <SectionHeader
+      <PageHeader
+        eyebrow="Planificación"
         title="Agenda"
-        description="Calendario interno para visitas, cobros, obras, materiales y tareas."
+        description="Visitas, tareas, seguimientos y vencimientos ordenados para saber qué ocurre hoy y qué viene después."
         action={
-          <Link href="/gestion?tipo=eventoAgenda&returnTo=/agenda" className="secondary-button">
+          <Link href="/gestion?tipo=eventoAgenda&returnTo=/agenda" className="primary-button">
             <Plus size={18} />
-            Añadir
+            Nuevo evento
           </Link>
         }
       />
 
-      <section className="mb-4 rounded-lg border border-obra-yellowDark/20 bg-obra-yellow/20 p-4">
-        <p className="text-sm font-semibold leading-6 text-obra-yellowDark">
-          Hoy tienes {todayItems.filter((item) => item.tipo === "visita").length} visitas,{" "}
-          {todayItems.filter((item) => item.tipo.includes("seguimiento")).length} seguimientos y{" "}
-          {todayItems.filter((item) => item.tipo === "vencimiento_factura").length} vencimientos.
-          {nextVisit ? ` La próxima cita es ${nextVisit.titulo} a las ${timeLabel(nextVisit.fechaInicio)}.` : ""}
-        </p>
-      </section>
+      <Notice className="mb-4" tone="info" title="Resumen de hoy" description={`Tienes ${todayItems.filter((item) => item.tipo === "visita").length} visitas, ${todayItems.filter((item) => item.tipo.includes("seguimiento")).length} seguimientos y ${todayItems.filter((item) => item.tipo === "vencimiento_factura").length} vencimientos.${nextVisit ? ` La próxima cita es ${nextVisit.titulo} a las ${timeLabel(nextVisit.fechaInicio)}.` : ""}`} />
 
-      <nav className="mb-4 grid grid-cols-4 gap-2">
+      <FilterBar className="mb-4">
+        <form action="/agenda" className="grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_12rem_auto]">
+          <input type="hidden" name="vista" value={view} />
+          <input type="hidden" name="dia" value={toDateInputValue(selectedDay)} />
+          <label><span className="label mb-1 block">Buscar</span><SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, obra…" /></label>
+          <label><span className="label mb-1 block">Tipo</span><select className="field" name="tipo" defaultValue={query.tipo ?? "todos"}><option value="todos">Todos</option><option value="visitas">Visitas</option><option value="cobros">Cobros</option><option value="presupuestos">Presupuestos</option><option value="materiales">Materiales</option><option value="tareas">Tareas</option></select></label>
+          <button className="primary-button self-end" type="submit"><Search size={18} /> Aplicar</button>
+        </form>
+      </FilterBar>
+
+      <Tabs label="Vistas de agenda" className="mb-3">
         {views.map((item) => (
           <Link
             key={item.id}
-            href={`/agenda?vista=${item.id}&dia=${toDateInputValue(selectedDay)}`}
-            className={`min-h-11 rounded-lg px-2 py-2 text-center text-sm font-black ${
-              view === item.id ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"
+            href={`/agenda?vista=${item.id}&dia=${toDateInputValue(selectedDay)}${query.buscar ? `&buscar=${encodeURIComponent(query.buscar)}` : ""}${query.tipo ? `&tipo=${encodeURIComponent(query.tipo)}` : ""}`}
+            className={`min-h-11 flex-1 shrink-0 rounded-lg px-3 py-2 text-center text-sm font-black ${
+              view === item.id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"
             }`}
           >
             {item.label}
           </Link>
         ))}
+      </Tabs>
+
+      <nav className="mb-5 flex items-center justify-between gap-2" aria-label="Cambiar fecha">
+        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(addDays(selectedDay, -1))}`} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
+        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(new Date())}`} className="secondary-button">Hoy</Link>
+        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(addDays(selectedDay, 1))}`} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
       </nav>
 
       {view === "hoy" ? <TodayView items={todayItems} /> : null}
@@ -259,7 +271,7 @@ function ListView({ items, selectedType }: { items: AgendaItem[]; selectedType: 
 
 function EventList({ items, empty }: { items: AgendaItem[]; empty: string }) {
   if (!items.length) {
-    return <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">{empty}</div>;
+    return <EmptyState title={empty} description="Cambia la fecha o los filtros, o crea un evento nuevo." icon={CalendarClock} action={<Link href="/gestion?tipo=eventoAgenda&returnTo=/agenda" className="secondary-button">Crear evento</Link>} />;
   }
 
   return (
