@@ -5,6 +5,7 @@ import { markInvoicePaid } from "@/app/(app)/dinero/actions";
 import { ConfirmedPaymentForm } from "@/components/confirmed-payment-form";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { StatusPill } from "@/components/status-pill";
+import { ActionMenu, DetailSection, MetricStrip, Notice, PageHeader } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
@@ -43,62 +44,33 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         Facturas y cobros
       </Link>
 
-      <section className="card p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase text-slate-500">{invoice.numero}</p>
-            <h1 className="mt-1 text-2xl font-black text-obra-ink">{invoice.concepto}</h1>
-            <p className="mt-1 text-sm text-slate-500">{invoice.client.nombre}{invoice.work ? ` · ${invoice.work.titulo}` : ""}</p>
-          </div>
-          <StatusPill status={liveStatus} />
-        </div>
+      <PageHeader
+        eyebrow={invoice.numero}
+        title={invoice.concepto}
+        description={`${invoice.client.nombre}${invoice.work ? ` · ${invoice.work.titulo}` : " · Sin obra"}`}
+        badge={<StatusPill status={liveStatus} />}
+        action={invoice.pendiente > 0 ? <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="primary-button"><Plus size={18} /> Registrar cobro</Link> : <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="primary-button"><Pencil size={18} /> Editar factura</Link>}
+        secondaryActions={<ActionMenu><Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`}><Pencil size={18} /> Editar factura</Link><Link href={`/gestion?tipo=eventoAgenda&clienteId=${invoice.clienteId}&obraId=${invoice.obraId ?? ""}&facturaId=${invoice.id}&tipoEvento=seguimiento_cobro&titulo=Seguimiento%20cobro%20${encodeURIComponent(invoice.numero)}&descripcion=${encodeURIComponent(invoice.concepto)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/dinero/${invoice.id}`}><CalendarClock size={18} /> Crear seguimiento</Link><Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista PDF</Link><Link href={`/dinero/${invoice.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
+      />
 
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 text-sm">
+      <MetricStrip className="mb-4 sm:grid-cols-3 xl:grid-cols-3">
           <Mini label="Total" value={formatCurrency(invoice.total)} icon={Receipt} />
           <Mini label="Pagado" value={formatCurrency(invoice.pagado)} icon={WalletCards} />
           <Mini label="Pendiente" value={formatCurrency(invoice.pendiente)} icon={CalendarClock} />
-        </div>
+      </MetricStrip>
 
-        <div className="mt-4 grid gap-2 text-sm text-slate-600">
+      <Notice className="mb-4" tone="warning" title="Revisión fiscal" description="Si esta factura sigue en borrador, revísala con tu gestoría antes de usarla como documento legal." />
+      {companyMissing ? <Notice className="mb-4" tone="warning" title="Datos de empresa incompletos" description={`Falta ${companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes generar el PDF, pero quedará incompleto.`} /> : null}
+
+      <DetailSection title="Estado, vencimiento y pago" description="Datos principales para revisar antes de registrar un cobro.">
+        <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-3">
           <p><strong className="text-obra-ink">Emitida:</strong> {formatDate(invoice.fechaEmision)}</p>
           <p><strong className="text-obra-ink">Vencimiento:</strong> {formatDate(invoice.fechaVencimiento)}</p>
           <p><strong className="text-obra-ink">Método de pago:</strong> {invoice.metodoPago ?? "transferencia"}</p>
           <p><strong className="text-obra-ink">Datos bancarios:</strong> {invoice.datosBancarios ?? "Sin datos bancarios."}</p>
           <p><strong className="text-obra-ink">Observaciones:</strong> {invoice.observaciones ?? "Sin observaciones."}</p>
         </div>
-
-        <div className="mt-4 rounded-lg bg-obra-yellow/20 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">
-          Factura en borrador. Revisa con tu gestoría antes de usarla como factura legal.
-        </div>
-        {companyMissing ? (
-          <div className="mt-3 rounded-lg bg-obra-yellow/20 p-3 text-sm font-semibold leading-6 text-obra-yellowDark">
-            Falta {companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes generar el PDF, pero quedará incompleto.
-          </div>
-        ) : null}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="secondary-button">
-            <Pencil size={18} />
-            Editar factura
-          </Link>
-          <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="secondary-button">
-            <Plus size={18} />
-            Añadir pago
-          </Link>
-          <Link href={`/gestion?tipo=eventoAgenda&clienteId=${invoice.clienteId}&obraId=${invoice.obraId ?? ""}&facturaId=${invoice.id}&tipoEvento=seguimiento_cobro&titulo=Seguimiento%20cobro%20${encodeURIComponent(invoice.numero)}&descripcion=${encodeURIComponent(invoice.concepto)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/dinero/${invoice.id}`} className="secondary-button">
-            <CalendarClock size={18} />
-            Crear seguimiento
-          </Link>
-          <Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank" className="secondary-button">
-            <Eye size={18} />
-            Vista PDF
-          </Link>
-          <Link href={`/dinero/${invoice.id}/pdf`} className="secondary-button">
-            <Download size={18} />
-            Descargar PDF
-          </Link>
-        </div>
-      </section>
+      </DetailSection>
 
       <EntityWorkflowSummary clientId={invoice.clienteId} workId={invoice.obraId ?? undefined} invoiceId={invoice.id} />
       {invoice.pendiente > 0 ? (
@@ -128,8 +100,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <section className="mt-4">
-        <h2 className="mb-3 text-lg font-black text-obra-ink">Pagos registrados</h2>
+      <DetailSection className="mt-4" title="Cobros registrados" description="Historial real de pagos, incluidos los pagos parciales.">
         <div className="grid gap-3">
           {invoice.payments.map((payment) => (
             <article key={payment.id} className="card p-4">
@@ -153,7 +124,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </div>
           ) : null}
         </div>
-      </section>
+      </DetailSection>
     </main>
   );
 }
