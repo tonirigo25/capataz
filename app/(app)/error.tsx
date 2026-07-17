@@ -11,15 +11,15 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[capataz] Error controlado en el area principal", error);
-  }, [error]);
+    console.error("[capataz] Error controlado en el área principal", { digest: error.digest || "unavailable" });
+  }, [error.digest]);
 
   return (
     <main className="screen">
       <section className="empty-state">
         <h1>Capataz no puede cargar los datos ahora mismo</h1>
         <p>
-          La aplicacion sigue disponible, pero no ha podido conectar con la base de datos. No se ha guardado ni enviado ninguna accion.
+          La aplicación sigue disponible, pero esta pantalla no se ha podido completar. No se ha guardado ni enviado ninguna acción.
         </p>
         <div className="button-row">
           <button type="button" className="primary-button" onClick={reset}>
