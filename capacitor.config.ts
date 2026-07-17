@@ -1,20 +1,18 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { resolveMobileConfig } from "./lib/mobile-config";
 
-const serverUrl =
-  process.env.CAPATAZ_MOBILE_SERVER_URL ||
-  process.env.NEXT_PUBLIC_WEB_BASE_URL ||
-  "https://capataz.app";
+const mobile = resolveMobileConfig(process.env);
 
 const config: CapacitorConfig = {
   appId: "com.capataz.app",
   appName: "Capataz",
   webDir: "mobile-web",
   server: {
-    url: serverUrl,
-    cleartext: true
+    url: mobile.serverUrl,
+    cleartext: mobile.cleartext
   },
   android: {
-    allowMixedContent: true
+    allowMixedContent: mobile.allowMixedContent
   }
 };
 
