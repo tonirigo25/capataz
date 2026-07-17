@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Info, Loader2 } from "lucide-react";
@@ -32,15 +32,15 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="mb-5 rounded-xl border border-slate-200 bg-white/85 p-4 shadow-soft backdrop-blur sm:p-5">
+    <header className="mb-7">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           {eyebrow ? <p className="label mb-2">{eyebrow}</p> : null}
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-black tracking-normal text-obra-ink sm:text-3xl">{title}</h1>
+            <h1 className="text-3xl font-black leading-tight tracking-tight text-obra-ink sm:text-4xl">{title}</h1>
             {badge}
           </div>
-          {description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p> : null}
+          {description ? <p className="mt-2 max-w-3xl text-base leading-7 text-slate-600">{description}</p> : null}
         </div>
 
         {(action || secondaryActions) ? (
@@ -179,4 +179,37 @@ export function TableShell({ children, label }: { children: ReactNode; label?: s
       </div>
     </div>
   );
+}
+
+export function PageContainer({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={clsx("screen", className)}>{children}</div>;
+}
+
+export function Section({ children, className, labelledBy }: { children: ReactNode; className?: string; labelledBy?: string }) {
+  return <section className={clsx("section-shell", className)} aria-labelledby={labelledBy}>{children}</section>;
+}
+
+export function Card({ children, className, as = "article" }: { children: ReactNode; className?: string; as?: "article" | "div" }) {
+  const Component = as;
+  return <Component className={clsx("card p-4", className)}>{children}</Component>;
+}
+
+export function DataList({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={clsx("divide-y divide-slate-200", className)}>{children}</div>;
+}
+
+export function MobileList({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={clsx("grid gap-3 md:hidden", className)}>{children}</div>;
+}
+
+export function ResponsiveTable({ children, label, className }: { children: ReactNode; label?: string; className?: string }) {
+  return <div className={clsx("hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block", className)} aria-label={label}>{children}</div>;
+}
+
+export function Tabs({ children, label, className }: { children: ReactNode; label: string; className?: string }) {
+  return <div role="tablist" aria-label={label} className={clsx("flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1", className)}>{children}</div>;
+}
+
+export function SearchInput(props: Omit<ComponentProps<"input">, "type">) {
+  return <input {...props} type="search" className={clsx("field", props.className)} />;
 }

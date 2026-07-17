@@ -4,27 +4,29 @@
 
 :root {
   color-scheme: light;
-  --cap-bg: #f4f6f7;
-  --cap-bg-rgb: 244 246 247;
-  --cap-bg-warm: #fff8df;
+  --cap-bg: #f5f6f4;
+  --cap-bg-rgb: 245 246 244;
+  --cap-bg-warm: #f3f0e9;
   --cap-surface: #ffffff;
   --cap-surface-rgb: 255 255 255;
-  --cap-surface-muted: #f8fafc;
-  --cap-surface-muted-rgb: 248 250 252;
+  --cap-surface-muted: #f1f4f2;
+  --cap-surface-muted-rgb: 241 244 242;
   --cap-surface-raised: #ffffff;
-  --cap-border: #dfe5ea;
-  --cap-border-strong: #c5ced6;
-  --cap-text: #182026;
-  --cap-text-rgb: 24 32 38;
-  --cap-text-muted: #5d6873;
-  --cap-text-soft: #81909e;
-  --cap-brand: #f2b91f;
-  --cap-brand-rgb: 242 185 31;
-  --cap-brand-strong: #9a6a05;
-  --cap-brand-strong-rgb: 154 106 5;
-  --cap-brand-soft: #fff2ba;
-  --cap-steel: #3d566e;
-  --cap-steel-rgb: 61 86 110;
+  --cap-border: #dce3df;
+  --cap-border-strong: #bcc9c3;
+  --cap-text: #17211e;
+  --cap-text-rgb: 23 33 30;
+  --cap-text-muted: #5c6965;
+  --cap-text-soft: #82908b;
+  --cap-brand: #77c9bd;
+  --cap-brand-rgb: 119 201 189;
+  --cap-brand-strong: #11635d;
+  --cap-brand-strong-rgb: 17 99 93;
+  --cap-brand-soft: #def3ef;
+  --cap-accent: #d3923d;
+  --cap-accent-soft: #fbefd9;
+  --cap-steel: #385951;
+  --cap-steel-rgb: 56 89 81;
   --cap-success: #18845b;
   --cap-success-rgb: 24 132 91;
   --cap-warning: #b77905;
@@ -35,10 +37,13 @@
   --cap-info-rgb: 37 99 169;
   --cap-radius-sm: 0.5rem;
   --cap-radius-md: 0.75rem;
-  --cap-radius-lg: 1rem;
-  --cap-shadow-sm: 0 1px 2px rgba(24, 32, 38, 0.06);
-  --cap-shadow-md: 0 10px 28px rgba(24, 32, 38, 0.08);
-  --cap-ring: 0 0 0 3px rgba(242, 185, 31, 0.28);
+  --cap-radius-lg: 0.875rem;
+  --cap-shadow-sm: 0 1px 2px rgba(23, 33, 30, 0.05);
+  --cap-shadow-md: 0 14px 36px rgba(23, 33, 30, 0.09);
+  --cap-ring: 0 0 0 3px rgba(17, 99, 93, 0.24);
+  --cap-content-max: 80rem;
+  --cap-reading-max: 68rem;
+  --cap-transition: 160ms ease;
   background: var(--cap-bg);
   color: var(--cap-text);
 }
@@ -59,10 +64,8 @@ body {
   margin: 0;
   overflow-x: hidden;
   padding-top: env(safe-area-inset-top);
-  background:
-    radial-gradient(circle at top left, rgba(242, 185, 31, 0.16), transparent 32rem),
-    linear-gradient(180deg, var(--cap-bg-warm), var(--cap-bg) 18rem);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cap-bg);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-tap-highlight-color: transparent;
   color: var(--cap-text);
 }
@@ -106,24 +109,38 @@ button:disabled,
 
 @layer components {
   .screen {
-    @apply mx-auto min-h-dvh w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8;
-    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+    @apply mx-auto min-h-dvh w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8;
+    max-width: var(--cap-content-max);
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-card;
+    @apply rounded-xl border border-slate-200 bg-white shadow-soft;
+  }
+
+  .surface {
+    @apply rounded-xl border border-slate-200 bg-white;
+  }
+
+  .section-shell {
+    @apply border-t border-slate-200 pt-6;
   }
 
   .icon-button {
     @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-obra-ink transition hover:border-obra-yellowDark hover:bg-obra-muted disabled:opacity-50;
+    transition-duration: var(--cap-transition);
   }
 
   .primary-button {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-obra-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-black disabled:opacity-55;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-obra-yellowDark px-4 py-2 text-sm font-bold text-white transition hover:bg-obra-graphite disabled:opacity-55;
   }
 
   .secondary-button {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-obra-ink transition hover:border-obra-yellowDark hover:bg-obra-muted disabled:opacity-55;
+  }
+
+  .ghost-button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-obra-ink disabled:opacity-55;
   }
 
   .danger-button {
@@ -145,5 +162,11 @@ button:disabled,
 
   .surface-muted {
     background: var(--cap-surface-muted);
+  }
+}
+
+@media (min-width: 1024px) {
+  .screen {
+    padding-bottom: 2.5rem;
   }
 }

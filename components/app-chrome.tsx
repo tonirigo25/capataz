@@ -1,19 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
+  BarChart3,
   Bell,
   BellRing,
   Bot,
-  Activity,
-  BarChart3,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
   CreditCard,
+  Ellipsis,
   FileText,
   Files,
   Handshake,
@@ -21,7 +22,7 @@ import {
   Home,
   Landmark,
   Lightbulb,
-  Menu,
+  ListChecks,
   Package,
   Plus,
   Receipt,
@@ -29,187 +30,135 @@ import {
   Search,
   Settings,
   ShieldAlert,
-  ListChecks,
-  Workflow,
   UserRound,
   Users,
   WalletCards,
+  Workflow,
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-};
+type NavItem = { href: string; label: string; icon: LucideIcon };
+type MobilePanel = "create" | "more" | null;
 
-const navSections: Array<{ title: string; items: NavItem[] }> = [
+const primaryNavigation: NavItem[] = [
+  { href: "/hoy", label: "Hoy", icon: Home },
+  { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/obras", label: "Obras", icon: BriefcaseBusiness },
+  { href: "/presupuestos", label: "Presupuestos", icon: FileText },
+  { href: "/dinero", label: "Facturas y cobros", icon: WalletCards },
+  { href: "/agenda", label: "Agenda", icon: CalendarDays }
+];
+
+const secondaryNavigation: Array<{ title: string; items: NavItem[] }> = [
   {
-    title: "Operación",
+    title: "Compras y equipo",
     items: [
-      { href: "/hoy", label: "Hoy", icon: Home },
-      { href: "/alertas", label: "Alertas", icon: ShieldAlert },
-      { href: "/recomendaciones", label: "Recomendaciones", icon: Lightbulb },
-      { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
-      { href: "/tesoreria", label: "Tesorería", icon: Landmark },
-      { href: "/agenda", label: "Agenda", icon: CalendarDays },
-      { href: "/tareas", label: "Tareas", icon: ListChecks },
-      { href: "/seguimientos", label: "Seguimientos", icon: Activity },
-      { href: "/automatizaciones", label: "Automatizaciones", icon: Workflow },
-      { href: "/actividad", label: "Actividad", icon: Activity },
-      { href: "/capataz", label: "Capataz IA", icon: Bot }
-    ]
-  },
-  {
-    title: "Gestión",
-    items: [
-      { href: "/clientes", label: "Clientes", icon: Users },
       { href: "/proveedores", label: "Proveedores", icon: Handshake },
       { href: "/subcontratas", label: "Subcontratas", icon: HardHat },
-      { href: "/obras", label: "Obras", icon: BriefcaseBusiness },
-      { href: "/presupuestos", label: "Presupuestos", icon: FileText },
-      { href: "/dinero", label: "Facturas y cobros", icon: WalletCards },
       { href: "/facturas-proveedor", label: "Facturas proveedor", icon: ReceiptText },
       { href: "/facturas-subcontratas", label: "Facturas subcontrata", icon: Receipt },
       { href: "/gastos-materiales", label: "Gastos y materiales", icon: Package },
-      { href: "/recordatorios", label: "Recordatorios", icon: Bell },
-      { href: "/notificaciones", label: "Notificaciones", icon: BellRing },
       { href: "/documentos", label: "Documentos", icon: Files }
     ]
   },
   {
-    title: "Sistema",
+    title: "Organización",
     items: [
+      { href: "/tareas", label: "Tareas", icon: ListChecks },
+      { href: "/seguimientos", label: "Seguimientos", icon: Activity },
+      { href: "/automatizaciones", label: "Automatizaciones", icon: Workflow },
+      { href: "/recordatorios", label: "Recordatorios", icon: Bell },
+      { href: "/actividad", label: "Actividad", icon: Activity },
+      { href: "/notificaciones", label: "Notificaciones", icon: BellRing }
+    ]
+  },
+  {
+    title: "Control",
+    items: [
+      { href: "/tesoreria", label: "Tesorería", icon: Landmark },
+      { href: "/alertas", label: "Alertas", icon: ShieldAlert },
+      { href: "/recomendaciones", label: "Recomendaciones", icon: Lightbulb },
+      { href: "/inteligencia", label: "Inteligencia", icon: BarChart3 },
       { href: "/buscar", label: "Buscador", icon: Search },
       { href: "/configuracion", label: "Configuración", icon: Settings }
     ]
   }
 ];
 
-const quickActions = [
+const createActions: NavItem[] = [
+  { href: "/gestion?tipo=presupuesto&returnTo=/hoy", label: "Nuevo presupuesto", icon: FileText },
   { href: "/gestion?tipo=cliente&returnTo=/hoy", label: "Nuevo cliente", icon: Users },
-  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda", label: "Nueva visita", icon: CalendarDays },
-  { href: "/gestion?tipo=presupuesto&returnTo=/presupuestos", label: "Nuevo presupuesto", icon: FileText },
-  { href: "/gestion?tipo=factura&returnTo=/dinero", label: "Nueva factura", icon: Receipt },
-  { href: "/gestion?tipo=pago&returnTo=/dinero", label: "Registrar pago", icon: WalletCards },
-  { href: "/tesoreria#acciones", label: "Movimiento caja", icon: Landmark },
-  { href: "/gestion?tipo=gasto&returnTo=/gastos-materiales", label: "Nuevo gasto", icon: Package },
-  { href: "/gestion?tipo=material&returnTo=/gastos-materiales", label: "Nuevo material", icon: Package },
-  { href: "/gestion?tipo=recordatorio&returnTo=/recordatorios", label: "Nuevo recordatorio", icon: Bell }
+  { href: "/gestion?tipo=obra&returnTo=/hoy", label: "Nueva obra", icon: BriefcaseBusiness },
+  { href: "/gestion?tipo=gasto&returnTo=/gastos-materiales", label: "Registrar gasto", icon: Package },
+  { href: "/gestion?tipo=pago&returnTo=/dinero", label: "Registrar cobro", icon: WalletCards },
+  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda", label: "Nueva visita", icon: CalendarDays }
 ];
 
-const titles = [
-  ["/hoy", "Hoy"],
-  ["/alertas", "Alertas"],
-  ["/recomendaciones", "Recomendaciones"],
-  ["/inteligencia", "Inteligencia"],
-  ["/tesoreria", "Tesorería"],
-  ["/agenda", "Agenda"],
-  ["/tareas", "Tareas"],
-  ["/seguimientos", "Seguimientos"],
-  ["/automatizaciones", "Automatizaciones"],
-  ["/actividad", "Actividad"],
-  ["/clientes", "Clientes"],
-  ["/proveedores", "Proveedores"],
-  ["/subcontratas", "Subcontratas"],
-  ["/obras", "Obras"],
-  ["/documentos", "Documentos"],
-  ["/presupuestos", "Presupuestos"],
-  ["/dinero", "Facturas y cobros"],
-  ["/facturas-proveedor", "Facturas de proveedor"],
-  ["/facturas-subcontratas", "Facturas de subcontratas"],
-  ["/gastos-materiales", "Gastos y materiales"],
-  ["/recordatorios", "Recordatorios"],
-  ["/notificaciones", "Notificaciones"],
-  ["/buscar", "Buscador"],
-  ["/capataz", "Capataz IA"],
-  ["/configuracion", "Configuración"],
-  ["/gestion", "Añadir o editar"]
-];
+const titles = [...primaryNavigation, ...secondaryNavigation.flatMap((section) => section.items), { href: "/capataz", label: "Capataz", icon: Bot }, { href: "/gestion", label: "Añadir o editar", icon: Plus }];
 
 export function AppChrome({ children, modeLabel, unreadNotifications, companyName, userName, logoutAction }: { children: ReactNode; modeLabel: string; unreadNotifications: number; companyName: string; userName: string; logoutAction: () => Promise<void> }) {
   const pathname = usePathname();
-  const drawerId = useId();
-  const actionsId = useId();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [actionsOpen, setActionsOpen] = useState(false);
+  const panelId = useId();
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
   const title = useMemo(() => currentTitle(pathname), [pathname]);
 
-  useEffect(() => {
-    setDrawerOpen(false);
-    setActionsOpen(false);
-  }, [pathname]);
+  useEffect(() => setMobilePanel(null), [pathname]);
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setDrawerOpen(false);
-        setActionsOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (!drawerOpen) return;
+    if (!mobilePanel) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobilePanel(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKeyDown);
+      lastTriggerRef.current?.focus();
     };
-  }, [drawerOpen]);
+  }, [mobilePanel]);
+
+  function openPanel(panel: Exclude<MobilePanel, null>, trigger: HTMLButtonElement) {
+    lastTriggerRef.current = trigger;
+    setMobilePanel(panel);
+  }
 
   return (
-    <div className="min-h-dvh lg:pl-72">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white/95 backdrop-blur lg:block">
-        <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} companyName={companyName} userName={userName} logoutAction={logoutAction} onNavigate={() => undefined} />
+    <div className="min-h-dvh lg:pl-64">
+      <a href="#main-content" className="fixed left-4 top-3 z-[70] -translate-y-20 rounded-lg bg-obra-yellowDark px-4 py-2 font-bold text-white transition focus:translate-y-0">Saltar al contenido</a>
+
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-200 bg-white lg:block">
+        <DesktopNavigation modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} companyName={companyName} userName={userName} logoutAction={logoutAction} />
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex min-h-16 max-w-[80rem] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              className="icon-button lg:hidden"
-              aria-label="Abrir menú principal"
-              aria-controls={drawerId}
-              aria-expanded={drawerOpen}
-              onClick={() => setDrawerOpen(true)}
-            >
-              <Menu size={21} />
-            </button>
-            <Link href="/hoy" className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-obra-ink text-sm font-black text-obra-yellow sm:flex lg:hidden" aria-label="Ir a Hoy">
-              C
-            </Link>
+            <Link href="/hoy" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-obra-yellowDark text-sm font-black text-white lg:hidden" aria-label="Ir a Hoy">C</Link>
             <div className="min-w-0">
               <p className="truncate text-lg font-black leading-tight text-obra-ink">{title}</p>
-              <p className="truncate text-xs font-bold text-slate-500">{modeLabel}</p>
+              <p className="truncate text-xs font-semibold text-slate-500 lg:hidden">{companyName}</p>
             </div>
           </div>
 
-          <form action="/buscar" className="hidden min-w-0 max-w-md flex-1 lg:block">
+          <form action="/buscar" className="hidden min-w-0 max-w-lg flex-1 lg:block">
             <label className="relative block">
               <span className="sr-only">Buscar en Capataz</span>
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-              <input className="field min-h-10 rounded-full pl-10" name="q" placeholder="Buscar cliente, obra, factura..." />
+              <input className="field min-h-10 rounded-full bg-slate-50 pl-10" name="q" type="search" placeholder="Buscar cliente, obra, factura..." />
             </label>
           </form>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <Link href="/buscar" className="icon-button lg:hidden" aria-label="Buscar">
-              <Search size={20} />
-            </Link>
-            <Link href="/capataz" className="secondary-button hidden px-3 sm:inline-flex">
-              <Bot size={18} />
-              Capataz
-            </Link>
-            <Link href="/configuracion#perfil" className="icon-button" aria-label="Mi perfil">
-              <UserRound size={20} />
-            </Link>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <Link href="/buscar" className="icon-button lg:hidden" aria-label="Buscar"><Search size={20} /></Link>
+            <Link href="/capataz" className="ghost-button hidden sm:inline-flex"><Bot size={18} />Capataz</Link>
+            <Link href="/configuracion#perfil" className="icon-button hidden sm:inline-flex" aria-label="Mi perfil"><UserRound size={20} /></Link>
             <Link href="/notificaciones" className="icon-button relative" aria-label={`Notificaciones${unreadNotifications ? `, ${unreadNotifications} sin leer` : ""}`}>
               <BellRing size={20} />
               {unreadNotifications ? <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-obra-red px-1 text-center text-[10px] font-black text-white">{Math.min(unreadNotifications, 99)}</span> : null}
@@ -218,143 +167,108 @@ export function AppChrome({ children, modeLabel, unreadNotifications, companyNam
         </div>
       </header>
 
-      {drawerOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden" id={drawerId}>
-          <button type="button" className="absolute inset-0 bg-obra-ink/55 backdrop-blur-sm" aria-label="Cerrar menú" onClick={() => setDrawerOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[min(88vw,22rem)] bg-white shadow-card">
-            <NavigationPanel modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} companyName={companyName} userName={userName} logoutAction={logoutAction} onNavigate={() => setDrawerOpen(false)} />
-          </aside>
-        </div>
-      ) : null}
+      <main id="main-content" className="relative">{children}</main>
 
-      <main className="relative">{children}</main>
+      <MobileBottomNavigation pathname={pathname} mobilePanel={mobilePanel} onOpen={openPanel} />
 
-      {actionsOpen ? (
-        <div className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-40 sm:left-auto sm:right-5 sm:w-80" id={actionsId}>
-          <div className="card overflow-hidden p-2">
-            <div className="flex items-center justify-between px-2 py-2">
-              <p className="text-sm font-black text-obra-ink">Añadir rápido</p>
-              <button type="button" className="icon-button h-9 w-9" aria-label="Cerrar acciones" onClick={() => setActionsOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="grid gap-1">
-              {quickActions.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-obra-ink hover:bg-obra-yellow/15">
-                  <Icon size={18} className="text-obra-yellowDark" aria-hidden="true" />
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 flex flex-col items-end gap-2">
-        <button
-          type="button"
-          className="primary-button min-h-12 rounded-full px-4 shadow-card"
-          aria-controls={actionsId}
-          aria-expanded={actionsOpen}
-          onClick={() => setActionsOpen((open) => !open)}
-        >
-          <Plus size={20} />
-          Añadir
-        </button>
-        <Link href="/capataz" className="secondary-button min-h-12 rounded-full border-obra-yellowDark bg-white px-4 shadow-card">
-          <Bot size={20} />
-          Capataz
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function NavigationPanel({ modeLabel, pathname, unreadNotifications, companyName, userName, logoutAction, onNavigate }: { modeLabel: string; pathname: string; unreadNotifications: number; companyName: string; userName: string; logoutAction: () => Promise<void>; onNavigate: () => void }) {
-  return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex items-center gap-3">
-          <Link href="/hoy" className="flex h-11 w-11 items-center justify-center rounded-lg bg-obra-ink text-base font-black text-obra-yellow" onClick={onNavigate} aria-label="Ir a Hoy">
-            C
-          </Link>
-          <div className="min-w-0">
-            <p className="text-lg font-black leading-tight text-obra-ink">Capataz</p>
-            <p className="truncate text-xs font-bold text-slate-500">{modeLabel}</p>
-          </div>
-          <button type="button" className="icon-button ml-auto lg:hidden" aria-label="Cerrar menú" onClick={onNavigate}>
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
-      <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label="Navegación principal">
-        <div className="grid gap-5">
-          {navSections.map((section) => (
-            <section key={section.title}>
-              <p className="px-3 pb-2 text-[11px] font-black uppercase tracking-normal text-slate-400">{section.title}</p>
-              <div className="grid gap-1">
-                {section.items.map((item) => (
-                  <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} badge={item.href === "/notificaciones" ? unreadNotifications : 0} />
-                ))}
+      {mobilePanel ? (
+        <div className="fixed inset-0 z-50 lg:hidden" id={panelId} role="dialog" aria-modal="true" aria-labelledby={`${panelId}-title`}>
+          <button type="button" className="absolute inset-0 bg-obra-ink/45 backdrop-blur-[2px]" aria-label="Cerrar panel" onClick={() => setMobilePanel(null)} />
+          <section className="absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-y-auto rounded-t-2xl bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-card">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300" aria-hidden="true" />
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <h2 id={`${panelId}-title`} className="text-xl font-black text-obra-ink">{mobilePanel === "create" ? "Crear" : "Más módulos"}</h2>
+                <p className="text-sm text-slate-500">{mobilePanel === "create" ? "Elige una acción rápida" : "Todo Capataz, sin saturar la navegación"}</p>
               </div>
-            </section>
-          ))}
-        </div>
-      </nav>
+              <button ref={closeButtonRef} type="button" className="icon-button" aria-label="Cerrar panel" onClick={() => setMobilePanel(null)}><X size={20} /></button>
+            </div>
 
-      <div className="border-t border-slate-200 p-3">
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs font-black uppercase text-slate-500">Empresa</p>
-          <p className="mt-1 truncate text-sm font-black text-obra-ink">{companyName}</p>
-          <p className="truncate text-xs text-slate-500">{userName}</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Link href="/configuracion#empresa" className="toolbar-chip justify-start text-xs" onClick={onNavigate}>
-              <Building2 size={15} />
-              Empresa
-            </Link>
-            <Link href="/configuracion#suscripcion" className="toolbar-chip justify-start text-xs" onClick={onNavigate}>
-              <CreditCard size={15} />
-              Plan
-            </Link>
-          </div>
-          <form action={logoutAction} className="mt-2">
-            <button type="submit" className="secondary-button w-full text-xs">Cerrar sesión</button>
-          </form>
+            {mobilePanel === "create" ? <ActionGrid items={createActions} onNavigate={() => setMobilePanel(null)} /> : (
+              <div className="grid gap-5 py-4 sm:grid-cols-2">
+                <Link href="/capataz" onClick={() => setMobilePanel(null)} className="flex items-center gap-3 rounded-xl bg-obra-yellow/20 p-4 font-black text-obra-yellowDark"><Bot size={21} />Hablar con Capataz</Link>
+                {secondaryNavigation.map((section) => (
+                  <section key={section.title}>
+                    <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">{section.title}</h3>
+                    <div className="grid gap-1">{section.items.map((item) => <PanelLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobilePanel(null)} badge={item.href === "/notificaciones" ? unreadNotifications : 0} />)}</div>
+                  </section>
+                ))}
+                <section className="rounded-xl bg-slate-50 p-3 sm:col-span-2">
+                  <p className="truncate text-sm font-black text-obra-ink">{companyName}</p>
+                  <p className="truncate text-xs text-slate-500">{userName} · {modeLabel}</p>
+                  <form action={logoutAction} className="mt-3"><button type="submit" className="secondary-button w-full">Cerrar sesión</button></form>
+                </section>
+              </div>
+            )}
+          </section>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
 
-function NavLink({ item, pathname, onNavigate, badge = 0 }: { item: NavItem; pathname: string; onNavigate: () => void; badge?: number }) {
-  const active = isActive(pathname, item.href);
-  const Icon = item.icon;
+function DesktopNavigation({ modeLabel, pathname, unreadNotifications, companyName, userName, logoutAction }: { modeLabel: string; pathname: string; unreadNotifications: number; companyName: string; userName: string; logoutAction: () => Promise<void> }) {
+  return <div className="flex h-full flex-col">
+    <div className="p-5">
+      <Link href="/hoy" className="flex items-center gap-3 rounded-xl">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-obra-yellowDark font-black text-white">C</span>
+        <span><span className="block text-lg font-black leading-tight text-obra-ink">Capataz</span><span className="block text-xs font-semibold text-slate-500">{modeLabel}</span></span>
+      </Link>
+    </div>
+    <nav className="min-h-0 flex-1 overflow-y-auto px-3" aria-label="Navegación principal">
+      <div className="grid gap-1">{primaryNavigation.map((item) => <PanelLink key={item.href} item={item} pathname={pathname} />)}</div>
+      <details className="group mt-1">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-obra-ink focus-visible:ring-2">
+          <Ellipsis size={19} /><span className="flex-1">Más</span><span className="text-xs transition group-open:rotate-180" aria-hidden="true">⌄</span>
+        </summary>
+        <div className="mt-2 grid gap-4 border-l border-slate-200 pl-2">
+          {secondaryNavigation.map((section) => <section key={section.title}><p className="px-3 pb-1 text-[10px] font-black uppercase tracking-wide text-slate-400">{section.title}</p><div className="grid gap-0.5">{section.items.map((item) => <PanelLink key={item.href} item={item} pathname={pathname} compact badge={item.href === "/notificaciones" ? unreadNotifications : 0} />)}</div></section>)}
+        </div>
+      </details>
+      <Link href="/capataz" className="mt-4 flex items-center gap-3 rounded-xl bg-obra-yellow/20 p-3 text-sm font-black text-obra-yellowDark"><Bot size={20} />Preguntar a Capataz</Link>
+    </nav>
+    <div className="border-t border-slate-200 p-3">
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="truncate text-sm font-black text-obra-ink">{companyName}</p><p className="truncate text-xs text-slate-500">{userName}</p>
+        <div className="mt-3 flex gap-1"><Link href="/configuracion#empresa" className="ghost-button min-h-9 flex-1 px-2 text-xs"><Building2 size={15} />Empresa</Link><Link href="/configuracion#suscripcion" className="ghost-button min-h-9 flex-1 px-2 text-xs"><CreditCard size={15} />Plan</Link></div>
+        <form action={logoutAction} className="mt-1"><button type="submit" className="ghost-button min-h-9 w-full text-xs">Cerrar sesión</button></form>
+      </div>
+    </div>
+  </div>;
+}
 
-  return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
-      className={clsx(
-        "group flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition",
-        active ? "bg-obra-yellow text-obra-ink" : "text-slate-600 hover:bg-slate-100 hover:text-obra-ink"
-      )}
-    >
-      <Icon size={19} aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {badge ? <span className="rounded-full bg-obra-red px-2 py-0.5 text-[11px] font-black text-white">{Math.min(badge, 99)}</span> : null}
-    </Link>
-  );
+function MobileBottomNavigation({ pathname, mobilePanel, onOpen }: { pathname: string; mobilePanel: MobilePanel; onOpen: (panel: Exclude<MobilePanel, null>, trigger: HTMLButtonElement) => void }) {
+  const items = [primaryNavigation[0], primaryNavigation[2]];
+  return <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,33,30,0.08)] backdrop-blur lg:hidden" aria-label="Navegación móvil">
+    <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-end px-1">
+      {items.map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
+      <button type="button" className="group flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-bold text-obra-yellowDark" aria-label="Crear" aria-expanded={mobilePanel === "create"} onClick={(event) => onOpen("create", event.currentTarget)}><span className="flex h-11 w-11 -translate-y-2 items-center justify-center rounded-full bg-obra-yellowDark text-white shadow-card transition group-active:scale-95"><Plus size={24} /></span><span className="-mt-2">Crear</span></button>
+      <BottomLink item={primaryNavigation[5]} pathname={pathname} />
+      <button type="button" className={clsx("flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-bold", mobilePanel === "more" ? "text-obra-yellowDark" : "text-slate-500")} aria-label="Más módulos" aria-expanded={mobilePanel === "more"} onClick={(event) => onOpen("more", event.currentTarget)}><Ellipsis size={22} /><span>Más</span></button>
+    </div>
+  </nav>;
+}
+
+function BottomLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = isActive(pathname, item.href); const Icon = item.icon;
+  return <Link href={item.href} aria-current={active ? "page" : undefined} className={clsx("flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-bold", active ? "text-obra-yellowDark" : "text-slate-500")}><Icon size={22} /><span>{item.label}</span></Link>;
+}
+
+function ActionGrid({ items, onNavigate }: { items: NavItem[]; onNavigate: () => void }) {
+  return <div className="grid grid-cols-2 gap-2 py-4 sm:grid-cols-3">{items.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={onNavigate} className="flex min-h-24 flex-col items-start justify-between rounded-xl border border-slate-200 p-3 text-sm font-black text-obra-ink hover:border-obra-yellowDark hover:bg-obra-yellow/10"><Icon size={21} className="text-obra-yellowDark" /><span>{label}</span></Link>)}</div>;
+}
+
+function PanelLink({ item, pathname, onNavigate, badge = 0, compact = false }: { item: NavItem; pathname: string; onNavigate?: () => void; badge?: number; compact?: boolean }) {
+  const active = isActive(pathname, item.href); const Icon = item.icon;
+  return <Link href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={clsx("flex items-center gap-3 rounded-lg px-3 text-sm font-bold transition", compact ? "min-h-9 py-1 text-xs" : "min-h-11 py-2", active ? "bg-obra-yellow/25 text-obra-yellowDark" : "text-slate-600 hover:bg-slate-100 hover:text-obra-ink")}><Icon size={compact ? 17 : 19} /><span className="min-w-0 flex-1 truncate">{item.label}</span>{badge ? <span className="rounded-full bg-obra-red px-2 py-0.5 text-[10px] font-black text-white">{Math.min(badge, 99)}</span> : null}</Link>;
 }
 
 function currentTitle(pathname: string) {
-  const match = titles.find(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-  return match?.[1] ?? "Capataz";
+  const match = titles.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  return match?.label ?? "Capataz";
 }
 
 function isActive(pathname: string, href: string) {
-  const [base] = href.split("#");
-  if (base === "/hoy") return pathname === "/hoy";
-  return pathname === base || pathname.startsWith(`${base}/`);
+  const [base] = href.split(/[?#]/);
+  return pathname === base || (base !== "/hoy" && pathname.startsWith(`${base}/`));
 }

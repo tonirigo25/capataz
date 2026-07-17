@@ -9,3 +9,5 @@ export function StatusPill({ status }: { status: string }) {
     </span>
   );
 }
+
+export const StatusBadge = StatusPill;
