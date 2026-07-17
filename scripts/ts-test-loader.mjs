@@ -6,6 +6,8 @@ import ts from "typescript";
 const nodeRequire = createRequire(import.meta.url);
 
 const defaultAliases = {
+  "@/lib/auth/config": "lib/auth/config.ts",
+  "@/lib/route-access": "lib/route-access.ts",
   "@/lib/business-periods": "lib/business-periods.ts",
   "@/lib/business-metrics": "lib/business-metrics.ts",
   "@/lib/business-intelligence": "lib/business-intelligence.ts"
@@ -47,6 +49,7 @@ export function loadTsModule(file, options = {}) {
     Response,
     Headers,
     FormData,
+    process: { env: {} },
     URL,
     URLSearchParams
   };

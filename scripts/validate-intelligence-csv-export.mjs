@@ -23,6 +23,10 @@ function nextServerMock() {
     static rewrite(url) {
       return { kind: "rewrite", url: String(url) };
     }
+
+    static redirect(url) {
+      return { kind: "redirect", url: String(url) };
+    }
   }
 
   return { NextResponse: MockNextResponse };
@@ -42,13 +46,18 @@ function loadRoute({ requireCompanyContext, buildBusinessCsvExport }) {
   });
 }
 
-function middlewareRequest(path) {
-  return { nextUrl: new URL(`https://example.test${path}`), url: `https://example.test${path}` };
+function middlewareRequest(path, authenticated = false) {
+  return {
+    nextUrl: new URL(`https://example.test${path}`),
+    url: `https://example.test${path}`,
+    cookies: { has: (name) => authenticated && name === "capataz_session" }
+  };
 }
 
 const middleware = loadMiddleware();
-expect(middleware.middleware(middlewareRequest("/inteligencia/export?tipo=works")).kind === "next", "[intelligence-csv] export route must bypass blocked-module middleware");
-expect(middleware.middleware(middlewareRequest("/inteligencia")).kind === "rewrite", "[intelligence-csv] intelligence page remains blocked by design");
+expect(middleware.middleware(middlewareRequest("/inteligencia/export?tipo=works")).kind === "redirect", "[intelligence-csv] anonymous export must redirect to login");
+expect(middleware.middleware(middlewareRequest("/inteligencia/export?tipo=works", true)).kind === "next", "[intelligence-csv] authenticated export must reach its tenant guard");
+expect(middleware.middleware(middlewareRequest("/inteligencia", true)).kind === "next", "[intelligence-csv] authenticated intelligence page must not remain blocked");
 
 const calls = [];
 const route = loadRoute({
