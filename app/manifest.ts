@@ -5,12 +5,14 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Capataz",
     short_name: "Capataz",
     description: "Tu asistente IA para reformas y construcción.",
+    id: "/",
     start_url: "/hoy",
     scope: "/",
     display: "standalone",
     background_color: "#f6f7f8",
     theme_color: "#f6c945",
     orientation: "portrait",
+    categories: ["business", "productivity"],
     icons: [
       {
         src: "/icons/capataz.svg",

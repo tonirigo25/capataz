@@ -2,7 +2,7 @@
 
 PWA web móvil para autónomos y pequeñas pymes de construcción, reformas e instalaciones.
 
-Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Esta versión usa datos demo, lógica local para ejecutar acciones controladas, PDFs profesionales en borrador y un motor OpenAI server-side con salida estructurada cuando `OPENAI_API_KEY` está configurada. No integra todavía WhatsApp, email ni Stripe reales.
+Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Dispone de registro, verificación, recuperación, sesiones opacas y aislamiento multiempresa; la empresa activa se deriva siempre de la sesión server-side. OpenAI es opcional y las acciones sensibles siguen siendo editables y requieren confirmación. No integra todavía WhatsApp comercial, calendarios externos ni Stripe reales.
 
 ## Compras, proveedores y subcontratas
 
@@ -26,7 +26,7 @@ La descripción técnica y los flujos están en `docs/PROVEEDORES_SUBCONTRATAS_G
 - Prisma con PostgreSQL para despliegue en Railway.
 - PWA con manifest, icono y service worker básico.
 - Capacitor para empaquetado Android/iOS conectado al backend web.
-- Datos demo incluidos con seed.
+- Datos demo disponibles mediante un seed destructivo reservado a entornos locales o aislados.
 
 ## Arranque
 
@@ -36,13 +36,11 @@ npm run db:deploy
 npm run dev
 ```
 
-Antes de arrancar, configura `DATABASE_URL` con una base PostgreSQL local o de Railway.
-
-Abre la URL local que muestre Next en consola y pulsa **Entrar en demo**.
+Antes de arrancar, configura `DATABASE_URL` con una base PostgreSQL local. No uses una URL de Railway ni una base productiva para desarrollo o pruebas. Abre la URL local, registra una cuenta/empresa o inicia sesión con una cuenta del entorno local.
 
 ## Modo demo y modo pruebas
 
-Configura el modo con `.env`:
+El modo de producto no sustituye autenticación ni aislamiento. Configúralo en un archivo local ignorado:
 
 ```bash
 NEXT_PUBLIC_APP_MODE="test"
@@ -50,9 +48,9 @@ NEXT_PUBLIC_APP_MODE="test"
 
 Valores disponibles:
 
-- `demo`: demo pública limitada. Mantiene límites de clientes, presupuestos, obras y recordatorios. Los PDFs incluyen marca de agua `Demo Capataz`.
+- `demo`: aplica límites de demostración dentro de una empresa demo autenticada; no abre datos anónimamente.
 - `test`: modo pruebas/admin ilimitado. Permite crear clientes, obras, presupuestos, facturas, recordatorios y PDFs sin bloqueos.
-- `production`: reservado para límites según plan cuando se conecte suscripción real.
+- `production`: reservado para límites según plan; las suscripciones reales todavía no están conectadas.
 
 La entrega local deja `NEXT_PUBLIC_APP_MODE="test"` para que el propietario pueda probar sin límites. Para ver la demo comercial limitada, cambia el valor a `demo` y reinicia `npm run dev`.
 
@@ -82,6 +80,7 @@ npm install
 npm run db:push
 npm run dev
 npm run build
+$env:CAPATAZ_MOBILE_MODE="development"
 $env:CAPATAZ_MOBILE_SERVER_URL="http://10.0.2.2:3000"
 npx cap sync android
 npx cap open android
@@ -96,6 +95,7 @@ Android físico por USB:
 3. Sincroniza apuntando a esa IP:
 
 ```powershell
+$env:CAPATAZ_MOBILE_MODE="development"
 $env:CAPATAZ_MOBILE_SERVER_URL="http://192.168.1.50:3000"
 npx cap sync android
 npx cap open android
@@ -113,6 +113,7 @@ npm run build
 En Mac, antes de sincronizar:
 
 ```bash
+export CAPATAZ_MOBILE_MODE="staging"
 export CAPATAZ_MOBILE_SERVER_URL="https://staging.capataz.app"
 npx cap sync ios
 npx cap open ios
@@ -120,11 +121,12 @@ npx cap open ios
 
 iPhone físico:
 
-1. Usa la IP local del ordenador donde corre el backend.
+1. Usa HTTPS o configura una excepción de depuración limitada en Xcode; la configuración versionada no permite cargas arbitrarias.
 2. En Mac:
 
 ```bash
-export CAPATAZ_MOBILE_SERVER_URL="http://192.168.1.50:3000"
+export CAPATAZ_MOBILE_MODE="development"
+export CAPATAZ_MOBILE_SERVER_URL="https://host-local-seguro.example"
 npx cap sync ios
 npx cap open ios
 ```
@@ -134,7 +136,7 @@ Para iOS hace falta Mac con Xcode. Para instalar en iPhone real puede hacer falt
 Limitaciones de esta fase móvil:
 
 - La app nativa necesita un backend Next accesible; Prisma/PostgreSQL se ejecutan en el servidor, no dentro del móvil.
-- En Android/iOS se permite HTTP local para pruebas. En producción conviene usar HTTPS y backend remoto.
+- Android permite HTTP local únicamente con `CAPATAZ_MOBILE_MODE=development`; contenido mixto permanece desactivado. Staging y release exigen HTTPS. iOS no incluye excepciones ATS globales.
 - Los PDFs se abren como respuesta del backend; según dispositivo pueden abrirse en visor externo o descargarse.
 - Los iconos/splash son temporales. Los SVG fuente están preparados en `resources/`.
 - No se publica en App Store ni Google Play.
@@ -157,6 +159,7 @@ NEXT_PUBLIC_APP_MODE=production
 NEXT_PUBLIC_WEB_BASE_URL=https://capataz.app
 NEXT_PUBLIC_SUPPORT_EMAIL=soporte@capataz.app
 CAPATAZ_MOBILE_SERVER_URL=https://capataz.app
+CAPATAZ_MOBILE_MODE=release
 ```
 
 Hay ejemplos en:
@@ -165,11 +168,7 @@ Hay ejemplos en:
 - `.env.staging.example`
 - `.env.production.example`
 
-Cuenta demo para revisión:
-
-- No hay login real todavía. Los revisores pueden pulsar `Entrar en demo`.
-- Si Apple/Google solicita credenciales: `reviewer@capataz.app` / `CapatazDemo2026!`.
-- Texto de revisión: `Modo demo: los datos son ficticios y no se envía nada fuera de la app.`
+Las credenciales de revisión, si llegan a existir, deben aprovisionarse fuera de Git y entregarse mediante el canal seguro de cada tienda. No hay credenciales incrustadas ni acceso demo anónimo.
 
 Android release para Google Play:
 
@@ -178,6 +177,7 @@ Android release para Google Play:
 
 ```powershell
 $env:CAPATAZ_MOBILE_SERVER_URL="https://capataz.app"
+$env:CAPATAZ_MOBILE_MODE="release"
 npm run build
 npx cap sync android
 ```
@@ -210,6 +210,7 @@ iOS release para App Store/TestFlight:
 1. En Mac, configura backend público:
 
 ```bash
+export CAPATAZ_MOBILE_MODE="release"
 export CAPATAZ_MOBILE_SERVER_URL="https://capataz.app"
 npm run build
 npx cap sync ios
@@ -286,7 +287,8 @@ El seed crea:
 
 ## Flujos implementados
 
-- Acceso demo.
+- Registro, verificación, inicio/cierre de sesión y recuperación de contraseña.
+- Aislamiento de datos por empresa derivada de la sesión.
 - Dashboard Hoy con visitas/avisos, clientes pendientes, presupuestos, facturas vencidas, pendiente de cobrar, materiales y tareas urgentes.
 - Clientes/leads con estado, última interacción, presupuesto, obra y facturas pendientes.
 - Detalle de cliente con seguimiento de presupuesto por WhatsApp preparado, mensaje visible y confirmación antes de programar.
@@ -465,7 +467,7 @@ Capataz no envía WhatsApp, email, presupuestos, facturas ni reclamaciones sin c
 
 ## Próximos pasos
 
-- Añadir autenticación real.
+- Completar gestión administrativa de miembros y permisos por rol.
 - Preparar storage externo para logos, sellos y uploads reales.
 - Integrar WhatsApp Business y email transaccional.
 - Integrar Google Calendar y Outlook con consentimiento explícito.
