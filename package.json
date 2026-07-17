@@ -18,6 +18,7 @@
     "test:mobile-config": "tsx scripts/validate-mobile-config.ts",
     "test:application-states": "node scripts/validate-application-states.mjs",
     "test:visual-foundations": "node scripts/validate-visual-foundations.mjs",
+    "test:core-operational-experience": "node scripts/validate-core-operational-experience.mjs",
     "test:multitenancy-core": "tsx scripts/validate-multitenancy-core.ts",
     "test:numbering-contract": "npx tsx scripts/validate-numbering-contract.mjs",
     "test:multitenancy-relations": "tsx scripts/validate-multitenancy-core.ts",
