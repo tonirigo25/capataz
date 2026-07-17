@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
-import { EmptyState, PageHeader, Toolbar } from "@/components/ui-primitives";
+import { EmptyState, FilterBar, PageHeader, ResultSummary, SearchInput, Toolbar } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -141,12 +141,13 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         </div>
       </PageHeader>
 
-      <form action="/obras" className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-soft">
+      <FilterBar className="mb-4">
+      <form action="/obras">
         <input type="hidden" name="vista" value={view} />
         <div className="grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.8fr_0.7fr_auto]">
           <label className="min-w-0">
             <span className="label mb-1 flex items-center gap-1"><Search size={14} /> Buscar</span>
-            <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Obra, cliente, código, dirección..." />
+            <SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Obra, cliente, código o dirección…" />
           </label>
           <FilterSelect name="estado" label="Estado" value={query.estado ?? "todas"} options={[["todas", "Todos"], ...Object.entries(WORK_STATUS_META).map(([id, meta]) => [id, meta.label] as [string, string])]} />
           <FilterSelect name="prioridad" label="Prioridad" value={query.prioridad ?? "todas"} options={[["todas", "Todas"], ["urgente", "Urgente"], ["alta", "Alta"], ["media", "Media"], ["baja", "Baja"]]} />
@@ -156,6 +157,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           <button className="primary-button min-h-12 self-end" type="submit"><Filter size={18} /> Aplicar</button>
         </div>
       </form>
+      </FilterBar>
 
       <Toolbar className="mb-4 justify-between">
         <div className="flex flex-wrap gap-2">
@@ -166,13 +168,13 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
             </Link>
           ))}
         </div>
-        <p className="text-sm font-bold text-slate-500">{visibleWorks.length} de {works.length} obras</p>
+        <ResultSummary shown={visibleWorks.length} total={works.length} noun="obras" />
       </Toolbar>
 
       {!visibleWorks.length ? (
         <EmptyState
-          title="No hay obras con estos filtros"
-          description="Cambia filtros o crea una obra nueva. No se muestran datos inventados."
+          title={works.length ? "No hay obras para estos filtros" : "Todavía no hay obras"}
+          description={works.length ? "Cambia la búsqueda o limpia los filtros activos." : "Crea la primera obra y vincúlala a un cliente para organizar su ejecución."}
           icon={BriefcaseBusiness}
           action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear obra</Link>}
         />

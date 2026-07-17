@@ -11,7 +11,7 @@ const { default: EmbeddedPostgres } = await import(
   ).href
 );
 const password = randomBytes(24).toString("hex"),
-  port = 55433,
+  port = Number(process.env.CAPATAZ_UI_POSTGRES_PORT ?? 55433),
   pg = new EmbeddedPostgres({
     databaseDir: join(root, `ui-${Date.now()}`),
     user: "postgres",
@@ -39,6 +39,12 @@ const env = {
 };
 assertIsolatedTestDatabase(env);
 execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], {
+  cwd: process.cwd(),
+  env,
+  stdio: "pipe",
+  shell: true,
+});
+execFileSync("npm.cmd", ["run", "db:seed"], {
   cwd: process.cwd(),
   env,
   stdio: "pipe",

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Banknote,
   Bell,
+  Bot,
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
@@ -187,6 +188,10 @@ function PrimaryActions({ clientId, clientName, returnTo }: { clientId: string; 
       <Link href={`/gestion?tipo=contacto&clientId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
         <Plus size={18} />
         Contacto
+      </Link>
+      <Link href="/capataz" className="secondary-button" aria-label={`Preguntar a Capataz sobre ${clientName}`}>
+        <Bot size={18} />
+        Preguntar a Capataz
       </Link>
     </div>
   );

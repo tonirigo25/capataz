@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, CreditCard, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
 import { registerPayment } from "@/app/(app)/dinero/actions";
+import { AccessibleDialog } from "@/components/accessible-dialog";
 import { formatCurrency } from "@/lib/format";
 
 export function ConfirmedPaymentForm({
@@ -21,7 +22,8 @@ export function ConfirmedPaymentForm({
   const [amount, setAmount] = useState(Math.min(200, pendiente).toString());
   const [method, setMethod] = useState("transferencia");
   const [type, setType] = useState("pago_parcial");
-  const [notes, setNotes] = useState("Pago parcial registrado en demo");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const parsedAmount = Number(amount);
   const nextPending = useMemo(() => Math.max(0, pendiente - (Number.isFinite(parsedAmount) ? parsedAmount : 0)), [parsedAmount, pendiente]);
@@ -34,7 +36,7 @@ export function ConfirmedPaymentForm({
           <CreditCard size={22} />
         </span>
         <div>
-          <h2 className="text-lg font-black text-obra-ink">Registrar pago parcial</h2>
+          <h2 className="text-lg font-black text-obra-ink">Registrar cobro</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Primero revisas el importe. Capataz sólo actualiza la factura cuando confirmas.
           </p>
@@ -56,7 +58,7 @@ export function ConfirmedPaymentForm({
           </select>
         </label>
       </div>
-      <div className="mt-3 grid gap-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label>
           <span className="label mb-1 block">Tipo</span>
           <select className="field" value={type} onChange={(event) => setType(event.target.value)}>
@@ -66,6 +68,12 @@ export function ConfirmedPaymentForm({
             <option value="regularizacion">Regularización</option>
           </select>
         </label>
+        <label>
+          <span className="label mb-1 block">Fecha</span>
+          <input className="field" type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+        </label>
+      </div>
+      <div className="mt-3 grid gap-3">
         <label>
           <span className="label mb-1 block">Notas</span>
           <input className="field" value={notes} onChange={(event) => setNotes(event.target.value)} />
@@ -82,21 +90,7 @@ export function ConfirmedPaymentForm({
         Revisar y confirmar pago
       </button>
 
-      {confirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-obra-ink/50 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-card">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-black text-obra-ink">Confirmar pago</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Vas a registrar {formatCurrency(parsedAmount || 0)} en {numero} de {cliente}.
-                </p>
-              </div>
-              <button type="button" className="icon-button shrink-0" aria-label="Cerrar" onClick={() => setConfirmOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
+      <AccessibleDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirmar pago" description={`Vas a registrar ${formatCurrency(parsedAmount || 0)} en ${numero} de ${cliente}.`}>
             <div className="rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700">
               Pendiente actualizado: {formatCurrency(nextPending)}. Estado resultante: {nextStatus}.
             </div>
@@ -106,9 +100,10 @@ export function ConfirmedPaymentForm({
               <input type="hidden" name="importe" value={amount} />
               <input type="hidden" name="metodo" value={method} />
               <input type="hidden" name="tipo" value={type} />
+              <input type="hidden" name="fecha" value={date} />
               <input type="hidden" name="notas" value={notes} />
               <input type="hidden" name="confirmadoPorUsuario" value="true" />
-              <input type="hidden" name="redirectTo" value="/hoy" />
+              <input type="hidden" name="redirectTo" value={`/dinero/${facturaId}`} />
               <button type="submit" className="primary-button w-full">
                 <CheckCircle2 size={18} />
                 Sí, registrar pago
@@ -117,9 +112,7 @@ export function ConfirmedPaymentForm({
                 Revisar antes
               </button>
             </form>
-          </div>
-        </div>
-      ) : null}
+      </AccessibleDialog>
     </section>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, CalendarClock, CheckCircle2, X } from "lucide-react";
+import { Ban, CalendarClock, CheckCircle2 } from "lucide-react";
 import { reprogramAgendaEvent, updateAgendaEventStatus } from "@/app/(app)/agenda/actions";
+import { AccessibleDialog } from "@/components/accessible-dialog";
 
 type Mode = "realizado" | "cancelado" | "reprogramado";
 
@@ -34,21 +35,8 @@ export function AgendaEventControls({
         </button>
       </div>
 
-      {mode ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-obra-ink/50 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-card">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-black text-obra-ink">{modalTitle(mode)}</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Esta acción sólo cambia la agenda interna. No se envía WhatsApp, email ni aviso externo.
-                </p>
-              </div>
-              <button type="button" className="icon-button shrink-0" aria-label="Cerrar" onClick={() => setMode(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
+      <AccessibleDialog open={Boolean(mode)} onClose={() => setMode(null)} title={mode ? modalTitle(mode) : "Actualizar evento"} description="Esta acción sólo cambia la agenda interna. No se envía WhatsApp, email ni aviso externo.">
+          {mode ? <>
             <div className="rounded-lg bg-slate-50 p-3 text-sm font-semibold leading-6 text-obra-ink">{title}</div>
 
             {mode === "reprogramado" ? (
@@ -85,9 +73,8 @@ export function AgendaEventControls({
                 </button>
               </form>
             )}
-          </div>
-        </div>
-      ) : null}
+          </> : null}
+      </AccessibleDialog>
     </>
   );
 }
