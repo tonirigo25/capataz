@@ -131,7 +131,7 @@ export function AppChrome({ children, modeLabel, unreadNotifications, companyNam
 
   return (
     <div className="min-h-dvh lg:pl-60">
-      <a href="#main-content" className="fixed left-4 top-3 z-[70] -translate-y-20 rounded-lg bg-brand px-4 py-2 font-semibold text-white transition focus:translate-y-0">Saltar al contenido</a>
+      <a href="#main-content" className="fixed left-4 top-3 z-[70] inline-flex min-h-11 -translate-y-20 items-center rounded-lg bg-brand px-4 py-2 font-semibold text-white transition focus:translate-y-0">Saltar al contenido</a>
 
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-border bg-white lg:block">
         <DesktopNavigation modeLabel={modeLabel} pathname={pathname} unreadNotifications={unreadNotifications} companyName={companyName} userName={userName} logoutAction={logoutAction} />
@@ -140,7 +140,7 @@ export function AppChrome({ children, modeLabel, unreadNotifications, companyNam
       <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur">
         <div className="mx-auto flex min-h-16 max-w-product items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <Link href="/hoy" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white lg:hidden" aria-label="Ir a Hoy">C</Link>
+            <Link href="/hoy" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white lg:hidden" aria-label="Ir a Hoy">C</Link>
             <div className="min-w-0">
               <p className="truncate text-lg font-semibold leading-tight text-content">{title}</p>
               <p className="truncate text-xs font-medium text-content-secondary lg:hidden">{companyName}</p>

@@ -94,7 +94,7 @@ export default async function TodayPage() {
         </div>
         {dashboard.priorities.length > 3 ? (
           <p className="type-secondary mt-3">
-            Hay {dashboard.priorities.length - 3} asuntos más. <Link href="/agenda?vista=hoy" className="font-semibold text-brand-strong underline underline-offset-4">Ver todos</Link>
+            Hay {dashboard.priorities.length - 3} asuntos más. <Link href="/agenda?vista=hoy" className="inline-flex min-h-11 items-center font-semibold text-brand-strong underline underline-offset-4">Ver todos</Link>
           </p>
         ) : null}
         {treasurySignals.length ? (
@@ -262,7 +262,7 @@ function PriorityCard({ item }: { item: ReturnType<typeof buildTodayDashboard>["
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="type-meta">{formatDate(item.date)}</p>
-        <Link href={item.href} className="ghost-button min-h-10 px-3 py-1 text-xs text-brand-strong">
+        <Link href={item.href} className="ghost-button px-3 py-1 text-xs text-brand-strong">
           {item.action}
         </Link>
       </div>
@@ -287,7 +287,7 @@ function AgendaCard({ item }: { item: ReturnType<typeof buildTodayDashboard>["ag
         </div>
         <StatusPill status={item.estado} />
       </div>
-      <Link href={item.href} className="secondary-button mt-3 min-h-10 px-3 py-1 text-xs">
+      <Link href={item.href} className="secondary-button mt-3 px-3 py-1 text-xs">
         {item.editable ? "Editar" : "Abrir"}
       </Link>
     </article>
@@ -312,8 +312,8 @@ function InvoiceCard({ invoice, now }: { invoice: ReturnType<typeof buildTodayDa
         <Mini label="Vence" value={formatDate(invoice.fechaVencimiento)} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link href={`/dinero/${invoice.id}`} className="primary-button min-h-10 px-3 py-1 text-xs">Ver factura</Link>
-        <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/hoy`} className="secondary-button min-h-10 px-3 py-1 text-xs">Registrar pago</Link>
+        <Link href={`/dinero/${invoice.id}`} className="primary-button px-3 py-1 text-xs">Ver factura</Link>
+        <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/hoy`} className="secondary-button px-3 py-1 text-xs">Registrar pago</Link>
       </div>
     </article>
   );
@@ -334,7 +334,7 @@ function BudgetCard({ budget }: { budget: ReturnType<typeof buildTodayDashboard>
         <Mini label="Importe" value={formatCurrency(budget.total)} />
         <Mini label="Fecha" value={formatDate(budget.fechaSeguimiento ?? budget.fechaEnvio ?? budget.fechaCreacion)} />
       </div>
-      <Link href={`/presupuestos/${budget.id}`} className="secondary-button mt-3 min-h-10 px-3 py-1 text-xs">
+      <Link href={`/presupuestos/${budget.id}`} className="secondary-button mt-3 px-3 py-1 text-xs">
         Ver presupuesto
       </Link>
     </article>
@@ -360,7 +360,7 @@ function WorkCard({ work }: { work: ReturnType<typeof buildTodayDashboard>["acti
       <p className="mt-3 text-sm font-semibold text-slate-500">
         Próxima tarea: {work.nextAgendaItem ? `${work.nextAgendaItem.titulo} · ${formatDate(work.nextAgendaItem.fechaInicio)}` : "Sin tarea programada"}
       </p>
-      <Link href={`/obras?buscar=${encodeURIComponent(work.titulo)}`} className="secondary-button mt-3 min-h-10 px-3 py-1 text-xs">
+      <Link href={`/obras?buscar=${encodeURIComponent(work.titulo)}`} className="secondary-button mt-3 px-3 py-1 text-xs">
         Ver obra
       </Link>
     </article>
