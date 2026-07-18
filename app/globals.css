@@ -233,6 +233,14 @@ button:disabled,
     color: var(--cap-text-muted);
   }
 
+  .shell-menu-row {
+    @apply flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content;
+  }
+
+  .shell-bottom-item {
+    @apply flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-semibold transition;
+  }
+
   .danger-button {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:opacity-55;
     border-color: rgb(var(--cap-danger-rgb) / 0.25);

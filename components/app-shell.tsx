@@ -9,6 +9,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const mode = getAppMode();
   const context = await requireCompanyContext();
   const unreadCount = await getUnreadNotificationCount();
+  const modeLabel = mode === "production" ? undefined : appModeLabel(mode);
 
-  return <AppChrome modeLabel={appModeLabel(mode)} unreadNotifications={unreadCount} companyName={context.companyName} userName={context.displayName} logoutAction={logoutAction}>{children}</AppChrome>;
+  return <AppChrome modeLabel={modeLabel} unreadNotifications={unreadCount} companyName={context.companyName} userName={context.displayName} logoutAction={logoutAction}>{children}</AppChrome>;
 }

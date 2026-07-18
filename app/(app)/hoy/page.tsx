@@ -18,7 +18,6 @@ import {
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { DashboardCreateMenu } from "@/components/dashboard-create-menu";
 import { TodayWorkflowSummary } from "@/components/today-workflow-summary";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
@@ -73,11 +72,6 @@ export default async function TodayPage() {
             <Bot size={18} aria-hidden="true" />
             Hablar con Capataz
           </Link>
-        }
-        secondaryActions={
-          <div className="hidden lg:block">
-            <DashboardCreateMenu />
-          </div>
         }
       />
 

@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, ChevronDown, Info, MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Info, MoreHorizontal, SlidersHorizontal } from "lucide-react";
 import { clsx } from "clsx";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
@@ -77,6 +77,29 @@ export function PageHeader({
       </div>
       {children ? <div className="mt-4">{children}</div> : null}
     </header>
+  );
+}
+
+export function ParentNavigation({
+  href,
+  label,
+  context
+}: {
+  href: string;
+  label: string;
+  context?: string;
+}) {
+  return (
+    <nav aria-label="Contexto de la entidad">
+      <Link
+        href={href}
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content"
+      >
+        <ArrowLeft size={18} aria-hidden="true" />
+        <span>{label}</span>
+        {context ? <span className="hidden text-content-tertiary sm:inline">· {context}</span> : null}
+      </Link>
+    </nav>
   );
 }
 
