@@ -29,23 +29,23 @@ export function DashboardCreateMenu() {
 
   return (
     <div className="relative">
-      <button type="button" className="primary-button w-full sm:w-auto" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen((value) => !value)}>
+      <button type="button" className="secondary-button w-full sm:w-auto" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen((value) => !value)}>
         <Plus size={18} />
         Crear
       </button>
 
       {open ? (
-        <div id={menuId} className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-card">
+        <div id={menuId} className="action-menu-panel top-full w-72">
           <div className="flex items-center justify-between px-2 py-2">
-            <p className="text-sm font-black text-obra-ink">Crear desde Hoy</p>
+            <p className="text-sm font-semibold text-content">Crear desde Hoy</p>
             <button type="button" className="icon-button h-8 w-8" aria-label="Cerrar menú crear" onClick={() => setOpen(false)}>
               <X size={16} />
             </button>
           </div>
           <div className="grid gap-1">
             {createActions.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-obra-yellow/15" onClick={() => setOpen(false)}>
-                <Icon size={18} className="text-obra-yellowDark" aria-hidden="true" />
+              <Link key={href} href={href} className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content hover:bg-subtle" onClick={() => setOpen(false)}>
+                <Icon size={18} className="text-brand-strong" aria-hidden="true" />
                 {label}
               </Link>
             ))}
