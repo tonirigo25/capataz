@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
   Banknote,
   Bot,
   BriefcaseBusiness,
@@ -15,8 +14,6 @@ import {
   Package,
   Plus,
   Receipt,
-  Search,
-  Sparkles,
   Users,
   WalletCards
 } from "lucide-react";
@@ -26,7 +23,7 @@ import { TodayWorkflowSummary } from "@/components/today-workflow-summary";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { EmptyState, Notice, PageHeader, ProductPage } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
 import { buildTodayDashboard, greetingForDate, invoiceLiveStatus } from "@/lib/dashboard-hoy";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -66,37 +63,23 @@ export default async function TodayPage() {
   const currentDate = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "2-digit", month: "long" }).format(now);
 
   return (
-    <main className="screen">
+    <ProductPage layout="operational">
       <PageHeader
-        eyebrow={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""} · ${currentDate}`}
-        title="Hoy"
+        eyebrow={currentDate}
+        title={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}`}
         description={dashboard.dailySummary}
         action={
+          <Link href="/capataz" className="primary-button">
+            <Bot size={18} aria-hidden="true" />
+            Hablar con Capataz
+          </Link>
+        }
+        secondaryActions={
           <div className="hidden lg:block">
             <DashboardCreateMenu />
           </div>
         }
-        secondaryActions={
-          <>
-            <Link href="/buscar" className="secondary-button">
-              <Search size={18} />
-              Buscar
-            </Link>
-          </>
-        }
       />
-
-      <Link href="/capataz" className="group mb-7 block rounded-2xl bg-obra-ink p-5 text-white shadow-card transition hover:-translate-y-0.5 hover:bg-obra-graphite sm:p-6">
-        <div className="flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-obra-yellow text-obra-ink"><Sparkles size={23} aria-hidden="true" /></span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black uppercase tracking-wide text-obra-yellow">Capataz</p>
-            <h2 className="mt-1 text-xl font-black leading-tight sm:text-2xl">¿Qué ha pasado hoy?</h2>
-            <p className="mt-2 text-sm leading-6 text-white/75">Escribe o dicta lo ocurrido. Podrás revisar la transcripción y confirmar antes de guardar.</p>
-          </div>
-          <ArrowRight className="mt-3 shrink-0 text-obra-yellow transition group-hover:translate-x-1" aria-hidden="true" />
-        </div>
-      </Link>
 
       <DashboardSection
         id="necesita-atencion"
@@ -105,10 +88,15 @@ export default async function TodayPage() {
         action={<Link href="/agenda?vista=hoy" className="secondary-button">Ver agenda</Link>}
       >
         <div className="grid gap-3 lg:grid-cols-2">
-          {dashboard.priorities.length ? dashboard.priorities.map((item) => <PriorityCard key={item.key} item={item} />) : (
+          {dashboard.priorities.length ? dashboard.priorities.slice(0, 3).map((item) => <PriorityCard key={item.key} item={item} />) : (
             <div className="lg:col-span-2"><EmptyState title="Todo bajo control" description="No hay cobros vencidos, visitas ni seguimientos urgentes para hoy." icon={CheckCircle2} /></div>
           )}
         </div>
+        {dashboard.priorities.length > 3 ? (
+          <p className="type-secondary mt-3">
+            Hay {dashboard.priorities.length - 3} asuntos más. <Link href="/agenda?vista=hoy" className="inline-flex min-h-11 items-center font-semibold text-brand-strong underline underline-offset-4">Ver todos</Link>
+          </p>
+        ) : null}
         {treasurySignals.length ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -117,7 +105,7 @@ export default async function TodayPage() {
             </div>
           </div>
         ) : null}
-        <TodayWorkflowSummary />
+        <TodayWorkflowSummary companyId={auth.companyId} />
         {companyMissing ? <div className="mt-4"><Notice tone="warning" title="Datos de empresa incompletos" description={`Faltan ${companyMissing} datos para que presupuestos y facturas salgan completos.`} action={<Link href="/configuracion#empresa" className="secondary-button bg-white">Completar datos</Link>} /></div> : null}
       </DashboardSection>
 
@@ -224,7 +212,7 @@ export default async function TodayPage() {
           </DashboardSection>
         </aside>
       </div>
-    </main>
+    </ProductPage>
   );
 }
 
@@ -242,7 +230,7 @@ function DashboardSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className={id === "necesita-atencion" ? "scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:p-5" : "scroll-mt-24 section-shell"}>
+    <section id={id} className={id === "necesita-atencion" ? "scroll-mt-24 rounded-2xl bg-subtle p-4 sm:p-5" : "scroll-mt-24 section-shell"}>
       <SectionHeader title={title} description={description} action={action} />
       {children}
     </section>
@@ -263,18 +251,18 @@ function QuickAction({ href, label, detail, icon: Icon }: { href: string; label:
 
 function PriorityCard({ item }: { item: ReturnType<typeof buildTodayDashboard>["priorities"][number] }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <article className="rounded-lg bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-slate-500">{item.type}</p>
-          <h3 className="mt-1 text-base font-black text-obra-ink">{item.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{item.detail}</p>
+          <p className="type-meta">{item.type}</p>
+          <h3 className="type-object-title mt-1 text-content">{item.title}</h3>
+          <p className="type-secondary mt-1">{item.detail}</p>
         </div>
         <StatusPill status={item.status} />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold text-slate-500">{formatDate(item.date)}</p>
-        <Link href={item.href} className="secondary-button min-h-10 px-3 py-1 text-xs">
+        <p className="type-meta">{formatDate(item.date)}</p>
+        <Link href={item.href} className="ghost-button px-3 py-1 text-xs text-brand-strong">
           {item.action}
         </Link>
       </div>
@@ -299,7 +287,7 @@ function AgendaCard({ item }: { item: ReturnType<typeof buildTodayDashboard>["ag
         </div>
         <StatusPill status={item.estado} />
       </div>
-      <Link href={item.href} className="secondary-button mt-3 min-h-10 px-3 py-1 text-xs">
+      <Link href={item.href} className="secondary-button mt-3 px-3 py-1 text-xs">
         {item.editable ? "Editar" : "Abrir"}
       </Link>
     </article>
@@ -324,8 +312,8 @@ function InvoiceCard({ invoice, now }: { invoice: ReturnType<typeof buildTodayDa
         <Mini label="Vence" value={formatDate(invoice.fechaVencimiento)} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link href={`/dinero/${invoice.id}`} className="primary-button min-h-10 px-3 py-1 text-xs">Ver factura</Link>
-        <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/hoy`} className="secondary-button min-h-10 px-3 py-1 text-xs">Registrar pago</Link>
+        <Link href={`/dinero/${invoice.id}`} className="primary-button px-3 py-1 text-xs">Ver factura</Link>
+        <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/hoy`} className="secondary-button px-3 py-1 text-xs">Registrar pago</Link>
       </div>
     </article>
   );
@@ -346,7 +334,7 @@ function BudgetCard({ budget }: { budget: ReturnType<typeof buildTodayDashboard>
         <Mini label="Importe" value={formatCurrency(budget.total)} />
         <Mini label="Fecha" value={formatDate(budget.fechaSeguimiento ?? budget.fechaEnvio ?? budget.fechaCreacion)} />
       </div>
-      <Link href={`/presupuestos/${budget.id}`} className="secondary-button mt-3 min-h-10 px-3 py-1 text-xs">
+      <Link href={`/presupuestos/${budget.id}`} className="secondary-button mt-3 px-3 py-1 text-xs">
         Ver presupuesto
       </Link>
     </article>
@@ -372,7 +360,7 @@ function WorkCard({ work }: { work: ReturnType<typeof buildTodayDashboard>["acti
       <p className="mt-3 text-sm font-semibold text-slate-500">
         Próxima tarea: {work.nextAgendaItem ? `${work.nextAgendaItem.titulo} · ${formatDate(work.nextAgendaItem.fechaInicio)}` : "Sin tarea programada"}
       </p>
-      <Link href={`/obras?buscar=${encodeURIComponent(work.titulo)}`} className="secondary-button mt-3 min-h-10 px-3 py-1 text-xs">
+      <Link href={`/obras?buscar=${encodeURIComponent(work.titulo)}`} className="secondary-button mt-3 px-3 py-1 text-xs">
         Ver obra
       </Link>
     </article>

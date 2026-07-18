@@ -6,6 +6,8 @@ Base examinada: rama local `codex/suppliers-subcontractors-expenses`, HEAD `2070
 
 Alcance: auditoría estática del repositorio, documentación y evidencia de pruebas existente. No se ha accedido a Railway ni a producción.
 
+Fuente de verdad visual y de experiencia: [`docs/CAPATAZ_PRODUCT_DESIGN_MANUAL.md`](./CAPATAZ_PRODUCT_DESIGN_MANUAL.md). Todo trabajo de producto, UX o interfaz debe seguir ese manual.
+
 ## 1. Resumen ejecutivo
 
 Capataz ya es una aplicación de gestión vertical amplia: tiene autenticación y sesiones reales, aislamiento por empresa, CRM, obras, ciclo de presupuestos y facturación, cobros, tesorería, compras, proveedores, subcontratas, lector documental privado, agenda, tareas, automatizaciones, inteligencia de negocio y un chat con historial, contexto, voz y confirmaciones. La base funcional supera la de un prototipo.
