@@ -1,5 +1,4 @@
 import type { InvoiceStatus } from "@prisma/client";
-import { clsx } from "clsx";
 
 export const statusLabels: Record<string, string> = {
   nuevo: "Nuevo",
@@ -114,83 +113,39 @@ export function statusLabel(status: string) {
 }
 
 export function statusClass(status: string) {
-  return clsx("border", {
-    "border-obra-green/20 bg-obra-green/10 text-obra-green":
-      ["pagada", "aceptado", "finalizada", "cerrada", "cobrada", "entregado", "comprado", "programado", "confirmado", "realizado"].includes(status),
-    "border-obra-red/20 bg-obra-red/10 text-obra-red":
-      ["vencida", "rechazado", "fallido", "falta", "reclamada", "cancelado", "archivado", "archivada", "pausada", "parada"].includes(status),
-    "border-obra-orange/25 bg-obra-orange/10 text-obra-orange":
-      [
-        "pendiente_cobro",
-        "pendiente",
-        "pendiente_pago",
-        "parcialmente_pagada",
-        "pendiente_confirmacion",
-        "pendiente_respuesta",
-        "seguimiento_pendiente",
-        "pendiente_material",
-        "pendiente_cliente",
-        "pendiente_remates",
-        "pendiente_datos",
-        "pendiente_aprobacion",
-        "facturada_parcialmente",
-        "reprogramado",
-        "seguimiento_cobro",
-        "vencimiento_factura"
-      ].includes(status),
-    "border-obra-yellowDark/20 bg-obra-yellow/25 text-obra-yellowDark":
-      ["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "planificada", "preparacion", "parcialmente_terminada", "facturada", "visita", "compra_material"].includes(status),
-    "border-slate-200 bg-white text-slate-600":
-      ![
-        "pagada",
-        "aceptado",
-        "finalizada",
-        "cerrada",
-        "cobrada",
-        "entregado",
-        "comprado",
-        "programado",
-        "confirmado",
-        "realizado",
-        "vencida",
-        "rechazado",
-        "fallido",
-        "falta",
-        "reclamada",
-        "cancelado",
-        "archivado",
-        "archivada",
-        "pausada",
-        "parada",
-        "pendiente_cobro",
-        "pendiente",
-        "pendiente_pago",
-        "parcialmente_pagada",
-        "pendiente_confirmacion",
-        "pendiente_respuesta",
-        "seguimiento_pendiente",
-        "pendiente_material",
-        "pendiente_cliente",
-        "pendiente_remates",
-        "pendiente_datos",
-        "pendiente_aprobacion",
-        "facturada_parcialmente",
-        "reprogramado",
-        "seguimiento_cobro",
-        "vencimiento_factura",
-        "borrador",
-        "pendiente_revision",
-        "emitida",
-        "enviada",
-        "en_curso",
-        "planificada",
-        "preparacion",
-        "parcialmente_terminada",
-        "facturada",
-        "visita",
-        "compra_material"
-      ].includes(status)
-  });
+  if (["archivado", "archivada"].includes(status)) {
+    return "bg-content/[0.08] text-content-secondary";
+  }
+  if (["pagada", "aceptado", "finalizada", "cerrada", "cobrada", "entregado", "comprado", "programado", "confirmado", "realizado"].includes(status)) {
+    return "bg-success/10 text-success";
+  }
+  if (["vencida", "rechazado", "fallido", "falta", "reclamada", "cancelado", "pausada", "parada"].includes(status)) {
+    return "bg-danger/10 text-danger";
+  }
+  if ([
+    "pendiente_cobro",
+    "pendiente",
+    "pendiente_pago",
+    "parcialmente_pagada",
+    "pendiente_confirmacion",
+    "pendiente_respuesta",
+    "seguimiento_pendiente",
+    "pendiente_material",
+    "pendiente_cliente",
+    "pendiente_remates",
+    "pendiente_datos",
+    "pendiente_aprobacion",
+    "facturada_parcialmente",
+    "reprogramado",
+    "seguimiento_cobro",
+    "vencimiento_factura"
+  ].includes(status)) {
+    return "bg-warning/10 text-warning";
+  }
+  if (["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "planificada", "preparacion", "parcialmente_terminada", "facturada", "visita", "compra_material"].includes(status)) {
+    return "bg-brand-soft text-brand-strong";
+  }
+  return "bg-subtle text-content-secondary";
 }
 
 export function deriveInvoiceStatus(total: number, pending: number, dueDate: Date): InvoiceStatus {
