@@ -14,7 +14,7 @@ const packageJson = JSON.parse(read("package.json"));
 const cases = [];
 const check = (name, condition) => cases.push([name, Boolean(condition)]);
 
-check("Hoy limita la vista a tres prioridades", today.includes("dashboard.priorities.slice(0, 3)"));
+check("Hoy limita la vista principal a tres señales", today.includes("limit: query.categoria ? 20 : 3"));
 check("Hoy retira la rejilla heredada de seis KPI", !today.includes("StatCard") && !today.includes("Estado del negocio"));
 check("Hoy retira acciones rápidas globales", !today.includes("quickActions") && !today.includes("Acciones rápidas"));
 check("Hoy incluye agenda inmediata", today.includes('title="Agenda inmediata"') && today.includes("tomorrowFirst"));

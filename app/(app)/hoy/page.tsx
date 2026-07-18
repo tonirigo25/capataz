@@ -32,7 +32,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
     getAgendaItems(),
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
     getTreasuryOverview({ companyId: auth.companyId, horizon: "30d", scenario: "base" }),
-    getTodayOperationalSignals({ category: query.categoria, limit: query.categoria ? 20 : 5 })
+    getTodayOperationalSignals({ category: query.categoria, limit: query.categoria ? 20 : 3 })
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
