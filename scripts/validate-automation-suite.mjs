@@ -24,5 +24,11 @@ if(mode==="task-recurrence")required(recurrence,["DAILY","WEEKLY","YEARLY"]);
 if(mode==="task-dependencies")required(tasks,["TASK_DEPENDENCY_CYCLE","dependsOnTaskId"]);
 if(["followups","followup-attempts"].includes(mode))required(followups,["createFollowUp","addFollowUpAttempt","recordFollowUpOutcome"]);
 if(["automation-chat","tasks-chat","followups-chat"].includes(mode))required(read("lib/capataz-chat-query.ts"),["database_query"]);
-if(mode==="integration")required(read("components/app-chrome.tsx"),["/automatizaciones","/tareas","/seguimientos"]);
+if(mode==="integration"){
+  const navigation=read("lib/product-navigation.ts");
+  for(const route of ["/automatizaciones","/tareas","/seguimientos"]){
+    assert.ok(fs.existsSync(`app/(app)${route}/page.tsx`),`Falta ruta ${route}`);
+    assert.ok(!navigation.includes(`href: "${route}"`),`La navegación global no debe exponer ${route}`);
+  }
+}
 console.log(`OK automation suite: ${mode}`);

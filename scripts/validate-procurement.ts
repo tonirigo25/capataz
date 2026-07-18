@@ -10,7 +10,7 @@ const migration = read("prisma/migrations/20260717120000_procurement_management/
 const actions = read("app/(app)/proveedores/actions.ts");
 const readerActions = read("app/(app)/gastos-materiales/actions.ts");
 const treasury = read("lib/treasury.ts");
-const navigation = read("components/app-chrome.tsx");
+const navigation = read("lib/product-navigation.ts");
 
 assert.equal(validateSpanishTaxId(" B-12345678 ").normalized, "B12345678");
 assert.equal(validateSpanishTaxId("B12345678").valid, true);

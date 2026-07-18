@@ -70,7 +70,7 @@ const cases = [
   ["navegación secundaria usa URL y overflow accesible", primitives.includes("<nav aria-label={label}") && primitives.includes("overflow-x-auto") && primitives.includes("aria-current=page")],
   ["estados semánticos no dependen de color heredado", ["active", "completed", "attention", "risk", "archived"].every((tone) => primitives.includes(tone)) && status.includes("bg-content/[0.08]")],
   ["shell usa sidebar de 240 px y objetivos táctiles", chrome.includes("lg:pl-60") && chrome.includes("w-60") && styles.includes("--cap-control: 2.75rem")],
-  ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("lastTriggerRef.current?.focus()")],
+  ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
   ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Capataz") && !today.includes("¿Qué ha pasado hoy?")],
   ["Hoy limita la primera zona a tres prioridades", today.includes("priorities.slice(0, 3)") && today.includes("Necesita tu atención")],
   ["Hoy deriva consultas compartidas de la empresa activa", today.includes("companyId={auth.companyId}") && ["prisma.task.count", "prisma.followUp.count", "prisma.automationRun.count", "prisma.automationSchedule.findFirst"].every((query) => todayWorkflow.includes(query)) && (todayWorkflow.match(/companyId/g) ?? []).length >= 6],
