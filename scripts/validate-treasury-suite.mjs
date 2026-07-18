@@ -458,12 +458,12 @@ async function validateIntegration() {
   for (const needle of ["paymentStatus", "paymentDueDate", "paidAt", "costBehavior"]) {
     expect(schema.includes(needle), `[treasury-integration] Expense missing field ${needle}`);
   }
-  expect(treasuryPage.includes("getTreasuryOverview") && treasuryPage.includes("QuickForms"), "[treasury-integration] treasury page missing overview or forms");
+  expect(treasuryPage.includes("getEconomicControl") && fs.readFileSync("components/treasury-registration.tsx", "utf8").includes("createCashMovement"), "[treasury-integration] treasury page missing economic control or registration flows");
   expect(treasuryActions.includes("createCashTransfer") && treasuryActions.includes("saveTreasurySettings"), "[treasury-integration] treasury actions missing key commands");
   expect(fs.existsSync("app/(app)/tesoreria/export/route.ts"), "[treasury-integration] treasury CSV export route missing");
-  expect(hoyPage.includes("getTreasuryOverview") && hoyPage.includes("payablesSummary"), "[treasury-integration] Hoy page missing compact treasury pulse");
-  expect(workPage.includes("WorkTreasuryTab") && workPage.includes("getTreasuryOverview"), "[treasury-integration] Work 360 missing treasury tab");
-  expect(clientPage.includes("ClientFinanceTab") && clientPage.includes("getTreasuryOverview"), "[treasury-integration] Client 360 missing finance tab");
+  expect(hoyPage.includes("getEconomicControl") && hoyPage.includes("forecast.outflows"), "[treasury-integration] Hoy page missing compact economic pulse");
+  expect(workPage.includes("WorkTreasuryTab") && workPage.includes("getEconomicControl"), "[treasury-integration] Work 360 missing economic control tab");
+  expect(clientPage.includes("ClientFinanceTab") && clientPage.includes("getEconomicControl"), "[treasury-integration] Client 360 missing finance tab");
   expect(nav.includes('href: "/tesoreria"'), "[treasury-integration] navigation missing treasury link");
 
   await validateAccounts();

@@ -22,7 +22,7 @@ check("Hoy mantiene pulso compacto", today.includes('title="Pulso del día"') &&
 check("Hoy limita actividad reciente", today.includes("recentActivity.slice(0, 5)"));
 check("Hoy enlaza al Dashboard", today.includes('href="/dashboard"'));
 check("Hoy tiene una única acción primaria estable", (today.match(/className="primary-button"/g) ?? []).length === 1 && today.includes("Hablar con Capataz"));
-check("Hoy deriva empresa desde sesión", today.includes("requireCompanyContext") && today.includes("companyId: auth.companyId"));
+check("Hoy deriva empresa desde sesión", today.includes("requireCompanyContext") && today.includes("getEconomicControl"));
 check("Hoy tiene carga y error recuperable", fs.existsSync("app/(app)/hoy/loading.tsx") && fs.existsSync("app/(app)/hoy/error.tsx"));
 
 check("Dashboard es una ruta real", dashboard.includes("export default async function DashboardPage"));
