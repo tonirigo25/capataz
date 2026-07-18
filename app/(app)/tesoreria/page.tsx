@@ -1,4 +1,6 @@
 import { EconomicControlCenter } from "@/components/economic-control-center";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { getTreasuryRecommendations } from "@/lib/business-recommendations";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +15,17 @@ type TreasurySearchParams = {
 
 export default async function TreasuryPage({ searchParams }: { searchParams: Promise<TreasurySearchParams> }) {
   const query = await searchParams;
-  const data = await getEconomicControl({
-    area: query.vista,
-    period: query.periodo,
-    clientId: query.cliente,
-    workId: query.obra,
-    status: query.estado
-  });
+  const { companyId } = await requireCompanyContext();
+  const [data, recommendations] = await Promise.all([
+    getEconomicControl({
+      area: query.vista,
+      period: query.periodo,
+      clientId: query.cliente,
+      workId: query.obra,
+      status: query.estado
+    }),
+    getTreasuryRecommendations(5, companyId)
+  ]);
 
-  return <EconomicControlCenter data={data} />;
+  return <EconomicControlCenter data={data} recommendations={recommendations.recommendations} />;
 }

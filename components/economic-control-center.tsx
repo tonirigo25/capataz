@@ -5,6 +5,7 @@ import { EmptyState, Metric, PageHeader, ProductPage, ResponsiveTable, Status, S
 import type { EconomicArea, EconomicConcentration, EconomicControlData, EconomicDocument, EconomicDueGroup, EconomicForecast, EconomicProfitabilityRow } from "@/lib/economic-control/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { TreasuryRegistration } from "@/components/treasury-registration";
+import type { BusinessRecommendation } from "@/lib/business-recommendations";
 
 const AREAS: Array<{ id: EconomicArea; label: string }> = [
   { id: "resumen", label: "Resumen" },
@@ -14,7 +15,7 @@ const AREAS: Array<{ id: EconomicArea; label: string }> = [
   { id: "rentabilidad", label: "Rentabilidad" }
 ];
 
-export function EconomicControlCenter({ data }: { data: EconomicControlData }) {
+export function EconomicControlCenter({ data, recommendations = [] }: { data: EconomicControlData; recommendations?: BusinessRecommendation[] }) {
   return (
     <ProductPage layout="analytical">
       <PageHeader
@@ -31,7 +32,7 @@ export function EconomicControlCenter({ data }: { data: EconomicControlData }) {
 
       <EconomicFilters data={data} />
 
-      {data.area === "resumen" ? <SummaryArea data={data} /> : null}
+      {data.area === "resumen" ? <SummaryArea data={data} recommendations={recommendations} /> : null}
       {data.area === "cobros" ? <DocumentsArea direction="entrada" data={data} /> : null}
       {data.area === "pagos" ? <DocumentsArea direction="salida" data={data} /> : null}
       {data.area === "prevision" ? <ForecastArea forecast={data.forecast} /> : null}
@@ -64,7 +65,7 @@ function EconomicFilters({ data }: { data: EconomicControlData }) {
   );
 }
 
-function SummaryArea({ data }: { data: EconomicControlData }) {
+function SummaryArea({ data, recommendations }: { data: EconomicControlData; recommendations: BusinessRecommendation[] }) {
   const measurableWorks = data.profitability.filter((row) => row.hasEnoughData && row.profit !== null);
   const totalInvoiced = measurableWorks.reduce((total, row) => total + row.invoiced, 0);
   const totalProfit = measurableWorks.reduce((total, row) => total + (row.profit ?? 0), 0);
@@ -108,6 +109,11 @@ function SummaryArea({ data }: { data: EconomicControlData }) {
       <section aria-labelledby="economic-attention" className="section-shell">
         <SectionHeading id="economic-attention" title="Requiere atención" description="Señales deterministas de PD-4 sobre cobros, compras y economía de obra; no se recalculan reglas distintas en la interfaz." />
         {data.attentionSignals.length ? <div className="divide-y divide-border">{data.attentionSignals.map((signal) => <Link key={signal.id} href={signal.href} className="grid min-h-20 gap-2 py-3 hover:bg-subtle sm:grid-cols-[1fr_auto] sm:items-center"><span><span className="type-object-title block text-content">{signal.title}</span><span className="type-secondary mt-1 block">{signal.explanation}</span><span className="type-meta mt-1 block">Siguiente paso: {signal.nextStep}</span></span><span className="flex items-center gap-3"><Status tone={signal.level === "urgente" ? "risk" : signal.level === "atencion" ? "attention" : "neutral"}>{signal.level}</Status>{signal.amount !== null ? <span className="tabular font-semibold text-content">{formatCurrency(signal.amount)}</span> : null}</span></Link>)}</div> : <EmptyState icon={AlertTriangle} title="No hay señales económicas que requieran atención" description="Los próximos vencimientos permanecen disponibles en Previsión." />}
+      </section>
+
+      <section aria-labelledby="economic-recommendations" className="section-shell">
+        <SectionHeading id="economic-recommendations" title="Recomendaciones de tesorería" description="Acciones existentes derivadas de señales reales; su seguimiento permanece en el centro de recomendaciones." action={<Link href="/recomendaciones?origen=tesoreria" className="secondary-button">Ver centro</Link>} />
+        {recommendations.length ? <div className="divide-y divide-border">{recommendations.map((recommendation) => <Link key={recommendation.fingerprint} href="/recomendaciones?origen=tesoreria" className="grid min-h-20 gap-2 py-3 hover:bg-subtle sm:grid-cols-[1fr_auto] sm:items-center"><span><span className="type-object-title block text-content">{recommendation.title}</span><span className="type-secondary mt-1 block">{recommendation.summary}</span></span><Status tone={recommendation.priority >= 80 ? "risk" : recommendation.priority >= 60 ? "attention" : "neutral"}>Prioridad {recommendation.priority}</Status></Link>)}</div> : <EmptyState icon={AlertTriangle} title="Sin recomendaciones de tesorería" description="No hay acciones de caja prioritarias derivadas de señales reales." />}
       </section>
 
       <div className="grid gap-10 xl:grid-cols-2">
