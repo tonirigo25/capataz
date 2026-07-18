@@ -245,9 +245,7 @@ function TrendChart({ points }: { points: BusinessTrendPoint[] }) {
             <g key={item.key}>
               <polyline points={points.map((point, index) => `${x(index)},${y(point[item.key])}`).join(" ")} className={`fill-none ${item.className}`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               {points.map((point, index) => (
-                <circle key={point.key} cx={x(index)} cy={y(point[item.key])} r="4" className={`fill-surface ${item.className}`} strokeWidth="3">
-                  <title>{item.label}, {point.label}: {formatCurrency(point[item.key])}</title>
-                </circle>
+                <circle key={point.key} cx={x(index)} cy={y(point[item.key])} r="4" className={`fill-surface ${item.className}`} strokeWidth="3" role="img" aria-label={`${item.label}, ${point.label}: ${formatCurrency(point[item.key])}`} />
               ))}
             </g>
           ))}
