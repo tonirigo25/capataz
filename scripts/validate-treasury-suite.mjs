@@ -461,7 +461,7 @@ async function validateIntegration() {
   expect(treasuryPage.includes("getTreasuryOverview") && treasuryPage.includes("QuickForms"), "[treasury-integration] treasury page missing overview or forms");
   expect(treasuryActions.includes("createCashTransfer") && treasuryActions.includes("saveTreasurySettings"), "[treasury-integration] treasury actions missing key commands");
   expect(fs.existsSync("app/(app)/tesoreria/export/route.ts"), "[treasury-integration] treasury CSV export route missing");
-  expect(hoyPage.includes("getTodayTreasurySignals"), "[treasury-integration] Hoy page missing treasury signals");
+  expect(hoyPage.includes("getTreasuryOverview") && hoyPage.includes("payablesSummary"), "[treasury-integration] Hoy page missing compact treasury pulse");
   expect(workPage.includes("WorkTreasuryTab") && workPage.includes("getTreasuryOverview"), "[treasury-integration] Work 360 missing treasury tab");
   expect(clientPage.includes("ClientFinanceTab") && clientPage.includes("getTreasuryOverview"), "[treasury-integration] Client 360 missing finance tab");
   expect(nav.includes('href: "/tesoreria"'), "[treasury-integration] navigation missing treasury link");

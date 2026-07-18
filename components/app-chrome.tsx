@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  BarChart3,
   Bell,
   Bot,
   BriefcaseBusiness,
@@ -51,6 +52,7 @@ const icons: Record<ProductIcon, LucideIcon> = {
   briefcase: BriefcaseBusiness,
   building: Building2,
   client: Users,
+  dashboard: BarChart3,
   document: FileText,
   expense: Package,
   home: Home,
@@ -494,7 +496,11 @@ function MobileBottomNavigation({
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
-  const mobileItems = [primaryNavigation[0], primaryNavigation[1], primaryNavigation[2]];
+  const mobileItems = [
+    primaryNavigation.find((item) => item.href === "/hoy")!,
+    primaryNavigation.find((item) => item.href === "/clientes")!,
+    primaryNavigation.find((item) => item.href === "/obras")!
+  ];
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] lg:hidden"
@@ -579,6 +585,12 @@ function SearchDialog({ id, onClose }: { id: string; onClose: () => void }) {
         <span><kbd className="font-semibold">Enter</kbd> buscar</span>
         <span><kbd className="font-semibold">Esc</kbd> cerrar</span>
       </div>
+      <div className="mt-5 border-t border-border pt-4">
+        <p className="type-label mb-2">Accesos</p>
+        <Link href="/dashboard" onClick={onClose} className="shell-menu-row">
+          <BarChart3 size={18} aria-hidden="true" />Dashboard
+        </Link>
+      </div>
     </div>
   );
 }
@@ -619,7 +631,7 @@ function MobileMoreSheet({
         <section>
           <h3 className="type-label mb-2">Trabajo y gestión</h3>
           <div className="grid gap-1">
-            {primaryNavigation.slice(3).map((item) => (
+            {primaryNavigation.filter((item) => !["/hoy", "/clientes", "/obras"].includes(item.href)).map((item) => (
               <NavigationLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />
             ))}
           </div>

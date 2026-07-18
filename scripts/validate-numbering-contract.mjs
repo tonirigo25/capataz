@@ -16,6 +16,7 @@ const pg = new EmbeddedPostgres({ databaseDir: join(root, `numbering-${Date.now(
 const databaseName = "capataz_test_numbering";
 const url = `postgresql://postgres:${password}@127.0.0.1:${port}/${databaseName}?schema=public`;
 const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
+const transactionOptions = { maxWait: 30_000, timeout: 30_000 };
 assertIsolatedTestDatabase(env);
 let db;
 let calls = 0;
@@ -40,7 +41,7 @@ try {
   await pg.start();
   await pg.createDatabase(databaseName);
   execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
-  db = new PrismaClient({ datasources: { db: { url } } });
+  db = new PrismaClient({ datasources: { db: { url } }, transactionOptions });
 
   console.error("case basic");
   const a = await company("contract-a");
@@ -96,7 +97,7 @@ try {
   console.error("case missing"); const missing = await company("contract-missing");
   await assert.rejects(() => reserve("missing-company-id", "budget"));
   assert.equal(await db.companyDocumentSequence.count({ where: { companyId: missing.id } }), 0);
-  console.log(JSON.stringify({ ok: true, isolated: true, host: "127.0.0.1", database: databaseName, calls, cases: { companyAFirstSecond: true, companyBIndependent: true, invoiceIndependent: true, seriesIndependent: true, yearsIndependent: true, legacyMaxPlusOne: true, sequenceAboveMax: true, sequenceBelowMax: true, concurrency20: true, crossCompanyIsolation: true, rollbackNoAdvance: true, missingCompanyNoSequence: true } }));
+  console.log(JSON.stringify({ ok: true, isolated: true, host: "127.0.0.1", database: databaseName, calls, transactionOptions, cases: { companyAFirstSecond: true, companyBIndependent: true, invoiceIndependent: true, seriesIndependent: true, yearsIndependent: true, legacyMaxPlusOne: true, sequenceAboveMax: true, sequenceBelowMax: true, concurrency20: true, crossCompanyIsolation: true, rollbackNoAdvance: true, missingCompanyNoSequence: true } }));
 } finally {
   await db?.$disconnect();
   await pg.stop();

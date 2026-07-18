@@ -16,9 +16,9 @@ const check = (name, condition) => cases.push([name, Boolean(condition)]);
 
 const primaryOrder = [
   'label: "Hoy"',
+  'label: "Dashboard"',
   'label: "Clientes"',
   'label: "Obras"',
-  'label: "Agenda"',
   'label: "Presupuestos"',
   'label: "Facturas y cobros"'
 ];
@@ -26,6 +26,7 @@ const primaryIndexes = primaryOrder.map((token) => navigation.indexOf(token));
 
 check("sidebar conserva ancho de 240 px", chrome.includes("lg:pl-60") && chrome.includes("w-60"));
 check("navegación principal tiene seis destinos en orden", primaryIndexes.every((index) => index >= 0) && primaryIndexes.every((index, position) => position === 0 || index > primaryIndexes[position - 1]));
+check("Agenda se mantiene dentro de Más", navigation.indexOf('label: "Agenda"') > navigation.indexOf('label: "Control"'));
 check("Más usa tres grupos aprobados", ['label: "Compras"', 'label: "Control"', 'label: "Administración"'].every((token) => navigation.includes(token)));
 check("Más excluye rutas ocultas históricas", ["/tareas", "/seguimientos", "/automatizaciones", "/alertas", "/recomendaciones", "/inteligencia"].every((route) => !navigation.includes(`href: "${route}"`)));
 check("rutas centrales no están bloqueadas por middleware", !middleware.includes("modulo-no-disponible") && middleware.includes("isProtectedPage"));
@@ -38,7 +39,8 @@ check("búsqueda usa activador, atajo y ruta existentes", chrome.includes("Busca
 check("búsqueda presenta filas y estados vacío, carga, error y resultados", searchPage.includes("InteractiveRow") && searchPage.includes("¿Qué necesitas encontrar?") && searchPage.includes("No hay resultados") && searchLoading.includes("LoadingState") && searchError.includes("ErrorState"));
 check("Capataz es una acción secundaria estable", chrome.includes('href="/capataz"') && chrome.includes(">Capataz"));
 check("notificaciones limitan contador a 99+ sin danger", chrome.includes('count > 99 ? "99+"') && !chrome.includes("bg-danger"));
-check("móvil mantiene Hoy, Clientes, Crear, Obras y Más", chrome.includes("primaryNavigation[0]") && chrome.includes("primaryNavigation[1]") && chrome.includes("primaryNavigation[2]") && chrome.includes('aria-label="Crear"') && chrome.includes('aria-label="Más áreas"'));
+check("móvil mantiene Hoy, Clientes, Crear, Obras y Más", ['item.href === "/hoy"', 'item.href === "/clientes"', 'item.href === "/obras"'].every((token) => chrome.includes(token)) && chrome.includes('aria-label="Crear"') && chrome.includes('aria-label="Más áreas"'));
+check("Dashboard está disponible desde Más y búsqueda", chrome.includes('href="/dashboard"') && searchPage.includes('href="/dashboard"'));
 check("Crear contiene exactamente seis acciones aprobadas", (navigation.match(/description: "/g) ?? []).length === 6 && ["Presupuesto", "Cliente", "Obra", "Gasto", "Cobro", "Visita"].every((label) => navigation.includes(`label: "${label}"`)));
 check("Crear no incluye Capataz", !navigation.slice(navigation.indexOf("export const createActions"), navigation.indexOf("export type RouteContext")).includes("Capataz"));
 check("bottom sheet usa filas, scroll interno y safe area", chrome.includes("shell-menu-row") && chrome.includes("max-h-[85dvh]") && chrome.includes("env(safe-area-inset-bottom)"));

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Search } from "lucide-react";
 import {
   EmptyState,
@@ -40,6 +41,11 @@ export default async function SearchPage({
           <span className="hidden sm:inline">Buscar</span>
         </button>
       </form>
+
+      <nav aria-label="Accesos analíticos" className="mb-8 flex flex-wrap gap-2">
+        <Link href="/dashboard" className="secondary-button">Abrir Dashboard</Link>
+        <Link href="/agenda?vista=hoy" className="ghost-button">Abrir Agenda</Link>
+      </nav>
 
       {!query ? (
         <EmptyState

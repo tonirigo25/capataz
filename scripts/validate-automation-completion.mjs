@@ -1,5 +1,5 @@
 import fs from "node:fs";import assert from "node:assert/strict";const mode=process.argv[2]??"integrations",read=p=>fs.readFileSync(p,"utf8"),has=(p,items)=>{const text=read(p);items.forEach(item=>assert.ok(text.includes(item),`${p}: falta ${item}`))};
-if(mode==="integrations"){has("app/(app)/hoy/page.tsx",["TodayWorkflowSummary"]);for(const p of ["clientes","obras","dinero","presupuestos"])has(`app/(app)/${p}/[id]/page.tsx`,["EntityWorkflowSummary"])}
+if(mode==="integrations"){has("app/(app)/hoy/page.tsx",["buildTodayDashboard","dashboard.priorities.slice(0, 3)","getAgendaItems","getTreasuryOverview"]);for(const p of ["clientes","obras","dinero","presupuestos"])has(`app/(app)/${p}/[id]/page.tsx`,["EntityWorkflowSummary"])}
 if(mode==="chat-routing"){has("lib/capataz-chat-query.ts",["tasks_today","followups_overdue","automations_active"]);has("app/(app)/capataz/actions.ts",["queryProfessionalTasks","runExplicitWorkflowMutation","noMutation: true"])}
 if(mode==="retries-timed")has("lib/automations/automation-retries.ts",["fixed","linear","exponential","nextRetryAt","retryAutomationRun"]);
 if(mode==="rrule")has("lib/tasks/task-recurrence.ts",["BYDAY","BYMONTHDAY","COUNT","UNTIL","INVALID_RRULE"]);

@@ -61,6 +61,14 @@ export type BusinessDataQualityIssue = {
   href: string;
 };
 
+export type BusinessTrendPoint = {
+  key: string;
+  label: string;
+  invoiced: number;
+  collected: number;
+  expenses: number;
+};
+
 const invoiceSelect = {
   id: true,
   numero: true,
@@ -127,6 +135,7 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
     allWorks,
     allClients,
     upcomingBudgets,
+    openBudgets,
     openReminders,
     documents
   ] = await Promise.all([
@@ -182,6 +191,12 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
       orderBy: { fechaValidez: "asc" },
       take: 10
     }),
+    prisma.budget.findMany({
+      where: { ...tenant, estado: { in: PENDING_BUDGET_STATUSES as BudgetStatus[] } },
+      select: budgetSelect,
+      orderBy: [{ total: "desc" }, { fechaCreacion: "desc" }],
+      take: 10
+    }),
     prisma.reminder.findMany({
       where: { ...tenant, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
       select: { id: true, mensaje: true, fechaProgramada: true, client: { select: { id: true, nombre: true } }, work: { select: { id: true, titulo: true } } },
@@ -207,6 +222,7 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
   const previousOutstandingMetrics = calculateInvoiceMetrics(allInvoicesAsOfPreviousPeriod, previousPeriod?.end ?? now);
   const currentProfit = calculateProfitMetrics({ invoiced: currentInvoiceMetrics.total, collected: currentCollected, expenses: currentExpenseMetrics.total });
   const previousProfit = calculateProfitMetrics({ invoiced: previousInvoiceMetrics.total, collected: previousCollected, expenses: previousExpenseMetrics.total });
+  const trend = buildBusinessTrend({ invoices: currentInvoices, payments: currentPayments, expenses: currentExpenses, period });
 
   const workRankings = allWorks
     .map((work) => calculateWorkProfitability(work))
@@ -272,6 +288,11 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
       expenseByCategory: currentExpenseMetrics.byCategory
     },
     quotes: currentQuoteMetrics,
+    quoteActivity: {
+      pending: openBudgets.slice(0, 5),
+      pendingAmount: sum(openBudgets.map((budget) => budget.total))
+    },
+    trend,
     invoices: {
       ...currentInvoiceMetrics,
       averageCollectionDays: averageCollectionDays(allInvoicesAsOfPeriod),
@@ -310,6 +331,57 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
       comparison: compareMetric(value, previous, direction)
     };
   }
+}
+
+function buildBusinessTrend({
+  invoices,
+  payments,
+  expenses,
+  period
+}: {
+  invoices: BusinessInvoice[];
+  payments: Array<{ importe: number; fecha: Date }>;
+  expenses: Array<{ importe: number; fecha: Date }>;
+  period: BusinessPeriod;
+}): BusinessTrendPoint[] {
+  const annual = period.id === "this_year" || period.id === "previous_year";
+  const buckets = annual ? monthBuckets(period) : intervalBuckets(period, period.id === "this_quarter" || period.id === "previous_quarter" ? 6 : 5);
+
+  return buckets.map(({ start, end, label }) => ({
+    key: start.toISOString(),
+    label,
+    invoiced: sum(invoices.filter((invoice) => invoice.fechaEmision >= start && invoice.fechaEmision < end && isBillableInvoiceStatus(invoice.estado)).map((invoice) => invoice.total)),
+    collected: sum(payments.filter((payment) => payment.fecha >= start && payment.fecha < end).map((payment) => payment.importe)),
+    expenses: sum(expenses.filter((expense) => expense.fecha >= start && expense.fecha < end).map((expense) => expense.importe))
+  }));
+}
+
+function monthBuckets(period: BusinessPeriod) {
+  const buckets: Array<{ start: Date; end: Date; label: string }> = [];
+  for (let month = new Date(period.start); month < period.end; month = new Date(month.getFullYear(), month.getMonth() + 1, 1)) {
+    const end = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+    buckets.push({
+      start: month,
+      end: end < period.end ? end : period.end,
+      label: new Intl.DateTimeFormat("es-ES", { month: "short" }).format(month).replace(".", "")
+    });
+  }
+  return buckets;
+}
+
+function intervalBuckets(period: BusinessPeriod, desired: number) {
+  const duration = Math.max(1, period.end.getTime() - period.start.getTime());
+  const bucketCount = Math.max(1, Math.min(desired, Math.ceil(duration / 86_400_000)));
+  const bucketDuration = duration / bucketCount;
+  return Array.from({ length: bucketCount }, (_, index) => {
+    const start = new Date(period.start.getTime() + bucketDuration * index);
+    const end = index === bucketCount - 1 ? period.end : new Date(period.start.getTime() + bucketDuration * (index + 1));
+    return {
+      start,
+      end,
+      label: `${new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" }).format(start)}–${new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" }).format(new Date(end.getTime() - 1))}`
+    };
+  });
 }
 
 export async function buildBusinessCsvExport(kind: string, params: BusinessIntelligenceParams = {}) {
