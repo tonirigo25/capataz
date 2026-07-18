@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import type { ComponentType, ReactNode } from "react";
 import {
   Archive,
-  ArrowLeft,
   Banknote,
   Bell,
   Bot,
@@ -31,7 +30,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
 import { getRecommendationsForClient, type BusinessRecommendation } from "@/lib/business-recommendations";
@@ -42,22 +41,27 @@ import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
-type DetailSearchParams = { tab?: string };
+type DetailSearchParams = { vista?: string; tab?: string };
 
 const tabs = [
   ["resumen", "Resumen"],
-  ["contactos", "Contactos"],
   ["obras", "Obras"],
-  ["presupuestos", "Presupuestos"],
-  ["facturas", "Facturas"],
-  ["pagos", "Pagos"],
-  ["finanzas", "Finanzas"],
-  ["visitas", "Visitas y seguimientos"],
-  ["documentos", "Documentos"],
+  ["dinero", "Dinero"],
   ["actividad", "Actividad"],
-  ["notas", "Notas"],
-  ["datos", "Datos"]
-];
+  ["archivos", "Archivos"]
+] as const;
+
+const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
+  contactos: "resumen",
+  datos: "resumen",
+  presupuestos: "dinero",
+  facturas: "dinero",
+  pagos: "dinero",
+  finanzas: "dinero",
+  visitas: "actividad",
+  notas: "actividad",
+  documentos: "archivos"
+};
 
 export default async function ClientDetailPage({
   params,
@@ -75,33 +79,22 @@ export default async function ClientDetailPage({
   ]);
   if (!summary) notFound();
 
-  const activeTab = tabs.some(([tab]) => tab === query.tab) ? query.tab ?? "resumen" : "resumen";
+  const requestedView = query.vista ?? (query.tab ? legacyTabs[query.tab] ?? query.tab : "resumen");
+  const activeTab = tabs.some(([tab]) => tab === requestedView) ? requestedView as (typeof tabs)[number][0] : "resumen";
   const client = summary.client;
   const returnTo = `/clientes/${client.id}`;
 
   return (
     <main className="screen">
-      <Link href="/clientes" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink">
-        <ArrowLeft size={18} />
-        Clientes
-      </Link>
-
-      <PageHeader
-        eyebrow={summary.listItem.typeLabel}
+      <EntityHeader
+        back={<ParentNavigation href="/clientes" label="Clientes" context={summary.listItem.typeLabel} />}
+        context={`${summary.listItem.typeLabel} · ${client.origen}`}
         title={summary.listItem.displayName}
-        description={`${summary.listItem.fiscalName} · ${client.origen}`}
-        badge={<StatusPill status={client.archivadoAt ? "archivado" : client.estado} />}
-        action={<PrimaryActions clientId={client.id} clientName={summary.listItem.displayName} returnTo={returnTo} />}
-        secondaryActions={<ArchiveActions id={client.id} archived={Boolean(client.archivadoAt)} />}
-      >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <HeaderFact icon={UserRound} label="Contacto principal" value={summary.listItem.primaryContact} detail={(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"} />
-          <HeaderFact icon={Phone} label="Teléfono" value={summary.listItem.phone || "Sin teléfono"} detail={client.contactoPrincipalTelefono ? "Contacto principal" : "Cliente"} />
-          <HeaderFact icon={Mail} label="Email" value={summary.listItem.email ?? "Sin email"} detail={client.emailFacturacion ? `Facturación: ${client.emailFacturacion}` : "Cliente"} />
-          <HeaderFact icon={MapPin} label="Dirección fiscal" value={client.direccionFiscal ?? "Sin dirección fiscal"} detail={client.nifCif ? `NIF/CIF ${client.nifCif}` : "Sin NIF/CIF"} />
-        </div>
-      </PageHeader>
-      <EntityWorkflowSummary clientId={client.id} />
+        description={`${summary.listItem.fiscalName} · ${summary.listItem.primaryContact} · ${(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}`}
+        status={<StatusPill status={client.archivadoAt ? "archivado" : client.estado} />}
+        action={<Link href={`/gestion?tipo=obra&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="primary-button"><BriefcaseBusiness size={18} /> Crear obra</Link>}
+        menu={<ClientActions clientId={client.id} clientName={summary.listItem.displayName} returnTo={returnTo} archived={Boolean(client.archivadoAt)} />}
+      />
 
       {summary.listItem.pendingFields.length ? (
         <Notice
@@ -112,62 +105,50 @@ export default async function ClientDetailPage({
         />
       ) : null}
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Resumen ejecutivo del cliente">
+      <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen ejecutivo del cliente">
         <StatCard title="Obras" value={`${summary.kpis.activeWorks}/${summary.kpis.totalWorks}`} detail="Activas / totales" icon={BriefcaseBusiness} />
-        <StatCard title="Presupuestado" value={formatCurrency(summary.kpis.budgetedTotal)} detail="No cuenta como facturación" icon={FileText} />
         <StatCard title="Facturado" value={formatCurrency(summary.kpis.billedTotal)} detail="Sin borradores" icon={Receipt} />
         <StatCard title="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} detail="Pagos reales" icon={WalletCards} tone="success" />
         <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
-        <StatCard title="Vencidas" value={String(summary.kpis.overdueInvoices)} detail={`Contacto: ${formatDate(summary.kpis.lastContactAt)}`} icon={Bell} tone={summary.kpis.overdueInvoices > 0 ? "danger" : "neutral"} />
       </section>
 
       {recommendations.recommendations.length ? (
         <RecommendationStrip title="Recomendaciones de este cliente" recommendations={recommendations.recommendations} href={`/recomendaciones?estado=active&q=${encodeURIComponent(summary.listItem.displayName)}`} />
       ) : null}
 
-      <nav className="mt-5 flex gap-2 overflow-x-auto pb-2" aria-label="Secciones de la ficha de cliente">
+      <Tabs label="Secciones de la ficha de cliente" className="mt-5">
         {tabs.map(([tab, label]) => (
           <Link
             key={tab}
-            href={`/clientes/${client.id}?tab=${tab}`}
+            href={`/clientes/${client.id}?vista=${tab}`}
             aria-current={activeTab === tab ? "page" : undefined}
-            className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${activeTab === tab ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}
           >
             {label}
           </Link>
         ))}
-      </nav>
+      </Tabs>
 
       <div className="mt-4">
-        {activeTab === "resumen" ? <SummaryTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "contactos" ? <ContactsTab summary={summary} returnTo={returnTo} /> : null}
+        {activeTab === "resumen" ? <div className="grid gap-4"><SummaryTab summary={summary} returnTo={returnTo} /><ContactsTab summary={summary} returnTo={returnTo} /><EntityWorkflowSummary clientId={client.id} /><DataTab summary={summary} returnTo={returnTo} /></div> : null}
         {activeTab === "obras" ? <WorksTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "presupuestos" ? <BudgetsTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "facturas" ? <InvoicesTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "pagos" ? <PaymentsTab summary={summary} /> : null}
-        {activeTab === "finanzas" ? <ClientFinanceTab treasury={treasury} clientId={client.id} /> : null}
-        {activeTab === "visitas" ? <VisitsTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "documentos" ? <DocumentsTab summary={summary} /> : null}
-        {activeTab === "actividad" ? <ActivityTab summary={summary} /> : null}
-        {activeTab === "notas" ? <NotesTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "datos" ? <DataTab summary={summary} returnTo={returnTo} /> : null}
+        {activeTab === "dinero" ? <div className="grid gap-4"><BudgetsTab summary={summary} returnTo={returnTo} /><InvoicesTab summary={summary} returnTo={returnTo} /><PaymentsTab summary={summary} /><ClientFinanceTab treasury={treasury} clientId={client.id} /></div> : null}
+        {activeTab === "actividad" ? <div className="grid gap-4"><ActivityTab summary={summary} /><VisitsTab summary={summary} returnTo={returnTo} /><NotesTab summary={summary} returnTo={returnTo} /></div> : null}
+        {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
       </div>
     </main>
   );
 }
 
-function PrimaryActions({ clientId, clientName, returnTo }: { clientId: string; clientName: string; returnTo: string }) {
+function ClientActions({ clientId, clientName, returnTo, archived }: { clientId: string; clientName: string; returnTo: string; archived: boolean }) {
   const encodedReturn = encodeURIComponent(returnTo);
   const visitDate = encodeURIComponent(tomorrowAtTenInputValue());
   return (
-    <div className="flex flex-wrap gap-2">
+    <details className="relative">
+      <summary className="secondary-button cursor-pointer list-none">Más acciones</summary>
+      <div className="absolute right-0 z-20 mt-2 grid min-w-64 gap-1 rounded-xl border border-border bg-surface p-2 shadow-xl [&_a]:justify-start">
       <Link href={`/gestion?tipo=cliente&id=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
         <UserRound size={18} />
         Editar
-      </Link>
-      <Link href={`/gestion?tipo=obra&clienteId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
-        <BriefcaseBusiness size={18} />
-        Crear obra
       </Link>
       <Link href={`/gestion?tipo=presupuesto&clienteId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
         <FileText size={18} />
@@ -193,7 +174,9 @@ function PrimaryActions({ clientId, clientName, returnTo }: { clientId: string; 
         <Bot size={18} />
         Preguntar a Capataz
       </Link>
-    </div>
+        <ArchiveActions id={clientId} archived={archived} />
+      </div>
+    </details>
   );
 }
 

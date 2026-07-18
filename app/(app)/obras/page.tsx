@@ -121,7 +121,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     return acc;
   }, { active: 0, blocked: 0, invoiced: 0, pending: 0, cost: 0, benefit: 0 });
   const avgMargin = totals.invoiced ? Math.round((totals.benefit / totals.invoiced) * 1000) / 10 : 0;
-  const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tarjetas";
+  const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
 
   return (
     <main className="screen">
@@ -249,17 +249,17 @@ function WorkTable({ items }: { items: WorkItem[] }) {
     <div className="grid gap-3">
       {items.map((item) => (
         <article key={item.work.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-soft">
-          <div className="grid gap-3 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] lg:items-center">
+          <div className="grid gap-3 lg:grid-cols-[1.35fr_0.75fr_0.8fr_0.8fr_0.75fr_auto] lg:items-center">
             <div className="min-w-0">
               <StatusBadge status={item.work.estado} iconLabel={item.status.icon} />
               <Link href={`/obras/${item.work.id}`} className="mt-2 block font-black text-obra-ink hover:underline">{item.work.titulo}</Link>
               <p className="text-sm text-slate-500">{item.work.client.nombre}</p>
             </div>
-            <MetricLine label="Responsable" value={item.work.responsable ?? item.work.jefeObra ?? "Sin asignar"} />
-            <MetricLine label="Fecha" value={formatDate(item.work.fechaFinPrevista ?? item.work.fechaInicioPrevista ?? item.work.fechaInicio)} />
-            <MetricLine label="Facturado" value={formatCurrency(item.financial.invoiced)} />
-            <MetricLine label="Margen" value={`${item.financial.marginPercent}%`} />
-            <Link href={`/obras/${item.work.id}`} className="secondary-button justify-center">Ver 360</Link>
+            <MetricLine label="Última actualización" value={formatDate(item.work.updatedAt)} />
+            <MetricLine label="Próxima fecha" value={formatDate(item.work.fechaFinPrevista ?? item.work.fechaInicioPrevista ?? item.work.fechaInicio)} />
+            <MetricLine label="Próxima acción" value={item.nextAction.label} />
+            <MetricLine label={item.hasRisk ? "Riesgo · margen" : "Margen"} value={`${item.financial.marginPercent}%`} />
+            <Link href={`/obras/${item.work.id}`} className="secondary-button justify-center">Abrir</Link>
           </div>
         </article>
       ))}

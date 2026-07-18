@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 const packageRoot = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
@@ -21,7 +21,34 @@ const pg = new EmbeddedPostgres({
   password,
   port,
   persistent: true,
+  // PostgreSQL 18 can leave a reparented io_worker holding inherited pipes on
+  // Windows while taskkill closes the postmaster. This isolated validation is
+  // latency-insensitive, so synchronous I/O makes teardown deterministic.
+  postgresFlags: ["-c", "io_method=sync"],
 });
+
+async function stopIsolatedPostgres() {
+  const child = pg.process;
+  if (platform() !== "win32" || !child?.pid) {
+    await pg.stop();
+    return;
+  }
+
+  // embedded-postgres launches taskkill asynchronously on Windows. If the
+  // postmaster exits before stop() installs its listener, cleanup can wait
+  // forever while a fork child keeps the inherited socket open. A synchronous
+  // tree termination is scoped to this cluster's recorded PID and closes all
+  // descendants before the validation process returns.
+  spawnSync("taskkill", ["/pid", String(child.pid), "/f", "/t"], {
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  child.stdin?.destroy();
+  child.stdout?.destroy();
+  child.stderr?.destroy();
+  child.removeAllListeners();
+  pg.process = undefined;
+}
 
 try {
   await pg.initialise();
@@ -257,5 +284,5 @@ try {
     }),
   );
 } finally {
-  await pg.stop();
+  await stopIsolatedPostgres();
 }

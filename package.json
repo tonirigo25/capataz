@@ -21,6 +21,7 @@
     "test:product-shell-navigation": "node scripts/validate-product-shell-navigation.mjs",
     "test:today-business-dashboard": "node scripts/validate-today-business-dashboard.mjs",
     "test:core-operational-experience": "node scripts/validate-core-operational-experience.mjs",
+    "test:client-work-operating-system": "node scripts/validate-client-work-operating-system.mjs",
     "test:multitenancy-core": "tsx scripts/validate-multitenancy-core.ts",
     "test:numbering-contract": "npx tsx scripts/validate-numbering-contract.mjs",
     "test:multitenancy-relations": "tsx scripts/validate-multitenancy-core.ts",

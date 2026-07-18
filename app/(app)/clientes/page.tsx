@@ -147,7 +147,7 @@ export default async function ClientsPage({
                     <th scope="col" className="px-4 py-3">Contacto principal</th>
                     <th scope="col" className="px-4 py-3">Obras</th>
                     <th scope="col" className="px-4 py-3">Saldo</th>
-                    <th scope="col" className="px-4 py-3">Última actividad</th>
+                    <th scope="col" className="px-4 py-3">Próxima acción</th>
                     <th scope="col" className="px-4 py-3">Estado</th>
                     <th scope="col" className="px-4 py-3 text-right">Acciones</th>
                   </tr>
@@ -172,8 +172,8 @@ export default async function ClientsPage({
                         <p className="text-xs text-slate-500">{formatCurrency(client.billedTotal)} facturado</p>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="font-bold text-slate-700">{formatDate(client.lastActivityAt)}</p>
-                        <p className="text-xs text-slate-500">Contacto: {formatDate(client.lastContactAt)}</p>
+                        <p className="font-bold text-slate-700">{client.nextAction}</p>
+                        <p className="text-xs text-slate-500">Actividad: {formatDate(client.lastActivityAt)}</p>
                       </td>
                       <td className="px-4 py-4">
                         <StatusPill status={client.status} />
