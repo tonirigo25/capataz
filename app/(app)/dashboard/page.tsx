@@ -18,6 +18,7 @@ import {
 } from "@/lib/business-intelligence";
 import { invoiceBalance, round } from "@/lib/business-metrics";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { buildOperationalHealth, getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,11 @@ export default async function DashboardPage({
   const query = await searchParams;
   const { companyId } = await requireCompanyContext();
   const requestedPeriod = supportedPeriods.has(query.periodo ?? "") ? query.periodo : "this_month";
-  const summary = await getBusinessIntelligenceSummary({ companyId, period: requestedPeriod });
+  const [summary, intelligence] = await Promise.all([
+    getBusinessIntelligenceSummary({ companyId, period: requestedPeriod }),
+    getOperationalIntelligence()
+  ]);
+  const operationalHealth = buildOperationalHealth(intelligence.signals);
   const kpis = summary.kpis.filter((item) => ["invoiced", "collected", "outstanding", "expenses", "profit_invoiced"].includes(item.id));
   const periodEnd = new Date(summary.period.end.getTime() - 1);
   const hasEconomicData = kpis.some((item) => item.value !== 0) || summary.quotes.count > 0 || summary.works.byLowestMargin.some((work) => work.hasEnoughData);
@@ -80,6 +85,17 @@ export default async function DashboardPage({
           </div>
         </Surface>
       </header>
+
+      <section aria-labelledby="dashboard-operational-health" className="section-shell mb-10">
+        <SectionHeading id="dashboard-operational-health" title="Salud operativa" description="Volumen de señales vigentes; cada cifra abre el detalle que la origina. No es una puntuación." action={<Link href="/hoy" className="secondary-button">Ver prioridades</Link>} />
+        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
+          <Metric href="/hoy" label="Urgentes" value={String(operationalHealth.urgent)} detail="Requieren decisión inmediata" />
+          <Metric href="/hoy?categoria=planificacion" label="Planificación" value={String(operationalHealth.planning)} detail="Tareas, seguimientos y agenda" />
+          <Metric href="/hoy?categoria=cobros" label="Cobros" value={String(operationalHealth.collections)} detail="Pendientes próximos o vencidos" />
+          <Metric href="/hoy?categoria=actividad" label="Obras inactivas" value={String(operationalHealth.inactiveWorks)} detail="Sin actividad objetiva reciente" />
+          <Metric href="/hoy?categoria=compras_documentacion" label="Compras y documentos" value={String(operationalHealth.documentation)} detail="Pagos y vigencias documentales" />
+        </div>
+      </section>
 
       {!hasEconomicData ? (
         <EmptyState

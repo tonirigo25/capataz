@@ -32,6 +32,7 @@ import { EmptyState, FilterBar, PageHeader, ResultSummary, SearchInput, Toolbar 
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { getOperationalContextsForWorks } from "@/lib/operational-intelligence/queries";
 import { statusClass } from "@/lib/status";
 import {
   calculateWorkFinancials,
@@ -88,10 +89,13 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       photos: true
     }
   });
+  const operationalContexts = await getOperationalContextsForWorks(works.map((work) => work.id));
 
   const enriched = works.map((work) => {
     const financial = calculateWorkFinancials(work);
-    const nextAction = getWorkNextAction(work);
+    const fallbackNextAction = getWorkNextAction(work);
+    const principal = operationalContexts.get(work.id)?.principal;
+    const nextAction: ReturnType<typeof getWorkNextAction> = principal ? { label: principal.nextStep, tone: principal.level === "urgente" ? "danger" : principal.level === "atencion" ? "warning" : "info", href: principal.entity.href } : fallbackNextAction;
     const status = workStatusMeta(work.estado);
     const priority = workPriorityMeta(work.prioridad);
     const pendingMaterials = work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado));

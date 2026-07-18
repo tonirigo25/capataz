@@ -7,6 +7,7 @@ import { EmptyState, FilterBar, PageHeader, ResultSummary, SearchInput, TableShe
 import { getClientList, type ClientListItem, type ClientListQuery } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { getOperationalContextsForClients } from "@/lib/operational-intelligence/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export default async function ClientsPage({
   const query = normalizeQuery(raw);
   const { companyId } = await requireCompanyContext();
   const result = await getClientList(query, companyId);
+  const operationalContexts = await getOperationalContextsForClients(result.items.map((client) => client.id));
   const activeFilterSet = new Set((query.filtros ?? "").split(",").filter(Boolean));
   const hasCriteria = Boolean(query.buscar || (query.estado && query.estado !== "todos") || (query.tipo && query.tipo !== "todos") || result.activeFilters.length);
 
@@ -172,7 +174,7 @@ export default async function ClientsPage({
                         <p className="text-xs text-slate-500">{formatCurrency(client.billedTotal)} facturado</p>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="font-bold text-slate-700">{client.nextAction}</p>
+                        <p className="font-bold text-slate-700">{operationalContexts.get(client.id)?.nextStep ?? client.nextAction}</p>
                         <p className="text-xs text-slate-500">Actividad: {formatDate(client.lastActivityAt)}</p>
                       </td>
                       <td className="px-4 py-4">
@@ -211,7 +213,7 @@ export default async function ClientsPage({
                 </div>
                 <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
                   <p><strong className="text-obra-ink">Contacto:</strong> {(client.email ?? client.phone) || "Sin contacto directo"}</p>
-                  <p className="mt-1"><strong className="text-obra-ink">Siguiente:</strong> {client.nextAction}</p>
+                  <p className="mt-1"><strong className="text-obra-ink">Siguiente:</strong> {operationalContexts.get(client.id)?.nextStep ?? client.nextAction}</p>
                 </div>
                 <div className="mt-3 flex gap-2">
                   <Link href={`/clientes/${client.id}`} className="primary-button flex-1">

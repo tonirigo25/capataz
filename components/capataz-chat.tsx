@@ -116,6 +116,15 @@ type ChatData = {
     programmedReminders: number;
     reminderLimit: number;
   };
+  operationalContext: {
+    entityType: "cliente" | "obra";
+    entityName: string;
+    phrase: string;
+    nextStep: string;
+    urgent: number;
+    attention: number;
+    suggestions: string[];
+  } | null;
 };
 
 type ActionCard =
@@ -561,6 +570,15 @@ export function CapatazChat({ data }: { data: ChatData }) {
       ) : null}
 
       <div className="flex flex-col">
+      {data.operationalContext ? (
+        <section className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto de ${data.operationalContext.entityName}`}>
+          <p className="type-label">Contexto operativo · {data.operationalContext.entityType}</p>
+          <p className="type-object-title mt-1 text-content">{data.operationalContext.entityName}</p>
+          <p className="type-secondary mt-1">{data.operationalContext.phrase}</p>
+          <p className="type-meta mt-2">Siguiente paso: {data.operationalContext.nextStep}</p>
+          <div className="mt-3 flex flex-wrap gap-2">{data.operationalContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
+        </section>
+      ) : null}
       <div className="mb-3 flex flex-wrap gap-2">
         <button type="button" className="secondary-button min-h-10 px-3 text-xs lg:hidden" onClick={() => setShowHistory(true)}>
           <History size={16} /> Historial

@@ -18,17 +18,21 @@ import { prisma } from "@/lib/prisma";
 import { getDashboardData } from "@/lib/queries";
 import { getTreasuryOverview } from "@/lib/treasury";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { getTodayOperationalSignals } from "@/lib/operational-intelligence/queries";
+import { OperationalSignalList, operationalCategoryLabels } from "@/components/operational-signals";
 
 export const dynamic = "force-dynamic";
 
-export default async function TodayPage() {
+export default async function TodayPage({ searchParams }: { searchParams: Promise<{ categoria?: string }> }) {
   const now = new Date();
+  const query = await searchParams;
   const auth = await requireCompanyContext();
-  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, treasury] = await Promise.all([
+  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, treasury, intelligence] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
-    getTreasuryOverview({ companyId: auth.companyId, horizon: "30d", scenario: "base" })
+    getTreasuryOverview({ companyId: auth.companyId, horizon: "30d", scenario: "base" }),
+    getTodayOperationalSignals({ category: query.categoria, limit: query.categoria ? 20 : 5 })
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
@@ -55,7 +59,11 @@ export default async function TodayPage() {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(17rem,.6fr)]">
         <section id="necesita-atencion" aria-labelledby="today-attention" className="section-shell scroll-mt-24">
-          <SectionHeading id="today-attention" title="Necesita tu atención" description="Hasta tres asuntos reales, ordenados por urgencia e impacto." />
+          <SectionHeading id="today-attention" title="Necesita tu atención" description="Señales explicables, ordenadas por urgencia, fecha y variedad operativa." />
+          <nav aria-label="Filtrar señales operativas" className="mb-4 flex flex-wrap gap-2">
+            <Link href="/hoy" aria-current={!query.categoria ? "page" : undefined} className={!query.categoria ? "secondary-button border-brand text-brand-strong" : "ghost-button"}>Todas</Link>
+            {Object.entries(operationalCategoryLabels).map(([id, label]) => <Link key={id} href={`/hoy?categoria=${id}`} aria-current={query.categoria === id ? "page" : undefined} className={query.categoria === id ? "secondary-button border-brand text-brand-strong" : "ghost-button"}>{label}</Link>)}
+          </nav>
           {isInitial ? (
             <EmptyState
               title="Empieza por tu primer cliente"
@@ -63,10 +71,8 @@ export default async function TodayPage() {
               icon={Users}
               action={<Link href="/gestion?tipo=cliente&returnTo=/hoy" className="secondary-button">Crear primer cliente</Link>}
             />
-          ) : dashboard.priorities.length ? (
-            <div className="divide-y divide-border">
-              {dashboard.priorities.slice(0, 3).map((item) => <PriorityRow key={item.key} item={item} />)}
-            </div>
+          ) : intelligence.signals.length ? (
+            <OperationalSignalList signals={intelligence.signals} />
           ) : (
             <div className="rounded-xl bg-success/5 p-4">
               <div className="flex gap-3">
@@ -75,7 +81,7 @@ export default async function TodayPage() {
               </div>
             </div>
           )}
-          {dashboard.priorities.length > 3 ? <Link href="/notificaciones" className="ghost-button mt-3">Ver todos los asuntos</Link> : null}
+          {!query.categoria && intelligence.context.signals.length > intelligence.signals.length ? <Link href="/hoy?categoria=planificacion" className="ghost-button mt-3">Explorar por categoría</Link> : null}
         </section>
 
         <section aria-labelledby="today-agenda" className="section-shell">
@@ -129,20 +135,6 @@ export default async function TodayPage() {
 
 function SectionHeading({ id, title, description, action }: { id: string; title: string; description: string; action?: ReactNode }) {
   return <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 id={id} className="type-section-title text-content">{title}</h2><p className="type-secondary mt-1">{description}</p></div>{action ? <div className="shrink-0">{action}</div> : null}</div>;
-}
-
-function PriorityRow({ item }: { item: ReturnType<typeof buildTodayDashboard>["priorities"][number] }) {
-  const tone = item.status === "vencida" ? "risk" : item.status.includes("pendiente") ? "attention" : "neutral";
-  return (
-    <article className="grid gap-3 py-4 first:pt-0 sm:grid-cols-[1fr_auto] sm:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2"><p className="type-meta">{item.type}</p><Status tone={tone}>{statusLabel(item.status)}</Status></div>
-        <h3 className="type-object-title mt-1 text-content">{item.title}</h3>
-        <p className="type-secondary mt-1">{item.detail} · {formatDate(item.date)}</p>
-      </div>
-      <Link href={item.href} className="secondary-button justify-self-start sm:justify-self-end">{item.action}</Link>
-    </article>
-  );
 }
 
 function FeaturedAppointment({ item, now }: { item: Awaited<ReturnType<typeof getAgendaItems>>[number]; now: Date }) {
