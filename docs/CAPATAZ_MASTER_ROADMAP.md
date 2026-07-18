@@ -27,6 +27,7 @@ La dirección recomendada es estabilizar primero el producto visible y su contra
 - Despliegue declarado: una sola ruta de migración en `preDeployCommand`; el arranque no repite migraciones.
 - Estado funcional reciente: proveedor/subcontrata, factura recibida, pagos, gasto enlazado, tesorería, costes de obra y lector documental están implementados en la rama local auditada.
 - PD-4 · Inteligencia operativa y contexto de negocio: **Completada localmente** con señales deterministas, explicables, enlazables y aisladas por empresa; pendiente de publicación e integración autorizadas.
+- PD-5 · Control económico, tesorería y previsión por vencimientos: **Completada localmente** con posición registrada, cobros y pagos trazables, previsión determinista por documentos y rentabilidad de obra; pendiente de publicación e integración autorizadas.
 - Límite de esta auditoría: no se ha verificado en vivo el estado remoto, Railway, producción ni tiendas móviles.
 
 ## 3. Arquitectura existente

@@ -19,6 +19,7 @@ import {
 import { invoiceBalance, round } from "@/lib/business-metrics";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { buildOperationalHealth, getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
+import { getEconomicControl } from "@/lib/economic-control/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +39,10 @@ export default async function DashboardPage({
   const query = await searchParams;
   const { companyId } = await requireCompanyContext();
   const requestedPeriod = supportedPeriods.has(query.periodo ?? "") ? query.periodo : "this_month";
-  const [summary, intelligence] = await Promise.all([
+  const [summary, intelligence, economic] = await Promise.all([
     getBusinessIntelligenceSummary({ companyId, period: requestedPeriod }),
-    getOperationalIntelligence()
+    getOperationalIntelligence(),
+    getEconomicControl({ period: "30d" })
   ]);
   const operationalHealth = buildOperationalHealth(intelligence.signals);
   const kpis = summary.kpis.filter((item) => ["invoiced", "collected", "outstanding", "expenses", "profit_invoiced"].includes(item.id));
@@ -94,6 +96,17 @@ export default async function DashboardPage({
           <Metric href="/hoy?categoria=cobros" label="Cobros" value={String(operationalHealth.collections)} detail="Pendientes próximos o vencidos" />
           <Metric href="/hoy?categoria=actividad" label="Obras inactivas" value={String(operationalHealth.inactiveWorks)} detail="Sin actividad objetiva reciente" />
           <Metric href="/hoy?categoria=compras_documentacion" label="Compras y documentos" value={String(operationalHealth.documentation)} detail="Pagos y vigencias documentales" />
+        </div>
+      </section>
+
+      <section aria-labelledby="dashboard-economic-position" className="section-shell mb-10">
+        <SectionHeading id="dashboard-economic-position" title="Posición económica" description="Vista compacta y trazable de caja registrada, cobros, pagos y previsión a 30 días." action={<Link href="/tesoreria?vista=resumen&periodo=30d" className="secondary-button">Abrir control económico</Link>} />
+        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
+          <Metric href="/tesoreria?vista=resumen&periodo=30d" label="Caja registrada" value={economic.registeredBalance === null ? "Sin saldo registrado" : formatCurrency(economic.registeredBalance)} detail="Solo cuentas y movimientos existentes" />
+          <Metric href="/tesoreria?vista=cobros&periodo=30d&estado=pendiente" label="Pendiente de cobro" value={formatCurrency(economic.receivableSummary.pending)} detail={`${economic.receivableSummary.overdueCount} facturas vencidas`} />
+          <Metric href="/tesoreria?vista=pagos&periodo=30d&estado=pendiente" label="Pendiente de pago" value={formatCurrency(economic.payableSummary.pending)} detail={`${economic.payableSummary.overdueCount} obligaciones vencidas`} />
+          <Metric href="/tesoreria?vista=prevision&periodo=30d" label="Flujo previsto" value={formatCurrency(economic.forecast.net)} detail="Según vencimientos documentados" />
+          <Metric href="/tesoreria?vista=rentabilidad&periodo=30d" label="Obras con datos" value={String(economic.profitability.filter((row) => row.hasEnoughData).length)} detail="Beneficio y margen sin score global" />
         </div>
       </section>
 

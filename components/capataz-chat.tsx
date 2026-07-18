@@ -125,6 +125,16 @@ type ChatData = {
     attention: number;
     suggestions: string[];
   } | null;
+  economicContext: {
+    entityName: string;
+    registeredBalance: number | null;
+    pendingReceivable: number;
+    overdueReceivable: number;
+    pendingPayable: number;
+    forecastNet: number;
+    href: string;
+    suggestions: string[];
+  };
 };
 
 type ActionCard =
@@ -579,6 +589,19 @@ export function CapatazChat({ data }: { data: ChatData }) {
           <div className="mt-3 flex flex-wrap gap-2">{data.operationalContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
         </section>
       ) : null}
+      <section className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
+        <p className="type-label">Contexto económico · datos registrados</p>
+        <p className="type-object-title mt-1 text-content">{data.economicContext.entityName}</p>
+        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+          {data.economicContext.registeredBalance !== null ? <p>Caja registrada: <strong>{money(data.economicContext.registeredBalance)}</strong></p> : null}
+          <p>Pendiente de cobro: <strong>{money(data.economicContext.pendingReceivable)}</strong></p>
+          <p>Vencido de cobro: <strong>{money(data.economicContext.overdueReceivable)}</strong></p>
+          <p>Pendiente de pago: <strong>{money(data.economicContext.pendingPayable)}</strong></p>
+          <p>Flujo previsto 30 días: <strong>{money(data.economicContext.forecastNet)}</strong></p>
+        </div>
+        <p className="type-meta mt-2">Contexto limitado a cifras agregadas y trazables; no se exponen documentos completos en el chat.</p>
+        <div className="mt-3 flex flex-wrap gap-2"><a href={data.economicContext.href} className="secondary-button min-h-10 px-3 text-xs">Abrir origen</a>{data.economicContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
+      </section>
       <div className="mb-3 flex flex-wrap gap-2">
         <button type="button" className="secondary-button min-h-10 px-3 text-xs lg:hidden" onClick={() => setShowHistory(true)}>
           <History size={16} /> Historial
@@ -2079,6 +2102,10 @@ function inDaysInputValue(days: number) {
 
 function baseFromTotal(total: number, ivaPercent = 21) {
   return Math.round((total / (1 + ivaPercent / 100)) * 100) / 100;
+}
+
+function money(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(value);
 }
 
 function toInputValue(date: Date) {

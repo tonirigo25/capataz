@@ -36,7 +36,7 @@ import { OperationalContextSummary } from "@/components/operational-signals";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
-import { getTreasuryOverview } from "@/lib/treasury";
+import { getEconomicControl } from "@/lib/economic-control/queries";
 import { requireCompanyContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -74,7 +74,7 @@ export default async function ClientDetailPage({
   const { companyId } = await requireCompanyContext();
   const [summary, treasury, operationalContext] = await Promise.all([
     getClientCrmSummary(id, companyId),
-    getTreasuryOverview({ companyId, clientId: id, horizon: "30d", scenario: "base" }),
+    getEconomicControl({ clientId: id, period: "30d" }),
     getClientOperationalContext(id)
   ]);
   if (!summary) notFound();
@@ -367,44 +367,32 @@ function PaymentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<type
   );
 }
 
-function ClientFinanceTab({ treasury, clientId }: { treasury: Awaited<ReturnType<typeof getTreasuryOverview>>; clientId: string }) {
-  const client = treasury.clientProfitability.find((item) => item.clientId === clientId);
-  const receivables = treasury.receivables.filter((item) => item.clientId === clientId).slice(0, 5);
-  if (!client) {
-    return (
-      <SectionList title="Finanzas" emptyTitle="Sin datos financieros suficientes.">
-        {null}
-      </SectionList>
-    );
-  }
+function ClientFinanceTab({ treasury, clientId }: { treasury: Awaited<ReturnType<typeof getEconomicControl>>; clientId: string }) {
+  const receivables = treasury.receivables.slice(0, 5);
   return (
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <SectionList title="Rentabilidad del cliente" emptyTitle="Sin métricas financieras.">
+      <SectionList title="Posición económica del cliente" emptyTitle="Sin métricas financieras.">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <FinanceBox label="Facturado" value={formatCurrency(client.invoiced)} />
-          <FinanceBox label="Cobrado" value={formatCurrency(client.collected)} />
-          <FinanceBox label="Pendiente" value={formatCurrency(client.pending)} tone={client.pending ? "warning" : "neutral"} />
-          <FinanceBox label="Vencido" value={formatCurrency(client.overdue)} tone={client.overdue ? "danger" : "neutral"} />
-          <FinanceBox label="Gastos asociados" value={formatCurrency(client.expenses)} />
-          <FinanceBox label="Beneficio" value={formatCurrency(client.profit)} tone={client.profit < 0 ? "danger" : "success"} />
-          <FinanceBox label="Margen" value={`${client.margin.toFixed(1)}%`} />
-          <FinanceBox label="Plazo medio" value={client.averageCollectionDays === null ? "Sin datos" : `${client.averageCollectionDays.toFixed(1)} días`} />
+          <FinanceBox label="Facturado" value={formatCurrency(treasury.receivableSummary.documented)} />
+          <FinanceBox label="Cobrado" value={formatCurrency(treasury.receivableSummary.settled)} />
+          <FinanceBox label="Pendiente" value={formatCurrency(treasury.receivableSummary.pending)} tone={treasury.receivableSummary.pending ? "warning" : "neutral"} />
+          <FinanceBox label="Vencido" value={formatCurrency(treasury.receivableSummary.overdue)} tone={treasury.receivableSummary.overdue ? "danger" : "neutral"} />
         </div>
-        <p className="mt-3 text-sm leading-6 text-slate-600">Concentración: {client.debtShare.toFixed(1)}% del pendiente total y {client.revenueShare.toFixed(1)}% de la facturación calculada.</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Importes trazados a facturas emitidas y pagos registrados. No se presenta una puntuación ni un saldo bancario atribuido al cliente.</p>
       </SectionList>
       <SectionList title="Próximos cobros" emptyTitle="Sin cobros próximos registrados.">
         {receivables.length ? (
           <div className="grid gap-3">
             {receivables.map((item) => (
-              <Link key={item.id} href={item.href ?? "/tesoreria"} className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="label">{item.status}</p>
-                <h3 className="mt-1 font-black text-obra-ink">{item.title}</h3>
-                <p className="mt-1 text-sm text-slate-500">{formatCurrency(item.amount)} · {formatDate(item.effectiveDate ?? item.date)}</p>
+              <Link key={item.id} href={item.href} className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="label">{item.pending > 0 ? "Pendiente" : "Liquidada"}</p>
+                <h3 className="mt-1 font-black text-obra-ink">{item.number}</h3>
+                <p className="mt-1 text-sm text-slate-500">{formatCurrency(item.pending)} · {item.dueDate ? formatDate(item.dueDate) : "sin vencimiento"}</p>
               </Link>
             ))}
           </div>
         ) : null}
-        <Link href={`/tesoreria?cliente=${clientId}`} className="primary-button mt-4 inline-flex">Abrir tesorería filtrada</Link>
+        <Link href={`/tesoreria?vista=cobros&periodo=30d&cliente=${clientId}`} className="primary-button mt-4 inline-flex">Abrir control económico</Link>
       </SectionList>
     </div>
   );
