@@ -142,6 +142,14 @@ button:disabled,
     padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
+  .product-page[data-layout="operational"] {
+    max-width: calc(1080px + 4rem);
+  }
+
+  .product-page[data-layout="analytical"] {
+    max-width: var(--cap-content-max);
+  }
+
   .product-page[data-layout="reading"] {
     max-width: calc(var(--cap-reading-max) + 4rem);
   }

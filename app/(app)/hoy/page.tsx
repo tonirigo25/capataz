@@ -1,401 +1,160 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Bot, CheckCircle2, Users } from "lucide-react";
 import {
-  Activity,
-  AlertTriangle,
-  Banknote,
-  Bot,
-  BriefcaseBusiness,
-  CalendarClock,
-  CheckCircle2,
-  Clock,
-  Euro,
-  FileText,
-  Package,
-  Plus,
-  Receipt,
-  Users,
-  WalletCards
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { TodayWorkflowSummary } from "@/components/today-workflow-summary";
-import { SectionHeader } from "@/components/section-header";
-import { StatCard } from "@/components/stat-card";
-import { StatusPill } from "@/components/status-pill";
-import { EmptyState, Notice, PageHeader, ProductPage } from "@/components/ui-primitives";
+  EmptyState,
+  Metric,
+  MetricGroup,
+  PageHeader,
+  ProductPage,
+  Status,
+  TimelineItem
+} from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
-import { buildTodayDashboard, greetingForDate, invoiceLiveStatus } from "@/lib/dashboard-hoy";
+import { buildTodayDashboard, greetingForDate } from "@/lib/dashboard-hoy";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { companyCompletion, userDisplayName } from "@/lib/profile-completeness";
+import { userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { getDashboardData } from "@/lib/queries";
-import { getTodayTreasurySignals } from "@/lib/treasury";
+import { getTreasuryOverview } from "@/lib/treasury";
 import { requireCompanyContext } from "@/lib/auth/session";
-import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
-
-const quickActions = [
-  { href: "/gestion?tipo=cliente&returnTo=/hoy", label: "Cliente", detail: "Nuevo contacto", icon: Users },
-  { href: "/gestion?tipo=obra&returnTo=/hoy", label: "Obra", detail: "Trabajo activo", icon: BriefcaseBusiness },
-  { href: "/gestion?tipo=presupuesto&returnTo=/hoy", label: "Presupuesto", detail: "Crear borrador", icon: FileText },
-  { href: "/gestion?tipo=factura&returnTo=/hoy", label: "Factura", detail: "Emitir o preparar", icon: Receipt },
-  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy", label: "Visita", detail: "Agendar cita", icon: CalendarClock },
-  { href: "/capataz", label: "Capataz", detail: "Hablar con IA", icon: Bot }
-];
 
 export default async function TodayPage() {
   const now = new Date();
   const auth = await requireCompanyContext();
-  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, company, treasurySignals] = await Promise.all([
+  const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, treasury] = await Promise.all([
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
-    prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }).then(companySettingsView),
-    getTodayTreasurySignals(auth.companyId)
+    getTreasuryOverview({ companyId: auth.companyId, horizon: "30d", scenario: "base" })
   ]);
 
   const dashboard = buildTodayDashboard({ clients, works, budgets, invoices, materials, reminders, expenses, agendaItems }, now);
   const displayName = userDisplayName(profile);
-  const companyStatus = companyCompletion(company);
-  const companyMissing = companyStatus.missingRequired.length + companyStatus.missingRecommended.length;
-  const currentDate = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "2-digit", month: "long" }).format(now);
+  const todayStart = startOfDay(now);
+  const tomorrowStart = addDays(todayStart, 1);
+  const dayAfterTomorrow = addDays(todayStart, 2);
+  const todayAgenda = agendaItems.filter((item) => item.estado !== "cancelado" && item.fechaInicio >= todayStart && item.fechaInicio < tomorrowStart);
+  const upcomingToday = todayAgenda.filter((item) => item.fechaInicio >= now);
+  const nextAppointment = upcomingToday[0] ?? todayAgenda[0] ?? null;
+  const tomorrowFirst = agendaItems.find((item) => item.estado !== "cancelado" && item.fechaInicio >= tomorrowStart && item.fechaInicio < dayAfterTomorrow) ?? null;
+  const workRisks = works.filter((work) => ["pendiente_material", "pendiente_remates", "pendiente_cobro", "pausada", "parada"].includes(work.estado));
+  const isInitial = clients.length === 0 && works.length === 0 && budgets.length === 0 && invoices.length === 0 && agendaItems.length === 0;
+  const fullDate = capitalize(new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now));
 
   return (
     <ProductPage layout="operational">
       <PageHeader
-        eyebrow={currentDate}
+        eyebrow={fullDate}
         title={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}`}
         description={dashboard.dailySummary}
-        action={
-          <Link href="/capataz" className="primary-button">
-            <Bot size={18} aria-hidden="true" />
-            Hablar con Capataz
-          </Link>
-        }
+        action={<Link href="/capataz" className="primary-button"><Bot size={18} aria-hidden="true" />Hablar con Capataz</Link>}
       />
 
-      <DashboardSection
-        id="necesita-atencion"
-        title="Necesita tu atención"
-        description="Lo más urgente, ordenado para que puedas actuar sin revisar toda la aplicación."
-        action={<Link href="/agenda?vista=hoy" className="secondary-button">Ver agenda</Link>}
-      >
-        <div className="grid gap-3 lg:grid-cols-2">
-          {dashboard.priorities.length ? dashboard.priorities.slice(0, 3).map((item) => <PriorityCard key={item.key} item={item} />) : (
-            <div className="lg:col-span-2"><EmptyState title="Todo bajo control" description="No hay cobros vencidos, visitas ni seguimientos urgentes para hoy." icon={CheckCircle2} /></div>
-          )}
-        </div>
-        {dashboard.priorities.length > 3 ? (
-          <p className="type-secondary mt-3">
-            Hay {dashboard.priorities.length - 3} asuntos más. <Link href="/agenda?vista=hoy" className="inline-flex min-h-11 items-center font-semibold text-brand-strong underline underline-offset-4">Ver todos</Link>
-          </p>
-        ) : null}
-        {treasurySignals.length ? (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div><p className="flex items-center gap-2 font-black"><AlertTriangle size={18} /> Tesorería</p><div className="mt-2 grid gap-1 text-sm leading-6">{treasurySignals.slice(0, 3).map((alert) => <p key={alert.id}>{alert.title}: {alert.detail}</p>)}</div></div>
-              <Link href="/tesoreria" className="secondary-button bg-white">Abrir tesorería</Link>
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(17rem,.6fr)]">
+        <section id="necesita-atencion" aria-labelledby="today-attention" className="section-shell scroll-mt-24">
+          <SectionHeading id="today-attention" title="Necesita tu atención" description="Hasta tres asuntos reales, ordenados por urgencia e impacto." />
+          {isInitial ? (
+            <EmptyState
+              title="Empieza por tu primer cliente"
+              description="Capataz podrá ordenar prioridades cuando exista una relación de trabajo real. Después podrás preparar un presupuesto, abrir una obra o añadir una visita."
+              icon={Users}
+              action={<Link href="/gestion?tipo=cliente&returnTo=/hoy" className="secondary-button">Crear primer cliente</Link>}
+            />
+          ) : dashboard.priorities.length ? (
+            <div className="divide-y divide-border">
+              {dashboard.priorities.slice(0, 3).map((item) => <PriorityRow key={item.key} item={item} />)}
             </div>
-          </div>
-        ) : null}
-        <TodayWorkflowSummary companyId={auth.companyId} />
-        {companyMissing ? <div className="mt-4"><Notice tone="warning" title="Datos de empresa incompletos" description={`Faltan ${companyMissing} datos para que presupuestos y facturas salgan completos.`} action={<Link href="/configuracion#empresa" className="secondary-button bg-white">Completar datos</Link>} /></div> : null}
-      </DashboardSection>
-
-      <section className="section-shell mt-8">
-        <SectionHeader title="Estado del negocio" description="Una lectura rápida con datos reales del periodo actual." />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard href="/dinero?filtro=pendientes" title="Pendiente de cobro" value={formatCurrency(dashboard.money.pendingCollection)} detail={`${dashboard.counts.pendingInvoices} facturas abiertas`} icon={WalletCards} tone="success" />
-        <StatCard href="/dinero?filtro=vencidas" title="Facturas vencidas" value={String(dashboard.counts.overdueInvoices)} detail={`${formatCurrency(dashboard.money.overduePending)} pendientes`} icon={Receipt} tone={dashboard.counts.overdueInvoices ? "danger" : "neutral"} />
-        <StatCard href="/presupuestos?filtro=pendientes" title="Presupuestos pendientes" value={String(dashboard.counts.pendingBudgets)} detail="Borradores, enviados y en revisión" icon={FileText} tone="warning" />
-        <StatCard href="/obras?estado=en_curso" title="Obras activas" value={String(dashboard.counts.activeWorks)} detail="En curso, pausadas o pendientes" icon={BriefcaseBusiness} />
-        <StatCard href="/dinero?filtro=todas" title="Facturación del mes" value={formatCurrency(dashboard.money.billedThisMonth)} detail="Solo facturas, no presupuestos" icon={Euro} />
-        <StatCard href="/gastos-materiales" title="Gastos del mes" value={formatCurrency(dashboard.money.expensesThisMonth)} detail={`${dashboard.counts.pendingMaterials} materiales pendientes`} icon={Package} tone="warning" />
-        </div>
-      </section>
-
-      <div className="mt-8 grid gap-8">
-          <DashboardSection
-            title="Agenda de hoy"
-            description="Visitas, llamadas, seguimientos y recordatorios ordenados por hora."
-            action={<Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy" className="secondary-button"><Plus size={18} /> Añadir visita</Link>}
-          >
-            {dashboard.agendaToday.length ? (
-              <div className="grid gap-3">
-                {dashboard.agendaToday.map((item) => (
-                  <AgendaCard key={`${item.source}-${item.id}`} item={item} />
-                ))}
+          ) : (
+            <div className="rounded-xl bg-success/5 p-4">
+              <div className="flex gap-3">
+                <CheckCircle2 size={21} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
+                <div><h3 className="type-object-title text-content">No tienes asuntos urgentes ahora mismo.</h3><p className="type-secondary mt-1">Puedes continuar con la próxima cita o revisar una obra activa.</p></div>
               </div>
-            ) : (
-              <EmptyState
-                title="Hoy no tienes visitas ni reuniones"
-                description="Añade una visita, llamada o seguimiento para que aparezca en tu agenda diaria."
-                icon={CalendarClock}
-                action={<Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy" className="secondary-button">Añadir visita</Link>}
-              />
-            )}
-          </DashboardSection>
-
-          <section className="section-shell">
-            <SectionHeader title="Acciones rápidas" description="Las tareas habituales, a un toque y sin pasos innecesarios." />
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              {quickActions.map((action) => <QuickAction key={action.href} {...action} />)}
             </div>
+          )}
+          {dashboard.priorities.length > 3 ? <Link href="/notificaciones" className="ghost-button mt-3">Ver todos los asuntos</Link> : null}
+        </section>
+
+        <section aria-labelledby="today-agenda" className="section-shell">
+          <SectionHeading id="today-agenda" title="Agenda inmediata" description="Lo siguiente de hoy y la primera referencia de mañana." action={<Link href="/agenda?vista=hoy" className="ghost-button">Ver agenda</Link>} />
+          {nextAppointment ? <FeaturedAppointment item={nextAppointment} now={now} /> : (
+            <div className="rounded-xl bg-subtle p-4">
+              <p className="type-object-title text-content">Hoy no tienes citas.</p>
+              <p className="type-secondary mt-1">{tomorrowFirst ? `La próxima es mañana: ${tomorrowFirst.titulo}.` : "Puedes añadir una visita cuando la necesites."}</p>
+              <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy" className="secondary-button mt-3">Añadir visita</Link>
+            </div>
+          )}
+          {todayAgenda.filter((item) => item.id !== nextAppointment?.id).slice(0, 3).map((item) => (
+            <Link key={`${item.source}-${item.id}`} href={item.href} className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-3 last:border-0 hover:bg-subtle">
+              <span className="min-w-0"><span className="type-object-title block text-content">{timeLabel(item.fechaInicio)} · {item.titulo}</span><span className="type-meta mt-1 block">{item.clienteNombre ?? item.obraTitulo ?? "Agenda interna"}</span></span>
+              <span className="text-sm font-semibold text-brand-strong">Abrir</span>
+            </Link>
+          ))}
+          {tomorrowFirst ? <p className="type-meta mt-3 border-t border-border pt-3">Mañana · {timeLabel(tomorrowFirst.fechaInicio)} · {tomorrowFirst.titulo}</p> : null}
+        </section>
+      </div>
+
+      {!isInitial ? (
+        <>
+          <section aria-labelledby="today-pulse" className="section-shell mt-10">
+            <SectionHeading id="today-pulse" title="Pulso del día" description="Solo señales que pueden cambiar una decisión inmediata." action={<Link href="/dashboard" className="ghost-button">Ver Dashboard</Link>} />
+            <MetricGroup label="Pulso económico y operativo" className="xl:grid-cols-3">
+              {dashboard.money.overduePending > 0 ? <Metric href="/dinero?filtro=vencidas" label="Cobro vencido" value={formatCurrency(dashboard.money.overduePending)} detail={`${dashboard.counts.overdueInvoices} facturas requieren atención`} /> : null}
+              {treasury.payablesSummary.scheduledTotal > 0 ? <Metric href="/tesoreria" label="Pagos próximos" value={formatCurrency(treasury.payablesSummary.scheduledTotal)} detail={`${treasury.payablesSummary.scheduledCount} movimientos previstos a 30 días`} /> : null}
+              {workRisks.length > 0 ? <Metric href="/obras" label="Obras con atención" value={String(workRisks.length)} detail="Bloqueadas, pausadas, con remates o cobro pendiente" /> : null}
+              {dashboard.money.overduePending === 0 && treasury.payablesSummary.scheduledTotal === 0 && workRisks.length === 0 ? <Metric href="/dashboard" label="Sin señales inmediatas" value="—" detail="El análisis completo permanece disponible en Dashboard" /> : null}
+            </MetricGroup>
           </section>
 
-          <DashboardSection title="Actividad reciente" description="Últimos movimientos reales registrados en Capataz.">
-            {dashboard.recentActivity.length ? (
-              <div className="grid gap-2">
-                {dashboard.recentActivity.map((activity) => (
-                  <ActivityRow key={activity.key} item={activity} />
+          {dashboard.recentActivity.length ? (
+            <section aria-labelledby="today-activity" className="section-shell mt-10">
+              <SectionHeading id="today-activity" title="Actividad reciente" description="Los últimos cambios útiles para recuperar contexto." action={<Link href="/actividad" className="ghost-button">Ver actividad completa</Link>} />
+              <div className="max-w-3xl">
+                {dashboard.recentActivity.slice(0, 5).map((item, index, rows) => (
+                  <TimelineItem key={item.key} title={item.title} meta={relativeDate(item.date)} last={index === rows.length - 1}>
+                    <Link href={item.href} className="font-semibold text-brand-strong">Abrir origen</Link>
+                  </TimelineItem>
                 ))}
               </div>
-            ) : (
-              <EmptyState title="Aún no hay actividad" description="Cuando crees clientes, facturas, pagos o gastos aparecerán aquí." icon={Activity} />
-            )}
-          </DashboardSection>
-
-        <aside className="grid gap-6 xl:grid-cols-3" aria-label="Resumen operativo">
-          <DashboardSection
-            title="Cobros y facturas"
-            description="Vencidas, próximas y de mayor importe pendiente."
-            action={<Link href="/dinero?filtro=pendientes" className="secondary-button">Ver todas</Link>}
-          >
-            {dashboard.receivables.length ? (
-              <div className="grid gap-3">
-                {dashboard.receivables.map((invoice) => (
-                  <InvoiceCard key={invoice.id} invoice={invoice} now={now} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="No hay facturas pendientes" description="No tienes cobros abiertos ahora mismo." icon={WalletCards} />
-            )}
-          </DashboardSection>
-
-          <DashboardSection
-            title="Presupuestos por revisar"
-            description="Borradores, enviados y pendientes de respuesta."
-            action={<Link href="/presupuestos?filtro=pendientes" className="secondary-button">Ver todos</Link>}
-          >
-            {dashboard.pendingBudgets.length ? (
-              <div className="grid gap-3">
-                {dashboard.pendingBudgets.map((budget) => (
-                  <BudgetCard key={budget.id} budget={budget} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="No hay presupuestos pendientes" description="Los presupuestos activos aparecerán aquí cuando requieran revisión o seguimiento." icon={FileText} />
-            )}
-          </DashboardSection>
-
-          <DashboardSection
-            title="Obras activas"
-            description="Trabajos en curso o pendientes sin inventar progreso."
-            action={<Link href="/obras" className="secondary-button">Ver obras</Link>}
-          >
-            {dashboard.activeWorks.length ? (
-              <div className="grid gap-3">
-                {dashboard.activeWorks.map((work) => (
-                  <WorkCard key={work.id} work={work} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="Aún no hay obras activas" description="Crea una obra desde un presupuesto aceptado o añádela manualmente." icon={BriefcaseBusiness} />
-            )}
-          </DashboardSection>
-        </aside>
-      </div>
+            </section>
+          ) : null}
+        </>
+      ) : null}
     </ProductPage>
   );
 }
 
-function DashboardSection({
-  id,
-  title,
-  description,
-  action,
-  children
-}: {
-  id?: string;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className={id === "necesita-atencion" ? "scroll-mt-24 rounded-2xl bg-subtle p-4 sm:p-5" : "scroll-mt-24 section-shell"}>
-      <SectionHeader title={title} description={description} action={action} />
-      {children}
-    </section>
-  );
+function SectionHeading({ id, title, description, action }: { id: string; title: string; description: string; action?: ReactNode }) {
+  return <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 id={id} className="type-section-title text-content">{title}</h2><p className="type-secondary mt-1">{description}</p></div>{action ? <div className="shrink-0">{action}</div> : null}</div>;
 }
 
-function QuickAction({ href, label, detail, icon: Icon }: { href: string; label: string; detail: string; icon: LucideIcon }) {
+function PriorityRow({ item }: { item: ReturnType<typeof buildTodayDashboard>["priorities"][number] }) {
+  const tone = item.status === "vencida" ? "risk" : item.status.includes("pendiente") ? "attention" : "neutral";
   return (
-    <Link href={href} className="group rounded-xl border border-slate-200 bg-white p-3 shadow-soft transition hover:border-obra-yellowDark hover:bg-obra-yellow/10">
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-obra-yellow/20 text-obra-yellowDark">
-        <Icon size={19} aria-hidden="true" />
-      </span>
-      <p className="mt-3 text-sm font-black text-obra-ink">{label}</p>
-      <p className="mt-1 text-xs font-semibold text-slate-500">{detail}</p>
-    </Link>
-  );
-}
-
-function PriorityCard({ item }: { item: ReturnType<typeof buildTodayDashboard>["priorities"][number] }) {
-  return (
-    <article className="rounded-lg bg-white p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="type-meta">{item.type}</p>
-          <h3 className="type-object-title mt-1 text-content">{item.title}</h3>
-          <p className="type-secondary mt-1">{item.detail}</p>
-        </div>
-        <StatusPill status={item.status} />
+    <article className="grid gap-3 py-4 first:pt-0 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2"><p className="type-meta">{item.type}</p><Status tone={tone}>{statusLabel(item.status)}</Status></div>
+        <h3 className="type-object-title mt-1 text-content">{item.title}</h3>
+        <p className="type-secondary mt-1">{item.detail} · {formatDate(item.date)}</p>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="type-meta">{formatDate(item.date)}</p>
-        <Link href={item.href} className="ghost-button px-3 py-1 text-xs text-brand-strong">
-          {item.action}
-        </Link>
-      </div>
+      <Link href={item.href} className="secondary-button justify-self-start sm:justify-self-end">{item.action}</Link>
     </article>
   );
 }
 
-function AgendaCard({ item }: { item: ReturnType<typeof buildTodayDashboard>["agendaToday"][number] }) {
+function FeaturedAppointment({ item, now }: { item: Awaited<ReturnType<typeof getAgendaItems>>[number]; now: Date }) {
+  const upcoming = item.fechaInicio >= now;
   return (
-    <article className="rounded-xl border border-slate-200 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-xs font-black uppercase text-slate-500">
-            <Clock size={15} className="text-obra-graphite" />
-            {timeLabel(item.fechaInicio)} · {agendaTypeLabel(item.tipo)}
-          </p>
-          <h3 className="mt-1 text-base font-black text-obra-ink">{item.titulo}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            {item.clienteNombre ?? item.descripcion ?? "Agenda interna"}
-            {item.direccion ? ` · ${shorten(item.direccion, 42)}` : ""}
-          </p>
-        </div>
-        <StatusPill status={item.estado} />
-      </div>
-      <Link href={item.href} className="secondary-button mt-3 px-3 py-1 text-xs">
-        {item.editable ? "Editar" : "Abrir"}
-      </Link>
+    <article className="rounded-xl bg-brand-soft p-4">
+      <p className="type-meta text-brand-strong">{upcoming ? "Próxima cita" : "Cita de hoy"} · {timeLabel(item.fechaInicio)}</p>
+      <h3 className="type-object-title mt-2 text-content">{item.titulo}</h3>
+      <p className="type-secondary mt-1">{item.clienteNombre ?? item.obraTitulo ?? "Agenda interna"}{item.direccion ? ` · ${item.direccion}` : ""}</p>
+      <div className="mt-3 flex items-center justify-between gap-3"><Status tone={item.estado === "confirmado" ? "active" : "attention"}>{statusLabel(item.estado)}</Status><Link href={item.href} className="secondary-button">Abrir</Link></div>
     </article>
   );
-}
-
-function InvoiceCard({ invoice, now }: { invoice: ReturnType<typeof buildTodayDashboard>["receivables"][number]; now: Date }) {
-  const liveStatus = invoiceLiveStatus(invoice, now);
-
-  return (
-    <article className="rounded-xl border border-slate-200 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase text-slate-500">{invoice.numero}</p>
-          <h3 className="mt-1 text-base font-black text-obra-ink">{invoice.client.nombre}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{invoice.concepto}</p>
-        </div>
-        <StatusPill status={liveStatus} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Mini label="Pendiente" value={formatCurrency(invoice.pendiente)} />
-        <Mini label="Vence" value={formatDate(invoice.fechaVencimiento)} />
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Link href={`/dinero/${invoice.id}`} className="primary-button px-3 py-1 text-xs">Ver factura</Link>
-        <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/hoy`} className="secondary-button px-3 py-1 text-xs">Registrar pago</Link>
-      </div>
-    </article>
-  );
-}
-
-function BudgetCard({ budget }: { budget: ReturnType<typeof buildTodayDashboard>["pendingBudgets"][number] }) {
-  return (
-    <article className="rounded-xl border border-slate-200 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase text-slate-500">{budget.numero}</p>
-          <h3 className="mt-1 text-base font-black text-obra-ink">{budget.client.nombre}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{budget.titulo}</p>
-        </div>
-        <StatusPill status={budget.estado} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Mini label="Importe" value={formatCurrency(budget.total)} />
-        <Mini label="Fecha" value={formatDate(budget.fechaSeguimiento ?? budget.fechaEnvio ?? budget.fechaCreacion)} />
-      </div>
-      <Link href={`/presupuestos/${budget.id}`} className="secondary-button mt-3 px-3 py-1 text-xs">
-        Ver presupuesto
-      </Link>
-    </article>
-  );
-}
-
-function WorkCard({ work }: { work: ReturnType<typeof buildTodayDashboard>["activeWorks"][number] }) {
-  const pendingInvoices = work.invoices?.reduce((sum, invoice) => sum + invoice.pendiente, 0) ?? 0;
-
-  return (
-    <article className="rounded-xl border border-slate-200 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-black text-obra-ink">{work.titulo}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{work.client.nombre}{work.direccion ? ` · ${shorten(work.direccion, 42)}` : ""}</p>
-        </div>
-        <StatusPill status={work.estado} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Mini label="Presupuesto" value={formatCurrency(work.presupuestoAprobado ?? 0)} />
-        <Mini label="Pendiente cobro" value={formatCurrency(pendingInvoices)} />
-      </div>
-      <p className="mt-3 text-sm font-semibold text-slate-500">
-        Próxima tarea: {work.nextAgendaItem ? `${work.nextAgendaItem.titulo} · ${formatDate(work.nextAgendaItem.fechaInicio)}` : "Sin tarea programada"}
-      </p>
-      <Link href={`/obras?buscar=${encodeURIComponent(work.titulo)}`} className="secondary-button mt-3 px-3 py-1 text-xs">
-        Ver obra
-      </Link>
-    </article>
-  );
-}
-
-function ActivityRow({ item }: { item: ReturnType<typeof buildTodayDashboard>["recentActivity"][number] }) {
-  const Icon = activityIcon(item.icon);
-  return (
-    <Link href={item.href} className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-obra-yellowDark hover:bg-obra-yellow/10">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-obra-graphite">
-        <Icon size={17} aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-black text-obra-ink">{item.title}</span>
-        <span className="mt-1 block text-xs font-semibold text-slate-500">{relativeDate(item.date)}</span>
-      </span>
-    </Link>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-2">
-      <p className="text-[11px] font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-black tabular-nums text-obra-ink">{value}</p>
-    </div>
-  );
-}
-
-function agendaTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    visita: "Visita",
-    llamada: "Llamada",
-    seguimiento_presupuesto: "Seguimiento",
-    seguimiento_cobro: "Cobro",
-    recordatorio_interno: "Recordatorio",
-    compra_material: "Material",
-    vencimiento_factura: "Vencimiento"
-  };
-  return labels[type] ?? type.replaceAll("_", " ");
 }
 
 function timeLabel(date: Date) {
@@ -406,31 +165,26 @@ function timeLabel(date: Date) {
 function relativeDate(value: Date | string | null | undefined) {
   if (!value) return "Sin fecha";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Sin fecha";
-  const diffMs = date.getTime() - Date.now();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-  if (Math.abs(diffDays) >= 1) {
-    return new Intl.RelativeTimeFormat("es-ES", { numeric: "auto" }).format(diffDays, "day");
-  }
-  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-  if (Math.abs(diffHours) >= 1) {
-    return new Intl.RelativeTimeFormat("es-ES", { numeric: "auto" }).format(diffHours, "hour");
-  }
-  return "Hace unos minutos";
+  const days = Math.floor((startOfDay(new Date()).getTime() - startOfDay(date).getTime()) / 86_400_000);
+  if (days <= 0) return "Hoy";
+  if (days === 1) return "Ayer";
+  return `Hace ${days} días`;
 }
 
-function shorten(value: string, max: number) {
-  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function activityIcon(type: string): LucideIcon {
-  const icons: Record<string, LucideIcon> = {
-    client: Users,
-    work: BriefcaseBusiness,
-    budget: FileText,
-    invoice: Receipt,
-    payment: Banknote,
-    expense: Package
-  };
-  return icons[type] ?? Activity;
+function addDays(date: Date, days: number) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function statusLabel(value: string) {
+  return value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
