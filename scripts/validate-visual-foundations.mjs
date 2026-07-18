@@ -73,7 +73,7 @@ const cases = [
   ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
   ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Capataz") && !today.includes("¿Qué ha pasado hoy?")],
   ["Hoy limita la primera zona a tres señales", today.includes("limit: query.categoria ? 20 : 3") && today.includes("Necesita tu atención")],
-  ["Hoy deriva consultas compartidas de la empresa activa", today.includes("requireCompanyContext") && today.includes("companyId: auth.companyId") && today.includes("getDashboardData()") && today.includes("getAgendaItems()")],
+  ["Hoy deriva consultas compartidas de la empresa activa", today.includes("requireCompanyContext") && today.includes("getDashboardData()") && today.includes("getAgendaItems()") && today.includes("getEconomicControl(")],
   ["foco, safe area y movimiento reducido", styles.includes(":focus-visible") && styles.includes("env(safe-area-inset-bottom)") && styles.includes("prefers-reduced-motion: reduce")],
   ["campos evitan zoom involuntario en iOS", styles.includes("font-size: 16px") && styles.includes("--cap-control-field: 3rem")]
 ];

@@ -38,7 +38,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { statusClass } from "@/lib/status";
-import { getTreasuryOverview } from "@/lib/treasury";
+import { getEconomicControl } from "@/lib/economic-control/queries";
+import type { EconomicDocument } from "@/lib/economic-control/types";
 import {
   buildWorkDocuments,
   buildWorkRisks,
@@ -97,7 +98,7 @@ export default async function WorkDetailPage({
         photos: { orderBy: { tomadaEn: "desc" } }
       }
     }),
-    getTreasuryOverview({ companyId, workId: id, horizon: "30d", scenario: "base" }),
+    getEconomicControl({ workId: id, period: "30d" }),
     getWorkOperationalContext(id)
   ]);
   if (!work) notFound();
@@ -303,23 +304,22 @@ function MaterialsTab({ materials, pendingCount, workId }: { materials: any[]; p
   );
 }
 
-function WorkTreasuryTab({ treasury, workId }: { treasury: Awaited<ReturnType<typeof getTreasuryOverview>>; workId: string }) {
-  const work = treasury.workProfitability.find((item) => item.workId === workId);
-  const upcomingCollections = treasury.receivables.filter((item) => item.workId === workId).slice(0, 5);
-  const upcomingPayments = treasury.payables.filter((item) => item.workId === workId).slice(0, 5);
+function WorkTreasuryTab({ treasury, workId }: { treasury: Awaited<ReturnType<typeof getEconomicControl>>; workId: string }) {
+  const work = treasury.profitability.find((item) => item.workId === workId);
+  const upcomingCollections = treasury.receivables.slice(0, 5);
+  const upcomingPayments = treasury.payables.slice(0, 5);
   if (!work) return <Section title="Tesorería de obra"><EmptyState title="Sin datos financieros de obra" description="No hay facturas, cobros, gastos o movimientos asociados." icon={Euro} /></Section>;
   return (
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <Section title="Caja y rentabilidad">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Finance label="Entradas cobradas" value={work.collected} />
-          <Finance label="Salidas pagadas" value={work.paidCost} />
-          <Finance label="Flujo neto" value={work.cashFlow} tone={work.cashFlow < 0 ? "danger" : "success"} />
-          <Finance label="Necesidad caja" value={work.cashNeed} tone={work.cashNeed > 0 ? "warning" : "neutral"} />
-          <Finance label="Presupuestado" value={work.budgeted} />
+          <Finance label="Cobrado" value={work.collected} />
+          <Finance label="Pendiente cobro" value={work.pending} tone={work.pending > 0 ? "warning" : "neutral"} />
           <Finance label="Coste real" value={work.realCost} />
-          <Finance label="Desviación" value={work.costDeviation} tone={work.costDeviation > 0 ? "warning" : "success"} />
-          <PlainMetric label="Margen real" value={`${work.marginOnInvoiced.toFixed(1)}%`} tone={work.marginOnInvoiced < 0 ? "danger" : "neutral"} />
+          <Finance label="Beneficio" value={work.profit ?? 0} tone={work.profit !== null && work.profit < 0 ? "danger" : "success"} />
+          <Finance label="Presupuestado" value={work.budgeted} />
+          <Finance label="Desviación" value={work.deviation ?? 0} tone={work.deviation !== null && work.deviation > 0 ? "warning" : "success"} />
+          <PlainMetric label="Margen real" value={work.margin === null ? "Datos insuficientes" : `${work.margin.toFixed(1)}%`} tone={work.margin !== null && work.margin < 0 ? "danger" : "neutral"} />
         </div>
         <p className="mt-3 text-sm leading-6 text-slate-600">El presupuesto no se considera entrada de caja. La caja de obra usa cobros, pagos y gastos registrados explícitamente.</p>
       </Section>
@@ -328,21 +328,21 @@ function WorkTreasuryTab({ treasury, workId }: { treasury: Awaited<ReturnType<ty
           <MiniTimeline title="Cobros previstos" items={upcomingCollections} empty="Sin cobros previstos para esta obra." />
           <MiniTimeline title="Pagos previstos" items={upcomingPayments} empty="Sin pagos previstos para esta obra." />
         </div>
-        <Link href={`/tesoreria?obra=${workId}`} className="primary-button mt-4 inline-flex">Abrir tesorería filtrada</Link>
+        <Link href={`/tesoreria?vista=resumen&periodo=30d&obra=${workId}`} className="primary-button mt-4 inline-flex">Abrir control económico</Link>
       </Section>
     </div>
   );
 }
 
-function MiniTimeline({ title, items, empty }: { title: string; items: Awaited<ReturnType<typeof getTreasuryOverview>>["forecast"]["items"]; empty: string }) {
+function MiniTimeline({ title, items, empty }: { title: string; items: EconomicDocument[]; empty: string }) {
   return (
     <div>
       <h3 className="font-black text-obra-ink">{title}</h3>
       <div className="mt-2 grid gap-2">
         {items.length ? items.map((item) => (
-          <Link key={item.id} href={item.href ?? "/tesoreria"} className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
-            <span className="font-black text-obra-ink">{formatCurrency(item.amount)}</span>
-            <span className="ml-2 text-slate-600">{item.title} · {formatDate(item.effectiveDate ?? item.date)}</span>
+          <Link key={item.id} href={item.href} className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+            <span className="font-black text-obra-ink">{formatCurrency(item.pending)}</span>
+            <span className="ml-2 text-slate-600">{item.number} · {item.dueDate ? formatDate(item.dueDate) : "sin vencimiento"}</span>
           </Link>
         )) : <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{empty}</p>}
       </div>

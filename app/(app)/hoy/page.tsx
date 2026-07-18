@@ -16,7 +16,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { getDashboardData } from "@/lib/queries";
-import { getTreasuryOverview } from "@/lib/treasury";
+import { getEconomicControl } from "@/lib/economic-control/queries";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { getTodayOperationalSignals } from "@/lib/operational-intelligence/queries";
 import { OperationalSignalList, operationalCategoryLabels } from "@/components/operational-signals";
@@ -31,7 +31,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
     getDashboardData(),
     getAgendaItems(),
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
-    getTreasuryOverview({ companyId: auth.companyId, horizon: "30d", scenario: "base" }),
+    getEconomicControl({ period: "30d" }),
     getTodayOperationalSignals({ category: query.categoria, limit: query.categoria ? 20 : 3 })
   ]);
 
@@ -109,9 +109,9 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
             <SectionHeading id="today-pulse" title="Pulso del día" description="Solo señales que pueden cambiar una decisión inmediata." action={<Link href="/dashboard" className="ghost-button">Ver Dashboard</Link>} />
             <MetricGroup label="Pulso económico y operativo" className="xl:grid-cols-3">
               {dashboard.money.overduePending > 0 ? <Metric href="/dinero?filtro=vencidas" label="Cobro vencido" value={formatCurrency(dashboard.money.overduePending)} detail={`${dashboard.counts.overdueInvoices} facturas requieren atención`} /> : null}
-              {treasury.payablesSummary.scheduledTotal > 0 ? <Metric href="/tesoreria" label="Pagos próximos" value={formatCurrency(treasury.payablesSummary.scheduledTotal)} detail={`${treasury.payablesSummary.scheduledCount} movimientos previstos a 30 días`} /> : null}
+              {treasury.forecast.outflows > 0 ? <Metric href="/tesoreria?vista=pagos&periodo=30d" label="Pagos próximos" value={formatCurrency(treasury.forecast.outflows)} detail={`${treasury.forecast.future.filter((item) => item.direction === "salida").length} vencimientos documentados a 30 días`} /> : null}
               {workRisks.length > 0 ? <Metric href="/obras" label="Obras con atención" value={String(workRisks.length)} detail="Bloqueadas, pausadas, con remates o cobro pendiente" /> : null}
-              {dashboard.money.overduePending === 0 && treasury.payablesSummary.scheduledTotal === 0 && workRisks.length === 0 ? <Metric href="/dashboard" label="Sin señales inmediatas" value="—" detail="El análisis completo permanece disponible en Dashboard" /> : null}
+              {dashboard.money.overduePending === 0 && treasury.forecast.outflows === 0 && workRisks.length === 0 ? <Metric href="/dashboard" label="Sin señales inmediatas" value="—" detail="El análisis completo permanece disponible en Dashboard" /> : null}
             </MetricGroup>
           </section>
 

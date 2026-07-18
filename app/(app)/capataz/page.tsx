@@ -7,6 +7,7 @@ import { requireCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 import { buildOperationalContext } from "@/lib/operational-intelligence/rules";
 import { getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
+import { getEconomicControl } from "@/lib/economic-control/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
   ]);
   const scopedWork = query.obraId ? works.find((work) => work.id === query.obraId) ?? null : null;
   const scopedClient = query.clienteId ? clients.find((client) => client.id === query.clienteId) ?? null : scopedWork ? clients.find((client) => client.id === scopedWork.clienteId) ?? null : null;
+  const economic = await getEconomicControl({ clientId: scopedClient?.id, workId: scopedWork?.id, period: "30d" });
   const contextualSignals = intelligence.signals.filter((signal) => scopedWork ? signal.entity.workId === scopedWork.id : scopedClient ? signal.entity.clientId === scopedClient.id : false);
   const operationalContext = scopedWork || scopedClient ? buildOperationalContext(contextualSignals) : null;
 
@@ -141,7 +143,21 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
             suggestions: scopedWork
               ? [`Resume el contexto operativo de la obra ${scopedWork.titulo}`, `¿Qué requiere atención en la obra ${scopedWork.titulo}?`, `¿Cuál es el siguiente paso de la obra ${scopedWork.titulo}?`]
               : [`Resume el contexto operativo de ${scopedClient?.nombre}`, `¿Qué requiere atención con ${scopedClient?.nombre}?`, `¿Cuál es el siguiente paso con ${scopedClient?.nombre}?`]
-          } : null
+          } : null,
+          economicContext: {
+            entityName: scopedWork?.titulo ?? scopedClient?.nombre ?? company.nombreComercial,
+            registeredBalance: scopedWork || scopedClient ? null : economic.registeredBalance,
+            pendingReceivable: economic.receivableSummary.pending,
+            overdueReceivable: economic.receivableSummary.overdue,
+            pendingPayable: economic.payableSummary.pending,
+            forecastNet: economic.forecast.net,
+            href: `/tesoreria?vista=resumen&periodo=30d${scopedClient ? `&cliente=${scopedClient.id}` : ""}${scopedWork ? `&obra=${scopedWork.id}` : ""}`,
+            suggestions: scopedWork
+              ? [`Resume la posición económica de la obra ${scopedWork.titulo}`, `¿Qué vencimientos tiene la obra ${scopedWork.titulo}?`]
+              : scopedClient
+                ? [`Resume los cobros pendientes de ${scopedClient.nombre}`, `¿Qué facturas vencidas tiene ${scopedClient.nombre}?`]
+                : ["Resume la posición económica actual", "¿Qué cobros y pagos requieren atención?"]
+          }
         }}
       />
     </main>
