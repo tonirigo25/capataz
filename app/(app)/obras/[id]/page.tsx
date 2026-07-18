@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   BadgeEuro,
   Banknote,
   Bell,
@@ -31,7 +30,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
-import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
+import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getRecommendationsForWork, type BusinessRecommendation } from "@/lib/business-recommendations";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -54,33 +54,27 @@ export const dynamic = "force-dynamic";
 
 const tabs = [
   ["resumen", "Resumen", BriefcaseBusiness],
-  ["cliente", "Cliente", UserRound],
-  ["contactos", "Contactos", Phone],
-  ["presupuestos", "Presupuestos", FileText],
-  ["facturas", "Facturas", Receipt],
-  ["cobros", "Cobros", WalletCards],
-  ["tesoreria", "Tesorería", Euro],
-  ["gastos", "Gastos", Banknote],
-  ["materiales", "Materiales", Package],
-  ["horas", "Horas", Hammer],
-  ["personal", "Personal", Users],
-  ["subcontratas", "Subcontratas", ClipboardList],
-  ["documentos", "Documentos", FileArchive],
-  ["fotografias", "Fotografías", Camera],
-  ["visitas", "Visitas", CalendarClock],
-  ["recordatorios", "Recordatorios", Bell],
-  ["notas", "Notas", ClipboardList],
-  ["cronologia", "Cronología", Activity],
-  ["ia", "IA", Bot],
-  ["configuracion", "Configuración", Settings]
+  ["progreso", "Progreso", Camera],
+  ["dinero", "Dinero", Euro],
+  ["planificacion", "Planificación", CalendarClock],
+  ["archivos", "Archivos", FileArchive],
+  ["equipo", "Equipo", Users]
 ] as const;
+
+const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
+  cliente: "resumen", configuracion: "resumen", ia: "resumen",
+  fotografias: "progreso", notas: "progreso", cronologia: "progreso",
+  presupuestos: "dinero", facturas: "dinero", cobros: "dinero", tesoreria: "dinero", gastos: "dinero", materiales: "dinero", horas: "dinero", subcontratas: "dinero",
+  visitas: "planificacion", recordatorios: "planificacion",
+  documentos: "archivos", contactos: "equipo", personal: "equipo"
+};
 
 export default async function WorkDetailPage({
   params,
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ vista?: string; tab?: string; modo?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { companyId } = await requireCompanyContext();
@@ -108,7 +102,8 @@ export default async function WorkDetailPage({
   ]);
   if (!work) notFound();
 
-  const activeTab = tabs.some(([id]) => id === query.tab) ? query.tab! : "resumen";
+  const requestedView = query.vista ?? (query.tab ? legacyTabs[query.tab] ?? query.tab : "resumen");
+  const activeTab = tabs.some(([tab]) => tab === requestedView) ? requestedView as (typeof tabs)[number][0] : "resumen";
   const financial = calculateWorkFinancials(work);
   const risks = buildWorkRisks(work);
   const timeline = buildWorkTimeline(work);
@@ -121,44 +116,35 @@ export default async function WorkDetailPage({
 
   return (
     <main className="screen">
-      <Link href="/obras" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink">
-        <ArrowLeft size={18} />
-        Volver a obras
-      </Link>
-
-      <PageHeader
-        eyebrow={work.codigo ?? work.numeroInterno ?? "Ficha 360"}
+      <EntityHeader
+        back={<ParentNavigation href="/obras" label="Obras" context={work.client.nombre} />}
+        context={work.codigo ?? work.numeroInterno ?? "Espacio de trabajo"}
         title={work.titulo}
         description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`}
-        badge={<StatusBadge status={work.estado} />}
-        action={<Link href={`/gestion?tipo=obra&id=${work.id}&returnTo=/obras/${work.id}`} className="primary-button">Editar obra</Link>}
-        secondaryActions={<Link href={`/clientes/${work.clienteId}`} className="secondary-button">Abrir cliente</Link>}
-      >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Kpi icon={Euro} label="Presupuestado" value={formatCurrency(financial.budgeted)} detail={`${financial.budgetCount} presupuestos`} />
-          <Kpi icon={Receipt} label="Facturado" value={formatCurrency(financial.invoiced)} detail={`${financial.invoiceCount} facturas`} />
-          <Kpi icon={WalletCards} label="Cobrado" value={formatCurrency(financial.paid)} detail={`${formatCurrency(financial.pending)} pendiente`} tone={financial.pending ? "warning" : "success"} />
-          <Kpi icon={Banknote} label="Gasto" value={formatCurrency(financial.realCost)} detail={`${formatCurrency(financial.deviation)} desviación`} tone={financial.deviation > 0 ? "warning" : "neutral"} />
-          <Kpi icon={BadgeEuro} label="Beneficio" value={formatCurrency(financial.benefit)} detail={`${financial.marginPercent}% margen`} tone={financial.marginPercent < 15 && financial.budgeted ? "danger" : "success"} />
-          <Kpi icon={AlertTriangle} label="Riesgos" value={String(risks.length)} detail={nextAction.label} tone={risks.length ? "warning" : "success"} />
-        </div>
-      </PageHeader>
-      <EntityWorkflowSummary clientId={work.clienteId} workId={work.id} />
+        status={<StatusBadge status={work.estado} />}
+        action={<Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=progreso`)}`} className="primary-button"><Camera size={18} /> Registrar avance</Link>}
+        menu={<WorkActions workId={work.id} clientId={work.clienteId} />}
+      />
 
-      <QuickActions workId={work.id} clientId={work.clienteId} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen ejecutivo de la obra">
+        <Kpi icon={Euro} label="Presupuestado" value={formatCurrency(financial.budgeted)} detail={`${financial.budgetCount} presupuestos`} />
+        <Kpi icon={WalletCards} label="Cobrado" value={formatCurrency(financial.paid)} detail={`${formatCurrency(financial.pending)} pendiente`} tone={financial.pending ? "warning" : "success"} />
+        <Kpi icon={BadgeEuro} label="Beneficio" value={formatCurrency(financial.benefit)} detail={`${financial.marginPercent}% margen`} tone={financial.marginPercent < 15 && financial.budgeted ? "danger" : "success"} />
+        <Kpi icon={AlertTriangle} label="Riesgos" value={String(risks.length)} detail={nextAction.label} tone={risks.length ? "warning" : "success"} />
+      </section>
 
       {recommendations.recommendations.length ? (
         <RecommendationStrip title="Recomendaciones de esta obra" recommendations={recommendations.recommendations} href={`/recomendaciones?estado=active&q=${encodeURIComponent(work.titulo)}`} />
       ) : null}
 
-      <nav className="my-5 flex gap-2 overflow-x-auto pb-1" aria-label="Pestañas de obra">
+      <Tabs label="Secciones de la obra" className="my-5">
         {tabs.map(([id, label, Icon]) => (
-          <Link key={id} href={`/obras/${work.id}?tab=${id}`} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black ${activeTab === id ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>
+          <Link key={id} href={`/obras/${work.id}?vista=${id}`} aria-current={activeTab === id ? "page" : undefined}>
             <Icon size={16} />
             {label}
           </Link>
         ))}
-      </nav>
+      </Tabs>
 
       {activeTab === "resumen" ? (
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
@@ -218,32 +204,26 @@ export default async function WorkDetailPage({
         </div>
       ) : null}
 
-      {activeTab === "cliente" ? <ClientTab work={work} /> : null}
-      {activeTab === "contactos" ? <ContactsTab work={work} /> : null}
-      {activeTab === "presupuestos" ? <CardsTab items={work.budgets} empty="No hay presupuestos asociados." render={(budget) => <BudgetCard key={budget.id} budget={budget} />} /> : null}
-      {activeTab === "facturas" ? <CardsTab items={work.invoices} empty="No hay facturas asociadas." render={(invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />} /> : null}
-      {activeTab === "cobros" ? <CardsTab items={work.payments} empty="No hay cobros registrados en esta obra." render={(payment) => <PaymentCard key={payment.id} payment={payment} />} /> : null}
-      {activeTab === "tesoreria" ? <WorkTreasuryTab treasury={treasury} workId={work.id} /> : null}
-      {activeTab === "gastos" ? <CardsTab items={work.expenses} empty="No hay gastos registrados." render={(expense) => <ExpenseCard key={expense.id} expense={expense} />} /> : null}
-      {activeTab === "materiales" ? <MaterialsTab materials={work.materials} pendingCount={pendingMaterials.length} workId={work.id} /> : null}
-      {activeTab === "horas" ? <HoursTab work={work} /> : null}
-      {activeTab === "personal" ? <PeopleTab work={work} /> : null}
-      {activeTab === "subcontratas" ? <SubcontractTab work={work} expenses={work.expenses} /> : null}
-      {activeTab === "documentos" ? <DocumentsTab documents={documents} workId={work.id} clientId={work.clienteId} /> : null}
-      {activeTab === "fotografias" ? <PhotosTab photos={work.photos} workId={work.id} /> : null}
-      {activeTab === "visitas" ? <CardsTab items={work.agendaEvents} empty="No hay visitas o eventos registrados." render={(event) => <EventCard key={event.id} event={event} />} /> : null}
-      {activeTab === "recordatorios" ? <CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} /> : null}
-      {activeTab === "notas" ? <NotesTab notes={work.internalNotes} workId={work.id} clientId={work.clienteId} /> : null}
-      {activeTab === "cronologia" ? <Section title="Cronología completa"><TimelineList items={timeline} /></Section> : null}
-      {activeTab === "ia" ? <AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /> : null}
-      {activeTab === "configuracion" ? <ConfigTab work={work} /> : null}
+      {activeTab === "resumen" ? <div className="mt-4 grid gap-4"><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /><ClientTab work={work} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
+      {activeTab === "progreso" ? <ProgressTab work={work} timeline={timeline} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
+      {activeTab === "dinero" ? <div className="grid gap-4"><CardsTab items={work.budgets} empty="No hay presupuestos asociados." render={(budget) => <BudgetCard key={budget.id} budget={budget} />} /><CardsTab items={work.invoices} empty="No hay facturas asociadas." render={(invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />} /><CardsTab items={work.payments} empty="No hay cobros registrados en esta obra." render={(payment) => <PaymentCard key={payment.id} payment={payment} />} /><WorkTreasuryTab treasury={treasury} workId={work.id} /><CardsTab items={work.expenses} empty="No hay gastos registrados." render={(expense) => <ExpenseCard key={expense.id} expense={expense} />} /><MaterialsTab materials={work.materials} pendingCount={pendingMaterials.length} workId={work.id} /><HoursTab work={work} /><SubcontractTab work={work} expenses={work.expenses} /></div> : null}
+      {activeTab === "planificacion" ? (
+        <div className="grid gap-4">
+          <CardsTab items={work.agendaEvents} empty="No hay visitas o eventos registrados." render={(event) => <EventCard key={event.id} event={event} />} />
+          <CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} />
+        </div>
+      ) : null}
+      {activeTab === "archivos" ? <DocumentsTab documents={documents} workId={work.id} clientId={work.clienteId} /> : null}
+      {activeTab === "equipo" ? <div className="grid gap-4"><ContactsTab work={work} /><PeopleTab work={work} /></div> : null}
     </main>
   );
 }
 
-function QuickActions({ workId, clientId }: { workId: string; clientId: string }) {
+function WorkActions({ workId, clientId }: { workId: string; clientId: string }) {
   const returnTo = encodeURIComponent(`/obras/${workId}`);
   const actions = [
+    [`/gestion?tipo=obra&id=${workId}&returnTo=${returnTo}`, "Editar obra", Settings],
+    [`/clientes/${clientId}`, "Abrir cliente", UserRound],
     [`/gestion?tipo=presupuesto&clienteId=${clientId}&obraId=${workId}&returnTo=${returnTo}`, "Crear presupuesto", FileText],
     [`/gestion?tipo=factura&clienteId=${clientId}&obraId=${workId}&returnTo=${returnTo}`, "Crear factura", Receipt],
     [`/gestion?tipo=gasto&obraId=${workId}&returnTo=${returnTo}`, "Registrar gasto", Banknote],
@@ -251,27 +231,22 @@ function QuickActions({ workId, clientId }: { workId: string; clientId: string }
     [`/gestion?tipo=eventoAgenda&clienteId=${clientId}&obraId=${workId}&tipoEvento=visita&returnTo=${returnTo}`, "Añadir visita", CalendarClock],
     [`/gestion?tipo=material&obraId=${workId}&returnTo=${returnTo}`, "Añadir material", Package],
     [`/gestion?tipo=documento&clientId=${clientId}&workId=${workId}&category=otro&returnTo=${returnTo}`, "Añadir documento", FileArchive],
-    [`/gestion?tipo=foto&obraId=${workId}&returnTo=${returnTo}`, "Añadir foto", Camera],
+    [`/gestion?tipo=notaInterna&clientId=${clientId}&workId=${workId}&returnTo=${returnTo}`, "Añadir nota", ClipboardList],
     [`/gestion?tipo=recordatorio&clienteId=${clientId}&obraId=${workId}&returnTo=${returnTo}`, "Crear recordatorio", Bell],
     [`/capataz`, "Abrir chat IA", Bot]
   ] as const;
   return (
-    <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      {actions.map(([href, label, Icon]) => (
-        <Link key={href} href={href} className="secondary-button min-h-12 justify-center">
-          <Icon size={17} />
-          {label}
-        </Link>
-      ))}
-      <button type="button" className="secondary-button min-h-12 justify-center opacity-70" title="Preparado para integración">
-        <Phone size={17} />
-        WhatsApp
-      </button>
-      <button type="button" className="secondary-button min-h-12 justify-center opacity-70" title="Preparado para integración">
-        <Mail size={17} />
-        Email
-      </button>
-    </section>
+    <details className="relative">
+      <summary className="secondary-button cursor-pointer list-none">Más acciones</summary>
+      <div className="absolute right-0 z-20 mt-2 grid max-h-[70vh] min-w-64 gap-1 overflow-y-auto rounded-xl border border-border bg-surface p-2 shadow-xl">
+        {actions.map(([href, label, Icon]) => (
+          <Link key={href} href={href} className="secondary-button justify-start">
+            <Icon size={17} aria-hidden="true" />
+            {label}
+          </Link>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -480,6 +455,46 @@ function PhotosTab({ photos, workId }: { photos: any[]; workId: string }) {
         <EmptyState title="No hay fotografías registradas" description="Estructura preparada por categorías: antes, durante, después, incidencias, material y acabados. No se simula subida de archivos." icon={Image} action={<Link href={`/gestion?tipo=foto&obraId=${workId}&returnTo=/obras/${workId}?tab=fotografias`} className="secondary-button">Registrar foto</Link>} />
       )}
     </Section>
+  );
+}
+
+function ProgressTab({ work, timeline, mode }: { work: any; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; mode: "cronologia" | "galeria" }) {
+  const photos = work.photos
+    .filter((photo: any) => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")))
+    .map((photo: any) => ({
+      id: photo.id,
+      title: photo.titulo,
+      url: photo.url,
+      category: photo.categoria.replaceAll("_", " "),
+      date: formatDate(photo.tomadaEn),
+      author: photo.autor,
+      notes: photo.notas
+    }));
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex w-fit rounded-xl bg-subtle p-1" aria-label="Vista de progreso">
+          <Link href={`/obras/${work.id}?vista=progreso&modo=cronologia`} aria-current={mode === "cronologia" ? "page" : undefined} className={mode === "cronologia" ? "primary-button" : "ghost-button"}>Cronología</Link>
+          <Link href={`/obras/${work.id}?vista=progreso&modo=galeria`} aria-current={mode === "galeria" ? "page" : undefined} className={mode === "galeria" ? "primary-button" : "ghost-button"}>Galería</Link>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=progreso&modo=${mode}`)}`} className="secondary-button"><Camera size={17} aria-hidden="true" /> Registrar foto</Link>
+          <Link href={`/gestion?tipo=notaInterna&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=progreso&modo=${mode}`)}`} className="secondary-button"><ClipboardList size={17} aria-hidden="true" /> Añadir nota</Link>
+          <Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&tipoEvento=visita&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=progreso&modo=${mode}`)}`} className="secondary-button"><CalendarClock size={17} aria-hidden="true" /> Registrar visita</Link>
+        </div>
+      </div>
+      {mode === "galeria" ? (
+        <Section title={`Galería de progreso · ${photos.length}`}>
+          <WorkProgressGallery photos={photos} />
+          {work.photos.length > photos.length ? <p className="type-meta mt-3">{work.photos.length - photos.length} registros sin una URL segura se conservan en la cronología.</p> : null}
+        </Section>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+          <Section title="Cronología operativa"><TimelineList items={timeline} /></Section>
+          <NotesTab notes={work.internalNotes} workId={work.id} clientId={work.clienteId} />
+        </div>
+      )}
+    </div>
   );
 }
 
