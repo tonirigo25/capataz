@@ -226,7 +226,7 @@ function renderFields({
     case "cliente":
       return (
         <>
-          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="order-1 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-black text-obra-ink">Identidad del cliente</p>
             <Field name="nombre" label="Nombre visible" value={valueFor(record, defaults, "nombre")} />
             <Field name="nombreComercial" label="Nombre comercial" value={valueFor(record, defaults, "nombreComercial")} />
@@ -237,7 +237,7 @@ function renderFields({
             <Field name="origen" label="Origen" value={valueFor(record, defaults, "origen", "Manual")} />
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="order-2 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-black text-obra-ink">Contacto operativo</p>
             <Field name="telefono" label="Teléfono del cliente" value={valueFor(record, defaults, "telefono")} />
             <Field name="email" label="Email del cliente" type="email" value={valueFor(record, defaults, "email")} />
@@ -247,8 +247,8 @@ function renderFields({
             <Field name="contactoPrincipalEmail" label="Email contacto principal" type="email" value={valueFor(record, defaults, "contactoPrincipalEmail")} />
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-sm font-black text-obra-ink">Datos fiscales y facturación</p>
+          <div className="order-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Fiscal y condiciones comerciales</p>
             <Field name="direccionFiscal" label="Dirección fiscal" value={valueFor(record, defaults, "direccionFiscal")} />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field name="codigoPostal" label="Código postal" value={valueFor(record, defaults, "codigoPostal")} />
@@ -263,8 +263,8 @@ function renderFields({
             <Field name="contactoFacturacionNombre" label="Persona de facturación" value={valueFor(record, defaults, "contactoFacturacionNombre")} />
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-sm font-black text-obra-ink">Dirección y notas internas</p>
+          <div className="order-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-black text-obra-ink">Dirección</p>
             <Field name="direccion" label="Dirección principal o postal" value={valueFor(record, defaults, "direccion")} />
             <Field name="ultimaInteraccion" label="Última interacción" type="datetime-local" value={dateTimeValue(record?.ultimaInteraccion ?? defaults.ultimaInteraccion)} />
             <Textarea name="notas" label="Notas internas" value={record?.notas ?? defaults.notas} />

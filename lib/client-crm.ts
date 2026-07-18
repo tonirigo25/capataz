@@ -240,6 +240,7 @@ const clientSelect = {
       direccion: true,
       tipoTrabajo: true,
       estado: true,
+      updatedAt: true,
       fechaInicio: true,
       fechaFinPrevista: true,
       presupuestoAprobado: true,
@@ -272,6 +273,14 @@ const clientSelect = {
       agendaEvents: {
         orderBy: { fechaInicio: "asc" },
         select: { id: true, titulo: true, tipo: true, estado: true, fechaInicio: true, fechaFin: true }
+      },
+      photos: {
+        orderBy: { tomadaEn: "desc" },
+        select: { id: true, titulo: true, categoria: true, url: true, autor: true, tomadaEn: true, notas: true }
+      },
+      repositoryDocuments: {
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true, originalName: true, mimeType: true, size: true, storageKey: true, url: true, category: true, createdAt: true, archivedAt: true }
       }
     }
   },
@@ -396,7 +405,10 @@ export async function getClientCrmSummary(id: string, companyId: string) {
   const documents = [
     ...client.budgets.map(derivedBudgetDocument),
     ...client.invoices.map(derivedInvoiceDocument),
-    ...client.documents.filter((document) => !document.archivedAt).map(repositoryDocumentDisplay)
+    ...client.documents.filter((document) => !document.archivedAt).map(repositoryDocumentDisplay),
+    ...client.works.flatMap((work) => work.repositoryDocuments
+      .filter((document) => !document.archivedAt)
+      .map((document) => repositoryDocumentDisplay({ ...document, work: { id: work.id, titulo: work.titulo } })))
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return {
@@ -686,9 +698,16 @@ function buildActivity(client: ClientCrmRecord, now: Date) {
   ];
 
   for (const work of client.works) {
-    if (work.fechaInicio) events.push({ id: `work-${work.id}`, type: "Obra", text: `Obra creada: ${work.titulo}`, date: work.fechaInicio, href: `/obras` });
+    events.push({ id: `work-${work.id}`, type: "Obra", text: `Obra actualizada: ${work.titulo}`, date: work.updatedAt, href: `/obras/${work.id}` });
     if (work.fechaFinPrevista && ["finalizada", "cerrada"].includes(work.estado)) {
       events.push({ id: `work-closed-${work.id}`, type: "Obra", text: `Obra cerrada: ${work.titulo}`, date: work.fechaFinPrevista, href: `/obras` });
+    }
+    for (const photo of work.photos) {
+      events.push({ id: `photo-${photo.id}`, type: photo.categoria === "incidencia" ? "Incidencia" : "Fotografía", text: `${photo.titulo} · ${work.titulo}`, date: photo.tomadaEn, href: `/obras/${work.id}?vista=progreso&modo=galeria` });
+    }
+    for (const document of work.repositoryDocuments) {
+      if (document.archivedAt) continue;
+      events.push({ id: `work-document-${document.id}`, type: "Documento", text: `${document.name} · ${work.titulo}`, date: document.createdAt, href: `/obras/${work.id}?vista=archivos` });
     }
   }
   for (const contact of client.contacts) {
