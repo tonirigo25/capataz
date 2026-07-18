@@ -17,6 +17,7 @@ for (const model of ["client", "contact", "work", "budget", "invoice", "payment"
 
 expect(search.includes("TAKE_PER_GROUP = 8"), "global search must use a bounded take per group");
 expect(search.includes("grouped(results)"), "global search must return grouped results");
+expect(search.includes("statusLabel("), "global search must not expose internal status identifiers");
 expect(search.includes("function contains") && search.includes("[field]"), "search filter helper must build dynamic Prisma field objects");
 expect(page.includes("No hay resultados") && page.includes("Object.entries(groups)"), "search page lacks grouped results or empty state");
 expect(chrome.includes('action="/buscar"') && chrome.includes('name="q"'), "app shell search form is not wired to /buscar");
