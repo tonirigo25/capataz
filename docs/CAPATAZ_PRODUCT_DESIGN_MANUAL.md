@@ -22,7 +22,7 @@ Documento maestro de dirección de producto, experiencia de usuario, interfaz vi
 | Fuera de alcance | Railway, producción, despliegues, secretos, migraciones productivas, fiscalidad y cambios remotos. |
 | Naturaleza del análisis | Investigación de mercado y análisis estático del repositorio. No sustituye pruebas con usuarios ni auditoría visual en navegador. |
 
-> **Decisión rectora**  
+> **Decisión rectora**<br>
 > Capataz tendrá dos superficies iniciales distintas: “Hoy” para actuar y “Dashboard” para comprender el negocio. No se fusionarán ni competirán entre sí.
 
 # 1. Resumen ejecutivo
@@ -33,7 +33,7 @@ La oportunidad no consiste en “hacerla más bonita”. Consiste en convertir u
 
 ## Conclusión estratégica
 
-> **Posicionamiento**  
+> **Posicionamiento**<br>
 > Capataz será el sistema operativo de trabajo y control de negocio para autónomos y pequeñas empresas de construcción en España: sencillo en superficie, profundo cuando hace falta y acompañado por una IA que explica, prepara y recomienda sin actuar sin permiso.
 
 ## Las siete decisiones más importantes
@@ -76,7 +76,7 @@ El manual combina cuatro fuentes: estado real del repositorio, productos vertica
 - Capacidad de ofrecer profundidad sin abrumar.
 - Confianza, legibilidad y accesibilidad.
 
-> **Límite honesto**  
+> **Límite honesto**<br>
 > Este documento no afirma resultados de usabilidad medidos en Capataz. Las decisiones son hipótesis de producto informadas por mercado y código; deberán validarse con tareas reales y usuarios del sector.
 
 # 3. Mercado y oportunidad
@@ -121,7 +121,7 @@ La siguiente matriz es cualitativa. No pretende puntuar compañías de forma abs
 
 ## Síntesis del benchmark
 
-> **Fórmula de producto**  
+> **Fórmula de producto**<br>
 > Capataz debe unir la rapidez de Fieldwire/Raken, la evidencia visual de CompanyCam, la relación de Houzz Pro, el control financiero de Holded/Stripe y la disciplina visual de Linear; todo reducido al contexto de una microempresa española.
 
 # 5. Diagnóstico del producto actual
@@ -511,7 +511,7 @@ La biblioteca no será una carpeta de imágenes. Será la evidencia cronológica
 
 ## Principio de propiedad
 
-> **Una fuente de verdad**  
+> **Una fuente de verdad**<br>
 > Cada foto pertenece a una obra. La vista del cliente agrega las fotos de sus obras mediante filtros; no crea copias ni galerías paralelas.
 
 ## Vistas
@@ -568,7 +568,7 @@ Las fases son sugeridas, no obligatorias. Deben poder adaptarse por tipo de obra
 
 El modelo actual ya contiene fotos de obra con categoría, título, fecha, notas y URL. El rediseño visual puede organizar esos datos en cronología y galería. La subida privada real, miniaturas, vídeo, permisos, etiquetas, geolocalización y enlaces compartibles requieren una fase funcional y de seguridad separada, con almacenamiento unificado y migraciones expresamente autorizadas.
 
-> **Regla para Codex**  
+> **Regla para Codex**<br>
 > Durante la fase visual no inventar uploads funcionales ni crear migraciones. Diseñar estados reales para “no configurado”, “subiendo”, “sin conexión”, “error” y “permiso denegado”; activar solo lo soportado por la base actual.
 
 # 15. Notas, partes y actividad
@@ -1027,7 +1027,7 @@ No se debe rediseñar todo en un solo cambio masivo. La dirección se valida en 
 
 # 33. Contrato de ejecución para Codex
 
-> **Fuente de verdad**  
+> **Fuente de verdad**<br>
 > Este manual prevalece sobre instrucciones genéricas como “hazlo moderno”, “usa más tarjetas” o “inspírate en Linear”. Codex debe seguir decisiones medibles y justificar cualquier excepción.
 
 ## Autonomía permitida
@@ -1264,7 +1264,7 @@ https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/
 
 # 38. Dictamen final
 
-> **Dictamen**  
+> **Dictamen**<br>
 > CAPATAZ ESTÁ FUNCIONALMENTE PREPARADO PARA UNA REFOUNDACIÓN DE PRODUCTO. LA FASE 4 DEBE PERMANECER PAUSADA HASTA VALIDAR PD-0, HOY, DASHBOARD, CLIENTE Y OBRA.
 
 El diseño futuro no debe intentar aparentar complejidad ni demostrar cuántas funciones existen. Debe revelar la herramienta adecuada en el momento adecuado. La diferencia comercial estará en que un autónomo pueda abrir Capataz y sentir control inmediato, registrar la realidad de la obra con mínima fricción y entender sus números sin convertirse en contable.
