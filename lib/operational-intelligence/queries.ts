@@ -80,4 +80,3 @@ function contextMap(ids: string[], signals: OperationalSignal[], matches: (signa
 function isCategory(value: string | undefined): value is OperationalSignalCategory {
   return ["planificacion", "actividad", "ventas", "cobros", "compras_documentacion", "economia_obra"].includes(value ?? "");
 }
-

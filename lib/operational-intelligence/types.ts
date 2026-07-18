@@ -40,4 +40,3 @@ export type OperationalContext = {
   nextStep: string;
   counts: Record<OperationalSignalLevel, number>;
 };
-
