@@ -235,16 +235,14 @@ function runCenterChecks() {
 
 function runIntegrationChecks() {
   const files = {
-    chrome: fs.readFileSync("components/app-chrome.tsx", "utf8"),
-    bottom: fs.readFileSync("components/bottom-nav.tsx", "utf8"),
+    navigation: fs.readFileSync("lib/product-navigation.ts", "utf8"),
     hoy: fs.readFileSync("app/(app)/hoy/page.tsx", "utf8"),
     client: fs.readFileSync("app/(app)/clientes/[id]/page.tsx", "utf8"),
     work: fs.readFileSync("app/(app)/obras/[id]/page.tsx", "utf8"),
     treasury: fs.readFileSync("app/(app)/tesoreria/page.tsx", "utf8"),
     docs: fs.existsSync("docs/BLOQUE_3_RECOMENDACIONES_PROACTIVAS.md") ? fs.readFileSync("docs/BLOQUE_3_RECOMENDACIONES_PROACTIVAS.md", "utf8") : ""
   };
-  expect(files.chrome.includes("/recomendaciones"), "[recommendations] app chrome must link recommendations");
-  expect(files.bottom.includes("/recomendaciones"), "[recommendations] bottom nav must link recommendations");
+  expect(!files.navigation.includes('href: "/recomendaciones"') && fs.existsSync("app/(app)/recomendaciones/page.tsx"), "[recommendations] route must remain available without competing in global navigation");
   expect(!files.hoy.includes("getTodayRecommendationBrief"), "[recommendations] Hoy must keep automatic recommendations blocked during recovery");
   expect(files.client.includes("getRecommendationsForClient"), "[recommendations] Client 360 must show own recommendations");
   expect(files.work.includes("getRecommendationsForWork"), "[recommendations] Work 360 must show own recommendations");

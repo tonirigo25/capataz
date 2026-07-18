@@ -4,6 +4,7 @@ const files = {
   schema: fs.readFileSync("prisma/schema.prisma", "utf8"),
   packageJson: fs.readFileSync("package.json", "utf8"),
   chrome: fs.readFileSync("components/app-chrome.tsx", "utf8"),
+  navigation: fs.readFileSync("lib/product-navigation.ts", "utf8"),
   client: fs.readFileSync("app/(app)/clientes/[id]/page.tsx", "utf8"),
   work: fs.readFileSync("app/(app)/obras/[id]/page.tsx", "utf8"),
   chatActions: fs.readFileSync("app/(app)/capataz/actions.ts", "utf8"),
@@ -31,7 +32,7 @@ for (const script of ["test:contacts", "test:documents", "test:internal-notes", 
 }
 
 for (const nav of ["/agenda", "/actividad", "/notificaciones", "/documentos", "/buscar", "/configuracion"]) {
-  expect(files.chrome.includes(nav), `navigation missing ${nav}`);
+  expect(`${files.chrome}\n${files.navigation}`.includes(nav), `navigation missing ${nav}`);
 }
 
 expect(files.client.includes("Contactos") && files.client.includes("Documentos") && files.client.includes("Notas internas"), "Client 360 missing Block 2 tabs");

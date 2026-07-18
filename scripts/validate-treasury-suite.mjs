@@ -447,8 +447,7 @@ async function validateIntegration() {
   const hoyPage = fs.readFileSync("app/(app)/hoy/page.tsx", "utf8");
   const workPage = fs.readFileSync("app/(app)/obras/[id]/page.tsx", "utf8");
   const clientPage = fs.readFileSync("app/(app)/clientes/[id]/page.tsx", "utf8");
-  const nav = fs.readFileSync("components/app-chrome.tsx", "utf8");
-  const bottomNav = fs.readFileSync("components/bottom-nav.tsx", "utf8");
+  const nav = fs.readFileSync("lib/product-navigation.ts", "utf8");
   const migration = fs.readFileSync("prisma/migrations/20260711200000_treasury_cashflow_profitability/migration.sql", "utf8");
   const schema = fs.readFileSync("prisma/schema.prisma", "utf8");
 
@@ -465,7 +464,7 @@ async function validateIntegration() {
   expect(hoyPage.includes("getTodayTreasurySignals"), "[treasury-integration] Hoy page missing treasury signals");
   expect(workPage.includes("WorkTreasuryTab") && workPage.includes("getTreasuryOverview"), "[treasury-integration] Work 360 missing treasury tab");
   expect(clientPage.includes("ClientFinanceTab") && clientPage.includes("getTreasuryOverview"), "[treasury-integration] Client 360 missing finance tab");
-  expect(nav.includes('href: "/tesoreria"') && bottomNav.includes('href: "/tesoreria"'), "[treasury-integration] navigation missing treasury links");
+  expect(nav.includes('href: "/tesoreria"'), "[treasury-integration] navigation missing treasury link");
 
   await validateAccounts();
   await validateMovements();
