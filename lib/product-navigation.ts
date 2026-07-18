@@ -5,6 +5,7 @@ export type ProductIcon =
   | "briefcase"
   | "building"
   | "client"
+  | "dashboard"
   | "document"
   | "expense"
   | "home"
@@ -27,9 +28,9 @@ export type ProductNavigationGroup = {
 
 export const primaryNavigation: ProductDestination[] = [
   { href: "/hoy", label: "Hoy", icon: "home" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/clientes", label: "Clientes", icon: "client" },
   { href: "/obras", label: "Obras", icon: "briefcase" },
-  { href: "/agenda", label: "Agenda", icon: "agenda" },
   { href: "/presupuestos", label: "Presupuestos", icon: "document" },
   { href: "/dinero", label: "Facturas y cobros", icon: "invoice" }
 ];
@@ -48,6 +49,7 @@ export const secondaryNavigation: ProductNavigationGroup[] = [
   {
     label: "Control",
     items: [
+      { href: "/agenda", label: "Agenda", icon: "agenda" },
       { href: "/tesoreria", label: "Tesorería", icon: "landmark" },
       { href: "/documentos", label: "Documentos", icon: "document" },
       { href: "/recordatorios", label: "Recordatorios", icon: "agenda" },
