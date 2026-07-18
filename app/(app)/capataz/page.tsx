@@ -5,13 +5,16 @@ import { companyCompletion, profileCompletion } from "@/lib/profile-completeness
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
+import { buildOperationalContext } from "@/lib/operational-intelligence/rules";
+import { getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function CapatazPage() {
+export default async function CapatazPage({ searchParams }: { searchParams: Promise<{ clienteId?: string; obraId?: string }> }) {
+  const query = await searchParams;
   const auth = await requireCompanyContext();
   const activeWorkStatuses = ["pendiente_inicio", "en_curso", "pausada", "pendiente_material", "pendiente_remates", "pendiente_cobro"];
-  const [profile, company, clients, works, invoices, budgets, materials, programmedReminders, agendaItems] = await Promise.all([
+  const [profile, company, clients, works, invoices, budgets, materials, programmedReminders, agendaItems, intelligence] = await Promise.all([
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
     prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }).then(companySettingsView),
     prisma.client.findMany({ where: { companyId: auth.companyId }, orderBy: { nombre: "asc" } }),
@@ -20,8 +23,13 @@ export default async function CapatazPage() {
     prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true } }),
     prisma.material.findMany({ where: { companyId: auth.companyId }, include: { work: { include: { client: true } } } }),
     prisma.reminder.count({ where: { companyId: auth.companyId, estado: "programado" } }),
-    getAgendaItems()
+    getAgendaItems(),
+    getOperationalIntelligence()
   ]);
+  const scopedWork = query.obraId ? works.find((work) => work.id === query.obraId) ?? null : null;
+  const scopedClient = query.clienteId ? clients.find((client) => client.id === query.clienteId) ?? null : scopedWork ? clients.find((client) => client.id === scopedWork.clienteId) ?? null : null;
+  const contextualSignals = intelligence.signals.filter((signal) => scopedWork ? signal.entity.workId === scopedWork.id : scopedClient ? signal.entity.clientId === scopedClient.id : false);
+  const operationalContext = scopedWork || scopedClient ? buildOperationalContext(contextualSignals) : null;
 
   return (
     <main className="screen">
@@ -122,7 +130,18 @@ export default async function CapatazPage() {
             activeWorkLimit: 1,
             programmedReminders,
             reminderLimit: 3
-          }
+          },
+          operationalContext: operationalContext ? {
+            entityType: scopedWork ? "obra" as const : "cliente" as const,
+            entityName: scopedWork?.titulo ?? scopedClient?.nombre ?? "",
+            phrase: operationalContext.phrase,
+            nextStep: operationalContext.nextStep,
+            urgent: operationalContext.counts.urgente,
+            attention: operationalContext.counts.atencion,
+            suggestions: scopedWork
+              ? [`Resume el contexto operativo de la obra ${scopedWork.titulo}`, `¿Qué requiere atención en la obra ${scopedWork.titulo}?`, `¿Cuál es el siguiente paso de la obra ${scopedWork.titulo}?`]
+              : [`Resume el contexto operativo de ${scopedClient?.nombre}`, `¿Qué requiere atención con ${scopedClient?.nombre}?`, `¿Cuál es el siguiente paso con ${scopedClient?.nombre}?`]
+          } : null
         }}
       />
     </main>

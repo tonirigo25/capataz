@@ -244,8 +244,14 @@ function runIntegrationChecks() {
   };
   expect(!files.navigation.includes('href: "/recomendaciones"') && fs.existsSync("app/(app)/recomendaciones/page.tsx"), "[recommendations] route must remain available without competing in global navigation");
   expect(!files.hoy.includes("getTodayRecommendationBrief"), "[recommendations] Hoy must keep automatic recommendations blocked during recovery");
-  expect(files.client.includes("getRecommendationsForClient"), "[recommendations] Client 360 must show own recommendations");
-  expect(files.work.includes("getRecommendationsForWork"), "[recommendations] Work 360 must show own recommendations");
+  expect(
+    files.client.includes("getClientOperationalContext") && files.client.includes("OperationalContextSummary"),
+    "[recommendations] Client 360 must show deterministic operational context",
+  );
+  expect(
+    files.work.includes("getWorkOperationalContext") && files.work.includes("OperationalContextSummary"),
+    "[recommendations] Work 360 must show deterministic operational context",
+  );
   expect(files.treasury.includes("getTreasuryRecommendations"), "[recommendations] Treasury must show treasury recommendations");
   expect(files.docs.includes("Parte 3"), "[recommendations] documentation must mention pending Part 3");
 }

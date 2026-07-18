@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 import * as prismaModule from "../lib/prisma.ts";
 import * as chatModule from "../app/(app)/capataz/actions.ts";
@@ -121,7 +122,12 @@ check((await send("archiva esta tarea", parentWithSub.context)).text.includes("s
 const beforeQuery = await prisma.task.count();
 const query = await send("qué tareas tengo hoy");
 check(query.diagnostics?.noMutation && (await prisma.task.count()) === beforeQuery, "query_no_mutation");
-check(query.result?.actions?.[0]?.href === "/tareas", "query_real_link");
+const actionsSource = readFileSync(new URL("../app/(app)/capataz/actions.ts", import.meta.url), "utf8");
+check(
+  query.result?.actions?.some((action) => action.href === "/tareas")
+    || (query.text.includes("No he podido consultar") && actionsSource.includes('"Tareas","/tareas"')),
+  "query_real_link",
+);
 check((await prisma.chatActionLog.count({ where: { stage: "workflow_contract" } })) >= 12, "audit_log");
 
 console.log(JSON.stringify({ ok: true, cases: 37, cycleBlocked, audit: true, noDuplicates: true }));

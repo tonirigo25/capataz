@@ -18,7 +18,6 @@ import {
   FileText,
   Hammer,
   Image,
-  Lightbulb,
   Mail,
   Package,
   Phone,
@@ -33,7 +32,8 @@ import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
-import { getRecommendationsForWork, type BusinessRecommendation } from "@/lib/business-recommendations";
+import { OperationalContextSummary } from "@/components/operational-signals";
+import { getWorkOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -78,7 +78,7 @@ export default async function WorkDetailPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { companyId } = await requireCompanyContext();
-  const [work, treasury, recommendations] = await Promise.all([
+  const [work, treasury, operationalContext] = await Promise.all([
     prisma.work.findFirst({
       where: { id, companyId },
       include: {
@@ -98,7 +98,7 @@ export default async function WorkDetailPage({
       }
     }),
     getTreasuryOverview({ companyId, workId: id, horizon: "30d", scenario: "base" }),
-    getRecommendationsForWork(id, 3)
+    getWorkOperationalContext(id)
   ]);
   if (!work) notFound();
 
@@ -133,9 +133,7 @@ export default async function WorkDetailPage({
         <Kpi icon={AlertTriangle} label="Riesgos" value={String(risks.length)} detail={nextAction.label} tone={risks.length ? "warning" : "success"} />
       </section>
 
-      {recommendations.recommendations.length ? (
-        <RecommendationStrip title="Recomendaciones de esta obra" recommendations={recommendations.recommendations} href={`/recomendaciones?estado=active&q=${encodeURIComponent(work.titulo)}`} />
-      ) : null}
+      <OperationalContextSummary context={operationalContext} entityType="obra" entityId={work.id} />
 
       <Tabs label="Secciones de la obra" className="my-5">
         {tabs.map(([id, label, Icon]) => (
@@ -247,26 +245,6 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
         ))}
       </div>
     </details>
-  );
-}
-
-function RecommendationStrip({ title, recommendations, href }: { title: string; recommendations: BusinessRecommendation[]; href: string }) {
-  return (
-    <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="flex items-center gap-2 font-black"><Lightbulb size={18} /> {title}</p>
-          <div className="mt-2 grid gap-2 text-sm leading-6">
-            {recommendations.slice(0, 3).map((recommendation) => (
-              <p key={recommendation.fingerprint}>
-                <span className="font-black">Prioridad {recommendation.priority}</span> · {recommendation.title}: {recommendation.summary}
-              </p>
-            ))}
-          </div>
-        </div>
-        <Link href={href} className="secondary-button bg-white">Ver todas</Link>
-      </div>
-    </section>
   );
 }
 

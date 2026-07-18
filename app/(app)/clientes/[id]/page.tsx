@@ -13,7 +13,6 @@ import {
   ClipboardList,
   FileText,
   FolderOpen,
-  Lightbulb,
   Mail,
   MapPin,
   MessageCircle,
@@ -33,7 +32,8 @@ import { StatusPill } from "@/components/status-pill";
 import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
-import { getRecommendationsForClient, type BusinessRecommendation } from "@/lib/business-recommendations";
+import { OperationalContextSummary } from "@/components/operational-signals";
+import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
@@ -72,10 +72,10 @@ export default async function ClientDetailPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { companyId } = await requireCompanyContext();
-  const [summary, treasury, recommendations] = await Promise.all([
+  const [summary, treasury, operationalContext] = await Promise.all([
     getClientCrmSummary(id, companyId),
     getTreasuryOverview({ companyId, clientId: id, horizon: "30d", scenario: "base" }),
-    getRecommendationsForClient(id, 3)
+    getClientOperationalContext(id)
   ]);
   if (!summary) notFound();
 
@@ -112,9 +112,7 @@ export default async function ClientDetailPage({
         <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
       </section>
 
-      {recommendations.recommendations.length ? (
-        <RecommendationStrip title="Recomendaciones de este cliente" recommendations={recommendations.recommendations} href={`/recomendaciones?estado=active&q=${encodeURIComponent(summary.listItem.displayName)}`} />
-      ) : null}
+      <OperationalContextSummary context={operationalContext} entityType="cliente" entityId={client.id} />
 
       <Tabs label="Secciones de la ficha de cliente" className="mt-5">
         {tabs.map(([tab, label]) => (
@@ -170,33 +168,13 @@ function ClientActions({ clientId, clientName, returnTo, archived }: { clientId:
         <Plus size={18} />
         Contacto
       </Link>
-      <Link href="/capataz" className="secondary-button" aria-label={`Preguntar a Capataz sobre ${clientName}`}>
+      <Link href={`/capataz?clienteId=${clientId}`} className="secondary-button" aria-label={`Preguntar a Capataz sobre ${clientName}`}>
         <Bot size={18} />
         Preguntar a Capataz
       </Link>
         <ArchiveActions id={clientId} archived={archived} />
       </div>
     </details>
-  );
-}
-
-function RecommendationStrip({ title, recommendations, href }: { title: string; recommendations: BusinessRecommendation[]; href: string }) {
-  return (
-    <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="flex items-center gap-2 font-black"><Lightbulb size={18} /> {title}</p>
-          <div className="mt-2 grid gap-2 text-sm leading-6">
-            {recommendations.slice(0, 3).map((recommendation) => (
-              <p key={recommendation.fingerprint}>
-                <span className="font-black">Prioridad {recommendation.priority}</span> · {recommendation.title}: {recommendation.summary}
-              </p>
-            ))}
-          </div>
-        </div>
-        <Link href={href} className="secondary-button bg-white">Ver todas</Link>
-      </div>
-    </section>
   );
 }
 

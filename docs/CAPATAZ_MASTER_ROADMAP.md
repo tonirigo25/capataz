@@ -26,6 +26,7 @@ La dirección recomendada es estabilizar primero el producto visible y su contra
 - Aislamiento de prueba: PostgreSQL en `127.0.0.1`, base `capataz_test_all`, con `CAPATAZ_TEST_DATABASE_ISOLATED=true`.
 - Despliegue declarado: una sola ruta de migración en `preDeployCommand`; el arranque no repite migraciones.
 - Estado funcional reciente: proveedor/subcontrata, factura recibida, pagos, gasto enlazado, tesorería, costes de obra y lector documental están implementados en la rama local auditada.
+- PD-4 · Inteligencia operativa y contexto de negocio: **Completada localmente** con señales deterministas, explicables, enlazables y aisladas por empresa; pendiente de publicación e integración autorizadas.
 - Límite de esta auditoría: no se ha verificado en vivo el estado remoto, Railway, producción ni tiendas móviles.
 
 ## 3. Arquitectura existente
