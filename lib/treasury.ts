@@ -902,6 +902,9 @@ function buildAdvancedWorkProfitability(works: Array<Prisma.WorkGetPayload<{ inc
     const validBudget = sum(work.budgets.filter((budget) => !["rechazado", "caducado"].includes(String(budget.estado))).map((budget) => budget.total));
     const budgeted = safeNumber(work.presupuestoAprobado) || acceptedBudget || validBudget;
     const realExpenseCost = sum(work.expenses.map((expense) => expense.importe));
+    const materialCost = sum(work.expenses.filter((expense) => ["material", "materiales", "herramienta", "herramientas", "maquinaria", "suministros"].includes(String(expense.categoria))).map((expense) => expense.importe));
+    const subcontractorCost = sum(work.expenses.filter((expense) => String(expense.categoria) === "subcontrata").map((expense) => expense.importe));
+    const generalCost = Math.max(0, realExpenseCost - materialCost - subcontractorCost);
     const realCost = Math.max(realExpenseCost, safeNumber(work.gastoReal));
     const pendingExpenseCost = sum(work.expenses.filter((expense) => expense.paymentStatus === "pending").map((expense) => expense.importe));
     const paidExpenseCost = sum(work.expenses.filter((expense) => expense.paymentStatus === "paid").map((expense) => expense.importe));
@@ -925,6 +928,9 @@ function buildAdvancedWorkProfitability(works: Array<Prisma.WorkGetPayload<{ inc
       forecastCost,
       committedCost: pendingExpenseCost,
       realCost,
+      materialCost,
+      subcontractorCost,
+      generalCost,
       paidCost,
       profitForecast: budgeted - forecastCost,
       profitOnInvoiced,
