@@ -69,6 +69,7 @@ export function AppChrome({
   unreadNotifications,
   companyName,
   userName,
+  platformAccess,
   logoutAction
 }: {
   children: ReactNode;
@@ -76,6 +77,7 @@ export function AppChrome({
   unreadNotifications: number;
   companyName: string;
   userName: string;
+  platformAccess: boolean;
   logoutAction: () => Promise<void>;
 }) {
   const pathname = usePathname();
@@ -218,6 +220,9 @@ export function AppChrome({
           <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${context.label}`}>
             {context.label}
           </p>
+          <Link href="/seleccionar-empresa" className="ghost-button max-w-40 truncate px-2 text-xs" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
+            <Building2 size={17} aria-hidden="true"/><span className="truncate">{companyName}</span><ChevronDown size={14} aria-hidden="true"/>
+          </Link>
 
           <button
             type="button"
@@ -281,6 +286,7 @@ export function AppChrome({
           userName={userName}
           modeLabel={modeLabel}
           logoutAction={logoutAction}
+          platformAccess={platformAccess}
           onClose={closeDesktopPanel}
         />
       ) : null}
@@ -317,6 +323,7 @@ export function AppChrome({
                 userName={userName}
                 modeLabel={modeLabel}
                 logoutAction={logoutAction}
+                platformAccess={platformAccess}
                 onClose={() => setOverlay(null)}
               />
             )}
@@ -345,11 +352,11 @@ function DesktopNavigation({
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 pb-3 pt-4">
-        <Link href="/hoy" className="flex min-h-12 items-center gap-3 rounded-lg px-2">
+        <Link href="/seleccionar-empresa" className="flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand font-bold text-white">C</span>
           <span className="min-w-0">
             <span className="block text-base font-bold leading-5 text-content">Orqena</span>
-            <span className="block truncate text-xs text-content-secondary">{companyName}</span>
+            <span className="flex items-center gap-1 truncate text-xs text-content-secondary">{companyName}<ChevronDown size={13} aria-hidden="true"/></span>
           </span>
         </Link>
         {modeLabel ? <p className="mt-1 truncate px-2 text-[11px] font-medium text-content-tertiary">{modeLabel}</p> : null}
@@ -454,12 +461,14 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
   companyName: string;
   userName: string;
   modeLabel?: string;
+  platformAccess: boolean;
   logoutAction: () => Promise<void>;
   onClose: () => void;
 }>(function DesktopUserPanel({
   companyName,
   userName,
   modeLabel,
+  platformAccess,
   logoutAction,
   onClose
 }, ref) {
@@ -477,6 +486,7 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
         <Link href="/configuracion" className="shell-menu-row" onClick={onClose}>
           <Settings size={18} aria-hidden="true" />Configuración
         </Link>
+        {platformAccess ? <Link href="/plataforma" className="shell-menu-row" onClick={onClose}><Building2 size={18} aria-hidden="true" />Plataforma interna</Link> : null}
         <form action={logoutAction}>
           <button type="submit" className="shell-menu-row">
             <LogOut size={18} aria-hidden="true" />Cerrar sesión
@@ -610,6 +620,7 @@ function MobileMoreSheet({
   companyName,
   userName,
   modeLabel,
+  platformAccess,
   logoutAction,
   onClose
 }: {
@@ -619,6 +630,7 @@ function MobileMoreSheet({
   companyName: string;
   userName: string;
   modeLabel?: string;
+  platformAccess: boolean;
   logoutAction: () => Promise<void>;
   onClose: () => void;
 }) {
@@ -656,6 +668,7 @@ function MobileMoreSheet({
           <Link href="/configuracion" className="shell-menu-row" onClick={onClose}>
             <Settings size={18} aria-hidden="true" />Configuración
           </Link>
+          {platformAccess ? <Link href="/plataforma" className="shell-menu-row" onClick={onClose}><Building2 size={18} aria-hidden="true" />Plataforma interna</Link> : null}
           <form action={logoutAction}>
             <button type="submit" className="shell-menu-row">
               <LogOut size={18} aria-hidden="true" />Cerrar sesión

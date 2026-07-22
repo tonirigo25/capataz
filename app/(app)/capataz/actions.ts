@@ -65,6 +65,7 @@ import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isAc
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 import { runConversationTurn } from "@/lib/orqena/conversation-service";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 async function activeCompany() {
   const context = await requireCompanyContext();
@@ -160,6 +161,8 @@ type ChatPerfTrace = {
 };
 
 export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}): Promise<ChatCommandResult> {
+  const authorization = await requireOrqenaAuthorization();
+  if (authorization && authorization.scope !== "COMPANY") return { handled: true, text: "Orqena no puede consultar datos fuera de tu alcance actual. Pide a un administrador que revise el acceso asignado." };
   const trace: ChatPerfTrace = { messageId: options.messageId, conversationId: options.conversationId, idempotencyKey: options.idempotencyKey, startedAt: nowMs() };
   const persistStarted = nowMs();
   return runConversationTurn<ChatCommandContext | null, ChatCommandResult>({
@@ -177,6 +180,14 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
     fail: async (error) => { await failChatMessage(trace.messageId, error); await logChatPerf(trace, "total", trace.startedAt, "error", error instanceof Error ? { message: error.message } : undefined); },
     duplicateResult: (persistedContext) => ({ handled: true, text: "Ya estoy procesando ese mensaje. Lo mantengo en la conversación y no duplicaré acciones.", context: persistedContext })
   });
+}
+
+async function requireOrqenaAuthorization() {
+  try { return await requireCapability("orqena.use"); }
+  catch (error) {
+    if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED === "true" && error instanceof Error && error.message.includes("outside a request scope")) return null;
+    throw error;
+  }
 }
 
 async function runChatCommandCore(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult> {

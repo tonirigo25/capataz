@@ -60,6 +60,10 @@ export const secondaryNavigation: ProductNavigationGroup[] = [
   {
     label: "Administración",
     items: [
+      { href: "/equipo", label: "Equipo y permisos", icon: "client" },
+      { href: "/equipos", label: "Equipos", icon: "building" },
+      { href: "/plan-y-uso", label: "Plan y uso", icon: "invoice" },
+      { href: "/auditoria", label: "Auditoría", icon: "activity" },
       { href: "/configuracion", label: "Configuración", icon: "settings" }
     ]
   }
@@ -85,7 +89,12 @@ const areaContexts = [
   ...primaryNavigation,
   ...secondaryNavigation.flatMap((group) => group.items),
   { href: "/buscar", label: "Búsqueda" },
-  { href: "/capataz", label: "Orqena" }
+  { href: "/capataz", label: "Orqena" },
+  { href: "/equipo", label: "Equipo" },
+  { href: "/equipos", label: "Equipos" },
+  { href: "/plan-y-uso", label: "Plan y uso" },
+  { href: "/auditoria", label: "Auditoría" },
+  { href: "/plataforma", label: "Plataforma" }
 ];
 
 const detailContexts: Array<{ pattern: RegExp; context: RouteContext }> = [

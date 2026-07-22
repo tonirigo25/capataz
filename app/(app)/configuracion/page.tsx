@@ -1,4 +1,4 @@
-import { Activity, Building2, Check, CreditCard, Image, LockKeyhole, Save, Smartphone, UserRound, Users, Zap } from "lucide-react";
+import { Activity, Building2, Check, Image, Save, Smartphone, UserRound } from "lucide-react";
 import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
 import { SectionHeader } from "@/components/section-header";
 import { appModeDescription, appModeLabel, getAppMode, isUnlimitedMode } from "@/lib/app-mode";
@@ -8,52 +8,6 @@ import { getSystemStatus } from "@/lib/system-status";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 
-const limits = [
-  "Máximo 3 clientes reales",
-  "Máximo 2 presupuestos",
-  "Máximo 1 obra activa",
-  "Máximo 3 recordatorios programados",
-  "Documentos con marca de agua de demostración"
-];
-
-const nextSteps = [
-  "Conectar WhatsApp Business con autorización explícita",
-  "Añadir email transaccional y plantillas",
-  "Generar PDFs de presupuestos y facturas",
-  "Automatizar backups y observabilidad en PostgreSQL",
-  "Activar Stripe y planes de suscripción",
-  "Conectar IA real con herramientas internas controladas"
-];
-
-const plans = [
-  {
-    name: "Demo",
-    price: "0 €",
-    icon: Smartphone,
-    current: true,
-    description: "Para probar Orqena con datos ficticios y límites de demostración.",
-    features: ["Datos demo incluidos", "Límites de clientes, obras y recordatorios", "PDFs con marca de agua"],
-    action: "Plan actual"
-  },
-  {
-    name: "Autónomo",
-    price: "19 €/mes",
-    icon: Users,
-    current: false,
-    description: "Para profesionales que quieren llevar clientes reales, cobros y seguimientos.",
-    features: ["Clientes y obras reales", "Presupuestos y facturas sin límite demo", "Recordatorios de seguimiento"],
-    action: "Activar cuando esté disponible"
-  },
-  {
-    name: "Pro",
-    price: "49 €/mes",
-    icon: Zap,
-    current: false,
-    description: "Para equipos pequeños con más volumen y control operativo.",
-    features: ["Multiusuario en fase futura", "Automatizaciones avanzadas con confirmación", "Informes y exportación avanzada"],
-    action: "Solicitar acceso"
-  }
-];
 
 export const dynamic = "force-dynamic";
 
@@ -294,71 +248,11 @@ export default async function SettingsPage() {
         </div>
       </section>
 
-      <section id="suscripcion" className="mb-5 scroll-mt-24">
-        <h2 className="mb-3 text-lg font-black text-obra-ink">Suscripción</h2>
-        <div className="grid gap-3">
-          {plans.map((plan) => {
-            const Icon = plan.icon;
-            return (
-              <article key={plan.name} className={`card p-4 ${plan.current ? "border-obra-yellowDark" : ""}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-obra-yellow/30 text-obra-yellowDark">
-                      <Icon size={22} />
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-black text-obra-ink">{plan.name}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{plan.description}</p>
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-lg font-black text-obra-ink">{plan.price}</span>
-                </div>
-
-                <div className="mt-4 grid gap-2">
-                  {plan.features.map((feature) => (
-                    <p key={feature} className="flex items-start gap-2 text-sm leading-6 text-slate-600">
-                      <Check size={17} className="mt-0.5 shrink-0 text-obra-green" />
-                      {feature}
-                    </p>
-                  ))}
-                </div>
-
-                <button type="button" className={plan.current ? "secondary-button mt-4 w-full" : "primary-button mt-4 w-full"}>
-                  {plan.action}
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="card mb-5 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <LockKeyhole size={20} className="text-obra-graphite" />
-          <h2 className="text-lg font-black text-obra-ink">Límites freemium demo</h2>
-        </div>
-        <div className="grid gap-2">
-          {limits.map((item) => (
-            <p key={item} className="flex items-center gap-2 text-sm text-slate-600">
-              <Check size={17} className="text-obra-green" />
-              {item}
-            </p>
-          ))}
-        </div>
-      </section>
-
-      <section className="card p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <CreditCard size={20} className="text-obra-graphite" />
-          <h2 className="text-lg font-black text-obra-ink">Arquitectura preparada</h2>
-        </div>
-        <div className="grid gap-2">
-          {nextSteps.map((item) => (
-            <p key={item} className="flex items-start gap-2 text-sm leading-6 text-slate-600">
-              <Check size={17} className="mt-0.5 shrink-0 text-obra-yellowDark" />
-              {item}
-            </p>
-          ))}
+      <section id="suscripcion" className="card scroll-mt-24 p-4">
+        <h2 className="text-lg font-black text-obra-ink">Administración empresarial</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Cada área aplica permisos y capacidades comerciales en servidor. No se muestran precios sin aprobación comercial.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <a href="/equipo" className="secondary-button">Equipo y permisos</a><a href="/equipos" className="secondary-button">Equipos</a><a href="/plan-y-uso" className="secondary-button">Plan y uso</a><a href="/configuracion/memoria" className="secondary-button">Memoria de Orqena</a><a href="/auditoria" className="secondary-button">Auditoría</a><a href="#empresa" className="secondary-button">Zona sensible</a>
         </div>
       </section>
     </main>
