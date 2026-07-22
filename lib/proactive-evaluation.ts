@@ -285,7 +285,7 @@ export async function getProactiveDailySummary(now = new Date(), companyId?: str
     .slice(0, 4)
     .map(([type, count]) => `${count} ${labelForRecommendationType(type, count)}`);
   return {
-    title: lines.length ? "Hoy Capataz recomienda revisar:" : "No hay recomendaciones prioritarias.",
+    title: lines.length ? "Hoy Orqena recomienda revisar:" : "No hay recomendaciones prioritarias.",
     lines
   };
 }

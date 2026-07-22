@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { saveBusinessPartner } from "@/app/(app)/proveedores/actions";
-import { EmptyState, Notice, PageHeader, TableShell } from "@/components/ui-primitives";
+import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, ResultCount, TableShell } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getPartnerDetail, getPartnerList, PARTNER_STATUS_OPTIONS } from "@/lib/procurement";
 
@@ -40,13 +40,13 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
       description={subcontractor ? "Control documental, especialidades, obras realizadas, valoración y deuda de cada subcontrata." : "Ficha económica y operativa de proveedores, con gastos, facturas, obras, documentos e historial."}
       action={<Link href={`${base}?nuevo=1#ficha`} className="primary-button"><Plus size={18} />{subcontractor ? "Nueva subcontrata" : "Nuevo proveedor"}</Link>}
     >
-      <form action={base} className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_13rem_13rem_auto]">
-        <label><span className="label mb-1 block">Búsqueda rápida</span><input className="field" name="buscar" defaultValue={first(query.buscar)} placeholder="Nombre, NIF, contacto, especialidad..." /></label>
+      <CompactFilterBar><form action={base} className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_13rem_13rem_auto]">
+        <label><span className="label mb-1 block">Búsqueda rápida</span><CompactSearch name="buscar" defaultValue={first(query.buscar)} placeholder="Nombre, NIF, contacto, especialidad..." /></label>
         <label><span className="label mb-1 block">Estado</span><select className="field" name="estado" defaultValue={first(query.estado) || ""}><option value="">Todos</option>{PARTNER_STATUS_OPTIONS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label><span className="label mb-1 block">Etiqueta</span><select className="field" name="etiqueta" defaultValue={first(query.etiqueta) || ""}><option value="">Todas</option>{result.tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}</select></label>
         <button className="primary-button self-end" type="submit"><Search size={18} />Filtrar</button>
         <label className="flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" name="duplicados" value="1" defaultChecked={first(query.duplicados) === "1"} />Solo posibles duplicados</label>
-      </form>
+      </form></CompactFilterBar>
     </PageHeader>
 
     {first(query.error) ? <Notice tone="danger" title="No se pudo guardar" description={errorMessage(first(query.error))} /> : null}
@@ -61,6 +61,7 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
 
     {first(query.nuevo) === "1" ? <section id="ficha" className="card mb-5 p-4 sm:p-6"><h2 className="text-xl font-black text-obra-ink">{subcontractor ? "Alta de subcontrata" : "Alta de proveedor"}</h2><p className="mt-1 text-sm text-slate-600">Los datos permanecen aislados dentro de la empresa activa.</p><PartnerForm kind={kind} confirmDuplicate={Boolean(first(query.duplicate))} /></section> : null}
 
+    <ResultCount shown={result.items.length} total={result.total} noun={title.toLowerCase()} />
     {result.items.length ? <>
       <div className="hidden lg:block">
         <TableShell label={title}>

@@ -8,13 +8,13 @@ import { StatusPill } from "@/components/status-pill";
 import {
   ActionMenu,
   EmptyState,
-  FilterBar,
+  CompactFilterBar,
   MetricStrip,
   MobileList,
   PageHeader,
   ResponsiveTable,
-  ResultSummary,
-  SearchInput,
+  ResultCount,
+  CompactSearch,
   Tabs
 } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -74,12 +74,12 @@ export default async function BudgetsPage({ searchParams }: { searchParams: Prom
         <StatCard title="Importe aceptado" value={formatCurrency(totalAccepted)} detail="Sin alterar facturación" icon={FileText} />
       </MetricStrip>
 
-      <FilterBar className="mb-4">
+      <CompactFilterBar className="mb-4">
         <form action="/presupuestos" className="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_auto]">
           <input type="hidden" name="filtro" value={activeFilter} />
           <label>
             <span className="label mb-1 block">Buscar</span>
-            <SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Número, cliente, obra o título…" />
+            <CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Número, cliente, trabajo o título…" />
           </label>
           <button className="primary-button self-end" type="submit"><Search size={18} /> Buscar</button>
         </form>
@@ -90,9 +90,9 @@ export default async function BudgetsPage({ searchParams }: { searchParams: Prom
             </Link>
           ))}
         </Tabs>
-      </FilterBar>
+      </CompactFilterBar>
 
-      <ResultSummary shown={visibleBudgets.length} total={budgets.length} noun="presupuestos" context={hasCriteria ? <Link href="/presupuestos" className="font-bold text-obra-ink underline underline-offset-4">Limpiar filtros</Link> : null} />
+      <ResultCount shown={visibleBudgets.length} total={budgets.length} noun="presupuestos" context={hasCriteria ? <Link href="/presupuestos" className="font-bold text-obra-ink underline underline-offset-4">Limpiar filtros</Link> : null} />
 
       {visibleBudgets.length ? (
         <>

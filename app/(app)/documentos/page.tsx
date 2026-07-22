@@ -81,9 +81,9 @@ export default async function DocumentsPage() {
       </section>
 
       <section className="card mb-5 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Flujo seguro</h2>
+        <h2 className="text-lg font-black text-obra-ink">Revisión antes de generar</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Capataz permite revisar y editar cliente, obra, partidas, IVA, totales, condiciones, validez, vencimiento y estado antes de generar el PDF final.
+          Orqena permite revisar cliente, trabajo, partidas, impuestos, totales, condiciones, validez, vencimiento y estado antes de generar el documento final.
           No se envía ningún documento por WhatsApp ni email sin confirmación explícita del usuario.
         </p>
       </section>
@@ -127,9 +127,9 @@ export default async function DocumentsPage() {
       </section>
 
       <section id="archivos" className="card mb-5 scroll-mt-24 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Repositorio documental</h2>
+        <h2 className="text-lg font-black text-obra-ink">Archivos y documentos</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Capataz registra documentos reales asociados a cliente, obra, presupuesto, factura o gasto. En este entorno no hay almacenamiento de subida configurado, por lo que no se muestra un botón de upload: se guarda una ficha documental y, si existe, una URL HTTPS o ruta interna segura.
+          Orqena reúne los documentos asociados a clientes, trabajos, presupuestos, facturas y gastos. Cuando un archivo está disponible, puedes abrirlo desde su ficha.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {documents.map((document) => (
@@ -218,7 +218,7 @@ function categoryDetail(id: string) {
     facturas: "Crear, editar, cobrar y descargar",
     albaranes: "Preparado para siguientes fases",
     contratos: "Preparado para siguientes fases",
-    archivos: "Repositorio documental",
+    archivos: "Archivos y documentos",
     plantillas: "DOCX y PDF base"
   };
   return details[id] ?? "Documentos";

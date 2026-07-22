@@ -1,8 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, ArrowLeft, ChevronDown, Info, MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Info, MoreHorizontal } from "lucide-react";
 import { clsx } from "clsx";
+import { ResponsiveFilterPanel } from "@/components/compact-filters";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 type ProductPageLayout = "operational" | "analytical" | "entity" | "form" | "list" | "reading";
@@ -293,23 +294,15 @@ export function Tabs({ children, label, className }: { children: ReactNode; labe
   );
 }
 
-export function SearchInput(props: Omit<ComponentProps<"input">, "type">) {
+export function CompactSearch(props: Omit<ComponentProps<"input">, "type">) {
   return <input {...props} type="search" className={clsx("field", props.className)} />;
 }
 
-export function FilterBar({ children, className, label = "Buscar y filtrar" }: { children: ReactNode; className?: string; label?: string }) {
-  return (
-    <div className={clsx("surface p-3 sm:p-4", className)} aria-label={label}>
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-content">
-        <SlidersHorizontal size={17} aria-hidden="true" />
-        <span>Buscar y filtrar</span>
-      </div>
-      {children}
-    </div>
-  );
+export function CompactFilterBar({ children, className, label = "Buscar y filtrar" }: { children: ReactNode; className?: string; label?: string }) {
+  return <ResponsiveFilterPanel className={className} label={label}>{children}</ResponsiveFilterPanel>;
 }
 
-export function ResultSummary({ shown, total, noun, context }: { shown: number; total: number; noun: string; context?: ReactNode }) {
+export function ResultCount({ shown, total, noun, context }: { shown: number; total: number; noun: string; context?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm font-semibold text-content" aria-live="polite">

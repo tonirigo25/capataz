@@ -3,7 +3,7 @@ import { BellPlus, CalendarClock, Clock, Pencil, Plus, Receipt, Search, WalletCa
 import { prepareCollectionReminder } from "@/app/(app)/dinero/actions";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
-import { ActionMenu, EmptyState, FilterBar, MetricStrip, MobileList, Notice, PageHeader, ResponsiveTable, ResultSummary, SearchInput, Tabs } from "@/components/ui-primitives";
+import { ActionMenu, CompactFilterBar, CompactSearch, EmptyState, MetricStrip, MobileList, Notice, PageHeader, ResponsiveTable, ResultCount, Tabs } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
@@ -51,18 +51,18 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
 
       <Notice className="mb-4" tone="warning" title="Revisión fiscal" description="Las facturas en borrador deben revisarse con tu gestoría antes de usarlas como documento legal." />
 
-      <FilterBar className="mb-4">
+      <CompactFilterBar className="mb-4">
         <form action="/dinero" className="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_auto]">
           <input type="hidden" name="filtro" value={filter} />
-          <label><span className="label mb-1 block">Buscar</span><SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Factura, cliente, obra o concepto…" /></label>
+          <label><span className="label mb-1 block">Buscar</span><CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Factura, cliente, trabajo o concepto…" /></label>
           <button className="primary-button self-end" type="submit"><Search size={18} /> Buscar</button>
         </form>
         <Tabs label="Estados de factura" className="mt-3">
           {tabs.map(([id, label]) => <Link key={id} href={invoiceHref(id, query.buscar)} aria-current={filter === id ? "page" : undefined} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${filter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}>{label}</Link>)}
         </Tabs>
-      </FilterBar>
+      </CompactFilterBar>
 
-      <ResultSummary shown={visibleInvoices.length} total={invoices.length} noun="facturas" context={hasCriteria ? <Link href="/dinero?filtro=todas" className="font-bold text-obra-ink underline underline-offset-4">Limpiar filtros</Link> : null} />
+      <ResultCount shown={visibleInvoices.length} total={invoices.length} noun="facturas" context={hasCriteria ? <Link href="/dinero?filtro=todas" className="font-bold text-obra-ink underline underline-offset-4">Limpiar filtros</Link> : null} />
 
       {visibleInvoices.length ? <>
         <ResponsiveTable label="Facturas y cobros" className="mt-4">

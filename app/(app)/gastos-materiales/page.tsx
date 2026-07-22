@@ -3,6 +3,7 @@ import { FileScan, PackageCheck, Pencil, Plus, ReceiptText } from "lucide-react"
 import { updateMaterialStatus } from "@/app/(app)/gastos-materiales/actions";
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
+import { CompactFilterBar, CompactSearch, ResultCount } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
@@ -66,16 +67,17 @@ export default async function ExpensesMaterialsPage({
         }
       />
 
-      <form action="/gastos-materiales" className="card mb-3 flex gap-2 p-3">
+      <CompactFilterBar className="mb-3"><form action="/gastos-materiales" className="flex gap-2">
         <input type="hidden" name="filtro" value={query.filtro ?? "todos"} />
-        <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Buscar cemento cola, proveedor, obra..." />
+        <CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Material, proveedor o trabajo…" />
         <button type="submit" className="secondary-button shrink-0">Buscar</button>
-      </form>
+      </form></CompactFilterBar>
 
       <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
         <Link href="/gastos-materiales" className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${!query.filtro ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>Todo</Link>
         <Link href="/gastos-materiales?filtro=pendientes" className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${query.filtro === "pendientes" ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>Pendientes</Link>
       </div>
+      <ResultCount shown={visibleMaterials.length + visibleExpenses.length} total={materials.length + expenses.length} noun="resultados" />
 
       <section className="mb-5 grid grid-cols-2 gap-3">
         <div className="card p-4">

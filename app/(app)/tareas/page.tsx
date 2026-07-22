@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { createTaskAction, completeTaskAction } from "./actions";
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ export default async function TasksPage({
         title="Tareas"
         description="Bandeja, planificación, bloqueos, recurrencia y trabajo automático."
       />
-      <nav
+      <CompactFilterBar><nav
         className="flex gap-2 overflow-x-auto pb-2"
         aria-label="Filtros de tareas"
       >
@@ -77,7 +77,8 @@ export default async function TasksPage({
             {label}
           </Link>
         ))}
-      </nav>
+      </nav></CompactFilterBar>
+      <ResultCount shown={tasks.length} total={tasks.length} noun="tareas" />
       <form
         action={createTaskAction}
         className="card grid gap-3 p-4 md:grid-cols-4"

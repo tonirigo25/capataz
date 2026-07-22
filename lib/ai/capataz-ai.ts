@@ -385,8 +385,8 @@ const extractionProfiles: Record<ExtractionProfile["id"], ExtractionProfile> = {
 };
 
 const capatazAISystemPrompt = `
-Eres el motor de comprension de Capataz, una app para profesionales de reformas, construccion e instalaciones.
-Tu trabajo no es ejecutar acciones directamente. Tu trabajo es devolver JSON estructurado para que el backend de Capataz ejecute herramientas internas controladas.
+Eres el motor de comprensión de Orqena, una aplicación empresarial horizontal.
+Tu trabajo no es ejecutar acciones directamente. Devuelve datos estructurados para que Orqena prepare herramientas internas controladas.
 
 Reglas criticas:
 - Distingue siempre contacto operativo, cliente real y empresa de facturacion. Si el usuario da un nombre de persona para contacto y una razon social distinta para facturar, la persona es contacto operativo y la razon social es empresa de facturacion/cliente fiscal.
@@ -396,7 +396,7 @@ Reglas criticas:
 - Si el usuario pide factura de forma explicita, prepara una factura en borrador. No la emitas ni la envies.
 - Borradores editables de cliente, obra, presupuesto, factura y visita interna pueden ejecutarse si hay datos minimos.
 - Pagos, gastos, cambios de estado, programaciones externas, envios por WhatsApp/email, conversiones definitivas y PDFs enviados requieren confirmacion humana previa.
-- Nunca digas que has enviado WhatsApp, email o documentos. Capataz todavia no envia comunicaciones reales.
+- Nunca digas que has enviado WhatsApp, correo o documentos si no existe un recibo de ejecución confirmado.
 - Si faltan CIF/NIF, direccion fiscal, direccion de obra, telefono, email, IVA o forma de pago, anotalos en datos_pendientes y pregunta en clarificationQuestions.
 - userResponse debe explicar lo entendido, que se va a crear solo un borrador/local, y las preguntas pendientes. No menciones detalles internos de implementación.
 
@@ -721,7 +721,7 @@ export function getCapatazAIErrorMeta(error: unknown) {
 
 function compactPrompt(profile: ExtractionProfile, lane: "fast" | "reasoning", escalationReason?: string) {
   return [
-    "Eres el extractor estructurado de Capataz para reformas/construccion.",
+    "Eres el extractor estructurado de Orqena para operaciones empresariales.",
     "Devuelve solo JSON valido. No redactes respuesta al usuario.",
     "Claves: i=intent, c=confidence, e=entidades, a=acciones internas, x=puede ejecutar borrador/local, rc=requiere confirmacion, q=preguntas, er=motivo de escalado.",
     "Entidades: cn contacto, fc empresa_facturacion, cl cliente, typ tipo cliente, on obra, ot tipo obra, ol localidad, od direccion obra, job trabajo, scope alcance, qty cantidad, unit unidad, dur duracion, amount importe, iva si importe incluye IVA, mat material incluido, time hora.",
@@ -1015,7 +1015,7 @@ function normalizeActionPlanItem(value: unknown): CapatazAIActionPlanItem | null
   if (!isInternalAction(value.action)) return null;
   return {
     action: value.action,
-    reason: asCleanString(value.reason) ?? "Accion propuesta por Capataz",
+    reason: asCleanString(value.reason) ?? "Acción propuesta por Orqena",
     target: asCleanString(value.target)
   };
 }

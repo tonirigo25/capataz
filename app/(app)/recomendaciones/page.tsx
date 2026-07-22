@@ -20,7 +20,7 @@ import {
   markRecommendationViewedAction,
   snoozeRecommendationAction
 } from "@/app/(app)/recomendaciones/actions";
-import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
+import { CompactFilterBar, EmptyState, Notice, PageHeader, ResultCount } from "@/components/ui-primitives";
 import {
   getBusinessRecommendations,
   recommendationStatusLabel,
@@ -106,7 +106,7 @@ export default async function RecommendationsPage({
       <PageHeader
         eyebrow="Director de operaciones"
         title="Centro de recomendaciones"
-        description="Acciones operativas derivadas de señales reales. Capataz prioriza y explica; cualquier acción que modifique datos requiere confirmación explícita."
+        description="Acciones recomendadas a partir de la actividad del negocio. Cualquier cambio requiere confirmación explícita."
         badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{result.summary.active} activas</span>}
         secondaryActions={
           <>
@@ -115,7 +115,7 @@ export default async function RecommendationsPage({
           </>
         }
       >
-        <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/recomendaciones">
+        <CompactFilterBar><form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/recomendaciones">
           <FilterSelect name="estado" label="Estado" value={estado} options={STATUS_OPTIONS} />
           <FilterSelect name="nivel" label="Nivel" value={nivel} options={LEVEL_OPTIONS} />
           <FilterSelect name="origen" label="Origen" value={origen} options={SOURCE_OPTIONS} />
@@ -130,8 +130,10 @@ export default async function RecommendationsPage({
             <SlidersHorizontal size={18} />
             Filtrar
           </button>
-        </form>
+        </form></CompactFilterBar>
       </PageHeader>
+
+      <ResultCount shown={result.recommendations.length} total={result.recommendations.length} noun="recomendaciones" />
 
       {!result.persistenceAvailable ? (
         <Notice
@@ -181,7 +183,7 @@ export default async function RecommendationsPage({
         ) : (
           <EmptyState
             title="No hay recomendaciones con estos filtros"
-            description="Puedes ampliar estado, nivel u origen. Capataz no inventa consejos genéricos cuando no hay señales accionables."
+            description="Amplía los filtros para revisar otras prioridades y estados."
             icon={CheckCircle2}
           />
         )}

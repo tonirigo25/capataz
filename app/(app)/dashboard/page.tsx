@@ -167,13 +167,13 @@ export default async function DashboardPage({
             </section>
 
             <section aria-labelledby="dashboard-riesgos" className="section-shell">
-              <SectionHeading id="dashboard-riesgos" title="Riesgos del negocio" description="Señales deterministas ya existentes, resumidas sin puntuaciones técnicas." />
+              <SectionHeading id="dashboard-riesgos" title="Riesgos del negocio" description="Prioridades que requieren atención, ordenadas por urgencia e impacto." />
               <RiskList alerts={summary.alerts.slice(0, 5)} />
             </section>
           </div>
 
           <section aria-labelledby="dashboard-obras" className="section-shell mt-10">
-            <SectionHeading id="dashboard-obras" title="Rentabilidad por obra" description="Las obras con menor margen aparecen primero; no representa avance físico." action={<Link href="/obras?estado=activas" className="secondary-button">Ver obras</Link>} />
+            <SectionHeading id="dashboard-obras" title="Rentabilidad por trabajo" description="Los trabajos con menor margen aparecen primero según la facturación y los costes registrados." action={<Link href="/obras?estado=activas" className="secondary-button">Ver trabajos</Link>} />
             <WorkProfitability rows={summary.works.byLowestMargin.slice(0, 5)} />
           </section>
 
@@ -284,7 +284,7 @@ function CompactMetric({ label, value }: { label: string; value: string }) {
 }
 
 function RiskList({ alerts }: { alerts: BusinessAlert[] }) {
-  if (!alerts.length) return <EmptyState title="Sin riesgos deterministas ahora" description="No hay vencidos, márgenes negativos ni desviaciones relevantes detectadas con los datos disponibles." icon={ShieldAlert} />;
+  if (!alerts.length) return <EmptyState title="Sin riesgos relevantes ahora" description="No hay vencidos, márgenes negativos ni desviaciones relevantes detectadas con los datos disponibles." icon={ShieldAlert} />;
   return <div className="divide-y divide-border">{alerts.map((alert) => <Link key={alert.id} href={alert.href} className="grid min-h-16 gap-2 py-3 hover:bg-subtle sm:grid-cols-[auto_1fr_auto] sm:items-start"><Status tone={alert.severity === "danger" ? "risk" : alert.severity === "warning" ? "attention" : "neutral"}>{alert.severity === "danger" ? "Riesgo" : alert.severity === "warning" ? "Atención" : "Información"}</Status><span><span className="type-object-title block text-content">{alert.title}</span><span className="type-secondary mt-1 block">{alert.detail}</span></span><span className="text-sm font-semibold text-brand-strong">Abrir</span></Link>)}</div>;
 }
 

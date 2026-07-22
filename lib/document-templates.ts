@@ -82,14 +82,14 @@ export const documentTemplates = {
     title: "Presupuesto profesional",
     sourceDocx: "Plantilla_Presupuesto_Capataz.docx",
     sourcePdf: "Plantilla_Presupuesto_Capataz.pdf",
-    visualLabel: "Plantilla profesional de presupuesto Capataz"
+    visualLabel: "Plantilla profesional de presupuesto Orqena"
   },
   invoice: {
     kind: "invoice" as const,
     title: "Factura profesional",
     sourceDocx: "Plantilla_Factura_Capataz.docx",
     sourcePdf: "Plantilla_Factura_Capataz.pdf",
-    visualLabel: "Plantilla profesional de factura Capataz"
+    visualLabel: "Plantilla profesional de factura Orqena"
   }
 };
 
@@ -102,4 +102,3 @@ export function fillTemplatePlaceholders(template: string, values: Partial<Recor
     return result.replaceAll(`[[${placeholder}]]`, values[placeholder] ?? "");
   }, template);
 }
-

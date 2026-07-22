@@ -605,15 +605,20 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
       <div className="flex flex-col">
       {data.operationalContext ? (
-        <section className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto de ${data.operationalContext.entityName}`}>
+        <details className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto de ${data.operationalContext.entityName}`}>
+          <summary className="cursor-pointer font-semibold">Contexto de {data.operationalContext.entityName}</summary>
+          <div className="mt-3">
           <p className="type-label">Contexto operativo · {data.operationalContext.entityType}</p>
           <p className="type-object-title mt-1 text-content">{data.operationalContext.entityName}</p>
           <p className="type-secondary mt-1">{data.operationalContext.phrase}</p>
           <p className="type-meta mt-2">Siguiente paso: {data.operationalContext.nextStep}</p>
           <div className="mt-3 flex flex-wrap gap-2">{data.operationalContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
-        </section>
+          </div>
+        </details>
       ) : null}
-      <section className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
+      <details className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
+        <summary className="cursor-pointer font-semibold">Contexto actual · {data.economicContext.entityName}</summary>
+        <div className="mt-3">
         <p className="type-label">Contexto económico · datos registrados</p>
         <p className="type-object-title mt-1 text-content">{data.economicContext.entityName}</p>
         <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
@@ -625,7 +630,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </div>
         <p className="type-meta mt-2">Contexto limitado a cifras agregadas y trazables; no se exponen documentos completos en el chat.</p>
         <div className="mt-3 flex flex-wrap gap-2"><a href={data.economicContext.href} className="secondary-button min-h-10 px-3 text-xs">Abrir origen</a>{data.economicContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
-      </section>
+        </div>
+      </details>
       <div className="mb-3 flex flex-wrap gap-2">
         <button type="button" className="secondary-button min-h-10 px-3 text-xs lg:hidden" onClick={() => setShowHistory(true)}>
           <History size={16} /> Historial
@@ -633,23 +639,11 @@ export function CapatazChat({ data }: { data: ChatData }) {
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowExamples((open) => !open)}>
           Ver ejemplos
         </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Completar mis datos")}>
-          Completar mis datos
-        </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowCreate((open) => !open)}>
-          Crear algo rápido
-        </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={startNewConversation} disabled={isSending}>
           Nueva conversación
         </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Ver pendientes")} disabled={isSending}>
           Ver pendientes
-        </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Continuar tarea")} disabled={isSending}>
-          Continuar tarea
-        </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "déjalo pendiente")} disabled={isSending}>
-          Aparcar tarea
         </button>
       </div>
 
@@ -691,7 +685,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
       ) : null}
 
       <div className="card relative flex-1 overflow-hidden">
-        <div ref={messagesRef} onScroll={trackMessageScroll} className="max-h-[62dvh] min-h-[360px] space-y-3 overflow-y-auto overscroll-contain p-4" aria-live="polite">
+        <div ref={messagesRef} onScroll={trackMessageScroll} className="h-[42dvh] min-h-[280px] space-y-3 overflow-y-auto overscroll-contain p-4 md:h-auto md:max-h-[62dvh] md:min-h-[360px]" aria-live="polite">
           {chatState === "booting" ? (
             <div className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">Cargando conversación...</div>
           ) : null}
@@ -1187,7 +1181,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         type: "agenda-event",
         eventType: "recordatorio_interno",
         title: `Llamar a ${client?.nombre ?? findMentionedName(text) ?? "cliente"}`,
-        description: "Llamada preparada desde Capataz.",
+        description: "Llamada preparada con Orqena.",
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         dateTime: normalized.includes("viernes") ? nextFridayAtTen() : tomorrowAtTen(),
         requiereConfirmacion: false
@@ -1206,7 +1200,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         title: `Seguimiento cobro ${openInvoice?.numero ?? ""}`.trim() || "Seguimiento de cobro",
         description: openInvoice
           ? `Revisar cobro pendiente de ${formatCurrency(openInvoice.pendiente)}.`
-          : "Seguimiento de cobro preparado desde Capataz.",
+          : "Seguimiento de cobro preparado con Orqena.",
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         invoiceId: openInvoice?.id,
         dateTime: normalized.includes("lunes") ? nextWeekdayAt(1, 10) : tomorrowAtTen(),
@@ -1431,7 +1425,7 @@ function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-pro
       <input type="hidden" name="id" value={card.profile.id} />
       <CardTitle icon={UserRound} title="Mi perfil preparado" />
       <div className="rounded-lg bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-600">
-        Estos datos son personales del profesional que usa Capataz. No sustituyen los datos fiscales de empresa.
+        Estos datos corresponden a tu perfil personal. Los datos fiscales de la empresa se configuran por separado.
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <InputField name="nombre" label="Nombre" value={card.profile.nombre} />
@@ -1468,7 +1462,7 @@ function CompanySettingsCard({ card }: { card: Extract<ActionCard, { type: "comp
       <input type="hidden" name="id" value={card.company.id} />
       <CardTitle icon={Building2} title="Datos de empresa preparados" />
       <div className="rounded-lg bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-600">
-        Estos datos se usarán en presupuestos, facturas y PDFs. Capataz no los usará para llamarte por tu nombre.
+        Estos datos se usarán en presupuestos, facturas y documentos. Tu nombre preferido se configura en el perfil personal.
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <InputField name="nombreComercial" label="Nombre comercial" value={card.company.nombreComercial} />
@@ -1515,7 +1509,7 @@ function ExpenseCard({ card, data }: { card: Extract<ActionCard, { type: "expens
       <InputField name="concepto" label="Concepto" value={card.concept} />
       <InputField name="proveedor" label="Proveedor" value="Proveedor pendiente" />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Preparado por Capataz" />
+      <TextareaField name="notas" label="Notas" value="Preparado con Orqena" />
       <button type="submit" className="primary-button w-full">Guardar</button>
     </form>
   );
@@ -1532,7 +1526,7 @@ function PaymentCard({ card, data }: { card: Extract<ActionCard, { type: "paymen
       <SelectField name="metodo" label="Método" value="transferencia" options={[["transferencia", "Transferencia"], ["bizum", "Bizum"], ["efectivo", "Efectivo"], ["tarjeta", "Tarjeta"]]} />
       <SelectField name="tipo" label="Tipo" value="pago_parcial" options={[["senal", "Señal"], ["pago_parcial", "Pago parcial"], ["pago_final", "Pago final"], ["regularizacion", "Regularización"]]} />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Pago preparado por Capataz" />
+      <TextareaField name="notas" label="Notas" value="Pago preparado con Orqena" />
       <button type="submit" className="primary-button w-full">Confirmar pago</button>
     </form>
   );
@@ -1587,8 +1581,8 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
       <InputField name="email" label="Email" type="email" value="" />
       <InputField name="direccion" label="Dirección" value="Pendiente" />
       <InputField name="tipoCliente" label="Tipo" value="Particular" />
-      <InputField name="origen" label="Origen" value="Asistente Capataz" />
-      <TextareaField name="notas" label="Notas" value={`Lead preparado por Capataz. Trabajo solicitado: ${card.job}.`} />
+      <InputField name="origen" label="Origen" value="Orqena" />
+      <TextareaField name="notas" label="Notas" value={`Cliente potencial preparado con Orqena. Trabajo solicitado: ${card.job}.`} />
       {limited ? (
         <DemoLimitButton
           className="primary-button w-full"
@@ -1637,7 +1631,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="titulo" label="Título" value={card.title} />
       <SelectField name="estado" label="Estado" value="borrador" options={[["borrador", "Borrador"], ["pendiente_revision", "Pendiente revisión"]]} />
       <input type="hidden" name="ivaPercent" value={ivaPercent} />
-      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada por Capataz", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
+      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada con Orqena", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
       <InputField name="subtotal" label="Subtotal" type="number" value={base} />
       <InputField name="iva" label="IVA" type="number" value={iva} />
       <InputField name="descuento" label="Descuento" type="number" value={0} />
@@ -1645,7 +1639,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="margenEstimado" label="Margen estimado" type="number" value={Math.round(card.amount * 0.25 * 100) / 100} />
       <InputField name="fechaValidez" label="Fecha validez" type="datetime-local" value={inDaysInputValue(15)} />
       <TextareaField name="condiciones" label="Condiciones" value="Validez 15 días. Fechas sujetas a disponibilidad de materiales." />
-      <TextareaField name="observaciones" label="Observaciones" value="Propuesta preparada por Capataz. Revisar antes de enviar." />
+      <TextareaField name="observaciones" label="Observaciones" value="Propuesta preparada con Orqena. Revísala antes de enviar." />
       <InputField name="formaPago" label="Forma de pago" value="Transferencia / según acuerdo" />
       {limited ? (
         <DemoLimitButton
@@ -1683,7 +1677,7 @@ function InvoiceCard({ card, data }: { card: Extract<ActionCard, { type: "invoic
       <InputField name="pendiente" label="Pendiente" type="number" value={card.amount} />
       <InputField name="fechaEmision" label="Fecha emisión" type="datetime-local" value={nowInputValue()} />
       <InputField name="fechaVencimiento" label="Fecha vencimiento" type="datetime-local" value={inDaysInputValue(7)} />
-      <TextareaField name="observaciones" label="Observaciones" value="Borrador preparado por Capataz. Revisa con gestoría antes de usarlo como factura legal." />
+      <TextareaField name="observaciones" label="Observaciones" value="Borrador preparado con Orqena. Revisa los datos fiscales antes de emitirlo." />
       <InputField name="metodoPago" label="Método de pago" value="transferencia" />
       <TextareaField name="datosBancarios" label="Datos bancarios" value={data.company?.iban ?? ""} />
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
@@ -1727,7 +1721,7 @@ function CloseWorkCard({ card, data }: { card: Extract<ActionCard, { type: "clos
       <CardTitle icon={Hammer} title="Cierre de obra preparado" />
       <SelectField name="id" label="Obra" value={card.workId} options={data.works.map((work) => [work.id, `${work.titulo} · ${work.clientName}`])} />
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
-        Si hay facturas pendientes, Capataz dejará la obra como pendiente de cobro en lugar de cerrarla.
+        Si hay facturas pendientes, el trabajo quedará pendiente de cobro en lugar de cerrarse.
       </div>
       <button type="submit" className="primary-button w-full">Confirmar cierre</button>
     </form>

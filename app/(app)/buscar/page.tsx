@@ -5,7 +5,7 @@ import {
   InteractiveRow,
   PageHeader,
   ProductPage,
-  SearchInput
+  CompactSearch
 } from "@/components/ui-primitives";
 import { globalSearch } from "@/lib/search";
 
@@ -29,7 +29,7 @@ export default async function SearchPage({
 
       <form action="/buscar" className="mb-8 flex max-w-3xl gap-2" role="search">
         <label htmlFor="global-search-page" className="sr-only">Buscar en Orqena</label>
-        <SearchInput
+        <CompactSearch
           id="global-search-page"
           name="q"
           defaultValue={query}

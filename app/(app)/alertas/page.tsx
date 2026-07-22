@@ -14,7 +14,7 @@ import {
   SlidersHorizontal
 } from "lucide-react";
 import { dismissSignalAction, resolveSignalAction, snoozeSignalAction } from "@/app/(app)/alertas/actions";
-import { EmptyState, PageHeader } from "@/components/ui-primitives";
+import { CompactFilterBar, EmptyState, PageHeader, ResultCount } from "@/components/ui-primitives";
 import {
   formatSignalLevel,
   getBusinessSignals,
@@ -92,11 +92,11 @@ export default async function AlertsPage({
       <PageHeader
         eyebrow="Director de operaciones"
         title="Centro de alertas"
-        description="Señales deterministas de riesgo, prioridad y calidad de datos. Capataz propone; no envía mensajes externos ni cambia registros de negocio sin autorización explícita."
+        description="Riesgos, prioridades y datos que requieren atención. Orqena prepara acciones para que puedas revisarlas antes de confirmar."
         badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{result.summary.active} activas</span>}
         secondaryActions={<Link href="/recomendaciones" className="secondary-button"><Lightbulb size={18} /> Ver recomendaciones</Link>}
       >
-        <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/alertas">
+        <CompactFilterBar><form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/alertas">
           <FilterSelect name="estado" label="Estado" value={estado} options={STATUS_OPTIONS} />
           <FilterSelect name="nivel" label="Nivel" value={nivel} options={LEVEL_OPTIONS} />
           <FilterSelect name="origen" label="Origen" value={origen} options={SOURCE_OPTIONS} />
@@ -111,8 +111,10 @@ export default async function AlertsPage({
             <SlidersHorizontal size={18} />
             Filtrar
           </button>
-        </form>
+        </form></CompactFilterBar>
       </PageHeader>
+
+      <ResultCount shown={result.signals.length} total={result.signals.length} noun="alertas" />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
         <Metric label="Activas" value={result.summary.active} icon={ShieldAlert} tone="warning" />

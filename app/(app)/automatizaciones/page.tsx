@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/automation-templates";
 import {
@@ -38,7 +38,7 @@ export default async function AutomationsPage({
         title="Automatizaciones"
         description="Definiciones versionadas, condiciones estructuradas, historial, dry run y retries."
       />
-      <nav
+      <CompactFilterBar><nav
         className="flex gap-2 overflow-x-auto pb-2"
         aria-label="Filtros de automatizaciones"
       >
@@ -62,7 +62,8 @@ export default async function AutomationsPage({
             {label}
           </Link>
         ))}
-      </nav>
+      </nav></CompactFilterBar>
+      <ResultCount shown={items.length} total={items.length} noun="automatizaciones" />
       <form
         action={createAutomationAction}
         className="card grid gap-3 p-4 md:grid-cols-2"

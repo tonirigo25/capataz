@@ -16,7 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AgendaEventControls } from "@/components/agenda-event-controls";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, FilterBar, Notice, PageHeader, SearchInput, Tabs } from "@/components/ui-primitives";
+import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, Tabs } from "@/components/ui-primitives";
 import {
   addDays,
   getAgendaItems,
@@ -69,15 +69,15 @@ export default async function AgendaPage({
 
       <Notice className="mb-4" tone="info" title="Resumen de hoy" description={`Tienes ${todayItems.filter((item) => item.tipo === "visita").length} visitas, ${todayItems.filter((item) => item.tipo.includes("seguimiento")).length} seguimientos y ${todayItems.filter((item) => item.tipo === "vencimiento_factura").length} vencimientos.${nextVisit ? ` La próxima cita es ${nextVisit.titulo} a las ${timeLabel(nextVisit.fechaInicio)}.` : ""}`} />
 
-      <FilterBar className="mb-4">
+      <CompactFilterBar className="mb-4">
         <form action="/agenda" className="grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_12rem_auto]">
           <input type="hidden" name="vista" value={view} />
           <input type="hidden" name="dia" value={toDateInputValue(selectedDay)} />
-          <label><span className="label mb-1 block">Buscar</span><SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, obra…" /></label>
+          <label><span className="label mb-1 block">Buscar</span><CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, trabajo…" /></label>
           <label><span className="label mb-1 block">Tipo</span><select className="field" name="tipo" defaultValue={query.tipo ?? "todos"}><option value="todos">Todos</option><option value="visitas">Visitas</option><option value="cobros">Cobros</option><option value="presupuestos">Presupuestos</option><option value="materiales">Materiales</option><option value="tareas">Tareas</option></select></label>
           <button className="primary-button self-end" type="submit"><Search size={18} /> Aplicar</button>
         </form>
-      </FilterBar>
+      </CompactFilterBar>
 
       <Tabs label="Vistas de agenda" className="mb-3">
         {views.map((item) => (

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SectionHeader } from "@/components/section-header";
-import { EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, EmptyState, ResultCount } from "@/components/ui-primitives";
 import {
   ACTIVITY_KIND_OPTIONS,
   ACTIVITY_PERIOD_OPTIONS,
@@ -56,7 +56,7 @@ export default async function ActivityPage({
         description="Cambios recientes de clientes, obras, documentos, agenda y cobros. No muestra logs técnicos internos."
       />
 
-      <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+      <CompactFilterBar className="mb-4"><section className="grid gap-3 lg:grid-cols-[1fr_auto]">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {ACTIVITY_KIND_OPTIONS.map((option) => (
             <Link
@@ -79,7 +79,9 @@ export default async function ActivityPage({
             </Link>
           ))}
         </div>
-      </section>
+      </section></CompactFilterBar>
+
+      <ResultCount shown={items.length} total={items.length} noun="movimientos" />
 
       {items.length ? (
         <section className="grid gap-3" aria-label="Actividad reciente">

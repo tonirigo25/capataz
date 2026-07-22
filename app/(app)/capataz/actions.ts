@@ -64,6 +64,7 @@ import { getTreasuryOverview } from "@/lib/treasury";
 import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
+import { runConversationTurn } from "@/lib/orqena/conversation-service";
 
 async function activeCompany() {
   const context = await requireCompanyContext();
@@ -161,37 +162,21 @@ type ChatPerfTrace = {
 export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}): Promise<ChatCommandResult> {
   const trace: ChatPerfTrace = { messageId: options.messageId, conversationId: options.conversationId, idempotencyKey: options.idempotencyKey, startedAt: nowMs() };
   const persistStarted = nowMs();
-  const persisted = await persistIncomingChatMessage(text, context ?? null, options);
-  trace.messageId = persisted.messageId ?? trace.messageId;
-  trace.conversationId = persisted.conversationId;
-  await logChatPerf(trace, "db:save_user_message", persistStarted, "ok", { duplicate: persisted.duplicate });
-
-  if (persisted.result) {
-    await logChatPerf(trace, "total", trace.startedAt, "duplicate_completed");
-    return persisted.result;
-  }
-
-  if (persisted.duplicate) {
-    const result = {
-      handled: true,
-      text: "Ya estoy procesando ese mensaje. Lo mantengo en la conversación y no duplicaré acciones.",
-      context: persisted.context
-    };
-    await logChatPerf(trace, "total", trace.startedAt, "duplicate_processing");
-    return result;
-  }
-
-  try {
-    const rawResult = await runChatCommandCore(text, persisted.context, trace);
-    const result = await withStructuredResult(rawResult);
-    await completeChatMessage(trace.messageId, result);
-    await logChatPerf(trace, "total", trace.startedAt, "ok", { handled: result.handled });
-    return result;
-  } catch (error) {
-    await failChatMessage(trace.messageId, error);
-    await logChatPerf(trace, "total", trace.startedAt, "error", error instanceof Error ? { message: error.message } : undefined);
-    throw error;
-  }
+  return runConversationTurn<ChatCommandContext | null, ChatCommandResult>({
+    text,
+    context: context ?? null,
+    persist: async () => {
+      const persisted = await persistIncomingChatMessage(text, context ?? null, options);
+      trace.messageId = persisted.messageId ?? trace.messageId;
+      trace.conversationId = persisted.conversationId;
+      await logChatPerf(trace, "db:save_user_message", persistStarted, "ok", { duplicate: persisted.duplicate });
+      return { duplicate: persisted.duplicate, completed: persisted.result ?? undefined, context: persisted.context };
+    },
+    execute: async (persistedContext) => withStructuredResult(await runChatCommandCore(text, persistedContext, trace)),
+    complete: async (result) => { await completeChatMessage(trace.messageId, result); await logChatPerf(trace, "total", trace.startedAt, "ok", { handled: result.handled }); },
+    fail: async (error) => { await failChatMessage(trace.messageId, error); await logChatPerf(trace, "total", trace.startedAt, "error", error instanceof Error ? { message: error.message } : undefined); },
+    duplicateResult: (persistedContext) => ({ handled: true, text: "Ya estoy procesando ese mensaje. Lo mantengo en la conversación y no duplicaré acciones.", context: persistedContext })
+  });
 }
 
 async function runChatCommandCore(text: string, context: ChatCommandContext | null, trace: ChatPerfTrace): Promise<ChatCommandResult> {
@@ -1190,7 +1175,7 @@ async function queryTreasuryAvailableCash(intent: ChatIntentClassification): Pro
   if (!summary.hasAccounts) {
     return treasuryResult({
       title: "Saldo no disponible",
-      text: "No hay cuentas o cajas configuradas, así que Capataz no puede afirmar cuánto dinero disponible tienes. Configura una cuenta manual o caja en /tesoreria para empezar a controlar tesorería.",
+      text: "No hay cuentas o cajas configuradas. Añade tu saldo actual para completar la previsión de tesorería.",
       summary: { cuentas: 0 },
       resultCount: 0
     });
@@ -1201,7 +1186,7 @@ async function queryTreasuryAvailableCash(intent: ChatIntentClassification): Pro
 
 Este saldo sale de ${summary.accounts.length} cuentas/cajas activas. Si una cuenta tiene saldo manual, se usa ese saldo; si no, se usa saldo inicial más movimientos confirmados.
 
-No es saldo bancario conectado: solo refleja datos registrados en Capataz.`,
+La previsión utiliza únicamente los saldos y movimientos que has registrado.`,
     summary: { saldo_registrado: summary.registeredBalance, cuentas: summary.accounts.length },
     resultCount: summary.accounts.length
   });
@@ -1402,7 +1387,7 @@ async function queryTreasuryScenarioCompare(intent: ChatIntentClassification): P
 
 ${summary.scenarioComparison.map((item) => `- ${item.label}: flujo ${formatEuros(item.net)}, saldo final ${item.finalBalance === null ? "sin saldo" : formatEuros(item.finalBalance)}${item.deficitDate ? `, déficit ${formatDateShort(item.deficitDate)}` : ""}`).join("\n")}
 
-Los escenarios son simulaciones deterministas y no modifican datos reales.`,
+Los escenarios son simulaciones y no modifican tus datos.`,
     summary: {
       conservador: summary.scenarioComparison.find((item) => item.scenario === "conservative")?.finalBalance,
       base: summary.scenarioComparison.find((item) => item.scenario === "base")?.finalBalance,
@@ -1421,7 +1406,7 @@ async function queryTreasuryReview(intent: ChatIntentClassification): Promise<Ch
     text: `${treasuryIntro(summary)}
 
 Alertas:
-${alerts.length ? alerts.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail}`).join("\n") : "No hay alertas deterministas relevantes."}
+${alerts.length ? alerts.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail}`).join("\n") : "No hay alertas relevantes."}
 
 Calidad de datos:
 ${issues.length ? issues.map((issue, index) => `${index + 1}. ${issue.title}: ${issue.count}`).join("\n") : "No hay incidencias principales de calidad de datos."}`,
@@ -1500,7 +1485,7 @@ async function queryBusinessHealth(intent: ChatIntentClassification): Promise<Ch
     text: [
       summary.summaryText,
       summary.health.canCalculate ? `Índice de salud: ${summary.health.score}/100 (${summary.health.label}).` : "No hay datos suficientes para calcular el índice de salud.",
-      attention.length ? `Conviene revisar:\n${attention.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail} · ${alert.href}`).join("\n")}` : "No hay alertas deterministas relevantes ahora mismo.",
+      attention.length ? `Conviene revisar:\n${attention.map((alert, index) => `${index + 1}. ${alert.title}: ${alert.detail} · ${alert.href}`).join("\n")}` : "No hay alertas relevantes ahora mismo.",
       `Definición: ${metricDefinitionText("invoiced")}`
     ].join("\n\n")
   };
@@ -1607,7 +1592,7 @@ async function queryBusinessSlowestClient(intent: ChatIntentClassification): Pro
   return {
     handled: true,
     diagnostics: { resultCount: summary.clients.bySlowestPayment.length },
-    text: `${top.name} tiene el mayor plazo medio de cobro calculado: ${roundForChat(top.averageCollectionDays ?? 0)} días.\n\nRegla: días entre fecha de factura y fecha en que los pagos acumulados cubren el total de la factura.`,
+    text: `${top.name} tiene el mayor plazo medio de cobro calculado: ${roundForChat(top.averageCollectionDays ?? 0)} días. Se calcula entre la fecha de factura y la fecha en que los pagos acumulados cubren su total.`,
     result: {
       type: "found",
       entityType: "client",
@@ -1663,7 +1648,7 @@ async function queryBusinessComparison(intent: ChatIntentClassification): Promis
 async function queryBusinessReviewToday(intent: ChatIntentClassification): Promise<ChatCommandResult> {
   const summary = await businessSummary(intent);
   const alerts = summary.alerts.slice(0, 5);
-  if (!alerts.length) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay avisos deterministas relevantes para revisar ahora mismo." };
+  if (!alerts.length) return { handled: true, diagnostics: { resultCount: 0 }, text: "No hay avisos relevantes para revisar ahora mismo." };
   return {
     handled: true,
     diagnostics: { resultCount: alerts.length },
@@ -1697,7 +1682,7 @@ async function queryBusinessSignals(intent: ChatIntentClassification, mode: Busi
         summary: { criticas: critical.length, activas: result.summary.active },
         actions: [{ label: "Abrir alertas", href: "/alertas?nivel=critico", style: "primary" }]
       },
-      text: `Tienes ${critical.length} alertas CRÍTICAS activas. ${critical.length ? `Las principales son:\n${critical.slice(0, 5).map((signal, index) => `${index + 1}. ${signal.title}: ${signal.explanation.why}${signal.entity ? ` · ${signal.entity.href}` : ""}`).join("\n")}` : "No hay señales críticas activas ahora mismo."}\n\nNo he cambiado ningún registro.`
+      text: `Tienes ${critical.length} alertas críticas activas. ${critical.length ? `Las principales son:\n${critical.slice(0, 5).map((signal, index) => `${index + 1}. ${signal.title}: ${signal.explanation.why}${signal.entity ? ` · ${signal.entity.href}` : ""}`).join("\n")}` : "No hay alertas críticas activas ahora mismo."}`
     };
   }
   if (mode === "explain_top") {
@@ -1714,7 +1699,7 @@ async function queryBusinessSignals(intent: ChatIntentClassification, mode: Busi
         summary: { prioridad: top.prioridad, nivel: top.levelText, origen: top.sourceLabel },
         actions: [{ label: "Abrir alertas", href: "/alertas", style: "primary" }]
       },
-      text: `${top.title}\n\nPor qué: ${top.explanation.why}\n\nRegla: ${top.explanation.rule}\n\nDatos usados:\n${top.explanation.dataUsed.map((item) => `- ${item}`).join("\n")}\n\nScore: ${top.prioridad}/100. ${top.explanation.scoreBreakdown.map((item) => `${item.label} ${item.value}`).join("; ")}.\n\nSi no haces nada: ${top.explanation.consequence}\n\nNo he cambiado ningún registro.`
+      text: `${top.title}\n\nMotivo: ${top.explanation.why}\n\nInformación utilizada:\n${top.explanation.dataUsed.map((item) => `- ${item}`).join("\n")}\n\nSi no haces nada: ${top.explanation.consequence}`
     };
   }
   if (!filtered.length) {
@@ -1757,7 +1742,7 @@ async function queryBusinessSignals(intent: ChatIntentClassification, mode: Busi
 
 ${lines.join("\n")}
 
-Regla de orden: prioridad determinista por impacto económico, urgencia, riesgo, tiempo y dependencias. No he cambiado ningún registro.`
+Ordenadas por impacto económico, urgencia, riesgo, tiempo y dependencias.`
   };
 }
 
@@ -1806,7 +1791,7 @@ async function queryBusinessRecommendations(intent: ChatIntentClassification, mo
         summary: { activas: result.summary.active },
         actions: [{ label: "Abrir recomendaciones", href: "/recomendaciones", style: "primary" }]
       },
-      text: "No tienes recomendaciones prioritarias para esa consulta ahora mismo. No he cambiado ningún registro."
+      text: "No tienes recomendaciones prioritarias para esa consulta ahora mismo."
     };
   }
 
@@ -1839,7 +1824,7 @@ async function queryBusinessRecommendations(intent: ChatIntentClassification, mo
 
 ${lines.join("\n")}
 
-He guardado la primera recomendación como contexto. Puedes preguntar "por qué", "recuérdamelo mañana" o "descártalo". Si una acción modifica datos, pediré confirmación. No he cambiado ningún registro.`
+He guardado la primera recomendación como contexto. Puedes preguntar "por qué", "recuérdamelo mañana" o "descártalo". Si una acción modifica datos, pediré confirmación.`
   };
 }
 
@@ -1863,8 +1848,8 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
         actions: [{ label: "Abrir control", href: "/recomendaciones/control", style: "primary" }]
       },
       text: latest
-        ? `La última reevaluación proactiva fue el ${formatDateTime(latest.startedAt)}. Estado: ${latest.status}. Disparador: ${latest.triggeredBy}. Procesó ${latest.processedSignals} señales y ${latest.processedRecommendations} recomendaciones. No he cambiado ningún registro.`
-        : "El sistema proactivo todavía no se ha evaluado. Puedes ejecutarlo desde /recomendaciones/control. No he cambiado ningún registro."
+        ? `La última revisión fue el ${formatDateTime(latest.startedAt)}. Estado: ${latest.status}. Procesó ${latest.processedSignals} alertas y ${latest.processedRecommendations} recomendaciones.`
+        : "Todavía no hay una revisión disponible. Puedes iniciarla desde el centro de recomendaciones."
     };
   }
 
@@ -1884,7 +1869,7 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
       },
       text: lines.length
         ? `Reglas con posible ruido:\n\n${lines.join("\n")}\n\nNo he desactivado ninguna regla automáticamente.`
-        : "No veo reglas con alto descarte o exceso de recomendaciones activas. No he cambiado ningún registro."
+        : "No veo un volumen anómalo de descartes o recomendaciones activas."
     };
   }
 
@@ -1905,7 +1890,7 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
         summary: { eventos: events.length },
         actions: [{ label: "Abrir control", href: "/recomendaciones/control", style: "primary" }]
       },
-      text: lines.length ? `Historial reciente de recomendaciones:\n\n${lines.join("\n")}\n\nNo he cambiado ningún registro.` : "Aún no hay actividad del sistema proactivo. No he cambiado ningún registro."
+      text: lines.length ? `Historial reciente de recomendaciones:\n\n${lines.join("\n")}` : "Aún no hay actividad reciente de recomendaciones."
     };
   }
 
@@ -1952,7 +1937,7 @@ async function queryProactiveRecommendationLifecycle(mode: BusinessRecommendatio
       summary: { recomendaciones: items.length },
       actions: [{ label: "Abrir recomendaciones", href: "/recomendaciones", style: "primary" }]
     },
-    text: lines.length ? `${title}:\n\n${lines.join("\n")}\n\nNo he cambiado ningún registro.` : `No hay datos para "${title}" ahora mismo. No he cambiado ningún registro.`
+    text: lines.length ? `${title}:\n\n${lines.join("\n")}` : `No hay datos para "${title}" ahora mismo.`
   };
 }
 
@@ -1969,7 +1954,7 @@ async function handleCurrentRecommendation(mode: BusinessRecommendationsChatMode
         summary: { requiereContexto: true },
         actions: [{ label: "Ver recomendaciones", href: "/recomendaciones", style: "primary" }]
       },
-      text: "Necesito una recomendación concreta en contexto. Pregúntame primero qué te recomiendo hacer hoy o abre el centro de recomendaciones. No he cambiado ningún registro."
+      text: "Necesito una recomendación concreta. Pregúntame primero qué te recomiendo hacer hoy o abre el centro de recomendaciones."
     };
   }
 
@@ -1987,7 +1972,7 @@ Datos usados:
 ${current.evidence.dataUsed.map((item) => `- ${item}`).join("\n") || "- Señal activa y entidad relacionada."}
 
 Acción sugerida: ${current.preferredAction?.label ?? "Revisar en el centro"}.
-No he cambiado ningún registro.`
+Puedes revisar la propuesta antes de continuar.`
     };
   }
 
@@ -2003,7 +1988,7 @@ No he cambiado ningún registro.`
   }
 
   if (mode === "reactivate_current") {
-    await reactivateBusinessRecommendation(current.fingerprint, "Reactivada desde Capataz Chat por petición explícita.");
+    await reactivateBusinessRecommendation(current.fingerprint, "Reactivada desde Orqena por petición explícita.");
     return {
       handled: true,
       diagnostics: { resultCount: 1 },
@@ -2016,7 +2001,7 @@ No he cambiado ningún registro.`
   if (mode === "do_current") {
     const action = current.preferredAction ?? current.suggestedActions[0];
     if (!action) {
-      return { handled: true, diagnostics: { resultCount: 1 }, context: withLastRecommendationContext(context, current), text: "Esta recomendación no tiene una acción automática disponible. Puedo abrir el centro de recomendaciones para revisarla. No he cambiado ningún registro." };
+      return { handled: true, diagnostics: { resultCount: 1 }, context: withLastRecommendationContext(context, current), text: "Esta recomendación no tiene una acción directa disponible. Puedes abrir el centro de recomendaciones para revisarla." };
     }
     if (action.requiresConfirmation) {
       return {
@@ -2029,7 +2014,7 @@ No he cambiado ningún registro.`
 Vista previa:
 ${(action.preview ?? []).map((row) => `- ${row.label}: ${row.value}`).join("\n") || `- Recomendación: ${current.title}`}
 
-Confírmalo desde /recomendaciones o dime la acción concreta con todos los datos. No he cambiado ningún registro.`
+Confírmalo desde el centro de recomendaciones o dime la acción concreta con todos los datos.`
       };
     }
     return {
@@ -2037,12 +2022,12 @@ Confírmalo desde /recomendaciones o dime la acción concreta con todos los dato
       diagnostics: { resultCount: 1 },
       result: recommendationChatResult(current),
       context: withLastRecommendationContext(context, current),
-      text: `La siguiente acción es "${action.label}". Es una navegación o revisión, no una mutación. Puedes abrirla aquí: ${action.href ?? "/recomendaciones"}\n\nNo he cambiado ningún registro.`
+      text: `La siguiente acción es "${action.label}". Puedes abrirla aquí: ${action.href ?? "/recomendaciones"}`
     };
   }
 
   if (mode === "snooze_current") {
-    await snoozeBusinessRecommendation(current.fingerprint, "tomorrow", "Pospuesta desde Capataz Chat");
+    await snoozeBusinessRecommendation(current.fingerprint, "tomorrow", "Pospuesta desde Orqena");
     return {
       handled: true,
       diagnostics: { resultCount: 1 },
@@ -2053,7 +2038,7 @@ Confírmalo desde /recomendaciones o dime la acción concreta con todos los dato
 
   if (mode === "change_date_current") {
     const friday = nextWeekday(5);
-    await snoozeBusinessRecommendationUntil(current.fingerprint, friday, "Reprogramada al viernes desde Capataz Chat");
+    await snoozeBusinessRecommendationUntil(current.fingerprint, friday, "Reprogramada al viernes desde Orqena");
     return {
       handled: true,
       diagnostics: { resultCount: 1 },
@@ -2063,7 +2048,7 @@ Confírmalo desde /recomendaciones o dime la acción concreta con todos los dato
   }
 
   if (mode === "dismiss_current") {
-    await dismissBusinessRecommendation(current.fingerprint, "Descartada desde Capataz Chat");
+    await dismissBusinessRecommendation(current.fingerprint, "Descartada desde Orqena");
     return {
       handled: true,
       diagnostics: { resultCount: 1 },
@@ -2248,7 +2233,7 @@ function signalChatTitle(mode: BusinessSignalsChatMode) {
 }
 
 function signalChatIntro(mode: BusinessSignalsChatMode, activeCount: number) {
-  const base = `He revisado ${activeCount} señales activas del motor determinista.`;
+  const base = `He revisado ${activeCount} prioridades activas.`;
   if (mode === "urgent") return `${base} Lo más urgente ahora es:`;
   if (mode === "clients") return `${base} Clientes con más atención operativa:`;
   if (mode === "works") return `${base} Obras que conviene revisar:`;
@@ -3346,7 +3331,7 @@ async function createBudgetDraftFromAI(ai: CapatazAIResult): Promise<ChatCommand
         direccion: entities.direccion_fiscal ?? entities.obra_direccion ?? entities.obra_localidad ?? "Dirección pendiente",
         tipo: clientTypeFromAI(ai),
         estado: pendingFields.length ? "pendiente_datos" : "presupuesto_pendiente",
-        origen: "Asistente Capataz",
+        origen: "Orqena",
         notas: buildAIClientNotes(ai),
         ultimaInteraccion: new Date()
       }
@@ -3525,8 +3510,8 @@ async function registerActivityFromChat(command: ParsedActivityCommand): Promise
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: command.pendingConfirmation ? "seguimiento_pendiente" : "visita_pendiente",
-        origen: "Asistente Capataz",
-        notas: "Cliente provisional creado desde una actividad registrada en Capataz.",
+        origen: "Orqena",
+        notas: "Cliente provisional creado desde una actividad registrada en Orqena.",
         ultimaInteraccion: new Date()
       }
     });
@@ -3544,7 +3529,7 @@ async function registerActivityFromChat(command: ParsedActivityCommand): Promise
             presupuestoAprobado: 0,
             gastoReal: 0,
             margenEstimado: 0,
-            notas: "Obra provisional creada desde una visita o nota de Capataz."
+            notas: "Trabajo provisional creado desde una visita o nota de Orqena."
           }
         })
       : null;
@@ -3655,7 +3640,7 @@ async function completeActivityFromChat(context: ChatCommandContext, message: st
       await tx.eventoAgenda.update({
         where: { id: event.id },
         data: {
-          notas: appendNote(event.notas, `Detalle añadido en Capataz: ${cleanMessage}`),
+          notas: appendNote(event.notas, `Detalle añadido en Orqena: ${cleanMessage}`),
           descripcion: appendNote(event.descripcion, `Detalle: ${cleanMessage}`)
         }
       });
@@ -3768,8 +3753,8 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
-        origen: "Asistente Capataz",
-        notas: "Cliente provisional preparado por Capataz. Faltan apellidos, teléfono, NIF/CIF, email y dirección fiscal.",
+        origen: "Orqena",
+        notas: "Cliente provisional preparado por Orqena. Faltan apellidos, teléfono, NIF/CIF, correo y dirección fiscal.",
         ultimaInteraccion: new Date()
       }
     });
@@ -3793,7 +3778,7 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
             presupuestoAprobado: 0,
             gastoReal: 0,
             margenEstimado: 0,
-            notas: `Trabajo provisional preparado por Capataz. Material incluido: ${command.materialIncluded ? "Sí" : "No indicado"}.`
+            notas: `Trabajo provisional preparado por Orqena. Material incluido: ${command.materialIncluded ? "Sí" : "No indicado"}.`
           }
         });
 
@@ -3824,7 +3809,7 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
         estado: existingClient ? "presupuesto_pendiente" : "pendiente_datos",
         telefono: options.followUp?.phone ?? undefined,
         email: options.followUp?.email ?? undefined,
-        notas: options.followUp?.nif ? appendNote(client.notas, `NIF/CIF indicado en Capataz: ${options.followUp.nif}.`) : undefined,
+        notas: options.followUp?.nif ? appendNote(client.notas, `NIF/CIF indicado en Orqena: ${options.followUp.nif}.`) : undefined,
         ultimaInteraccion: new Date()
       }
     });
@@ -3904,7 +3889,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEn
           subtotal: totals.subtotal,
           iva: totals.iva,
           total: totals.total,
-          observaciones: appendNote(budget.observaciones, `Importe confirmado en Capataz: ${formatEuros(currentBudgetAmount)}${currentIvaMode === "plus" ? " + IVA" : currentIvaMode === "included" ? " IVA incluido" : ""}.`)
+          observaciones: appendNote(budget.observaciones, `Importe confirmado en Orqena: ${formatEuros(currentBudgetAmount)}${currentIvaMode === "plus" ? " + IVA" : currentIvaMode === "included" ? " IVA incluido" : ""}.`)
         }
       });
       updates.push(`importe ${formatEuros(currentBudgetAmount)}${currentIvaMode === "plus" ? " + IVA" : currentIvaMode === "included" ? " IVA incluido" : ""}`);
@@ -3936,7 +3921,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEn
         where: { id: budget.obraId },
         data: {
           direccion: followUp.workAddress,
-          notas: appendNote(budget.work?.notas, `Dirección/localización completada en Capataz: ${followUp.workAddress}.`)
+          notas: appendNote(budget.work?.notas, `Dirección o localización completada en Orqena: ${followUp.workAddress}.`)
         }
       });
       updates.push(`obra en ${followUp.workAddress}`);
@@ -3959,7 +3944,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEn
       updates.push(`dirección fiscal ${followUp.fiscalAddress}`);
     }
     if (followUp.nif) {
-      clientData.notas = appendNote(budget.client.notas, `NIF/CIF indicado en Capataz: ${followUp.nif}.`);
+      clientData.notas = appendNote(budget.client.notas, `NIF/CIF indicado en Orqena: ${followUp.nif}.`);
       updates.push(`NIF/CIF ${followUp.nif}`);
     }
     if (followUp.nif || followUp.fiscalAddress) {
@@ -4057,7 +4042,7 @@ async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatE
       updates.push(`dirección fiscal ${entities.fiscalAddress}`);
     }
     if (entities.nif) {
-      clientData.notas = appendNote(invoice.client.notas, `NIF/CIF indicado en Capataz: ${entities.nif}.`);
+      clientData.notas = appendNote(invoice.client.notas, `NIF/CIF indicado en Orqena: ${entities.nif}.`);
       updates.push(`NIF/CIF ${entities.nif}`);
     }
     if (entities.phone || entities.email || entities.nif || entities.fiscalAddress) {
@@ -4131,7 +4116,7 @@ async function markInvoicePaidFromChat(entities: ChatEntities, context: ChatComm
         metodo: invoice.metodoPago ?? "transferencia",
         fecha: new Date(),
         tipo: "pago_final",
-        notas: "Marcada como pagada desde Capataz."
+        notas: "Marcada como pagada desde Orqena."
       }
     }),
     prisma.invoice.update({
@@ -4198,7 +4183,7 @@ async function registerPaymentFromChat(entities: ChatEntities, context: ChatComm
         metodo: "transferencia",
         fecha: new Date(),
         tipo: nuevoPendiente <= 0 ? "pago_final" : "pago_parcial",
-        notas: "Pago registrado desde Capataz."
+        notas: "Pago registrado desde Orqena."
       }
     }),
     prisma.invoice.update({
@@ -4249,8 +4234,8 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
-        origen: "Asistente Capataz",
-        notas: "Cliente provisional preparado por Capataz para una factura. Faltan NIF/CIF y dirección fiscal.",
+        origen: "Orqena",
+        notas: "Cliente provisional preparado por Orqena para una factura. Faltan NIF/CIF y dirección fiscal.",
         ultimaInteraccion: new Date()
       }
     });
@@ -4267,7 +4252,7 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
         presupuestoAprobado: totals.total,
         gastoReal: 0,
         margenEstimado: 0,
-        notas: "Obra provisional preparada por Capataz para una factura. Revisar antes de enviar."
+        notas: "Trabajo provisional preparado por Orqena para una factura. Revisar antes de enviar."
       }
     });
 
@@ -4427,7 +4412,7 @@ async function buildPdfResult(command: ParsedPdfCommand, context: ChatCommandCon
   }
 
   if (!command.clientName) {
-    return { handled: true, text: "Dime de qué cliente o documento quieres el PDF, o abre primero un presupuesto/factura desde Capataz." };
+    return { handled: true, text: "Dime de qué cliente o documento quieres el PDF, o abre primero un presupuesto o una factura." };
   }
 
   const clientMatches = await findClientMatches(command.clientName);
@@ -5229,7 +5214,7 @@ function buildAIClientNotes(ai: CapatazAIResult) {
     entities.datos_pendientes.length ? `Datos pendientes: ${entities.datos_pendientes.join(", ")}.` : null
   ].filter(Boolean);
 
-  return notes.join("\n") || "Cliente provisional preparado por Capataz. Faltan datos para emitir documentos definitivos.";
+  return notes.join("\n") || "Cliente provisional preparado por Orqena. Faltan datos para emitir documentos definitivos.";
 }
 
 function buildAIWorkNotes(ai: CapatazAIResult) {
@@ -5244,7 +5229,7 @@ function buildAIWorkNotes(ai: CapatazAIResult) {
     entities.notas ? entities.notas : null
   ].filter(Boolean);
 
-  return notes.join("\n") || "Obra provisional preparada por Capataz.";
+  return notes.join("\n") || "Trabajo provisional preparado por Orqena.";
 }
 
 function buildAIBudgetObservations(ai: CapatazAIResult, ivaMode: IvaMode) {

@@ -204,7 +204,7 @@ export default async function FollowUpDetailPage({
       <section className="card p-4">
         <h2 className="font-black">Registrar intento manual</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Email y WhatsApp registran una interacción; Capataz no envía mensajes.
+          Email y WhatsApp registran la interacción. Revisa el mensaje antes de enviarlo.
         </p>
         <form
           action={registerAttemptAction}

@@ -13,7 +13,7 @@ const limits = [
   "Máximo 2 presupuestos",
   "Máximo 1 obra activa",
   "Máximo 3 recordatorios programados",
-  "PDFs con marca de agua Demo Capataz"
+  "Documentos con marca de agua de demostración"
 ];
 
 const nextSteps = [
@@ -31,7 +31,7 @@ const plans = [
     price: "0 €",
     icon: Smartphone,
     current: true,
-    description: "Para probar Capataz con datos ficticios y límites freemium.",
+    description: "Para probar Orqena con datos ficticios y límites de demostración.",
     features: ["Datos demo incluidos", "Límites de clientes, obras y recordatorios", "PDFs con marca de agua"],
     action: "Plan actual"
   },
@@ -115,7 +115,7 @@ export default async function SettingsPage() {
           <SystemItem label="Modo" value={systemStatus.appMode} />
           <SystemItem label="URL web" value={systemStatus.webBaseUrl} />
           <SystemItem label="API interna" value={systemStatus.internalApiPath} status="ok" />
-          <SystemItem label="Prisma / PostgreSQL" value={systemStatus.database === "ok" ? "Conectado" : "Revisar conexión"} status={systemStatus.database} />
+          <SystemItem label="Datos" value={systemStatus.database === "ok" ? "Conectados" : "Revisar conexión"} status={systemStatus.database} />
           <SystemItem label="Backend móvil" value={systemStatus.mobileServerConfigured ? "Configurado" : "Pendiente"} status={systemStatus.mobileServerConfigured ? "ok" : "warning"} />
         </div>
 
@@ -138,7 +138,7 @@ export default async function SettingsPage() {
           <div>
             <h2 className="text-lg font-black text-obra-ink">Mi perfil</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Datos de la persona que usa Capataz. Sirven para que el chat te trate por tu nombre, no para documentos fiscales.
+              Datos de tu perfil personal. Se usan para personalizar la experiencia y no sustituyen los datos fiscales.
             </p>
           </div>
         </div>
@@ -256,25 +256,25 @@ export default async function SettingsPage() {
       <section className="card mb-5 p-4">
         <div className="mb-3 flex items-center gap-2">
           <Smartphone size={20} className="text-obra-graphite" />
-          <h2 className="text-lg font-black text-obra-ink">Usar Capataz como app</h2>
+          <h2 className="text-lg font-black text-obra-ink">Usar Orqena como app</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg bg-slate-50 p-3">
             <h3 className="font-black text-obra-ink">iPhone</h3>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-slate-600">
-              <li>Abre Capataz en Safari.</li>
+              <li>Abre Orqena en Safari.</li>
               <li>Pulsa compartir.</li>
               <li>Pulsa Añadir a pantalla de inicio.</li>
-              <li>Abre Capataz desde el icono.</li>
+              <li>Abre Orqena desde el icono.</li>
             </ol>
           </div>
           <div className="rounded-lg bg-slate-50 p-3">
             <h3 className="font-black text-obra-ink">Android</h3>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-slate-600">
-              <li>Abre Capataz en Chrome.</li>
+              <li>Abre Orqena en Chrome.</li>
               <li>Pulsa el menú.</li>
               <li>Pulsa Instalar app o Añadir a pantalla de inicio.</li>
-              <li>Abre Capataz desde el icono.</li>
+              <li>Abre Orqena desde el icono.</li>
             </ol>
           </div>
         </div>

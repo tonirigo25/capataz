@@ -7,7 +7,7 @@ import { AlertTriangle, Check, Plus } from "lucide-react";
 
 export function DemoLimitButton({
   children,
-  reason = "Ya has probado cómo Capataz te ahorra tiempo. Activa tu cuenta para usarlo con tus clientes reales.",
+  reason = "Ya has probado cómo Orqena ordena tu trabajo. Activa tu cuenta para usarla con tus clientes reales.",
   href,
   currentCount,
   limit,

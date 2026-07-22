@@ -439,7 +439,7 @@ function DocumentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<typ
   return (
     <SectionList
       title="Documentos"
-      description="Repositorio documental real y PDFs derivados de presupuestos y facturas. Si no hay almacenamiento configurado, se registra una ficha documental honesta sin simular subidas."
+      description="Archivos, presupuestos y facturas relacionados con este cliente."
       emptyTitle="No hay documentos asociados."
       emptyAction={<Link href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Registrar documento</Link>}
     >

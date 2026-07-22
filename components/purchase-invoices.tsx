@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, Banknote, CalendarClock, CheckCircle2, FileCheck2, Plus, Search, ShieldAlert, WalletCards } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createPurchaseInvoice, registerPurchaseInvoicePayment, voidPurchaseInvoice } from "@/app/(app)/proveedores/actions";
-import { EmptyState, Notice, PageHeader, TableShell } from "@/components/ui-primitives";
+import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, ResultCount, TableShell } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { FISCAL_DOCUMENT_OPTIONS, getPurchaseInvoiceDetail, getPurchaseInvoiceList, PURCHASE_CATEGORY_OPTIONS } from "@/lib/procurement";
@@ -28,11 +28,11 @@ export async function PurchaseInvoiceDirectory({ companyId, kind, searchParams }
       description={subcontractor ? "Certificaciones, trabajos realizados, retenciones, pagos y vencimientos separados de las compras ordinarias." : "Facturas recibidas, pagos parciales, vencimientos, adjuntos y gasto asociado sin duplicar datos."}
       action={<Link href={`${base}?nuevo=1#factura`} className="primary-button"><Plus size={18} />Registrar factura</Link>}
     >
-      <form action={base} className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_14rem_auto]">
-        <label><span className="label mb-1 block">Buscar</span><input className="field" name="buscar" defaultValue={first(query.buscar)} placeholder="Factura, proveedor, NIF o concepto..." /></label>
+      <CompactFilterBar><form action={base} className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_14rem_auto]">
+        <label><span className="label mb-1 block">Buscar</span><CompactSearch name="buscar" defaultValue={first(query.buscar)} placeholder="Factura, proveedor, NIF o concepto..." /></label>
         <label><span className="label mb-1 block">Estado</span><select className="field" name="estado" defaultValue={first(query.estado) || ""}><option value="">Todos</option>{statusOptions.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
         <button className="primary-button self-end" type="submit"><Search size={18} />Aplicar</button>
-      </form>
+      </form></CompactFilterBar>
     </PageHeader>
     {first(query.error) ? <Notice tone="danger" title="No se pudo completar la operación" description={errorMessage(first(query.error))} /> : null}
     <section className="my-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -42,6 +42,7 @@ export async function PurchaseInvoiceDirectory({ companyId, kind, searchParams }
       <Metric icon={Banknote} label="Pagado" value={formatCurrency(sum(invoices.map((invoice) => invoice.paidAmount)))} />
     </section>
     {first(query.nuevo) === "1" ? <section id="factura" className="card mb-5 p-4 sm:p-6"><h2 className="text-xl font-black">Registrar {subcontractor ? "factura de subcontrata" : "factura de proveedor"}</h2><p className="mt-1 text-sm text-slate-600">Se creará un gasto enlazado para alimentar obra y tesorería una sola vez.</p><InvoiceForm kind={kind} partners={partners} works={works} selectedPartner={first(query.partner)} selectedWork={first(query.obra)} /></section> : null}
+    <ResultCount shown={invoices.length} total={invoices.length} noun="facturas" />
     {invoices.length ? <>
       <div className="hidden lg:block"><TableShell label="Facturas recibidas"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500"><tr><th className="px-4 py-3">Factura</th><th className="px-4 py-3">{subcontractor ? "Subcontrata" : "Proveedor"}</th><th className="px-4 py-3">Obra</th><th className="px-4 py-3">Vencimiento</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">Pendiente</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3"></th></tr></thead><tbody className="divide-y divide-slate-100 bg-white">{invoices.map((invoice) => <tr key={invoice.id}><td className="px-4 py-4"><Link className="font-black hover:underline" href={`${base}/${invoice.id}`}>{invoice.invoiceNumber}</Link><p className="text-xs text-slate-500">{invoice.description}</p></td><td className="px-4 py-4"><Link className="font-bold hover:underline" href={`${subcontractor ? "/subcontratas" : "/proveedores"}/${invoice.businessPartner.id}`}>{invoice.businessPartner.commercialName}</Link><p className="text-xs text-slate-500">{invoice.businessPartner.taxId || "NIF pendiente"}</p></td><td className="px-4 py-4">{invoice.work?.titulo || "Gasto general"}</td><td className="px-4 py-4">{formatDate(invoice.dueDate)}</td><td className="px-4 py-4 font-black">{formatCurrency(invoice.total)}</td><td className="px-4 py-4 font-black text-obra-red">{formatCurrency(invoice.pendingAmount)}</td><td className="px-4 py-4"><InvoiceStatus status={invoice.status} /></td><td className="px-4 py-4 text-right"><Link className="secondary-button" href={`${base}/${invoice.id}`}>Revisar</Link></td></tr>)}</tbody></table></TableShell></div>
       <div className="grid gap-3 lg:hidden">{invoices.map((invoice) => <article key={invoice.id} className="card p-4"><div className="flex justify-between gap-3"><div><Link href={`${base}/${invoice.id}`} className="font-black">{invoice.invoiceNumber}</Link><p className="text-sm text-slate-600">{invoice.businessPartner.commercialName}</p></div><InvoiceStatus status={invoice.status} /></div><div className="mt-3 grid grid-cols-2 gap-2"><Mini label="Total" value={formatCurrency(invoice.total)} /><Mini label="Pendiente" value={formatCurrency(invoice.pendingAmount)} /><Mini label="Vencimiento" value={formatDate(invoice.dueDate)} /><Mini label="Obra" value={invoice.work?.titulo || "General"} /></div><Link className="primary-button mt-3 w-full" href={`${base}/${invoice.id}`}>Abrir factura</Link></article>)}</div>
@@ -89,7 +90,7 @@ function InvoiceForm({ kind, partners, works, selectedPartner, selectedWork }: {
     <Field label="Concepto"><input className="field" required name="description" /></Field>
     {sub ? <div className="grid gap-4 md:grid-cols-2"><Field label="Trabajos realizados"><textarea className="field min-h-24" name="workDescription" /></Field><Field label="Certificaciones"><textarea className="field min-h-24" name="certifications" placeholder="Certificación, periodo, medición o hito..." /></Field></div> : null}
     <Field label="Observaciones"><textarea className="field min-h-20" name="notes" /></Field>
-    <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">Capataz registrará una sola salida prevista mediante el gasto enlazado. La factura seguirá siendo el registro de pagos, vencimiento e historial.</p>
+    <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">La salida prevista se registrará mediante el gasto enlazado. La factura conservará pagos, vencimiento e historial.</p>
     <button className="primary-button w-full sm:w-auto" type="submit">Registrar factura y gasto</button>
   </form>;
 }

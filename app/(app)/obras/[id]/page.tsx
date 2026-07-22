@@ -298,7 +298,7 @@ function MaterialsTab({ materials, pendingCount, workId }: { materials: any[]; p
           ))}
         </div>
       ) : (
-        <EmptyState title="No hay materiales registrados" description="Los materiales aparecerán aquí cuando se registren desde gestión o Capataz." icon={Package} action={<Link href={`/gestion?tipo=material&obraId=${workId}&returnTo=/obras/${workId}`} className="secondary-button">Añadir material</Link>} />
+        <EmptyState title="No hay materiales registrados" description="Los materiales aparecerán aquí cuando los añadas desde gestión u Orqena." icon={Package} action={<Link href={`/gestion?tipo=material&obraId=${workId}&returnTo=/obras/${workId}`} className="secondary-button">Añadir material</Link>} />
       )}
     </Section>
   );

@@ -98,7 +98,7 @@ export const TREASURY_DEFINITIONS = [
     id: "registered_cash_balance",
     name: "Saldo de tesorería registrado",
     formula: "Suma de saldos de cuentas activas: saldo manual vigente o saldo inicial más movimientos confirmados.",
-    limitation: "Si no hay cuentas o cajas configuradas, Capataz no muestra saldo bancario."
+    limitation: "Añade una cuenta o caja para completar el saldo disponible."
   },
   {
     id: "cash_flow",
@@ -1352,7 +1352,7 @@ function forecastAssumptions(scenario: TreasuryScenarioId, registeredBalance: nu
     `Horizonte: ${formatShortDate(horizon.start)} a ${formatShortDate(horizon.end)}.`,
     "Las facturas pendientes se tratan como cobros previstos, no como dinero disponible.",
     "Los gastos sin fecha de pago no se ubican arbitrariamente en el calendario.",
-    "No incluye movimientos bancarios externos no registrados en Capataz."
+    "Incluye los movimientos registrados hasta este momento."
   ];
 }
 

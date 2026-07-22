@@ -290,7 +290,7 @@ export function buildWorkDocuments(work: {
       name: document.name,
       href: document.url ?? null,
       date: document.createdAt,
-      source: document.url ? "Repositorio documental" : "Ficha documental sin archivo adjunto"
+      source: document.url ? "Archivo asociado" : "Ficha sin archivo adjunto"
     }))
   ].sort((a, b) => timeValue(b.date) - timeValue(a.date));
 }

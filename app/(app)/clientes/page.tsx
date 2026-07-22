@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from "react";
 import { AlertTriangle, Archive, ArrowLeft, ArrowRight, BriefcaseBusiness, CircleDollarSign, Eraser, Eye, FileClock, Search, SlidersHorizontal, UserPlus } from "lucide-react";
 import { DemoLimitButton } from "@/components/demo-limit-button";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, FilterBar, PageHeader, ResultSummary, SearchInput, TableShell } from "@/components/ui-primitives";
+import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, TableShell } from "@/components/ui-primitives";
 import { getClientList, type ClientListItem, type ClientListQuery } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCompanyContext } from "@/lib/auth/session";
@@ -74,13 +74,13 @@ export default async function ClientsPage({
           </DemoLimitButton>
         }
       >
-        <FilterBar>
+        <CompactFilterBar>
         <form action="/clientes" className="grid gap-3" aria-label="Buscar y filtrar clientes">
           <div className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_13rem_13rem_13rem_13rem_auto]">
             <label>
               <span className="label mb-1 block">Buscar</span>
               <span className="flex gap-2">
-                <SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Nombre, CIF/NIF, email, teléfono…" />
+                <CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Nombre, CIF/NIF, email, teléfono…" />
                 <button className="icon-button lg:hidden" type="submit" aria-label="Buscar clientes">
                   <Search size={19} />
                 </button>
@@ -127,10 +127,10 @@ export default async function ClientsPage({
             </div>
           ) : null}
         </form>
-        </FilterBar>
+        </CompactFilterBar>
       </PageHeader>
 
-      <ResultSummary shown={result.items.length} total={result.total} noun="clientes" context={<>{query.archivo === "archivados" ? (
+      <ResultCount shown={result.items.length} total={result.total} noun="clientes" context={<>{query.archivo === "archivados" ? (
           <span className="inline-flex items-center gap-2">
             <Archive size={16} />
             Mostrando clientes archivados

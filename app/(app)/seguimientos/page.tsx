@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { createFollowUpAction } from "./actions";
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ export default async function FollowUpsPage({
         title="Seguimientos"
         description="Próximas acciones, intentos manuales y resultados estructurados."
       />
-      <nav
+      <CompactFilterBar><nav
         className="flex gap-2 overflow-x-auto pb-2"
         aria-label="Filtros de seguimientos"
       >
@@ -69,7 +69,8 @@ export default async function FollowUpsPage({
             {label}
           </Link>
         ))}
-      </nav>
+      </nav></CompactFilterBar>
+      <ResultCount shown={items.length} total={items.length} noun="seguimientos" />
       <form
         action={createFollowUpAction}
         className="card grid gap-3 p-4 md:grid-cols-3"

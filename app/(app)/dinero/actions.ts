@@ -120,7 +120,7 @@ export async function markInvoicePaid(formData: FormData) {
         metodo: String(formData.get("metodo") ?? invoice.metodoPago ?? "transferencia"),
         fecha: new Date(),
         tipo: "pago_final",
-        notas: "Marcada como pagada manualmente desde Capataz."
+        notas: "Marcada como pagada manualmente desde Orqena."
       }
     }),
     prisma.invoice.update({

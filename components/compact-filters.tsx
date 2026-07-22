@@ -13,3 +13,12 @@ export function FilterSheet({ open, title = "Filtros", children, onClose, onClea
   if (!open) return null;
   return <div className="fixed inset-0 z-50 bg-black/35 md:flex md:items-center md:justify-center" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div ref={panel} role="dialog" aria-modal="true" aria-labelledby="filter-sheet-title" tabIndex={-1} className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl outline-none md:static md:w-[520px] md:rounded-2xl"><header className="mb-4 flex items-center justify-between"><h2 id="filter-sheet-title" className="type-section-title">{title}</h2><button type="button" className="icon-button" onClick={onClose} aria-label="Cerrar filtros"><X/></button></header>{children}<footer className="sticky bottom-0 mt-5 flex gap-2 bg-surface py-2"><button type="button" className="secondary-button flex-1" onClick={onClear}>Limpiar</button><button type="button" className="primary-button flex-1" onClick={onClose}>Aplicar</button></footer></div></div>;
 }
+
+export function ResponsiveFilterPanel({ children, className, label = "Buscar y filtrar" }: { children: ReactNode; className?: string; label?: string }) {
+  const [open, setOpen] = useState(false);
+  return <div className={className} aria-label={label}>
+    <div className="md:hidden"><FilterTrigger count={0} onClick={() => setOpen(true)} /></div>
+    <div className="hidden surface p-4 md:block"><div className="[&_form]:grid [&_form]:gap-3">{children}</div></div>
+    <FilterSheet open={open} onClose={() => setOpen(false)}>{children}</FilterSheet>
+  </div>;
+}

@@ -65,7 +65,7 @@ export function repositoryDocumentDisplay(document: RepositoryDocumentInput): Do
     relatedLabel: relatedLabel(document),
     date: document.createdAt,
     href: document.url ?? null,
-    source: document.url ? "Repositorio documental" : "Ficha documental sin archivo adjunto",
+    source: document.url ? "Archivo asociado" : "Ficha sin archivo adjunto",
     canPreview: canPreview(document.mimeType, document.url),
     canDownload: Boolean(document.url),
     archivedAt: document.archivedAt
