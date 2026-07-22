@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -320,6 +320,9 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const followLatestRef = useRef(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     welcomeMessage(displayName)
   ]);
@@ -328,9 +331,27 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const missingProfile = data.completion.profile.missingRequired.length + data.completion.profile.missingRecommended.length;
   const missingCompany = data.completion.company.missingRequired.length + data.completion.company.missingRecommended.length;
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  useLayoutEffect(() => {
+    const container = messagesRef.current;
+    if (!container || !followLatestRef.current) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: isSending ? "auto" : "smooth" });
   }, [messages, isSending, progressIndex]);
+
+  function trackMessageScroll() {
+    const container = messagesRef.current;
+    if (!container) return;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 96;
+    followLatestRef.current = nearBottom;
+    setShowJumpToLatest(!nearBottom);
+  }
+
+  function jumpToLatest() {
+    const container = messagesRef.current;
+    if (!container) return;
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }
 
   useEffect(() => {
     if (!isSending) return;
@@ -410,6 +431,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
     setProgressSteps(progressStepsForMessage(text));
     setProgressIndex(0);
     setMessages((current) => [...current, userMessage]);
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
     setInput("");
     inFlightRef.current = true;
     setIsSending(true);
@@ -466,6 +489,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
   }
 
   function openConversation(conversation: ChatHistoryConversation) {
+    followLatestRef.current = true;
     activeConversationRef.current = conversation.id;
     setConversationId(conversation.id);
     setMessages(messagesFromConversation(conversation, displayName));
@@ -666,8 +690,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </div>
       ) : null}
 
-      <div className="card flex-1 overflow-hidden">
-        <div className="max-h-[62dvh] min-h-[360px] space-y-3 overflow-y-auto p-4">
+      <div className="card relative flex-1 overflow-hidden">
+        <div ref={messagesRef} onScroll={trackMessageScroll} className="max-h-[62dvh] min-h-[360px] space-y-3 overflow-y-auto overscroll-contain p-4" aria-live="polite">
           {chatState === "booting" ? (
             <div className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">Cargando conversación...</div>
           ) : null}
@@ -720,6 +744,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
           <div ref={bottomRef} />
         </div>
 
+        {showJumpToLatest ? <button type="button" className="secondary-button absolute bottom-24 left-1/2 z-10 -translate-x-1/2 shadow-lg" onClick={jumpToLatest}>Ir al último mensaje</button> : null}
+
         <form onSubmit={submit} className="border-t border-slate-200 p-3">
           {voiceStatus !== "idle" || voiceError ? (
             <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-semibold ${voiceStatus === "error" ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
@@ -733,8 +759,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
               className="field"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              aria-label="Mensaje para Capataz"
-              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Capataz..."}
+              aria-label="Mensaje para Orqena"
+              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Orqena..."}
             />
             <button
               type="button"
@@ -762,7 +788,7 @@ function welcomeMessage(displayName: string | null): Message {
     role: "assistant",
     text: displayName
       ? `Hola ${displayName}, dime qué necesitas y lo dejamos ordenado.`
-      : "Hola, soy Capataz. Puedo ayudarte con clientes, visitas, presupuestos, facturas, cobros y recordatorios. ¿Cómo te llamas?"
+      : "Hola, soy Orqena. Puedo ayudarte a ordenar clientes, trabajo, ventas, cobros y agenda. ¿Por dónde empezamos?"
   };
 }
 

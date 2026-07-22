@@ -471,6 +471,43 @@ enum CompanyRole {
   VIEWER
 }
 
+enum OrganizationType {
+  SELF_EMPLOYED
+  COMPANY
+}
+
+enum BusinessMemoryScope {
+  COMPANY
+  USER
+  CLIENT
+  WORK
+  PARTNER
+}
+
+enum BusinessMemoryCategory {
+  FACT
+  PREFERENCE
+  TERMINOLOGY
+  PROCESS
+  DEFAULT
+  ALIAS
+}
+
+enum BusinessMemoryStatus {
+  SUGGESTED
+  CONFIRMED
+  REJECTED
+  ARCHIVED
+}
+
+enum BusinessMemorySourceType {
+  USER_MESSAGE
+  CONFIRMED_ACTION
+  MANUAL_SETTING
+  IMPORT
+  SYSTEM_DERIVED
+}
+
 enum MembershipStatus {
   invited
   active
@@ -1466,18 +1503,20 @@ model ChatMessage {
 }
 
 model ChatConversation {
-  id             String        @id @default(cuid())
-  companyId      String?
-  title          String
-  status         String        @default("active")
-  activeTask     Json?
-  metadata       Json?
-  lastActivityAt DateTime      @default(now())
-  archivedAt     DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  messages       ChatMessage[]
-  company        Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                  String        @id @default(cuid())
+  companyId           String?
+  title               String
+  status              String        @default("active")
+  activeTask          Json?
+  structuredContext   Json?
+  pendingConfirmation Json?
+  metadata            Json?
+  lastActivityAt      DateTime      @default(now())
+  archivedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  messages            ChatMessage[]
+  company             Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([status, lastActivityAt])
   @@index([status, updatedAt])
@@ -2030,87 +2069,129 @@ model User {
   passwordResetTokens PasswordResetToken[]
   securityAuditEvents SecurityAuditEvent[]
   uploadedDocuments   Document[]
+  businessMemories    BusinessMemory[]         @relation("BusinessMemoryUser")
+  confirmedMemories   BusinessMemory[]         @relation("BusinessMemoryConfirmer")
 
   @@index([status])
 }
 
 model Company {
-  id                  String                    @id @default(cuid())
-  slug                String                    @unique
-  nombreComercial     String
-  razonSocial         String?
-  taxId               String?
-  email               String?
-  telefono            String?
-  direccion           String?
-  codigoPostal        String?
-  ciudad              String?
-  provincia           String?
-  pais                String                    @default("España")
-  timezone            String                    @default("Europe/Madrid")
-  locale              String                    @default("es-ES")
-  status              CompanyStatus             @default(active)
-  isDemo              Boolean                   @default(false)
-  legacyEmpresaId     String?                   @unique
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
-  archivedAt          DateTime?
-  web                 String?
-  contactPerson       String?
-  iban                String?
-  defaultConditions   String?
-  legalText           String?
-  logoUrl             String?
-  sealUrl             String?
-  brandColor          String                    @default("#f6c945")
-  defaultVat          Float                     @default(21)
-  currency            String                    @default("EUR")
-  budgetValidityDays  Int                       @default(15)
-  defaultPaymentTerms String?
-  budgetSeries        String                    @default("2026")
-  invoiceSeries       String                    @default("2026")
-  workSeries          String                    @default("2026")
-  budgetPrefix        String                    @default("P")
-  invoicePrefix       String                    @default("F")
-  workPrefix          String                    @default("OB")
-  memberships         CompanyMembership[]
-  securityAuditEvents SecurityAuditEvent[]
-  clients             Client[]
-  contacts            Contact[]
-  works               Work[]
-  budgets             Budget[]
-  invoices            Invoice[]
-  payments            Payment[]
-  expenses            Expense[]
-  materials           Material[]
-  documents           Document[]
-  internalNotes       InternalNote[]
-  reminders           Reminder[]
-  agendaEvents        EventoAgenda[]
-  notifications       Notification[]
-  financialAccounts   FinancialAccount[]
-  cashMovements       CashMovement[]
-  recurringExpenses   RecurringExpense[]
-  expectedCashFlows   ExpectedCashFlow[]
-  chatConversations   ChatConversation[]
-  signalStates        BusinessSignalState[]
-  recommendations     BusinessRecommendation[]
-  automations         AutomationDefinition[]
-  automationRuns      AutomationRun[]
-  tasks               Task[]
-  followUps           FollowUp[]
-  treasurySettings    TreasurySettings[]
-  documentSequences   CompanyDocumentSequence[]
-  businessPartners    BusinessPartner[]
-  partnerHistory      BusinessPartnerHistory[]
-  partnerWorkLinks    BusinessPartnerWork[]
-  purchaseInvoices    PurchaseInvoice[]
-  purchasePayments    PurchaseInvoicePayment[]
-  purchaseHistory     PurchaseInvoiceHistory[]
-  partnerLearning     PartnerLearning[]
+  id                     String                    @id @default(cuid())
+  slug                   String                    @unique
+  nombreComercial        String
+  razonSocial            String?
+  taxId                  String?
+  email                  String?
+  telefono               String?
+  direccion              String?
+  codigoPostal           String?
+  ciudad                 String?
+  provincia              String?
+  pais                   String                    @default("España")
+  timezone               String                    @default("Europe/Madrid")
+  locale                 String                    @default("es-ES")
+  status                 CompanyStatus             @default(active)
+  isDemo                 Boolean                   @default(false)
+  legacyEmpresaId        String?                   @unique
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  archivedAt             DateTime?
+  web                    String?
+  contactPerson          String?
+  iban                   String?
+  defaultConditions      String?
+  legalText              String?
+  logoUrl                String?
+  sealUrl                String?
+  brandColor             String                    @default("#f6c945")
+  defaultVat             Float                     @default(21)
+  currency               String                    @default("EUR")
+  budgetValidityDays     Int                       @default(15)
+  defaultPaymentTerms    String?
+  budgetSeries           String                    @default("2026")
+  invoiceSeries          String                    @default("2026")
+  workSeries             String                    @default("2026")
+  budgetPrefix           String                    @default("P")
+  invoicePrefix          String                    @default("F")
+  workPrefix             String                    @default("OB")
+  organizationType       OrganizationType?
+  sectorKey              String?
+  terminologyOverrides   Json?
+  businessProfileVersion String?
+  onboardingCompletedAt  DateTime?
+  onboardingState        Json?
+  memberships            CompanyMembership[]
+  securityAuditEvents    SecurityAuditEvent[]
+  clients                Client[]
+  contacts               Contact[]
+  works                  Work[]
+  budgets                Budget[]
+  invoices               Invoice[]
+  payments               Payment[]
+  expenses               Expense[]
+  materials              Material[]
+  documents              Document[]
+  internalNotes          InternalNote[]
+  reminders              Reminder[]
+  agendaEvents           EventoAgenda[]
+  notifications          Notification[]
+  financialAccounts      FinancialAccount[]
+  cashMovements          CashMovement[]
+  recurringExpenses      RecurringExpense[]
+  expectedCashFlows      ExpectedCashFlow[]
+  chatConversations      ChatConversation[]
+  signalStates           BusinessSignalState[]
+  recommendations        BusinessRecommendation[]
+  automations            AutomationDefinition[]
+  automationRuns         AutomationRun[]
+  tasks                  Task[]
+  followUps              FollowUp[]
+  treasurySettings       TreasurySettings[]
+  documentSequences      CompanyDocumentSequence[]
+  businessPartners       BusinessPartner[]
+  partnerHistory         BusinessPartnerHistory[]
+  partnerWorkLinks       BusinessPartnerWork[]
+  purchaseInvoices       PurchaseInvoice[]
+  purchasePayments       PurchaseInvoicePayment[]
+  purchaseHistory        PurchaseInvoiceHistory[]
+  partnerLearning        PartnerLearning[]
+  businessMemories       BusinessMemory[]
 
   @@index([status])
   @@index([isDemo])
+}
+
+model BusinessMemory {
+  id                   String                   @id @default(cuid())
+  companyId            String
+  userId               String?
+  scope                BusinessMemoryScope
+  entityType           String?
+  entityId             String?
+  category             BusinessMemoryCategory
+  key                  String
+  value                Json
+  summary              String
+  sourceType           BusinessMemorySourceType
+  sourceConversationId String?
+  sourceMessageId      String?
+  confidence           Float?
+  status               BusinessMemoryStatus     @default(SUGGESTED)
+  confirmedAt          DateTime?
+  confirmedById        String?
+  expiresAt            DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  archivedAt           DateTime?
+  company              Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user                 User?                    @relation("BusinessMemoryUser", fields: [userId], references: [id], onDelete: SetNull)
+  confirmedBy          User?                    @relation("BusinessMemoryConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, updatedAt])
+  @@index([companyId, scope, entityType, entityId])
+  @@index([companyId, category, key])
+  @@index([userId, status])
+  @@index([expiresAt])
 }
 
 model BusinessPartner {
