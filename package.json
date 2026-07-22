@@ -28,6 +28,7 @@
     "test:orqena-commercial-platform": "node scripts/validate-orqena-commercial-platform.mjs",
     "validate:orqena-visual": "node scripts/validate-orqena-visual.mjs",
     "commercial:setup-local": "tsx scripts/configure-commercial-platform.ts",
+    "commercial:provision-staging": "tsx scripts/provision-staging.ts",
     "test:multitenancy-core": "tsx scripts/validate-multitenancy-core.ts",
     "test:numbering-contract": "npx tsx scripts/validate-numbering-contract.mjs",
     "test:multitenancy-relations": "tsx scripts/validate-multitenancy-core.ts",
