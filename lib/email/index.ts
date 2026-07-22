@@ -20,10 +20,22 @@ class SafeDevelopmentProvider implements EmailProvider {
   }
 }
 
+function localProviderAllowed() {
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase();
+  return process.env.EMAIL_PROVIDER === "local" && ["development", "test", "staging"].includes(appEnv ?? "");
+}
+
+export function getEmailProviderStatus() {
+  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) return "resend" as const;
+  if (localProviderAllowed() || process.env.NODE_ENV !== "production") return "local" as const;
+  return "missing" as const;
+}
+
 function getProvider(): EmailProvider {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (apiKey && from) return new ResendEmailProvider(apiKey, from);
+  if (localProviderAllowed()) return new SafeDevelopmentProvider();
   if (process.env.NODE_ENV === "production") throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
   return new SafeDevelopmentProvider();
 }
