@@ -2,11 +2,13 @@ import { prisma } from "../lib/prisma";
 import { createOpaqueToken, hashPassword, hashToken, normalizeEmail } from "../lib/auth/crypto";
 import { ensureBasePlans, provisionCompany } from "../lib/commercial/provisioning";
 
-const EXPECTED_ENVIRONMENT_ID = "7af806c2-99b7-4c70-9499-59b4551c5c03";
-const EXPECTED_DATABASE_SERVICE_ID = "54c02a1a-5b1d-44ee-9a63-9b1123bbc8dc";
+const EXPECTED_PROJECT_ID = "5a501cb4-639e-4dd3-a1fb-08ae1c839ebb";
+const EXPECTED_ENVIRONMENT_ID = "8c1eb538-d7a4-4963-bb7d-5567ecf93ac2";
+const EXPECTED_DATABASE_SERVICE_ID = "44a39d4f-5bbe-4ebd-91c2-57b7f767aeda";
 
 function requireStaging() {
   if (process.env.RAILWAY_ENVIRONMENT_NAME !== "staging") throw new Error("STAGING_ENVIRONMENT_REQUIRED");
+  if (process.env.RAILWAY_PROJECT_ID !== EXPECTED_PROJECT_ID) throw new Error("STAGING_PROJECT_ID_MISMATCH");
   if (process.env.RAILWAY_ENVIRONMENT_ID !== EXPECTED_ENVIRONMENT_ID) throw new Error("STAGING_ENVIRONMENT_ID_MISMATCH");
   if (process.env.ORQENA_STAGING_DATABASE_SERVICE_ID !== EXPECTED_DATABASE_SERVICE_ID) throw new Error("STAGING_DATABASE_SERVICE_ID_MISMATCH");
   if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_APP_ENV !== "staging") throw new Error("PRODUCTION_TARGET_FORBIDDEN");
