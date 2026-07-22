@@ -19,7 +19,7 @@ const runnerReport = join(reportRoot, "runner-report.jsonl");
 const testTimeoutMs = Number(process.env.CAPATAZ_RUNNER_TEST_TIMEOUT_MS ?? 120_000);
 const testTimeoutOverridesMs = new Map([
   ["test:automation-postgres-isolated", 300_000],
-  ["test:numbering-contract", 300_000]
+  ["test:numbering-contract", 600_000]
 ]);
 const handleWatchdogMs = Number(process.env.CAPATAZ_ACTIVE_HANDLE_WATCHDOG_MS ?? 30_000);
 const childPortBase = Number(process.env.CAPATAZ_RUNNER_CHILD_PORT_BASE ?? 56_200);

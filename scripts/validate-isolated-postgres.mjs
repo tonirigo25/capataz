@@ -114,7 +114,7 @@ try {
     "20260712210000_company_numbering_and_settings",
     "20260713193000_company_document_sequences",
   ];
-  const postIdentityMigrations = ["20260717120000_procurement_management", "20260722120000_orqena_macrophase_1"];
+  const postIdentityMigrations = ["20260717120000_procurement_management", "20260722120000_orqena_macrophase_1", "20260722190000_orqena_commercial_platform"];
   for (const migration of [...incrementalMigrations, ...postIdentityMigrations]) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
     "npx.cmd",

@@ -183,3 +183,6 @@ La ruta publica `/api/status` devuelve `app`, `database`, `environment` y `times
 Tambien devuelve `ai.openai` como `ok` o `missing` y el modelo configurado, sin mostrar la clave. Si `NEXT_PUBLIC_APP_ENV=production`, `OPENAI_API_KEY` pasa a ser obligatoria para el healthcheck.
 
 Para diagnostico de modelos IA existe `/api/status/ai`. Por defecto no llama a OpenAI; con `/api/status/ai?live=1` hace una llamada minima a `OPENAI_MODEL_FAST` y `OPENAI_MODEL_REASONING` y devuelve sólo estado, modelo y duración, nunca la clave.
+# Macrofase 2
+
+La migración `20260722190000_orqena_commercial_platform` es aditiva. No inserta operadores internos, planes premium ni usuarios. El catálogo y el primer PLATFORM_OWNER se configuran con el script local explícito documentado en README; en un despliegue futuro deberá existir un procedimiento autorizado separado. No hay proveedor de billing ni correo transaccional real habilitado por esta migración.

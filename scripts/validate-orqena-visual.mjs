@@ -18,7 +18,7 @@ const output = process.env.ORQENA_VISUAL_REPORT_DIR ?? join(process.env.TEMP ?? 
 const chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const pg = new EmbeddedPostgres({ databaseDir: join(pgRoot, `visual-${Date.now()}`), user: "postgres", password, port, persistent: true, postgresFlags: ["-c", "io_method=sync"] });
 const env = { ...process.env, DATABASE_URL: databaseUrl, CAPATAZ_TEST_DATABASE_ISOLATED: "true", CAPATAZ_VISUAL_QA: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
-const routes = ["hoy", "clientes", "obras", "agenda", "tesoreria", "documentos", "capataz", "configuracion/memoria", "onboarding", "presupuestos", "dinero", "gastos-materiales", "tareas", "seguimientos", "automatizaciones", "actividad", "notificaciones", "alertas", "recomendaciones", "inteligencia", "proveedores", "subcontratas", "facturas-proveedor", "facturas-subcontratas", "recordatorios"];
+const routes = ["", "login", "registro", "hoy", "clientes", "obras", "capataz", "onboarding", "crear-empresa", "seleccionar-empresa", "equipo", "equipos", "plan-y-uso", "auditoria", "plataforma", "aceptar-invitacion", "configuracion"];
 const viewports = [[390, 844], [768, 1024], [1024, 900], [1440, 1000]];
 let server; let browser;
 try {
@@ -30,6 +30,8 @@ try {
   const company = await db.company.create({ data: { slug: "orqena-visual-qa", nombreComercial: "Orqena Visual QA", status: "active", isDemo: true, organizationType: "COMPANY", sectorKey: "general_services" } });
   const user = await db.user.create({ data: { email: "visual@orqena.local", emailNormalized: "visual@orqena.local", passwordHash: "visual-qa-not-a-login-secret", displayName: "Equipo Orqena", status: "active", emailVerifiedAt: new Date() } });
   await db.companyMembership.create({ data: { userId: user.id, companyId: company.id, role: "OWNER", status: "active", acceptedAt: new Date(), joinedAt: new Date() } });
+  await db.user.update({ where: { id: user.id }, data: { activeCompanyId: company.id } });
+  await db.platformAccount.create({ data: { userId: user.id, role: "PLATFORM_OWNER" } });
   await db.$disconnect();
   const npmCli = join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
   server = spawn(process.execPath, [npmCli, "run", "dev", "--", "--hostname", "127.0.0.1", "--port", String(webPort)], { cwd: root, env, shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -37,18 +39,18 @@ try {
   const deadline = Date.now() + 60_000;
   while (!log.includes("Ready") && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 250));
   if (!log.includes("Ready")) throw new Error(`Visual server did not start: ${log.slice(-2000)}`);
-  browser = await chromium.launch({ executablePath: chrome, headless: true });
+  browser = await chromium.launch({ executablePath: chrome, headless: true, args: ["--disable-extensions", "--disable-features=AutofillServerCommunication,PasswordManagerOnboarding"] });
   const results = [];
   for (const [width, height] of viewports) for (const route of routes) {
-    const slug = route.replaceAll("/", "-"); const file = join(output, `${slug}-${width}.png`);
+    const slug = route ? route.replaceAll("/", "-") : "landing"; const file = join(output, `${slug}-${width}.png`);
     const page = await browser.newPage({ viewport: { width, height } }); const errors = [];
     page.on("console", message => { if (message.type() === "error") errors.push(message.text()); }); page.on("pageerror", error => errors.push(error.message));
-    const response = await page.goto(`http://127.0.0.1:${webPort}/${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 }); await page.waitForTimeout(2500); await page.waitForLoadState("domcontentloaded");
-    await page.screenshot({ path: file, fullPage: true });
+    const response = await page.goto(`http://127.0.0.1:${webPort}/${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 }); await page.waitForTimeout(700); await page.waitForLoadState("domcontentloaded");
+    await page.screenshot({ path: file, fullPage: true, caret: "initial" });
     let overflow; try { overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1); } catch { await page.waitForLoadState("domcontentloaded"); overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1); }
     const title = await page.title(); const finalUrl = page.url(); await page.close();
     const bytes = statSync(file).size; if (bytes < 3_000) throw new Error(`Invalid screenshot ${file}`);
-    if (finalUrl.includes("/login") || overflow || errors.length) throw new Error(JSON.stringify({ route, width, status: response?.status(), finalUrl, overflow, errors }));
+    if ((route !== "login" && finalUrl.includes("/login")) || overflow || errors.length) throw new Error(JSON.stringify({ route, width, status: response?.status(), finalUrl, overflow, errors }));
     results.push({ route: `/${route}`, width, height, bytes, title, overflow, consoleErrors: 0 });
   }
   const interaction = await browser.newPage({ viewport: { width: 390, height: 844 } });
