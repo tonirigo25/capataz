@@ -171,7 +171,7 @@ function runChatChecks() {
   for (const [, action] of cases) {
     expect(actions.includes(`case "${action}"`), `[proactive] missing chat case ${action}`);
   }
-  expect(actions.includes("No he cambiado ningún registro"), "[proactive] chat query must avoid mutation");
+  expect(actions.includes("noMutation: true"), "[proactive] read-only chat query must avoid mutation");
 }
 
 function runIntegrationChecks() {

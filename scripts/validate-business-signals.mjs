@@ -240,7 +240,7 @@ function runChatChecks() {
     expect(actionsSource.includes(`case "${action}"`), `[business-signals] missing chat handler for ${action}`);
   }
   expect(actionsSource.includes("getBusinessSignals"), "[business-signals] chat must use central business signal engine");
-  expect(actionsSource.includes("No he cambiado ningún registro"), "[business-signals] chat answer must state no business mutation");
+  expect(actionsSource.includes("noMutation: true"), "[business-signals] read-only chat routes must declare no business mutation");
 }
 
 function runUiChecks() {

@@ -219,7 +219,7 @@ function runChatChecks() {
     expect(actionsSource.includes(`case "${action}"`), `[recommendations] missing chat handler for ${action}`);
   }
   expect(actionsSource.includes("lastRecommendation"), "[recommendations] chat must preserve lastRecommendation context");
-  expect(actionsSource.includes("No he cambiado ningún registro"), "[recommendations] chat query must state no mutation");
+  expect(actionsSource.includes("noMutation: true"), "[recommendations] read-only chat query must declare no mutation");
 }
 
 function runCenterChecks() {

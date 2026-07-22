@@ -35,7 +35,7 @@ check("Dashboard limita KPI a cinco fuentes fiables", dashboard.includes('["invo
 check("Contratos económicos permanecen explícitos", ["Facturas válidas emitidas", "Pagos registrados", "Saldo abierto", "Gastos reales", "Facturado - gastos"].every((token) => metrics.includes(token)));
 check("Dashboard incluye tendencia accesible", dashboard.includes('role="img"') && dashboard.includes("<desc") && dashboard.includes("Ver datos del gráfico"));
 check("Dashboard incluye cobros y liquidez", dashboard.includes('title="Cobros y liquidez"') && dashboard.includes("pendingInvoices.slice(0, 5)"));
-check("Dashboard incluye rentabilidad por obra", dashboard.includes('title="Rentabilidad por obra"') && dashboard.includes("byLowestMargin.slice(0, 5)"));
+check("Dashboard incluye rentabilidad por trabajo", dashboard.includes('title="Rentabilidad por trabajo"') && dashboard.includes("byLowestMargin.slice(0, 5)"));
 check("Dashboard incluye presupuestos", dashboard.includes('title="Presupuestos y actividad comercial"') && dashboard.includes("quoteActivity.pending"));
 check("Dashboard limita riesgos", dashboard.includes("summary.alerts.slice(0, 5)"));
 check("Dashboard no usa datos simulados", !dashboard.includes("mock") && !dashboard.includes("demoData") && !dashboard.includes("Math.random"));

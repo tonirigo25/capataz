@@ -13,3 +13,9 @@ La empresa procede de sesión; los IDs se validan por tenant y relación; las co
 ## Estado
 
 Completado localmente y pendiente de integración/publicación autorizada. No incluye billing, Stripe, plataforma interna, selector multiempresa comercial, roles finales ni despliegue; esos asuntos quedan aplazados a Macrofase 2.
+
+## Validación de cierre
+
+La validación visual local es reproducible con `npm run validate:orqena-visual`. El runner crea una base PostgreSQL aislada, aplica la cadena completa de migraciones y recorre 25 superficies operativas en 390, 768, 1024 y 1440 px mediante Google Chrome headless. La ejecución final generó 101 capturas y comprobó overflow horizontal, errores de consola, la hoja móvil de filtros, cierre con Escape, restauración de foco y compositor del chat visible sobre la navegación.
+
+Los listados con criterios de consulta usan el contenedor común de filtros compactos, con formulario en escritorio y hoja inferior en móvil. El flujo principal de conversación delega persistencia, enrutado, presentación y cierre de turno en el servicio de conversación de Orqena; contexto, resolución, planificación, confirmación, ejecución, completitud y memoria permanecen separados en sus servicios dedicados.
