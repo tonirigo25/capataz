@@ -54,7 +54,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         eyebrow={fullDate}
         title={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}`}
         description={dashboard.dailySummary}
-        action={<Link href="/capataz" className="primary-button"><Bot size={18} aria-hidden="true" />Hablar con Capataz</Link>}
+        action={<Link href="/capataz" className="primary-button"><Bot size={18} aria-hidden="true" />Hablar con Orqena</Link>}
       />
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(17rem,.6fr)]">
@@ -67,7 +67,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           {isInitial ? (
             <EmptyState
               title="Empieza por tu primer cliente"
-              description="Capataz podrá ordenar prioridades cuando exista una relación de trabajo real. Después podrás preparar un presupuesto, abrir una obra o añadir una visita."
+              description="Orqena podrá ordenar prioridades cuando exista trabajo real. Empieza creando un cliente, un trabajo o una visita."
               icon={Users}
               action={<Link href="/gestion?tipo=cliente&returnTo=/hoy" className="secondary-button">Crear primer cliente</Link>}
             />

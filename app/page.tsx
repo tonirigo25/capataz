@@ -17,7 +17,7 @@ export default function LoginPage() {
               C
             </span>
             <div>
-              <h1 className="text-3xl font-black text-obra-ink">Capataz</h1>
+              <h1 className="text-3xl font-black text-obra-ink">Orqena</h1>
               <p className="text-sm font-semibold text-slate-500">Tu asistente IA para reformas y construcción.</p>
             </div>
           </div>
@@ -36,7 +36,7 @@ export default function LoginPage() {
         </div>
 
         <div className="hidden rounded-lg border border-obra-yellowDark/20 bg-obra-yellow/20 p-4 text-sm font-semibold text-obra-yellowDark sm:block">
-          Capataz prepara borradores y recordatorios, pero nunca envía WhatsApp, emails, facturas o reclamaciones sin confirmación.
+          Orqena organiza tu negocio y prepara operaciones para que siempre puedas revisarlas antes de confirmar.
         </div>
       </section>
 

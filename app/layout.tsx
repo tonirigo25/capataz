@@ -1,15 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/app/pwa-register";
+import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Capataz",
-  description: "Tu asistente IA para reformas y construcción.",
-  applicationName: "Capataz",
+  title: { default: brand.metadata.title, template: brand.metadata.titleTemplate },
+  description: brand.metadata.description,
+  applicationName: brand.productName,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Capataz"
+    title: brand.pwa.name
   },
   icons: {
     icon: "/icons/capataz.svg",

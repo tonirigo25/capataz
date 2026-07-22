@@ -3,9 +3,9 @@ import { LoadingState, PageHeader, ProductPage } from "@/components/ui-primitive
 export default function SearchLoading() {
   return (
     <ProductPage layout="list">
-      <PageHeader title="Búsqueda" description="Buscando coincidencias en Capataz." />
+      <PageHeader title="Búsqueda" description="Buscando coincidencias en Orqena." />
       <div className="max-w-3xl">
-        <LoadingState label="Buscando en Capataz…" />
+        <LoadingState label="Buscando en Orqena…" />
       </div>
     </ProductPage>
   );

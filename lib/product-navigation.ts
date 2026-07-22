@@ -30,7 +30,7 @@ export const primaryNavigation: ProductDestination[] = [
   { href: "/hoy", label: "Hoy", icon: "home" },
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/clientes", label: "Clientes", icon: "client" },
-  { href: "/obras", label: "Obras", icon: "briefcase" },
+  { href: "/obras", label: "Trabajo", icon: "briefcase" },
   { href: "/presupuestos", label: "Presupuestos", icon: "document" },
   { href: "/dinero", label: "Facturas y cobros", icon: "invoice" }
 ];
@@ -85,7 +85,7 @@ const areaContexts = [
   ...primaryNavigation,
   ...secondaryNavigation.flatMap((group) => group.items),
   { href: "/buscar", label: "Búsqueda" },
-  { href: "/capataz", label: "Capataz" }
+  { href: "/capataz", label: "Orqena" }
 ];
 
 const detailContexts: Array<{ pattern: RegExp; context: RouteContext }> = [
@@ -112,7 +112,7 @@ export function resolveRouteContext(pathname: string): RouteContext {
     .sort((a, b) => b.href.length - a.href.length)
     .find(({ href }) => pathname === href || pathname.startsWith(`${href}/`));
 
-  return area ? { label: area.label, kind: "area" } : { label: "Capataz", kind: "unknown" };
+  return area ? { label: area.label, kind: "area" } : { label: "Orqena", kind: "unknown" };
 }
 
 export function isProductDestinationActive(pathname: string, href: string) {

@@ -134,7 +134,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         title="Obras"
         description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos de cada trabajo."
         action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nueva obra</Link>}
-        secondaryActions={<Link href="/capataz" className="secondary-button">Abrir Capataz</Link>}
+        secondaryActions={<Link href="/capataz" className="secondary-button">Abrir Orqena</Link>}
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <ExecutiveMetric icon={BriefcaseBusiness} label="Activas" value={String(totals.active)} detail={`${totals.blocked} bloqueadas`} tone={totals.blocked ? "warning" : "neutral"} />

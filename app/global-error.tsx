@@ -6,7 +6,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
       <body>
         <main className="screen">
           <section className="empty-state" role="alert">
-            <h1>Capataz no puede mostrar esta pantalla</h1>
+            <h1>Orqena no puede mostrar esta pantalla</h1>
             <p>No se ha enviado ninguna acción. Puedes reintentar o volver al inicio.</p>
             <div className="button-row">
               <button type="button" className="primary-button" onClick={reset}>Reintentar</button>

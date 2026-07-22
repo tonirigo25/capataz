@@ -35,7 +35,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
 
   return (
     <main className="screen">
-      <PageHeader eyebrow="Asistente operativo" title="Capataz" description="Consulta y gestiona trabajo interno con contexto estructurado." />
+      <PageHeader eyebrow="Tu asistente" title="Orqena" description="Consulta, prepara y revisa el trabajo de tu negocio." />
 
       <CapatazChat
         data={{

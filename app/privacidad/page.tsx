@@ -7,14 +7,14 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
       <LegalBackButton />
-      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">Capataz</Link>
+      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">Orqena</Link>
       <h1 className="mt-4 text-3xl font-black text-obra-ink">Política de privacidad</h1>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Esta política explica qué datos puede tratar Capataz y cómo se usan para prestar el servicio de gestión de reformas, obras, presupuestos, facturas, agenda y cobros.
+        Esta política explica qué datos puede tratar Orqena y cómo se usan para prestar el servicio de gestión empresarial.
       </p>
 
       <section className="card mt-6 grid gap-4 p-5 text-sm leading-6 text-slate-600">
-        <Block title="Datos que puede guardar Capataz">
+        <Block title="Datos que puede guardar Orqena">
           Datos de usuario y empresa, datos fiscales, logo, sello, datos de clientes finales, obras, presupuestos, facturas, pagos, gastos, materiales, agenda, recordatorios y notas operativas.
         </Block>
         <Block title="Finalidad">
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           Cuando la IA esté activada, podrá proponer acciones o redactar borradores. El usuario mantiene el control final y las acciones sensibles requieren confirmación antes de ejecutarse.
         </Block>
         <Block title="Mensajes y comunicaciones">
-          Capataz no envía WhatsApp, emails, facturas ni reclamaciones reales sin consentimiento explícito del usuario.
+          Orqena no envía comunicaciones ni documentos reales sin consentimiento explícito del usuario.
         </Block>
         <Block title="Conservación y eliminación">
           Puedes solicitar acceso, corrección o eliminación de datos escribiendo a {supportEmail}. En modo demo los datos son ficticios y pueden reiniciarse.

@@ -222,11 +222,11 @@ export function AppChrome({
           <button
             type="button"
             className="hidden h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface lg:flex"
-            aria-label="Buscar en Capataz"
+            aria-label="Buscar en Orqena"
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
             <Search size={18} aria-hidden="true" />
-            <span className="flex-1">Buscar en Capataz</span>
+            <span className="flex-1">Buscar en Orqena</span>
             <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-content-tertiary">Ctrl K</kbd>
           </button>
 
@@ -234,7 +234,7 @@ export function AppChrome({
             <button
               type="button"
               className="icon-button lg:hidden"
-              aria-label="Buscar en Capataz"
+              aria-label="Buscar en Orqena"
               onClick={(event) => openOverlay("search", event.currentTarget)}
             >
               <Search size={20} aria-hidden="true" />
@@ -248,7 +248,7 @@ export function AppChrome({
               <Plus size={18} aria-hidden="true" />Crear
             </button>
             <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
-              <Bot size={18} aria-hidden="true" />Capataz
+              <Bot size={18} aria-hidden="true" />Orqena
             </Link>
             <NotificationLink unread={unreadNotifications} />
           </div>
@@ -348,7 +348,7 @@ function DesktopNavigation({
         <Link href="/hoy" className="flex min-h-12 items-center gap-3 rounded-lg px-2">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand font-bold text-white">C</span>
           <span className="min-w-0">
-            <span className="block text-base font-bold leading-5 text-content">Capataz</span>
+            <span className="block text-base font-bold leading-5 text-content">Orqena</span>
             <span className="block truncate text-xs text-content-secondary">{companyName}</span>
           </span>
         </Link>
@@ -557,7 +557,7 @@ function SearchDialog({ id, onClose }: { id: string; onClose: () => void }) {
     <div className="p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en Capataz</h2>
+          <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en Orqena</h2>
           <p className="type-secondary mt-1">Clientes, obras, presupuestos, facturas y documentos.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Cerrar búsqueda" onClick={onClose}>
@@ -625,7 +625,7 @@ function MobileMoreSheet({
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
       <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
-        <Bot size={20} aria-hidden="true" />Capataz
+        <Bot size={20} aria-hidden="true" />Orqena
       </Link>
       <div className="grid gap-5">
         <section>

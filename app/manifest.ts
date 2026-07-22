@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { brand } from "@/lib/brand";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Capataz",
-    short_name: "Capataz",
-    description: "Tu asistente IA para reformas y construcción.",
+    name: brand.pwa.name,
+    short_name: brand.pwa.shortName,
+    description: brand.metadata.description,
     id: "/",
     start_url: "/hoy",
     scope: "/",

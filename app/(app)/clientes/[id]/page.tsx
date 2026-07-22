@@ -168,9 +168,9 @@ function ClientActions({ clientId, clientName, returnTo, archived }: { clientId:
         <Plus size={18} />
         Contacto
       </Link>
-      <Link href={`/capataz?clienteId=${clientId}`} className="secondary-button" aria-label={`Preguntar a Capataz sobre ${clientName}`}>
+      <Link href={`/capataz?clienteId=${clientId}`} className="secondary-button" aria-label={`Preguntar a Orqena sobre ${clientName}`}>
         <Bot size={18} />
-        Preguntar a Capataz
+        Preguntar a Orqena
       </Link>
         <ArchiveActions id={clientId} archived={archived} />
       </div>

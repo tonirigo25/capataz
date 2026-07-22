@@ -522,7 +522,7 @@ function AiTab({ work, financial, risks, openInvoices, pendingMaterials, documen
           </article>
         ))}
       </div>
-      <Link href="/capataz" className="primary-button mt-4 inline-flex"><Bot size={18} /> Preguntar en Capataz</Link>
+      <Link href="/capataz" className="primary-button mt-4 inline-flex"><Bot size={18} /> Preguntar en Orqena</Link>
     </Section>
   );
 }
