@@ -1,5 +1,9 @@
 # Preparación de lanzamiento
 
+> Regla de infraestructura: Staging no compartirá proyecto ni servicio lógico con production.
+
+El staging independiente está en `orqena-staging` y su URL pública es `https://orqena-web-staging.up.railway.app`. La evidencia reproducible se encuentra en los informes de despliegue, migraciones, auditoría visual e incidente del 22 de julio de 2026.
+
 ## Completado localmente
 
 Dominio comercial, migración aditiva, guards, superficies administrativas, proveedor de billing local, catálogo demo, suite focal 77/77, Macrofase 1 55/55, runner 122/122, build y validación visual en cuatro anchuras.

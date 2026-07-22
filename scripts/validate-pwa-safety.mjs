@@ -26,8 +26,8 @@ assert.doesNotMatch(offline, /localStorage|indexedDB|sessionStorage/);
 assert.match(manifest, /start_url: "\/hoy"/);
 assert.match(manifest, /scope: "\/"/);
 assert.match(manifest, /id: "\/"/);
-assert.match(manifest, /\/icons\/capataz\.svg/);
-assert.equal(existsSync(new URL("../public/icons/capataz.svg", import.meta.url)), true);
+assert.match(manifest, /\/icons\/orqena\.svg/);
+assert.equal(existsSync(new URL("../public/icons/orqena.svg", import.meta.url)), true);
 assert.match(register, /service-worker\.js/);
 
 console.log(JSON.stringify({ ok: true, tests: 22, elapsedMs: Date.now() - startedAt }));
