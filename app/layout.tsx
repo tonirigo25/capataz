@@ -4,6 +4,7 @@ import { PwaRegister } from "@/app/pwa-register";
 import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_BASE_URL || "http://localhost:3000"),
   title: { default: brand.metadata.title, template: brand.metadata.titleTemplate },
   description: brand.metadata.description,
   applicationName: brand.productName,
@@ -13,9 +14,10 @@ export const metadata: Metadata = {
     title: brand.pwa.name
   },
   icons: {
-    icon: "/icons/capataz.svg",
-    apple: "/icons/capataz.svg"
-  }
+    icon: "/icons/orqena.svg",
+    apple: "/icons/orqena.svg"
+  },
+  alternates: { canonical: "/" }
 };
 
 export const viewport: Viewport = {

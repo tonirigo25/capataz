@@ -16,7 +16,7 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["business", "productivity"],
     icons: [
       {
-        src: "/icons/capataz.svg",
+        src: "/icons/orqena.svg",
         sizes: "any",
         type: "image/svg+xml",
         purpose: "maskable"
