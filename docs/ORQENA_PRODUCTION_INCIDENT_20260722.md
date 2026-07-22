@@ -15,4 +15,10 @@ No se consultaron filas ni contenidos empresariales. El predeploy de restauraci�
 
 ## Prevención
 
-Staging no compartirá proyecto ni servicio lógico con production. El staging válido vive en `orqena-staging` (`5a501cb4-639e-4dd3-a1fb-08ae1c839ebb`). El entorno compartido fallido `7af806c2-99b7-4c70-9499-59b4551c5c03` quedó congelado, sin réplicas operativas y pendiente de retirada bajo autorización separada.
+Staging no compartirá proyecto ni servicio lógico con production. El staging válido vive en `orqena-staging` (`5a501cb4-639e-4dd3-a1fb-08ae1c839ebb`).
+
+## Retirada del staging fallido
+
+Con autorización separada se eliminó exclusivamente el environment fallido `7af806c2-99b7-4c70-9499-59b4551c5c03` del proyecto `merry-quietude`. Antes de retirarlo se inventariaron sus service instances, deployments, dominio y volume instances. Los IDs lógicos `document-reader-volume` y `postgres-volume` también existían en production, por lo que no se borraron individualmente; Railway eliminó únicamente sus instancias del environment retirado y conservó las de production.
+
+Tras la operación, `merry-quietude` solo enumeró el environment `production`; `capataz-staging.up.railway.app` dejó de estar asociado y respondió 404. Production conservó `main/a5d384fd749e37f6e3f761e7dacc844933b6d375`, deployment `135dcb92-1ec0-43a9-91a4-5057fb77cb7a`, health 200 y sus volúmenes en estado `READY`. El staging independiente conservó `2786acdc44e64ff55ee436ada3617945bc4b5166`, health 200, PostgreSQL y volúmenes propios. No se ejecutaron migraciones, deployments ni cambios de variables durante la retirada.

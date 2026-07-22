@@ -11,3 +11,7 @@
 `DATABASE_URL` usa `${{Postgres.DATABASE_URL}}`. Se configuraron, sin documentar secretos: `APP_ENV`, `APP_MODE`, `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_MODE`, `NEXT_PUBLIC_WEB_BASE_URL`, `APP_BASE_URL`, `CAPATAZ_MOBILE_SERVER_URL`, `DOCUMENT_STORAGE_ROOT`, `EMAIL_PROVIDER`, `HOSTNAME`, `PROACTIVE_CRON_SECRET` y `CRON_SECRET`. Billing y correo son locales; OpenAI es opcional y está desactivado.
 
 La prueba de no interferencia conservó invariables en production los deployments `135dcb92…` y `bb681f97…`, ambos `main/a5d384f`.
+
+## Retirada del entorno compartido anterior
+
+El environment fallido `7af806c2-99b7-4c70-9499-59b4551c5c03` fue retirado del proyecto antiguo después de comprobar su inventario y la integridad de production. El dominio `capataz-staging.up.railway.app` ya no está asociado. Esta operación no modificó el proyecto independiente, que conserva deployment `622f94f1-afa9-4acf-b3a0-c340cae12960` y SHA `2786acdc44e64ff55ee436ada3617945bc4b5166`.

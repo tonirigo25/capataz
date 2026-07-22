@@ -2,11 +2,11 @@
 
 > Regla de infraestructura: Staging no compartirá proyecto ni servicio lógico con production.
 
-El staging independiente está en `orqena-staging` y su URL pública es `https://orqena-web-staging.up.railway.app`. La evidencia reproducible se encuentra en los informes de despliegue, migraciones, auditoría visual e incidente del 22 de julio de 2026.
+El staging independiente está en `orqena-staging` y su URL pública es `https://orqena-web-staging.up.railway.app`. El environment compartido fallido fue retirado de forma controlada; el proyecto antiguo conserva únicamente production. La evidencia reproducible se encuentra en los informes de despliegue, migraciones, auditoría visual e incidente del 22 de julio de 2026.
 
 ## Completado localmente
 
-Dominio comercial, migración aditiva, guards, superficies administrativas, proveedor de billing local, catálogo demo, suite focal 77/77, Macrofase 1 55/55, runner 122/122, build y validación visual en cuatro anchuras.
+Dominio comercial, migración aditiva, guards, superficies administrativas, proveedor de billing local, catálogo demo, suite comercial 78/78, Macrofase 1 55/55, runner 122/122, build y validación visual en cuatro anchuras.
 
 ## Preparado técnicamente
 
@@ -20,9 +20,9 @@ Proveedor transaccional de correo, billing externo y observabilidad externa.
 
 Precios, periodos, política exacta de gracia, límites públicos y soporte contratado.
 
-## Pendiente de despliegue autorizado
+## Pendiente de despliegue a production autorizado
 
-Railway, producción, migraciones remotas, configuración remota y publicación.
+Despliegue a production, migraciones de production, configuración comercial remota y publicación. Staging ya está desplegado y validado de forma independiente.
 
 ## Pendiente de revisión jurídica
 
