@@ -513,6 +513,77 @@ enum MembershipStatus {
   active
   suspended
   archived
+  revoked
+}
+
+enum PlatformRole {
+  PLATFORM_OWNER
+  PLATFORM_ADMIN
+  PLATFORM_SUPPORT
+  PLATFORM_ANALYST
+}
+
+enum PlatformAccountStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum EntitlementValueType {
+  BOOLEAN
+  INTEGER
+  DECIMAL
+  STRING
+  ENUM
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELED
+  EXPIRED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+  REJECTED
+}
+
+enum TeamState {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ScopeType {
+  COMPANY
+  OWN
+  ASSIGNED
+  TEAM
+  SELECTED_WORKS
+  SELECTED_CLIENTS
+}
+
+enum PermissionOverrideEffect {
+  GRANT
+  DENY
+}
+
+enum SupportAccessStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  CLOSED
+}
+
+enum CompanyCommercialStatus {
+  ACTIVE
+  SUSPENDED
+  READ_ONLY
 }
 
 enum SecurityAuditOutcome {
@@ -2071,13 +2142,19 @@ model User {
   uploadedDocuments   Document[]
   businessMemories    BusinessMemory[]         @relation("BusinessMemoryUser")
   confirmedMemories   BusinessMemory[]         @relation("BusinessMemoryConfirmer")
+  activeCompanyId     String?
+  activeCompany       Company?                 @relation("ActiveCompanyPreference", fields: [activeCompanyId], references: [id], onDelete: SetNull)
+  platformAccount     PlatformAccount?
+  invitedMemberships  CompanyMembership[]      @relation("MembershipInviter")
+  invitationsCreated  Invitation[]             @relation("InvitationInviter")
+  auditLogs           AuditLog[]               @relation("AuditUserActor")
 
   @@index([status])
 }
 
 model Company {
-  id                     String                    @id @default(cuid())
-  slug                   String                    @unique
+  id                     String                       @id @default(cuid())
+  slug                   String                       @unique
   nombreComercial        String
   razonSocial            String?
   taxId                  String?
@@ -2087,14 +2164,14 @@ model Company {
   codigoPostal           String?
   ciudad                 String?
   provincia              String?
-  pais                   String                    @default("España")
-  timezone               String                    @default("Europe/Madrid")
-  locale                 String                    @default("es-ES")
-  status                 CompanyStatus             @default(active)
-  isDemo                 Boolean                   @default(false)
-  legacyEmpresaId        String?                   @unique
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
+  pais                   String                       @default("España")
+  timezone               String                       @default("Europe/Madrid")
+  locale                 String                       @default("es-ES")
+  status                 CompanyStatus                @default(active)
+  isDemo                 Boolean                      @default(false)
+  legacyEmpresaId        String?                      @unique
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
   archivedAt             DateTime?
   web                    String?
   contactPerson          String?
@@ -2103,23 +2180,27 @@ model Company {
   legalText              String?
   logoUrl                String?
   sealUrl                String?
-  brandColor             String                    @default("#f6c945")
-  defaultVat             Float                     @default(21)
-  currency               String                    @default("EUR")
-  budgetValidityDays     Int                       @default(15)
+  brandColor             String                       @default("#f6c945")
+  defaultVat             Float                        @default(21)
+  currency               String                       @default("EUR")
+  budgetValidityDays     Int                          @default(15)
   defaultPaymentTerms    String?
-  budgetSeries           String                    @default("2026")
-  invoiceSeries          String                    @default("2026")
-  workSeries             String                    @default("2026")
-  budgetPrefix           String                    @default("P")
-  invoicePrefix          String                    @default("F")
-  workPrefix             String                    @default("OB")
+  budgetSeries           String                       @default("2026")
+  invoiceSeries          String                       @default("2026")
+  workSeries             String                       @default("2026")
+  budgetPrefix           String                       @default("P")
+  invoicePrefix          String                       @default("F")
+  workPrefix             String                       @default("OB")
   organizationType       OrganizationType?
   sectorKey              String?
   terminologyOverrides   Json?
   businessProfileVersion String?
   onboardingCompletedAt  DateTime?
   onboardingState        Json?
+  commercialStatus       CompanyCommercialStatus?
+  demoScenarioKey        String?
+  demoExpiresAt          DateTime?
+  provisioningKey        String?                      @unique
   memberships            CompanyMembership[]
   securityAuditEvents    SecurityAuditEvent[]
   clients                Client[]
@@ -2156,6 +2237,15 @@ model Company {
   purchaseHistory        PurchaseInvoiceHistory[]
   partnerLearning        PartnerLearning[]
   businessMemories       BusinessMemory[]
+  activeForUsers         User[]                       @relation("ActiveCompanyPreference")
+  teams                  Team[]
+  invitations            Invitation[]
+  subscriptions          Subscription[]
+  entitlementOverrides   CompanyEntitlementOverride[]
+  usageRecords           UsageRecord[]
+  auditLogs              AuditLog[]
+  supportAccessGrants    SupportAccessGrant[]
+  scopeAssignments       ScopeAssignment[]
 
   @@index([status])
   @@index([isDemo])
@@ -2378,22 +2468,279 @@ model CompanyDocumentSequence {
 }
 
 model CompanyMembership {
-  id         String           @id @default(cuid())
-  userId     String
-  companyId  String
-  role       CompanyRole      @default(MEMBER)
-  status     MembershipStatus @default(invited)
-  invitedAt  DateTime?
-  acceptedAt DateTime?
-  joinedAt   DateTime?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
-  company    Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                  String                         @id @default(cuid())
+  userId              String
+  companyId           String
+  role                CompanyRole                    @default(MEMBER)
+  status              MembershipStatus               @default(invited)
+  invitedAt           DateTime?
+  acceptedAt          DateTime?
+  joinedAt            DateTime?
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
+  invitedById         String?
+  revokedAt           DateTime?
+  revokedReason       String?
+  lastActivityAt      DateTime?
+  origin              String                         @default("existing")
+  isDemo              Boolean                        @default(false)
+  user                User                           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  company             Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  invitedBy           User?                          @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  permissionOverrides MembershipPermissionOverride[]
+  teamMemberships     TeamMembership[]
+  scopeAssignments    ScopeAssignment[]
 
   @@unique([userId, companyId])
   @@index([companyId, status])
   @@index([userId, status])
+}
+
+model PlatformAccount {
+  id            String                @id @default(cuid())
+  userId        String                @unique
+  role          PlatformRole
+  status        PlatformAccountStatus @default(ACTIVE)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  supportGrants SupportAccessGrant[]
+  auditLogs     AuditLog[]            @relation("AuditPlatformActor")
+
+  @@index([role, status])
+}
+
+model MembershipPermissionOverride {
+  id            String                   @id @default(cuid())
+  membershipId  String
+  capabilityKey String
+  effect        PermissionOverrideEffect
+  scope         ScopeType?
+  changedById   String?
+  reason        String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  membership    CompanyMembership        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, capabilityKey])
+  @@index([capabilityKey, effect])
+}
+
+model Team {
+  id                  String            @id @default(cuid())
+  companyId           String
+  name                String
+  description         String?
+  managerMembershipId String?
+  state               TeamState         @default(ACTIVE)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  archivedAt          DateTime?
+  company             Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  members             TeamMembership[]
+  scopes              ScopeAssignment[]
+
+  @@unique([companyId, name])
+  @@index([companyId, state])
+}
+
+model TeamMembership {
+  id           String            @id @default(cuid())
+  teamId       String
+  membershipId String
+  createdAt    DateTime          @default(now())
+  team         Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  membership   CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, membershipId])
+  @@index([membershipId])
+}
+
+model ScopeAssignment {
+  id            String            @id @default(cuid())
+  companyId     String
+  membershipId  String
+  capabilityKey String
+  scope         ScopeType
+  teamId        String?
+  entityType    String?
+  entityId      String?
+  createdAt     DateTime          @default(now())
+  company       Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  membership    CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  team          Team?             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, membershipId, capabilityKey])
+  @@index([entityType, entityId])
+}
+
+model Plan {
+  id              String            @id @default(cuid())
+  key             String            @unique
+  name            String
+  description     String
+  audience        String
+  commercialState String            @default("internal")
+  currency        String?
+  period          String?
+  price           Decimal?          @db.Decimal(12, 2)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  entitlements    PlanEntitlement[]
+  subscriptions   Subscription[]
+}
+
+model PlanEntitlement {
+  id        String               @id @default(cuid())
+  planId    String
+  key       String
+  type      EntitlementValueType
+  value     Json
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  plan      Plan                 @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, key])
+  @@index([key])
+}
+
+model CompanyEntitlementOverride {
+  id        String               @id @default(cuid())
+  companyId String
+  key       String
+  type      EntitlementValueType
+  value     Json
+  startsAt  DateTime             @default(now())
+  endsAt    DateTime?
+  reason    String
+  active    Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, key])
+  @@index([companyId, active, endsAt])
+}
+
+model Subscription {
+  id                     String                @id @default(cuid())
+  companyId              String
+  planId                 String
+  status                 SubscriptionStatus    @default(TRIALING)
+  provider               String                @default("local")
+  externalCustomerId     String?
+  externalSubscriptionId String?
+  startedAt              DateTime              @default(now())
+  trialEndsAt            DateTime?
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean               @default(false)
+  canceledAt             DateTime?
+  metadata               Json?
+  scheduledPlanKey       String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  company                Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  plan                   Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  history                SubscriptionHistory[]
+
+  @@index([companyId, status])
+  @@index([currentPeriodEnd])
+}
+
+model SubscriptionHistory {
+  id             String              @id @default(cuid())
+  subscriptionId String
+  action         String
+  fromPlanKey    String?
+  toPlanKey      String?
+  fromStatus     SubscriptionStatus?
+  toStatus       SubscriptionStatus?
+  reason         String?
+  createdAt      DateTime            @default(now())
+  subscription   Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, createdAt])
+}
+
+model UsageRecord {
+  id             String   @id @default(cuid())
+  companyId      String
+  metric         String
+  quantity       Decimal  @db.Decimal(18, 4)
+  periodStart    DateTime
+  periodEnd      DateTime
+  idempotencyKey String
+  origin         String
+  reference      String?
+  createdAt      DateTime @default(now())
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, metric, idempotencyKey])
+  @@index([companyId, metric, periodStart, periodEnd])
+}
+
+model Invitation {
+  id                 String           @id @default(cuid())
+  companyId          String
+  emailNormalized    String
+  role               CompanyRole
+  status             InvitationStatus @default(PENDING)
+  tokenHash          String           @unique
+  inviterId          String
+  permissionTemplate Json?
+  teamIds            Json?
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  rejectedAt         DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  company            Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  inviter            User             @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@index([emailNormalized, status])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id              String           @id @default(cuid())
+  companyId       String?
+  platformActorId String?
+  userActorId     String?
+  action          String
+  targetType      String
+  targetId        String?
+  metadata        Json?
+  reason          String?
+  ipHash          String?
+  userAgent       String?
+  createdAt       DateTime         @default(now())
+  company         Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  platformActor   PlatformAccount? @relation("AuditPlatformActor", fields: [platformActorId], references: [id], onDelete: SetNull)
+  userActor       User?            @relation("AuditUserActor", fields: [userActorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([action, createdAt])
+}
+
+model SupportAccessGrant {
+  id                String              @id @default(cuid())
+  companyId         String
+  platformAccountId String
+  reason            String
+  ticketReference   String?
+  capabilityKeys    Json
+  status            SupportAccessStatus @default(ACTIVE)
+  startsAt          DateTime            @default(now())
+  expiresAt         DateTime
+  endedAt           DateTime?
+  createdAt         DateTime            @default(now())
+  company           Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  platformAccount   PlatformAccount     @relation(fields: [platformAccountId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, expiresAt])
+  @@index([platformAccountId, status, expiresAt])
 }
 
 model Session {

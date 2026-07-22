@@ -8,6 +8,7 @@ import { createSession, revokeCurrentSession } from "@/lib/auth/session";
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import type { AuthActionState } from "@/lib/auth/state";
+import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
 
 const genericCredentials = "No hemos podido iniciar sesión con esos datos.";
 
@@ -34,10 +35,10 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
   const expiresAt = new Date(Date.now() + authConfig.verificationMinutes * 60_000);
   let user: { id: string; email: string };
   try {
+    await ensureBasePlans(prisma);
     user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({ data: { email, emailNormalized, passwordHash, displayName } });
-      const company = await tx.company.create({ data: { slug: `${slugify(companyName)}-${createOpaqueToken().slice(0, 7).toLowerCase()}`, nombreComercial: companyName, email } });
-      await tx.companyMembership.create({ data: { userId: created.id, companyId: company.id, role: "OWNER", status: "active", acceptedAt: new Date(), joinedAt: new Date() } });
+      await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
       await tx.emailVerificationToken.create({ data: { userId: created.id, tokenHash: hashToken(rawToken), expiresAt } });
       return { id: created.id, email: created.email };
     });

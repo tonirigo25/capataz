@@ -20,6 +20,8 @@ export type CompanyContext = AuthenticatedSession & {
   role: CompanyRole;
   isDemo: boolean;
   companyName: string;
+  companyStatus: string;
+  commercialStatus: string;
 };
 
 export async function createSession(userId: string) {
@@ -70,15 +72,35 @@ export async function requireCompanyMembership(userId: string, companyId: string
   });
 }
 
+export async function getAvailableCompanies(userId?: string) {
+  const session = userId ? null : await requireAuthenticatedUser();
+  return prisma.companyMembership.findMany({
+    where: { userId: userId ?? session!.userId, status: "active", company: { status: "active", archivedAt: null, commercialStatus: { not: "SUSPENDED" } } },
+    include: { company: true },
+    orderBy: [{ company: { nombreComercial: "asc" } }]
+  });
+}
+
+export async function resolveActiveCompany(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { activeCompanyId: true } });
+  const memberships = await getAvailableCompanies(userId);
+  const persisted = user?.activeCompanyId ? memberships.find((item) => item.companyId === user.activeCompanyId) : null;
+  if (persisted) return { membership: persisted, requiresSelection: false };
+  if (memberships.length === 1) {
+    const [onlyMembership] = memberships;
+    await prisma.user.update({ where: { id: userId }, data: { activeCompanyId: onlyMembership.companyId } });
+    return { membership: onlyMembership, requiresSelection: false };
+  }
+  return { membership: null, requiresSelection: memberships.length > 1 };
+}
+
 export async function requireCompanyContext(): Promise<CompanyContext> {
   const session = await requireAuthenticatedUser();
-  const membership = await prisma.companyMembership.findFirst({
-    where: { userId: session.userId, status: "active", company: { status: "active", archivedAt: null } },
-    orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
-    include: { company: true }
-  });
-  if (!membership) redirect("/login?error=membership");
-  return { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial };
+  const resolved = await resolveActiveCompany(session.userId);
+  if (resolved.requiresSelection) redirect("/seleccionar-empresa");
+  const membership = resolved.membership;
+  if (!membership) redirect("/crear-empresa");
+  return { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
 }
 
 const roleRank: Record<CompanyRole, number> = { OWNER: 5, ADMIN: 4, MANAGER: 3, MEMBER: 2, VIEWER: 1 };
