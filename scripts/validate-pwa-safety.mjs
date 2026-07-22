@@ -21,7 +21,7 @@ assert.match(sw, /set-cookie/);
 assert.doesNotMatch(sw, /cache\.put\(event\.request/);
 assert.doesNotMatch(sw, /"\/hoy"|"\/clientes"|"\/obras"|"\/dinero"|"\/capataz"/);
 assert.doesNotMatch(sw, /keys\.filter\(\(key\) => key !== CACHE_NAME/);
-assert.match(offline, /no guarda aquí clientes, obras, facturas/);
+assert.match(offline, /Orqena no guarda aquí clientes, (?:obras|trabajos), facturas/);
 assert.doesNotMatch(offline, /localStorage|indexedDB|sessionStorage/);
 assert.match(manifest, /start_url: "\/hoy"/);
 assert.match(manifest, /scope: "\/"/);

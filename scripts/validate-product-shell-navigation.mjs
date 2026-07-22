@@ -18,7 +18,7 @@ const primaryOrder = [
   'label: "Hoy"',
   'label: "Dashboard"',
   'label: "Clientes"',
-  'label: "Obras"',
+  'label: "Trabajo"',
   'label: "Presupuestos"',
   'label: "Facturas y cobros"'
 ];
@@ -35,9 +35,9 @@ check("shell no muestra entorno en producción", shell.includes('mode === "produ
 check("panel Más cierra por Escape, exterior, destino y botón", chrome.includes('event.key === "Escape"') && chrome.includes('document.addEventListener("pointerdown"') && chrome.includes("onNavigate={onClose}") && chrome.includes('aria-label="Cerrar Más"'));
 check("paneles restauran foco y hojas bloquean scroll", chrome.includes("activeTriggerRef.current?.focus()") && chrome.includes('document.body.style.overflow = "hidden"'));
 check("diálogos contienen el foco por teclado", chrome.includes('event.key !== "Tab"') && chrome.includes("getFocusable") && chrome.includes('role="dialog"'));
-check("búsqueda usa activador, atajo y ruta existentes", chrome.includes("Buscar en Capataz") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
+check("búsqueda usa activador, atajo y ruta existentes", chrome.includes("Buscar en Orqena") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
 check("búsqueda presenta filas y estados vacío, carga, error y resultados", searchPage.includes("InteractiveRow") && searchPage.includes("¿Qué necesitas encontrar?") && searchPage.includes("No hay resultados") && searchLoading.includes("LoadingState") && searchError.includes("ErrorState"));
-check("Capataz es una acción secundaria estable", chrome.includes('href="/capataz"') && chrome.includes(">Capataz"));
+check("Orqena conserva la acción secundaria y el alias", chrome.includes('href="/capataz"') && chrome.includes(">Orqena"));
 check("notificaciones limitan contador a 99+ sin danger", chrome.includes('count > 99 ? "99+"') && !chrome.includes("bg-danger"));
 check("móvil mantiene Hoy, Clientes, Crear, Obras y Más", ['item.href === "/hoy"', 'item.href === "/clientes"', 'item.href === "/obras"'].every((token) => chrome.includes(token)) && chrome.includes('aria-label="Crear"') && chrome.includes('aria-label="Más áreas"'));
 check("Dashboard está disponible desde Más y búsqueda", chrome.includes('href="/dashboard"') && searchPage.includes('href="/dashboard"'));

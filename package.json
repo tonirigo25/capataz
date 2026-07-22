@@ -24,6 +24,7 @@
     "test:client-work-operating-system": "node scripts/validate-client-work-operating-system.mjs",
     "test:operational-intelligence-context": "tsx scripts/validate-operational-intelligence-context.ts",
     "test:economic-control-treasury-experience": "tsx scripts/validate-economic-control-treasury-experience.ts",
+    "test:orqena-product-transformation": "node scripts/validate-orqena-product-transformation.mjs",
     "test:multitenancy-core": "tsx scripts/validate-multitenancy-core.ts",
     "test:numbering-contract": "npx tsx scripts/validate-numbering-contract.mjs",
     "test:multitenancy-relations": "tsx scripts/validate-multitenancy-core.ts",

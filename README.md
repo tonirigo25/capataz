@@ -1,8 +1,10 @@
-# Capataz
+# Orqena
 
 PWA web móvil para autónomos y pequeñas pymes de construcción, reformas e instalaciones.
 
-Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Dispone de registro, verificación, recuperación, sesiones opacas y aislamiento multiempresa; la empresa activa se deriva siempre de la sesión server-side. OpenAI es opcional y las acciones sensibles siguen siendo editables y requieren confirmación. No integra todavía WhatsApp comercial, calendarios externos ni Stripe reales.
+Orqena es un sistema operativo empresarial con asistencia conversacional para organizar clientes, trabajo, ventas, compras, tesorería y agenda. Dispone de registro, recuperación, sesiones opacas y aislamiento multiempresa; la empresa activa se deriva siempre de la sesión del servidor. Las acciones sensibles son revisables y requieren confirmación.
+
+Descriptor: **Tu negocio, en orden.** `/capataz`, `CAPATAZ_*` y determinados nombres históricos se conservan como aliases técnicos compatibles durante la transición.
 
 ## Compras, proveedores y subcontratas
 

@@ -77,6 +77,9 @@ async function backfillLegacyCompany() {
   }
 
   const company = await prisma.company.upsert({
+    // Keep recovery compatible with a database whose later additive columns
+    // have not been migrated yet. Prisma otherwise returns every current field.
+    select: { id: true },
     where: { legacyEmpresaId: legacy.id },
     update: {
       nombreComercial: legacy.nombreComercial,

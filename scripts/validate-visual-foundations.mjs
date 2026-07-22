@@ -71,7 +71,7 @@ const cases = [
   ["estados semánticos no dependen de color heredado", ["active", "completed", "attention", "risk", "archived"].every((tone) => primitives.includes(tone)) && status.includes("bg-content/[0.08]")],
   ["shell usa sidebar de 240 px y objetivos táctiles", chrome.includes("lg:pl-60") && chrome.includes("w-60") && styles.includes("--cap-control: 2.75rem")],
   ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
-  ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Capataz") && !today.includes("¿Qué ha pasado hoy?")],
+  ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Orqena") && !today.includes("¿Qué ha pasado hoy?")],
   ["Hoy limita la primera zona a tres señales", today.includes("limit: query.categoria ? 20 : 3") && today.includes("Necesita tu atención")],
   ["Hoy deriva consultas compartidas de la empresa activa", today.includes("requireCompanyContext") && today.includes("getDashboardData()") && today.includes("getAgendaItems()") && today.includes("getEconomicControl(")],
   ["foco, safe area y movimiento reducido", styles.includes(":focus-visible") && styles.includes("env(safe-area-inset-bottom)") && styles.includes("prefers-reduced-motion: reduce")],
