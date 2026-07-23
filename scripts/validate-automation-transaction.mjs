@@ -13,6 +13,7 @@ import * as retryModule from "../lib/automations/automation-retries.ts";
 import * as eventModule from "../lib/business-events.ts";
 import * as chatModule from "../app/(app)/capataz/actions.ts";
 import * as chatQueryModule from "../lib/capataz-chat-query.ts";
+import * as sessionModule from "../lib/auth/session.ts";
 const { prisma } = moduleValue(prismaModule),
   { runAutomation } = moduleValue(runnerModule),
   {
@@ -28,6 +29,7 @@ const { prisma } = moduleValue(prismaModule),
     moduleValue(recurrenceModule),
   { scheduleRunRetry, retryAutomationRun } = moduleValue(retryModule),
   { publishBusinessEvent } = moduleValue(eventModule),
+  { withCompanyContext } = moduleValue(sessionModule),
   { runChatCommand } = moduleValue(chatModule),
   { classifyChatIntent } = moduleValue(chatQueryModule);
 
@@ -42,8 +44,15 @@ if (
 const suffix = randomUUID().slice(0, 8),
   now = new Date();
 try {
+  const company = await prisma.company.create({
+    data: { slug: `automation-qa-${suffix}`, nombreComercial: `Automation QA ${suffix}` },
+  });
+  const user = await prisma.user.create({ data: { email: `automation-${suffix}@orqena.invalid`, emailNormalized: `automation-${suffix}@orqena.invalid`, displayName: "Automation QA", passwordHash: "isolated-fixture", status: "active" } });
+  const membership = await prisma.companyMembership.create({ data: { companyId: company.id, userId: user.id, role: "OWNER", status: "active" } });
+  const scoped = (callback) => withCompanyContext({ sessionId: "isolated-test-session", userId: user.id, membershipId: membership.id, companyId: company.id, email: user.email, displayName: user.displayName, role: "OWNER", isDemo: false, companyName: company.nombreComercial, companyStatus: "active", commercialStatus: "ACTIVE", expiresAt: new Date(Date.now() + 60_000) }, callback);
   const client = await prisma.client.create({
     data: {
+      companyId: company.id,
       nombre: `QA ${suffix}`,
       telefono: "000000000",
       direccion: "QA",
@@ -53,6 +62,7 @@ try {
   });
   const work = await prisma.work.create({
     data: {
+      companyId: company.id,
       clienteId: client.id,
       titulo: `Obra QA ${suffix}`,
       direccion: "QA",
@@ -62,6 +72,7 @@ try {
   });
   const budget = await prisma.budget.create({
     data: {
+      companyId: company.id,
       clienteId: client.id,
       obraId: work.id,
       numero: `Q-${suffix}`,
@@ -75,6 +86,7 @@ try {
   });
   const invoice = await prisma.invoice.create({
     data: {
+      companyId: company.id,
       clienteId: client.id,
       obraId: work.id,
       numero: `F-${suffix}`,
@@ -89,6 +101,7 @@ try {
   });
   const definition = await prisma.automationDefinition.create({
     data: {
+      companyId: company.id,
       name: `QA automation ${suffix}`,
       versions: {
         create: {
@@ -146,38 +159,40 @@ try {
   const task = await prisma.task.findFirstOrThrow({
     where: { automationRunId: run.id },
   });
-  const check = await addChecklistItem(task.id, "Punto QA");
-  await toggleChecklistItem(check.id, true, "qa");
-  const sub = await createSubtask(task.id, { title: "Subtarea QA" });
-  const other = await prisma.task.create({ data: { title: "Dependencia QA" } });
-  await addTaskDependency(task.id, other.id);
+  const check = await scoped(() => addChecklistItem(task.id, "Punto QA"));
+  await scoped(() => toggleChecklistItem(check.id, true, "qa"));
+  const sub = await scoped(() => createSubtask(task.id, { companyId: company.id, title: "Subtarea QA" }));
+  const other = await prisma.task.create({ data: { companyId: company.id, title: "Dependencia QA" } });
+  await scoped(() => addTaskDependency(task.id, other.id));
   let cycleBlocked = false;
   try {
-    await addTaskDependency(other.id, task.id);
+    await scoped(() => addTaskDependency(other.id, task.id));
   } catch {
     cycleBlocked = true;
   }
   if (!cycleBlocked) throw new Error("INDIRECT_CYCLE_NOT_BLOCKED");
-  await changeTaskStatus(task.id, "completed", "qa", "flujo aislado");
-  const follow = await createFollowUp({
+  await scoped(() => changeTaskStatus(task.id, "completed", "qa", "flujo aislado"));
+  const follow = await scoped(() => createFollowUp({
+    companyId: company.id,
     title: `FollowUp QA ${suffix}`,
     clientId: client.id,
     workId: work.id,
     budgetId: budget.id,
     invoiceId: invoice.id,
     nextActionAt: now,
-  });
-  await addFollowUpAttempt(follow.id, {
+  }));
+  await scoped(() => addFollowUpAttempt(follow.id, {
     channel: "internal",
     summary: "No respondió",
     response: "no_response",
     nextActionAt: new Date(now.getTime() + 86400000),
-  });
-  await recordFollowUpOutcome(follow.id, "resolved", "Resuelto en QA");
+  }));
+  await scoped(() => recordFollowUpOutcome(follow.id, "resolved", "Resuelto en QA"));
   const rrule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH;COUNT=4";
   parseRRule(rrule);
   const recurrence = await prisma.taskRecurrence.create({
     data: {
+      companyId: company.id,
       frequency: "biweekly",
       rrule,
       startsAt: now,
@@ -188,9 +203,10 @@ try {
     where: { id: sub.id },
     data: { recurrenceId: recurrence.id, occurrenceKey: now.toISOString() },
   });
-  await editTaskSeries(sub.id, "this", { title: "Subtarea QA editada" });
+  await scoped(() => editTaskSeries(sub.id, "this", { title: "Subtarea QA editada" }));
   const retryRun = await prisma.automationRun.create({
     data: {
+      companyId: company.id,
       automationDefinitionId: definition.id,
       automationVersionId: version.id,
       status: "running",
@@ -213,15 +229,15 @@ try {
     correlationId: suffix,
     payloadSanitized: { secret: "redacted", ok: true },
   });
-  const chatQuery = await runChatCommand("qué tareas tengo hoy", null, {
+  const chatQuery = await scoped(() => runChatCommand("qué tareas tengo hoy", null, {
     idempotencyKey: `qa-chat-query-${suffix}`,
-  });
+  }));
   const beforeChatCreate = await prisma.task.count();
-  const chatCreate = await runChatCommand(
+  const chatCreate = await scoped(() => runChatCommand(
     "crea una tarea para revisar QA mañana",
     chatQuery.context,
     { idempotencyKey: `qa-chat-create-${suffix}` },
-  );
+  ));
   const afterChatCreate = await prisma.task.count();
   if (
     beforeChatCreate !== afterChatCreate ||

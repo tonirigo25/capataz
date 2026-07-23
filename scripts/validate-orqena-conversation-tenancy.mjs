@@ -20,8 +20,8 @@ assert.match(component, /companyGenerationRef/, "Late results need a company gen
 assert.match(component, /canApplyCompanyResult/, "Late company results must be rejected before rendering");
 
 for (const invariant of [
-  /where\s*:\s*\{[\s\S]{0,180}companyId/,
-  /idempotencyKey[\s\S]{0,500}companyId/
+  /conversationScope[\s\S]{0,180}companyId[\s\S]{0,80}ownerUserId/,
+  /idempotencyKey[\s\S]{0,500}conversationScope|conversationId[\s\S]{0,500}idempotencyKey/
 ]) assert.match(repository, invariant, `Repository is missing tenancy invariant ${invariant}`);
 assert.match(repository, /companyId\s*:\s*string/, "Repository companyId must be mandatory; this also excludes legacy null conversations");
 assert.doesNotMatch(repository, /companyId\s*\?\s*:/, "Repository must not admit an unscoped company context");

@@ -1,5 +1,5 @@
 import { EconomicControlCenter } from "@/components/economic-control-center";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { getTreasuryRecommendations } from "@/lib/business-recommendations";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 
@@ -15,7 +15,7 @@ type TreasurySearchParams = {
 
 export default async function TreasuryPage({ searchParams }: { searchParams: Promise<TreasurySearchParams> }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.view");
   const [data, recommendations] = await Promise.all([
     getEconomicControl({
       area: query.vista,

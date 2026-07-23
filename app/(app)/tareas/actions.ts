@@ -20,10 +20,14 @@ import {
   editTaskSeries,
 } from "@/lib/tasks/task-recurrence";
 import { prisma } from "@/lib/prisma";
+import { requireCapability } from "@/lib/commercial/authorization";
+async function taskGuard(data:FormData){const auth=await requireCapability("tasks.manage");const ids=["id","taskId","parentTaskId","dependsOnTaskId"].map(key=>String(data.get(key)??"")).filter(Boolean);for(const id of ids){const found=await prisma.task.findFirst({where:{companyId:auth.companyId,OR:[{id},{checklist:{some:{id}}},{dependencies:{some:{id}}},{blocking:{some:{id}}}]},select:{id:true}});if(!found)throw new Error("TASK_NOT_AVAILABLE");}return auth;}
 export async function createTaskAction(data: FormData) {
+  const auth=await requireCapability("tasks.manage");
   const title = String(data.get("title") ?? "").trim();
   if (!title) return;
   await createTask({
+    companyId:auth.companyId,
     title,
     description: String(data.get("description") ?? "") || undefined,
     dueAt: data.get("dueAt") ? new Date(String(data.get("dueAt"))) : undefined,
@@ -37,6 +41,7 @@ export async function createTaskAction(data: FormData) {
   revalidatePath("/hoy");
 }
 export async function completeTaskAction(data: FormData) {
+  await taskGuard(data);
   await changeTaskStatus(
     String(data.get("id")),
     "completed",
@@ -47,11 +52,13 @@ export async function completeTaskAction(data: FormData) {
   revalidatePath("/hoy");
 }
 export async function addChecklistAction(data: FormData) {
+  await taskGuard(data);
   const title = String(data.get("title") ?? "").trim();
   if (title) await addChecklistItem(String(data.get("taskId")), title);
   revalidatePath("/tareas");
 }
 export async function toggleChecklistAction(data: FormData) {
+  await taskGuard(data);
   await toggleChecklistItem(
     String(data.get("id")),
     data.get("completed") !== "true",
@@ -60,6 +67,7 @@ export async function toggleChecklistAction(data: FormData) {
   revalidatePath("/tareas");
 }
 export async function updateTaskAction(data: FormData) {
+  await taskGuard(data);
   await editTask(String(data.get("id")), {
     title: String(data.get("title") ?? "").trim() || undefined,
     description: String(data.get("description") ?? "").trim() || null,
@@ -75,6 +83,7 @@ export async function updateTaskAction(data: FormData) {
   revalidatePath(`/tareas/${String(data.get("id"))}`);
 }
 export async function archiveTaskAction(data: FormData) {
+  await taskGuard(data);
   await archiveTask(String(data.get("id")));
   revalidatePath("/tareas");
 }
@@ -84,6 +93,7 @@ const refresh = (id: string) => {
   revalidatePath("/hoy");
 };
 export async function changeTaskStatusAction(data: FormData) {
+  await taskGuard(data);
   const id = String(data.get("id"));
   await changeTaskStatus(
     id,
@@ -94,11 +104,13 @@ export async function changeTaskStatusAction(data: FormData) {
   refresh(id);
 }
 export async function addTaskCommentAction(data: FormData) {
+  await taskGuard(data);
   const id = String(data.get("taskId"));
   await addTaskComment(id, String(data.get("content") ?? ""), "user");
   refresh(id);
 }
 export async function editChecklistAction(data: FormData) {
+  await taskGuard(data);
   const taskId = String(data.get("taskId"));
   await editChecklistItem(
     String(data.get("id")),
@@ -107,6 +119,7 @@ export async function editChecklistAction(data: FormData) {
   refresh(taskId);
 }
 export async function moveChecklistAction(data: FormData) {
+  await taskGuard(data);
   const taskId = String(data.get("taskId"));
   await moveChecklistItem(
     String(data.get("id")),
@@ -115,14 +128,17 @@ export async function moveChecklistAction(data: FormData) {
   refresh(taskId);
 }
 export async function createSubtaskAction(data: FormData) {
+  const auth=await taskGuard(data);
   const id = String(data.get("parentTaskId"));
   await createSubtask(id, {
+    companyId:auth.companyId,
     title: String(data.get("title") ?? ""),
     dueAt: data.get("dueAt") ? new Date(String(data.get("dueAt"))) : undefined,
   });
   refresh(id);
 }
 export async function addDependencyAction(data: FormData) {
+  await taskGuard(data);
   const id = String(data.get("taskId"));
   await addTaskDependency(
     id,
@@ -132,21 +148,23 @@ export async function addDependencyAction(data: FormData) {
   refresh(id);
 }
 export async function removeDependencyAction(data: FormData) {
+  await taskGuard(data);
   const taskId = String(data.get("taskId"));
   await removeTaskDependency(String(data.get("id")));
   refresh(taskId);
 }
 export async function saveRecurrenceAction(data: FormData) {
+  const auth=await taskGuard(data);
   const taskId = String(data.get("taskId")),
     rrule = String(data.get("rrule") ?? "");
   parseRRule(rrule);
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+  const task = await prisma.task.findFirstOrThrow({ where: { id: taskId, companyId:auth.companyId } });
   const startsAt = data.get("startsAt")
     ? new Date(String(data.get("startsAt")))
     : (task.dueAt ?? new Date());
   const recurrence = task.recurrenceId
     ? await prisma.taskRecurrence.update({
-        where: { id: task.recurrenceId },
+        where: { id: (await prisma.taskRecurrence.findFirstOrThrow({where:{id:task.recurrenceId,companyId:auth.companyId},select:{id:true}})).id },
         data: {
           rrule,
           frequency: String(data.get("frequency") ?? "custom"),
@@ -157,6 +175,7 @@ export async function saveRecurrenceAction(data: FormData) {
       })
     : await prisma.taskRecurrence.create({
         data: {
+          companyId:auth.companyId,
           rrule,
           frequency: String(data.get("frequency") ?? "custom"),
           timezone: String(data.get("timezone") ?? "Europe/Madrid"),
@@ -171,6 +190,7 @@ export async function saveRecurrenceAction(data: FormData) {
   refresh(taskId);
 }
 export async function editSeriesAction(data: FormData) {
+  await taskGuard(data);
   const id = String(data.get("taskId"));
   await editTaskSeries(
     id,

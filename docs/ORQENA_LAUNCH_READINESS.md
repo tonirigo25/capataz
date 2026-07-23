@@ -39,3 +39,6 @@ Cuenta, catálogo, webhooks firmados, conciliación y pruebas en sandbox. Stripe
 ## Pendiente de correo transaccional real
 
 Proveedor, dominio remitente, plantillas revisadas, rebotes y reputación. No se han enviado correos reales.
+## Puerta final de privacidad y roles
+
+La release candidate requiere la migración aditiva de propietario de conversación y perfil funcional, preflight legacy sin contenido, suite `test:orqena-final-product-closure`, suites focales, runner aislado, typecheck, build y validación remota del SHA desplegado. La integración generativa real continúa separada y requiere una credencial específica de staging.

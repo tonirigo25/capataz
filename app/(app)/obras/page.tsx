@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { Prisma } from "@prisma/client";
 import {
   AlertTriangle,
   ArrowRight,
@@ -31,7 +31,7 @@ import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, Toolbar } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import { getOperationalContextsForWorks } from "@/lib/operational-intelligence/queries";
 import { statusClass } from "@/lib/status";
 import {
@@ -60,6 +60,8 @@ const sortOptions = [
   ["importe", "Importe"],
   ["cliente", "Cliente"]
 ];
+const workListInclude = { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: { orderBy: { fechaInicio: "asc" as const } }, documents: true, photos: true } satisfies Prisma.WorkInclude;
+type WorkListRecord = Prisma.WorkGetPayload<{ include: typeof workListInclude }>;
 
 type WorksQuery = {
   estado?: string;
@@ -73,21 +75,17 @@ type WorksQuery = {
 
 export default async function WorksPage({ searchParams }: { searchParams: Promise<WorksQuery> }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("work.view");
+  const { companyId } = auth;
+  const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
+  if (!economicAllowed) {
+    const operationalWorks = await prisma.work.findMany({ where: { companyId, ...(query.buscar ? { titulo: { contains: query.buscar, mode: "insensitive" } } : {}) }, select: { id: true, titulo: true, estado: true, prioridad: true, fechaInicio: true, fechaFinPrevista: true, client: { select: { nombre: true } } }, orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }], take: 100 });
+    return <main className="screen"><PageHeader eyebrow="Trabajos" title="Trabajos" description="Planificación autorizada, sin información económica." /><ResultCount shown={operationalWorks.length} total={operationalWorks.length} noun="trabajos" /><div className="mt-4 grid gap-3 md:grid-cols-2">{operationalWorks.map((work) => <Link key={work.id} href={`/obras/${work.id}`} className="card p-4"><h2 className="font-black text-obra-ink">{work.titulo}</h2><p className="mt-1 text-sm text-slate-600">{work.client.nombre}</p><p className="mt-2 text-xs font-bold uppercase text-slate-500">{workStatusMeta(work.estado).label}</p></Link>)}</div></main>;
+  }
   const works = await prisma.work.findMany({
     where: { companyId },
     orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
-    include: {
-      client: true,
-      budgets: true,
-      invoices: { include: { payments: true } },
-      expenses: true,
-      materials: true,
-      reminders: true,
-      agendaEvents: { orderBy: { fechaInicio: "asc" } },
-      documents: true,
-      photos: true
-    }
+    include: workListInclude
   });
   const operationalContexts = await getOperationalContextsForWorks(works.map((work) => work.id));
 
@@ -131,12 +129,12 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     <main className="screen">
       <PageHeader
         eyebrow="Centro operativo"
-        title="Obras"
+        title="Trabajos"
         description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos de cada trabajo."
-        action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nueva obra</Link>}
+        action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link>}
         secondaryActions={<Link href="/capataz" className="secondary-button">Abrir Orqena</Link>}
       >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
           <ExecutiveMetric icon={BriefcaseBusiness} label="Activas" value={String(totals.active)} detail={`${totals.blocked} bloqueadas`} tone={totals.blocked ? "warning" : "neutral"} />
           <ExecutiveMetric icon={Receipt} label="Facturado" value={formatCurrency(totals.invoiced)} detail={`${formatCurrency(totals.pending)} pendiente`} />
           <ExecutiveMetric icon={Banknote} label="Coste real" value={formatCurrency(totals.cost)} detail="Gastos imputados" />
@@ -177,10 +175,10 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
 
       {!visibleWorks.length ? (
         <EmptyState
-          title={works.length ? "No hay obras para estos filtros" : "Todavía no hay obras"}
-          description={works.length ? "Cambia la búsqueda o limpia los filtros activos." : "Crea la primera obra y vincúlala a un cliente para organizar su ejecución."}
+          title={works.length ? "No hay trabajos para estos filtros" : "Todavía no hay trabajos"}
+          description={works.length ? "Cambia la búsqueda o limpia los filtros activos." : "Crea el primer trabajo y vincúlalo a un cliente para organizar su ejecución."}
           icon={BriefcaseBusiness}
-          action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear obra</Link>}
+          action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link>}
         />
       ) : view === "tabla" ? (
         <WorkTable items={visibleWorks} />
@@ -319,7 +317,7 @@ function KanbanView({ items }: { items: WorkItem[] }) {
                   <p className="mt-2 text-xs font-bold text-slate-600">{item.nextAction.label}</p>
                 </Link>
               ))}
-              {!phaseItems.length ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">Sin obras reales en esta fase.</p> : null}
+              {!phaseItems.length ? <p className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">Sin trabajos en esta fase.</p> : null}
             </div>
           </section>
         );
@@ -467,13 +465,13 @@ function iconFor(name: string): LucideIcon {
   return icons[name] ?? BriefcaseBusiness;
 }
 
-type WorkItem = Awaited<ReturnType<typeof prisma.work.findMany>>[number] extends infer T ? {
-  work: any;
+type WorkItem = {
+  work: WorkListRecord;
   financial: ReturnType<typeof calculateWorkFinancials>;
   nextAction: ReturnType<typeof getWorkNextAction>;
   status: ReturnType<typeof workStatusMeta>;
   priority: ReturnType<typeof workPriorityMeta>;
-  pendingMaterials: any[];
+  pendingMaterials: WorkListRecord["materials"];
   pendingDocs: number;
   hasRisk: boolean;
-} : never;
+};

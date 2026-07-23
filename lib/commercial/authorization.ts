@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyContext, type CompanyContext } from "@/lib/auth/session";
 import { capabilityCatalog, roleCapabilities, type CapabilityKey, type EntitlementKey } from "@/lib/commercial/catalog";
 import { defaultPlanKey, planCatalog, type EntitlementValue } from "@/lib/commercial/plans";
+import { canHoldEconomicCapabilities, ECONOMIC_CAPABILITIES, functionalProfileCapabilities, resolveFunctionalProfile } from "@/lib/commercial/functional-profiles";
 
 export type AuthorizationDecision = { allowed: boolean; reason: "allowed" | "permission" | "entitlement" | "membership" | "company" | "subscription"; scope: string };
 
@@ -24,9 +25,11 @@ export async function resolveAuthorization(context: CompanyContext, capability: 
   if (!prisma.companyMembership) { const legacyAllowed = !context.role || roleCapabilities[context.role].includes(capability); return { allowed: legacyAllowed, reason: legacyAllowed ? "allowed" : "permission", scope: "COMPANY" }; }
   const membership = await prisma.companyMembership.findUnique({ where: { id: context.membershipId }, include: { permissionOverrides: true, scopeAssignments: { where: { capabilityKey: capability } } } });
   if (!membership || membership.status !== "active") return { allowed: false, reason: "membership", scope: "COMPANY" };
+  const profile = resolveFunctionalProfile(membership.functionalProfileKey, membership.role);
   const override = membership.permissionOverrides.find((item) => item.capabilityKey === capability);
   if (override?.effect === "DENY") return { allowed: false, reason: "permission", scope: override.scope ?? "COMPANY" };
-  const permitted = override?.effect === "GRANT" || roleCapabilities[context.role].includes(capability);
+  const economicGrantForbidden = ECONOMIC_CAPABILITIES.has(capability) && !canHoldEconomicCapabilities(profile);
+  const permitted = !economicGrantForbidden && (override?.effect === "GRANT" || functionalProfileCapabilities[profile].includes(capability));
   if (!permitted) return { allowed: false, reason: "permission", scope: "COMPANY" };
   const commercial = await getEntitlements(context.companyId);
   const isReadOperation = capability.endsWith(".view") || capability.endsWith(".export") || capability === "orqena.use" || capability === "company.billing.manage";
@@ -44,6 +47,20 @@ export async function requireCapability(capability: CapabilityKey) {
   const decision = await resolveAuthorization(context, capability);
   if (!decision.allowed) redirect(`/acceso-restringido?reason=${decision.reason}`);
   return { ...context, capability, scope: decision.scope };
+}
+
+export async function getEffectiveCapabilities(context: CompanyContext): Promise<CapabilityKey[]> {
+  const membership = await prisma.companyMembership.findFirst({ where: { id: context.membershipId, userId: context.userId, companyId: context.companyId, status: "active" }, include: { permissionOverrides: true } });
+  if (!membership) return [];
+  const profile = resolveFunctionalProfile(membership.functionalProfileKey, membership.role);
+  const effective = new Set(functionalProfileCapabilities[profile]);
+  for (const override of membership.permissionOverrides) {
+    const key = override.capabilityKey as CapabilityKey;
+    if (!(key in capabilityCatalog)) continue;
+    if (override.effect === "DENY") effective.delete(key);
+    else if (!(ECONOMIC_CAPABILITIES.has(key) && !canHoldEconomicCapabilities(profile))) effective.add(key);
+  }
+  return [...effective];
 }
 
 export async function requireEntitlement(key: EntitlementKey) {

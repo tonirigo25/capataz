@@ -94,9 +94,9 @@ export default async function AgendaPage({
       </Tabs>
 
       <nav className="mb-5 flex items-center justify-between gap-2" aria-label="Cambiar fecha">
-        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(addDays(selectedDay, -1))}`} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
-        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(new Date())}`} className="secondary-button">Hoy</Link>
-        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(addDays(selectedDay, 1))}`} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
+        <Link href={agendaHref(view, addDays(selectedDay, -1), query)} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
+        <Link href={agendaHref(view, new Date(), query)} className="secondary-button">Hoy</Link>
+        <Link href={agendaHref(view, addDays(selectedDay, 1), query)} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
       </nav>
 
       {view === "hoy" ? <TodayView items={todayItems} /> : null}
@@ -125,7 +125,7 @@ function TodayView({ items }: { items: AgendaItem[] }) {
           <p className="mt-1 text-sm font-semibold text-slate-600">{formatDate(next.fechaInicio)}</p>
         </section>
       ) : null}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
         <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda" className="secondary-button">Visita</Link>
         <Link href="/gestion?tipo=recordatorio&returnTo=/agenda" className="secondary-button">Recordatorio</Link>
         <Link href="/gestion?tipo=eventoAgenda&tipoEvento=seguimiento_cobro&returnTo=/agenda" className="secondary-button">Seguimiento</Link>
@@ -141,6 +141,13 @@ function TodayView({ items }: { items: AgendaItem[] }) {
       })}
     </div>
   );
+}
+
+function agendaHref(view: string, day: Date, query: { tipo?: string; buscar?: string }) {
+  const params = new URLSearchParams({ vista: view, dia: toDateInputValue(day) });
+  if (query.buscar) params.set("buscar", query.buscar);
+  if (query.tipo) params.set("tipo", query.tipo);
+  return `/agenda?${params.toString()}`;
 }
 
 function WeekView({ items, weekStart }: { items: AgendaItem[]; weekStart: Date }) {

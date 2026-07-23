@@ -5,12 +5,12 @@ import { DemoLimitButton } from "@/components/demo-limit-button";
 import { isUnlimitedMode } from "@/lib/app-mode";
 import { budgetTemplates } from "@/lib/budget-templates";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetTemplatesPage() {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("sales.budgets.view");
   const [clients, works, budgetCount] = await Promise.all([
     prisma.client.findMany({ where: { companyId }, orderBy: { nombre: "asc" } }),
     prisma.work.findMany({ where: { companyId }, orderBy: { titulo: "asc" }, include: { client: true } }),

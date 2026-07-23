@@ -6,7 +6,8 @@ import { StatusPill } from "@/components/status-pill";
 import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, TableShell } from "@/components/ui-primitives";
 import { getClientList, type ClientListItem, type ClientListQuery } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { prisma } from "@/lib/prisma";
 import { getOperationalContextsForClients } from "@/lib/operational-intelligence/queries";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,13 @@ export default async function ClientsPage({
 }) {
   const raw = await searchParams;
   const query = normalizeQuery(raw);
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("clients.view");
+  const { companyId } = auth;
+  const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
+  if (!economicAllowed) {
+    const clients = await prisma.client.findMany({ where: { companyId, archivadoAt: query.archivo === "archivados" ? { not: null } : null, ...(query.buscar ? { nombre: { contains: query.buscar, mode: "insensitive" } } : {}) }, select: { id: true, nombre: true, telefono: true, email: true, estado: true }, orderBy: { nombre: "asc" }, take: 100 });
+    return <main className="screen"><PageHeader eyebrow="CRM" title="Clientes" description="Contactos autorizados, sin información económica." /><ResultCount shown={clients.length} total={clients.length} noun="clientes" /><div className="mt-4 grid gap-3 md:grid-cols-2">{clients.map((client) => <Link key={client.id} href={`/clientes/${client.id}`} className="card p-4"><h2 className="font-black text-obra-ink">{client.nombre}</h2><p className="mt-1 text-sm text-slate-600">{client.telefono ?? client.email ?? "Sin contacto"}</p><StatusPill status={client.estado} /></Link>)}</div></main>;
+  }
   const result = await getClientList(query, companyId);
   const operationalContexts = await getOperationalContextsForClients(result.items.map((client) => client.id));
   const activeFilterSet = new Set((query.filtros ?? "").split(",").filter(Boolean));
@@ -66,7 +73,7 @@ export default async function ClientsPage({
       <PageHeader
         eyebrow="CRM"
         title="Clientes"
-        description="Contactos, obras y situación económica con una próxima acción clara para cada cliente."
+        description="Contactos, trabajos y próxima acción de cada cliente."
         action={
           <DemoLimitButton href="/gestion?tipo=cliente&returnTo=/clientes" currentCount={result.total} limit={3}>
             <UserPlus size={18} />
@@ -98,14 +105,14 @@ export default async function ClientsPage({
             </button>
           </div>
 
-          <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-2 sm:p-3">
             <legend className="mb-2 flex items-center gap-2 text-sm font-black text-obra-ink">
               <SlidersHorizontal size={17} />
               Filtros operativos
             </legend>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {filterOptions.map(([id, label]) => (
-                <label key={id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-sm font-semibold text-slate-700">
+                <label key={id} className="flex min-h-11 items-center gap-2 rounded-lg bg-white px-2 py-1.5 text-sm font-semibold text-slate-700">
                   <input className="mt-1" type="checkbox" name="filtro" value={id} defaultChecked={activeFilterSet.has(id)} />
                   <span>{label}</span>
                 </label>

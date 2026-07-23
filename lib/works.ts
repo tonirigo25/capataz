@@ -56,7 +56,6 @@ export const ACTIVE_WORK_STATUSES = [
 
 const BILLABLE_INVOICE_EXCLUDED_STATUSES = ["borrador", "pendiente_emitir"];
 const OPEN_INVOICE_STATUSES = ["emitida", "enviada", "pendiente", "pendiente_pago", "parcialmente_pagada", "vencida", "reclamada"];
-const OPEN_BUDGET_STATUSES = ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"];
 const ACCEPTED_BUDGET_STATUSES = ["aceptado"];
 const BLOCKED_STATUSES = ["pausada", "parada", "pendiente_material", "pendiente_cliente"];
 

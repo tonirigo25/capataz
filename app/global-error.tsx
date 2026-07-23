@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
@@ -10,7 +11,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
             <p>No se ha enviado ninguna acción. Puedes reintentar o volver al inicio.</p>
             <div className="button-row">
               <button type="button" className="primary-button" onClick={reset}>Reintentar</button>
-              <a href="/" className="secondary-button">Volver al inicio</a>
+              <Link href="/" className="secondary-button">Volver al inicio</Link>
             </div>
           </section>
         </main>

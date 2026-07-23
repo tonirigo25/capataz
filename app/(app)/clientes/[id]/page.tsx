@@ -3,21 +3,15 @@ import { notFound } from "next/navigation";
 import type { ComponentType, ReactNode } from "react";
 import {
   Archive,
-  Banknote,
   Bell,
   Bot,
   BriefcaseBusiness,
   CalendarClock,
-  CheckCircle2,
   CircleDollarSign,
   ClipboardList,
   FileText,
   FolderOpen,
-  Mail,
-  MapPin,
   MessageCircle,
-  NotebookText,
-  Phone,
   Plus,
   Receipt,
   RotateCcw,
@@ -37,7 +31,8 @@ import { getClientOperationalContext } from "@/lib/operational-intelligence/quer
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -71,9 +66,19 @@ export default async function ClientDetailPage({
   searchParams: Promise<DetailSearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("clients.view");
+  const economicAccess = await Promise.all([
+    resolveAuthorization(auth, "sales.budgets.view"),
+    resolveAuthorization(auth, "sales.invoices.view"),
+    resolveAuthorization(auth, "treasury.view")
+  ]);
+  if (economicAccess.some((decision) => !decision.allowed)) {
+    const client = await prisma.client.findFirst({ where: { id, companyId: auth.companyId }, select: { id: true, nombre: true, nombreComercial: true, razonSocial: true, estado: true, origen: true, archivadoAt: true } });
+    if (!client) notFound();
+    return <RestrictedClientDetail client={client} />;
+  }
   const [summary, treasury, operationalContext] = await Promise.all([
-    getClientCrmSummary(id, companyId),
+    getClientCrmSummary(id, auth.companyId),
     getEconomicControl({ clientId: id, period: "30d" }),
     getClientOperationalContext(id)
   ]);
@@ -135,6 +140,11 @@ export default async function ClientDetailPage({
       </div>
     </main>
   );
+}
+
+function RestrictedClientDetail({ client }: { client: { id: string; nombre: string; nombreComercial: string | null; razonSocial: string | null; estado: string; origen: string; archivadoAt: Date | null } }) {
+  const name = client.nombreComercial ?? client.razonSocial ?? client.nombre;
+  return <main className="screen"><EntityHeader back={<ParentNavigation href="/clientes" label="Clientes" />} context={client.origen} title={name} description="Ficha de cliente" status={<StatusPill status={client.archivadoAt ? "archivado" : client.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar la ficha del cliente, pero no presupuestos, facturas, cobros ni importes." /></main>;
 }
 
 function ClientActions({ clientId, clientName, returnTo, archived }: { clientId: string; clientName: string; returnTo: string; archived: boolean }) {
@@ -676,19 +686,6 @@ function CompactRow({ icon: Icon, title, detail, href }: { icon: ComponentType<{
     </span>
   );
   return href ? <Link href={href} className="block transition hover:scale-[0.995]">{content}</Link> : content;
-}
-
-function HeaderFact({ icon: Icon, label, value, detail }: { icon: ComponentType<{ size?: number; className?: string }>; label: string; value: string; detail: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <p className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-        <Icon size={15} />
-        {label}
-      </p>
-      <p className="mt-2 break-words font-black text-obra-ink">{value}</p>
-      <p className="mt-1 break-words text-xs font-semibold text-slate-500">{detail}</p>
-    </div>
-  );
 }
 
 function DataGrid({ rows }: { rows: Array<[string, string | null]> }) {

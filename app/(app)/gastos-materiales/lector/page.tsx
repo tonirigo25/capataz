@@ -3,7 +3,7 @@ import { FileScan, FileText, Search, Upload } from "lucide-react";
 import { uploadExpenseDocument } from "@/app/(app)/gastos-materiales/actions";
 import { SectionHeader } from "@/components/section-header";
 import { CompactFilterBar, CompactSearch, ResultCount } from "@/components/ui-primitives";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ExpenseDocumentReaderPage({ searchParams }: { searchParams: Promise<{ error?: string; deleted?: string; estado?: string; buscar?: string }> }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("purchases.received_invoices.view");
   const status = validStatus(query.estado);
   const documents = await prisma.document.findMany({
     where: {

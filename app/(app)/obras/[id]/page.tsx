@@ -16,11 +16,7 @@ import {
   Euro,
   FileArchive,
   FileText,
-  Hammer,
-  Image,
-  Mail,
   Package,
-  Phone,
   Receipt,
   Settings,
   UserRound,
@@ -28,6 +24,7 @@ import {
   WalletCards
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { Prisma } from "@prisma/client";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
@@ -36,7 +33,7 @@ import { OperationalContextSummary } from "@/components/operational-signals";
 import { getWorkOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import { statusClass } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import type { EconomicDocument } from "@/lib/economic-control/types";
@@ -70,6 +67,21 @@ const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
   documentos: "archivos", contactos: "equipo", personal: "equipo"
 };
 
+const workDetailInclude = {
+  client: true, contact: true,
+  repositoryDocuments: { orderBy: { createdAt: "desc" as const } },
+  internalNotes: { orderBy: { createdAt: "desc" as const } },
+  budgets: { orderBy: { fechaCreacion: "desc" as const }, include: { reminders: true, agendaEvents: true } },
+  invoices: { orderBy: { fechaEmision: "desc" as const }, include: { payments: true, reminders: true, agendaEvents: true } },
+  payments: { orderBy: { fecha: "desc" as const }, include: { invoice: true } },
+  expenses: { orderBy: { fecha: "desc" as const }, include: { businessPartner: { select: { id: true, commercialName: true, kind: true } }, purchaseInvoice: { select: { id: true, kind: true, invoiceNumber: true, pendingAmount: true } } } },
+  materials: true,
+  reminders: { orderBy: { fechaProgramada: "asc" as const }, include: { invoice: true, budget: true } },
+  agendaEvents: { orderBy: { fechaInicio: "asc" as const }, include: { invoice: true, budget: true } },
+  documents: { orderBy: { fecha: "desc" as const } }, photos: { orderBy: { tomadaEn: "desc" as const } }
+} satisfies Prisma.WorkInclude;
+type WorkDetail = Prisma.WorkGetPayload<{ include: typeof workDetailInclude }>;
+
 export default async function WorkDetailPage({
   params,
   searchParams
@@ -78,25 +90,21 @@ export default async function WorkDetailPage({
   searchParams: Promise<{ vista?: string; tab?: string; modo?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("work.view");
+  const economicAccess = await Promise.all([
+    resolveAuthorization(auth, "sales.budgets.view"),
+    resolveAuthorization(auth, "sales.invoices.view"),
+    resolveAuthorization(auth, "treasury.view")
+  ]);
+  if (economicAccess.some((decision) => !decision.allowed)) {
+    const work = await prisma.work.findFirst({ where: { id, companyId: auth.companyId }, select: { id: true, titulo: true, tipoTrabajo: true, direccion: true, estado: true, codigo: true, numeroInterno: true, client: { select: { nombre: true } } } });
+    if (!work) notFound();
+    return <RestrictedWorkDetail work={work} />;
+  }
   const [work, treasury, operationalContext] = await Promise.all([
     prisma.work.findFirst({
-      where: { id, companyId },
-      include: {
-        client: true,
-        contact: true,
-        repositoryDocuments: { orderBy: { createdAt: "desc" } },
-        internalNotes: { orderBy: { createdAt: "desc" } },
-        budgets: { orderBy: { fechaCreacion: "desc" }, include: { reminders: true, agendaEvents: true } },
-        invoices: { orderBy: { fechaEmision: "desc" }, include: { payments: true, reminders: true, agendaEvents: true } },
-        payments: { orderBy: { fecha: "desc" }, include: { invoice: true } },
-        expenses: { orderBy: { fecha: "desc" }, include: { businessPartner: { select: { id: true, commercialName: true, kind: true } }, purchaseInvoice: { select: { id: true, kind: true, invoiceNumber: true, pendingAmount: true } } } },
-        materials: true,
-        reminders: { orderBy: { fechaProgramada: "asc" }, include: { invoice: true, budget: true } },
-        agendaEvents: { orderBy: { fechaInicio: "asc" }, include: { invoice: true, budget: true } },
-        documents: { orderBy: { fecha: "desc" } },
-        photos: { orderBy: { tomadaEn: "desc" } }
-      }
+      where: { id, companyId: auth.companyId },
+      include: workDetailInclude
     }),
     getEconomicControl({ workId: id, period: "30d" }),
     getWorkOperationalContext(id)
@@ -218,6 +226,10 @@ export default async function WorkDetailPage({
   );
 }
 
+function RestrictedWorkDetail({ work }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } } }) {
+  return <main className="screen"><EntityHeader back={<ParentNavigation href="/obras" label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar el trabajo, pero no presupuestos, facturas, cobros, gastos ni tesorería." /></main>;
+}
+
 function WorkActions({ workId, clientId }: { workId: string; clientId: string }) {
   const returnTo = encodeURIComponent(`/obras/${workId}`);
   const actions = [
@@ -249,7 +261,7 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
   );
 }
 
-function ClientTab({ work }: { work: any }) {
+function ClientTab({ work }: { work: WorkDetail }) {
   return (
     <Section title="Cliente">
       <InfoGrid rows={[
@@ -266,7 +278,7 @@ function ClientTab({ work }: { work: any }) {
   );
 }
 
-function ContactsTab({ work }: { work: any }) {
+function ContactsTab({ work }: { work: WorkDetail }) {
   const rows: Array<[string, string]> = [
     ["Contacto de obra", work.contact ? `${work.contact.nombre}${work.contact.apellidos ? ` ${work.contact.apellidos}` : ""}` : work.contactoPrincipal ?? work.client.contactoPrincipalNombre ?? "No registrado"],
     ["Teléfono obra", work.contact?.telefono ?? work.contactoTelefono ?? work.client.contactoPrincipalTelefono ?? work.client.telefono ?? "No registrado"],
@@ -283,7 +295,7 @@ function ContactsTab({ work }: { work: any }) {
   );
 }
 
-function MaterialsTab({ materials, pendingCount, workId }: { materials: any[]; pendingCount: number; workId: string }) {
+function MaterialsTab({ materials, pendingCount, workId }: { materials: WorkDetail["materials"]; pendingCount: number; workId: string }) {
   return (
     <Section title={`Materiales · ${pendingCount} pendientes`}>
       {materials.length ? (
@@ -350,7 +362,7 @@ function MiniTimeline({ title, items, empty }: { title: string; items: EconomicD
   );
 }
 
-function HoursTab({ work }: { work: any }) {
+function HoursTab({ work }: { work: WorkDetail }) {
   const deviation = Number(work.horasReales ?? 0) - Number(work.horasEstimadas ?? 0);
   return (
     <Section title="Horas">
@@ -363,11 +375,11 @@ function HoursTab({ work }: { work: any }) {
   );
 }
 
-function PeopleTab({ work }: { work: any }) {
+function PeopleTab({ work }: { work: WorkDetail }) {
   return <Section title="Personal"><InfoGrid rows={[["Responsable", work.responsable ?? "Sin asignar"], ["Comercial", work.comercial ?? "Sin asignar"], ["Jefe de obra", work.jefeObra ?? "Sin asignar"]]} /></Section>;
 }
 
-function SubcontractTab({ work, expenses }: { work: any; expenses: any[] }) {
+function SubcontractTab({ work, expenses }: { work: WorkDetail; expenses: WorkDetail["expenses"] }) {
   const subcontractExpenses = expenses.filter((expense) => expense.categoria === "subcontrata");
   const total = subcontractExpenses.reduce((sum, expense) => sum + expense.importe, 0) + Number(work.subcontratasCoste ?? 0);
   return (
@@ -385,7 +397,7 @@ function SubcontractTab({ work, expenses }: { work: any; expenses: any[] }) {
   );
 }
 
-function DocumentsTab({ documents, workId, clientId }: { documents: Array<any>; workId: string; clientId: string }) {
+function DocumentsTab({ documents, workId, clientId }: { documents: ReturnType<typeof buildWorkDocuments>; workId: string; clientId: string }) {
   return (
     <Section title="Documentos">
       <div className="mb-4 flex flex-wrap gap-2">
@@ -411,35 +423,10 @@ function DocumentsTab({ documents, workId, clientId }: { documents: Array<any>; 
   );
 }
 
-function PhotosTab({ photos, workId }: { photos: any[]; workId: string }) {
-  return (
-    <Section title="Fotografías">
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link href={`/gestion?tipo=foto&obraId=${workId}&returnTo=/obras/${workId}?tab=fotografias`} className="secondary-button"><Camera size={17} /> Registrar foto</Link>
-      </div>
-      {photos.length ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {photos.map((photo) => (
-            <article key={photo.id} className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="label">{photo.categoria}</p>
-              <h3 className="mt-1 font-black text-obra-ink">{photo.titulo}</h3>
-              <p className="mt-1 text-sm text-slate-500">{formatDate(photo.tomadaEn)}</p>
-              {photo.notas ? <p className="mt-2 text-sm leading-6 text-slate-600">{photo.notas}</p> : null}
-              {photo.url ? <Link href={photo.url} className="secondary-button mt-3">Abrir foto</Link> : null}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <EmptyState title="No hay fotografías registradas" description="Estructura preparada por categorías: antes, durante, después, incidencias, material y acabados. No se simula subida de archivos." icon={Image} action={<Link href={`/gestion?tipo=foto&obraId=${workId}&returnTo=/obras/${workId}?tab=fotografias`} className="secondary-button">Registrar foto</Link>} />
-      )}
-    </Section>
-  );
-}
-
-function ProgressTab({ work, timeline, mode }: { work: any; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; mode: "cronologia" | "galeria" }) {
+function ProgressTab({ work, timeline, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; mode: "cronologia" | "galeria" }) {
   const photos = work.photos
-    .filter((photo: any) => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")))
-    .map((photo: any) => ({
+    .filter((photo): photo is typeof photo & { url: string } => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")))
+    .map((photo) => ({
       id: photo.id,
       title: photo.titulo,
       url: photo.url,
@@ -476,7 +463,7 @@ function ProgressTab({ work, timeline, mode }: { work: any; timeline: Array<{ ke
   );
 }
 
-function NotesTab({ notes, workId, clientId }: { notes: any[]; workId: string; clientId: string }) {
+function NotesTab({ notes, workId, clientId }: { notes: WorkDetail["internalNotes"]; workId: string; clientId: string }) {
   const activeNotes = notes.filter((note) => !note.archivedAt);
   return (
     <Section title="Notas internas">
@@ -500,7 +487,7 @@ function NotesTab({ notes, workId, clientId }: { notes: any[]; workId: string; c
   );
 }
 
-function AiTab({ work, financial, risks, openInvoices, pendingMaterials, documents }: { work: any; financial: ReturnType<typeof calculateWorkFinancials>; risks: any[]; openInvoices: number; pendingMaterials: number; documents: number }) {
+function AiTab({ work, financial, risks, openInvoices, pendingMaterials, documents }: { work: WorkDetail; financial: ReturnType<typeof calculateWorkFinancials>; risks: ReturnType<typeof buildWorkRisks>; openInvoices: number; pendingMaterials: number; documents: number }) {
   const answers = [
     ["Resume esta obra", `${work.titulo} para ${work.client.nombre}. Estado ${workStatusMeta(work.estado).label}. ${formatCurrency(financial.invoiced)} facturados y ${formatCurrency(financial.pending)} pendientes.`],
     ["Qué falta", getWorkNextAction(work).label],
@@ -509,7 +496,7 @@ function AiTab({ work, financial, risks, openInvoices, pendingMaterials, documen
     ["Qué materiales faltan", pendingMaterials ? `${pendingMaterials} materiales pendientes o en falta.` : "No hay materiales pendientes registrados."],
     ["Qué facturas faltan", financial.budgeted > financial.invoiced ? `Queda por facturar ${formatCurrency(financial.budgeted - financial.invoiced)} respecto al presupuesto.` : "No hay diferencia pendiente entre presupuesto y facturación."],
     ["Qué cobros faltan", openInvoices ? `${openInvoices} facturas abiertas por ${formatCurrency(financial.pending)}.` : "No hay cobros pendientes."],
-    ["Qué visitas quedan", `${work.agendaEvents.filter((event: any) => !["cancelado", "realizado"].includes(event.estado)).length} visitas o eventos abiertos.`],
+    ["Qué visitas quedan", `${work.agendaEvents.filter((event) => !["cancelado", "realizado"].includes(event.estado)).length} visitas o eventos abiertos.`],
     ["Qué recordatorios existen", `${work.reminders.length} recordatorios asociados.`]
   ];
   return (
@@ -527,7 +514,7 @@ function AiTab({ work, financial, risks, openInvoices, pendingMaterials, documen
   );
 }
 
-function ConfigTab({ work }: { work: any }) {
+function ConfigTab({ work }: { work: WorkDetail }) {
   return (
     <Section title="Configuración">
       <InfoGrid rows={[
@@ -542,7 +529,7 @@ function ConfigTab({ work }: { work: any }) {
   );
 }
 
-function BudgetCard({ budget }: { budget: any }) {
+function BudgetCard({ budget }: { budget: WorkDetail["budgets"][number] }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4">
       <StatusBadge status={budget.estado} />
@@ -556,7 +543,7 @@ function BudgetCard({ budget }: { budget: any }) {
   );
 }
 
-function InvoiceCard({ invoice }: { invoice: any }) {
+function InvoiceCard({ invoice }: { invoice: WorkDetail["invoices"][number] }) {
   const paid = invoicePaid(invoice);
   const pending = Math.max(0, invoice.total - paid);
   return (
@@ -569,19 +556,19 @@ function InvoiceCard({ invoice }: { invoice: any }) {
   );
 }
 
-function PaymentCard({ payment }: { payment: any }) {
+function PaymentCard({ payment }: { payment: WorkDetail["payments"][number] }) {
   return <SimpleCard title={formatCurrency(payment.importe)} eyebrow={payment.tipo} detail={`${payment.metodo} · ${formatDate(payment.fecha)} · ${payment.invoice?.numero ?? "Factura"}`} />;
 }
 
-function ExpenseCard({ expense }: { expense: any }) {
+function ExpenseCard({ expense }: { expense: WorkDetail["expenses"][number] }) {
   return <SimpleCard title={`${expense.proveedor} · ${formatCurrency(expense.importe)}`} eyebrow={expense.categoria} detail={`${expense.concepto} · ${formatDate(expense.fecha)}`} />;
 }
 
-function EventCard({ event }: { event: any }) {
+function EventCard({ event }: { event: WorkDetail["agendaEvents"][number] }) {
   return <SimpleCard title={event.titulo} eyebrow={event.tipo} detail={`${event.estado} · ${formatDate(event.fechaInicio)}`} />;
 }
 
-function ReminderCard({ reminder }: { reminder: any }) {
+function ReminderCard({ reminder }: { reminder: WorkDetail["reminders"][number] }) {
   return <SimpleCard title={reminder.tipo.replaceAll("_", " ")} eyebrow={reminder.estado} detail={`${reminder.mensaje} · ${formatDate(reminder.fechaProgramada)}`} />;
 }
 

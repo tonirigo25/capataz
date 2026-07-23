@@ -8,7 +8,6 @@ import {
   type ParsedBudgetFollowUp,
   type ParsedChatCommand,
   type ParsedConvertBudgetCommand,
-  type ParsedInvoiceCommand,
   type ParsedPdfCommand
 } from "@/lib/capataz-chat-parser";
 

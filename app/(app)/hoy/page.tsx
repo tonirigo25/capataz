@@ -12,12 +12,12 @@ import {
 } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
 import { buildTodayDashboard, greetingForDate } from "@/lib/dashboard-hoy";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { getDashboardData } from "@/lib/queries";
 import { getEconomicControl } from "@/lib/economic-control/queries";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import { getTodayOperationalSignals } from "@/lib/operational-intelligence/queries";
 import { OperationalSignalList, operationalCategoryLabels } from "@/components/operational-signals";
 
@@ -26,12 +26,13 @@ export const dynamic = "force-dynamic";
 export default async function TodayPage({ searchParams }: { searchParams: Promise<{ categoria?: string }> }) {
   const now = new Date();
   const query = await searchParams;
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability("company.view");
+  const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
   const [{ clients, works, budgets, invoices, materials, reminders, expenses }, agendaItems, profile, treasury, intelligence] = await Promise.all([
-    getDashboardData(),
+    getDashboardData(economicAllowed),
     getAgendaItems(),
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
-    getEconomicControl({ period: "30d" }),
+    economicAllowed ? getEconomicControl({ period: "30d" }) : Promise.resolve(null),
     getTodayOperationalSignals({ category: query.categoria, limit: query.categoria ? 20 : 3 })
   ]);
 
@@ -59,10 +60,10 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(17rem,.6fr)]">
         <section id="necesita-atencion" aria-labelledby="today-attention" className="section-shell scroll-mt-24">
-          <SectionHeading id="today-attention" title="Necesita tu atención" description="Señales explicables, ordenadas por urgencia, fecha y variedad operativa." />
-          <nav aria-label="Filtrar señales operativas" className="mb-4 flex flex-wrap gap-2">
-            <Link href="/hoy" aria-current={!query.categoria ? "page" : undefined} className={!query.categoria ? "secondary-button border-brand text-brand-strong" : "ghost-button"}>Todas</Link>
-            {Object.entries(operationalCategoryLabels).map(([id, label]) => <Link key={id} href={`/hoy?categoria=${id}`} aria-current={query.categoria === id ? "page" : undefined} className={query.categoria === id ? "secondary-button border-brand text-brand-strong" : "ghost-button"}>{label}</Link>)}
+          <SectionHeading id="today-attention" title="Necesita tu atención" description="Lo más importante, ordenado por urgencia." />
+          <nav aria-label="Filtrar señales operativas" className="-mx-1 mb-4 flex snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex-wrap md:overflow-visible">
+            <Link href="/hoy" aria-current={!query.categoria ? "page" : undefined} className={`${!query.categoria ? "secondary-button border-brand text-brand-strong" : "ghost-button"} shrink-0 snap-start`}>Todas</Link>
+            {Object.entries(operationalCategoryLabels).map(([id, label]) => <Link key={id} href={`/hoy?categoria=${id}`} aria-current={query.categoria === id ? "page" : undefined} className={`${query.categoria === id ? "secondary-button border-brand text-brand-strong" : "ghost-button"} shrink-0 snap-start`}>{label}</Link>)}
           </nav>
           {isInitial ? (
             <EmptyState
@@ -108,10 +109,10 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           <section aria-labelledby="today-pulse" className="section-shell mt-10">
             <SectionHeading id="today-pulse" title="Pulso del día" description="Solo señales que pueden cambiar una decisión inmediata." action={<Link href="/dashboard" className="ghost-button">Ver Dashboard</Link>} />
             <MetricGroup label="Pulso económico y operativo" className="xl:grid-cols-3">
-              {dashboard.money.overduePending > 0 ? <Metric href="/dinero?filtro=vencidas" label="Cobro vencido" value={formatCurrency(dashboard.money.overduePending)} detail={`${dashboard.counts.overdueInvoices} facturas requieren atención`} /> : null}
-              {treasury.forecast.outflows > 0 ? <Metric href="/tesoreria?vista=pagos&periodo=30d" label="Pagos próximos" value={formatCurrency(treasury.forecast.outflows)} detail={`${treasury.forecast.future.filter((item) => item.direction === "salida").length} vencimientos documentados a 30 días`} /> : null}
+              {economicAllowed && dashboard.money.overduePending > 0 ? <Metric href="/dinero?filtro=vencidas" label="Cobro vencido" value={formatCurrency(dashboard.money.overduePending)} detail={`${dashboard.counts.overdueInvoices} facturas requieren atención`} /> : null}
+              {economicAllowed && treasury && treasury.forecast.outflows > 0 ? <Metric href="/tesoreria?vista=pagos&periodo=30d" label="Pagos próximos" value={formatCurrency(treasury.forecast.outflows)} detail={`${treasury.forecast.future.filter((item) => item.direction === "salida").length} vencimientos documentados a 30 días`} /> : null}
               {workRisks.length > 0 ? <Metric href="/obras" label="Obras con atención" value={String(workRisks.length)} detail="Bloqueadas, pausadas, con remates o cobro pendiente" /> : null}
-              {dashboard.money.overduePending === 0 && treasury.forecast.outflows === 0 && workRisks.length === 0 ? <Metric href="/dashboard" label="Sin señales inmediatas" value="—" detail="El análisis completo permanece disponible en Dashboard" /> : null}
+              {workRisks.length === 0 && (!economicAllowed || (dashboard.money.overduePending === 0 && treasury?.forecast.outflows === 0)) ? <Metric href={economicAllowed ? "/dashboard" : "/obras"} label="Sin señales inmediatas" value="—" detail="No hay bloqueos operativos inmediatos" /> : null}
             </MetricGroup>
           </section>
 

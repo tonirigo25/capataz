@@ -7,10 +7,11 @@ import { calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, seri
 import { findBudgetTemplate } from "@/lib/budget-templates";
 import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
+import type { BudgetStatus } from "@prisma/client";
 
-async function budgetContext(id?: string) {
-  const auth = await requireCompanyContext();
+async function budgetContext(id: string | undefined, capability: "sales.budgets.update" | "sales.budgets.approve" | "sales.budgets.create" | "sales.invoices.create") {
+  const auth = await requireCapability(capability);
   const budget = id ? await prisma.budget.findFirst({ where: { id, companyId: auth.companyId }, include: { client: true } }) : null;
   return { auth, budget };
 }
@@ -20,12 +21,13 @@ export async function updateBudgetStatus(formData: FormData) {
   const estado = String(formData.get("estado") ?? "");
   if (!id || !estado) return;
 
-  const { auth, budget } = await budgetContext(id);
+  const capability = ["aceptado", "rechazado", "caducado"].includes(estado) ? "sales.budgets.approve" : "sales.budgets.update";
+  const { auth, budget } = await budgetContext(id, capability);
   if (!budget) return;
   await prisma.budget.updateMany({
     where: { id, companyId: auth.companyId },
     data: {
-      estado: estado as any,
+      estado: estado as BudgetStatus,
       fechaEnvio: estado === "enviado" || estado === "pendiente_respuesta" ? new Date() : undefined
     }
   });
@@ -45,7 +47,8 @@ export async function convertBudgetToWork(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  const { auth, budget } = await budgetContext(id);
+  const { auth, budget } = await budgetContext(id, "sales.budgets.approve");
+  await requireCapability("work.create");
   if (!budget) return;
 
   if (budget.obraId) {
@@ -94,7 +97,7 @@ export async function convertBudgetToInvoice(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  const { auth, budget } = await budgetContext(id);
+  const { auth, budget } = await budgetContext(id, "sales.invoices.create");
   if (!budget) return;
 
   const invoice = await prisma.$transaction(async (tx) => tx.invoice.create({
@@ -130,7 +133,7 @@ export async function duplicateBudget(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  const { auth, budget } = await budgetContext(id);
+  const { auth, budget } = await budgetContext(id, "sales.budgets.create");
   if (!budget) return;
 
   const copy = await prisma.$transaction(async (tx) => tx.budget.create({
@@ -161,7 +164,7 @@ export async function duplicateBudget(formData: FormData) {
 }
 
 export async function createBudgetFromTemplate(formData: FormData) {
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability("sales.budgets.create");
   const templateId = String(formData.get("templateId") ?? "");
   const clienteId = String(formData.get("clienteId") ?? "");
   const obraId = optionalText(formData, "obraId");
@@ -202,7 +205,7 @@ export async function saveBudgetLine(formData: FormData) {
   const budgetId = String(formData.get("budgetId") ?? "");
   const indexValue = String(formData.get("lineIndex") ?? "");
   const index = indexValue === "" ? -1 : Number(indexValue);
-  const { budget } = await budgetContext(budgetId);
+  const { budget } = await budgetContext(budgetId, "sales.budgets.update");
   if (!budget) return;
 
   const lines = parseBudgetLines(budget.partidas);
@@ -226,7 +229,7 @@ export async function saveBudgetLine(formData: FormData) {
 export async function deleteBudgetLine(formData: FormData) {
   const budgetId = String(formData.get("budgetId") ?? "");
   const index = Number(formData.get("lineIndex") ?? -1);
-  const { budget } = await budgetContext(budgetId);
+  const { budget } = await budgetContext(budgetId, "sales.budgets.update");
   if (!budget || !Number.isInteger(index)) return;
 
   const lines = parseBudgetLines(budget.partidas).filter((_, current) => current !== index);
@@ -234,7 +237,7 @@ export async function deleteBudgetLine(formData: FormData) {
 }
 
 async function updateBudgetLinesAndTotals(budgetId: string, lines: ReturnType<typeof parseBudgetLines>, discount: number) {
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability("sales.budgets.update");
   const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const totals = calculateBudgetTotals(lines, company.defaultVat, discount);
   await prisma.budget.updateMany({

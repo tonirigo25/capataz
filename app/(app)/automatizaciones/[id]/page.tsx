@@ -17,6 +17,7 @@ import {
   confirmStepAction,
 } from "../actions";
 import { parseRetryPolicy } from "@/lib/automations/automation-retries";
+import { requireCapability } from "@/lib/commercial/authorization";
 export const dynamic = "force-dynamic";
 export default async function AutomationDetailPage({
   params,
@@ -24,8 +25,9 @@ export default async function AutomationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const item = await prisma.automationDefinition.findUnique({
-    where: { id },
+  const auth = await requireCapability("company.update");
+  const item = await prisma.automationDefinition.findFirst({
+    where: { id, companyId: auth.companyId },
     include: {
       versions: {
         include: {

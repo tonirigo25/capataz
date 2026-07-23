@@ -8,28 +8,36 @@ import { companySettingsView } from "@/lib/tenant/company-settings";
 import { buildOperationalContext } from "@/lib/operational-intelligence/rules";
 import { getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
 import { getEconomicControl } from "@/lib/economic-control/queries";
+import { getEffectiveCapabilities, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
 export default async function CapatazPage({ searchParams }: { searchParams: Promise<{ clienteId?: string; obraId?: string }> }) {
   const query = await searchParams;
   const auth = await requireCompanyContext();
+  const [orqenaAccess, economicAccess] = await Promise.all([
+    resolveAuthorization(auth, "orqena.use"),
+    resolveAuthorization(auth, "treasury.view")
+  ]);
+  if (!orqenaAccess.allowed) return <main className="screen"><p>No tienes acceso a Orqena en esta empresa.</p></main>;
+  const canSeeEconomy = economicAccess.allowed;
+  const capabilities = await getEffectiveCapabilities(auth);
   const activeWorkStatuses = ["pendiente_inicio", "en_curso", "pausada", "pendiente_material", "pendiente_remates", "pendiente_cobro"];
   const [profile, company, clients, works, invoices, budgets, materials, programmedReminders, agendaItems, intelligence] = await Promise.all([
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
     prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }).then(companySettingsView),
     prisma.client.findMany({ where: { companyId: auth.companyId }, orderBy: { nombre: "asc" } }),
     prisma.work.findMany({ where: { companyId: auth.companyId }, orderBy: { titulo: "asc" }, include: { client: true } }),
-    prisma.invoice.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true } }),
-    prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true } }),
-    prisma.material.findMany({ where: { companyId: auth.companyId }, include: { work: { include: { client: true } } } }),
+    canSeeEconomy ? prisma.invoice.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true } }) : Promise.resolve([]),
+    canSeeEconomy ? prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true } }) : Promise.resolve([]),
+    canSeeEconomy ? prisma.material.findMany({ where: { companyId: auth.companyId }, include: { work: { include: { client: true } } } }) : Promise.resolve([]),
     prisma.reminder.count({ where: { companyId: auth.companyId, estado: "programado" } }),
-    getAgendaItems(),
-    getOperationalIntelligence()
+    getAgendaItems({ includeEconomic: canSeeEconomy }),
+    canSeeEconomy ? getOperationalIntelligence() : Promise.resolve({ signals: [] })
   ]);
   const scopedWork = query.obraId ? works.find((work) => work.id === query.obraId) ?? null : null;
   const scopedClient = query.clienteId ? clients.find((client) => client.id === query.clienteId) ?? null : scopedWork ? clients.find((client) => client.id === scopedWork.clienteId) ?? null : null;
-  const economic = await getEconomicControl({ clientId: scopedClient?.id, workId: scopedWork?.id, period: "30d" });
+  const economic = canSeeEconomy ? await getEconomicControl({ clientId: scopedClient?.id, workId: scopedWork?.id, period: "30d" }) : null;
   const contextualSignals = intelligence.signals.filter((signal) => scopedWork ? signal.entity.workId === scopedWork.id : scopedClient ? signal.entity.clientId === scopedClient.id : false);
   const operationalContext = scopedWork || scopedClient ? buildOperationalContext(contextualSignals) : null;
 
@@ -38,7 +46,9 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
       <div className="hidden md:block"><PageHeader eyebrow="Tu asistente" title="Orqena" description="Consulta, prepara y revisa el trabajo de tu negocio." /></div>
 
       <CapatazChat
+        userId={auth.userId}
         data={{
+          capabilities,
           userProfile: profile
             ? {
                 id: profile.id,
@@ -144,7 +154,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
               ? [`Resume el contexto operativo de la obra ${scopedWork.titulo}`, `¿Qué requiere atención en la obra ${scopedWork.titulo}?`, `¿Cuál es el siguiente paso de la obra ${scopedWork.titulo}?`]
               : [`Resume el contexto operativo de ${scopedClient?.nombre}`, `¿Qué requiere atención con ${scopedClient?.nombre}?`, `¿Cuál es el siguiente paso con ${scopedClient?.nombre}?`]
           } : null,
-          economicContext: {
+          economicContext: economic ? {
             entityName: scopedWork?.titulo ?? scopedClient?.nombre ?? company.nombreComercial,
             registeredBalance: scopedWork || scopedClient ? null : economic.registeredBalance,
             pendingReceivable: economic.receivableSummary.pending,
@@ -157,7 +167,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
               : scopedClient
                 ? [`Resume los cobros pendientes de ${scopedClient.nombre}`, `¿Qué facturas vencidas tiene ${scopedClient.nombre}?`]
                 : ["Resume la posición económica actual", "¿Qué cobros y pagos requieren atención?"]
-          }
+          } : null
         }}
       />
     </main>

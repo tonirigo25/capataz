@@ -40,7 +40,7 @@ export function isPublicResource(pathname: string) {
 }
 
 export function isPublicApi(pathname: string) {
-  return PUBLIC_API_PREFIXES.some((path) => pathMatches(pathname, path));
+  return PUBLIC_API_PREFIXES.some((path) => pathname === path);
 }
 
 export function isInternalApi(pathname: string) {

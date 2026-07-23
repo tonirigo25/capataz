@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react";
 import { AccessibleDialog } from "@/components/accessible-dialog";
 
@@ -47,8 +48,7 @@ export function WorkProgressGallery({ photos }: { photos: ProgressPhoto[] }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
         {photos.map((item, index) => (
           <button key={item.id} type="button" onClick={() => setSelected(index)} className="group overflow-hidden rounded-xl border border-border bg-surface text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-            {/* URLs are user-provided HTTPS or local assets; native images avoid unsupported remote-host failures. */}
-            <img src={item.url} alt={item.title} loading="lazy" className="aspect-[4/3] w-full bg-subtle object-cover transition group-hover:scale-[1.02]" />
+            <Image src={item.url} alt={item.title} width={640} height={480} unoptimized className="aspect-[4/3] w-full bg-subtle object-cover transition group-hover:scale-[1.02]" />
             <span className="block p-3">
               <span className="block truncate text-sm font-semibold text-content">{item.title}</span>
               <span className="type-meta mt-1 block">{item.category} · {item.date}</span>
@@ -59,7 +59,7 @@ export function WorkProgressGallery({ photos }: { photos: ProgressPhoto[] }) {
       <AccessibleDialog title={photo?.title ?? "Fotografía"} description={photo ? `${photo.category} · ${photo.date}${photo.author ? ` · ${photo.author}` : ""}` : undefined} open={photo !== null} onClose={close}>
         {photo ? (
           <div>
-            <img src={photo.url} alt={photo.title} className="max-h-[58vh] w-full rounded-xl bg-subtle object-contain" />
+            <Image src={photo.url} alt={photo.title} width={1280} height={960} unoptimized className="max-h-[58vh] w-full rounded-xl bg-subtle object-contain" />
             {photo.notes ? <p className="type-secondary mt-3">{photo.notes}</p> : null}
             {photos.length > 1 ? (
               <div className="mt-4 flex items-center justify-between gap-3">

@@ -8,7 +8,7 @@ import type {
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { prisma } from "@/lib/prisma";
 import {
   expenseCategoryForPurchase,
@@ -20,7 +20,7 @@ import {
 } from "@/lib/procurement";
 
 export async function saveBusinessPartner(formData: FormData) {
-  const context = await requireCompanyContext();
+  const context = await requireCapability("purchases.suppliers.manage");
   const kind = partnerKind(text(formData, "kind"));
   const base = partnerBase(kind);
   const id = optionalText(formData, "id");
@@ -85,7 +85,7 @@ export async function saveBusinessPartner(formData: FormData) {
 }
 
 export async function createPurchaseInvoice(formData: FormData) {
-  const context = await requireCompanyContext();
+  const context = await requireCapability("purchases.received_invoices.manage");
   const kind = partnerKind(text(formData, "kind"));
   const base = invoiceBase(kind);
   const businessPartnerId = requiredText(formData, "businessPartnerId", base);
@@ -172,7 +172,7 @@ export async function createPurchaseInvoice(formData: FormData) {
 }
 
 export async function registerPurchaseInvoicePayment(formData: FormData) {
-  const context = await requireCompanyContext();
+  const context = await requireCapability("treasury.payments.register");
   const kind = partnerKind(text(formData, "kind"));
   const base = invoiceBase(kind);
   const id = requiredText(formData, "purchaseInvoiceId", base);
@@ -195,7 +195,7 @@ export async function registerPurchaseInvoicePayment(formData: FormData) {
 }
 
 export async function voidPurchaseInvoice(formData: FormData) {
-  const context = await requireCompanyContext();
+  const context = await requireCapability("purchases.received_invoices.manage");
   const kind = partnerKind(text(formData, "kind"));
   const base = invoiceBase(kind);
   const id = requiredText(formData, "purchaseInvoiceId", base);

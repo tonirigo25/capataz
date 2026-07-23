@@ -1571,7 +1571,7 @@ model ChatMessage {
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   company        Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
-  @@unique([companyId, idempotencyKey])
+  @@unique([companyId, conversationId, idempotencyKey])
   @@index([companyId])
   @@index([conversationId, createdAt])
   @@index([status])
@@ -1580,6 +1580,7 @@ model ChatMessage {
 model ChatConversation {
   id                  String        @id @default(cuid())
   companyId           String?
+  ownerUserId         String?
   title               String
   status              String        @default("active")
   activeTask          Json?
@@ -1592,15 +1593,19 @@ model ChatConversation {
   updatedAt           DateTime      @updatedAt
   messages            ChatMessage[]
   company             Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  ownerUser           User?         @relation("ChatConversationOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
 
   @@index([status, lastActivityAt])
   @@index([status, updatedAt])
   @@index([companyId])
+  @@index([companyId, ownerUserId])
 }
 
 model ChatActionLog {
   id             String   @id @default(cuid())
   conversationId String?
+  companyId      String?
+  actorUserId    String?
   messageId      String?
   stage          String
   actionType     String?
@@ -1613,8 +1618,11 @@ model ChatActionLog {
   metadata       Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  actorUser      User?    @relation("ChatActionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([conversationId])
+  @@index([companyId, actorUserId, conversationId])
   @@index([idempotencyKey])
   @@index([messageId])
   @@index([stage])
@@ -2040,6 +2048,7 @@ model TaskChecklistItem {
 
 model TaskRecurrence {
   id                   String    @id @default(cuid())
+  companyId            String?
   frequency            String
   rrule                String
   timezone             String    @default("Europe/Madrid")
@@ -2052,8 +2061,10 @@ model TaskRecurrence {
   updatedAt            DateTime  @updatedAt
   tasks                Task[]
   exdates              Json?
+  company              Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([active, nextOccurrenceAt])
+  @@index([companyId, active, nextOccurrenceAt])
 }
 
 model FollowUp {
@@ -2152,6 +2163,8 @@ model User {
   invitedMemberships  CompanyMembership[]      @relation("MembershipInviter")
   invitationsCreated  Invitation[]             @relation("InvitationInviter")
   auditLogs           AuditLog[]               @relation("AuditUserActor")
+  chatConversations   ChatConversation[]       @relation("ChatConversationOwner")
+  chatActionLogs      ChatActionLog[]          @relation("ChatActionActor")
 
   @@index([status])
 }
@@ -2226,6 +2239,7 @@ model Company {
   expectedCashFlows      ExpectedCashFlow[]
   chatConversations      ChatConversation[]
   chatMessages           ChatMessage[]
+  chatActionLogs         ChatActionLog[]
   signalStates           BusinessSignalState[]
   recommendations        BusinessRecommendation[]
   automations            AutomationDefinition[]
@@ -2251,6 +2265,7 @@ model Company {
   auditLogs              AuditLog[]
   supportAccessGrants    SupportAccessGrant[]
   scopeAssignments       ScopeAssignment[]
+  taskRecurrences        TaskRecurrence[]
 
   @@index([status])
   @@index([isDemo])
@@ -2473,28 +2488,29 @@ model CompanyDocumentSequence {
 }
 
 model CompanyMembership {
-  id                  String                         @id @default(cuid())
-  userId              String
-  companyId           String
-  role                CompanyRole                    @default(MEMBER)
-  status              MembershipStatus               @default(invited)
-  invitedAt           DateTime?
-  acceptedAt          DateTime?
-  joinedAt            DateTime?
-  createdAt           DateTime                       @default(now())
-  updatedAt           DateTime                       @updatedAt
-  invitedById         String?
-  revokedAt           DateTime?
-  revokedReason       String?
-  lastActivityAt      DateTime?
-  origin              String                         @default("existing")
-  isDemo              Boolean                        @default(false)
-  user                User                           @relation(fields: [userId], references: [id], onDelete: Restrict)
-  company             Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  invitedBy           User?                          @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
-  permissionOverrides MembershipPermissionOverride[]
-  teamMemberships     TeamMembership[]
-  scopeAssignments    ScopeAssignment[]
+  id                   String                         @id @default(cuid())
+  userId               String
+  companyId            String
+  role                 CompanyRole                    @default(MEMBER)
+  functionalProfileKey String?
+  status               MembershipStatus               @default(invited)
+  invitedAt            DateTime?
+  acceptedAt           DateTime?
+  joinedAt             DateTime?
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+  invitedById          String?
+  revokedAt            DateTime?
+  revokedReason        String?
+  lastActivityAt       DateTime?
+  origin               String                         @default("existing")
+  isDemo               Boolean                        @default(false)
+  user                 User                           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  company              Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  invitedBy            User?                          @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  permissionOverrides  MembershipPermissionOverride[]
+  teamMemberships      TeamMembership[]
+  scopeAssignments     ScopeAssignment[]
 
   @@unique([userId, companyId])
   @@index([companyId, status])

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companyCore } from "@/lib/tenant/core";
+import { resolveAuthorization } from "@/lib/commercial/authorization";
 
 export type AgendaSource = "evento" | "recordatorio" | "factura" | "obra" | "material" | "presupuesto";
 
@@ -32,9 +33,11 @@ export type AgendaItem = {
   href: string;
 };
 
-export async function getAgendaItems() {
-  const { companyId } = await requireCompanyContext();
-  const [events, reminders, invoices, works, materials, budgets] = await companyCore(prisma, companyId).agendaSources();
+export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
+  const context = await requireCompanyContext();
+  const { companyId } = context;
+  const economicAllowed = options?.includeEconomic ?? (await resolveAuthorization(context, "sales.invoices.view")).allowed;
+  const [events, reminders, invoices, works, materials, budgets] = await companyCore(prisma, companyId).agendaSources(economicAllowed);
 
   const items: AgendaItem[] = [];
 
@@ -99,7 +102,7 @@ export async function getAgendaItems() {
       });
     });
 
-  invoices
+  if (economicAllowed) invoices
     .filter((invoice) => invoice.pendiente > 0)
     .forEach((invoice) => {
       const liveStatus = deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
@@ -171,7 +174,7 @@ export async function getAgendaItems() {
       });
     });
 
-  budgets
+  if (economicAllowed) budgets
     .filter((budget) => ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado))
     .forEach((budget) => {
       items.push({

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { createFollowUpAction } from "./actions";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 export const dynamic = "force-dynamic";
 export default async function FollowUpsPage({
   searchParams,
@@ -11,8 +12,11 @@ export default async function FollowUpsPage({
   const query = await searchParams,
     filter = query.filtro ?? "pending",
     now = new Date();
+  const auth = await requireCapability("followups.view");
+  const canManage=(await resolveAuthorization(auth,"followups.manage")).allowed;
   const items = await prisma.followUp.findMany({
     where: {
+      companyId: auth.companyId,
       archivedAt: null,
       ...(filter === "overdue"
         ? {
@@ -71,7 +75,7 @@ export default async function FollowUpsPage({
         ))}
       </nav></CompactFilterBar>
       <ResultCount shown={items.length} total={items.length} noun="seguimientos" />
-      <form
+      {canManage ? <form
         action={createFollowUpAction}
         className="card grid gap-3 p-4 md:grid-cols-3"
       >
@@ -99,7 +103,7 @@ export default async function FollowUpsPage({
         <button className="primary-button md:col-span-3">
           Crear seguimiento
         </button>
-      </form>
+      </form> : null}
       {items.length ? (
         <section className="grid gap-3" aria-live="polite">
           {items.map((item) => (

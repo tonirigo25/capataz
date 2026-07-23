@@ -17,14 +17,18 @@ import { parseBudgetLines, units } from "@/lib/budget-lines";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability("sales.budgets.view");
+  const [canUpdate, canApprove, canCreateInvoice, canCreateWork] = await Promise.all([
+    resolveAuthorization(auth, "sales.budgets.update"), resolveAuthorization(auth, "sales.budgets.approve"),
+    resolveAuthorization(auth, "sales.invoices.create"), resolveAuthorization(auth, "work.create")
+  ]).then((items) => items.map((item) => item.allowed));
   const [budget, companyRecord] = await Promise.all([
     prisma.budget.findFirst({
       where: { id, companyId: auth.companyId },
@@ -51,8 +55,8 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         title={budget.titulo}
         description={`${budget.client.nombre}${budget.work ? ` · ${budget.work.titulo}` : " · Sin obra"}`}
         badge={<StatusPill status={budget.estado} />}
-        action={<Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`} className="primary-button"><Pencil size={18} /> Editar presupuesto</Link>}
-        secondaryActions={<ActionMenu><Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`}><MessageCircle size={18} /> Preparar seguimiento</Link><form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form><Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link><Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
+        action={canUpdate ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`} className="primary-button"><Pencil size={18} /> Editar presupuesto</Link> : undefined}
+        secondaryActions={<ActionMenu><Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`}><MessageCircle size={18} /> Preparar seguimiento</Link>{canUpdate ? <form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form> : null}<Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link><Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
       />
 
       <MetricStrip className="mb-4">
@@ -73,22 +77,22 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
           <p><strong className="text-obra-ink">Margen estimado:</strong> {formatCurrency(budget.margenEstimado)}</p>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <StatusForm id={budget.id} estado="enviado" label="Marcar enviado" icon="send" />
-          <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" />
-          <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" />
-          <form action={convertBudgetToWork}>
+          {canUpdate ? <StatusForm id={budget.id} estado="enviado" label="Marcar enviado" icon="send" /> : null}
+          {canApprove ? <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" /> : null}
+          {canUpdate ? <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" /> : null}
+          {canCreateWork ? <form action={convertBudgetToWork}>
             <input type="hidden" name="id" value={budget.id} />
             <ConfirmSubmitButton message="¿Convertir este presupuesto en obra?">Convertir a obra</ConfirmSubmitButton>
-          </form>
-          <form action={convertBudgetToInvoice}>
+          </form> : null}
+          {canCreateInvoice ? <form action={convertBudgetToInvoice}>
             <input type="hidden" name="id" value={budget.id} />
             <ConfirmSubmitButton message="¿Crear una factura borrador editable desde este presupuesto?">Convertir a factura</ConfirmSubmitButton>
-          </form>
+          </form> : null}
         </div>
       </DetailSection>
 
       <EntityWorkflowSummary clientId={budget.clienteId} workId={budget.obraId ?? undefined} budgetId={budget.id} />
-      <section className="mt-4">
+      {canUpdate ? <section className="mt-4">
         <h2 className="mb-3 text-lg font-black text-obra-ink">Partidas editables</h2>
         <div className="grid gap-3">
           {lines.map((line, index) => (
@@ -116,7 +120,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
             <button type="submit" className="primary-button w-full"><Plus size={18} /> Añadir partida</button>
           </form>
         </div>
-      </section>
+      </section> : null}
 
       <section className="card mt-4 p-4">
         <div className="mb-3 flex items-center gap-2 text-lg font-black text-obra-ink">

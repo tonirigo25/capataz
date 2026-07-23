@@ -17,7 +17,7 @@ for (const path of ["/service-worker.js", "/manifest.webmanifest", "/offline.htm
   assert.equal(routeAccess.isPublicResource(path), true, `${path} must remain public`);
 }
 assert.equal(routeAccess.isPublicApi("/api/status"), true);
-assert.equal(routeAccess.isPublicApi("/api/status/ai"), true);
+assert.equal(routeAccess.isPublicApi("/api/status/ai"), false, "AI status must not inherit the public health endpoint");
 assert.equal(routeAccess.isInternalApi("/api/internal/proactive-evaluate"), true);
 assert.equal(routeAccess.isProtectedPage("/api/capataz/transcribe"), false);
 assert.equal(routeAccess.safeReturnPath("/obras/123", "?tab=costes"), "/obras/123?tab=costes");
@@ -33,5 +33,12 @@ assert.match(middleware, /authenticated app layout validates/);
 const transcribe = readFileSync(new URL("../app/api/capataz/transcribe/route.ts", import.meta.url), "utf8");
 assert.match(transcribe, /getOptionalSession/);
 assert.match(transcribe, /status: 401/);
+assert.match(transcribe, /resolveActiveCompany/);
+assert.match(transcribe, /resolveAuthorization\(context, "orqena\.use"\)/);
+assert.match(transcribe, /status: 403/);
 
-console.log(JSON.stringify({ ok: true, tests: 37, elapsedMs: Date.now() - startedAt }));
+const aiStatus = readFileSync(new URL("../app/api/status/ai/route.ts", import.meta.url), "utf8");
+assert.match(aiStatus, /getOptionalSession/);
+assert.match(aiStatus, /status: 401/);
+
+console.log(JSON.stringify({ ok: true, tests: 43, elapsedMs: Date.now() - startedAt }));

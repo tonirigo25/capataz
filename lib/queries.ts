@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companyCore } from "@/lib/tenant/core";
 
-export async function getDashboardData() {
+export async function getDashboardData(includeEconomic = true) {
   const { companyId } = await requireCompanyContext();
-  return companyCore(prisma, companyId).dashboard();
+  return companyCore(prisma, companyId).dashboard(includeEconomic);
 }

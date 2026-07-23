@@ -45,6 +45,7 @@
     "test:orqena-conversation-integration": "tsx scripts/validate-orqena-conversation-integration.ts",
     "test:orqena-proposal-lifecycle": "node scripts/validate-orqena-proposal-lifecycle.mjs",
     "test:orqena-voice-denied": "node scripts/validate-orqena-voice-denied.mjs",
+    "test:orqena-final-product-closure": "tsx scripts/validate-orqena-final-product-closure.ts",
     "test:chat-query": "node scripts/validate-chat-query.mjs",
     "test:chat-routing": "node scripts/validate-chat-routing.mjs",
     "test:dashboard-hoy": "node scripts/validate-dashboard-hoy.mjs",

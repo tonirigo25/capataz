@@ -1,4 +1,4 @@
-import { Activity, Building2, Check, Image, Save, Smartphone, UserRound } from "lucide-react";
+import { Activity, Building2, Image as ImageIcon, Save, Smartphone, UserRound } from "lucide-react";
 import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
 import { SectionHeader } from "@/components/section-header";
 import { appModeDescription, appModeLabel, getAppMode, isUnlimitedMode } from "@/lib/app-mode";
@@ -33,6 +33,12 @@ export default async function SettingsPage() {
   return (
     <main className="screen">
       <SectionHeader title="Configuración" description="Tu trato personal, datos de empresa, app móvil, límites y planes." />
+      <nav aria-label="Secciones de configuración" className="sticky top-16 z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto border-y border-slate-200 bg-white/95 px-4 py-2 backdrop-blur sm:static sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0">
+        <a href="#perfil" className="secondary-button min-h-10 shrink-0 px-3">Perfil</a>
+        <a href="#empresa" className="secondary-button min-h-10 shrink-0 px-3">Empresa</a>
+        <a href="#sistema" className="secondary-button min-h-10 shrink-0 px-3">Sistema</a>
+        <a href="#suscripcion" className="secondary-button min-h-10 shrink-0 px-3">Administración</a>
+      </nav>
 
       <section className="card mb-5 p-4">
         <div className="flex items-start gap-3">
@@ -357,7 +363,7 @@ function PreviewAsset({ title, url }: { title: string; url?: string | null }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <div className="mb-2 flex items-center gap-2 text-sm font-black text-obra-ink">
-        <Image size={18} className="text-obra-yellowDark" />
+        <ImageIcon size={18} className="text-obra-yellowDark" aria-hidden="true" />
         {title}
       </div>
       {url ? (

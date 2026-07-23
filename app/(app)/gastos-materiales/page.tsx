@@ -7,7 +7,7 @@ import { CompactFilterBar, CompactSearch, ResultCount } from "@/components/ui-pr
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export default async function ExpensesMaterialsPage({
   searchParams: Promise<{ filtro?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("purchases.received_invoices.view");
   const [expenses, materials] = await Promise.all([
     prisma.expense.findMany({
       where: { companyId },

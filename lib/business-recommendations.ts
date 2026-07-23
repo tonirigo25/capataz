@@ -15,6 +15,7 @@ import {
 } from "@/lib/business-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 import { logProactiveAuditEvent } from "@/lib/proactive-audit";
 import { cooldownUntilForRule, materialChangeExceeded, materialChangeExplanation, stableMaterialHash } from "@/lib/proactive-rules";
 import {
@@ -254,6 +255,7 @@ export async function getBusinessRecommendations(params: BusinessRecommendations
 }
 
 export async function getTodayRecommendationBrief(limit = 4, companyId?: string) {
+  companyId ??= (await requireCompanyContext()).companyId;
   const preferences = await loadRecommendationPreferences();
   const maxToday = preferences.find((preference) => preference.scopeType === "today" && preference.maxToday)?.maxToday ?? limit;
   const result = await getBusinessRecommendations({ companyId, status: "active", limit: Math.min(limit, maxToday), respectCooldown: true });
@@ -261,16 +263,21 @@ export async function getTodayRecommendationBrief(limit = 4, companyId?: string)
 }
 
 export async function getRecommendationsForClient(clientId: string, limit = 3) {
-  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { companyId: true } });
-  return getBusinessRecommendations({ companyId: client?.companyId ?? undefined, status: "active", clientId, limit });
+  const { companyId } = await requireCompanyContext();
+  const client = await prisma.client.findFirst({ where: { id: clientId, companyId }, select: { id: true } });
+  if (!client) return getBusinessRecommendations({ companyId, status: "active", clientId: "unavailable", limit });
+  return getBusinessRecommendations({ companyId, status: "active", clientId, limit });
 }
 
 export async function getRecommendationsForWork(workId: string, limit = 3) {
-  const work = await prisma.work.findUnique({ where: { id: workId }, select: { companyId: true } });
-  return getBusinessRecommendations({ companyId: work?.companyId ?? undefined, status: "active", workId, limit });
+  const { companyId } = await requireCompanyContext();
+  const work = await prisma.work.findFirst({ where: { id: workId, companyId }, select: { id: true } });
+  if (!work) return getBusinessRecommendations({ companyId, status: "active", workId: "unavailable", limit });
+  return getBusinessRecommendations({ companyId, status: "active", workId, limit });
 }
 
 export async function getTreasuryRecommendations(limit = 5, companyId?: string) {
+  companyId ??= (await requireCompanyContext()).companyId;
   return getBusinessRecommendations({ companyId, status: "active", source: "tesoreria", limit });
 }
 
@@ -474,7 +481,7 @@ export async function executeConfirmedRecommendationAction({
     return { status: "skipped", message: "La recomendacion ya no esta activa.", recommendation };
   }
 
-  const key = idempotencyKey ?? `${fingerprint}:${actionId}:${state.entityId ?? state.invoiceId ?? state.budgetId ?? "business"}`;
+  const key = `${state.companyId}:${idempotencyKey ?? `${fingerprint}:${actionId}:${state.entityId ?? state.invoiceId ?? state.budgetId ?? "business"}`}`;
   const previous = await prisma.recommendationActionLog.findUnique({ where: { idempotencyKey: key } });
   if (previous?.status === "success") {
     return { status: "success", message: "Esta accion ya se realizo.", recommendation, entityId: readResultEntityId(previous.result) };
@@ -930,6 +937,7 @@ async function syncRecommendationStates(drafts: RecommendationDraft[], now: Date
   await Promise.all(auditEvents.map((event) => logProactiveAuditEvent(event)));
 
   const refreshed = await prisma.businessRecommendation.findMany({
+    where: companyFilter,
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
     take: 600
   });
@@ -1287,13 +1295,15 @@ function recommendationChangeHash(recommendation: RecommendationDraft) {
 }
 
 async function executeKnownAction(state: RecommendationState, actionId: string) {
+  if (!state.companyId) throw new Error("La recomendacion no esta disponible.");
   if (actionId === "create_collection_followup") {
     if (!state.invoiceId || !state.clientId) throw new Error("Faltan datos de factura o cliente para crear seguimiento.");
-    const invoice = await prisma.invoice.findUnique({ where: { id: state.invoiceId }, include: { client: true } });
+    const invoice = await prisma.invoice.findFirst({ where: { id: state.invoiceId, companyId: state.companyId }, include: { client: true } });
     if (!invoice || invoice.pendiente <= 0 || invoice.estado === "pagada") return { status: "obsolete", message: "La factura ya no requiere seguimiento.", entityType: "invoice", entityId: state.invoiceId, href: `/dinero/${state.invoiceId}` };
     const existingReminder = await prisma.reminder.findFirst({
       where: {
         facturaId: state.invoiceId,
+        companyId: state.companyId,
         tipo: "factura_vencida",
         estado: { in: ["borrador", "pendiente_confirmacion", "programado", "fallido"] }
       },
@@ -1304,6 +1314,7 @@ async function executeKnownAction(state: RecommendationState, actionId: string) 
     }
     const reminder = await prisma.reminder.create({
       data: {
+        companyId: state.companyId,
         clienteId: state.clientId,
         obraId: state.workId,
         facturaId: state.invoiceId,
@@ -1320,11 +1331,12 @@ async function executeKnownAction(state: RecommendationState, actionId: string) 
   }
   if (actionId === "create_budget_followup") {
     if (!state.budgetId || !state.clientId) throw new Error("Faltan datos de presupuesto o cliente para crear seguimiento.");
-    const budget = await prisma.budget.findUnique({ where: { id: state.budgetId }, include: { client: true } });
+    const budget = await prisma.budget.findFirst({ where: { id: state.budgetId, companyId: state.companyId }, include: { client: true } });
     if (!budget || ["rechazado", "aceptado"].includes(budget.estado)) return { status: "obsolete", message: "El presupuesto ya no requiere seguimiento.", entityType: "budget", entityId: state.budgetId, href: `/presupuestos/${state.budgetId}` };
     const existingReminder = await prisma.reminder.findFirst({
       where: {
         presupuestoId: state.budgetId,
+        companyId: state.companyId,
         tipo: "seguimiento_presupuesto",
         estado: { in: ["borrador", "pendiente_confirmacion", "programado", "fallido"] }
       },
@@ -1335,6 +1347,7 @@ async function executeKnownAction(state: RecommendationState, actionId: string) 
     }
     const reminder = await prisma.reminder.create({
       data: {
+        companyId: state.companyId,
         clienteId: state.clientId,
         obraId: state.workId,
         presupuestoId: state.budgetId,
@@ -1354,13 +1367,15 @@ async function executeKnownAction(state: RecommendationState, actionId: string) 
 
 async function isRecommendationStillValid(state: RecommendationState) {
   if (!state.signalFingerprint) return true;
-  const signals = await getBusinessSignals({ status: "active", limit: 300 });
-  return signals.signals.some((signal) => signal.fingerprint === state.signalFingerprint && signal.status === "active");
+  if (!state.companyId) return false;
+  const signals = await getBusinessSignals({ companyId:state.companyId, status: "active", limit: 300 });
+  return signals.signals.some((signal) => [signal.fingerprint,`${state.companyId}:${signal.fingerprint}`].includes(state.signalFingerprint!) && signal.status === "active");
 }
 
 async function getRecommendationStateByFingerprint(fingerprint: string) {
   try {
-    return await prisma.businessRecommendation.findUnique({ where: { fingerprint } }) as RecommendationState | null;
+    const { companyId } = await requireCompanyContext();
+    return await prisma.businessRecommendation.findFirst({ where: { fingerprint, companyId } }) as RecommendationState | null;
   } catch (error) {
     if (isRecommendationTableMissing(error)) return null;
     throw error;

@@ -53,6 +53,7 @@ function businessRecommendations() {
     mocks: {
       "@/lib/business-signals": businessSignalMocks,
       "@/lib/prisma": prismaMock,
+      "@/lib/auth/session": { requireCompanyContext: async () => ({ companyId: "company-test", userId: "user-test", membershipId: "membership-test" }) },
       "@/lib/proactive-audit": { logProactiveAuditEvent: async () => undefined },
       "@/lib/proactive-rules": proactiveRules()
     },

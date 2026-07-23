@@ -19,6 +19,7 @@ export type CompanyContext = AuthenticatedSession & {
   companyId: string;
   membershipId: string;
   role: CompanyRole;
+  functionalProfileKey?: string | null;
   isDemo: boolean;
   companyName: string;
   companyStatus: string;
@@ -116,7 +117,7 @@ export async function requireCompanyContext(): Promise<CompanyContext> {
   if (resolved.requiresSelection) redirect("/seleccionar-empresa");
   const membership = resolved.membership;
   if (!membership) redirect("/crear-empresa");
-  return { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
+  return { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, functionalProfileKey: membership.functionalProfileKey, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
 }
 
 async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContext | null> {
@@ -137,6 +138,7 @@ async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContex
       companyId: company.id,
       membershipId: "isolated-test-membership",
       role: "OWNER",
+      functionalProfileKey: "OWNER",
       isDemo: false,
       companyName: company.nombreComercial,
       companyStatus: company.status,
@@ -152,6 +154,7 @@ async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContex
     companyId: membership.companyId,
     membershipId: membership.id,
     role: membership.role,
+    functionalProfileKey: membership.functionalProfileKey,
     isDemo: membership.company.isDemo,
     companyName: membership.company.nombreComercial,
     companyStatus: membership.company.status,

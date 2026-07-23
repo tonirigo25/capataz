@@ -8,6 +8,7 @@ import {
   runAutomationAction,
   toggleAutomationAction,
 } from "./actions";
+import { requireCapability } from "@/lib/commercial/authorization";
 export const dynamic = "force-dynamic";
 export default async function AutomationsPage({
   searchParams,
@@ -15,8 +16,10 @@ export default async function AutomationsPage({
   searchParams: Promise<{ estado?: string }>;
 }) {
   const { estado = "all" } = await searchParams;
+  const auth = await requireCapability("company.update");
   const items = await prisma.automationDefinition.findMany({
     where: {
+      companyId: auth.companyId,
       archivedAt: null,
       ...(estado === "all" ? {} : { status: estado as never }),
     },

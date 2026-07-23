@@ -28,7 +28,9 @@ import { ALLOWED_DOCUMENT_MIME_TYPES } from "@/lib/documents";
 import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { managementCapability } from "@/lib/commercial/management-capabilities";
 
 type ManualEntity =
   | "cliente"
@@ -46,9 +48,9 @@ type ManualEntity =
   | "foto";
 
 export async function saveManualRecord(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
   const tipo = text(formData, "tipo") as ManualEntity;
   const id = optionalText(formData, "id");
+  const { companyId } = await requireCapability(managementCapability(tipo, Boolean(id)));
   const returnTo = optionalText(formData, "returnTo") ?? targetFor(tipo);
 
   switch (tipo) {

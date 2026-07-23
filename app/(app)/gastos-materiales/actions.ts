@@ -4,7 +4,7 @@ import type { ExpenseCategory, ExpenseDocumentType, FiscalDocumentType, Prisma }
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { documentStorage } from "@/lib/document-storage";
 import { EXPENSE_DOCUMENT_TYPES, normalizeExpenseExtraction, parseDate, parseMoney, validateExpenseDocumentFile } from "@/lib/expense-document";
 import { DocumentExtractionNotConfiguredError, resolveDocumentExtractionProvider } from "@/lib/document-extraction";
@@ -14,13 +14,13 @@ export async function updateMaterialStatus(formData: FormData) {
   const id = text(formData, "id");
   const estado = text(formData, "estado");
   if (!id || !estado) return;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("purchases.received_invoices.manage");
   await prisma.material.updateMany({ where: { id, companyId }, data: { estado: estado as never } });
   revalidateExpensePaths();
 }
 
 export async function uploadExpenseDocument(formData: FormData) {
-  const context = await requireCompanyContext();
+  const context = await requireCapability("purchases.received_invoices.manage");
   const file = formData.get("document");
   if (!(file instanceof File)) redirectWithError("Selecciona un archivo para continuar.");
   let validated: ReturnType<typeof validateExpenseDocumentFile>;
@@ -64,7 +64,7 @@ export async function uploadExpenseDocument(formData: FormData) {
 }
 
 export async function retryExpenseDocumentExtraction(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("purchases.received_invoices.manage");
   const id = text(formData, "id");
   if (!id) return;
   await processDocument(id, companyId);
@@ -72,7 +72,7 @@ export async function retryExpenseDocumentExtraction(formData: FormData) {
 }
 
 export async function saveExpenseFromDocument(formData: FormData) {
-  const context = await requireCompanyContext();
+  const context = await requireCapability("purchases.received_invoices.manage");
   const documentId = text(formData, "documentId");
   if (text(formData, "confirmed") !== "yes") redirect(`/gastos-materiales/lector/${documentId}?error=confirmation_required`);
   const document = await prisma.document.findFirst({ where: { id: documentId, companyId: context.companyId, archivedAt: null } });
@@ -194,7 +194,7 @@ export async function saveExpenseFromDocument(formData: FormData) {
 }
 
 export async function deleteExpenseDocument(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("purchases.received_invoices.manage");
   const id = text(formData, "id");
   const document = await prisma.document.findFirst({ where: { id, companyId }, select: { id: true, storageKey: true, expenseId: true } });
   if (!document) redirect("/gastos-materiales/lector?error=not_found");
@@ -260,7 +260,7 @@ async function processDocument(id: string, companyId: string) {
 }
 
 export async function findDuplicateExpenseDocumentIds(input: { excludeDocumentId?: string; sha256?: string | null; invoiceNumber?: string | null; issuerName?: string | null; issuerTaxId?: string | null; issueDate?: string | null; total?: number | null }) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("purchases.received_invoices.manage");
   const or: Prisma.DocumentWhereInput[] = [];
   if (input.sha256) or.push({ sha256: input.sha256 });
   if (input.invoiceNumber && input.issuerTaxId) or.push({ extractedInvoiceNo: { equals: input.invoiceNumber, mode: "insensitive" }, extractedIssuerTaxId: { equals: input.issuerTaxId, mode: "insensitive" } });

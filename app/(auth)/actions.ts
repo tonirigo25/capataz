@@ -13,7 +13,6 @@ import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial
 const genericCredentials = "No hemos podido iniciar sesión con esos datos.";
 
 function text(form: FormData, name: string) { return String(form.get(name) ?? "").trim(); }
-function slugify(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 42) || "empresa"; }
 
 export async function registerAction(_previous: AuthActionState, form: FormData): Promise<AuthActionState> {
   const displayName = text(form, "displayName");

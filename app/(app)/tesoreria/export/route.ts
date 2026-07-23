@@ -1,10 +1,11 @@
 import { buildTreasuryCsvExport } from "@/lib/treasury";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.export");
+  await requireCapability("treasury.view");
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") ?? "forecast";
   const csv = await buildTreasuryCsvExport(tipo, {
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
   return new Response(csv, {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="capataz-tesoreria-${tipo}.csv"`
+      "content-disposition": `attachment; filename="orqena-tesoreria-${tipo}.csv"`
     }
   });
 }

@@ -38,7 +38,8 @@ const cases = [
   ["diálogos accesibles controlan Escape y foco", files.dialog.includes('role="dialog"') && files.dialog.includes('aria-modal="true"') && files.dialog.includes('event.key === "Escape"') && files.dialog.includes("previousFocus.current?.focus")],
   ["cobro y agenda reutilizan diálogo accesible", files.payment.includes("AccessibleDialog") && files.agendaControls.includes("AccessibleDialog")],
   ["formularios usan acciones persistentes", files.form.includes("StickyFormActions") && files.form.includes("Nada se guarda hasta que confirmes")],
-  ["tenant continúa derivado de sesión", [files.clients, files.works, files.budgets, files.invoices].every((source) => source.includes("requireCompanyContext"))]
+  ["tenant continúa derivado de sesión", [files.clients, files.works].every((source) => source.includes("requireCompanyContext"))
+    && [files.budgets, files.invoices].every((source) => source.includes("requireCapability"))]
 ];
 
 let failed = 0;

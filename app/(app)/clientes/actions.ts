@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export async function scheduleBudgetFollowUp(formData: FormData) {
   const clienteId = String(formData.get("clienteId") ?? "");
@@ -19,7 +19,7 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
   if (!clienteId || !presupuestoId || !mensaje || !fecha || !confirmado) {
     throw new Error("Faltan datos para programar el seguimiento.");
   }
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("agenda.manage");
   const client = await prisma.client.findFirst({ where: { id: clienteId, companyId }, select: { id: true } });
   const budget = await prisma.budget.findFirst({ where: { id: presupuestoId, companyId }, select: { id: true } });
   if (!client || !budget || (obraId && !(await prisma.work.findFirst({ where: { id: obraId, companyId }, select: { id: true } })))) throw new Error("Entidad no disponible.");
@@ -75,7 +75,7 @@ export async function scheduleBudgetFollowUp(formData: FormData) {
 export async function archiveClient(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Falta el cliente.");
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("clients.archive");
 
   await prisma.client.updateMany({
     where: { id, companyId },
@@ -92,7 +92,7 @@ export async function archiveClient(formData: FormData) {
 export async function restoreClient(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Falta el cliente.");
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("clients.update");
 
   await prisma.client.updateMany({
     where: { id, companyId },

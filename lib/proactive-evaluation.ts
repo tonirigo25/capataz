@@ -233,7 +233,7 @@ export async function getProactiveControlData(now = new Date(), companyId?: stri
   try {
     const companyWhere = companyId ? { companyId } : {};
     const [runs, signals, recommendations, auditEvents, actionLogs, settings] = await Promise.all([
-      prisma.proactiveEvaluationRun.findMany({ orderBy: { startedAt: "desc" }, take: 12 }),
+      prisma.proactiveEvaluationRun.findMany({ where: companyId ? { metadata: { path: ["scope", "companyId"], equals: companyId } } : {}, orderBy: { startedAt: "desc" }, take: 12 }),
       prisma.businessSignalState.findMany({
         where: companyWhere,
         select: { type: true, status: true, level: true, ruleId: true, lastPriority: true, createdAt: true, updatedAt: true, resolvedAt: true, reactivatedAt: true }
@@ -242,8 +242,8 @@ export async function getProactiveControlData(now = new Date(), companyId?: stri
         where: companyWhere,
         select: { type: true, status: true, level: true, ruleId: true, priority: true, recommendedAt: true, updatedAt: true, completedAt: true, dismissedAt: true, reactivatedAt: true, acceptedAt: true, actionStartedAt: true }
       }),
-      prisma.proactiveAuditEvent.findMany({ orderBy: { createdAt: "desc" }, take: 25 }),
-      prisma.recommendationActionLog.findMany({ orderBy: { createdAt: "desc" }, take: 200 }),
+      prisma.proactiveAuditEvent.findMany({ where: companyId ? { run: { metadata: { path: ["scope", "companyId"], equals: companyId } } } : {}, orderBy: { createdAt: "desc" }, take: 25 }),
+      companyId ? Promise.resolve([]) : prisma.recommendationActionLog.findMany({ orderBy: { createdAt: "desc" }, take: 200 }),
       ensureDefaultProactiveSettings()
     ]);
 

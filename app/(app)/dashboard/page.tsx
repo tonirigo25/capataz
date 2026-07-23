@@ -17,7 +17,7 @@ import {
   type BusinessTrendPoint
 } from "@/lib/business-intelligence";
 import { invoiceBalance, round } from "@/lib/business-metrics";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { buildOperationalHealth, getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 
@@ -37,7 +37,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ periodo?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.view");
   const requestedPeriod = supportedPeriods.has(query.periodo ?? "") ? query.periodo : "this_month";
   const [summary, intelligence, economic] = await Promise.all([
     getBusinessIntelligenceSummary({ companyId, period: requestedPeriod }),

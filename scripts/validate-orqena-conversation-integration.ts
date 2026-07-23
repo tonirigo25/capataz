@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { prisma } from "../lib/prisma";
+import { hashPassword } from "../lib/auth/crypto";
 import { withCompanyContext, requireCompanyContext, type CompanyContext } from "../lib/auth/session";
 import {
   appendMessageForCompany,
@@ -32,8 +33,17 @@ const companies = await Promise.all([
   prisma.company.create({ data: { slug: `orqena-b-${suffix}`, nombreComercial: `Orqena B ${suffix}` } })
 ]);
 const [companyA, companyB] = companies;
-const contextA: ConversationTenantContext = { userId: `user-a-${suffix}`, membershipId: `membership-a-${suffix}`, companyId: companyA.id };
-const contextB: ConversationTenantContext = { userId: `user-b-${suffix}`, membershipId: `membership-b-${suffix}`, companyId: companyB.id };
+const passwordHash = await hashPassword("Orqena-integration-fixture-2026!");
+const [userA, userB] = await Promise.all([
+  prisma.user.create({ data: { email: `a-${suffix}@orqena.invalid`, emailNormalized: `a-${suffix}@orqena.invalid`, displayName: "A", passwordHash, status: "active", emailVerifiedAt: new Date() } }),
+  prisma.user.create({ data: { email: `b-${suffix}@orqena.invalid`, emailNormalized: `b-${suffix}@orqena.invalid`, displayName: "B", passwordHash, status: "active", emailVerifiedAt: new Date() } })
+]);
+const [membershipA, membershipB] = await Promise.all([
+  prisma.companyMembership.create({ data: { userId: userA.id, companyId: companyA.id, role: "OWNER", status: "active" } }),
+  prisma.companyMembership.create({ data: { userId: userB.id, companyId: companyB.id, role: "OWNER", status: "active" } })
+]);
+const contextA: ConversationTenantContext = { userId: userA.id, membershipId: membershipA.id, companyId: companyA.id };
+const contextB: ConversationTenantContext = { userId: userB.id, membershipId: membershipB.id, companyId: companyB.id };
 
 try {
   const [conversationA, conversationB] = await Promise.all([
@@ -65,9 +75,12 @@ try {
   assert.deepEqual([fixedA, fixedB], [companyA.id, companyB.id]);
   console.log(JSON.stringify({ ok: true, checks: ["cross-tenant-read", "cross-tenant-mutations", "tenant-idempotency", "actor-bound-cancel", "cancel-idempotency", "cancelled-cannot-execute", "async-context-race"] }));
 } finally {
+  await prisma.chatActionLog.deleteMany({ where: { companyId: { in: companies.map((item) => item.id) } } });
   await prisma.chatMessage.deleteMany({ where: { companyId: { in: companies.map((item) => item.id) } } });
   await prisma.chatConversation.deleteMany({ where: { companyId: { in: companies.map((item) => item.id) } } });
+  await prisma.companyMembership.deleteMany({ where: { companyId: { in: companies.map((item) => item.id) } } });
   await prisma.company.deleteMany({ where: { id: { in: companies.map((item) => item.id) } } });
+  await prisma.user.deleteMany({ where: { id: { in: [userA.id, userB.id] } } });
   await prisma.$disconnect();
 }
 }

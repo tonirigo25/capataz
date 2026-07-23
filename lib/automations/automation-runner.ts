@@ -67,6 +67,7 @@ export async function runAutomation(input: {
   )
     return prisma.automationRun.create({
       data: {
+        companyId: definition.companyId,
         automationDefinitionId: definition.id,
         automationVersionId: version.id,
         status: "skipped",
@@ -84,6 +85,7 @@ export async function runAutomation(input: {
     });
   const run = await prisma.automationRun.create({
     data: {
+      companyId: definition.companyId,
       automationDefinitionId: definition.id,
       automationVersionId: version.id,
       status: "running",

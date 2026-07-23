@@ -94,7 +94,8 @@ async function resolveDisambiguation(text: string, context: ChatContext, options
   return null;
 }
 
-async function handleChatWorkflowContract(text: string, context: ChatContext | null, options: Options = {}): Promise<ContractResult | null> {
+export async function handleChatWorkflowContract(text: string, context: ChatContext | null, options: Options = {}): Promise<ContractResult | null> {
+  const { companyId } = await requireCompanyContext();
   const normalized = text.toLocaleLowerCase("es-ES").normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
   if (context?.pendingDisambiguation) { const resolved = await resolveDisambiguation(normalized, context, options); if (resolved) return resolved; }
 
@@ -126,7 +127,7 @@ async function handleChatWorkflowContract(text: string, context: ChatContext | n
     if (!title) return clarify("¿Qué título tendrá la subtarea?", context);
     const existing = await prisma.task.findFirst({ where: { parentTaskId: context.lastTask.taskId, title: { equals: title, mode: "insensitive" }, archivedAt: null } });
     if (existing) return clarify("Esa subtarea ya existe; no la he duplicado.", context);
-    const subtask = await createSubtask(context.lastTask.taskId, { title });
+    const subtask = await createSubtask(context.lastTask.taskId, { companyId, title });
     await audit(options, "subtask_create", "completed", { parentTaskId: context.lastTask.taskId, title });
     return result(`He creado la subtarea “${title}” bajo “${context.lastTask.title ?? "la tarea actual"}”.`, context, "task", subtask.id, "Subtarea creada", { lastTask: { taskId: subtask.id, title, parentTaskId: context.lastTask.taskId, action: "subtask_created", shownAt: shownAt() } });
   }

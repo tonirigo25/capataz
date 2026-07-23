@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildBusinessCsvExport } from "@/lib/business-intelligence";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ function csvResponse(csv: string, tipo: IntelligenceExportType) {
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${safeFilename(`capataz-${tipo}.csv`)}"`,
+      "Content-Disposition": `attachment; filename="${safeFilename(`orqena-${tipo}.csv`)}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff"
     }
@@ -27,7 +27,7 @@ function safeFilename(value: string) {
 }
 
 export async function GET(request: Request) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.export");
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") ?? "summary";
   if (!isAllowedType(tipo)) {

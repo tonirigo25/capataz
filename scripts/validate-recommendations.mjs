@@ -28,6 +28,7 @@ const recommendationModule = () => loadTsModule("lib/business-recommendations.ts
   mocks: {
     "@/lib/business-signals": businessSignalMocks,
     "@/lib/prisma": { prisma: {} },
+    "@/lib/auth/session": { requireCompanyContext: async () => ({ companyId: "company-test", userId: "user-test", membershipId: "membership-test" }) },
     "@/lib/proactive-audit": { logProactiveAuditEvent: async () => undefined }
   },
   aliases: {

@@ -22,7 +22,7 @@ check("Hoy mantiene pulso compacto", today.includes('title="Pulso del día"') &&
 check("Hoy limita actividad reciente", today.includes("recentActivity.slice(0, 5)"));
 check("Hoy enlaza al Dashboard", today.includes('href="/dashboard"'));
 check("Hoy tiene una única acción primaria estable", (today.match(/className="primary-button"/g) ?? []).length === 1 && today.includes("Hablar con Orqena"));
-check("Hoy deriva empresa desde sesión", today.includes("requireCompanyContext") && today.includes("getEconomicControl"));
+check("Hoy deriva empresa y economía desde autorización", today.includes('requireCapability("company.view")') && today.includes('resolveAuthorization(auth, "reports.view")') && today.includes("economicAllowed ? getEconomicControl"));
 check("Hoy tiene carga y error recuperable", fs.existsSync("app/(app)/hoy/loading.tsx") && fs.existsSync("app/(app)/hoy/error.tsx"));
 
 check("Dashboard es una ruta real", dashboard.includes("export default async function DashboardPage"));
@@ -39,7 +39,7 @@ check("Dashboard incluye rentabilidad por trabajo", dashboard.includes('title="R
 check("Dashboard incluye presupuestos", dashboard.includes('title="Presupuestos y actividad comercial"') && dashboard.includes("quoteActivity.pending"));
 check("Dashboard limita riesgos", dashboard.includes("summary.alerts.slice(0, 5)"));
 check("Dashboard no usa datos simulados", !dashboard.includes("mock") && !dashboard.includes("demoData") && !dashboard.includes("Math.random"));
-check("Consultas del Dashboard aceptan companyId de sesión", dashboard.includes("const { companyId } = await requireCompanyContext()") && dashboard.includes("getBusinessIntelligenceSummary({ companyId"));
+check("Consultas del Dashboard exigen capacidad y companyId de sesión", dashboard.includes('requireCapability("reports.view")') && dashboard.includes("getBusinessIntelligenceSummary({ companyId"));
 check("Agregaciones económicas aplican tenant", intelligence.includes("const tenant = params.companyId ? { companyId: params.companyId } : {}") && intelligence.includes("where: { ...tenant"));
 check("Dashboard tiene carga y error recuperable", dashboardLoading.includes("LoadingState") && dashboardError.includes("Reintentar"));
 check("Suite específica está registrada", packageJson.scripts["test:today-business-dashboard"] === "node scripts/validate-today-business-dashboard.mjs");

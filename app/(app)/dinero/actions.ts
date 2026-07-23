@@ -6,7 +6,7 @@ import type { PaymentType, ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export async function registerPayment(formData: FormData) {
   const facturaId = String(formData.get("facturaId") ?? "");
@@ -22,7 +22,7 @@ export async function registerPayment(formData: FormData) {
     throw new Error("Importe o factura no válidos.");
   }
 
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.collections.register");
   const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice) throw new Error("Factura no encontrada.");
 
@@ -67,7 +67,7 @@ export async function prepareCollectionReminder(formData: FormData) {
   const canal = String(formData.get("canal") ?? "whatsapp") as ReminderChannel;
   const fecha = String(formData.get("fechaProgramada") ?? "");
 
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.collections.register");
   const invoice = await prisma.invoice.findFirst({
     where: { id: facturaId, companyId },
     include: { client: true, work: true }
@@ -105,7 +105,7 @@ export async function markInvoicePaid(formData: FormData) {
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!facturaId || !confirmado) throw new Error("Confirmación requerida.");
 
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.collections.register");
   const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice || invoice.pendiente <= 0) return;
 

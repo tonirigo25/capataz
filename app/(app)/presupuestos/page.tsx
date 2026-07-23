@@ -19,7 +19,7 @@ import {
 } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ const filters = [
 export default async function BudgetsPage({ searchParams }: { searchParams: Promise<{ filtro?: string; buscar?: string }> }) {
   const query = await searchParams;
   const activeFilter = query.filtro ?? "todos";
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("sales.budgets.view");
   const budgets = await prisma.budget.findMany({
     where: { companyId },
     orderBy: { fechaCreacion: "desc" },

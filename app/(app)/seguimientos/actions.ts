@@ -9,10 +9,14 @@ import {
   archiveFollowUp,
 } from "@/lib/followups/followup-engine";
 import { prisma } from "@/lib/prisma";
+import { requireCapability } from "@/lib/commercial/authorization";
+async function followUpGuard(data:FormData){const auth=await requireCapability("followups.manage");const id=String(data.get("followUpId")??data.get("id")??"");if(id&&!await prisma.followUp.findFirst({where:{id,companyId:auth.companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");return auth;}
 export async function createFollowUpAction(data: FormData) {
+  const auth=await requireCapability("followups.manage");
   const title = String(data.get("title") ?? "").trim();
   if (!title) return;
   await createFollowUp({
+    companyId:auth.companyId,
     title,
     type: String(data.get("type") ?? "general"),
     nextActionAt: data.get("nextActionAt")
@@ -22,6 +26,7 @@ export async function createFollowUpAction(data: FormData) {
   revalidatePath("/seguimientos");
 }
 export async function addAttemptAction(data: FormData) {
+  await followUpGuard(data);
   await addFollowUpAttempt(String(data.get("id")), {
     channel: "internal",
     summary: "Intento registrado desde el centro",
@@ -29,6 +34,7 @@ export async function addAttemptAction(data: FormData) {
   revalidatePath("/seguimientos");
 }
 export async function completeFollowUpAction(data: FormData) {
+  await followUpGuard(data);
   await recordFollowUpOutcome(
     String(data.get("id")),
     "completed",
@@ -42,6 +48,7 @@ const refresh = (id: string) => {
   revalidatePath("/hoy");
 };
 export async function editFollowUpAction(data: FormData) {
+  await followUpGuard(data);
   const id = String(data.get("id"));
   await editFollowUp(id, {
     title: String(data.get("title") ?? ""),
@@ -55,6 +62,7 @@ export async function editFollowUpAction(data: FormData) {
   refresh(id);
 }
 export async function changeFollowUpStatusAction(data: FormData) {
+  await followUpGuard(data);
   const id = String(data.get("id"));
   await changeFollowUpStatus(
     id,
@@ -64,6 +72,7 @@ export async function changeFollowUpStatusAction(data: FormData) {
   refresh(id);
 }
 export async function registerAttemptAction(data: FormData) {
+  const auth=await followUpGuard(data);
   const id = String(data.get("followUpId")),
     nextActionAt = data.get("nextActionAt")
       ? new Date(String(data.get("nextActionAt")))
@@ -77,6 +86,7 @@ export async function registerAttemptAction(data: FormData) {
   if (data.get("createReminder") === "true" && nextActionAt)
     await prisma.reminder.create({
       data: {
+        companyId:auth.companyId,
         tipo: "recordatorio_interno",
         mensaje: `Seguimiento: ${String(data.get("summary") ?? "próxima acción")}`,
         fechaProgramada: nextActionAt,
@@ -87,6 +97,7 @@ export async function registerAttemptAction(data: FormData) {
   refresh(id);
 }
 export async function recordOutcomeAction(data: FormData) {
+  await followUpGuard(data);
   const id = String(data.get("followUpId"));
   await recordFollowUpOutcome(
     id,
@@ -97,6 +108,7 @@ export async function recordOutcomeAction(data: FormData) {
   refresh(id);
 }
 export async function archiveFollowUpAction(data: FormData) {
+  await followUpGuard(data);
   const id = String(data.get("id"));
   await archiveFollowUp(id);
   refresh(id);

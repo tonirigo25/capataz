@@ -5,7 +5,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
-  Filter,
   Lightbulb,
   PauseCircle,
   Search,
@@ -23,7 +22,6 @@ import {
 import { CompactFilterBar, EmptyState, Notice, PageHeader, ResultCount } from "@/components/ui-primitives";
 import {
   getBusinessRecommendations,
-  recommendationStatusLabel,
   type BusinessRecommendation,
   type BusinessRecommendationGroup,
   type BusinessRecommendationStatus
@@ -35,7 +33,7 @@ import {
   type BusinessSignalSource
 } from "@/lib/business-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { getProactiveAuditEventsForRecommendations } from "@/lib/proactive-evaluation";
 
 export const dynamic = "force-dynamic";
@@ -97,7 +95,7 @@ export default async function RecommendationsPage({
   const nivel = validLevel(query.nivel);
   const origen = validSource(query.origen);
   const q = query.q?.trim() ?? "";
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.view");
   const result = await getBusinessRecommendations({ companyId, status: estado, level: nivel, source: origen, q, limit: 250 });
   const recommendationHistory = await getProactiveAuditEventsForRecommendations(result.recommendations.map((item) => item.fingerprint));
 

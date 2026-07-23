@@ -15,6 +15,7 @@ export async function switchActiveCompany(formData: FormData) {
     ? await prisma.chatConversation.findMany({
         where: {
           companyId: user.activeCompanyId,
+          ownerUserId: session.userId,
           AND: [
             { pendingConfirmation: { path: ["userId"], equals: session.userId } },
             { pendingConfirmation: { path: ["status"], equals: "PENDING" } }
@@ -26,7 +27,7 @@ export async function switchActiveCompany(formData: FormData) {
   await prisma.$transaction([
     prisma.user.update({ where: { id: session.userId }, data: { activeCompanyId: membership.companyId } }),
     ...pendingConversations.map((conversation) => prisma.chatConversation.updateMany({
-      where: { id: conversation.id, companyId: user!.activeCompanyId! },
+      where: { id: conversation.id, companyId: user!.activeCompanyId!, ownerUserId: session.userId },
       data: { pendingConfirmation: { ...(conversation.pendingConfirmation as Prisma.JsonObject), status: "INVALIDATED", invalidatedAt: new Date().toISOString() } }
     })),
     prisma.auditLog.create({ data: { companyId: membership.companyId, userActorId: session.userId, action: "active_company.switched", targetType: "Company", targetId: membership.companyId, metadata: { membershipId: membership.id } } })

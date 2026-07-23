@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, Download, RefreshCw, Trash2 } from "lucide
 import { notFound } from "next/navigation";
 import { deleteExpenseDocument, findDuplicateExpenseDocumentIds, retryExpenseDocumentExtraction, saveExpenseFromDocument } from "@/app/(app)/gastos-materiales/actions";
 import { SectionHeader } from "@/components/section-header";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { categoryForDocument, EXPENSE_DOCUMENT_TYPES, normalizeExpenseExtraction } from "@/lib/expense-document";
 import { formatCurrency } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function ExpenseDocumentReviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; saved?: string; invoice?: string }> }) {
-  const [{ id }, query, context] = await Promise.all([params, searchParams, requireCompanyContext()]);
+  const [{ id }, query, context] = await Promise.all([params, searchParams, requireCapability("purchases.received_invoices.view")]);
   const [document, works, clients, partners] = await Promise.all([
     prisma.document.findFirst({ where: { id, companyId: context.companyId, archivedAt: null }, include: { expense: true } }),
     prisma.work.findMany({ where: { companyId: context.companyId, archivada: false }, orderBy: { titulo: "asc" }, select: { id: true, titulo: true, clienteId: true } }),

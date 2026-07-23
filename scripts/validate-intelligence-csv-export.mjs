@@ -41,6 +41,7 @@ function loadRoute({ requireCompanyContext, buildBusinessCsvExport }) {
     mocks: {
       "next/server": nextServerMock(),
       "@/lib/auth/session": { requireCompanyContext },
+      "@/lib/commercial/authorization": { requireCapability: requireCompanyContext },
       "@/lib/business-intelligence": { buildBusinessCsvExport }
     }
   });

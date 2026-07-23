@@ -7,4 +7,8 @@ export function assertConfirmationOwner(value: PendingConfirmation, expected: { 
   if (value.companyId !== expected.companyId || value.conversationId !== expected.conversationId) throw new Error("La confirmación no pertenece a esta conversación.");
   if (new Date(value.expiresAt).getTime() <= Date.now()) throw new Error("La propuesta ha caducado. Prepárala de nuevo.");
 }
-export const mutationRequiresConfirmation = (_action: string, _entityType: OrqenaEntityType) => true;
+export const mutationRequiresConfirmation = (action: string, entityType: OrqenaEntityType) => {
+  void action;
+  void entityType;
+  return true;
+};

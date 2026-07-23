@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import {
   editFollowUpAction,
   changeFollowUpStatusAction,
@@ -16,47 +17,51 @@ export default async function FollowUpDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const item = await prisma.followUp.findUnique({
-    where: { id },
+  const auth = await requireCapability("followups.view");
+  const economicAllowed=(await resolveAuthorization(auth,"sales.invoices.view")).allowed;
+  const canManage=(await resolveAuthorization(auth,"followups.manage")).allowed;
+  const item = await prisma.followUp.findFirst({
+    where: { id, companyId: auth.companyId },
     include: {
       attempts: { orderBy: { attemptedAt: "desc" } },
       outcomes: { orderBy: { recordedAt: "desc" } },
-      automationRun: { include: { definition: true } },
     },
   });
   if (!item) notFound();
+  const automationRun=item.automationRunId?await prisma.automationRun.findFirst({where:{id:item.automationRunId,companyId:auth.companyId},include:{definition:true}}):null;
   const [client, contact, work, budget, invoice] = await Promise.all([
     item.clientId
-      ? prisma.client.findUnique({
-          where: { id: item.clientId },
+      ? prisma.client.findFirst({
+          where: { id: item.clientId, companyId:auth.companyId },
           select: { nombre: true },
         })
       : null,
     item.contactId
-      ? prisma.contact.findUnique({
-          where: { id: item.contactId },
+      ? prisma.contact.findFirst({
+          where: { id: item.contactId, companyId:auth.companyId },
           select: { nombre: true },
         })
       : null,
     item.workId
-      ? prisma.work.findUnique({
-          where: { id: item.workId },
+      ? prisma.work.findFirst({
+          where: { id: item.workId, companyId:auth.companyId },
           select: { titulo: true },
         })
       : null,
-    item.budgetId
-      ? prisma.budget.findUnique({
-          where: { id: item.budgetId },
+    item.budgetId && economicAllowed
+      ? prisma.budget.findFirst({
+          where: { id: item.budgetId, companyId:auth.companyId },
           select: { numero: true, titulo: true },
         })
       : null,
-    item.invoiceId
-      ? prisma.invoice.findUnique({
-          where: { id: item.invoiceId },
+    item.invoiceId && economicAllowed
+      ? prisma.invoice.findFirst({
+          where: { id: item.invoiceId, companyId:auth.companyId },
           select: { numero: true, concepto: true },
         })
       : null,
   ]);
+  if(!canManage)return <main className="screen space-y-5"><Link href="/seguimientos" className="secondary-button">Volver a seguimientos</Link><PageHeader eyebrow="Solo lectura" title={item.title} description={`${item.type} · ${item.status}`}/><section className="card p-4"><p>Próxima acción: {format(item.nextActionAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
   return (
     <main className="screen space-y-5">
       <Link className="secondary-button" href="/seguimientos">
@@ -115,7 +120,7 @@ export default async function FollowUpDetailPage({
             />
             <Row
               label="Automatización"
-              value={item.automationRun?.definition.name ?? "No automatizado"}
+              value={automationRun?.definition.name ?? "No automatizado"}
             />
           </dl>
         </div>

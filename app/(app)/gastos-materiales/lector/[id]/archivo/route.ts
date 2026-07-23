@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { documentStorage } from "@/lib/document-storage";
 import { sanitizeFilename } from "@/lib/expense-document";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, { companyId }] = await Promise.all([params, requireCompanyContext()]);
+  const [{ id }, { companyId }] = await Promise.all([params, requireCapability("purchases.received_invoices.view")]);
   const document = await prisma.document.findFirst({ where: { id, companyId, archivedAt: null }, select: { storageKey: true, mimeType: true, originalName: true, name: true } });
   if (!document?.storageKey) return NextResponse.json({ error: "Documento no disponible" }, { status: 404 });
   try {

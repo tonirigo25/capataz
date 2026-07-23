@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { EventoAgendaEstado } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 export async function updateAgendaEventStatus(formData: FormData) {
@@ -12,7 +12,7 @@ export async function updateAgendaEventStatus(formData: FormData) {
   const estado = String(formData.get("estado") ?? "") as EventoAgendaEstado;
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !estado || !confirmado) return;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("agenda.manage");
   const core = companyCore(prisma, companyId);
   if (!(await core.getAgendaEvent(id))) return;
 
@@ -32,7 +32,7 @@ export async function reprogramAgendaEvent(formData: FormData) {
   const fechaFin = String(formData.get("fechaFin") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !fechaInicio || !confirmado) return;
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("agenda.manage");
   const core = companyCore(prisma, companyId);
   if (!(await core.getAgendaEvent(id))) return;
 

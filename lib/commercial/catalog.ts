@@ -44,6 +44,10 @@ export const capabilityCatalog = {
   "documents.delete": meta("documents", "delete", "Eliminar documentos", "critical", undefined, true),
   "agenda.view": meta("agenda", "view", "Ver agenda", "normal"),
   "agenda.manage": meta("agenda", "manage", "Gestionar agenda", "normal"),
+  "tasks.view": scoped("tasks", "view", "Ver tareas"),
+  "tasks.manage": scoped("tasks", "manage", "Gestionar tareas"),
+  "followups.view": scoped("followups", "view", "Ver seguimientos"),
+  "followups.manage": scoped("followups", "manage", "Gestionar seguimientos"),
   "orqena.use": meta("orqena", "use", "Usar Orqena", "normal", "orqena_chat"),
   "orqena.execute": meta("orqena", "execute", "Confirmar acciones de Orqena", "sensitive", "orqena_actions", true),
   "orqena.memory.manage": meta("orqena", "memory.manage", "Gestionar memoria", "sensitive", "orqena_memory"),
@@ -60,11 +64,12 @@ function scoped(domain: string, action: string, description: string): Capability
 
 export type CapabilityKey = keyof typeof capabilityCatalog;
 
-const operational = Object.keys(capabilityCatalog).filter((key) => !key.startsWith("company.billing") && !key.includes("members.remove")) as CapabilityKey[];
+const economicPrefixes = ["sales.", "purchases.", "treasury.", "reports."];
+const operational = Object.keys(capabilityCatalog).filter((key) => !key.startsWith("company.billing") && !key.includes("members.remove") && !economicPrefixes.some((prefix) => key.startsWith(prefix))) as CapabilityKey[];
 export const roleCapabilities: Record<"OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER", readonly CapabilityKey[]> = {
   OWNER: Object.keys(capabilityCatalog) as CapabilityKey[],
   ADMIN: operational,
   MANAGER: operational.filter((key) => !key.startsWith("company.") || key === "company.view" || key === "company.members.view"),
-  MEMBER: ["company.view", "clients.view", "clients.create", "clients.update", "work.view", "work.create", "work.update", "sales.budgets.view", "sales.budgets.create", "documents.view", "documents.upload", "agenda.view", "agenda.manage", "orqena.use"],
-  VIEWER: ["company.view", "clients.view", "work.view", "sales.budgets.view", "sales.invoices.view", "documents.view", "agenda.view", "reports.view"]
+  MEMBER: ["company.view", "clients.view", "clients.create", "clients.update", "work.view", "work.create", "work.update", "documents.view", "documents.upload", "agenda.view", "agenda.manage", "orqena.use"],
+  VIEWER: ["company.view", "clients.view", "work.view", "documents.view", "agenda.view"]
 };

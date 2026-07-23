@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { CashMovementStatus, ExpenseCategory, InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   BILLABLE_INVOICE_EXCLUDED_STATUSES,
@@ -190,7 +190,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
         ...(filters.workId ? { workId: filters.workId } : {}),
         ...(filters.clientId ? { clientId: filters.clientId } : {}),
         ...(filters.category ? { category: filters.category } : {}),
-        ...(filters.status ? { status: filters.status as any } : {}),
+        ...(filters.status ? { status: filters.status as CashMovementStatus } : {}),
         date: { lte: horizon.end }
       },
       include: {
@@ -207,7 +207,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     prisma.invoice.findMany({
       where: {
         companyId,
-        estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as any },
+        estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] },
         ...(filters.workId ? { obraId: filters.workId } : {}),
         ...(filters.clientId ? { clienteId: filters.clientId } : {})
       },
@@ -219,7 +219,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
         companyId,
         ...(filters.workId ? { obraId: filters.workId } : {}),
         ...(filters.clientId ? { clienteId: filters.clientId } : {}),
-        ...(filters.category ? { categoria: filters.category as any } : {})
+        ...(filters.category ? { categoria: filters.category as ExpenseCategory } : {})
       },
       include: {
         client: { select: { id: true, nombre: true } },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, CheckCircle2, MessageCircle, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, MessageCircle, ShieldCheck, X } from "lucide-react";
 import { scheduleBudgetFollowUp } from "@/app/(app)/clientes/actions";
 import { DemoLimitButton } from "@/components/demo-limit-button";
 import { formatCurrency } from "@/lib/format";

@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Archive, ClipboardSignature, Download, Eye, FileArchive, FileText, FolderOpen, Plus, Receipt, ScrollText } from "lucide-react";
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
-import { documentCategories, documentPlaceholders, documentTemplateAssets } from "@/lib/document-templates";
+import { documentCategories, documentTemplateAssets } from "@/lib/document-templates";
 import { documentDetail, repositoryDocumentDisplay } from "@/lib/documents";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,13 @@ const categoryIcons = {
 };
 
 export default async function DocumentsPage() {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("documents.view");
+  const { companyId } = auth;
+  const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
+  if (!economicAllowed) {
+    const operationalDocuments = await prisma.document.findMany({ where: { companyId, archivedAt: null, budgetId: null, invoiceId: null, expenseId: null }, select: { id: true, name: true, category: true, createdAt: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } }, orderBy: { createdAt: "desc" }, take: 50 });
+    return <main className="screen"><SectionHeader title="Documentos" description="Documentación operativa autorizada." action={<Link href="/gestion?tipo=documento&returnTo=/documentos" className="primary-button"><Plus size={18} />Documento</Link>} /><div className="grid gap-3 md:grid-cols-2">{operationalDocuments.map((document) => <article key={document.id} className="card p-4"><h2 className="font-black text-obra-ink">{document.name}</h2><p className="mt-1 text-sm text-slate-600">{document.work?.titulo ?? document.client?.nombre ?? "Documento interno"}</p><p className="mt-2 text-xs text-slate-500">{formatDate(document.createdAt)}</p></article>)}</div></main>;
+  }
   const [budgets, invoices, repositoryDocuments] = await Promise.all([
     prisma.budget.findMany({
       where: { companyId },
@@ -48,7 +54,7 @@ export default async function DocumentsPage() {
     <main className="screen">
       <SectionHeader
         title="Documentos"
-        description="Presupuestos, facturas, plantillas y documentos profesionales generados desde datos editables."
+        description="Todos los documentos de tu negocio, ordenados y listos para revisar."
         action={
           <div className="flex flex-wrap gap-2">
             <Link href="/gestion?tipo=presupuesto&returnTo=/documentos" className="primary-button">
@@ -81,10 +87,9 @@ export default async function DocumentsPage() {
       </section>
 
       <section className="card mb-5 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Revisión antes de generar</h2>
+        <h2 className="text-lg font-black text-obra-ink">Tú decides antes de crear</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Orqena permite revisar cliente, trabajo, partidas, impuestos, totales, condiciones, validez, vencimiento y estado antes de generar el documento final.
-          No se envía ningún documento por WhatsApp ni email sin confirmación explícita del usuario.
+          Revisa los datos y confirma cuando estén correctos. Orqena no envía documentos sin tu autorización.
         </p>
       </section>
 
@@ -111,17 +116,6 @@ export default async function DocumentsPage() {
                 </Link>
               </div>
             </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="card mb-5 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Placeholders soportados</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {documentPlaceholders.map((placeholder) => (
-            <code key={placeholder} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-              [[{placeholder}]]
-            </code>
           ))}
         </div>
       </section>

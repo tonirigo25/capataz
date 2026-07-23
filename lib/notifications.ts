@@ -1,7 +1,7 @@
 import type { NotificationPriority } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export type NotificationItem = {
   sourceKey: string;
@@ -17,7 +17,7 @@ export type NotificationItem = {
 };
 
 export async function getNotificationItems(): Promise<NotificationItem[]> {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.view");
   const derived = await deriveNotifications(companyId);
   const readStates = await prisma.notification.findMany({
     where: { companyId, sourceKey: { in: derived.map((item) => item.sourceKey) }, archivedAt: null },
@@ -33,7 +33,7 @@ export async function getUnreadNotificationCount() {
 }
 
 export async function markNotificationRead(sourceKey: string) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.view");
   const item = (await deriveNotifications(companyId)).find((notification) => notification.sourceKey === sourceKey);
   if (!item) return;
   const updated = await prisma.notification.updateMany({ where: { sourceKey, companyId }, data: { readAt: new Date(), archivedAt: null } });
@@ -54,7 +54,7 @@ export async function markNotificationRead(sourceKey: string) {
 }
 
 export async function markAllNotificationsRead() {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("reports.view");
   const items = await deriveNotifications(companyId);
   for (const item of items) await markNotificationRead(item.sourceKey);
 }

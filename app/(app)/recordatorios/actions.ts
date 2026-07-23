@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 async function ownedReminder(id: string) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("agenda.manage");
   const core = companyCore(prisma, companyId);
   const reminder = await core.getReminder(id);
   return { companyId, core, reminder };

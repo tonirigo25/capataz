@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import {
   changeTaskStatusAction,
   updateTaskAction,
@@ -24,54 +25,57 @@ export default async function TaskDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const task = await prisma.task.findUnique({
-    where: { id },
+  const auth = await requireCapability("tasks.view");
+  const economicAllowed=(await resolveAuthorization(auth,"sales.invoices.view")).allowed;
+  const canManage=(await resolveAuthorization(auth,"tasks.manage")).allowed;
+  const task = await prisma.task.findFirst({
+    where: { id, companyId: auth.companyId },
     include: {
       checklist: { orderBy: { order: "asc" } },
-      subtasks: { orderBy: { createdAt: "asc" } },
-      parentTask: true,
-      dependencies: { include: { dependsOnTask: true } },
-      blocking: { include: { task: true } },
+      subtasks: { where:{companyId:auth.companyId}, orderBy: { createdAt: "asc" } },
+      dependencies: { where:{dependsOnTask:{companyId:auth.companyId}}, include: { dependsOnTask: true } },
+      blocking: { where:{task:{companyId:auth.companyId}}, include: { task: true } },
       comments: { where: { archivedAt: null }, orderBy: { createdAt: "desc" } },
       history: { orderBy: { createdAt: "desc" } },
       recurrence: true,
-      automationRun: { include: { definition: true } },
     },
   });
   if (!task) notFound();
+  const [parentTask,automationRun]=await Promise.all([task.parentTaskId?prisma.task.findFirst({where:{id:task.parentTaskId,companyId:auth.companyId},select:{id:true,title:true}}):null,task.automationRunId?prisma.automationRun.findFirst({where:{id:task.automationRunId,companyId:auth.companyId},include:{definition:true}}):null]);
   const [client, work, budget, invoice, candidates] = await Promise.all([
     task.clientId
-      ? prisma.client.findUnique({
-          where: { id: task.clientId },
+      ? prisma.client.findFirst({
+          where: { id: task.clientId, companyId:auth.companyId },
           select: { nombre: true },
         })
       : null,
     task.workId
-      ? prisma.work.findUnique({
-          where: { id: task.workId },
+      ? prisma.work.findFirst({
+          where: { id: task.workId, companyId:auth.companyId },
           select: { titulo: true },
         })
       : null,
-    task.budgetId
-      ? prisma.budget.findUnique({
-          where: { id: task.budgetId },
+    task.budgetId && economicAllowed
+      ? prisma.budget.findFirst({
+          where: { id: task.budgetId, companyId:auth.companyId },
           select: { numero: true, titulo: true },
         })
       : null,
-    task.invoiceId
-      ? prisma.invoice.findUnique({
-          where: { id: task.invoiceId },
+    task.invoiceId && economicAllowed
+      ? prisma.invoice.findFirst({
+          where: { id: task.invoiceId, companyId:auth.companyId },
           select: { numero: true, concepto: true },
         })
       : null,
     prisma.task.findMany({
-      where: { id: { not: id }, archivedAt: null },
+      where: { id: { not: id }, companyId:auth.companyId, archivedAt: null },
       select: { id: true, title: true },
       orderBy: { title: "asc" },
       take: 100,
     }),
   ]);
   const done = task.checklist.filter((i) => i.completed).length;
+  if(!canManage)return <main className="screen space-y-5"><Link href="/tareas" className="secondary-button">Volver a tareas</Link><PageHeader eyebrow="Solo lectura" title={task.title} description={task.description??"Sin descripción"}/><section className="card p-4"><p>Estado: {task.status}</p><p>Vencimiento: {format(task.dueAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
   return (
     <main className="screen space-y-5">
       <Link href="/tareas" className="secondary-button">
@@ -121,7 +125,7 @@ export default async function TaskDetailPage({
             <Row
               label="Automatización"
               value={
-                task.automationRun?.definition.name ?? "Origen no automatizado"
+                automationRun?.definition.name ?? "Origen no automatizado"
               }
             />
             <Row
@@ -284,14 +288,14 @@ export default async function TaskDetailPage({
       <section className="grid gap-5 lg:grid-cols-2">
         <div className="card p-4">
           <h2 className="font-black">Subtareas</h2>
-          {task.parentTask ? (
+          {parentTask ? (
             <p className="mt-2 text-sm">
               Tarea padre:{" "}
               <Link
                 className="underline"
-                href={`/tareas/${task.parentTask.id}`}
+                href={`/tareas/${parentTask.id}`}
               >
-                {task.parentTask.title}
+                {parentTask.title}
               </Link>
             </p>
           ) : null}

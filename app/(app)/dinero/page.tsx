@@ -7,7 +7,7 @@ import { ActionMenu, CompactFilterBar, CompactSearch, EmptyState, MetricStrip, M
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ type InvoiceListItem = {
 export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ filtro?: string; buscar?: string }> }) {
   const query = await searchParams;
   const filter = query.filtro ?? "pendientes";
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("sales.invoices.view");
   const invoices = await prisma.invoice.findMany({ where: { companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true, payments: true } });
   const invoicesWithStatus: InvoiceListItem[] = invoices.map((invoice) => ({ ...invoice, liveStatus: invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento) }));
   const visibleInvoices = invoicesWithStatus.filter((invoice) => {

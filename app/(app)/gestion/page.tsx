@@ -5,12 +5,17 @@ import { saveManualRecord } from "@/app/(app)/gestion/actions";
 import { Notice, PageHeader, StickyFormActions } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { managementCapability } from "@/lib/commercial/management-capabilities";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
 type EntityType = "cliente" | "obra" | "presupuesto" | "factura" | "pago" | "gasto" | "material" | "recordatorio" | "eventoAgenda" | "contacto" | "notaInterna" | "documento" | "foto";
+// `fetchRecord` returns one of several Prisma models selected by `tipo`.
+// The renderer narrows that model with the same discriminant; `never` keeps
+// the shared dynamic property access assignable without weakening it to `any`.
+type ManualRecord = Record<string, never>;
 
 const entityLabels: Record<EntityType, string> = {
   cliente: "cliente",
@@ -90,16 +95,17 @@ export default async function ManualManagementPage({
   const query = await searchParams;
   const tipo = query.tipo as EntityType | undefined;
   if (!tipo || !(tipo in entityLabels)) notFound();
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability(managementCapability(tipo, Boolean(query.id)));
+  const economicAllowed = (await resolveAuthorization(auth, "sales.invoices.view")).allowed;
 
   const [clients, works, budgets, invoices, reminders, contacts, documents, companyRecord] = await Promise.all([
     prisma.client.findMany({ where: { companyId: auth.companyId }, orderBy: { nombre: "asc" } }),
     prisma.work.findMany({ where: { companyId: auth.companyId }, orderBy: { titulo: "asc" }, include: { client: true } }),
-    prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { numero: "asc" }, include: { client: true } }),
-    prisma.invoice.findMany({ where: { companyId: auth.companyId }, orderBy: { numero: "asc" }, include: { client: true } }),
+    economicAllowed ? prisma.budget.findMany({ where: { companyId: auth.companyId }, orderBy: { numero: "asc" }, include: { client: true } }) : Promise.resolve([]),
+    economicAllowed ? prisma.invoice.findMany({ where: { companyId: auth.companyId }, orderBy: { numero: "asc" }, include: { client: true } }) : Promise.resolve([]),
     prisma.reminder.findMany({ where: { companyId: auth.companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true } }),
     prisma.contact.findMany({ where: { companyId: auth.companyId, archivedAt: null }, orderBy: [{ nombre: "asc" }], include: { client: true } }),
-    prisma.document.findMany({ where: { companyId: auth.companyId, archivedAt: null }, orderBy: { createdAt: "desc" }, include: { client: true, work: true } }),
+    prisma.document.findMany({ where: { companyId: auth.companyId, archivedAt: null, ...(economicAllowed ? {} : { budgetId: null, invoiceId: null }) }, orderBy: { createdAt: "desc" }, include: { client: true, work: true } }),
     prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } })
   ]);
   const company = companySettingsView(companyRecord);
@@ -143,7 +149,7 @@ export default async function ManualManagementPage({
           />
         ) : null}
 
-        {renderFields({ tipo, record, defaults: query, clients, works, budgets, invoices, reminders, contacts, documents, company, suggestedBudgetNumber, suggestedInvoiceNumber, suggestedWorkNumber })}
+        {renderFields({ tipo, record: record as ManualRecord | null, defaults: query, clients, works, budgets, invoices, reminders, contacts, documents, company, suggestedBudgetNumber, suggestedInvoiceNumber, suggestedWorkNumber })}
 
         <StickyFormActions>
           <Link href={returnTo} className="secondary-button w-full">
@@ -208,7 +214,7 @@ function renderFields({
   suggestedWorkNumber
 }: {
   tipo: EntityType;
-  record: Record<string, any> | null;
+  record: ManualRecord | null;
   defaults: Record<string, string | undefined>;
   clients: Array<{ id: string; nombre: string }>;
   works: Array<{ id: string; titulo: string; client: { nombre: string } }>;
@@ -674,9 +680,9 @@ function RelationSelect({
   );
 }
 
-function valueFor(record: Record<string, any> | null, defaults: Record<string, string | undefined>, key: string, fallback = "") {
+function valueFor(record: ManualRecord | null, defaults: Record<string, string | undefined>, key: string, fallback = "") {
   const value = record?.[key];
-  if (value !== null && value !== undefined && value !== "") return value;
+  if (value !== null && value !== undefined && value !== "") return String(value);
   return defaults[key] ?? fallback;
 }
 

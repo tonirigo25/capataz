@@ -10,14 +10,14 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability("sales.invoices.view");
   const [invoice, companyRecord] = await Promise.all([
     prisma.invoice.findFirst({
       where: { id, companyId: auth.companyId },

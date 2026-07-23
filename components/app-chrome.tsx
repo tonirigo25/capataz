@@ -16,7 +16,6 @@ import {
   CircleUserRound,
   Ellipsis,
   FileText,
-  Handshake,
   Home,
   Landmark,
   LogOut,
@@ -65,6 +64,7 @@ const icons: Record<ProductIcon, LucideIcon> = {
 
 export function AppChrome({
   children,
+  capabilities,
   modeLabel,
   unreadNotifications,
   companyName,
@@ -73,6 +73,7 @@ export function AppChrome({
   logoutAction
 }: {
   children: ReactNode;
+  capabilities: string[];
   modeLabel?: string;
   unreadNotifications: number;
   companyName: string;
@@ -199,6 +200,7 @@ export function AppChrome({
 
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-border bg-surface lg:block">
         <DesktopNavigation
+          capabilities={capabilities}
           pathname={pathname}
           companyName={companyName}
           userName={userName}
@@ -263,6 +265,7 @@ export function AppChrome({
       <main id="main-content" className="relative">{children}</main>
 
       <MobileBottomNavigation
+        capabilities={capabilities}
         pathname={pathname}
         overlay={overlay}
         onOpen={openOverlay}
@@ -270,6 +273,7 @@ export function AppChrome({
 
       {desktopPanel === "more" ? (
         <DesktopMorePanel
+          capabilities={capabilities}
           ref={panelRef}
           pathname={pathname}
           unread={unreadNotifications}
@@ -277,7 +281,7 @@ export function AppChrome({
         />
       ) : null}
       {desktopPanel === "create" ? (
-        <DesktopCreatePanel ref={panelRef} onClose={closeDesktopPanel} />
+        <DesktopCreatePanel capabilities={capabilities} ref={panelRef} onClose={closeDesktopPanel} />
       ) : null}
       {desktopPanel === "user" ? (
         <DesktopUserPanel
@@ -313,9 +317,10 @@ export function AppChrome({
             {overlay === "search" ? (
               <SearchDialog id={dialogId} onClose={() => setOverlay(null)} />
             ) : overlay === "create" ? (
-              <MobileCreateSheet id={dialogId} onClose={() => setOverlay(null)} />
+              <MobileCreateSheet capabilities={capabilities} id={dialogId} onClose={() => setOverlay(null)} />
             ) : (
               <MobileMoreSheet
+                capabilities={capabilities}
                 id={dialogId}
                 pathname={pathname}
                 unread={unreadNotifications}
@@ -335,6 +340,7 @@ export function AppChrome({
 }
 
 function DesktopNavigation({
+  capabilities,
   pathname,
   companyName,
   userName,
@@ -342,6 +348,7 @@ function DesktopNavigation({
   desktopPanel,
   onOpenPanel
 }: {
+  capabilities: string[];
   pathname: string;
   companyName: string;
   userName: string;
@@ -364,7 +371,7 @@ function DesktopNavigation({
 
       <nav className="flex-1 px-3" aria-label="Navegación principal">
         <div className="grid gap-1">
-          {primaryNavigation.map((item) => (
+          {primaryNavigation.filter((item) => !item.capability || capabilities.includes(item.capability)).map((item) => (
             <NavigationLink key={item.href} item={item} pathname={pathname} />
           ))}
         </div>
@@ -407,10 +414,12 @@ function DesktopNavigation({
 }
 
 const DesktopMorePanel = forwardRef<HTMLDivElement, {
+  capabilities: string[];
   pathname: string;
   unread: number;
   onClose: () => void;
 }>(function DesktopMorePanel({
+  capabilities,
   pathname,
   unread,
   onClose
@@ -431,7 +440,7 @@ const DesktopMorePanel = forwardRef<HTMLDivElement, {
         </button>
       </div>
       <div className="grid gap-5">
-        {secondaryNavigation.map((group) => (
+        {secondaryNavigation.map((group) => ({...group,items:group.items.filter((item)=>!item.capability||capabilities.includes(item.capability))})).filter((group)=>group.items.length).map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -440,8 +449,10 @@ const DesktopMorePanel = forwardRef<HTMLDivElement, {
 });
 
 const DesktopCreatePanel = forwardRef<HTMLDivElement, {
+  capabilities: string[];
   onClose: () => void;
 }>(function DesktopCreatePanel({
+  capabilities,
   onClose
 }, ref) {
   return (
@@ -452,7 +463,7 @@ const DesktopCreatePanel = forwardRef<HTMLDivElement, {
           <X size={18} aria-hidden="true" />
         </button>
       </div>
-      <CreateRows onNavigate={onClose} />
+      <CreateRows capabilities={capabilities} onNavigate={onClose} />
     </div>
   );
 });
@@ -498,18 +509,20 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
 });
 
 function MobileBottomNavigation({
+  capabilities,
   pathname,
   overlay,
   onOpen
 }: {
+  capabilities: string[];
   pathname: string;
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
   const mobileItems = [
     primaryNavigation.find((item) => item.href === "/hoy")!,
-    primaryNavigation.find((item) => item.href === "/clientes")!,
-    primaryNavigation.find((item) => item.href === "/obras")!
+    primaryNavigation.find((item) => item.href === "/clientes" && (!item.capability || capabilities.includes(item.capability))) ?? primaryNavigation[0],
+    primaryNavigation.find((item) => item.href === "/obras" && (!item.capability || capabilities.includes(item.capability))) ?? primaryNavigation[0]
   ];
   return (
     <nav
@@ -605,15 +618,16 @@ function SearchDialog({ id, onClose }: { id: string; onClose: () => void }) {
   );
 }
 
-function MobileCreateSheet({ id, onClose }: { id: string; onClose: () => void }) {
+function MobileCreateSheet({ id, capabilities, onClose }: { id: string; capabilities: string[]; onClose: () => void }) {
   return (
     <SheetFrame id={id} title="Crear" description="Elige una acción frecuente." onClose={onClose}>
-      <CreateRows onNavigate={onClose} />
+      <CreateRows capabilities={capabilities} onNavigate={onClose} />
     </SheetFrame>
   );
 }
 
 function MobileMoreSheet({
+  capabilities,
   id,
   pathname,
   unread,
@@ -624,6 +638,7 @@ function MobileMoreSheet({
   logoutAction,
   onClose
 }: {
+  capabilities: string[];
   id: string;
   pathname: string;
   unread: number;
@@ -643,12 +658,12 @@ function MobileMoreSheet({
         <section>
           <h3 className="type-label mb-2">Trabajo y gestión</h3>
           <div className="grid gap-1">
-            {primaryNavigation.filter((item) => !["/hoy", "/clientes", "/obras"].includes(item.href)).map((item) => (
+            {primaryNavigation.filter((item) => !["/hoy", "/clientes", "/obras"].includes(item.href) && (!item.capability || capabilities.includes(item.capability))).map((item) => (
               <NavigationLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />
             ))}
           </div>
         </section>
-        {secondaryNavigation.slice(0, 2).map((group) => (
+        {secondaryNavigation.slice(0, 2).map((group) => ({...group,items:group.items.filter((item)=>!item.capability||capabilities.includes(item.capability))})).filter((group)=>group.items.length).map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -710,10 +725,10 @@ function SheetFrame({
   );
 }
 
-function CreateRows({ onNavigate }: { onNavigate: () => void }) {
+function CreateRows({ capabilities, onNavigate }: { capabilities: string[]; onNavigate: () => void }) {
   return (
     <div className="grid gap-1">
-      {createActions.map((item) => {
+      {createActions.filter((item)=>!item.capability||capabilities.includes(item.capability)).map((item) => {
         const Icon = icons[item.icon];
         return (
           <Link key={item.href} href={item.href} onClick={onNavigate} className="shell-menu-row min-h-14">

@@ -2,6 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { documentCategoryLabel } from "@/lib/documents";
 import { deriveInvoiceStatus, statusLabel } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { resolveAuthorization } from "@/lib/commercial/authorization";
 
 export type SearchResult = {
   type: string;
@@ -13,12 +15,16 @@ export type SearchResult = {
 const TAKE_PER_GROUP = 8;
 
 export async function globalSearch(query: string) {
+  const context = await requireCompanyContext();
+  const { companyId } = context;
+  const economicAllowed = (await resolveAuthorization(context, "sales.invoices.view")).allowed;
   const raw = query.trim();
   if (!raw) return grouped([]);
 
   const [clients, contacts, works, budgets, invoices, payments, expenses, agendaEvents, documents] = await Promise.all([
     prisma.client.findMany({
       where: {
+        companyId,
         OR: [
           contains("nombre", raw),
           contains("nombreComercial", raw),
@@ -38,6 +44,7 @@ export async function globalSearch(query: string) {
     }),
     prisma.contact.findMany({
       where: {
+        client: { companyId },
         archivedAt: null,
         OR: [contains("nombre", raw), contains("apellidos", raw), contains("cargo", raw), contains("telefono", raw), contains("email", raw), contains("notes", raw)]
       },
@@ -47,6 +54,7 @@ export async function globalSearch(query: string) {
     }),
     prisma.work.findMany({
       where: {
+        companyId,
         OR: [
           contains("titulo", raw),
           contains("codigo", raw),
@@ -62,36 +70,39 @@ export async function globalSearch(query: string) {
       include: { client: true },
       orderBy: { updatedAt: "desc" }
     }),
-    prisma.budget.findMany({
+    economicAllowed ? prisma.budget.findMany({
       where: {
+        companyId,
         OR: [contains("numero", raw), contains("titulo", raw), contains("partidas", raw), contains("observaciones", raw), { client: { OR: [contains("nombre", raw), contains("nifCif", raw)] } }]
       },
       take: TAKE_PER_GROUP,
       include: { client: true, work: true },
       orderBy: { fechaCreacion: "desc" }
-    }),
-    prisma.invoice.findMany({
+    }) : Promise.resolve([]),
+    economicAllowed ? prisma.invoice.findMany({
       where: {
+        companyId,
         OR: [contains("numero", raw), contains("concepto", raw), contains("observaciones", raw), { client: { OR: [contains("nombre", raw), contains("nifCif", raw)] } }]
       },
       take: TAKE_PER_GROUP,
       include: { client: true, work: true },
       orderBy: { fechaEmision: "desc" }
-    }),
-    prisma.payment.findMany({
-      where: { OR: [contains("metodo", raw), contains("notas", raw), { client: { OR: [contains("nombre", raw), contains("nifCif", raw)] } }, { invoice: contains("numero", raw) }] },
+    }) : Promise.resolve([]),
+    economicAllowed ? prisma.payment.findMany({
+      where: { companyId, OR: [contains("metodo", raw), contains("notas", raw), { client: { OR: [contains("nombre", raw), contains("nifCif", raw)] } }, { invoice: contains("numero", raw) }] },
       take: TAKE_PER_GROUP,
       include: { client: true, invoice: true },
       orderBy: { fecha: "desc" }
-    }),
-    prisma.expense.findMany({
-      where: { OR: [contains("proveedor", raw), contains("concepto", raw), contains("notas", raw), { work: { OR: [contains("titulo", raw), contains("codigo", raw)] } }] },
+    }) : Promise.resolve([]),
+    economicAllowed ? prisma.expense.findMany({
+      where: { companyId, OR: [contains("proveedor", raw), contains("concepto", raw), contains("notas", raw), { work: { OR: [contains("titulo", raw), contains("codigo", raw)] } }] },
       take: TAKE_PER_GROUP,
       include: { work: { include: { client: true } } },
       orderBy: { fecha: "desc" }
-    }),
+    }) : Promise.resolve([]),
     prisma.eventoAgenda.findMany({
       where: {
+        companyId,
         OR: [
           contains("titulo", raw),
           contains("descripcion", raw),
@@ -108,7 +119,9 @@ export async function globalSearch(query: string) {
     }),
     prisma.document.findMany({
       where: {
+        companyId,
         archivedAt: null,
+        ...(economicAllowed ? {} : { budgetId: null, invoiceId: null }),
         OR: [
           contains("name", raw),
           contains("originalName", raw),
@@ -118,7 +131,7 @@ export async function globalSearch(query: string) {
         ]
       },
       take: TAKE_PER_GROUP,
-      include: { client: true, work: true, budget: true, invoice: true },
+      include: { client: true, work: true, budget: economicAllowed, invoice: economicAllowed },
       orderBy: { createdAt: "desc" }
     })
   ]);

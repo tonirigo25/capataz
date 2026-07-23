@@ -50,6 +50,7 @@ import { canApplyConversationLoad } from "@/lib/chat-conversation-rules";
 import { formatCurrency } from "@/lib/format";
 
 type ChatData = {
+  capabilities: string[];
   userProfile: {
     id: string;
     nombre: string | null;
@@ -138,7 +139,7 @@ type ChatData = {
     forecastNet: number;
     href: string;
     suggestions: string[];
-  };
+  } | null;
 };
 
 type ActionCard =
@@ -282,17 +283,7 @@ const samples = [
   "¿Quién me debe dinero?"
 ];
 
-const quickCreates = [
-  { href: "/gestion?tipo=cliente&returnTo=/capataz", label: "Cliente" },
-  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/capataz", label: "Visita" },
-  { href: "/gestion?tipo=presupuesto&returnTo=/capataz", label: "Presupuesto" },
-  { href: "/gestion?tipo=factura&returnTo=/capataz", label: "Factura" },
-  { href: "/gestion?tipo=gasto&returnTo=/capataz", label: "Gasto" },
-  { href: "/gestion?tipo=pago&returnTo=/capataz", label: "Pago" },
-  { href: "/gestion?tipo=recordatorio&returnTo=/capataz", label: "Recordatorio" }
-];
-
-const chatConversationStorageKey = (companyId: string) => `orqena-chat-conversation-id:${companyId}`;
+const chatConversationStorageKey = (companyId: string, userId: string) => `orqena-chat-conversation-id:${companyId}:${userId}`;
 const defaultProgressSteps = [
   "Leyendo tu mensaje...",
   "Analizando datos...",
@@ -301,7 +292,7 @@ const defaultProgressSteps = [
   "Guardando cambios..."
 ];
 
-export function CapatazChat({ data }: { data: ChatData }) {
+export function CapatazChat({ data, userId }: { data: ChatData; userId: string }) {
   const router = useRouter();
   const companyId = data.company?.id ?? "unassigned";
   const displayName = userName(data);
@@ -310,7 +301,6 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const [progressSteps, setProgressSteps] = useState(defaultProgressSteps);
   const [progressIndex, setProgressIndex] = useState(0);
   const [showExamples, setShowExamples] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
   const [chatContext, setChatContext] = useState<ChatCommandContext | null>(null);
   const [conversationId, setConversationId] = useState("");
   const [conversations, setConversations] = useState<ChatHistoryConversation[]>([]);
@@ -321,6 +311,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const inFlightRef = useRef(false);
   const mountedRef = useRef(false);
   const loadRequestRef = useRef(0);
+  const bootConversationRef = useRef(bootConversation);
+  bootConversationRef.current = bootConversation;
   const companyGenerationRef = useRef(0);
   const activeCompanyRef = useRef(companyId);
   const [renderedCompanyId, setRenderedCompanyId] = useState(companyId);
@@ -395,7 +387,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
     followLatestRef.current = true;
     setChatState("booting");
     mountedRef.current = true;
-    void bootConversation(companyId, generation);
+    void bootConversationRef.current(companyId, generation);
     return () => {
       mountedRef.current = false;
       loadRequestRef.current += 1;
@@ -403,13 +395,13 @@ export function CapatazChat({ data }: { data: ChatData }) {
       inFlightRef.current = false;
       stopAndClearVoiceCapture(false);
     };
-  }, [companyId]);
+  }, [companyId, userId, displayName]);
 
   async function bootConversation(expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current) {
     const requestId = ++loadRequestRef.current;
     setChatState("booting");
     try {
-      const storageKey = chatConversationStorageKey(expectedCompanyId);
+      const storageKey = chatConversationStorageKey(expectedCompanyId, userId);
       const preferred = safeLocalStorageGet(storageKey);
       const initial = await getOrCreateInitialConversation(preferred);
       if (!canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !mountedRef.current || requestId !== loadRequestRef.current) return;
@@ -521,7 +513,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
     setMessages([welcomeMessage(displayName)]);
     setInput("");
     setChatState("ready");
-    safeLocalStorageSet(chatConversationStorageKey(companyId), conversation.id);
+    safeLocalStorageSet(chatConversationStorageKey(companyId, userId), conversation.id);
     setShowHistory(false);
     await refreshConversations(conversation.id);
   }
@@ -532,7 +524,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
     setConversationId(conversation.id);
     setMessages(messagesFromConversation(conversation, displayName));
     persistChatContext(contextFromConversation(conversation));
-    safeLocalStorageSet(chatConversationStorageKey(companyId), conversation.id);
+    safeLocalStorageSet(chatConversationStorageKey(companyId, userId), conversation.id);
     setChatState("ready");
     setShowHistory(false);
   }
@@ -699,7 +691,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
           </div>
         </details>
       ) : null}
-      <details className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
+      {data.economicContext ? <details className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
         <summary className="cursor-pointer font-semibold">Contexto actual · {data.economicContext.entityName}</summary>
         <div className="mt-3">
         <p className="type-label">Contexto económico · datos registrados</p>
@@ -714,7 +706,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
         <p className="type-meta mt-2">Contexto limitado a cifras agregadas y trazables; no se exponen documentos completos en el chat.</p>
         <div className="mt-3 flex flex-wrap gap-2"><a href={data.economicContext.href} className="secondary-button min-h-10 px-3 text-xs">Abrir origen</a>{data.economicContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
         </div>
-      </details>
+      </details> : null}
       <div className="mb-3 flex flex-wrap gap-2">
         <button type="button" className="secondary-button min-h-10 px-3 text-xs lg:hidden" onClick={() => setShowHistory(true)}>
           <History size={16} /> Historial
@@ -744,16 +736,6 @@ export function CapatazChat({ data }: { data: ChatData }) {
             >
               {sample}
             </button>
-          ))}
-        </div>
-      ) : null}
-
-      {showCreate ? (
-        <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-card">
-          {quickCreates.map((item) => (
-            <Link key={item.href} href={item.href} className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-bold text-obra-ink hover:bg-obra-yellow/15">
-              {item.label}
-            </Link>
           ))}
         </div>
       ) : null}
@@ -1660,7 +1642,7 @@ function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-pro
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
-        <button type="submit" className="primary-button w-full">Guardar</button>
+        <button type="submit" className="primary-button w-full">Confirmar cambios</button>
         <Link href="/configuracion#perfil" className="secondary-button w-full">Editar</Link>
         <button type="reset" className="secondary-button w-full">Cancelar</button>
       </div>
@@ -1701,7 +1683,7 @@ function CompanySettingsCard({ card }: { card: Extract<ActionCard, { type: "comp
       <TextareaField name="condicionesPorDefecto" label="Condiciones por defecto" value={card.company.condicionesPorDefecto} />
       <TextareaField name="textoLegal" label="Texto legal" value={card.company.textoLegal} />
       <div className="grid gap-2 sm:grid-cols-3">
-        <button type="submit" className="primary-button w-full">Guardar</button>
+        <button type="submit" className="primary-button w-full">Confirmar cambios</button>
         <Link href="/configuracion#empresa" className="secondary-button w-full">Editar</Link>
         <button type="reset" className="secondary-button w-full">Cancelar</button>
       </div>
@@ -1722,7 +1704,7 @@ function ExpenseCard({ card, data }: { card: Extract<ActionCard, { type: "expens
       <InputField name="proveedor" label="Proveedor" value="Proveedor pendiente" />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
       <TextareaField name="notas" label="Notas" value="Preparado con Orqena" />
-      <button type="submit" className="primary-button w-full">Guardar</button>
+      <button type="submit" className="primary-button w-full">Confirmar gasto</button>
     </form>
   );
 }
@@ -1802,10 +1784,10 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
           limit={data.demoLimits.clientsLimit}
           icon={UserPlus}
         >
-          Guardar cliente
+          Confirmar cliente
         </DemoLimitButton>
       ) : (
-        <button type="submit" className="primary-button w-full">Guardar cliente</button>
+        <button type="submit" className="primary-button w-full">Confirmar cliente</button>
       )}
     </form>
   );
@@ -1823,7 +1805,7 @@ function VisitCard({ card, data }: { card: Extract<ActionCard, { type: "visit" }
       <InputField name="titulo" label="Título" value="Visita con cliente" />
       <InputField name="fechaInicio" label="Fecha/hora" type="datetime-local" value={card.dateTime} />
       <TextareaField name="descripcion" label="Notas de la visita" value={card.message} />
-      <button type="submit" className="primary-button w-full">Guardar visita</button>
+      <button type="submit" className="primary-button w-full">Confirmar visita</button>
     </form>
   );
 }
@@ -1860,10 +1842,10 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
           limit={data.demoLimits.budgetLimit}
           icon={FileText}
         >
-          Guardar presupuesto
+          Confirmar presupuesto
         </DemoLimitButton>
       ) : (
-        <button type="submit" className="primary-button w-full">Guardar presupuesto</button>
+        <button type="submit" className="primary-button w-full">Confirmar presupuesto</button>
       )}
     </form>
   );
@@ -1895,7 +1877,7 @@ function InvoiceCard({ card, data }: { card: Extract<ActionCard, { type: "invoic
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
         Esta acción sólo crea la factura en la demo. No se envía email ni WhatsApp.
       </div>
-      <button type="submit" className="primary-button w-full">Guardar factura</button>
+      <button type="submit" className="primary-button w-full">Confirmar factura</button>
     </form>
   );
 }
@@ -1982,7 +1964,7 @@ function AgendaEventCard({ card, data }: { card: Extract<ActionCard, { type: "ag
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
         Guardar crea un evento interno. No se integra Google Calendar, Outlook, WhatsApp ni email.
       </div>
-      <button type="submit" className="primary-button w-full">Guardar evento</button>
+      <button type="submit" className="primary-button w-full">Confirmar evento</button>
     </form>
   );
 }

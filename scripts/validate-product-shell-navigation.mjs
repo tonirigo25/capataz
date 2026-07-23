@@ -18,7 +18,7 @@ const primaryOrder = [
   'label: "Hoy"',
   'label: "Dashboard"',
   'label: "Clientes"',
-  'label: "Trabajo"',
+  'label: "Trabajos"',
   'label: "Presupuestos"',
   'label: "Facturas y cobros"'
 ];

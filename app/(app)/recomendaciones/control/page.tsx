@@ -4,6 +4,7 @@ import { runProactiveEvaluationAction } from "@/app/(app)/recomendaciones/contro
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { formatDate } from "@/lib/format";
 import { formatProactiveSummaryLine, getProactiveControlData } from "@/lib/proactive-evaluation";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,8 @@ export default async function ProactiveControlPage({
   searchParams: Promise<ControlSearchParams>;
 }) {
   const query = await searchParams;
-  const data = await getProactiveControlData();
+  const auth = await requireCapability("reports.view");
+  const data = await getProactiveControlData(new Date(), auth.companyId);
   const latest = data.latestRun;
 
   return (
