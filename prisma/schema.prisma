@@ -1558,17 +1558,21 @@ model ProactiveSystemPreference {
 
 model ChatMessage {
   id             String           @id @default(cuid())
+  companyId      String?
   conversationId String
   role           String
   content        String
   status         String           @default("saved")
-  idempotencyKey String?          @unique
+  idempotencyKey String?
   context        Json?
   metadata       Json?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  company        Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
   @@index([conversationId, createdAt])
   @@index([status])
 }
@@ -2221,6 +2225,7 @@ model Company {
   recurringExpenses      RecurringExpense[]
   expectedCashFlows      ExpectedCashFlow[]
   chatConversations      ChatConversation[]
+  chatMessages           ChatMessage[]
   signalStates           BusinessSignalState[]
   recommendations        BusinessRecommendation[]
   automations            AutomationDefinition[]

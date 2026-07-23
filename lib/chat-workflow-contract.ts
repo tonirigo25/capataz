@@ -12,6 +12,8 @@ import {
 import { archiveFollowUp, editFollowUp } from "@/lib/followups/followup-engine";
 import { DEFAULT_RETRY_POLICY } from "@/lib/automations/automation-registry";
 import { runAutomation } from "@/lib/automations/automation-runner";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { logConversationActionForCompany } from "@/lib/orqena/conversation-repository";
 
 type ContractResult = {
   handled: boolean;
@@ -38,7 +40,9 @@ const result = (text: string, context: ChatContext | null, entityType: "task" | 
 const clarify = (text: string, context: ChatContext | null): ContractResult => ({ handled: true, text, context });
 
 async function audit(options: Options, actionType: string, status: string, payload: Record<string, unknown>, output?: Record<string, unknown>) {
-  await prisma.chatActionLog.create({ data: { conversationId: options.conversationId, messageId: options.messageId, stage: "workflow_contract", actionType, status, idempotencyKey: options.idempotencyKey, summary: `${actionType}:${status}`, payload: payload as never, result: output as never, metadata: { actorType: "user", origin: "chat" } } });
+  if (!options.conversationId) return;
+  const { userId, companyId, membershipId } = await requireCompanyContext();
+  await logConversationActionForCompany({ userId, companyId, membershipId }, options.conversationId, { messageId: options.messageId, stage: "workflow_contract", actionType, status, idempotencyKey: options.idempotencyKey, summary: `${actionType}:${status}`, payload: payload as never, result: output as never, metadata: { actorType: "user", origin: "chat" } });
 }
 
 export function parseNaturalFollowUpDate(text: string, previous?: Date | null, now = new Date()) {
@@ -90,7 +94,7 @@ async function resolveDisambiguation(text: string, context: ChatContext, options
   return null;
 }
 
-export async function handleChatWorkflowContract(text: string, context: ChatContext | null, options: Options = {}): Promise<ContractResult | null> {
+async function handleChatWorkflowContract(text: string, context: ChatContext | null, options: Options = {}): Promise<ContractResult | null> {
   const normalized = text.toLocaleLowerCase("es-ES").normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
   if (context?.pendingDisambiguation) { const resolved = await resolveDisambiguation(normalized, context, options); if (resolved) return resolved; }
 

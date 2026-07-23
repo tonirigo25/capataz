@@ -10,9 +10,25 @@ export async function switchActiveCompany(formData: FormData) {
   const companyId = String(formData.get("companyId") ?? "");
   const membership = await requireCompanyMembership(session.userId, companyId);
   if (!membership) redirect("/seleccionar-empresa?error=invalid");
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { activeCompanyId: true } });
+  const pendingConversations = user?.activeCompanyId && user.activeCompanyId !== membership.companyId
+    ? await prisma.chatConversation.findMany({
+        where: {
+          companyId: user.activeCompanyId,
+          AND: [
+            { pendingConfirmation: { path: ["userId"], equals: session.userId } },
+            { pendingConfirmation: { path: ["status"], equals: "PENDING" } }
+          ]
+        },
+        select: { id: true, pendingConfirmation: true }
+      })
+    : [];
   await prisma.$transaction([
     prisma.user.update({ where: { id: session.userId }, data: { activeCompanyId: membership.companyId } }),
-    prisma.chatConversation.updateMany({ where: { companyId: { not: membership.companyId }, pendingConfirmation: { not: Prisma.DbNull } }, data: { pendingConfirmation: Prisma.DbNull } }),
+    ...pendingConversations.map((conversation) => prisma.chatConversation.updateMany({
+      where: { id: conversation.id, companyId: user!.activeCompanyId! },
+      data: { pendingConfirmation: { ...(conversation.pendingConfirmation as Prisma.JsonObject), status: "INVALIDATED", invalidatedAt: new Date().toISOString() } }
+    })),
     prisma.auditLog.create({ data: { companyId: membership.companyId, userActorId: session.userId, action: "active_company.switched", targetType: "Company", targetId: membership.companyId, metadata: { membershipId: membership.id } } })
   ]);
   revalidatePath("/", "layout");

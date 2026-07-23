@@ -224,9 +224,9 @@ try {
   );
   const afterChatCreate = await prisma.task.count();
   if (
-    beforeChatCreate !== afterChatCreate - 1 ||
+    beforeChatCreate !== afterChatCreate ||
     !chatQuery.diagnostics?.noMutation ||
-    chatCreate.result?.entityType !== "task"
+    chatCreate.handled !== false
   )
     throw new Error("CHAT_END_TO_END_INVALID");
   const counts = {

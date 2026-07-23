@@ -17,7 +17,7 @@ function expect(condition, message) {
 
 expect(schema.includes("model Notification") && schema.includes("sourceKey") && schema.includes("@unique"), "Notification model must have a unique sourceKey");
 expect(schema.includes("enum NotificationPriority"), "missing NotificationPriority enum");
-expect(notifications.includes("deriveNotifications") && notifications.includes("upsert"), "notifications must be derived idempotently with persisted read state");
+expect(notifications.includes("deriveNotifications") && notifications.includes("updateMany") && notifications.includes("companyId") && notifications.includes("notification.create"), "notifications must persist read state idempotently within the active company");
 for (const token of ["invoice-overdue", "reminder-", "agenda-", "budget-expiry", "work-start", "client-incomplete", "document-pending"]) {
   expect(notifications.includes(token), `missing notification source ${token}`);
 }

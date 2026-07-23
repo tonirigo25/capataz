@@ -1,6 +1,7 @@
 import type { NotificationPriority } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCompanyContext } from "@/lib/auth/session";
 
 export type NotificationItem = {
   sourceKey: string;
@@ -16,9 +17,10 @@ export type NotificationItem = {
 };
 
 export async function getNotificationItems(): Promise<NotificationItem[]> {
-  const derived = await deriveNotifications();
+  const { companyId } = await requireCompanyContext();
+  const derived = await deriveNotifications(companyId);
   const readStates = await prisma.notification.findMany({
-    where: { sourceKey: { in: derived.map((item) => item.sourceKey) }, archivedAt: null },
+    where: { companyId, sourceKey: { in: derived.map((item) => item.sourceKey) }, archivedAt: null },
     select: { sourceKey: true, readAt: true }
   });
   const readMap = new Map(readStates.map((item) => [item.sourceKey, item.readAt]));
@@ -31,11 +33,13 @@ export async function getUnreadNotificationCount() {
 }
 
 export async function markNotificationRead(sourceKey: string) {
-  const item = (await deriveNotifications()).find((notification) => notification.sourceKey === sourceKey);
+  const { companyId } = await requireCompanyContext();
+  const item = (await deriveNotifications(companyId)).find((notification) => notification.sourceKey === sourceKey);
   if (!item) return;
-  await prisma.notification.upsert({
-    where: { sourceKey },
-    create: {
+  const updated = await prisma.notification.updateMany({ where: { sourceKey, companyId }, data: { readAt: new Date(), archivedAt: null } });
+  if (updated.count === 0) await prisma.notification.create({
+    data: {
+      companyId,
       sourceKey,
       type: item.type,
       title: item.title,
@@ -45,70 +49,53 @@ export async function markNotificationRead(sourceKey: string) {
       entityType: item.entityType,
       entityId: item.entityId,
       readAt: new Date()
-    },
-    update: { readAt: new Date(), archivedAt: null }
+    }
   });
 }
 
 export async function markAllNotificationsRead() {
-  const items = await deriveNotifications();
-  await prisma.$transaction(
-    items.map((item) =>
-      prisma.notification.upsert({
-        where: { sourceKey: item.sourceKey },
-        create: {
-          sourceKey: item.sourceKey,
-          type: item.type,
-          title: item.title,
-          body: item.body,
-          href: item.href,
-          priority: item.priority,
-          entityType: item.entityType,
-          entityId: item.entityId,
-          readAt: new Date()
-        },
-        update: { readAt: new Date(), archivedAt: null }
-      })
-    )
-  );
+  const { companyId } = await requireCompanyContext();
+  const items = await deriveNotifications(companyId);
+  for (const item of items) await markNotificationRead(item.sourceKey);
 }
 
-async function deriveNotifications(): Promise<Array<Omit<NotificationItem, "readAt">>> {
+async function deriveNotifications(companyId: string): Promise<Array<Omit<NotificationItem, "readAt">>> {
   const now = new Date();
   const week = addDays(startOfDay(now), 7);
   const [invoices, reminders, events, budgets, works, clients, documents] = await Promise.all([
     prisma.invoice.findMany({
-      where: { pendiente: { gt: 0 }, estado: { not: "borrador" } },
+      where: { companyId, pendiente: { gt: 0 }, estado: { not: "borrador" } },
       take: 25,
       orderBy: { fechaVencimiento: "asc" },
       include: { client: true, work: true }
     }),
     prisma.reminder.findMany({
-      where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
+      where: { companyId, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
       take: 25,
       orderBy: { fechaProgramada: "asc" },
       include: { client: true, work: true }
     }),
     prisma.eventoAgenda.findMany({
-      where: { estado: { not: "cancelado" }, fechaInicio: { gte: startOfDay(now), lte: week } },
+      where: { companyId, estado: { not: "cancelado" }, fechaInicio: { gte: startOfDay(now), lte: week } },
       take: 25,
       orderBy: { fechaInicio: "asc" },
       include: { client: true, work: true }
     }),
     prisma.budget.findMany({
-      where: { estado: { in: ["enviado", "visto", "pendiente_respuesta"] }, fechaValidez: { not: null, lte: week } },
+      where: { companyId, estado: { in: ["enviado", "visto", "pendiente_respuesta"] }, fechaValidez: { not: null, lte: week } },
       take: 20,
       orderBy: { fechaValidez: "asc" },
       include: { client: true, work: true }
     }),
     prisma.work.findMany({
-      where: { archivada: false, fechaInicioPrevista: { not: null, gte: startOfDay(now), lte: week } },
+      where: { companyId, archivada: false, fechaInicioPrevista: { not: null, gte: startOfDay(now), lte: week } },
       take: 20,
       orderBy: { fechaInicioPrevista: "asc" },
       include: { client: true }
     }),
     prisma.client.findMany({
       where: {
+        companyId,
         archivadoAt: null,
         OR: [{ nifCif: null }, { direccionFiscal: null }, { email: null }]
       },
@@ -116,7 +103,7 @@ async function deriveNotifications(): Promise<Array<Omit<NotificationItem, "read
       orderBy: { nombre: "asc" }
     }),
     prisma.document.findMany({
-      where: { archivedAt: null, url: null },
+      where: { companyId, archivedAt: null, url: null },
       take: 20,
       orderBy: { createdAt: "desc" },
       include: { client: true, work: true }

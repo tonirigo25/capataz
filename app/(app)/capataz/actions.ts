@@ -58,14 +58,45 @@ import { getProactiveControlData } from "@/lib/proactive-evaluation";
 import { prisma } from "@/lib/prisma";
 import { createTask, changeTaskStatus } from "@/lib/tasks/task-engine";
 import { createFollowUp, addFollowUpAttempt } from "@/lib/followups/followup-engine";
-import { handleChatWorkflowContract } from "@/lib/chat-workflow-contract";
 import { deriveInvoiceStatus } from "@/lib/status";
 import { getTreasuryOverview } from "@/lib/treasury";
 import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials, isActiveWorkStatus } from "@/lib/works";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCompanyContext, withCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 import { runConversationTurn } from "@/lib/orqena/conversation-service";
 import { requireCapability } from "@/lib/commercial/authorization";
+import type { OrqenaEntityType, PendingConfirmation } from "@/lib/orqena/types";
+import {
+  appendMessageForCompany,
+  archiveConversationForCompany,
+  cancelPendingProposalForCompany,
+  claimMessageForCompany,
+  completeMessageForCompany,
+  beginPendingProposalExecutionForCompany,
+  createConversationForCompany,
+  deleteConversationForCompany,
+  findLatestPendingTaskForCompany,
+  failMessageForCompany,
+  finishPendingProposalExecutionForCompany,
+  getConversationForCompany,
+  getMessageForCompany,
+  listConversationsForCompany,
+  logConversationActionForCompany,
+  renameConversationForCompany,
+  touchConversationForCompany,
+  updateMessageForCompany,
+  type ConversationTenantContext
+} from "@/lib/orqena/conversation-repository";
+
+async function conversationTenantContext(): Promise<ConversationTenantContext> {
+  if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED === "true") {
+    const isolated = await requireCompanyContext();
+    if (isolated.sessionId === "isolated-test-session") return { userId: isolated.userId, companyId: isolated.companyId, membershipId: isolated.membershipId };
+  }
+  const { userId, companyId, membershipId, scope } = await requireCapability("orqena.use");
+  if (scope !== "COMPANY") throw new Error("Conversación no disponible.");
+  return { userId, companyId, membershipId };
+}
 
 async function activeCompany() {
   const context = await requireCompanyContext();
@@ -163,6 +194,11 @@ type ChatPerfTrace = {
 export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}): Promise<ChatCommandResult> {
   const authorization = await requireOrqenaAuthorization();
   if (authorization && authorization.scope !== "COMPANY") return { handled: true, text: "Orqena no puede consultar datos fuera de tu alcance actual. Pide a un administrador que revise el acceso asignado." };
+  if (authorization && typeof withCompanyContext === "function") return withCompanyContext(authorization, () => runChatCommandInCompany(text, context, options));
+  return runChatCommandInCompany(text, context, options);
+}
+
+async function runChatCommandInCompany(text: string, context: ChatCommandContext | null | undefined, options: ChatCommandOptions): Promise<ChatCommandResult> {
   const trace: ChatPerfTrace = { messageId: options.messageId, conversationId: options.conversationId, idempotencyKey: options.idempotencyKey, startedAt: nowMs() };
   const persistStarted = nowMs();
   return runConversationTurn<ChatCommandContext | null, ChatCommandResult>({
@@ -185,7 +221,7 @@ export async function runChatCommand(text: string, context?: ChatCommandContext 
 async function requireOrqenaAuthorization() {
   try { return await requireCapability("orqena.use"); }
   catch (error) {
-    if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED === "true" && error instanceof Error && error.message.includes("outside a request scope")) return null;
+    if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED === "true" && error instanceof Error && (error.message.includes("outside a request scope") || error.message === "NEXT_REDIRECT")) return null;
     throw error;
   }
 }
@@ -216,15 +252,9 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
     }
   }
 
-  const contractResult = await handleChatWorkflowContract(text, enrichedContext, {
-    conversationId: trace.conversationId,
-    messageId: trace.messageId,
-    idempotencyKey: trace.idempotencyKey,
-  });
-  if (contractResult) return contractResult;
+  if (looksLikeWorkflowContractMutation(normalizedText) || enrichedContext?.pendingDisambiguation) return { handled: false, text: "", context: enrichedContext };
 
-  const workflowMutation = await runExplicitWorkflowMutation(text, normalizedText, enrichedContext);
-  if (workflowMutation) return workflowMutation;
+  if (looksLikeExplicitWorkflowMutation(normalizedText)) return { handled: false, text: "", context: enrichedContext };
 
   if (wantsExplicitContinueTask(text) && !enrichedContext?.activeTask) {
     await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: "continue_latest_task" });
@@ -287,6 +317,10 @@ async function runChatCommandCore(text: string, context: ChatCommandContext | nu
     source: plan.source
   });
   debugChat("plan", plan);
+
+  if (["use_existing_work_for_budget", "create_new_work_for_budget", "complete_budget", "complete_invoice", "create_budget", "create_invoice", "register_activity", "complete_activity", "convert_budget_to_invoice", "mark_invoice_paid", "register_payment"].includes(plan.action)) {
+    return { handled: false, text: "", context: plan.context };
+  }
 
   if (shouldResolveBeforeAI(text, plan)) {
     await logChatPerf(trace, "route", trace.startedAt, "fast_local", { action: plan.action, source: plan.source });
@@ -721,14 +755,15 @@ async function answerDatabaseQuery(text: string, intent: ChatIntentClassificatio
 }
 
 async function runExplicitWorkflowMutation(text:string,normalized:string,context:ChatCommandContext|null):Promise<ChatCommandResult|null>{
+  const {companyId}=await requireCompanyContext();
   const shownAt=new Date().toISOString();
   if(/^(crea|crear) una tarea\b/.test(normalized)){const title=text.replace(/^.*?tarea\s+(para\s+)?/i,"").trim();if(!title)return null;const dueAt=/mañana|manana/.test(normalized)?tomorrowAt(10):undefined;const task=await createTask({title,dueAt,origin:"chat",clientId:context?.lastClientId,workId:context?.lastWorkId,budgetId:context?.lastBudgetId,invoiceId:context?.lastInvoiceId});return mutationResult(`He creado la tarea “${task.title}”.`,context,"task",task.id,"Tarea creada","/tareas",{lastTask:{taskId:task.id,action:"created",shownAt}})}
   if(/^(crea|crear) un seguimiento\b/.test(normalized)){const title=text.replace(/^.*?seguimiento\s+(para\s+)?/i,"").trim();if(!title)return null;const days=Number(normalized.match(/en (\d+) dias?/)?.[1]??0);const nextActionAt=days?new Date(Date.now()+days*86400000):undefined;const item=await createFollowUp({title,nextActionAt,origin:"chat",clientId:context?.lastClientId,workId:context?.lastWorkId,budgetId:context?.lastBudgetId,invoiceId:context?.lastInvoiceId});return mutationResult(`He creado el seguimiento “${item.title}”.`,context,"followup",item.id,"Seguimiento creado","/seguimientos",{lastFollowUp:{followUpId:item.id,action:"created",shownAt}})}
   if(/^(anota|registra) que no respondio/.test(normalized)){if(!context?.lastFollowUp)return clarification("¿En qué seguimiento debo registrar que no respondió?",context);const attempt=await addFollowUpAttempt(context.lastFollowUp.followUpId,{channel:"internal",summary:"No respondió",nextActionAt:new Date(Date.now()+3*86400000)});return mutationResult("He registrado el intento interno. No se ha enviado ninguna comunicación.",context,"followup",context.lastFollowUp.followUpId,"Intento registrado","/seguimientos",{lastFollowUp:{...context.lastFollowUp,attemptId:attempt.id,action:"attempt",shownAt}})}
   if(/(marca|completa|complétala|completala).*tarea|^completala$/.test(normalized)){if(!context?.lastTask)return clarification("¿Qué tarea quieres completar?",context);await changeTaskStatus(context.lastTask.taskId,"completed","chat","Orden explícita desde chat");return mutationResult("He completado la tarea indicada.",context,"task",context.lastTask.taskId,"Tarea completada","/tareas",{lastTask:{...context.lastTask,action:"completed",shownAt}})}
-  if(/^(pausala|páusala|pausa esta automatizacion|pausa esta automatización)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres pausar?",context);await prisma.automationDefinition.update({where:{id:context.lastAutomation.automationId},data:{active:false,status:"paused"}});return mutationResult("He pausado la automatización.",context,"automation",context.lastAutomation.automationId,"Automatización pausada","/automatizaciones",{lastAutomation:{...context.lastAutomation,action:"paused",shownAt}})}
-  if(/^(reanúdala|reanudala|reanuda esta automatizacion|reanuda esta automatización)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres reanudar?",context);await prisma.automationDefinition.update({where:{id:context.lastAutomation.automationId},data:{active:true,status:"active"}});return mutationResult("He reanudado la automatización.",context,"automation",context.lastAutomation.automationId,"Automatización activa","/automatizaciones",{lastAutomation:{...context.lastAutomation,action:"resumed",shownAt}})}
-  if(/^(ejecutala en seco|ejecútala en seco)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres ejecutar en seco?",context);const {runAutomation}=await import("@/lib/automations/automation-runner");const run=await runAutomation({definitionId:context.lastAutomation.automationId,idempotencyKey:`chat:dry-run:${context.lastAutomation.automationId}:${Date.now()}`,triggerType:"manual",triggeredBy:"chat",dryRun:true});return mutationResult(`Dry run completado con estado ${run.status}.`,context,"automation",run.automationDefinitionId,"Dry run","/automatizaciones",{lastAutomation:{automationId:run.automationDefinitionId,versionId:run.automationVersionId,runId:run.id,action:"dry_run",shownAt}})}
+  if(/^(pausala|páusala|pausa esta automatizacion|pausa esta automatización)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres pausar?",context);const changed=await prisma.automationDefinition.updateMany({where:{id:context.lastAutomation.automationId,companyId},data:{active:false,status:"paused"}});if(changed.count!==1)return clarification("No encuentro esa automatización en la empresa activa.",context);return mutationResult("He pausado la automatización.",context,"automation",context.lastAutomation.automationId,"Automatización pausada","/automatizaciones",{lastAutomation:{...context.lastAutomation,action:"paused",shownAt}})}
+  if(/^(reanúdala|reanudala|reanuda esta automatizacion|reanuda esta automatización)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres reanudar?",context);const changed=await prisma.automationDefinition.updateMany({where:{id:context.lastAutomation.automationId,companyId},data:{active:true,status:"active"}});if(changed.count!==1)return clarification("No encuentro esa automatización en la empresa activa.",context);return mutationResult("He reanudado la automatización.",context,"automation",context.lastAutomation.automationId,"Automatización activa","/automatizaciones",{lastAutomation:{...context.lastAutomation,action:"resumed",shownAt}})}
+  if(/^(ejecutala en seco|ejecútala en seco)$/.test(normalized)){if(!context?.lastAutomation)return clarification("¿Qué automatización quieres ejecutar en seco?",context);const owned=await prisma.automationDefinition.findFirst({where:{id:context.lastAutomation.automationId,companyId},select:{id:true}});if(!owned)return clarification("No encuentro esa automatización en la empresa activa.",context);const {runAutomation}=await import("@/lib/automations/automation-runner");const run=await runAutomation({definitionId:owned.id,idempotencyKey:`chat:dry-run:${owned.id}:${Date.now()}`,triggerType:"manual",triggeredBy:"chat",dryRun:true});return mutationResult(`Dry run completado con estado ${run.status}.`,context,"automation",run.automationDefinitionId,"Dry run","/automatizaciones",{lastAutomation:{automationId:run.automationDefinitionId,versionId:run.automationVersionId,runId:run.id,action:"dry_run",shownAt}})}
   return null;
 }
 const tomorrowAt=(hour:number)=>{const date=new Date();date.setDate(date.getDate()+1);date.setHours(hour,0,0,0);return date};
@@ -736,11 +771,12 @@ function clarification(text:string,context:ChatCommandContext|null):ChatCommandR
 function mutationResult(text:string,context:ChatCommandContext|null,entityType:"task"|"followup"|"automation",entityId:string,title:string,href:string,extra:Partial<ChatCommandContext>):ChatCommandResult{return{handled:true,context:{...(context??{}),...extra},text,result:{type:"created",entityType,entityId,title,summary:{ok:true},actions:[{label:"Abrir",href}]}}}
 
 async function queryAutomations(action: string, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const now=new Date();
-  if(action==="automations_failed"){const runs=await prisma.automationRun.findMany({where:{status:"failed"},include:{definition:true},orderBy:{startedAt:"desc"},take:5});return queryResult(runs.length?`${runs.length} ejecuciones fallidas:\n${runs.map(r=>`- ${r.definition.name}: ${r.errorSummary??r.lastErrorSummary??"falló"}`).join("\n")}`:"No hay ejecuciones fallidas.",context,"automation",runs[0]?.automationDefinitionId,"Automatizaciones fallidas","/automatizaciones",runs.map(r=>r.id),runs[0]?{lastAutomation:{automationId:runs[0].automationDefinitionId,versionId:runs[0].automationVersionId,runId:runs[0].id,action:"failed",shownAt:now.toISOString()}}:{});}
-  if(action==="automations_last_run"){const run=await prisma.automationRun.findFirst({include:{definition:true,steps:true},orderBy:{startedAt:"desc"}});return queryResult(run?`${run.definition.name}: ${run.status}; ${run.steps.filter(s=>s.status==="completed").length}/${run.steps.length} pasos completados.`:"Todavía no hay ejecuciones.",context,"automation",run?.automationDefinitionId,"Última ejecución","/automatizaciones",run?[run.id]:[],run?{lastAutomation:{automationId:run.automationDefinitionId,versionId:run.automationVersionId,runId:run.id,action:"shown",shownAt:now.toISOString()}}:{});}
-  if(action==="automations_next"){const schedule=await prisma.automationSchedule.findFirst({where:{active:true,nextRunAt:{gte:now}},include:{definition:true},orderBy:{nextRunAt:"asc"}});return queryResult(schedule?`${schedule.definition.name} se ejecutará ${schedule.nextRunAt?.toLocaleString("es-ES")}.`:"No hay una próxima automatización programada.",context,"automation",schedule?.automationDefinitionId,"Próxima automatización","/automatizaciones",schedule?[schedule.id]:[],{});}
-  const status=action==="automations_active"?{active:true}:action==="automations_paused"?{status:"paused" as const}:{};const items=await prisma.automationDefinition.findMany({where:{...status,archivedAt:null},orderBy:{updatedAt:"desc"},take:10});return queryResult(items.length?`${items.length} automatizaciones:\n${items.map(i=>`- ${i.name} · ${i.status}`).join("\n")}`:"No hay automatizaciones con ese estado.",context,"automation",items[0]?.id,"Automatizaciones","/automatizaciones",items.map(i=>i.id),items[0]?{lastAutomation:{automationId:items[0].id,versionId:items[0].currentVersionId??undefined,action:"shown",shownAt:now.toISOString()}}:{});
+  if(action==="automations_failed"){const runs=await prisma.automationRun.findMany({where:{companyId,status:"failed"},include:{definition:true},orderBy:{startedAt:"desc"},take:5});return queryResult(runs.length?`${runs.length} ejecuciones fallidas:\n${runs.map(r=>`- ${r.definition.name}: ${r.errorSummary??r.lastErrorSummary??"falló"}`).join("\n")}`:"No hay ejecuciones fallidas.",context,"automation",runs[0]?.automationDefinitionId,"Automatizaciones fallidas","/automatizaciones",runs.map(r=>r.id),runs[0]?{lastAutomation:{automationId:runs[0].automationDefinitionId,versionId:runs[0].automationVersionId,runId:runs[0].id,action:"failed",shownAt:now.toISOString()}}:{});}
+  if(action==="automations_last_run"){const run=await prisma.automationRun.findFirst({where:{companyId},include:{definition:true,steps:true},orderBy:{startedAt:"desc"}});return queryResult(run?`${run.definition.name}: ${run.status}; ${run.steps.filter(s=>s.status==="completed").length}/${run.steps.length} pasos completados.`:"Todavía no hay ejecuciones.",context,"automation",run?.automationDefinitionId,"Última ejecución","/automatizaciones",run?[run.id]:[],run?{lastAutomation:{automationId:run.automationDefinitionId,versionId:run.automationVersionId,runId:run.id,action:"shown",shownAt:now.toISOString()}}:{});}
+  if(action==="automations_next"){const schedule=await prisma.automationSchedule.findFirst({where:{active:true,nextRunAt:{gte:now},definition:{companyId}},include:{definition:true},orderBy:{nextRunAt:"asc"}});return queryResult(schedule?`${schedule.definition.name} se ejecutará ${schedule.nextRunAt?.toLocaleString("es-ES")}.`:"No hay una próxima automatización programada.",context,"automation",schedule?.automationDefinitionId,"Próxima automatización","/automatizaciones",schedule?[schedule.id]:[],{});}
+  const status=action==="automations_active"?{active:true}:action==="automations_paused"?{status:"paused" as const}:{};const items=await prisma.automationDefinition.findMany({where:{companyId,...status,archivedAt:null},orderBy:{updatedAt:"desc"},take:10});return queryResult(items.length?`${items.length} automatizaciones:\n${items.map(i=>`- ${i.name} · ${i.status}`).join("\n")}`:"No hay automatizaciones con ese estado.",context,"automation",items[0]?.id,"Automatizaciones","/automatizaciones",items.map(i=>i.id),items[0]?{lastAutomation:{automationId:items[0].id,versionId:items[0].currentVersionId??undefined,action:"shown",shownAt:now.toISOString()}}:{});
 }
 async function queryProfessionalTasks(action:string,context:ChatCommandContext|null):Promise<ChatCommandResult>{const {companyId}=await requireCompanyContext();const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);end.setHours(23,59,59,999);let date:Record<string,unknown>={};if(action==="tasks_today")date={dueAt:{gte:start,lte:end}};if(action==="tasks_overdue")date={dueAt:{lt:start}};if(action==="tasks_week")date={dueAt:{gte:start,lte:new Date(start.getTime()+7*86400000)}};const items=await prisma.task.findMany({where:{companyId,...date,status:action==="tasks_blocked"?"blocked":{notIn:["completed","cancelled","archived"]},archivedAt:null},orderBy:{dueAt:"asc"},take:action==="tasks_next"?1:10});return queryResult(items.length?`${items.length} tareas:\n${items.map(i=>`- ${i.title}${i.dueAt?` · ${i.dueAt.toLocaleString("es-ES")}`:""} · ${i.status}`).join("\n")}`:"No hay tareas con ese filtro.",context,"task",items[0]?.id,"Tareas","/tareas",items.map(i=>i.id),items[0]?{lastTask:{taskId:items[0].id,action:"shown",shownAt:now.toISOString()}}:{});}
 async function queryProfessionalFollowUps(action:string,context:ChatCommandContext|null):Promise<ChatCommandResult>{const {companyId}=await requireCompanyContext();const now=new Date();const where:Record<string,unknown>={companyId,archivedAt:null};if(action==="followups_overdue")where.nextActionAt={lt:now};else if(action==="followups_budget")where.budgetId={not:null};else if(action==="followups_invoice")where.invoiceId={not:null};else if(action==="followups_success")where.status="completed";else where.status={notIn:["completed","cancelled","archived"]};const items=await prisma.followUp.findMany({where,include:{attempts:{orderBy:{attemptedAt:"desc"},take:1}},orderBy:{nextActionAt:"asc"},take:action==="followups_next"?1:10});return queryResult(items.length?`${items.length} seguimientos:\n${items.map(i=>`- ${i.title}${i.nextActionAt?` · ${i.nextActionAt.toLocaleString("es-ES")}`:""} · ${i.status}`).join("\n")}`:"No hay seguimientos con ese filtro.",context,"followup",items[0]?.id,"Seguimientos","/seguimientos",items.map(i=>i.id),items[0]?{lastFollowUp:{followUpId:items[0].id,attemptId:items[0].attempts[0]?.id,action:"shown",shownAt:now.toISOString()}}:{});}
@@ -853,6 +889,7 @@ async function queryPendingTasksSummary(context: ChatCommandContext | null): Pro
 }
 
 async function queryPendingTasksCounts() {
+  const { companyId } = await requireCompanyContext();
   const today = startOfDay(new Date());
   const invoiceBalances = await findOpenInvoiceBalances();
   const [
@@ -867,16 +904,16 @@ async function queryPendingTasksCounts() {
     activeProjects,
     incompleteDocuments
   ] = await Promise.all([
-    prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] } } }),
-    prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision"] } } }),
-    prisma.budget.count({ where: { estado: { in: ["pendiente_respuesta", "enviado", "visto"] } } }),
-    prisma.eventoAgenda.count({ where: { tipo: "visita", estado: { in: ["pendiente", "confirmado"] } } }),
-    prisma.eventoAgenda.count({ where: { tipo: "visita", estado: "pendiente", requiereConfirmacion: true } }),
-    prisma.reminder.count({ where: { tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
-    prisma.reminder.count({ where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
-    prisma.client.findMany({ select: { telefono: true, email: true, direccion: true, estado: true, notas: true } }),
-    prisma.work.count({ where: { estado: { in: ACTIVE_WORK_STATUSES as any[] } } }),
-    prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision"] } } })
+    prisma.budget.count({ where: { companyId, estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] } } }),
+    prisma.budget.count({ where: { companyId, estado: { in: ["borrador", "pendiente_revision"] } } }),
+    prisma.budget.count({ where: { companyId, estado: { in: ["pendiente_respuesta", "enviado", "visto"] } } }),
+    prisma.eventoAgenda.count({ where: { companyId, tipo: "visita", estado: { in: ["pendiente", "confirmado"] } } }),
+    prisma.eventoAgenda.count({ where: { companyId, tipo: "visita", estado: "pendiente", requiereConfirmacion: true } }),
+    prisma.reminder.count({ where: { companyId, tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
+    prisma.reminder.count({ where: { companyId, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } }),
+    prisma.client.findMany({ where: { companyId }, select: { telefono: true, email: true, direccion: true, estado: true, notas: true } }),
+    prisma.work.count({ where: { companyId, estado: { in: ACTIVE_WORK_STATUSES as any[] } } }),
+    prisma.budget.count({ where: { companyId, estado: { in: ["borrador", "pendiente_revision"] } } })
   ]);
 
   return {
@@ -922,6 +959,7 @@ function withLastQuery(context: ChatCommandContext | null, lastQuery: NonNullabl
 }
 
 async function queryPendingTaskDetails(category: PendingDetailCategory | undefined, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   category = category ?? (isPendingDetailCategory(context?.lastQuery?.category) ? context.lastQuery.category : undefined);
   if (!category) {
     return {
@@ -940,7 +978,7 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
         ? (["pendiente_respuesta", "enviado", "visto"] as const)
         : (["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] as const);
     const budgets = await prisma.budget.findMany({
-      where: { estado: { in: [...states] } },
+      where: { companyId, estado: { in: [...states] } },
       orderBy: { fechaCreacion: "desc" },
       take: 10,
       include: { client: true, work: true }
@@ -969,8 +1007,8 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
   if (category === "visits" || category === "visits_to_confirm") {
     const visits = await prisma.eventoAgenda.findMany({
       where: category === "visits_to_confirm"
-        ? { tipo: "visita", estado: "pendiente", requiereConfirmacion: true }
-        : { tipo: "visita", estado: { in: ["pendiente", "confirmado"] } },
+        ? { companyId, tipo: "visita", estado: "pendiente", requiereConfirmacion: true }
+        : { companyId, tipo: "visita", estado: { in: ["pendiente", "confirmado"] } },
       orderBy: { fechaInicio: "asc" },
       take: 10,
       include: { client: true, work: true }
@@ -984,8 +1022,8 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
   if (category === "followups" || category === "reminders") {
     const reminders = await prisma.reminder.findMany({
       where: category === "followups"
-        ? { tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } }
-        : { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
+        ? { companyId, tipo: { in: ["seguimiento_presupuesto", "recordatorio_factura", "confirmar_visita"] }, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } }
+        : { companyId, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } },
       orderBy: { fechaProgramada: "asc" },
       take: 10,
       include: { client: true, work: true }
@@ -997,7 +1035,7 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
   }
 
   if (category === "clients_incomplete") {
-    const clients = (await prisma.client.findMany({ orderBy: { fechaCreacion: "desc" }, take: 60 })).filter(clientLooksIncomplete).slice(0, 10);
+    const clients = (await prisma.client.findMany({ where: { companyId }, orderBy: { fechaCreacion: "desc" }, take: 60 })).filter(clientLooksIncomplete).slice(0, 10);
     return compactListResult(clients, "clientes con datos incompletos", (client) => `${client.nombre} · ${client.estado} · /clientes/${client.id}`, {
       context: withPendingDetailLastQuery(context, category, clients.map((client) => client.id)),
       resultCount: clients.length
@@ -1005,7 +1043,7 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
   }
 
   const works = await prisma.work.findMany({
-    where: { estado: { in: ACTIVE_WORK_STATUSES as any[] } },
+    where: { companyId, estado: { in: ACTIVE_WORK_STATUSES as any[] } },
     orderBy: { fechaInicio: "desc" },
     take: 10,
     include: { client: true }
@@ -1017,10 +1055,11 @@ async function queryPendingTaskDetails(category: PendingDetailCategory | undefin
 }
 
 async function queryBudgetByAmount(direction: "asc" | "desc", intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const client = await clientForQuery(intent.clientName);
   if (intent.clientName && !client) return noClientResult(intent.clientName);
   const budget = await prisma.budget.findFirst({
-    where: { ...budgetPeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    where: { companyId, ...budgetPeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
     orderBy: { total: direction },
     include: { client: true, work: true }
   });
@@ -1036,11 +1075,12 @@ async function queryBudgetByAmount(direction: "asc" | "desc", intent: ChatIntent
 }
 
 async function queryBudgetByExactAmount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (typeof intent.amount !== "number" || !Number.isFinite(intent.amount)) {
     return { handled: true, diagnostics: { resultCount: 0 }, text: "Dime el importe del presupuesto que quieres consultar. No he creado ni modificado nada." };
   }
   const budgets = await prisma.budget.findMany({
-    where: { ...budgetPeriodWhere(intent.period), total: { gte: intent.amount - 0.01, lte: intent.amount + 0.01 } },
+    where: { companyId, ...budgetPeriodWhere(intent.period), total: { gte: intent.amount - 0.01, lte: intent.amount + 0.01 } },
     orderBy: { fechaCreacion: "desc" },
     take: 5,
     include: { client: true, work: true }
@@ -1068,10 +1108,11 @@ async function queryBudgetByExactAmount(intent: ChatIntentClassification): Promi
 }
 
 async function queryLatestBudget(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const client = await clientForQuery(intent.clientName);
   if (intent.clientName && !client) return noClientResult(intent.clientName);
   const budget = await prisma.budget.findFirst({
-    where: { ...budgetPeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    where: { companyId, ...budgetPeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
     orderBy: { fechaCreacion: "desc" },
     include: { client: true, work: true }
   });
@@ -1086,10 +1127,11 @@ async function queryLatestBudget(intent: ChatIntentClassification): Promise<Chat
 }
 
 async function queryInvoiceByAmount(direction: "asc" | "desc", intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const client = await clientForQuery(intent.clientName);
   if (intent.clientName && !client) return noClientResult(intent.clientName);
   const invoice = await prisma.invoice.findFirst({
-    where: { ...invoicePeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
+    where: { companyId, ...invoicePeriodWhere(intent.period), ...(client ? { clienteId: client.id } : {}) },
     orderBy: { total: direction },
     include: { client: true, work: true }
   });
@@ -1125,7 +1167,8 @@ async function queryPendingInvoicesCount(intent: ChatIntentClassification): Prom
 }
 
 async function queryPendingBudgetsCount(intent: ChatIntentClassification): Promise<ChatCommandResult> {
-  const count = await prisma.budget.count({ where: { estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] }, ...budgetPeriodWhere(intent.period) } });
+  const { companyId } = await requireCompanyContext();
+  const count = await prisma.budget.count({ where: { companyId, estado: { in: ["borrador", "pendiente_revision", "pendiente_respuesta", "enviado", "visto"] }, ...budgetPeriodWhere(intent.period) } });
   return { handled: true, diagnostics: { resultCount: count }, text: count ? `Tienes ${count} presupuestos pendientes.` : "No hay presupuestos pendientes." };
 }
 
@@ -2141,8 +2184,9 @@ function recommendationChatResult(recommendation: BusinessRecommendation): ChatA
 
 async function findClientIdForRecommendation(clientName: string | undefined) {
   if (!clientName) return undefined;
+  const { companyId } = await requireCompanyContext();
   const client = await prisma.client.findFirst({
-    where: { nombre: { contains: clientName, mode: "insensitive" } },
+    where: { companyId, nombre: { contains: clientName, mode: "insensitive" } },
     select: { id: true }
   });
   return client?.id;
@@ -2278,7 +2322,8 @@ function roundForChat(value: number | null | undefined) {
 }
 
 async function queryRevenueSummary(intent: ChatIntentClassification): Promise<ChatCommandResult> {
-  const where = invoicePeriodWhere(intent.period);
+  const { companyId } = await requireCompanyContext();
+  const where = { companyId, ...invoicePeriodWhere(intent.period) };
   const invoices = await prisma.invoice.findMany({ where, select: { total: true, pagado: true, pendiente: true } });
   const total = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
   const paid = invoices.reduce((sum, invoice) => sum + invoice.pagado, 0);
@@ -2292,7 +2337,8 @@ async function queryRevenueSummary(intent: ChatIntentClassification): Promise<Ch
 }
 
 async function queryExpensesSummary(intent: ChatIntentClassification): Promise<ChatCommandResult> {
-  const expenses = await prisma.expense.findMany({ where: expensePeriodWhere(intent.period), select: { importe: true } });
+  const { companyId } = await requireCompanyContext();
+  const expenses = await prisma.expense.findMany({ where: { companyId, ...expensePeriodWhere(intent.period) }, select: { importe: true } });
   const total = expenses.reduce((sum, expense) => sum + expense.importe, 0);
   return {
     handled: true,
@@ -2303,18 +2349,20 @@ async function queryExpensesSummary(intent: ChatIntentClassification): Promise<C
 }
 
 async function queryClientBudgets(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (!intent.clientName) return { handled: true, text: "Dime de qué cliente quieres consultar los presupuestos." };
   const client = await clientForQuery(intent.clientName);
   if (!client) return noClientResult(intent.clientName);
-  const budgets = await prisma.budget.findMany({ where: { clienteId: client.id }, orderBy: { fechaCreacion: "desc" }, take: 10, include: { client: true, work: true } });
+  const budgets = await prisma.budget.findMany({ where: { companyId, clienteId: client.id }, orderBy: { fechaCreacion: "desc" }, take: 10, include: { client: true, work: true } });
   return compactListResult(budgets, `presupuestos de ${client.nombre}`, (budget) => `${budget.numero} · ${budget.titulo} · ${formatEuros(budget.total)} · ${budget.estado} · /presupuestos/${budget.id}`);
 }
 
 async function queryClientPayments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (!intent.clientName) return { handled: true, text: "Dime de qué cliente quieres consultar los pagos." };
   const client = await clientForQuery(intent.clientName);
   if (!client) return noClientResult(intent.clientName);
-  const payments = await prisma.payment.findMany({ where: { clienteId: client.id }, orderBy: { fecha: "desc" }, take: 10, include: { invoice: true } });
+  const payments = await prisma.payment.findMany({ where: { companyId, clienteId: client.id }, orderBy: { fecha: "desc" }, take: 10, include: { invoice: true } });
   const total = payments.reduce((sum, payment) => sum + payment.importe, 0);
   return {
     handled: true,
@@ -2325,9 +2373,10 @@ async function queryClientPayments(intent: ChatIntentClassification): Promise<Ch
 }
 
 async function queryClientContacts(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (!intent.clientName) return { handled: true, text: "Dime de qué cliente quieres consultar los contactos." };
   const client = await prisma.client.findFirst({
-    where: { OR: [{ nombre: { contains: intent.clientName, mode: "insensitive" } }, { razonSocial: { contains: intent.clientName, mode: "insensitive" } }, { nombreComercial: { contains: intent.clientName, mode: "insensitive" } }] },
+    where: { companyId, OR: [{ nombre: { contains: intent.clientName, mode: "insensitive" } }, { razonSocial: { contains: intent.clientName, mode: "insensitive" } }, { nombreComercial: { contains: intent.clientName, mode: "insensitive" } }] },
     include: { contacts: { orderBy: [{ archivedAt: "asc" }, { isPrimary: "desc" }, { nombre: "asc" }] } }
   });
   if (!client) return noClientResult(intent.clientName);
@@ -2336,6 +2385,7 @@ async function queryClientContacts(intent: ChatIntentClassification): Promise<Ch
 }
 
 async function queryWorkDocuments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (!intent.clientName) return { handled: true, text: "Dime de qué obra quieres consultar los documentos." };
   const work = await prisma.work.findFirst({
     where: {
@@ -2360,9 +2410,11 @@ async function queryWorkDocuments(intent: ChatIntentClassification): Promise<Cha
 }
 
 async function queryInternalNotes(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (!intent.clientName) return { handled: true, text: "Dime de qué cliente u obra quieres consultar las notas internas." };
   const notes = await prisma.internalNote.findMany({
     where: {
+      companyId,
       archivedAt: null,
       OR: [
         { client: { nombre: { contains: intent.clientName, mode: "insensitive" } } },
@@ -2390,7 +2442,8 @@ async function queryUpcomingVisits(): Promise<ChatCommandResult> {
 }
 
 async function queryPendingRemindersCount(): Promise<ChatCommandResult> {
-  const count = await prisma.reminder.count({ where: { estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } });
+  const { companyId } = await requireCompanyContext();
+  const count = await prisma.reminder.count({ where: { companyId, estado: { in: ["borrador", "pendiente_confirmacion", "programado"] } } });
   return { handled: true, diagnostics: { resultCount: count }, text: count ? `Tienes ${count} recordatorios pendientes o programados.` : "No tienes recordatorios pendientes." };
 }
 
@@ -2400,8 +2453,9 @@ async function queryPendingNotifications(): Promise<ChatCommandResult> {
 }
 
 async function queryWorksByStatus(statuses: string[], label: string): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const works = await prisma.work.findMany({
-    where: { estado: { in: statuses as any[] } },
+    where: { companyId, estado: { in: statuses as any[] } },
     orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
     take: 10,
     include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
@@ -2410,7 +2464,9 @@ async function queryWorksByStatus(statuses: string[], label: string): Promise<Ch
 }
 
 async function queryWorkHighestRevenue(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const works = await prisma.work.findMany({
+    where: { companyId },
     include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
   });
   const ranked = works
@@ -2435,7 +2491,9 @@ async function queryWorkHighestRevenue(intent: ChatIntentClassification): Promis
 }
 
 async function queryWorkLowestMargin(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const works = await prisma.work.findMany({
+    where: { companyId },
     include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
   });
   const ranked = works
@@ -2460,9 +2518,11 @@ async function queryWorkLowestMargin(intent: ChatIntentClassification): Promise<
 }
 
 async function queryWorksStartingThisWeek(): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const range = currentWeekRange();
   const works = await prisma.work.findMany({
     where: {
+      companyId,
       OR: [
         { fechaInicioPrevista: range },
         { fechaInicio: range }
@@ -2476,9 +2536,10 @@ async function queryWorksStartingThisWeek(): Promise<ChatCommandResult> {
 }
 
 async function queryWorksEndingToday(): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const range = todayRange();
   const works = await prisma.work.findMany({
-    where: { fechaFinPrevista: range },
+    where: { companyId, fechaFinPrevista: range },
     orderBy: { fechaFinPrevista: "asc" },
     take: 10,
     include: { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: true }
@@ -2487,7 +2548,8 @@ async function queryWorksEndingToday(): Promise<ChatCommandResult> {
 }
 
 async function queryProjectHighestExpenses(intent: ChatIntentClassification): Promise<ChatCommandResult> {
-  const expenses = await prisma.expense.findMany({ where: expensePeriodWhere(intent.period), include: { work: { include: { client: true } } } });
+  const { companyId } = await requireCompanyContext();
+  const expenses = await prisma.expense.findMany({ where: { companyId, ...expensePeriodWhere(intent.period) }, include: { work: { include: { client: true } } } });
   const totals = new Map<string, { workId: string; title: string; client: string; total: number }>();
   for (const expense of expenses) {
     if (!expense.obraId || !expense.work) continue;
@@ -2525,9 +2587,10 @@ function renderWorkQueryLine(work: {
 }
 
 async function queryRecentDocuments(intent: ChatIntentClassification): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const [budgets, invoices] = await Promise.all([
-    prisma.budget.findMany({ where: budgetPeriodWhere(intent.period), orderBy: { fechaCreacion: "desc" }, take: 5, include: { client: true } }),
-    prisma.invoice.findMany({ where: invoicePeriodWhere(intent.period), orderBy: { fechaEmision: "desc" }, take: 5, include: { client: true } })
+    prisma.budget.findMany({ where: { companyId, ...budgetPeriodWhere(intent.period) }, orderBy: { fechaCreacion: "desc" }, take: 5, include: { client: true } }),
+    prisma.invoice.findMany({ where: { companyId, ...invoicePeriodWhere(intent.period) }, orderBy: { fechaEmision: "desc" }, take: 5, include: { client: true } })
   ]);
   const docs = [
     ...budgets.map((budget) => ({ date: budget.fechaCreacion, line: `Presupuesto ${budget.numero} · ${budget.client.nombre} · ${formatEuros(budget.total)} · /presupuestos/${budget.id}` })),
@@ -2669,8 +2732,10 @@ function invoicePeriodWhere(period?: ChatIntentClassification["period"]) {
 const collectibleInvoiceStates = ["emitida", "enviada", "pendiente", "pendiente_pago", "parcialmente_pagada", "vencida", "reclamada"] as const;
 
 async function findOpenInvoiceBalances(where: Record<string, unknown> = {}) {
+  const { companyId } = await requireCompanyContext();
   const invoices = await prisma.invoice.findMany({
     where: {
+      companyId,
       ...where,
       estado: { in: [...collectibleInvoiceStates] }
     },
@@ -2789,11 +2854,7 @@ function clientLooksIncomplete(client: { telefono: string | null; email?: string
 }
 
 async function continueLatestPendingTask(): Promise<ChatCommandResult> {
-  const conversations = await prisma.chatConversation.findMany({
-    where: { status: "active", messages: { some: {} } },
-    orderBy: { lastActivityAt: "desc" },
-    take: 20
-  });
+  const conversations = await findLatestPendingTaskForCompany(await conversationTenantContext());
   const taskContext = conversations
     .map((conversation) => normalizeConversationContext(conversation.activeTask))
     .find((context) => context?.activeTask || context?.parkedTask);
@@ -2821,12 +2882,13 @@ async function continueLatestPendingTask(): Promise<ChatCommandResult> {
 }
 
 async function buildActionResult(result: ChatCommandResult): Promise<ChatActionResult | null> {
+  const { companyId } = await requireCompanyContext();
   const created = result.created;
   if (!created) return null;
 
   if (created.budgetId) {
-    const budget = await prisma.budget.findUnique({
-      where: { id: created.budgetId },
+    const budget = await prisma.budget.findFirst({
+      where: { id: created.budgetId, companyId },
       include: { client: true, work: true }
     }).catch(() => null);
     if (!budget) return null;
@@ -2852,8 +2914,8 @@ async function buildActionResult(result: ChatCommandResult): Promise<ChatActionR
   }
 
   if (created.invoiceId) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: created.invoiceId },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: created.invoiceId, companyId },
       include: { client: true, work: true }
     }).catch(() => null);
     if (!invoice) return null;
@@ -2882,8 +2944,8 @@ async function buildActionResult(result: ChatCommandResult): Promise<ChatActionR
   }
 
   if (created.agendaEventId) {
-    const event = await prisma.eventoAgenda.findUnique({
-      where: { id: created.agendaEventId },
+    const event = await prisma.eventoAgenda.findFirst({
+      where: { id: created.agendaEventId, companyId },
       include: { client: true, work: true }
     }).catch(() => null);
     if (!event) return null;
@@ -2909,7 +2971,7 @@ async function buildActionResult(result: ChatCommandResult): Promise<ChatActionR
   }
 
   if (created.clientId && !created.workId && !created.budgetId && !created.invoiceId) {
-    const client = await prisma.client.findUnique({ where: { id: created.clientId } }).catch(() => null);
+    const client = await prisma.client.findFirst({ where: { id: created.clientId, companyId } }).catch(() => null);
     if (!client) return null;
     return {
       type: "created",
@@ -2934,7 +2996,7 @@ async function buildActionResult(result: ChatCommandResult): Promise<ChatActionR
   }
 
   if (created.workId) {
-    const work = await prisma.work.findUnique({ where: { id: created.workId }, include: { client: true } }).catch(() => null);
+    const work = await prisma.work.findFirst({ where: { id: created.workId, companyId }, include: { client: true } }).catch(() => null);
     if (!work) return null;
     return {
       type: "created",
@@ -2961,6 +3023,7 @@ async function buildActionResult(result: ChatCommandResult): Promise<ChatActionR
 }
 
 async function enrichChatContext(context: ChatCommandContext | null): Promise<ChatCommandContext | null> {
+  const { companyId } = await requireCompanyContext();
   if (!context) return null;
   const normalized = normalizeChatContext(context);
   const task = normalized.activeTask ?? normalized.parkedTask;
@@ -2969,8 +3032,8 @@ async function enrichChatContext(context: ChatCommandContext | null): Promise<Ch
   const ids = contextIds(normalized);
   try {
     if (ids.budgetId) {
-      const budget = await prisma.budget.findUnique({
-        where: { id: ids.budgetId },
+      const budget = await prisma.budget.findFirst({
+        where: { id: ids.budgetId, companyId },
         include: { client: true, work: true }
       });
       if (!budget) return normalized;
@@ -2998,8 +3061,8 @@ async function enrichChatContext(context: ChatCommandContext | null): Promise<Ch
     }
 
     if (ids.invoiceId) {
-      const invoice = await prisma.invoice.findUnique({
-        where: { id: ids.invoiceId },
+      const invoice = await prisma.invoice.findFirst({
+        where: { id: ids.invoiceId, companyId },
         include: { client: true, work: true }
       });
       if (!invoice) return normalized;
@@ -3147,6 +3210,7 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
 }
 
 async function buildAIContext(context: ChatCommandContext | null, text: string) {
+  const { companyId } = await requireCompanyContext();
   const ids: Partial<ReturnType<typeof contextIds>> = context ? contextIds(context) : {};
   const nameHints = extractPotentialNameHints(text);
   const clientWhere = ids.clientId
@@ -3157,7 +3221,7 @@ async function buildAIContext(context: ChatCommandContext | null, text: string) 
 
   const [clients, works, budgets, invoices] = await Promise.all([
     prisma.client.findMany({
-      where: clientWhere,
+      where: { companyId, ...(clientWhere ?? {}) },
       orderBy: { ultimaInteraccion: "desc" },
       take: clientWhere ? 12 : 8,
       select: {
@@ -3173,7 +3237,7 @@ async function buildAIContext(context: ChatCommandContext | null, text: string) 
       }
     }),
     prisma.work.findMany({
-      where: ids.workId ? { id: ids.workId } : ids.clientId ? { clienteId: ids.clientId } : undefined,
+      where: { companyId, ...(ids.workId ? { id: ids.workId } : ids.clientId ? { clienteId: ids.clientId } : {}) },
       orderBy: { id: "desc" },
       take: ids.workId || ids.clientId ? 12 : 8,
       select: {
@@ -3188,7 +3252,7 @@ async function buildAIContext(context: ChatCommandContext | null, text: string) 
       }
     }),
     prisma.budget.findMany({
-      where: ids.budgetId ? { id: ids.budgetId } : ids.clientId ? { clienteId: ids.clientId } : undefined,
+      where: { companyId, ...(ids.budgetId ? { id: ids.budgetId } : ids.clientId ? { clienteId: ids.clientId } : {}) },
       orderBy: { fechaCreacion: "desc" },
       take: ids.budgetId || ids.clientId ? 10 : 6,
       select: {
@@ -3203,7 +3267,7 @@ async function buildAIContext(context: ChatCommandContext | null, text: string) 
       }
     }),
     prisma.invoice.findMany({
-      where: ids.invoiceId ? { id: ids.invoiceId } : ids.clientId ? { clienteId: ids.clientId } : undefined,
+      where: { companyId, ...(ids.invoiceId ? { id: ids.invoiceId } : ids.clientId ? { clienteId: ids.clientId } : {}) },
       orderBy: { fechaEmision: "desc" },
       take: ids.invoiceId || ids.clientId ? 10 : 6,
       select: {
@@ -3246,15 +3310,15 @@ async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandCon
   const wantsPdf = ai.intent === "generar_pdf" || aiHasAction(ai, "generarPDF");
 
   if (wantsBudget && canCreateAIBudget(ai)) {
-    return createBudgetDraftFromAI(ai);
+    return { handled: false, text: "", context };
   }
 
   if (wantsInvoice && canCreateAIInvoice(ai)) {
-    return createInvoiceDraftFromAI(ai);
+    return { handled: false, text: "", context };
   }
 
   if (wantsActivity && ai.shouldExecute && !ai.requiresConfirmation) {
-    return registerActivityFromAI(ai);
+    return { handled: false, text: "", context };
   }
 
   if (wantsPdf) {
@@ -3619,6 +3683,7 @@ async function registerActivityFromChat(command: ParsedActivityCommand): Promise
 }
 
 async function completeActivityFromChat(context: ChatCommandContext, message: string, entities: ChatEntities): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const eventId = typeof context.activeTask?.draftData?.eventId === "string" ? context.activeTask.draftData.eventId : undefined;
   if (!eventId) {
     return {
@@ -3628,8 +3693,8 @@ async function completeActivityFromChat(context: ChatCommandContext, message: st
     };
   }
 
-  const event = await prisma.eventoAgenda.findUnique({
-    where: { id: eventId },
+  const event = await prisma.eventoAgenda.findFirst({
+    where: { id: eventId, companyId },
     include: { client: true, work: true }
   });
   if (!event) {
@@ -3864,13 +3929,14 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
 }
 
 async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEntities): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const ids = contextIds(context);
   if (!ids.budgetId || !ids.clientId) {
     return { handled: true, text: "Tenía una acción pendiente, pero falta el identificador del presupuesto. Abre el presupuesto desde Documentos y edítalo manualmente.", clearContext: true };
   }
 
-  const budget = await prisma.budget.findUnique({
-    where: { id: ids.budgetId },
+  const budget = await prisma.budget.findFirst({
+    where: { id: ids.budgetId, companyId },
     include: { client: true, work: true }
   });
 
@@ -4017,6 +4083,7 @@ async function applyBudgetFollowUp(context: ChatCommandContext, followUp: ChatEn
 }
 
 async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatEntities): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const ids = contextIds(context);
   if (!ids.invoiceId && !ids.clientId) {
     return { handled: true, text: "Tenía una factura pendiente, pero falta identificarla. Abre Facturas o dime cliente y número de factura.", clearContext: true };
@@ -4026,7 +4093,7 @@ async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatE
   if (entities.amount) return registerPaymentFromChat(entities, context);
 
   const invoice = ids.invoiceId
-    ? await prisma.invoice.findUnique({ where: { id: ids.invoiceId }, include: { client: true, work: true } })
+    ? await prisma.invoice.findFirst({ where: { id: ids.invoiceId, companyId }, include: { client: true, work: true } })
     : null;
   if (!invoice) {
     return { handled: true, text: "No encuentro la factura anterior. No he creado ni enviado nada.", clearContext: true };
@@ -4080,6 +4147,7 @@ async function applyInvoiceFollowUp(context: ChatCommandContext, entities: ChatE
 }
 
 async function markInvoicePaidFromChat(entities: ChatEntities, context: ChatCommandContext): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   const invoices = await findInvoiceCandidates(entities, context);
   if (!invoices.length) {
     return { handled: true, text: "No encuentro una factura pendiente clara para marcar como pagada. Dime el cliente o el número de factura.", context };
@@ -4120,6 +4188,7 @@ async function markInvoicePaidFromChat(entities: ChatEntities, context: ChatComm
   await prisma.$transaction([
     prisma.payment.create({
       data: {
+        companyId,
         facturaId: invoice.id,
         clienteId: invoice.clienteId,
         obraId: invoice.obraId,
@@ -4130,8 +4199,8 @@ async function markInvoicePaidFromChat(entities: ChatEntities, context: ChatComm
         notas: "Marcada como pagada desde Orqena."
       }
     }),
-    prisma.invoice.update({
-      where: { id: invoice.id },
+    prisma.invoice.updateMany({
+      where: { id: invoice.id, companyId },
       data: { pagado: invoice.total, pendiente: 0, estado: "pagada" }
     })
   ]);
@@ -4147,6 +4216,7 @@ async function markInvoicePaidFromChat(entities: ChatEntities, context: ChatComm
 }
 
 async function registerPaymentFromChat(entities: ChatEntities, context: ChatCommandContext): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (!entities.amount || entities.amount <= 0) {
     return { handled: true, text: "He entendido que quieres registrar un pago, pero me falta el importe.", context };
   }
@@ -4187,6 +4257,7 @@ async function registerPaymentFromChat(entities: ChatEntities, context: ChatComm
   await prisma.$transaction([
     prisma.payment.create({
       data: {
+        companyId,
         facturaId: invoice.id,
         clienteId: invoice.clienteId,
         obraId: invoice.obraId,
@@ -4197,8 +4268,8 @@ async function registerPaymentFromChat(entities: ChatEntities, context: ChatComm
         notas: "Pago registrado desde Orqena."
       }
     }),
-    prisma.invoice.update({
-      where: { id: invoice.id },
+    prisma.invoice.updateMany({
+      where: { id: invoice.id, companyId },
       data: { pagado: nuevoPagado, pendiente: nuevoPendiente, estado }
     })
   ]);
@@ -4330,6 +4401,7 @@ Antes de enviarla falta revisar NIF/CIF y dirección fiscal del cliente. PDF dis
 }
 
 async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetCommand, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   let budgetId = context ? contextIds(context).budgetId : undefined;
 
   if (!budgetId && command.clientName) {
@@ -4345,7 +4417,7 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
       return { handled: true, text: `No encuentro ningún cliente llamado ${command.clientName} con presupuesto aceptado. No he creado factura.` };
     }
     const acceptedBudget = await prisma.budget.findFirst({
-      where: { clienteId: client.id, estado: "aceptado" },
+      where: { companyId, clienteId: client.id, estado: "aceptado" },
       orderBy: { fechaCreacion: "desc" }
     });
     budgetId = acceptedBudget?.id;
@@ -4355,7 +4427,7 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
     return { handled: true, text: "Necesito saber qué presupuesto aceptado quieres convertir en factura. Dime, por ejemplo: “convierte el presupuesto aceptado del cliente en factura”." };
   }
 
-  const budget = await prisma.budget.findUnique({ where: { id: budgetId }, include: { client: true } });
+  const budget = await prisma.budget.findFirst({ where: { id: budgetId, companyId }, include: { client: true } });
   if (!budget) return { handled: true, text: "No encuentro ese presupuesto. No he creado factura." };
   if (budget.estado !== "aceptado") {
     return { handled: true, text: `He encontrado ${budget.numero}, pero todavía no está aceptado. Para evitar errores, márcalo como aceptado o confirma manualmente antes de convertirlo en factura.` };
@@ -4363,6 +4435,7 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
 
   const existingInvoice = await prisma.invoice.findFirst({
     where: {
+      companyId,
       clienteId: budget.clienteId,
       obraId: budget.obraId,
       observaciones: { contains: budget.numero }
@@ -4417,6 +4490,7 @@ async function convertBudgetToInvoiceFromChat(command: ParsedConvertBudgetComman
 }
 
 async function buildPdfResult(command: ParsedPdfCommand, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  const { companyId } = await requireCompanyContext();
   if (context) {
     const fromContext = buildPdfResultFromContext(context, command.documentKind);
     if (fromContext.handled) return fromContext;
@@ -4431,12 +4505,12 @@ async function buildPdfResult(command: ParsedPdfCommand, context: ChatCommandCon
   if (!client) return { handled: true, text: `No encuentro documentos para ${command.clientName}.` };
 
   if (command.documentKind === "invoice") {
-    const invoice = await prisma.invoice.findFirst({ where: { clienteId: client.id }, orderBy: { fechaEmision: "desc" } });
+    const invoice = await prisma.invoice.findFirst({ where: { companyId, clienteId: client.id }, orderBy: { fechaEmision: "desc" } });
     if (!invoice) return { handled: true, text: `No encuentro facturas de ${client.nombre}.` };
     return pdfResult("invoice", invoice.id, client.id, invoice.obraId ?? undefined, client.nombre);
   }
 
-  const budget = await prisma.budget.findFirst({ where: { clienteId: client.id }, orderBy: { fechaCreacion: "desc" } });
+  const budget = await prisma.budget.findFirst({ where: { companyId, clienteId: client.id }, orderBy: { fechaCreacion: "desc" } });
   if (!budget) return { handled: true, text: `No encuentro presupuestos de ${client.nombre}.` };
   return pdfResult("budget", budget.id, client.id, budget.obraId ?? undefined, client.nombre);
 }
@@ -4491,58 +4565,47 @@ function debugChat(step: string, payload: unknown) {
 }
 
 async function persistIncomingChatMessage(text: string, context: ChatCommandContext | null, options: ChatCommandOptions) {
+  const tenant = await conversationTenantContext();
   const idempotencyKey = options.idempotencyKey ?? options.messageId;
-  const conversation = await ensureChatConversation(options.conversationId, text);
+  const conversation = await ensureChatConversation(tenant, options.conversationId, text);
   const conversationId = conversation.id;
   const conversationContext = normalizeConversationContext(conversation.activeTask) ?? context ?? null;
   if (!idempotencyKey) {
-    const message = await prisma.chatMessage.create({
-      data: {
-        conversationId,
+    const message = await appendMessageForCompany(tenant, conversationId, {
         role: "user",
         content: text,
         status: "processing",
         context: toJsonValue(conversationContext),
         metadata: toJsonValue({ clientStartedAt: options.clientStartedAt })
-      }
     });
-    await touchChatConversation(conversationId);
+    await touchChatConversation(conversationId, tenant);
     return { messageId: message.id, conversationId, context: conversationContext, duplicate: false, result: null as ChatCommandResult | null };
   }
 
-  const existing = await prisma.chatMessage.findUnique({ where: { idempotencyKey } });
+  const existing = await getMessageForCompany(tenant, { idempotencyKey });
   if (existing) {
     const completed = resultFromChatMetadata(existing.metadata);
     if (completed) return { messageId: existing.id, conversationId: existing.conversationId, context: conversationContext, duplicate: true, result: completed };
     if (existing.status === "processing") return { messageId: existing.id, conversationId: existing.conversationId, context: conversationContext, duplicate: true, result: null };
   }
 
-  const message = await prisma.chatMessage.upsert({
-    where: { idempotencyKey },
-    create: {
+  let message = existing;
+  if (!message) message = await appendMessageForCompany(tenant, conversationId, {
       id: options.messageId,
-      conversationId,
       idempotencyKey,
       role: "user",
       content: text,
       status: "saved",
       context: toJsonValue(conversationContext),
       metadata: toJsonValue({ clientStartedAt: options.clientStartedAt })
-    },
-    update: {
-      context: toJsonValue(conversationContext),
-      metadata: toJsonValue({ clientStartedAt: options.clientStartedAt, retriedAt: new Date().toISOString() })
-    }
   });
-  await touchChatConversation(message.conversationId);
+  else await updateMessageForCompany(tenant, message.id, { context: toJsonValue(conversationContext), metadata: toJsonValue({ clientStartedAt: options.clientStartedAt, retriedAt: new Date().toISOString() }) });
+  await touchChatConversation(message.conversationId, tenant);
 
-  const lock = await prisma.chatMessage.updateMany({
-    where: { id: message.id, status: { in: ["saved", "failed"] } },
-    data: { status: "processing" }
-  });
+  const lock = await claimMessageForCompany(tenant, message.id);
 
   if (lock.count === 0) {
-    const latest = await prisma.chatMessage.findUnique({ where: { id: message.id } });
+    const latest = await getMessageForCompany(tenant, { id: message.id });
     const completed = resultFromChatMetadata(latest?.metadata);
     return { messageId: message.id, conversationId: message.conversationId, context: conversationContext, duplicate: true, result: completed };
   }
@@ -4552,33 +4615,26 @@ async function persistIncomingChatMessage(text: string, context: ChatCommandCont
 
 async function completeChatMessage(messageId: string | undefined, result: ChatCommandResult) {
   if (!messageId) return;
-  const sourceMessage = await prisma.chatMessage.findUnique({ where: { id: messageId }, select: { conversationId: true, idempotencyKey: true } });
+  const tenant = await conversationTenantContext();
+  const sourceMessage = await getMessageForCompany(tenant, { id: messageId });
   const conversationId = sourceMessage?.conversationId;
   if (!conversationId) return;
   const metadata = toJsonValue({
     result,
     completedAt: new Date().toISOString()
   });
-  await prisma.chatMessage.update({
-    where: { id: messageId },
-    data: { status: "completed", metadata }
-  });
+  await completeMessageForCompany(tenant, messageId, metadata);
 
   if (result.text) {
-    await prisma.chatMessage.create({
-      data: {
-        conversationId,
+    await appendMessageForCompany(tenant, conversationId, {
         role: "assistant",
         content: result.text,
         status: "completed",
         metadata: toJsonValue({ replyTo: messageId, created: result.created ?? null, result: result.result ?? null })
-      }
     });
   }
   if (result.result) {
-    await prisma.chatActionLog.create({
-      data: {
-        conversationId,
+    await logConversationActionForCompany(tenant, conversationId, {
         messageId,
         stage: "action_result",
         actionType: result.result.entityType,
@@ -4587,38 +4643,27 @@ async function completeChatMessage(messageId: string | undefined, result: ChatCo
         summary: result.result.title,
         result: toJsonValue(result.result),
         metadata: toJsonValue({ created: result.created ?? null })
-      }
     }).catch(() => undefined);
   }
-  await updateConversationAfterResult(conversationId, result, sourceMessage.idempotencyKey);
+  await updateConversationAfterResult(tenant, conversationId, result, sourceMessage.idempotencyKey);
 }
 
 async function failChatMessage(messageId: string | undefined, error: unknown) {
   if (!messageId) return;
-  await prisma.chatMessage.update({
-    where: { id: messageId },
-    data: {
-      status: "failed",
-      metadata: toJsonValue({
+  const tenant = await conversationTenantContext();
+  await failMessageForCompany(tenant, messageId, toJsonValue({
         failedAt: new Date().toISOString(),
         error: error instanceof Error ? sanitizeAIError(error.message) : "unknown"
-      })
-    }
-  }).catch(() => undefined);
+  })).catch(() => undefined);
 }
 
 export async function loadChatConversations(includeArchived = false): Promise<ChatHistoryConversation[]> {
-  const conversations = await prisma.chatConversation.findMany({
-    where: includeArchived ? undefined : { status: "active" },
-    orderBy: { lastActivityAt: "desc" },
-    take: 40,
-    include: {
-      messages: {
-        orderBy: { createdAt: "asc" },
-        take: 80
-      }
-    }
-  });
+  const tenant = await conversationTenantContext();
+  return loadChatConversationsForTenant(tenant, includeArchived);
+}
+
+async function loadChatConversationsForTenant(tenant: ConversationTenantContext, includeArchived = false): Promise<ChatHistoryConversation[]> {
+  const conversations = await listConversationsForCompany(tenant, includeArchived);
 
   return conversations
     .filter((conversation) => shouldShowConversationInHistory(conversation.messages.length, isRecord(conversation.metadata) && conversation.metadata.keepVisible === true))
@@ -4626,56 +4671,39 @@ export async function loadChatConversations(includeArchived = false): Promise<Ch
 }
 
 export async function getOrCreateInitialConversation(preferredConversationId?: string | null): Promise<{ selected: ChatHistoryConversation; conversations: ChatHistoryConversation[]; reason: "restored_preferred" | "restored_recent" | "created_inactive" | "created_empty" }> {
+  const tenant = await conversationTenantContext();
   const now = new Date();
   const threshold = new Date(now.getTime() - CHAT_INACTIVITY_MS);
   const preferred = preferredConversationId
-    ? await prisma.chatConversation.findFirst({
-        where: { id: preferredConversationId, status: "active" },
-        include: { messages: { orderBy: { createdAt: "asc" }, take: 80 } }
-      })
+    ? await getConversationForCompany(tenant, preferredConversationId, { activeOnly: true })
     : null;
 
   if (preferred && preferred.lastActivityAt >= threshold) {
-    const conversations = await loadChatConversations(false);
+    const conversations = await loadChatConversationsForTenant(tenant, false);
     safeChatLog("conversation:init", { conversationId: preferred.id, reason: "restored_preferred" });
     return { selected: chatConversationToHistory(preferred), conversations: includeSelectedConversation(conversations, preferred), reason: "restored_preferred" };
   }
 
-  const recent = await prisma.chatConversation.findFirst({
-    where: { status: "active", lastActivityAt: { gte: threshold } },
-    orderBy: { lastActivityAt: "desc" },
-    include: { messages: { orderBy: { createdAt: "asc" }, take: 80 } }
-  });
+  const recent = (await listConversationsForCompany(tenant, false)).find((item) => item.lastActivityAt >= threshold) ?? null;
 
   if (recent) {
-    const conversations = await loadChatConversations(false);
+    const conversations = await loadChatConversationsForTenant(tenant, false);
     safeChatLog("conversation:init", { conversationId: recent.id, reason: "restored_recent" });
     return { selected: chatConversationToHistory(recent), conversations: includeSelectedConversation(conversations, recent), reason: "restored_recent" };
   }
 
-  const reusableEmpty = await prisma.chatConversation.findMany({
-    where: {
-      status: "active",
-      messages: { none: {} }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    include: { messages: { orderBy: { createdAt: "asc" }, take: 80 } }
-  }).catch(() => null);
+  const reusableEmpty = (await listConversationsForCompany(tenant, false)).filter((item) => item.messages.length === 0).slice(0, 5);
   const empty = reusableEmpty?.find((conversation) => !conversation.activeTask) ?? null;
 
-  const selected = empty ?? await prisma.chatConversation.create({
-    data: {
+  const selected = empty ?? await createConversationForCompany(tenant, {
       title: "Nueva conversación",
       status: "active",
       activeTask: undefined,
       metadata: toJsonValue({ reason: preferred ? "inactive_preferred" : "initial_empty" }),
       lastActivityAt: now
-    },
-    include: { messages: true }
   });
 
-  const conversations = await loadChatConversations(false);
+  const conversations = await loadChatConversationsForTenant(tenant, false);
   const reason = preferred ? "created_inactive" as const : "created_empty" as const;
   safeChatLog("conversation:init", { conversationId: selected.id, previousConversationId: preferred?.id, reason });
   return { selected: chatConversationToHistory(selected), conversations: includeSelectedConversation(conversations, selected), reason };
@@ -4728,14 +4756,12 @@ function includeSelectedConversation(conversations: ChatHistoryConversation[], s
 }
 
 export async function createChatConversation(title = "Nueva conversación") {
-  const conversation = await prisma.chatConversation.create({
-    data: {
+  const tenant = await conversationTenantContext();
+  const conversation = await createConversationForCompany(tenant, {
       title: cleanConversationTitle(title) || "Nueva conversación",
       activeTask: undefined,
       metadata: toJsonValue({ createdFrom: "new_chat_button" }),
       lastActivityAt: new Date()
-    },
-    include: { messages: true }
   });
   safeChatLog("conversation:new", { conversationId: conversation.id });
   revalidatePath("/capataz");
@@ -4743,68 +4769,169 @@ export async function createChatConversation(title = "Nueva conversación") {
 }
 
 export async function renameChatConversation(conversationId: string, title: string) {
+  const tenant = await conversationTenantContext();
   const nextTitle = cleanConversationTitle(title);
   if (!nextTitle) return;
-  await prisma.chatConversation.update({ where: { id: conversationId }, data: { title: nextTitle } });
+  await renameConversationForCompany(tenant, conversationId, nextTitle);
   revalidatePath("/capataz");
 }
 
 export async function archiveChatConversation(conversationId: string) {
-  await prisma.chatConversation.update({ where: { id: conversationId }, data: { status: "archived", archivedAt: new Date(), activeTask: undefined } });
+  const tenant = await conversationTenantContext();
+  await archiveConversationForCompany(tenant, conversationId);
   safeChatLog("conversation:archive", { conversationId });
   revalidatePath("/capataz");
 }
 
 export async function deleteChatConversation(conversationId: string) {
-  await prisma.chatConversation.delete({ where: { id: conversationId } }).catch(() => undefined);
+  const tenant = await conversationTenantContext();
+  await deleteConversationForCompany(tenant, conversationId);
   safeChatLog("conversation:delete", { conversationId });
   revalidatePath("/capataz");
 }
+function looksLikeExplicitWorkflowMutation(normalized:string){return /^(crea|crear) (una tarea|un seguimiento)\b|^(anota|registra) que no respondio|^(marca|completa|complétala|completala).*tarea|^completala$|^(pausala|páusala|pausa esta automatizacion|pausa esta automatización|reanúdala|reanudala|reanuda esta automatizacion|reanuda esta automatización|ejecutala en seco|ejecútala en seco)$/.test(normalized)}
+function looksLikeWorkflowContractMutation(normalized:string){return /(checklist|subtarea|dependencia|seguimiento|automatizaci[oó]n|nueva versi[oó]n|facturas con m[aá]s|cree una recomendaci[oó]n)|^(abre|muestra|archiva|reprograma|c[aá]mbiala|ejec[uú]tala|completa|reabre|a[nñ]ade|agrega|retira)/.test(normalized)}
 
-async function ensureChatConversation(conversationId: string | undefined, firstText: string) {
+const proposalEntityTypes = new Set<OrqenaEntityType>(["client", "work", "budget", "invoice", "supplier", "task", "document"]);
+
+export async function preparePendingProposal(conversationId: string, proposal: { type: string; payload: Record<string, unknown>; review: Record<string, unknown> }): Promise<PendingConfirmation> {
+  const authorization = await requireCapability("orqena.execute");
+  if (authorization.scope !== "COMPANY") throw new Error("Conversación no disponible.");
+  const tenant = { userId: authorization.userId, companyId: authorization.companyId, membershipId: authorization.membershipId };
+  const conversation = await getConversationForCompany(tenant, conversationId, { activeOnly: true });
+  if (!conversation || !proposalEntityTypes.has(proposal.type as OrqenaEntityType)) throw new Error("Conversación no disponible.");
+  const now = new Date();
+  const confirmation: PendingConfirmation = {
+    id: crypto.randomUUID(),
+    companyId: tenant.companyId,
+    conversationId,
+    userId: tenant.userId,
+    membershipId: tenant.membershipId,
+    action: `create_${proposal.type}`,
+    entityType: proposal.type as OrqenaEntityType,
+    payload: proposal.payload,
+    review: proposal.review,
+    status: "PENDING",
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString()
+  };
+  await touchConversationForCompany(tenant, conversationId, { pendingConfirmation: toJsonValue(confirmation) });
+  await logConversationActionForCompany(tenant, conversationId, { stage: "proposal_prepared", status: "pending", actionType: confirmation.entityType, summary: "Propuesta preparada", result: toJsonValue({ confirmationId: confirmation.id, expiresAt: confirmation.expiresAt }) });
+  return confirmation;
+}
+
+export async function cancelPendingProposal(conversationId: string, confirmationId: string): Promise<{ status: "cancelled"; confirmationId: string; alreadyCancelled: boolean }> {
+  const authorization = await requireCapability("orqena.execute");
+  if (authorization.scope !== "COMPANY") throw new Error("Conversación no disponible.");
+  const tenant = { userId: authorization.userId, companyId: authorization.companyId, membershipId: authorization.membershipId };
+  const result = await cancelPendingProposalForCompany(tenant, conversationId, confirmationId);
+  revalidatePath("/capataz");
+  return { status: "cancelled", confirmationId, alreadyCancelled: result.alreadyCancelled };
+}
+
+export type PendingProposalOperation = "manual" | "payment" | "accept-budget" | "work-status" | "agenda-reprogram" | "agenda-status";
+
+export async function executePendingProposal(conversationId: string, confirmationId: string, operation: PendingProposalOperation, formData: FormData): Promise<{ status: "confirmed"; confirmationId: string; alreadyConfirmed: boolean }> {
+  const authorization = await requireCapability("orqena.execute");
+  if (authorization.scope !== "COMPANY") throw new Error("Conversación no disponible.");
+  const tenant = { userId: authorization.userId, companyId: authorization.companyId, membershipId: authorization.membershipId };
+  return withCompanyContext(authorization, async () => {
+  const execution = await beginPendingProposalExecutionForCompany(tenant, conversationId, confirmationId);
+  if (execution.alreadyConfirmed) return { status: "confirmed", confirmationId, alreadyConfirmed: true };
+  const entityType = execution.confirmation?.entityType;
+  const manualType = String(formData.get("tipo") ?? "");
+  const expectedEntityType = operation === "manual"
+    ? ({ cliente: "client", presupuesto: "budget", factura: "invoice", gasto: "document", recordatorio: "task", eventoAgenda: "task" } as Record<string, string>)[manualType]
+    : operation === "payment" ? "invoice"
+      : operation === "accept-budget" || operation === "work-status" ? "work"
+        : "task";
+  if (!expectedEntityType || entityType !== expectedEntityType || !proposalTargetsMatch(execution.confirmation?.payload, operation, manualType, formData)) {
+    await finishPendingProposalExecutionForCompany(tenant, conversationId, confirmationId, false);
+    throw new Error("Propuesta no disponible.");
+  }
+  try {
+    if (operation === "manual") await (await import("@/app/(app)/gestion/actions")).saveManualRecord(formData);
+    else if (operation === "payment") await (await import("@/app/(app)/dinero/actions")).registerPayment(formData);
+    else if (operation === "accept-budget") await (await import("@/app/(app)/presupuestos/actions")).convertBudgetToWork(formData);
+    else if (operation === "work-status") await (await import("@/app/(app)/obras/actions")).updateWorkStatus(formData);
+    else if (operation === "agenda-reprogram") await (await import("@/app/(app)/agenda/actions")).reprogramAgendaEvent(formData);
+    else await (await import("@/app/(app)/agenda/actions")).updateAgendaEventStatus(formData);
+  } catch (error) {
+    if (isNextRedirect(error)) {
+      await finishPendingProposalExecutionForCompany(tenant, conversationId, confirmationId, true);
+      revalidatePath("/capataz");
+      return { status: "confirmed", confirmationId, alreadyConfirmed: false };
+    }
+    await finishPendingProposalExecutionForCompany(tenant, conversationId, confirmationId, false).catch(() => undefined);
+    throw error;
+  }
+  await finishPendingProposalExecutionForCompany(tenant, conversationId, confirmationId, true);
+  revalidatePath("/capataz");
+  return { status: "confirmed", confirmationId, alreadyConfirmed: false };
+  });
+}
+
+function proposalTargetsMatch(payload: unknown, operation: PendingProposalOperation, manualType: string, formData: FormData) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  const card = payload as Record<string, unknown>;
+  const field = (name: string) => String(formData.get(name) ?? "");
+  if (operation === "manual") {
+    if (field("id")) return false;
+    if (manualType === "cliente") return typeof card.clientName === "string";
+    if (manualType === "presupuesto") return field("clienteId") === card.clientId;
+    if (manualType === "factura") return field("clienteId") === card.clientId && field("obraId") === String(card.workId ?? "");
+    if (manualType === "gasto") return field("obraId") === card.workId;
+    if (manualType === "recordatorio") return field("clienteId") === card.clientId && field("presupuestoId") === String(card.budgetId ?? "") && field("facturaId") === String(card.invoiceId ?? "");
+    if (manualType === "eventoAgenda") return field("clienteId") === card.clientId && field("obraId") === String(card.workId ?? "") && field("presupuestoId") === String(card.budgetId ?? "") && field("facturaId") === String(card.invoiceId ?? "");
+    return false;
+  }
+  if (operation === "payment") return field("facturaId") === card.invoiceId;
+  if (operation === "accept-budget") return field("id") === card.budgetId;
+  if (operation === "work-status") return field("id") === card.workId;
+  if (operation === "agenda-reprogram" || operation === "agenda-status") return field("id") === card.eventId;
+  return false;
+}
+
+function isNextRedirect(error: unknown) {
+  return Boolean(error && typeof error === "object" && "digest" in error && String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT"));
+}
+
+async function ensureChatConversation(tenant: ConversationTenantContext, conversationId: string | undefined, firstText: string) {
   if (conversationId) {
-    const existing = await prisma.chatConversation.findFirst({ where: { id: conversationId, status: "active" } });
+    const existing = await getConversationForCompany(tenant, conversationId, { activeOnly: true });
     if (existing) return existing;
     safeChatLog("conversation:missing_selected", { conversationId });
   }
 
-  const created = await prisma.chatConversation.create({
-    data: {
+  const created = await createConversationForCompany(tenant, {
       title: titleFromUserMessage(firstText),
       status: "active",
       activeTask: undefined,
       metadata: toJsonValue({ createdFrom: conversationId ? "missing_selected_fallback" : "message_without_conversation" }),
       lastActivityAt: new Date()
-    }
   });
   safeChatLog("conversation:create_for_message", { conversationId: created.id, previousConversationId: conversationId });
   return created;
 }
 
-async function updateConversationAfterResult(conversationId: string, result: ChatCommandResult, idempotencyKey?: string | null) {
-  const conversation = await prisma.chatConversation.findUnique({ where: { id: conversationId }, select: { title: true } });
+async function updateConversationAfterResult(tenant: ConversationTenantContext, conversationId: string, result: ChatCommandResult, idempotencyKey?: string | null) {
+  const conversation = await getConversationForCompany(tenant, conversationId);
   if (!conversation) return;
   const generic = !conversation.title || conversation.title === "Nueva conversación" || conversation.title === "Conversación anterior" || conversation.title === "Conversación principal";
   const firstUserMessage = generic
-    ? await prisma.chatMessage.findFirst({ where: { conversationId, role: "user" }, orderBy: { createdAt: "asc" }, select: { content: true } })
+    ? conversation.messages.find((message) => message.role === "user")
     : null;
   const nextContext = result.clearContext ? null : result.context ?? undefined;
-  await prisma.chatConversation.update({
-    where: { id: conversationId },
-    data: {
+  await touchConversationForCompany(tenant, conversationId, {
       title: generic ? titleFromUserMessage(firstUserMessage?.content ?? result.text) : conversation.title,
       activeTask: nextContext === undefined ? undefined : toJsonValue(nextContext),
       lastActivityAt: new Date(),
       metadata: result.result ? toJsonValue({ lastResult: result.result, lastIdempotencyKey: idempotencyKey ?? null }) : undefined
-    }
   }).catch(() => undefined);
 }
 
-async function touchChatConversation(conversationId: string) {
-  await prisma.chatConversation.update({
-    where: { id: conversationId },
-    data: { lastActivityAt: new Date() }
-  }).catch(() => undefined);
+async function touchChatConversation(conversationId: string, tenant?: ConversationTenantContext) {
+  await touchConversationForCompany(tenant ?? await conversationTenantContext(), conversationId).catch(() => undefined);
 }
 
 function titleFromUserMessage(text: string) {
@@ -4834,9 +4961,9 @@ async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt: numbe
     console.info("[capataz-chat-perf]", JSON.stringify(payload));
   }
 
-  await prisma.chatActionLog.create({
-    data: {
-      conversationId: trace.conversationId,
+  if (!trace.conversationId) return;
+  const tenant = await conversationTenantContext();
+  await logConversationActionForCompany(tenant, trace.conversationId, {
       messageId: trace.messageId,
       stage,
       actionType: stage,
@@ -4846,7 +4973,6 @@ async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt: numbe
       durationMs,
       payload: toJsonValue({ stage, status }),
       metadata: toJsonValue(metadata ?? {})
-    }
   }).catch(() => undefined);
 }
 
@@ -4916,8 +5042,10 @@ function sanitizeAIError(message: string) {
 }
 
 async function findClientMatches(name: string) {
+  const { companyId } = await requireCompanyContext();
   const target = normalizeName(name);
   const clients = await prisma.client.findMany({
+    where: { companyId },
     orderBy: { nombre: "asc" },
     select: { id: true, nombre: true, direccion: true, notas: true }
   });
@@ -4935,18 +5063,20 @@ async function findClientMatches(name: string) {
 }
 
 async function findClientMatchesById(id: string) {
-  const client = await prisma.client.findUnique({
-    where: { id },
+  const { companyId } = await requireCompanyContext();
+  const client = await prisma.client.findFirst({
+    where: { id, companyId },
     select: { id: true, nombre: true, direccion: true, notas: true }
   });
   return client ? [client] : [];
 }
 
 async function findInvoiceCandidates(entities: ChatEntities, context: ChatCommandContext) {
+  const { companyId } = await requireCompanyContext();
   const ids = contextIds(context);
   if (ids.invoiceId) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: ids.invoiceId },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: ids.invoiceId, companyId },
       include: { client: true }
     });
     return invoice ? [invoice] : [];
@@ -4961,16 +5091,17 @@ async function findInvoiceCandidates(entities: ChatEntities, context: ChatComman
   if (!clientId) return [];
 
   return prisma.invoice.findMany({
-    where: { clienteId: clientId },
+    where: { companyId, clienteId: clientId },
     include: { client: true },
     orderBy: [{ pendiente: "desc" }, { fechaEmision: "desc" }]
   });
 }
 
 async function findSimilarWork(clientId: string, title: string) {
+  const { companyId } = await requireCompanyContext();
   const targetWords = new Set(normalizeName(title).split(" ").filter((word) => word.length > 2));
   const works = await prisma.work.findMany({
-    where: { clienteId: clientId },
+    where: { companyId, clienteId: clientId },
     select: { id: true, titulo: true, direccion: true, notas: true }
   });
 

@@ -619,8 +619,9 @@ async function testExplicitCreateStillUsesParser() {
   const result = await runMessage("haz presupuesto para Pedro por 5000");
   const intentLog = lastLog("chat:intent");
   expect(intentLog?.metadata?.classifiedKind === "create", "create request did not log create intent", intentLog?.metadata);
-  expect(result.created?.budgetId, "explicit create did not create a budget", result);
-  expect(state.mutations.budget === 1, "explicit create did not use budget creation path", state.mutations);
+  expect(result.handled === false, "explicit create must be handed to proposal review", result);
+  expect(!result.created?.budgetId, "explicit create bypassed proposal confirmation", result);
+  expect(state.mutations.budget === 0, "explicit create mutated before confirmation", state.mutations);
 }
 
 async function testPendingDetailFollowUp() {

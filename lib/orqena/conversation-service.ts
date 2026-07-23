@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
 import type { ConversationState } from "@/lib/orqena/types";
+import { saveConversationStateForCompany, type ConversationTenantContext } from "@/lib/orqena/conversation-repository";
 import { queryIntent } from "@/lib/orqena/query-router";
 import { present } from "@/lib/orqena/response-presenter";
-export async function saveConversationState(companyId: string, conversationId: string, state: ConversationState) { const result = await prisma.chatConversation.updateMany({ where: { id: conversationId, companyId }, data: { structuredContext: state as never, lastActivityAt: new Date() } }); if (result.count !== 1) throw new Error("Conversación no disponible."); }
+export async function saveConversationState(context: ConversationTenantContext, conversationId: string, state: ConversationState) { await saveConversationStateForCompany(context, conversationId, state as never); }
 export function nextConversationState(current: Partial<ConversationState>, patch: Partial<ConversationState>): ConversationState { return { ...current, ...patch, contextUpdatedAt: new Date().toISOString() }; }
 
 export async function runConversationTurn<TContext, TResult>(input: {

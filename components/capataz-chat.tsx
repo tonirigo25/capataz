@@ -30,6 +30,10 @@ import {
   deleteChatConversation,
   getOrCreateInitialConversation,
   loadChatConversations,
+  preparePendingProposal,
+  cancelPendingProposal,
+  executePendingProposal,
+  type PendingProposalOperation,
   renameChatConversation,
   runChatCommand,
   type ChatActionResult,
@@ -288,7 +292,7 @@ const quickCreates = [
   { href: "/gestion?tipo=recordatorio&returnTo=/capataz", label: "Recordatorio" }
 ];
 
-const chatConversationStorageKey = "capataz-chat-conversation-id";
+const chatConversationStorageKey = (companyId: string) => `orqena-chat-conversation-id:${companyId}`;
 const defaultProgressSteps = [
   "Leyendo tu mensaje...",
   "Analizando datos...",
@@ -299,6 +303,7 @@ const defaultProgressSteps = [
 
 export function CapatazChat({ data }: { data: ChatData }) {
   const router = useRouter();
+  const companyId = data.company?.id ?? "unassigned";
   const displayName = userName(data);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -316,8 +321,13 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const inFlightRef = useRef(false);
   const mountedRef = useRef(false);
   const loadRequestRef = useRef(0);
+  const companyGenerationRef = useRef(0);
+  const activeCompanyRef = useRef(companyId);
+  const [renderedCompanyId, setRenderedCompanyId] = useState(companyId);
   const activeConversationRef = useRef("");
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const transcriptionAbortRef = useRef<AbortController | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -368,29 +378,50 @@ export function CapatazChat({ data }: { data: ChatData }) {
   }, [isSending]);
 
   useEffect(() => {
+    const generation = ++companyGenerationRef.current;
+    activeCompanyRef.current = companyId;
+    loadRequestRef.current += 1;
+    inFlightRef.current = false;
+    stopAndClearVoiceCapture();
+    setRenderedCompanyId(companyId);
+    setConversationId("");
+    setConversations([]);
+    setMessages([welcomeMessage(displayName)]);
+    setChatContext(null);
+    setInput("");
+    setShowHistory(false);
+    setShowJumpToLatest(false);
+    activeConversationRef.current = "";
+    followLatestRef.current = true;
+    setChatState("booting");
     mountedRef.current = true;
-    bootConversation();
+    void bootConversation(companyId, generation);
     return () => {
       mountedRef.current = false;
+      loadRequestRef.current += 1;
+      companyGenerationRef.current += 1;
+      inFlightRef.current = false;
+      stopAndClearVoiceCapture(false);
     };
-  }, []);
+  }, [companyId]);
 
-  async function bootConversation() {
+  async function bootConversation(expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current) {
     const requestId = ++loadRequestRef.current;
     setChatState("booting");
     try {
-      const preferred = safeLocalStorageGet(chatConversationStorageKey);
+      const storageKey = chatConversationStorageKey(expectedCompanyId);
+      const preferred = safeLocalStorageGet(storageKey);
       const initial = await getOrCreateInitialConversation(preferred);
-      if (!mountedRef.current || requestId !== loadRequestRef.current) return;
+      if (!canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !mountedRef.current || requestId !== loadRequestRef.current) return;
       activeConversationRef.current = initial.selected.id;
       setConversationId(initial.selected.id);
       setConversations(initial.conversations);
       setMessages(messagesFromConversation(initial.selected, displayName));
       setChatContext(contextFromConversation(initial.selected));
-      safeLocalStorageSet(chatConversationStorageKey, initial.selected.id);
+      safeLocalStorageSet(storageKey, initial.selected.id);
       setChatState("ready");
     } catch {
-      if (!mountedRef.current || requestId !== loadRequestRef.current) return;
+      if (!canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !mountedRef.current || requestId !== loadRequestRef.current) return;
       setMessages([welcomeMessage(displayName)]);
       setChatState("failed");
     }
@@ -398,10 +429,12 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
   async function refreshConversations(nextSelectedId = conversationId, syncSelected = false) {
     const expectedId = nextSelectedId || activeConversationRef.current;
+    const expectedCompanyId = companyId;
+    const expectedGeneration = companyGenerationRef.current;
     const requestId = ++loadRequestRef.current;
     try {
       const loaded = await loadChatConversations(false);
-      if (!mountedRef.current || !canApplyConversationLoad(expectedId, activeConversationRef.current || expectedId, requestId, loadRequestRef.current)) return;
+      if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !canApplyConversationLoad(expectedId, activeConversationRef.current || expectedId, requestId, loadRequestRef.current)) return;
       setConversations(loaded);
       const selected = loaded.find((item) => item.id === expectedId);
       if (syncSelected && selected && selected.id === activeConversationRef.current) {
@@ -426,6 +459,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
     const userMessageId = crypto.randomUUID();
     const idempotencyKey = `chat:${userMessageId}`;
     const sendingConversationId = conversationId;
+    const sendingCompanyId = companyId;
+    const sendingGeneration = companyGenerationRef.current;
     const userMessage: Message = { id: userMessageId, role: "user", text };
     const startedAt = Date.now();
     setProgressSteps(progressStepsForMessage(text));
@@ -443,7 +478,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", { text, chatContext });
       const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, conversationId: sendingConversationId, clientStartedAt: startedAt });
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
-      if (!mountedRef.current || activeConversationRef.current !== sendingConversationId) return;
+      if (!mountedRef.current || !canApplyCompanyResult(sendingCompanyId, activeCompanyRef.current, sendingGeneration, companyGenerationRef.current) || activeConversationRef.current !== sendingConversationId) return;
       const assistantMessage: Message = command.handled
         ? { id: crypto.randomUUID(), role: "assistant", text: command.text, result: command.result }
         : { id: crypto.randomUUID(), role: "assistant", ...respond(text, data, pendingDebt) };
@@ -454,7 +489,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
       refreshConversations(sendingConversationId);
     } catch {
       failed = true;
-      if (!mountedRef.current || activeConversationRef.current !== sendingConversationId) return;
+      if (!mountedRef.current || !canApplyCompanyResult(sendingCompanyId, activeCompanyRef.current, sendingGeneration, companyGenerationRef.current) || activeConversationRef.current !== sendingConversationId) return;
       setMessages((current) => [
         ...current,
         {
@@ -470,20 +505,23 @@ export function CapatazChat({ data }: { data: ChatData }) {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] render total", { durationMs: Date.now() - startedAt });
       inFlightRef.current = false;
       setIsSending(false);
-      if (mountedRef.current && activeConversationRef.current === sendingConversationId && !failed) setChatState("ready");
+      if (mountedRef.current && canApplyCompanyResult(sendingCompanyId, activeCompanyRef.current, sendingGeneration, companyGenerationRef.current) && activeConversationRef.current === sendingConversationId && !failed) setChatState("ready");
     }
   }
 
   async function startNewConversation() {
     if (inFlightRef.current) return;
+    const expectedCompanyId = companyId;
+    const expectedGeneration = companyGenerationRef.current;
     const conversation = await createChatConversation("Nueva conversación");
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     activeConversationRef.current = conversation.id;
     setConversationId(conversation.id);
     persistChatContext(null);
     setMessages([welcomeMessage(displayName)]);
     setInput("");
     setChatState("ready");
-    safeLocalStorageSet(chatConversationStorageKey, conversation.id);
+    safeLocalStorageSet(chatConversationStorageKey(companyId), conversation.id);
     setShowHistory(false);
     await refreshConversations(conversation.id);
   }
@@ -494,7 +532,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
     setConversationId(conversation.id);
     setMessages(messagesFromConversation(conversation, displayName));
     persistChatContext(contextFromConversation(conversation));
-    safeLocalStorageSet(chatConversationStorageKey, conversation.id);
+    safeLocalStorageSet(chatConversationStorageKey(companyId), conversation.id);
     setChatState("ready");
     setShowHistory(false);
   }
@@ -502,12 +540,16 @@ export function CapatazChat({ data }: { data: ChatData }) {
   async function renameConversation(conversation: ChatHistoryConversation) {
     const title = window.prompt("Nuevo título de la conversación", conversation.title);
     if (!title?.trim()) return;
+    const expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current;
     await renameChatConversation(conversation.id, title.trim());
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     await refreshConversations(conversation.id);
   }
 
   async function archiveConversation(conversation: ChatHistoryConversation) {
+    const expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current;
     await archiveChatConversation(conversation.id);
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     if (conversation.id === conversationId) {
       await startNewConversation();
       return;
@@ -518,7 +560,9 @@ export function CapatazChat({ data }: { data: ChatData }) {
   async function removeConversation(conversation: ChatHistoryConversation) {
     const ok = window.confirm(`¿Borrar la conversación "${conversation.title}"? Esta acción no borra clientes, obras, presupuestos ni facturas.`);
     if (!ok) return;
+    const expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current;
     await deleteChatConversation(conversation.id);
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     if (conversation.id === conversationId) {
       await startNewConversation();
       return;
@@ -541,36 +585,75 @@ export function CapatazChat({ data }: { data: ChatData }) {
     try {
       setVoiceError("");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current || activeCompanyRef.current !== companyId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const recorder = new MediaRecorder(stream);
       audioChunksRef.current = [];
+      voiceStreamRef.current = stream;
       recorderRef.current = recorder;
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
       recorder.onstop = async () => {
+        const expectedCompanyId = companyId;
+        const expectedGeneration = companyGenerationRef.current;
         stream.getTracks().forEach((track) => track.stop());
+        voiceStreamRef.current = null;
+        recorderRef.current = null;
         setVoiceStatus("transcribing");
         try {
           const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+          audioChunksRef.current = [];
           const formData = new FormData();
           formData.append("audio", blob, "dictado.webm");
-          const response = await fetch("/api/capataz/transcribe", { method: "POST", body: formData });
+          transcriptionAbortRef.current?.abort();
+          const controller = new AbortController();
+          transcriptionAbortRef.current = controller;
+          const response = await fetch("/api/capataz/transcribe", { method: "POST", body: formData, signal: controller.signal });
           const payload = await response.json().catch(() => null) as { text?: string; error?: string } | null;
           if (!response.ok || !payload?.text) throw new Error(payload?.error || "No se pudo transcribir el audio.");
+          if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
           const transcribedText = payload.text.trim();
           setInput((current) => current ? `${current} ${transcribedText}` : transcribedText);
           setVoiceStatus("idle");
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          audioChunksRef.current = [];
           setVoiceStatus("error");
           setVoiceError(error instanceof Error ? error.message : "No se pudo transcribir el audio.");
         }
       };
       recorder.start();
       setVoiceStatus("recording");
-    } catch {
+    } catch (error) {
+      stopAndClearVoiceCapture();
       setVoiceStatus("error");
-      setVoiceError("No tengo permiso para usar el micrófono. Activa el permiso del navegador y vuelve a intentarlo.");
+      setVoiceError(isVoicePermissionError(error)
+        ? "No tengo permiso para usar el micrófono. Puedes seguir escribiendo o reintentar después de activar el permiso del navegador."
+        : "No se pudo iniciar el dictado. Puedes seguir escribiendo y reintentar.");
     }
+  }
+
+  function stopAndClearVoiceCapture(updateState = true) {
+    transcriptionAbortRef.current?.abort();
+    transcriptionAbortRef.current = null;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder?.state === "recording") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      try { recorder.stop(); } catch { /* El navegador ya cerró la captura. */ }
+    }
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = null;
+    audioChunksRef.current = [];
+    if (updateState) setVoiceStatus("idle");
+  }
+
+  if (renderedCompanyId !== companyId) {
+    return <div className="min-h-[calc(100dvh-150px)]" aria-busy="true" aria-label="Cargando conversaciones de la empresa activa" />;
   }
 
   return (
@@ -692,7 +775,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
           {chatState === "failed" ? (
             <div className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
               No he podido cargar el historial. Puedes seguir usando el chat y reintentar la carga.
-              <button type="button" className="secondary-button ml-2 px-3 py-1 text-xs" onClick={bootConversation}>Reintentar</button>
+              <button type="button" className="secondary-button ml-2 px-3 py-1 text-xs" onClick={() => void bootConversation()}>Reintentar</button>
             </div>
           ) : null}
           {messages.map((message) => (
@@ -710,7 +793,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
                 <MessageText text={message.text} />
                 {pdfPreviewPathFromText(message.text) ? <PdfInlinePreview path={pdfPreviewPathFromText(message.text)!} /> : null}
                 {message.result ? <ActionResultCard result={message.result} /> : null}
-                {message.card ? <ActionCardView card={message.card} data={data} /> : null}
+                {message.card ? <ActionCardView card={message.card} data={data} conversationId={conversationId} /> : null}
                 {message.retryText ? (
                   <button type="button" className="secondary-button mt-2 text-xs" onClick={() => submit(undefined, message.retryText)} disabled={isSending}>
                     Reintentar
@@ -742,10 +825,13 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
         <form onSubmit={submit} className="border-t border-slate-200 p-3">
           {voiceStatus !== "idle" || voiceError ? (
-            <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-semibold ${voiceStatus === "error" ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+            <div role={voiceStatus === "error" ? "alert" : "status"} aria-live="polite" className={`mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${voiceStatus === "error" ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+              <span>
               {voiceStatus === "recording" ? "Grabando audio... pulsa el micrófono para parar." : null}
               {voiceStatus === "transcribing" ? "Transcribiendo audio..." : null}
               {voiceStatus === "error" ? voiceError : null}
+              </span>
+              {voiceStatus === "error" ? <button type="button" className="secondary-button min-h-11" onClick={() => { setVoiceError(""); setVoiceStatus("idle"); void toggleDictation(); }}>Reintentar</button> : null}
             </div>
           ) : null}
           <div className="flex gap-2">
@@ -1402,21 +1488,146 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
   return { text: "Necesito un poco más de contexto. Dime, por ejemplo: “crear presupuesto para un cliente por 14000”, “haz factura de una cocina por 4200” o “genera el PDF del último documento”." };
 }
 
-function ActionCardView({ card, data }: { card: ActionCard; data: ChatData }) {
-  if (card.type === "expense") return <ExpenseCard card={card} data={data} />;
-  if (card.type === "payment") return <PaymentCard card={card} data={data} />;
-  if (card.type === "follow-up") return <FollowUpCard card={card} data={data} />;
-  if (card.type === "client") return <ClientCard card={card} data={data} />;
-  if (card.type === "visit") return <VisitCard card={card} data={data} />;
-  if (card.type === "budget") return <BudgetCard card={card} data={data} />;
-  if (card.type === "invoice") return <InvoiceCard card={card} data={data} />;
-  if (card.type === "accept-budget") return <AcceptBudgetCard card={card} data={data} />;
-  if (card.type === "close-work") return <CloseWorkCard card={card} data={data} />;
-  if (card.type === "agenda-event") return <AgendaEventCard card={card} data={data} />;
-  if (card.type === "agenda-reprogram") return <AgendaReprogramCard card={card} />;
-  if (card.type === "user-profile") return <UserProfileCard card={card} />;
-  if (card.type === "company-settings") return <CompanySettingsCard card={card} />;
-  return <AgendaStatusCard card={card} />;
+function ActionCardView({ card, data, conversationId }: { card: ActionCard; data: ChatData; conversationId: string }) {
+  let content: React.ReactNode;
+  if (card.type === "expense") content = <ExpenseCard card={card} data={data} />;
+  else if (card.type === "payment") content = <PaymentCard card={card} data={data} />;
+  else if (card.type === "follow-up") content = <FollowUpCard card={card} data={data} />;
+  else if (card.type === "client") content = <ClientCard card={card} data={data} />;
+  else if (card.type === "visit") content = <VisitCard card={card} data={data} />;
+  else if (card.type === "budget") content = <BudgetCard card={card} data={data} />;
+  else if (card.type === "invoice") content = <InvoiceCard card={card} data={data} />;
+  else if (card.type === "accept-budget") content = <AcceptBudgetCard card={card} data={data} />;
+  else if (card.type === "close-work") content = <CloseWorkCard card={card} data={data} />;
+  else if (card.type === "agenda-event") content = <AgendaEventCard card={card} data={data} />;
+  else if (card.type === "agenda-reprogram") content = <AgendaReprogramCard card={card} />;
+  else if (card.type === "user-profile") content = <UserProfileCard card={card} />;
+  else if (card.type === "company-settings") content = <CompanySettingsCard card={card} />;
+  else content = <AgendaStatusCard card={card} />;
+  const proposalType = proposalTypeForCard(card);
+  const operation = proposalOperationForCard(card);
+  return proposalType && operation ? <ProposalLifecycle card={card} proposalType={proposalType} operation={operation} conversationId={conversationId}>{content}</ProposalLifecycle> : content;
+}
+
+function proposalTypeForCard(card: ActionCard): "client" | "work" | "budget" | "invoice" | "task" | "document" | null {
+  if (card.type === "client") return "client";
+  if (card.type === "budget") return "budget";
+  if (card.type === "invoice" || card.type === "payment") return "invoice";
+  if (card.type === "accept-budget" || card.type === "close-work") return "work";
+  if (["follow-up", "visit", "agenda-event", "agenda-reprogram", "agenda-status"].includes(card.type)) return "task";
+  if (card.type === "expense") return "document";
+  return null;
+}
+
+function proposalOperationForCard(card: ActionCard): PendingProposalOperation | null {
+  if (["expense", "follow-up", "client", "visit", "budget", "invoice", "agenda-event"].includes(card.type)) return "manual";
+  if (card.type === "payment") return "payment";
+  if (card.type === "accept-budget") return "accept-budget";
+  if (card.type === "close-work") return "work-status";
+  if (card.type === "agenda-reprogram") return "agenda-reprogram";
+  if (card.type === "agenda-status") return "agenda-status";
+  return null;
+}
+
+function canApplyCompanyResult(expectedCompanyId: string, activeCompanyId: string, expectedGeneration: number, activeGeneration: number) {
+  return expectedCompanyId === activeCompanyId && expectedGeneration === activeGeneration;
+}
+
+function isVoicePermissionError(error: unknown) {
+  if (!(error instanceof Error) && !(typeof DOMException !== "undefined" && error instanceof DOMException)) return false;
+  return ["NotAllowedError", "PermissionDeniedError", "SecurityError"].includes(error.name);
+}
+
+type ProposalReceipt = { id: string; expiresAt: string };
+
+function ProposalLifecycle({ card, proposalType, operation, conversationId, children }: { card: ActionCard; proposalType: string; operation: PendingProposalOperation; conversationId: string; children: React.ReactNode }) {
+  const router = useRouter();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [receipt, setReceipt] = useState<ProposalReceipt | null>(null);
+  const [status, setStatus] = useState<"preparing" | "ready" | "cancelling" | "cancelled" | "confirmed" | "expired" | "error">("preparing");
+  const [error, setError] = useState("");
+  const [preparationRevision, setPreparationRevision] = useState(0);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.querySelectorAll<HTMLButtonElement>("form button:not([type=button])").forEach((button) => { button.hidden = true; });
+  }, [children]);
+
+  useEffect(() => {
+    let active = true;
+    void preparePendingProposal(conversationId, { type: proposalType, payload: card as unknown as Record<string, unknown>, review: card as unknown as Record<string, unknown> })
+      .then((prepared) => {
+        if (!active) return;
+        setReceipt({ id: prepared.id, expiresAt: prepared.expiresAt });
+        setStatus(new Date(prepared.expiresAt).getTime() <= Date.now() ? "expired" : "ready");
+      })
+      .catch(() => { if (active) { setStatus("error"); setError("No se pudo preparar la propuesta. No se ha ejecutado ninguna acción."); } });
+    return () => { active = false; };
+  }, [card, proposalType, conversationId, preparationRevision]);
+
+  useEffect(() => {
+    if (!receipt || status !== "ready") return;
+    const remaining = new Date(receipt.expiresAt).getTime() - Date.now();
+    if (remaining <= 0) { setStatus("expired"); return; }
+    const timer = window.setTimeout(() => setStatus("expired"), Math.min(remaining, 2_147_483_647));
+    return () => window.clearTimeout(timer);
+  }, [receipt, status]);
+
+  async function cancelProposal() {
+    if (!receipt || status === "cancelled" || status === "cancelling") return;
+    setStatus("cancelling");
+    setError("");
+    try {
+      await cancelPendingProposal(conversationId, receipt.id);
+      setStatus("cancelled");
+    } catch {
+      setStatus("error");
+      setError("No se pudo cancelar ahora. La propuesta no se ha ejecutado; puedes reintentar.");
+    }
+  }
+
+  async function confirmProposal() {
+    if (status !== "ready" || !receipt) return;
+    const form = containerRef.current?.querySelector<HTMLFormElement>("form");
+    if (!form) return;
+    setStatus("preparing");
+    setError("");
+    try {
+      await executePendingProposal(conversationId, receipt.id, operation, new FormData(form));
+      setStatus("confirmed");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("caducado")) setStatus("expired");
+      else { setStatus("error"); setError("No se pudo confirmar. La propuesta no se ha ejecutado; puedes reintentar."); }
+    }
+  }
+
+  function editProposal() {
+    if (status !== "ready") return;
+    containerRef.current?.querySelector<HTMLElement>("input:not([type=hidden]), select, textarea")?.focus();
+  }
+
+  if (status === "cancelled") return <div role="status" className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 font-semibold text-obra-ink">Propuesta cancelada</div>;
+  if (status === "confirmed") return <div role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 font-semibold text-emerald-800">Propuesta confirmada</div>;
+  if (status === "expired") return (
+    <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-obra-ink">
+      <p role="status" className="font-bold">Esta propuesta ha caducado</p>
+      <button type="button" className="secondary-button mt-3 min-h-11" onClick={() => { setReceipt(null); setStatus("preparing"); setError(""); setPreparationRevision((value) => value + 1); }}>Preparar de nuevo</button>
+    </div>
+  );
+
+  return (
+    <div ref={containerRef} className="proposal-lifecycle" onSubmitCapture={(event) => event.preventDefault()}>
+      {children}
+      {error ? <p role="alert" className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Acciones de la propuesta">
+        <button type="button" className="primary-button min-h-11" disabled={status !== "ready"} aria-busy={status === "preparing"} onClick={confirmProposal}>Confirmar</button>
+        <button type="button" className="secondary-button min-h-11" disabled={status !== "ready"} onClick={editProposal}>Editar</button>
+        <button type="button" className="secondary-button min-h-11" disabled={!receipt || status === "preparing" || status === "cancelling"} aria-busy={status === "cancelling"} onClick={cancelProposal}>{status === "cancelling" ? "Cancelando…" : "Cancelar"}</button>
+      </div>
+    </div>
+  );
 }
 
 function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-profile" }> }) {
