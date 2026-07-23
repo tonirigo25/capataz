@@ -1594,7 +1594,8 @@ function ProposalLifecycle({ card, proposalType, operation, conversationId, chil
     setStatus("preparing");
     setError("");
     try {
-      await executePendingProposal(conversationId, receipt.id, operation, new FormData(form));
+      const result = await executePendingProposal(conversationId, receipt.id, operation, new FormData(form));
+      if (result.status === "expired") { setStatus("expired"); return; }
       setStatus("confirmed");
       router.refresh();
     } catch (error) {

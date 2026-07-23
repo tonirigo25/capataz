@@ -34,6 +34,8 @@ assert.match(actions, /looksLikeExplicitWorkflowMutation[\s\S]{0,600}handled:\s*
 assert.doesNotMatch(actions, /handleChatWorkflowContract/, "The legacy workflow mutation executor must not be reachable from Orqena");
 assert.doesNotMatch(actions, /if \(wantsBudget[\s\S]{0,120}createBudgetDraftFromAI|if \(wantsInvoice[\s\S]{0,120}createInvoiceDraftFromAI|if \(wantsActivity[\s\S]{0,160}registerActivityFromAI/, "AI mutations must emit proposals instead of executing directly");
 assert.match(actions, /proposalTargetsMatch/, "Gateway must bind immutable target IDs to the reviewed proposal");
+assert.match(actions, /error\.message === "Esta propuesta ha caducado"[\s\S]{0,180}status: "expired"/, "Expiry must cross the production server-action boundary as structured state");
+assert.match(component, /result\.status === "expired"[\s\S]{0,100}setStatus\("expired"\)/, "The UI must render the structured expiry state");
 assert.match(actions, /cancelPendingProposal[\s\S]{0,2500}requireCompanyContext\s*\(/, "Cancellation must derive company and actor from the server session");
 assert.match(actions, /cancelPendingProposal[\s\S]{0,3500}alreadyCancelled/, "Cancellation must return an idempotent receipt");
 assert.match(actions, /cancelPendingProposal[\s\S]{0,3500}(?:companyId|assertConfirmationOwner)/, "Cancellation must validate tenant ownership");

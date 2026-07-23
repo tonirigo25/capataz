@@ -4831,12 +4831,18 @@ export async function cancelPendingProposal(conversationId: string, confirmation
 
 export type PendingProposalOperation = "manual" | "payment" | "accept-budget" | "work-status" | "agenda-reprogram" | "agenda-status";
 
-export async function executePendingProposal(conversationId: string, confirmationId: string, operation: PendingProposalOperation, formData: FormData): Promise<{ status: "confirmed"; confirmationId: string; alreadyConfirmed: boolean }> {
+export async function executePendingProposal(conversationId: string, confirmationId: string, operation: PendingProposalOperation, formData: FormData): Promise<{ status: "confirmed"; confirmationId: string; alreadyConfirmed: boolean } | { status: "expired"; confirmationId: string; alreadyConfirmed: false }> {
   const authorization = await requireCapability("orqena.execute");
   if (authorization.scope !== "COMPANY") throw new Error("Conversación no disponible.");
   const tenant = { userId: authorization.userId, companyId: authorization.companyId, membershipId: authorization.membershipId };
   return withCompanyContext(authorization, async () => {
-  const execution = await beginPendingProposalExecutionForCompany(tenant, conversationId, confirmationId);
+  let execution;
+  try {
+    execution = await beginPendingProposalExecutionForCompany(tenant, conversationId, confirmationId);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Esta propuesta ha caducado") return { status: "expired", confirmationId, alreadyConfirmed: false };
+    throw error;
+  }
   if (execution.alreadyConfirmed) return { status: "confirmed", confirmationId, alreadyConfirmed: true };
   const entityType = execution.confirmation?.entityType;
   const manualType = String(formData.get("tipo") ?? "");
