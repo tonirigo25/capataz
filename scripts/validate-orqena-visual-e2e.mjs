@@ -51,6 +51,9 @@ async function login(page, email) {
   await page.getByLabel("Correo").fill(email);
   await page.getByLabel("Contraseña").fill(password);
   await Promise.all([page.waitForURL((url) => !url.pathname.endsWith("/login"), { timeout: 60_000 }), page.getByRole("button", { name: "Entrar", exact: true }).click()]);
+  await page.waitForLoadState("domcontentloaded");
+  await waitForLoaded(page);
+  await page.waitForTimeout(250);
 }
 async function waitForLoaded(page) {
   await page.waitForTimeout(450);

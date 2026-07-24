@@ -46,6 +46,7 @@ check("Crear no incluye Capataz", !navigation.slice(navigation.indexOf("export c
 check("bottom sheet usa filas, scroll interno y safe area", chrome.includes("shell-menu-row") && chrome.includes("max-h-[85dvh]") && chrome.includes("env(safe-area-inset-bottom)"));
 check("destinos móviles tienen aria-current y targets de 44 px", chrome.includes('aria-current={active ? "page"') && styles.includes(".shell-bottom-item") && styles.includes("min-h-16"));
 check("shell conserva salto y landmarks accesibles", chrome.includes("Saltar al contenido") && chrome.includes('aria-label="Navegación principal"') && chrome.includes('aria-label="Navegación móvil"'));
+check("shell conserva un único main durante la hidratación", chrome.includes('<main id="main-content"') && primitives.includes('return <div className={clsx("product-page"') && !primitives.includes('return <main className={clsx("product-page"'));
 check("patrón reusable de retorno a entidad disponible", primitives.includes("function ParentNavigation") && primitives.includes('aria-label="Contexto de la entidad"'));
 check("contenido reserva espacio móvil y evita overflow global", styles.includes("padding-bottom: calc(6.5rem + env(safe-area-inset-bottom))") && styles.includes("overflow-x: hidden"));
 check("reduced motion permanece respetado", styles.includes("prefers-reduced-motion: reduce"));

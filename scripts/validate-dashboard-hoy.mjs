@@ -3,6 +3,7 @@ import vm from "node:vm";
 import ts from "typescript";
 
 const source = fs.readFileSync("lib/dashboard-hoy.ts", "utf8");
+const todayPage = fs.readFileSync("app/(app)/hoy/page.tsx", "utf8");
 const compiled = ts.transpileModule(source, {
   compilerOptions: {
     module: ts.ModuleKind.CommonJS,
@@ -232,6 +233,13 @@ const cases = [
       }, now);
       return empty.dailySummary.includes("no tienes tareas urgentes") && empty.priorities.length === 0;
     })()
+  },
+  {
+    name: "widgets del portal usan etiquetas de producto en español",
+    ok: todayPage.includes('"assigned-work": "Trabajos asignados"') &&
+      todayPage.includes('tasks: "Tareas"') &&
+      todayPage.includes('"daily-plan": "Plan del día"') &&
+      !todayPage.includes('return value.replaceAll("-"')
   }
 ];
 

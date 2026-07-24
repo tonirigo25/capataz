@@ -37,7 +37,7 @@ export function ProductPage({
   layout?: ProductPageLayout;
   className?: string;
 }) {
-  return <main className={clsx("product-page", className)} data-layout={layout}>{children}</main>;
+  return <div className={clsx("product-page", className)} data-layout={layout}>{children}</div>;
 }
 
 export function PageHeader({

@@ -68,7 +68,50 @@ function destinationForWidget(widget: string, destinations: Array<{ href: string
   return (candidates[widget] ?? []).map((href) => destinations.find((item) => item.href === href)).find(Boolean);
 }
 
-function homeWidgetLabel(value: string) { return value.replaceAll("-", " ").replace(/^./, (letter) => letter.toUpperCase()); }
+const homeWidgetLabels: Record<string, string> = {
+  "assigned-reports": "Informes asignados",
+  "assigned-work": "Trabajos asignados",
+  agenda: "Agenda",
+  approvals: "Aprobaciones",
+  assignments: "Asignaciones",
+  blockers: "Bloqueos",
+  business: "Negocio",
+  clients: "Clientes",
+  collections: "Cobros",
+  decisions: "Decisiones",
+  deliveries: "Entregas",
+  documents: "Documentos",
+  economy: "Economía",
+  followups: "Seguimientos",
+  incidents: "Incidencias",
+  invoices: "Facturas",
+  materials: "Materiales",
+  operation: "Operación",
+  operations: "Operaciones",
+  orders: "Pedidos",
+  payments: "Pagos",
+  period: "Periodo",
+  pipeline: "Oportunidades",
+  "pending-data": "Datos pendientes",
+  progress: "Avance",
+  quotes: "Presupuestos",
+  requests: "Solicitudes",
+  risks: "Riesgos",
+  "sales-team": "Equipo comercial",
+  "supplier-invoices": "Facturas de proveedores",
+  suppliers: "Proveedores",
+  tasks: "Tareas",
+  team: "Equipo",
+  treasury: "Tesorería",
+  workload: "Carga de trabajo",
+  work: "Trabajos",
+  "daily-plan": "Plan del día",
+  "due-dates": "Vencimientos"
+};
+
+function homeWidgetLabel(value: string) {
+  return homeWidgetLabels[value] ?? value.replaceAll("-", " ").replace(/^./, (letter) => letter.toLocaleUpperCase("es-ES"));
+}
 function homeWidgetDescription(value: string, profile: string) { return `${homeWidgetLabel(value)} preparada para ${profile === "WORKER" ? "tu jornada y trabajos asignados" : "las responsabilidades de tu perfil"}.`; }
 function timeLabel(date: Date) { return date.getHours() === 0 && date.getMinutes() === 0 ? "Sin hora" : new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(date); }
 function startOfDay(date: Date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
