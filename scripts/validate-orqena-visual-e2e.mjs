@@ -60,6 +60,23 @@ async function waitForLoaded(page) {
     return skeletons.length === 0 && !/Cargando(?:…|\.\.\.)/i.test(text);
   }, undefined, { timeout: 15_000 }).catch(() => { throw new Error(`SKELETON_OR_LOADING_STATE:${page.url()}`); });
 }
+async function stabilizeVisuals(page) {
+  await page.evaluate(async () => {
+    const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+    const step = Math.max(Math.floor(window.innerHeight * 0.75), 320);
+    for (let offset = 0; offset < document.documentElement.scrollHeight; offset += step) {
+      window.scrollTo(0, offset);
+      await pause(80);
+    }
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    await pause(120);
+    window.scrollTo(0, 0);
+  });
+  await page.waitForFunction(() => Array.from(document.images).every((image) => {
+    const rendered = image.getClientRects().length > 0;
+    return !rendered || (image.complete && image.naturalWidth > 0);
+  }), undefined, { timeout: 15_000 }).catch(() => { throw new Error(`IMAGE_LOADING_STATE:${page.url()}`); });
+}
 async function assertUsable(page, route, viewport) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   if (overflow) throw new Error(`OVERFLOW:${route}:${viewport}`);
@@ -78,6 +95,7 @@ try {
     if (profile) await login(page, profileEmails[profile]);
     const response = await goto(page, route);
     await waitForLoaded(page);
+    await stabilizeVisuals(page);
     await assertUsable(page, route, viewportName);
     const restricted = await page.getByText(/No tienes acceso|Tu portal no incluye|Tu acceso está pendiente/i).count();
     if (name === "advisor-restricted") {
@@ -93,10 +111,10 @@ try {
 
   const previewContext = await browser.newContext({ viewport: { width: 1024, height: 900 } });
   const preview = await previewContext.newPage(); const previewErrors = []; captureErrors(preview, previewErrors);
-  await login(preview, profileEmails.owner); await goto(preview, "/equipo"); await waitForLoaded(preview);
+  await login(preview, profileEmails.owner); await goto(preview, "/equipo"); await waitForLoaded(preview); await stabilizeVisuals(preview);
   const previewHref = await preview.getByRole("link", { name: "Previsualizar portal" }).first().getAttribute("href");
   if (!previewHref) throw new Error("PORTAL_PREVIEW_LINK_MISSING");
-  const previewResponse = await goto(preview, previewHref); await waitForLoaded(preview); await assertUsable(preview, previewHref, "desktop");
+  const previewResponse = await goto(preview, previewHref); await waitForLoaded(preview); await stabilizeVisuals(preview); await assertUsable(preview, previewHref, "desktop");
   const previewFile = join(screenshotsDir, `${String(records.length + 1).padStart(2, "0")}-owner-portal-preview-1024x900.png`);
   await preview.screenshot({ path: previewFile, fullPage: true, caret: "initial" });
   if (statSync(previewFile).size < 3_000 || previewErrors.length) throw new Error(JSON.stringify({ portalPreview: previewHref, previewErrors }));

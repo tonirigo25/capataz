@@ -14,7 +14,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const [capabilities, portalManifest, platformAccount] = await Promise.all([getEffectiveCapabilities(context), buildPortalManifest(context), prisma.platformAccount.findFirst({ where: { userId: context.userId, status: "ACTIVE" }, select: { id: true } })]);
   const unreadCount = await getUnreadNotificationCount(context, portalManifest.notificationDomains);
   const platformAccess = Boolean(platformAccount);
-  const modeLabel = mode === "production" || !platformAccess ? undefined : appModeLabel(mode);
+  const modeLabel = mode === "demo" && platformAccess ? appModeLabel(mode) : undefined;
 
   return <AppChrome portalManifest={portalManifest} capabilities={capabilities} modeLabel={modeLabel} unreadNotifications={unreadCount} companyName={context.companyName} userName={context.displayName} platformAccess={platformAccess} logoutAction={logoutAction}>{children}</AppChrome>;
 }

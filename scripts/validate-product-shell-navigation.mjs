@@ -31,7 +31,7 @@ check("Más usa tres grupos aprobados", ['label: "Compras"', 'label: "Control"',
 check("Más excluye rutas ocultas históricas", ["/tareas", "/seguimientos", "/automatizaciones", "/alertas", "/recomendaciones", "/inteligencia"].every((route) => !navigation.includes(`href: "${route}"`)));
 check("rutas centrales no están bloqueadas por middleware", !middleware.includes("modulo-no-disponible") && middleware.includes("isProtectedPage"));
 check("contexto de ruta central cubre áreas, detalles, formularios, documentos y desconocidas", ["areaContexts", "detailContexts", 'kind: "form"', 'kind: "document"', 'kind: "unknown"'].every((token) => navigation.includes(token)));
-check("shell no muestra entorno a usuarios empresariales", shell.includes('mode === "production" || !platformAccess'));
+check("shell no expone el modo test y limita el aviso al demo de plataforma", shell.includes('mode === "demo" && platformAccess') && !shell.includes('mode === "production" || !platformAccess'));
 check("panel Más cierra por Escape, exterior, destino y botón", chrome.includes('event.key === "Escape"') && chrome.includes('document.addEventListener("pointerdown"') && chrome.includes("onNavigate={onClose}") && chrome.includes('aria-label="Cerrar Más"'));
 check("paneles restauran foco y hojas bloquean scroll", chrome.includes("activeTriggerRef.current?.focus()") && chrome.includes('document.body.style.overflow = "hidden"'));
 check("diálogos contienen el foco por teclado", chrome.includes('event.key !== "Tab"') && chrome.includes("getFocusable") && chrome.includes('role="dialog"'));
