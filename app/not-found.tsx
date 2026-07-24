@@ -16,10 +16,11 @@ export default function NotFound() {
         <div className="max-w-2xl">
           <p className="marketing-eyebrow">Error 404</p>
           <Search className="mt-7 text-[#167366]" size={34} aria-hidden="true" />
-          <h1 className="marketing-display mt-5">Esta página no está donde esperábamos.</h1>
+          <h1 className="marketing-display mt-5">No encontramos esta página.</h1>
           <p className="marketing-lede mt-6">El enlace puede haber cambiado o el contenido ya no estar disponible. Puedes volver al inicio o entrar en tu espacio de trabajo.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/" className="marketing-button">Volver al inicio <ArrowRight size={18} /></Link>
+            <Link href="/hoy" className="marketing-outline-button">Volver a Hoy</Link>
             <Link href="/login" className="marketing-outline-button">Entrar en Orqena</Link>
           </div>
         </div>

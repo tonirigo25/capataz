@@ -1,15 +1,15 @@
-const CACHE_PREFIX = "capataz-public-";
+const CACHE_PREFIX = "orqena-public-";
 const CACHE_NAME = `${CACHE_PREFIX}v2`;
-const LEGACY_CACHE_NAMES = new Set(["capataz-v1"]);
+const LEGACY_CACHE_NAMES = new Set(["capataz-v1", "capataz-public-v2"]);
 const OFFLINE_URL = "/offline.html";
-const INSTALL_RESOURCES = [OFFLINE_URL, "/icons/capataz.svg"];
+const INSTALL_RESOURCES = [OFFLINE_URL, "/brand/mark.svg"];
 
 function isSafeStaticRequest(request) {
   if (request.method !== "GET") return false;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.startsWith("/_next/static/")) return true;
-  if (url.pathname.startsWith("/icons/")) return true;
+  if (url.pathname.startsWith("/brand/")) return true;
   return ["style", "script", "font"].includes(request.destination);
 }
 
