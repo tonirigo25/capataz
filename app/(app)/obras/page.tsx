@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
+import { ListWorkspace } from "@/components/workspaces";
 import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, Toolbar } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -167,7 +168,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader
         eyebrow="Centro operativo"
         title="Trabajos"
@@ -233,7 +234,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           {visibleWorks.map((item) => <WorkCard key={item.work.id} item={item} />)}
         </div>
       )}
-    </main>
+    </ListWorkspace>
   );
 }
 

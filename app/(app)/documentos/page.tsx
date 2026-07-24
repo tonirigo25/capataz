@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Archive, ClipboardSignature, Download, Eye, FileArchive, FileText, FolderOpen, Plus, Receipt, ScrollText } from "lucide-react";
 import { SectionHeader } from "@/components/section-header";
+import { ListWorkspace } from "@/components/workspaces";
 import { StatusPill } from "@/components/status-pill";
 import { documentCategories, documentTemplateAssets } from "@/lib/document-templates";
 import { documentDetail, repositoryDocumentDisplay } from "@/lib/documents";
@@ -39,7 +40,7 @@ export default async function DocumentsPage() {
   const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
   if (!economicAllowed) {
     const operationalDocuments = await prisma.document.findMany({ where: { companyId, ...documentScope, archivedAt: null, classification: { in: manifest.documentClasses } }, select: { id: true, name: true, category: true, createdAt: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } }, orderBy: { createdAt: "desc" }, take: 50 });
-    return <main className="screen"><SectionHeader title="Documentos" description="Documentación operativa autorizada." action={canUpload ? <Link href="/gestion?tipo=documento&returnTo=/documentos" className="primary-button"><Plus size={18} />Documento</Link> : undefined} /><div className="grid gap-3 md:grid-cols-2">{operationalDocuments.map((document) => <article key={document.id} className="card p-4"><h2 className="font-black text-obra-ink">{document.name}</h2><p className="mt-1 text-sm text-slate-600">{document.work?.titulo ?? document.client?.nombre ?? "Documento interno"}</p><p className="mt-2 text-xs text-slate-500">{formatDate(document.createdAt)}</p></article>)}</div></main>;
+    return <ListWorkspace><SectionHeader title="Documentos" description="Documentación operativa autorizada." action={canUpload ? <Link href="/gestion?tipo=documento&returnTo=/documentos" className="primary-button"><Plus size={18} />Documento</Link> : undefined} /><div className="grid gap-3 md:grid-cols-2">{operationalDocuments.map((document) => <article key={document.id} className="card p-4"><h2 className="font-black text-obra-ink">{document.name}</h2><p className="mt-1 text-sm text-slate-600">{document.work?.titulo ?? document.client?.nombre ?? "Documento interno"}</p><p className="mt-2 text-xs text-slate-500">{formatDate(document.createdAt)}</p></article>)}</div></ListWorkspace>;
   }
   const [budgets, invoices, repositoryDocuments] = await Promise.all([
     canViewBudgets ? prisma.budget.findMany({
@@ -64,7 +65,7 @@ export default async function DocumentsPage() {
   const documents = repositoryDocuments.map(repositoryDocumentDisplay);
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <SectionHeader
         title="Documentos"
         description="Todos los documentos de tu negocio, ordenados y listos para revisar."
@@ -215,7 +216,7 @@ export default async function DocumentsPage() {
           </div>
         </section>
       </div>
-    </main>
+    </ListWorkspace>
   );
 }
 

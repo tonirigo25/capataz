@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BellPlus, CalendarClock, Clock, Pencil, Plus, Receipt, Search, WalletCards } from "lucide-react";
 import { prepareCollectionReminder } from "@/app/(app)/dinero/actions";
+import { ListWorkspace } from "@/components/workspaces";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { ActionMenu, CompactFilterBar, CompactSearch, EmptyState, MetricStrip, MobileList, Notice, PageHeader, ResponsiveTable, ResultCount, Tabs } from "@/components/ui-primitives";
@@ -59,7 +60,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
   const hasCriteria = filter !== "todas" || Boolean(query.buscar);
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader eyebrow="Facturación" title="Facturas y cobros" description="Controla vencimientos, pagos parciales y saldos pendientes con trazabilidad por cliente y obra." action={createDecision.allowed && createDecision.scope === "COMPANY" ? <Link href="/gestion?tipo=factura&returnTo=/dinero" className="primary-button"><Plus size={18} /> Nueva factura</Link> : undefined} />
 
       <MetricStrip className="mb-5">
@@ -92,7 +93,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         </ResponsiveTable>
         <MobileList className="mt-4">{visibleInvoices.map((invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />)}</MobileList>
       </> : <div className="mt-4"><EmptyState title={invoices.length ? "No hay facturas para estos filtros" : "Todavía no hay facturas"} description={invoices.length ? "Prueba otra búsqueda o limpia los filtros activos." : "No hay facturas disponibles en tu alcance."} icon={Search} action={invoices.length ? <Link href="/dinero?filtro=todas" className="secondary-button">Limpiar filtros</Link> : createDecision.allowed && createDecision.scope === "COMPANY" ? <Link href="/gestion?tipo=factura&returnTo=/dinero" className="primary-button">Crear factura</Link> : undefined} /></div>}
-    </main>
+    </ListWorkspace>
   );
 }
 

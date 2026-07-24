@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AgendaEventControls } from "@/components/agenda-event-controls";
+import { ListWorkspace } from "@/components/workspaces";
 import { StatusPill } from "@/components/status-pill";
 import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, Tabs } from "@/components/ui-primitives";
 import {
@@ -58,7 +59,7 @@ export default async function AgendaPage({
   if (!canManage) return <ReadOnlyAgenda items={items} />;
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader
         eyebrow="Planificación"
         title="Agenda"
@@ -107,7 +108,7 @@ export default async function AgendaPage({
       {view === "semana" ? <WeekView items={weekItems} weekStart={weekStart} /> : null}
       {view === "mes" ? <MonthView items={items} selectedDay={selectedDay} /> : null}
       {view === "lista" ? <ListView items={items} selectedType={query.tipo ?? "todos"} /> : null}
-    </main>
+    </ListWorkspace>
   );
 }
 
@@ -148,7 +149,7 @@ function TodayView({ items }: { items: AgendaItem[] }) {
 }
 
 function ReadOnlyAgenda({ items }: { items: AgendaItem[] }) {
-  return <main className="screen"><PageHeader eyebrow="Planificación" title="Agenda" description="Agenda autorizada en modo de solo lectura."/><div className="grid gap-3">{items.map((item) => <article key={`${item.source}-${item.id}`} className="card p-4"><p className="text-xs font-bold uppercase text-slate-500">{statusLabel(item.tipo)} · {formatDate(item.fechaInicio)}</p><h2 className="mt-1 font-black text-obra-ink">{item.titulo}</h2>{item.descripcion ? <p className="mt-2 text-sm text-slate-600">{item.descripcion}</p> : null}<StatusPill status={item.estado}/></article>)}{!items.length ? <EmptyState title="No hay eventos disponibles" description="No hay elementos dentro de tu alcance." icon={CalendarClock}/> : null}</div></main>;
+  return <ListWorkspace><PageHeader eyebrow="Planificación" title="Agenda" description="Agenda autorizada en modo de solo lectura."/><div className="grid gap-3">{items.map((item) => <article key={`${item.source}-${item.id}`} className="card p-4"><p className="text-xs font-bold uppercase text-slate-500">{statusLabel(item.tipo)} · {formatDate(item.fechaInicio)}</p><h2 className="mt-1 font-black text-obra-ink">{item.titulo}</h2>{item.descripcion ? <p className="mt-2 text-sm text-slate-600">{item.descripcion}</p> : null}<StatusPill status={item.estado}/></article>)}{!items.length ? <EmptyState title="No hay eventos disponibles" description="No hay elementos dentro de tu alcance." icon={CalendarClock}/> : null}</div></ListWorkspace>;
 }
 
 function agendaHref(view: string, day: Date, query: { tipo?: string; buscar?: string }) {

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RecordWorkspace } from "@/components/workspaces";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
@@ -153,7 +154,7 @@ export default async function ClientDetailPage({
   const returnTo = `/clientes/${client.id}`;
 
   return (
-    <main className="screen">
+    <RecordWorkspace>
       <EntityHeader
         back={
           <ParentNavigation
@@ -283,7 +284,7 @@ export default async function ClientDetailPage({
         ) : null}
         {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
       </div>
-    </main>
+    </RecordWorkspace>
   );
 }
 
@@ -485,7 +486,7 @@ async function ScopedClientDetail({
     );
   const returnTo = `/clientes/${client.id}`;
   return (
-    <main className="screen">
+    <RecordWorkspace>
       <EntityHeader
         back={<ParentNavigation href="/clientes" label="Clientes" />}
         context={client.origen}
@@ -647,7 +648,7 @@ async function ScopedClientDetail({
           </ScopedList>
         ) : null}
       </section>
-    </main>
+    </RecordWorkspace>
   );
 }
 

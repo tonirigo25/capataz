@@ -26,6 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
+import { RecordWorkspace } from "@/components/workspaces";
 import { EmptyState, EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
@@ -138,7 +139,7 @@ export default async function WorkDetailPage({
   const openInvoices = work.invoices.filter((invoice) => Math.max(0, invoice.total - invoicePaid(invoice)) > 0);
 
   return (
-    <main className="screen">
+    <RecordWorkspace>
       <EntityHeader
         back={<ParentNavigation href="/obras" label="Obras" context={work.client.nombre} />}
         context={work.codigo ?? work.numeroInterno ?? "Espacio de trabajo"}
@@ -236,18 +237,18 @@ export default async function WorkDetailPage({
       ) : null}
       {activeTab === "archivos" ? <DocumentsTab documents={documents} workId={work.id} clientId={work.clienteId} /> : null}
       {activeTab === "equipo" ? <div className="grid gap-4"><ContactsTab work={work} /><PeopleTab work={work} /></div> : null}
-    </main>
+    </RecordWorkspace>
   );
 }
 
 function ProjectBudgetWorkDetail({ work, consumed }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; presupuestoAprobado: number; costePrevisto: number; client: { nombre: string } }; consumed: number }) {
   const available = work.presupuestoAprobado - consumed;
   const deviation = consumed - work.costePrevisto;
-  return <main className="screen"><ParentNavigation href="/obras" label="Obras" context={work.client.nombre} /><PageHeader eyebrow={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} badge={<StatusBadge status={work.estado} />} /><section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section></main>;
+  return <RecordWorkspace><ParentNavigation href="/obras" label="Obras" context={work.client.nombre} /><PageHeader eyebrow={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} badge={<StatusBadge status={work.estado} />} /><section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section></RecordWorkspace>;
 }
 
 function RestrictedWorkDetail({ work }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } } }) {
-  return <main className="screen"><EntityHeader back={<ParentNavigation href="/obras" label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar el trabajo, pero no presupuestos, facturas, cobros, gastos ni tesorería." /></main>;
+  return <RecordWorkspace><EntityHeader back={<ParentNavigation href="/obras" label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar el trabajo, pero no presupuestos, facturas, cobros, gastos ni tesorería." /></RecordWorkspace>;
 }
 
 function WorkActions({ workId, clientId }: { workId: string; clientId: string }) {

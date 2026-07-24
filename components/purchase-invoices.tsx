@@ -26,6 +26,7 @@ import {
   ResultCount,
   TableShell,
 } from "@/components/ui-primitives";
+import { ListWorkspace } from "@/components/workspaces";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
@@ -98,7 +99,7 @@ export async function PurchaseInvoiceDirectory({
       .map((invoice) => invoice.pendingAmount),
   );
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader
         eyebrow={subcontractor ? "Coste real de obra" : "Compras y pagos"}
         title={
@@ -342,7 +343,7 @@ export async function PurchaseInvoiceDirectory({
           }
         />
       )}
-    </main>
+    </ListWorkspace>
   );
 }
 
@@ -377,7 +378,7 @@ export async function PurchaseInvoiceProfile({
   const base = sub ? "/facturas-subcontratas" : "/facturas-proveedor";
   const partnerBase = sub ? "/subcontratas" : "/proveedores";
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader
         eyebrow={sub ? "Factura de subcontrata" : "Factura de proveedor"}
         title={invoice.invoiceNumber}
@@ -644,7 +645,7 @@ export async function PurchaseInvoiceProfile({
           ) : null}
         </aside>
       </div>
-    </main>
+    </ListWorkspace>
   );
 }
 
