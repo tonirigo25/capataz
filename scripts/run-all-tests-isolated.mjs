@@ -63,12 +63,19 @@ function summarizeHandle(handle) {
   return base;
 }
 
+function unexpectedActiveHandles() {
+  return process._getActiveHandles().filter((handle) => {
+    if (handle === process.stdin || handle === process.stdout || handle === process.stderr) return false;
+    return !("fd" in handle && [0, 1, 2].includes(handle.fd));
+  });
+}
+
 function activeSnapshot(reason, extra = {}) {
   const payload = {
     at: new Date().toISOString(),
     reason,
     ...extra,
-    handles: process._getActiveHandles().map(summarizeHandle),
+    handles: unexpectedActiveHandles().map(summarizeHandle),
     requests: process._getActiveRequests().map((request) => ({ type: request?.constructor?.name ?? typeof request, detail: inspect(request, { depth: 1, breakLength: 180 }) }))
   };
   appendFileSync(runnerReport, `${JSON.stringify(payload)}\n`);
@@ -78,6 +85,14 @@ function activeSnapshot(reason, extra = {}) {
     for (const request of payload.requests) process.stdout.write(`[isolated-tests:request] ${JSON.stringify(request)}\n`);
   }
   return payload;
+}
+
+async function waitForHandleCleanup(timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (unexpectedActiveHandles().length === 0 && process._getActiveRequests().length === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
 }
 
 function runCommand(command, args, commandEnv = env) {
@@ -259,7 +274,11 @@ try {
     stopError = error;
     appendFileSync(runnerReport, `${JSON.stringify({ at: new Date().toISOString(), reason: "pg-stop-error", message: error?.message })}\n`);
   });
-  activeSnapshot("runner-cleanup", { elapsedMs: Date.now() - startedAt, results: results.length, postgresStopped: !stopError });
+  await waitForHandleCleanup();
+  const cleanup = activeSnapshot("runner-cleanup", { elapsedMs: Date.now() - startedAt, results: results.length, postgresStopped: !stopError });
   if (diagnosticsEnabled) activeSnapshot("after-pg-stop", { elapsedMs: Date.now() - startedAt, results: results.length });
+  if (cleanup.handles.length || cleanup.requests.length) {
+    throw new Error(`RUNNER_CLEANUP_INCOMPLETE handles=${cleanup.handles.length} requests=${cleanup.requests.length}`);
+  }
   if (stopError) throw stopError;
 }

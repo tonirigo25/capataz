@@ -125,6 +125,7 @@ async function main() {
   const conversation = await prisma.chatConversation.upsert({ where: { id: "staging-conversation-1" }, update: { companyId: business.id, ownerUserId: multi.id }, create: { id: "staging-conversation-1", companyId: business.id, ownerUserId: multi.id, title: "Conversación sintética de Orqena", structuredContext: { synthetic: true } } });
   await prisma.businessMemory.upsert({ where: { id: "staging-memory-1" }, update: { companyId: business.id }, create: { id: "staging-memory-1", companyId: business.id, userId: multi.id, scope: "COMPANY", category: "PREFERENCE", key: "staging-payment-preference", value: { terms: "30 días" }, summary: "Preferencia sintética confirmada", sourceType: "MANUAL_SETTING", sourceConversationId: conversation.id, status: "CONFIRMED", confirmedAt: new Date(), confirmedById: multi.id } });
   await prisma.auditLog.create({ data: { companyId: business.id, userActorId: multi.id, action: "staging.provisioned", targetType: "Company", targetId: business.id, metadata: { synthetic: true, version: 1 } } });
+  await prisma.user.update({ where: { id: multi.id }, data: { activeCompanyId: second.id } });
 
   console.log(JSON.stringify({ ok: true, synthetic: true, companies: [single.id, business.id, second.id], users: profileFixtures.length + 1, profiles: profileFixtures.map(({ key, profile, readOnly }) => ({ key, profile, readOnly: Boolean(readOnly) })), passwordPrinted: false }));
 }

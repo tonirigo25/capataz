@@ -170,16 +170,17 @@ export async function stopIsolatedPostgres(runtime, {
 
   try {
     if (process.platform === "win32" && pid) {
+      const closed = waitForChildClose(
+        child,
+        stopTimeoutMs,
+        `ISOLATED_POSTGRES_STOP_TIMEOUT suite=${runtime.suite} port=${runtime.port} pid=${pid}`,
+      );
       const terminated = spawnSync("taskkill", ["/pid", String(pid), "/f", "/t"], {
         stdio: "ignore",
         windowsHide: true,
       });
       if (terminated.error) throw terminated.error;
-      await waitForChildClose(
-        child,
-        stopTimeoutMs,
-        `ISOLATED_POSTGRES_STOP_TIMEOUT suite=${runtime.suite} port=${runtime.port} pid=${pid}`,
-      );
+      await closed;
     } else {
       await withTimeout(
         Promise.resolve(runtime.pg?.stop()),

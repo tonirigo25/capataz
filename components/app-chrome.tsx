@@ -229,7 +229,7 @@ export function AppChrome({
 
           <button
             type="button"
-            className="hidden h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface lg:flex"
+            className="hidden h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface xl:flex"
             aria-label="Buscar en Orqena"
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
@@ -241,7 +241,7 @@ export function AppChrome({
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {portalManifest.quickActions.length ? <><button
               type="button"
-              className="icon-button lg:hidden"
+              className="icon-button xl:hidden"
               aria-label="Buscar en Orqena"
               onClick={(event) => openOverlay("search", event.currentTarget)}
             >

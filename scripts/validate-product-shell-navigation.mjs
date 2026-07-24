@@ -35,7 +35,7 @@ check("shell no expone el modo test y limita el aviso al demo de plataforma", sh
 check("panel Más cierra por Escape, exterior, destino y botón", chrome.includes('event.key === "Escape"') && chrome.includes('document.addEventListener("pointerdown"') && chrome.includes("onNavigate={onClose}") && chrome.includes('aria-label="Cerrar Más"'));
 check("paneles restauran foco y hojas bloquean scroll", chrome.includes("activeTriggerRef.current?.focus()") && chrome.includes('document.body.style.overflow = "hidden"'));
 check("diálogos contienen el foco por teclado", chrome.includes('event.key !== "Tab"') && chrome.includes("getFocusable") && chrome.includes('role="dialog"'));
-check("búsqueda usa activador, atajo y ruta existentes", chrome.includes("Buscar en Orqena") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
+check("búsqueda usa activador compacto hasta xl, atajo y ruta existentes", chrome.includes("Buscar en Orqena") && chrome.includes("xl:flex") && chrome.includes("xl:hidden") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
 check("búsqueda presenta filas y estados vacío, carga, error y resultados", searchPage.includes("InteractiveRow") && searchPage.includes("¿Qué necesitas encontrar?") && searchPage.includes("No hay resultados") && searchLoading.includes("LoadingState") && searchError.includes("ErrorState"));
 check("Orqena conserva la acción secundaria y el alias", chrome.includes('href="/capataz"') && chrome.includes(">Orqena"));
 check("notificaciones limitan contador a 99+ sin danger", chrome.includes('count > 99 ? "99+"') && !chrome.includes("bg-danger"));
