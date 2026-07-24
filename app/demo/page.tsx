@@ -1,7 +1,63 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { DemoStudio } from "@/components/marketing/demo-studio";
 import { DemoRequestForm } from "@/components/marketing/demo-request-form";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { HeroProductOrchestra, MobileWorkDemo, OrqenaActionDemo } from "@/components/marketing/product-scenes";
+import { marketingSectorCatalog } from "@/lib/marketing/catalog";
 
-export const metadata: Metadata = { title: "Solicitar demo", description: "Solicita una demostración de Orqena adaptada a tu equipo.", alternates: { canonical: "/demo" } };
-export default function DemoPage() { return <MarketingPage><section className="marketing-container grid gap-10 py-12 lg:grid-cols-[.9fr_1.1fr] lg:py-20"><div className="flex flex-col justify-center"><p className="marketing-eyebrow">Conocer Orqena</p><h1 className="marketing-display mt-4">Una conversación útil empieza por entender vuestro día a día.</h1><p className="marketing-lede mt-5">Cuéntanos qué necesita ordenar tu equipo. Prepararemos una demostración centrada en ese recorrido, no una presentación genérica.</p><div className="mt-8 overflow-hidden rounded-[2rem] bg-[#e8f1ec] p-3"><Image className="rounded-[1.35rem]" src="/marketing/today-owner.webp" alt="Vista de propietario de Orqena" width={1568} height={1003} sizes="(min-width: 1024px) 40vw, 100vw" /></div></div><DemoRequestForm /></section></MarketingPage>; }
+export const metadata: Metadata = {
+  title: "Demo",
+  description: "Explora Orqena con datos sintéticos por sector y perfil o solicita una demostración adaptada.",
+  alternates: { canonical: "/demo" },
+};
+
+export default function DemoPage() {
+  const sectors = marketingSectorCatalog.map((sector) => ({
+    slug: sector.slug,
+    name: sector.name,
+    lead: sector.lead,
+    work: sector.terminology.workSingular,
+    owner: sector.terminology.owner,
+  }));
+
+  return (
+    <MarketingPage>
+      <section className="marketing-container v4-section">
+        <div className="v4-section__intro">
+          <p className="marketing-eyebrow">Explorar por cuenta propia</p>
+          <h1 className="marketing-display">Cambia el sector. Cambia el perfil. Mantén el mismo control.</h1>
+          <p className="marketing-lede">La experiencia usa datos sintéticos y no realiza llamadas a servicios de IA. Puedes recorrerla sin enviar un formulario.</p>
+        </div>
+        <div className="mt-12"><DemoStudio sectors={sectors} /></div>
+      </section>
+
+      <section className="demo-scenes">
+        <div className="marketing-container v4-section">
+          <div className="v4-section__intro"><p className="marketing-eyebrow">Flujo completo</p><h2 className="marketing-title">Del primer contacto al resultado.</h2></div>
+          <div className="mt-10"><HeroProductOrchestra /></div>
+        </div>
+      </section>
+
+      <section className="marketing-container v4-section demo-duo">
+        <div><p className="marketing-eyebrow">Orqena</p><h2 className="marketing-title">Una propuesta determinista que espera tu decisión.</h2><p>No llama a OpenAI ni ejecuta cambios.</p></div>
+        <OrqenaActionDemo />
+      </section>
+
+      <section className="sector-split">
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Móvil</p><h2>El portal operativo está diseñado para la mano.</h2><p>Tarea, instrucciones, avance, evidencia sintética y sincronización.</p></div>
+          <MobileWorkDemo />
+        </div>
+      </section>
+
+      <section className="marketing-container demo-request-layout v4-section">
+        <div>
+          <p className="marketing-eyebrow">Demo adaptada</p>
+          <h2 className="marketing-title">Si quieres revisar vuestro recorrido, cuéntanos lo imprescindible.</h2>
+          <p className="marketing-lede">La solicitud se guarda en el sistema. No depende del envío de correo real.</p>
+        </div>
+        <DemoRequestForm />
+      </section>
+    </MarketingPage>
+  );
+}

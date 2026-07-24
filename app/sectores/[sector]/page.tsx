@@ -1,18 +1,104 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Smartphone, Sparkles, UsersRound } from "lucide-react";
+import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { MobileWorkDemo, OrqenaActionDemo, RolePortalStudio } from "@/components/marketing/product-scenes";
+import { brand } from "@/lib/brand";
+import { getMarketingSector, marketingSectorCatalog } from "@/lib/marketing/catalog";
 
-const sectorInfo = {
-  construction: { title: "Construcción y obra", lead: "Coordina trabajo, equipo y avances con el contexto de cada obra.", labels: ["Jefe de obra", "Encargado", "Operario"], points: ["Planificación y tareas asignadas", "Avances, incidencias y documentos vinculados", "Seguimiento de clientes y trabajos"] },
-  installations: { title: "Instalaciones y mantenimiento", lead: "Une avisos, planificación, técnicos y seguimiento de cada intervención.", labels: ["Responsable de instalación", "Coordinador", "Técnico"], points: ["Agenda contextual para intervenciones", "Trabajos y archivos asignados", "Continuidad entre oficina y campo"] },
-  "professional-services": { title: "Servicios profesionales", lead: "Mantén conectados clientes, proyectos, entregas y la actividad de tu equipo.", labels: ["Responsable de proyecto", "Coordinador", "Profesional"], points: ["Clientes y proyectos en contexto", "Seguimientos, agenda y documentos", "Visibilidad según la responsabilidad"] },
-  "repair-workshop": { title: "Taller y reparación", lead: "Da continuidad a órdenes, recepción, operaciones y comunicación con clientes.", labels: ["Jefe de taller", "Encargado", "Técnico"], points: ["Trabajos y avances claros", "Tareas y archivos vinculados", "Actividad trazable por cliente"] },
-  hospitality: { title: "Hostelería y servicios", lead: "Coordina el servicio, el equipo y las tareas con una visión compartida del día.", labels: ["Responsable de servicio", "Supervisor", "Empleado"], points: ["Plan diario y equipo", "Incidencias y tareas operativas", "Agenda que acompaña el servicio"] },
-} as const;
+export function generateStaticParams() {
+  return marketingSectorCatalog.map((sector) => ({ sector: sector.slug }));
+}
 
-type Sector = keyof typeof sectorInfo;
-export function generateStaticParams() { return Object.keys(sectorInfo).map(sector => ({ sector })); }
-export async function generateMetadata({ params }: { params: Promise<{ sector: string }> }): Promise<Metadata> { const { sector } = await params; const item = sectorInfo[sector as Sector]; return item ? { title: item.title, description: item.lead, alternates: { canonical: `/sectores/${sector}` } } : {}; }
-export default async function SectorPage({ params }: { params: Promise<{ sector: string }> }) { const { sector } = await params; const item = sectorInfo[sector as Sector]; if (!item) notFound(); return <MarketingPage><section className="marketing-container grid gap-10 py-14 lg:grid-cols-[1fr_.8fr] lg:py-24"><div><p className="marketing-eyebrow">Sectores / {item.title}</p><h1 className="marketing-display mt-4">{item.title}</h1><p className="marketing-lede mt-5">{item.lead}</p><Link href="/demo" className="marketing-button mt-8">Hablar sobre mi equipo <ArrowRight size={18} /></Link></div><aside className="rounded-[2rem] bg-[#e7f0ea] p-7 sm:p-10"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#167366]">Nombres cercanos</p><div className="mt-6 space-y-3">{item.labels.map((label, index) => <div key={label} className="flex items-center gap-4 rounded-xl bg-white px-4 py-3"><span className="text-sm font-black text-[#167366]">0{index + 1}</span><strong>{label}</strong></div>)}</div></aside></section><section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16"><h2 className="marketing-title max-w-2xl">Una experiencia conectada a la forma de trabajar de tu actividad.</h2><ul className="mt-9 grid gap-4 md:grid-cols-3">{item.points.map(point => <li key={point} className="rounded-2xl bg-[#fbfaf5] p-5 text-sm leading-6"><Check className="mb-4 text-[#167366]" size={20} />{point}</li>)}</ul></div></section></MarketingPage>; }
+export async function generateMetadata({ params }: { params: Promise<{ sector: string }> }): Promise<Metadata> {
+  const { sector } = await params;
+  const item = getMarketingSector(sector);
+  if (!item) return {};
+  return {
+    title: item.name,
+    description: item.lead,
+    alternates: { canonical: `/sectores/${item.slug}` },
+    openGraph: { images: [brand.socialImage] },
+  };
+}
+
+export default async function SectorPage({ params }: { params: Promise<{ sector: string }> }) {
+  const { sector } = await params;
+  const item = getMarketingSector(sector);
+  if (!item) notFound();
+  const flow = [item.terminology.clientSingular, "Presupuesto", item.terminology.workSingular, "Factura", "Resultado"];
+
+  return (
+    <MarketingPage>
+      <section className="sector-profile-hero">
+        <div className="marketing-container">
+          <div>
+            <p className="marketing-eyebrow">Sectores / {item.name}</p>
+            <h1>{item.name}</h1>
+            <p>{item.lead}</p>
+            <Link href="/demo" className="marketing-button">Explorar este perfil <ArrowRight size={18} /></Link>
+          </div>
+          <aside>
+            <span>Vocabulario activo</span>
+            <dl>
+              <div><dt>Relación</dt><dd>{item.terminology.clientSingular}</dd></div>
+              <div><dt>Operación</dt><dd>{item.terminology.workSingular}</dd></div>
+              <div><dt>Responsabilidad</dt><dd>{item.terminology.owner}</dd></div>
+              <div><dt>Progreso</dt><dd>{item.terminology.progress}</dd></div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section className="marketing-container v4-section sector-flow">
+        <div><p className="marketing-eyebrow">Flujo adaptado</p><h2 className="marketing-title">{item.story}</h2></div>
+        <ol>{flow.map((step, index) => <li key={`${step}-${index}`}><span>{index + 1}</span><strong>{step}</strong>{index < flow.length - 1 ? <ArrowRight /> : <Check />}</li>)}</ol>
+      </section>
+
+      <section className="sector-demo-section">
+        <div className="marketing-container v4-section">
+          <div className="sector-demo-intro"><UsersRound /><p className="marketing-eyebrow">Portales</p><h2 className="marketing-title">Cada responsabilidad recibe su propia prioridad.</h2><p>{item.terminology.owner}, coordinación y equipo comparten contexto sin compartir necesariamente el mismo acceso.</p></div>
+          <RolePortalStudio />
+        </div>
+      </section>
+
+      <section className="marketing-container v4-section sector-modules">
+        <div><p className="marketing-eyebrow">Módulos recomendados</p><h2 className="marketing-title">La base que sostiene este recorrido.</h2></div>
+        <div>{["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", "Orqena"].map((module) => <span key={module}>{module}</span>)}</div>
+      </section>
+
+      <section className="sector-split">
+        <div className="marketing-container">
+          <div><Smartphone /><p className="marketing-eyebrow">Móvil</p><h2>El trabajo cotidiano cabe en una acción clara.</h2><p>Agenda, tareas e instrucciones se priorizan según el portal.</p></div>
+          <MobileWorkDemo />
+        </div>
+      </section>
+
+      <section className="marketing-container v4-section sector-orqena">
+        <div><Sparkles /><p className="marketing-eyebrow">Orqena</p><h2 className="marketing-title">El contexto sectorial ayuda a hablar el mismo idioma.</h2><p>La demo es determinista y no realiza llamadas externas.</p></div>
+        <OrqenaActionDemo />
+      </section>
+
+      <section className="v4-faq">
+        <div className="marketing-container v4-faq__layout">
+          <div><p className="marketing-eyebrow">Preguntas del sector</p><h2 className="marketing-title">Alcance claro, sin promesas regulatorias.</h2></div>
+          <div>
+            {[item.faq, ["¿Cambia la seguridad entre sectores?", "No. El sector cambia vocabulario y prioridades; el sistema de acceso permanece."]].map(([question, answer]) => (
+              <details key={question}><summary>{question}<ChevronDown size={18} /></summary><p>{answer}</p></details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="v4-final">
+        <div className="marketing-container">
+          <p className="marketing-eyebrow">Demo sintética</p>
+          <h2>Recorre {item.name.toLocaleLowerCase("es")} desde el perfil que te importa.</h2>
+          <p>Sin clientes ficticios presentados como reales y sin cifras usadas como prueba social.</p>
+          <div><Link href={`/demo?sector=${item.slug}`} className="marketing-button marketing-button--light">Abrir demo <ArrowRight size={18} /></Link></div>
+        </div>
+      </section>
+    </MarketingPage>
+  );
+}
