@@ -510,8 +510,10 @@ enum BusinessMemorySourceType {
 
 enum MembershipStatus {
   invited
+  pending_owner_approval
   active
   suspended
+  rejected
   archived
   revoked
 }
@@ -549,9 +551,35 @@ enum SubscriptionStatus {
 enum InvitationStatus {
   PENDING
   ACCEPTED
+  PENDING_EMPLOYEE
+  EMPLOYEE_ACCEPTED
+  PENDING_OWNER_APPROVAL
+  OWNER_APPROVED
+  OWNER_REJECTED
   EXPIRED
   REVOKED
   REJECTED
+}
+
+enum MembershipAccessMode {
+  STANDARD
+  READ_ONLY
+}
+
+enum EmailOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  RETRYING
+  CANCELLED
+}
+
+enum DocumentClassification {
+  OPERATIONAL
+  COMMERCIAL
+  FINANCIAL
+  RESTRICTED
 }
 
 enum TeamState {
@@ -1162,6 +1190,7 @@ model Document {
   sha256               String?
   url                  String?
   category             DocumentCategory         @default(otro)
+  classification       DocumentClassification   @default(OPERATIONAL)
   clientId             String?
   workId               String?
   budgetId             String?
@@ -2162,6 +2191,7 @@ model User {
   platformAccount     PlatformAccount?
   invitedMemberships  CompanyMembership[]      @relation("MembershipInviter")
   invitationsCreated  Invitation[]             @relation("InvitationInviter")
+  emailOutboxCreated  EmailOutbox[]            @relation("EmailOutboxCreator")
   auditLogs           AuditLog[]               @relation("AuditUserActor")
   chatConversations   ChatConversation[]       @relation("ChatConversationOwner")
   chatActionLogs      ChatActionLog[]          @relation("ChatActionActor")
@@ -2170,102 +2200,106 @@ model User {
 }
 
 model Company {
-  id                     String                       @id @default(cuid())
-  slug                   String                       @unique
-  nombreComercial        String
-  razonSocial            String?
-  taxId                  String?
-  email                  String?
-  telefono               String?
-  direccion              String?
-  codigoPostal           String?
-  ciudad                 String?
-  provincia              String?
-  pais                   String                       @default("España")
-  timezone               String                       @default("Europe/Madrid")
-  locale                 String                       @default("es-ES")
-  status                 CompanyStatus                @default(active)
-  isDemo                 Boolean                      @default(false)
-  legacyEmpresaId        String?                      @unique
-  createdAt              DateTime                     @default(now())
-  updatedAt              DateTime                     @updatedAt
-  archivedAt             DateTime?
-  web                    String?
-  contactPerson          String?
-  iban                   String?
-  defaultConditions      String?
-  legalText              String?
-  logoUrl                String?
-  sealUrl                String?
-  brandColor             String                       @default("#f6c945")
-  defaultVat             Float                        @default(21)
-  currency               String                       @default("EUR")
-  budgetValidityDays     Int                          @default(15)
-  defaultPaymentTerms    String?
-  budgetSeries           String                       @default("2026")
-  invoiceSeries          String                       @default("2026")
-  workSeries             String                       @default("2026")
-  budgetPrefix           String                       @default("P")
-  invoicePrefix          String                       @default("F")
-  workPrefix             String                       @default("OB")
-  organizationType       OrganizationType?
-  sectorKey              String?
-  terminologyOverrides   Json?
-  businessProfileVersion String?
-  onboardingCompletedAt  DateTime?
-  onboardingState        Json?
-  commercialStatus       CompanyCommercialStatus?
-  demoScenarioKey        String?
-  demoExpiresAt          DateTime?
-  provisioningKey        String?                      @unique
-  memberships            CompanyMembership[]
-  securityAuditEvents    SecurityAuditEvent[]
-  clients                Client[]
-  contacts               Contact[]
-  works                  Work[]
-  budgets                Budget[]
-  invoices               Invoice[]
-  payments               Payment[]
-  expenses               Expense[]
-  materials              Material[]
-  documents              Document[]
-  internalNotes          InternalNote[]
-  reminders              Reminder[]
-  agendaEvents           EventoAgenda[]
-  notifications          Notification[]
-  financialAccounts      FinancialAccount[]
-  cashMovements          CashMovement[]
-  recurringExpenses      RecurringExpense[]
-  expectedCashFlows      ExpectedCashFlow[]
-  chatConversations      ChatConversation[]
-  chatMessages           ChatMessage[]
-  chatActionLogs         ChatActionLog[]
-  signalStates           BusinessSignalState[]
-  recommendations        BusinessRecommendation[]
-  automations            AutomationDefinition[]
-  automationRuns         AutomationRun[]
-  tasks                  Task[]
-  followUps              FollowUp[]
-  treasurySettings       TreasurySettings[]
-  documentSequences      CompanyDocumentSequence[]
-  businessPartners       BusinessPartner[]
-  partnerHistory         BusinessPartnerHistory[]
-  partnerWorkLinks       BusinessPartnerWork[]
-  purchaseInvoices       PurchaseInvoice[]
-  purchasePayments       PurchaseInvoicePayment[]
-  purchaseHistory        PurchaseInvoiceHistory[]
-  partnerLearning        PartnerLearning[]
-  businessMemories       BusinessMemory[]
-  activeForUsers         User[]                       @relation("ActiveCompanyPreference")
-  teams                  Team[]
-  invitations            Invitation[]
-  subscriptions          Subscription[]
-  entitlementOverrides   CompanyEntitlementOverride[]
-  usageRecords           UsageRecord[]
-  auditLogs              AuditLog[]
-  supportAccessGrants    SupportAccessGrant[]
-  scopeAssignments       ScopeAssignment[]
-  taskRecurrences        TaskRecurrence[]
+  id                      String                            @id @default(cuid())
+  slug                    String                            @unique
+  nombreComercial         String
+  razonSocial             String?
+  taxId                   String?
+  email                   String?
+  telefono                String?
+  direccion               String?
+  codigoPostal            String?
+  ciudad                  String?
+  provincia               String?
+  pais                    String                            @default("España")
+  timezone                String                            @default("Europe/Madrid")
+  locale                  String                            @default("es-ES")
+  status                  CompanyStatus                     @default(active)
+  isDemo                  Boolean                           @default(false)
+  legacyEmpresaId         String?                           @unique
+  createdAt               DateTime                          @default(now())
+  updatedAt               DateTime                          @updatedAt
+  archivedAt              DateTime?
+  web                     String?
+  contactPerson           String?
+  iban                    String?
+  defaultConditions       String?
+  legalText               String?
+  logoUrl                 String?
+  sealUrl                 String?
+  brandColor              String                            @default("#f6c945")
+  defaultVat              Float                             @default(21)
+  currency                String                            @default("EUR")
+  budgetValidityDays      Int                               @default(15)
+  defaultPaymentTerms     String?
+  budgetSeries            String                            @default("2026")
+  invoiceSeries           String                            @default("2026")
+  workSeries              String                            @default("2026")
+  budgetPrefix            String                            @default("P")
+  invoicePrefix           String                            @default("F")
+  workPrefix              String                            @default("OB")
+  organizationType        OrganizationType?
+  sectorKey               String?
+  terminologyOverrides    Json?
+  businessProfileVersion  String?
+  onboardingCompletedAt   DateTime?
+  onboardingState         Json?
+  commercialStatus        CompanyCommercialStatus?
+  demoScenarioKey         String?
+  demoExpiresAt           DateTime?
+  provisioningKey         String?                           @unique
+  memberships             CompanyMembership[]
+  securityAuditEvents     SecurityAuditEvent[]
+  clients                 Client[]
+  contacts                Contact[]
+  works                   Work[]
+  budgets                 Budget[]
+  invoices                Invoice[]
+  payments                Payment[]
+  expenses                Expense[]
+  materials               Material[]
+  documents               Document[]
+  internalNotes           InternalNote[]
+  reminders               Reminder[]
+  agendaEvents            EventoAgenda[]
+  notifications           Notification[]
+  financialAccounts       FinancialAccount[]
+  cashMovements           CashMovement[]
+  recurringExpenses       RecurringExpense[]
+  expectedCashFlows       ExpectedCashFlow[]
+  chatConversations       ChatConversation[]
+  chatMessages            ChatMessage[]
+  chatActionLogs          ChatActionLog[]
+  signalStates            BusinessSignalState[]
+  recommendations         BusinessRecommendation[]
+  automations             AutomationDefinition[]
+  automationRuns          AutomationRun[]
+  tasks                   Task[]
+  followUps               FollowUp[]
+  treasurySettings        TreasurySettings[]
+  documentSequences       CompanyDocumentSequence[]
+  businessPartners        BusinessPartner[]
+  partnerHistory          BusinessPartnerHistory[]
+  partnerWorkLinks        BusinessPartnerWork[]
+  purchaseInvoices        PurchaseInvoice[]
+  purchasePayments        PurchaseInvoicePayment[]
+  purchaseHistory         PurchaseInvoiceHistory[]
+  partnerLearning         PartnerLearning[]
+  businessMemories        BusinessMemory[]
+  activeForUsers          User[]                            @relation("ActiveCompanyPreference")
+  teams                   Team[]
+  invitations             Invitation[]
+  subscriptions           Subscription[]
+  entitlementOverrides    CompanyEntitlementOverride[]
+  usageRecords            UsageRecord[]
+  auditLogs               AuditLog[]
+  supportAccessGrants     SupportAccessGrant[]
+  scopeAssignments        ScopeAssignment[]
+  accessPackages          MembershipAccessPackage[]
+  approvalAuthorities     ApprovalAuthority[]
+  fieldVisibilityPolicies MembershipFieldVisibilityPolicy[]
+  emailOutbox             EmailOutbox[]
+  taskRecurrences         TaskRecurrence[]
 
   @@index([status])
   @@index([isDemo])
@@ -2488,29 +2522,40 @@ model CompanyDocumentSequence {
 }
 
 model CompanyMembership {
-  id                   String                         @id @default(cuid())
-  userId               String
-  companyId            String
-  role                 CompanyRole                    @default(MEMBER)
-  functionalProfileKey String?
-  status               MembershipStatus               @default(invited)
-  invitedAt            DateTime?
-  acceptedAt           DateTime?
-  joinedAt             DateTime?
-  createdAt            DateTime                       @default(now())
-  updatedAt            DateTime                       @updatedAt
-  invitedById          String?
-  revokedAt            DateTime?
-  revokedReason        String?
-  lastActivityAt       DateTime?
-  origin               String                         @default("existing")
-  isDemo               Boolean                        @default(false)
-  user                 User                           @relation(fields: [userId], references: [id], onDelete: Restrict)
-  company              Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  invitedBy            User?                          @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
-  permissionOverrides  MembershipPermissionOverride[]
-  teamMemberships      TeamMembership[]
-  scopeAssignments     ScopeAssignment[]
+  id                      String                            @id @default(cuid())
+  userId                  String
+  companyId               String
+  role                    CompanyRole                       @default(MEMBER)
+  functionalProfileKey    String?
+  accessMode              MembershipAccessMode              @default(STANDARD)
+  accessVersion           Int                               @default(1)
+  accessStartsAt          DateTime?
+  accessEndsAt            DateTime?
+  approvedById            String?
+  approvedAt              DateTime?
+  rejectedById            String?
+  rejectedAt              DateTime?
+  status                  MembershipStatus                  @default(invited)
+  invitedAt               DateTime?
+  acceptedAt              DateTime?
+  joinedAt                DateTime?
+  createdAt               DateTime                          @default(now())
+  updatedAt               DateTime                          @updatedAt
+  invitedById             String?
+  revokedAt               DateTime?
+  revokedReason           String?
+  lastActivityAt          DateTime?
+  origin                  String                            @default("existing")
+  isDemo                  Boolean                           @default(false)
+  user                    User                              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  company                 Company                           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  invitedBy               User?                             @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  permissionOverrides     MembershipPermissionOverride[]
+  teamMemberships         TeamMembership[]
+  scopeAssignments        ScopeAssignment[]
+  accessPackages          MembershipAccessPackage[]
+  approvalAuthorities     ApprovalAuthority[]
+  fieldVisibilityPolicies MembershipFieldVisibilityPolicy[]
 
   @@unique([userId, companyId])
   @@index([companyId, status])
@@ -2593,6 +2638,64 @@ model ScopeAssignment {
 
   @@index([companyId, membershipId, capabilityKey])
   @@index([entityType, entityId])
+}
+
+model MembershipAccessPackage {
+  id           String            @id @default(cuid())
+  companyId    String
+  membershipId String
+  packageKey   String
+  config       Json?
+  startsAt     DateTime?
+  endsAt       DateTime?
+  grantedById  String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  membership   CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, packageKey])
+  @@index([companyId, packageKey])
+  @@index([membershipId, startsAt, endsAt])
+}
+
+model ApprovalAuthority {
+  id                   String            @id @default(cuid())
+  companyId            String
+  membershipId         String
+  authorityKey         String
+  maxAmount            Decimal?          @db.Decimal(14, 2)
+  maxDiscountPercent   Decimal?          @db.Decimal(5, 2)
+  minimumMarginPercent Decimal?          @db.Decimal(5, 2)
+  scope                ScopeType         @default(COMPANY)
+  startsAt             DateTime?
+  endsAt               DateTime?
+  grantedById          String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  company              Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  membership           CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, authorityKey])
+  @@index([companyId, authorityKey])
+  @@index([membershipId, startsAt, endsAt])
+}
+
+model MembershipFieldVisibilityPolicy {
+  id           String            @id @default(cuid())
+  companyId    String
+  membershipId String
+  fieldKey     String
+  visible      Boolean           @default(false)
+  changedById  String?
+  reason       String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  membership   CompanyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, fieldKey])
+  @@index([companyId, fieldKey, visible])
 }
 
 model Plan {
@@ -2701,27 +2804,115 @@ model UsageRecord {
 }
 
 model Invitation {
-  id                 String           @id @default(cuid())
-  companyId          String
-  emailNormalized    String
-  role               CompanyRole
-  status             InvitationStatus @default(PENDING)
-  tokenHash          String           @unique
-  inviterId          String
-  permissionTemplate Json?
-  teamIds            Json?
-  expiresAt          DateTime
-  acceptedAt         DateTime?
-  rejectedAt         DateTime?
-  revokedAt          DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  company            Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  inviter            User             @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Restrict)
+  id                      String               @id @default(cuid())
+  companyId               String
+  emailNormalized         String
+  role                    CompanyRole
+  functionalProfileKey    String?
+  accessMode              MembershipAccessMode @default(STANDARD)
+  status                  InvitationStatus     @default(PENDING)
+  tokenHash               String               @unique
+  inviterId               String
+  permissionTemplate      Json?
+  accessPackageKeys       Json?
+  scopeTemplate           Json?
+  approvalTemplate        Json?
+  fieldVisibilityTemplate Json?
+  teamIds                 Json?
+  expiresAt               DateTime
+  acceptedAt              DateTime?
+  employeeAcceptedAt      DateTime?
+  ownerApprovedAt         DateTime?
+  ownerApprovedById       String?
+  rejectedAt              DateTime?
+  revokedAt               DateTime?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  company                 Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  inviter                 User                 @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Restrict)
 
   @@index([companyId, status])
   @@index([emailNormalized, status])
   @@index([expiresAt])
+}
+
+model EmailOutbox {
+  id               String                 @id @default(cuid())
+  companyId        String?
+  invitationId     String?
+  eventKey         String
+  templateKey      String
+  templateVersion  Int
+  recipient        String
+  subject          String
+  htmlBody         String?
+  textBody         String?
+  payload          Json?
+  status           EmailOutboxStatus      @default(PENDING)
+  attempts         Int                    @default(0)
+  availableAt      DateTime               @default(now())
+  processedAt      DateTime?
+  lastError        String?
+  createdById      String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  company          Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdBy        User?                  @relation("EmailOutboxCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deliveryAttempts EmailDeliveryAttempt[]
+
+  @@index([companyId, status, availableAt])
+  @@index([invitationId, eventKey])
+  @@index([recipient, createdAt])
+}
+
+model EmailDeliveryAttempt {
+  id          String            @id @default(cuid())
+  outboxId    String
+  attempt     Int
+  provider    String
+  status      EmailOutboxStatus
+  errorCode   String?
+  errorDetail String?
+  createdAt   DateTime          @default(now())
+  outbox      EmailOutbox       @relation(fields: [outboxId], references: [id], onDelete: Cascade)
+
+  @@unique([outboxId, attempt])
+  @@index([status, createdAt])
+}
+
+model EmailTemplateVersion {
+  id          String   @id @default(cuid())
+  templateKey String
+  version     Int
+  subject     String
+  htmlSource  String
+  textSource  String?
+  active      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([templateKey, version])
+  @@index([templateKey, active])
+}
+
+model DemoRequest {
+  id              String   @id @default(cuid())
+  emailNormalized String
+  displayName     String
+  companyName     String
+  phone           String?
+  teamSize        String?
+  sectorKey       String?
+  message         String?
+  consentAt       DateTime
+  status          String   @default("PENDING")
+  source          String   @default("public-web")
+  requestHash     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([requestHash])
+  @@index([emailNormalized, createdAt])
+  @@index([status, createdAt])
 }
 
 model AuditLog {

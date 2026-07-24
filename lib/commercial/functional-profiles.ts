@@ -1,51 +1,76 @@
 import type { CompanyRole } from "@prisma/client";
 import { capabilityCatalog, type CapabilityKey } from "@/lib/commercial/catalog";
+import { capabilitiesForPackages, type AccessPackageKey } from "@/lib/commercial/access-packages";
 
-export const functionalProfileKeys = ["OWNER", "PURCHASING_MANAGER", "GENERAL_MANAGER", "ADMINISTRATIVE", "SALES", "WORK_MANAGER", "WORKER", "VIEWER", "EXTERNAL_COLLABORATOR"] as const;
-export type FunctionalProfileKey = typeof functionalProfileKeys[number];
+export const functionalProfileKeys = ["OWNER", "GENERAL_MANAGER", "SALES_MANAGER", "SALES", "ADMINISTRATIVE", "FINANCE", "PROCUREMENT_MANAGER", "PROJECT_MANAGER", "TEAM_SUPERVISOR", "WORKER", "EXTERNAL_COLLABORATOR", "ADVISOR_AUDITOR"] as const;
+export type FunctionalProfileKey = (typeof functionalProfileKeys)[number];
+
+export const profileAliases: Record<string, FunctionalProfileKey> = {
+  PURCHASING_MANAGER: "PROCUREMENT_MANAGER", WORK_MANAGER: "PROJECT_MANAGER", VIEWER: "ADVISOR_AUDITOR"
+};
+
+export const profileDefaultPackages: Record<FunctionalProfileKey, readonly AccessPackageKey[]> = {
+  OWNER: ["CRM_CORE", "SALES_QUOTES", "SALES_PRICING", "SALES_APPROVAL", "SALES_INVOICING", "PROCUREMENT", "SUPPLIER_INVOICING", "ACCOUNTS_RECEIVABLE", "ACCOUNTS_PAYABLE", "TREASURY", "BANKING", "TAX", "PROJECT_BUDGET_CONTROL", "INTERNAL_COSTS", "MARGIN", "PROFITABILITY", "OPERATIONS", "TEAM_SUPERVISION", "OPERATIONAL_DOCUMENTS", "COMMERCIAL_DOCUMENTS", "FINANCIAL_DOCUMENTS", "AUDIT_READ", "ACCESS_GOVERNANCE", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  GENERAL_MANAGER: ["CRM_CORE", "SALES_QUOTES", "SALES_APPROVAL", "OPERATIONS", "TEAM_SUPERVISION", "OPERATIONAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  SALES_MANAGER: ["CRM_CORE", "SALES_QUOTES", "SALES_PRICING", "SALES_APPROVAL", "COMMERCIAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  SALES: ["CRM_CORE", "SALES_QUOTES", "SALES_PRICING", "COMMERCIAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  ADMINISTRATIVE: ["CRM_CORE", "OPERATIONAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  FINANCE: ["SALES_INVOICING", "SUPPLIER_INVOICING", "ACCOUNTS_RECEIVABLE", "ACCOUNTS_PAYABLE", "TREASURY", "TAX", "FINANCIAL_DOCUMENTS", "ORQENA_QUERY"],
+  PROCUREMENT_MANAGER: ["PROCUREMENT", "SUPPLIER_INVOICING", "ACCOUNTS_PAYABLE", "OPERATIONAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  PROJECT_MANAGER: ["OPERATIONS", "TEAM_SUPERVISION", "PROJECT_BUDGET_CONTROL", "OPERATIONAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  TEAM_SUPERVISOR: ["OPERATIONS", "TEAM_SUPERVISION", "OPERATIONAL_DOCUMENTS", "ORQENA_QUERY", "ORQENA_ACTIONS"],
+  WORKER: ["OPERATIONS", "OPERATIONAL_DOCUMENTS", "ORQENA_QUERY"],
+  EXTERNAL_COLLABORATOR: ["OPERATIONS", "OPERATIONAL_DOCUMENTS"],
+  ADVISOR_AUDITOR: ["AUDIT_READ", "FINANCIAL_DOCUMENTS", "ORQENA_QUERY"]
+};
+
+const all = Object.keys(capabilityCatalog) as CapabilityKey[];
+export const functionalProfileCapabilities = Object.fromEntries(functionalProfileKeys.map((profile) => {
+  if (profile === "OWNER") return [profile, all];
+  const capabilities = new Set<CapabilityKey>(["company.view", ...capabilitiesForPackages(profileDefaultPackages[profile])]);
+  if (["PROJECT_MANAGER", "TEAM_SUPERVISOR", "WORKER", "EXTERNAL_COLLABORATOR"].includes(profile)) for (const key of ["clients.view", "clients.create", "clients.update", "work.create"] as CapabilityKey[]) capabilities.delete(key);
+  if (profile === "ADVISOR_AUDITOR") for (const key of [...capabilities]) if (!key.endsWith(".view") && !key.endsWith(".export") && key !== "orqena.use" && key !== "company.view") capabilities.delete(key);
+  return [profile, [...capabilities]];
+})) as unknown as Record<FunctionalProfileKey, readonly CapabilityKey[]>;
 
 export const ECONOMIC_CAPABILITIES = new Set<CapabilityKey>([
   "sales.budgets.view", "sales.budgets.create", "sales.budgets.update", "sales.budgets.approve", "sales.budgets.send",
-  "sales.invoices.view", "sales.invoices.create", "sales.invoices.issue", "sales.invoices.void", "sales.invoices.send",
-  "purchases.suppliers.view", "purchases.suppliers.manage", "purchases.received_invoices.view", "purchases.received_invoices.manage",
-  "treasury.view", "treasury.manage", "treasury.payments.register", "treasury.collections.register", "reports.view", "reports.export"
+  "sales.pricing.view", "sales.discount.apply", "sales.invoices.view", "sales.invoices.create", "sales.invoices.issue",
+  "sales.invoices.send", "sales.invoices.void", "purchases.suppliers.view", "purchases.suppliers.manage",
+  "purchases.received_invoices.view", "purchases.received_invoices.manage", "treasury.collections.register",
+  "treasury.payments.register", "purchase_cost.view", "project_budget_control.view", "internal_cost.view",
+  "margin_percent.view", "margin_amount.view", "profitability.view", "reports.view", "reports.export",
+  "treasury.view", "treasury.manage", "banking.view", "tax.view"
 ]);
 
-const all = Object.keys(capabilityCatalog) as CapabilityKey[];
-const operational = all.filter((key) => !ECONOMIC_CAPABILITIES.has(key) && !key.startsWith("company.billing") && !key.includes("members."));
-const readOperational = operational.filter((key) => key.endsWith(".view") || key === "orqena.use");
-
-export const functionalProfileCapabilities: Record<FunctionalProfileKey, readonly CapabilityKey[]> = {
-  OWNER: all,
-  PURCHASING_MANAGER: all.filter((key) => ECONOMIC_CAPABILITIES.has(key) || ["company.view", "clients.view", "work.view", "documents.view", "documents.upload", "agenda.view", "agenda.manage", "orqena.use", "orqena.execute"].includes(key)),
-  GENERAL_MANAGER: operational.filter((key) => !key.startsWith("company.") || key === "company.view" || key === "company.members.view"),
-  ADMINISTRATIVE: ["company.view", "clients.view", "clients.create", "clients.update", "agenda.view", "agenda.manage", "tasks.view", "tasks.manage", "followups.view", "followups.manage", "documents.view", "documents.upload", "orqena.use"],
-  SALES: ["company.view", "clients.view", "clients.create", "clients.update", "work.view", "agenda.view", "agenda.manage", "tasks.view", "tasks.manage", "followups.view", "followups.manage", "documents.view", "orqena.use"],
-  WORK_MANAGER: ["company.view", "clients.view", "work.view", "work.update", "agenda.view", "agenda.manage", "tasks.view", "tasks.manage", "documents.view", "documents.upload", "orqena.use"],
-  WORKER: ["company.view", "work.view", "work.update", "agenda.view", "tasks.view", "tasks.manage", "documents.view", "documents.upload", "orqena.use"],
-  VIEWER: readOperational,
-  EXTERNAL_COLLABORATOR: ["company.view", "work.view", "agenda.view", "documents.view", "documents.upload", "orqena.use"]
-};
-
 export const functionalProfileLabels: Record<FunctionalProfileKey, string> = {
-  OWNER: "Propietario", PURCHASING_MANAGER: "Jefe de compras", GENERAL_MANAGER: "Gerente", ADMINISTRATIVE: "Administrativo", SALES: "Comercial", WORK_MANAGER: "Responsable de trabajo", WORKER: "Empleado", VIEWER: "Solo lectura", EXTERNAL_COLLABORATOR: "Colaborador externo"
+  OWNER: "Propietario", GENERAL_MANAGER: "Dirección general", SALES_MANAGER: "Responsable comercial", SALES: "Comercial",
+  ADMINISTRATIVE: "Administración", FINANCE: "Finanzas y contabilidad", PROCUREMENT_MANAGER: "Compras y aprovisionamiento",
+  PROJECT_MANAGER: "Responsable de proyecto", TEAM_SUPERVISOR: "Supervisor de equipo", WORKER: "Profesional",
+  EXTERNAL_COLLABORATOR: "Colaborador externo", ADVISOR_AUDITOR: "Asesor o auditor"
 };
 
-export const legacyRoleProfile: Record<CompanyRole, FunctionalProfileKey> = { OWNER: "OWNER", ADMIN: "ADMINISTRATIVE", MANAGER: "GENERAL_MANAGER", MEMBER: "WORKER", VIEWER: "VIEWER" };
+export const legacyRoleProfile: Record<CompanyRole, FunctionalProfileKey> = { OWNER: "OWNER", ADMIN: "ADMINISTRATIVE", MANAGER: "GENERAL_MANAGER", MEMBER: "WORKER", VIEWER: "ADVISOR_AUDITOR" };
 
 export const sectorProfileLabels: Record<string, Partial<Record<FunctionalProfileKey, string>>> = {
-  construction: { WORK_MANAGER: "Jefe de obra", WORKER: "Operario" },
-  installations: { WORK_MANAGER: "Responsable de instalación", WORKER: "Técnico" },
-  professional_services: { WORK_MANAGER: "Responsable de proyecto", WORKER: "Profesional" },
-  repair_workshop: { WORK_MANAGER: "Jefe de taller", WORKER: "Técnico" },
-  hospitality: { WORK_MANAGER: "Responsable de servicio", WORKER: "Empleado" },
-  consulting: { WORK_MANAGER: "Responsable de proyecto", WORKER: "Consultor" }
+  construction: { PROJECT_MANAGER: "Jefe de obra", TEAM_SUPERVISOR: "Encargado", WORKER: "Operario" },
+  installations: { PROJECT_MANAGER: "Responsable de instalación", TEAM_SUPERVISOR: "Coordinador", WORKER: "Técnico" },
+  professional_services: { PROJECT_MANAGER: "Responsable de proyecto", TEAM_SUPERVISOR: "Coordinador", WORKER: "Profesional" },
+  repair_workshop: { PROJECT_MANAGER: "Jefe de taller", TEAM_SUPERVISOR: "Encargado", WORKER: "Técnico" },
+  hospitality: { PROJECT_MANAGER: "Responsable de servicio", TEAM_SUPERVISOR: "Supervisor", WORKER: "Empleado" },
+  consulting: { PROJECT_MANAGER: "Responsable de proyecto", TEAM_SUPERVISOR: "Coordinador", WORKER: "Consultor" }
 };
 
 export function resolveFunctionalProfile(value: string | null | undefined, role: CompanyRole): FunctionalProfileKey {
+  if (value && value in profileAliases) return profileAliases[value];
   return functionalProfileKeys.includes(value as FunctionalProfileKey) ? value as FunctionalProfileKey : legacyRoleProfile[role];
 }
 
 export function canHoldEconomicCapabilities(profile: FunctionalProfileKey) {
-  return profile === "OWNER" || profile === "PURCHASING_MANAGER";
+  return !["WORKER", "EXTERNAL_COLLABORATOR"].includes(profile);
+}
+
+export function canUseAccessPackages(profile: FunctionalProfileKey, packages: readonly AccessPackageKey[]) {
+  if (packages.includes("ACCESS_GOVERNANCE") && profile !== "OWNER") return false;
+  return canHoldEconomicCapabilities(profile) || !capabilitiesForPackages(packages).some((key) => ECONOMIC_CAPABILITIES.has(key));
 }

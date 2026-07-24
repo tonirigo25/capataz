@@ -74,16 +74,18 @@ export async function requireAuthenticatedUser() {
 }
 
 export async function requireCompanyMembership(userId: string, companyId: string) {
+  const now = new Date();
   return prisma.companyMembership.findFirst({
-    where: { userId, companyId, status: "active", company: { status: "active", archivedAt: null } },
+    where: { userId, companyId, status: "active", OR: [{ accessStartsAt: null }, { accessStartsAt: { lte: now } }], AND: [{ OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: now } }] }], company: { status: "active", archivedAt: null } },
     include: { company: true }
   });
 }
 
 export async function getAvailableCompanies(userId?: string) {
   const session = userId ? null : await requireAuthenticatedUser();
+  const now = new Date();
   return prisma.companyMembership.findMany({
-    where: { userId: userId ?? session!.userId, status: "active", company: { status: "active", archivedAt: null, commercialStatus: { not: "SUSPENDED" } } },
+    where: { userId: userId ?? session!.userId, status: "active", OR: [{ accessStartsAt: null }, { accessStartsAt: { lte: now } }], AND: [{ OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: now } }] }], company: { status: "active", archivedAt: null, commercialStatus: { not: "SUSPENDED" } } },
     include: { company: true },
     orderBy: [{ company: { nombreComercial: "asc" } }]
   });
