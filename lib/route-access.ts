@@ -10,7 +10,13 @@ export const PUBLIC_PAGE_PATHS = new Set([
   "/cookies",
   "/politicas",
   "/soporte",
-  "/modulo-no-disponible"
+  "/modulo-no-disponible",
+  "/demo",
+  "/contacto",
+  "/producto",
+  "/sectores",
+  "/planes",
+  "/seguridad"
 ]);
 
 export const PUBLIC_RESOURCE_PATHS = new Set([
@@ -30,13 +36,15 @@ export function pathMatches(pathname: string, path: string) {
 }
 
 export function isPublicPage(pathname: string) {
-  return PUBLIC_PAGE_PATHS.has(pathname);
+  return PUBLIC_PAGE_PATHS.has(pathname)
+    || pathname.startsWith("/sectores/");
 }
 
 export function isPublicResource(pathname: string) {
   return PUBLIC_RESOURCE_PATHS.has(pathname)
     || pathname.startsWith("/_next/")
-    || pathname.startsWith("/icons/");
+    || pathname.startsWith("/icons/")
+    || pathname.startsWith("/marketing/");
 }
 
 export function isPublicApi(pathname: string) {

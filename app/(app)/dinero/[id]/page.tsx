@@ -10,7 +10,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +31,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   ]);
 
   if (!invoice) notFound();
+  if (invoice.obraId) await assertScopedEntityAccess(auth, "sales.invoices.view", "Work", invoice.obraId);
+  else await assertScopedEntityAccess(auth, "sales.invoices.view", "Client", invoice.clienteId);
+  const [updateDecision, collectDecision, agendaDecision] = await Promise.all([
+    resolveAuthorization(auth, "sales.invoices.create"), resolveAuthorization(auth, "treasury.collections.register"), resolveAuthorization(auth, "agenda.manage")
+  ]);
+  const [canUpdate, canCollect, canSchedule] = await Promise.all([
+    relationDecisionAllowed(auth, "sales.invoices.create", updateDecision, invoice),
+    relationDecisionAllowed(auth, "treasury.collections.register", collectDecision, invoice),
+    relationDecisionAllowed(auth, "agenda.manage", agendaDecision, invoice)
+  ]);
 
   const company = companySettingsView(companyRecord);
   const liveStatus = invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
@@ -49,8 +59,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         title={invoice.concepto}
         description={`${invoice.client.nombre}${invoice.work ? ` · ${invoice.work.titulo}` : " · Sin obra"}`}
         badge={<StatusPill status={liveStatus} />}
-        action={invoice.pendiente > 0 ? <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="primary-button"><Plus size={18} /> Registrar cobro</Link> : <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="primary-button"><Pencil size={18} /> Editar factura</Link>}
-        secondaryActions={<ActionMenu><Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`}><Pencil size={18} /> Editar factura</Link><Link href={`/gestion?tipo=eventoAgenda&clienteId=${invoice.clienteId}&obraId=${invoice.obraId ?? ""}&facturaId=${invoice.id}&tipoEvento=seguimiento_cobro&titulo=Seguimiento%20cobro%20${encodeURIComponent(invoice.numero)}&descripcion=${encodeURIComponent(invoice.concepto)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/dinero/${invoice.id}`}><CalendarClock size={18} /> Crear seguimiento</Link><Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista PDF</Link><Link href={`/dinero/${invoice.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
+        action={invoice.pendiente > 0 && canCollect ? <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="primary-button"><Plus size={18} /> Registrar cobro</Link> : canUpdate ? <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`} className="primary-button"><Pencil size={18} /> Editar factura</Link> : undefined}
+        secondaryActions={<ActionMenu>{canUpdate ? <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`}><Pencil size={18} /> Editar factura</Link> : null}{canSchedule ? <Link href={`/gestion?tipo=eventoAgenda&clienteId=${invoice.clienteId}&obraId=${invoice.obraId ?? ""}&facturaId=${invoice.id}&tipoEvento=seguimiento_cobro&titulo=Seguimiento%20cobro%20${encodeURIComponent(invoice.numero)}&descripcion=${encodeURIComponent(invoice.concepto)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/dinero/${invoice.id}`}><CalendarClock size={18} /> Crear seguimiento</Link> : null}<Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista PDF</Link><Link href={`/dinero/${invoice.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
       />
 
       <MetricStrip className="mb-4 sm:grid-cols-3 xl:grid-cols-3">
@@ -73,7 +83,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </DetailSection>
 
       <EntityWorkflowSummary clientId={invoice.clienteId} workId={invoice.obraId ?? undefined} invoiceId={invoice.id} />
-      {invoice.pendiente > 0 ? (
+      {invoice.pendiente > 0 && canCollect ? (
         <>
           <section className="mt-4">
             <ConfirmedPaymentForm
@@ -95,8 +105,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </form>
         </>
       ) : (
-        <div className="mt-4 rounded-lg border border-obra-green/20 bg-obra-green/10 p-4 text-sm font-semibold text-obra-green">
-          Esta factura está pagada. No hay pendiente que registrar.
+        <div className={`mt-4 rounded-lg border p-4 text-sm font-semibold ${invoice.pendiente > 0 ? "border-slate-200 bg-slate-50 text-slate-600" : "border-obra-green/20 bg-obra-green/10 text-obra-green"}`}>
+          {invoice.pendiente > 0 ? "Consulta en modo lectura; no tienes autorización para registrar cobros." : "Esta factura está pagada. No hay pendiente que registrar."}
         </div>
       )}
 
@@ -112,10 +122,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 <span className="text-sm font-semibold text-slate-500">{formatDate(payment.fecha)}</span>
               </div>
               {payment.notas ? <p className="mt-3 text-sm leading-6 text-slate-600">{payment.notas}</p> : null}
-              <Link href={`/gestion?tipo=pago&id=${payment.id}&returnTo=/dinero/${invoice.id}`} className="secondary-button mt-3">
+              {canCollect ? <Link href={`/gestion?tipo=pago&id=${payment.id}&returnTo=/dinero/${invoice.id}`} className="secondary-button mt-3">
                 <Pencil size={18} />
                 Editar pago
-              </Link>
+              </Link> : null}
             </article>
           ))}
           {invoice.payments.length === 0 ? (
@@ -135,6 +145,14 @@ function tomorrowAtTenInputValue() {
   date.setHours(10, 0, 0, 0);
   const pad = (value: number) => value.toString().padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+async function relationDecisionAllowed(auth: Awaited<ReturnType<typeof requireCapability>>, capability: Parameters<typeof resolveScopedEntityIds>[1], decision: { allowed: boolean; scope: string }, invoice: { obraId: string | null; clienteId: string }) {
+  if (!decision.allowed) return false;
+  if (decision.scope === "COMPANY") return true;
+  const entityType = invoice.obraId ? "Work" : "Client";
+  const ids = await resolveScopedEntityIds(auth, capability, entityType);
+  return Boolean(ids?.includes(invoice.obraId ?? invoice.clienteId));
 }
 
 function Mini({

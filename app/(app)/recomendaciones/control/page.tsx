@@ -19,7 +19,7 @@ export default async function ProactiveControlPage({
   searchParams: Promise<ControlSearchParams>;
 }) {
   const query = await searchParams;
-  const auth = await requireCapability("reports.view");
+  const auth = await requireCapability("orqena.execute");
   const data = await getProactiveControlData(new Date(), auth.companyId);
   const latest = data.latestRun;
 

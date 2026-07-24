@@ -28,8 +28,8 @@ export type ProductNavigationGroup = {
 };
 
 export const primaryNavigation: ProductDestination[] = [
-  { href: "/hoy", label: "Hoy", icon: "home" },
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard", capability: "company.view" },
+  { href: "/hoy", label: "Hoy", icon: "home", capability: "company.view" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard", capability: "reports.view" },
   { href: "/clientes", label: "Clientes", icon: "client", capability: "clients.view" },
   { href: "/obras", label: "Trabajos", icon: "briefcase", capability: "work.view" },
   { href: "/presupuestos", label: "Presupuestos", icon: "document", capability: "sales.budgets.view" },
@@ -53,19 +53,19 @@ export const secondaryNavigation: ProductNavigationGroup[] = [
       { href: "/agenda", label: "Agenda", icon: "agenda", capability: "agenda.view" },
       { href: "/tesoreria", label: "Tesorería", icon: "landmark", capability: "treasury.view" },
       { href: "/documentos", label: "Documentos", icon: "document", capability: "documents.view" },
-      { href: "/recordatorios", label: "Recordatorios", icon: "agenda" },
-      { href: "/actividad", label: "Actividad", icon: "activity" },
-      { href: "/notificaciones", label: "Notificaciones", icon: "notification" }
+      { href: "/recordatorios", label: "Recordatorios", icon: "agenda", capability: "followups.view" },
+      { href: "/actividad", label: "Actividad", icon: "activity", capability: "reports.view" },
+      { href: "/notificaciones", label: "Notificaciones", icon: "notification", capability: "company.view" }
     ]
   },
   {
     label: "Administración",
     items: [
       { href: "/equipo", label: "Roles y acceso", icon: "client", capability: "company.members.view" },
-      { href: "/equipos", label: "Equipos", icon: "building" },
+      { href: "/equipos", label: "Equipos", icon: "building", capability: "company.teams.manage" },
       { href: "/plan-y-uso", label: "Plan y uso", icon: "invoice", capability: "company.billing.manage" },
-      { href: "/auditoria", label: "Auditoría", icon: "activity" },
-      { href: "/configuracion", label: "Configuración", icon: "settings" }
+      { href: "/auditoria", label: "Auditoría", icon: "activity", capability: "reports.view" },
+      { href: "/configuracion", label: "Configuración", icon: "settings", capability: "company.view" }
     ]
   }
 ];

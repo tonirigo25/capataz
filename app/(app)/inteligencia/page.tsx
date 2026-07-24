@@ -23,7 +23,7 @@ import {
   type BusinessKpi
 } from "@/lib/business-intelligence";
 import { round } from "@/lib/business-metrics";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,11 @@ export default async function BusinessIntelligencePage({
   searchParams: Promise<{ periodo?: string; from?: string; to?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCapability("reports.view");
+  const auth = await requireCapability("reports.view");
+  const { companyId } = auth;
+  const combinedCapabilities = ["work.view", "sales.budgets.view", "sales.invoices.view", "treasury.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
+  const combinedAccess = await Promise.all(combinedCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  if (combinedAccess.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) return <main className="screen"><EmptyState title="Inteligencia restringida" description="Este informe combina métricas globales de ventas, trabajos, cobros, compras, costes y rentabilidad. Consulta los módulos disponibles en tu portal." icon={ShieldAlert} action={<Link href="/hoy" className="secondary-button">Volver a Hoy</Link>} /></main>;
   const summary = await getBusinessIntelligenceSummary({ companyId, period: query.periodo, from: query.from, to: query.to });
   const periodQuery = new URLSearchParams();
   periodQuery.set("periodo", summary.period.id);

@@ -17,7 +17,7 @@ import { parseBudgetLines, units } from "@/lib/budget-lines";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +25,11 @@ export const dynamic = "force-dynamic";
 export default async function BudgetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await requireCapability("sales.budgets.view");
-  const [canUpdate, canApprove, canCreateInvoice, canCreateWork] = await Promise.all([
+  const [updateDecision, approveDecision, invoiceDecision, workDecision, marginDecision, agendaDecision, duplicateDecision, pricingDecision] = await Promise.all([
     resolveAuthorization(auth, "sales.budgets.update"), resolveAuthorization(auth, "sales.budgets.approve"),
-    resolveAuthorization(auth, "sales.invoices.create"), resolveAuthorization(auth, "work.create")
-  ]).then((items) => items.map((item) => item.allowed));
+    resolveAuthorization(auth, "sales.invoices.create"), resolveAuthorization(auth, "work.create"), resolveAuthorization(auth, "margin_amount.view"),
+    resolveAuthorization(auth, "agenda.manage"), resolveAuthorization(auth, "sales.budgets.create"), resolveAuthorization(auth, "sales.pricing.view")
+  ]);
   const [budget, companyRecord] = await Promise.all([
     prisma.budget.findFirst({
       where: { id, companyId: auth.companyId },
@@ -38,10 +39,24 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
   ]);
 
   if (!budget) notFound();
+  if (budget.obraId) await assertScopedEntityAccess(auth, "sales.budgets.view", "Work", budget.obraId);
+  else await assertScopedEntityAccess(auth, "sales.budgets.view", "Client", budget.clienteId);
+  const [canUpdateRaw, canApproveRaw, canCreateInvoiceRaw, canCreateWorkRaw, canSeeMargin, canSchedule, canDuplicateRaw, canSeePricing] = await Promise.all([
+    budgetDecisionAllowed(auth, "sales.budgets.update", updateDecision, budget), budgetDecisionAllowed(auth, "sales.budgets.approve", approveDecision, budget),
+    budgetDecisionAllowed(auth, "sales.invoices.create", invoiceDecision, budget), budgetDecisionAllowed(auth, "work.create", workDecision, budget),
+    budgetDecisionAllowed(auth, "margin_amount.view", marginDecision, budget), budgetDecisionAllowed(auth, "agenda.manage", agendaDecision, budget),
+    budgetDecisionAllowed(auth, "sales.budgets.create", duplicateDecision, budget), budgetDecisionAllowed(auth, "sales.pricing.view", pricingDecision, budget)
+  ]);
   const company = companySettingsView(companyRecord);
   const lines = parseBudgetLines(budget.partidas);
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length;
+  const canUpdate = canUpdateRaw && canSeePricing;
+  const canApprove = canApproveRaw && canSeePricing;
+  const canCreateInvoice = canCreateInvoiceRaw && canSeePricing;
+  const canCreateWork = canCreateWorkRaw && canSeePricing;
+  const canDuplicate = canDuplicateRaw && canSeePricing;
+  const canEditBudget = canUpdate && budget.estado !== "aceptado";
 
   return (
     <main className="screen">
@@ -55,16 +70,16 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         title={budget.titulo}
         description={`${budget.client.nombre}${budget.work ? ` · ${budget.work.titulo}` : " · Sin obra"}`}
         badge={<StatusPill status={budget.estado} />}
-        action={canUpdate ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`} className="primary-button"><Pencil size={18} /> Editar presupuesto</Link> : undefined}
-        secondaryActions={<ActionMenu><Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`}><MessageCircle size={18} /> Preparar seguimiento</Link>{canUpdate ? <form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form> : null}<Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link><Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
+        action={canEditBudget ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`} className="primary-button"><Pencil size={18} /> Editar presupuesto</Link> : undefined}
+        secondaryActions={<ActionMenu>{canSchedule ? <Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`}><MessageCircle size={18} /> Preparar seguimiento</Link> : null}{canDuplicate ? <form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form> : null}{canSeePricing ? <Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link> : null}{canSeePricing ? <Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link> : null}</ActionMenu>}
       />
 
-      <MetricStrip className="mb-4">
+      {canSeePricing ? <MetricStrip className="mb-4">
           <Mini label="Subtotal" value={formatCurrency(budget.subtotal)} />
           <Mini label="IVA" value={formatCurrency(budget.iva)} />
           <Mini label="Descuento" value={formatCurrency(budget.descuento)} />
           <Mini label="Total" value={formatCurrency(budget.total)} />
-      </MetricStrip>
+      </MetricStrip> : <Notice className="mb-4" tone="info" title="Precios restringidos" description="Puedes consultar el estado y seguimiento del presupuesto, pero los importes y precios de venta no están autorizados." />}
 
       {companyMissing ? <Notice className="mb-4" tone="warning" title="Datos de empresa incompletos" description={`Falta ${companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes generar el PDF, pero quedará incompleto.`} /> : null}
 
@@ -74,12 +89,12 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
           <p><strong className="text-obra-ink">Enviado:</strong> {formatDate(budget.fechaEnvio)}</p>
           <p><strong className="text-obra-ink">Validez:</strong> {formatDate(budget.fechaValidez)}</p>
           <p><strong className="text-obra-ink">Seguimiento:</strong> {formatDate(budget.fechaSeguimiento)}</p>
-          <p><strong className="text-obra-ink">Margen estimado:</strong> {formatCurrency(budget.margenEstimado)}</p>
+          {canSeeMargin ? <p><strong className="text-obra-ink">Margen estimado:</strong> {formatCurrency(budget.margenEstimado)}</p> : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {canUpdate ? <StatusForm id={budget.id} estado="enviado" label="Marcar enviado" icon="send" /> : null}
+          {canEditBudget ? <StatusForm id={budget.id} estado="enviado" label="Marcar enviado" icon="send" /> : null}
           {canApprove ? <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" /> : null}
-          {canUpdate ? <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" /> : null}
+          {canApprove ? <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" /> : null}
           {canCreateWork ? <form action={convertBudgetToWork}>
             <input type="hidden" name="id" value={budget.id} />
             <ConfirmSubmitButton message="¿Convertir este presupuesto en obra?">Convertir a obra</ConfirmSubmitButton>
@@ -92,7 +107,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
       </DetailSection>
 
       <EntityWorkflowSummary clientId={budget.clienteId} workId={budget.obraId ?? undefined} budgetId={budget.id} />
-      {canUpdate ? <section className="mt-4">
+      {canEditBudget ? <section className="mt-4">
         <h2 className="mb-3 text-lg font-black text-obra-ink">Partidas editables</h2>
         <div className="grid gap-3">
           {lines.map((line, index) => (
@@ -188,6 +203,14 @@ function StatusForm({ id, estado, label, icon }: { id: string; estado: string; l
       </ConfirmSubmitButton>
     </form>
   );
+}
+
+async function budgetDecisionAllowed(auth: Awaited<ReturnType<typeof requireCapability>>, capability: Parameters<typeof resolveScopedEntityIds>[1], decision: { allowed: boolean; scope: string }, budget: { obraId: string | null; clienteId: string }) {
+  if (!decision.allowed) return false;
+  if (decision.scope === "COMPANY") return true;
+  const entityType = budget.obraId ? "Work" : "Client";
+  const ids = await resolveScopedEntityIds(auth, capability, entityType);
+  return Boolean(ids?.includes(budget.obraId ?? budget.clienteId));
 }
 
 function tomorrowAtTenInputValue() {

@@ -8,7 +8,7 @@ import { StatusPill } from "@/components/status-pill";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { CompactFilterBar, ResultCount } from "@/components/ui-primitives";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +30,11 @@ export default async function RemindersPage({
   searchParams: Promise<{ filtro?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("followups.view");
+  const { companyId } = auth;
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
   const reminders = await prisma.reminder.findMany({
-    where: { companyId },
+    where: { companyId, ...(scopedWorkIds === null ? {} : { obraId: { in: scopedWorkIds } }) },
     orderBy: { fechaProgramada: "asc" },
     include: { client: true, work: true, invoice: true, budget: true }
   });

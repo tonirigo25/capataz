@@ -5,22 +5,11 @@ import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
-const flowIds = {
-  client: "flow-client-bano",
-  visit: "flow-visit-bano",
-  budget: "flow-budget-bano",
-  budgetFollowUp: "flow-budget-follow-up",
-  work: "flow-work-bano",
-  expense: "flow-expense-bano",
-  material: "flow-material-bano",
-  invoice: "flow-invoice-bano",
-  partialPayment: "flow-payment-partial",
-  finalPayment: "flow-payment-final",
-  collectionReminder: "flow-collection-reminder"
-};
+function flowIds(companyId: string) { const suffix = companyId.replace(/[^a-zA-Z0-9_-]/g, "").slice(-32); return { client: `flow-client-bano-${suffix}`, visit: `flow-visit-bano-${suffix}`, budget: `flow-budget-bano-${suffix}`, budgetFollowUp: `flow-budget-follow-up-${suffix}`, work: `flow-work-bano-${suffix}`, expense: `flow-expense-bano-${suffix}`, material: `flow-material-bano-${suffix}`, invoice: `flow-invoice-bano-${suffix}`, partialPayment: `flow-payment-partial-${suffix}`, finalPayment: `flow-payment-final-${suffix}`, collectionReminder: `flow-collection-reminder-${suffix}` }; }
 
 const steps = [
   "Nuevo lead",
@@ -38,7 +27,8 @@ const steps = [
 ];
 
 export default async function GuidedDemoPage() {
-  const state = await getFlowState();
+  const auth = await requireCapability("company.update");
+  const state = await getFlowState(auth.companyId);
   const completed = completionFlags(state);
   const completedCount = completed.filter(Boolean).length;
   const nextStep = Math.min(completedCount + 1, steps.length);
@@ -134,20 +124,21 @@ export default async function GuidedDemoPage() {
   );
 }
 
-async function getFlowState() {
+async function getFlowState(companyId: string) {
+  const ids = flowIds(companyId);
   const [client, visit, budget, budgetFollowUp, work, expense, material, invoice, partialPayment, finalPayment, collectionReminder] =
     await Promise.all([
-      prisma.client.findUnique({ where: { id: flowIds.client } }),
-      prisma.reminder.findUnique({ where: { id: flowIds.visit } }),
-      prisma.budget.findUnique({ where: { id: flowIds.budget } }),
-      prisma.reminder.findUnique({ where: { id: flowIds.budgetFollowUp } }),
-      prisma.work.findUnique({ where: { id: flowIds.work } }),
-      prisma.expense.findUnique({ where: { id: flowIds.expense } }),
-      prisma.material.findUnique({ where: { id: flowIds.material } }),
-      prisma.invoice.findUnique({ where: { id: flowIds.invoice } }),
-      prisma.payment.findUnique({ where: { id: flowIds.partialPayment } }),
-      prisma.payment.findUnique({ where: { id: flowIds.finalPayment } }),
-      prisma.reminder.findUnique({ where: { id: flowIds.collectionReminder } })
+      prisma.client.findFirst({ where: { id: ids.client, companyId } }),
+      prisma.reminder.findFirst({ where: { id: ids.visit, companyId } }),
+      prisma.budget.findFirst({ where: { id: ids.budget, companyId } }),
+      prisma.reminder.findFirst({ where: { id: ids.budgetFollowUp, companyId } }),
+      prisma.work.findFirst({ where: { id: ids.work, companyId } }),
+      prisma.expense.findFirst({ where: { id: ids.expense, companyId } }),
+      prisma.material.findFirst({ where: { id: ids.material, companyId } }),
+      prisma.invoice.findFirst({ where: { id: ids.invoice, companyId } }),
+      prisma.payment.findFirst({ where: { id: ids.partialPayment, companyId } }),
+      prisma.payment.findFirst({ where: { id: ids.finalPayment, companyId } }),
+      prisma.reminder.findFirst({ where: { id: ids.collectionReminder, companyId } })
     ]);
 
   return { client, visit, budget, budgetFollowUp, work, expense, material, invoice, partialPayment, finalPayment, collectionReminder };

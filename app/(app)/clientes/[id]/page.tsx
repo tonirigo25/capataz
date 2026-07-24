@@ -16,14 +16,20 @@ import {
   Receipt,
   RotateCcw,
   UserRound,
-  WalletCards
+  WalletCards,
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
+import {
+  EmptyState,
+  EntityHeader,
+  Notice,
+  ParentNavigation,
+  Tabs,
+} from "@/components/ui-primitives";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
 import { OperationalContextSummary } from "@/components/operational-signals";
@@ -32,7 +38,11 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import { prisma } from "@/lib/prisma";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import {
+  requireCapability,
+  resolveAuthorization,
+  resolveScopedEntityIds,
+} from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +53,7 @@ const tabs = [
   ["obras", "Obras"],
   ["dinero", "Dinero"],
   ["actividad", "Actividad"],
-  ["archivos", "Archivos"]
+  ["archivos", "Archivos"],
 ] as const;
 
 const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
@@ -55,50 +65,127 @@ const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
   finanzas: "dinero",
   visitas: "actividad",
   notas: "actividad",
-  documentos: "archivos"
+  documentos: "archivos",
 };
 
 export default async function ClientDetailPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<DetailSearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requireCapability("clients.view");
-  const economicAccess = await Promise.all([
-    resolveAuthorization(auth, "sales.budgets.view"),
-    resolveAuthorization(auth, "sales.invoices.view"),
-    resolveAuthorization(auth, "treasury.view")
-  ]);
-  if (economicAccess.some((decision) => !decision.allowed)) {
-    const client = await prisma.client.findFirst({ where: { id, companyId: auth.companyId }, select: { id: true, nombre: true, nombreComercial: true, razonSocial: true, estado: true, origen: true, archivadoAt: true } });
+  const scopedClientIds = await resolveScopedEntityIds(
+    auth,
+    "clients.view",
+    "Client",
+  );
+  if (scopedClientIds !== null && !scopedClientIds.includes(id)) notFound();
+  const fullCapabilities = [
+    "work.view",
+    "work.create",
+    "work.update",
+    "sales.budgets.view",
+    "sales.budgets.create",
+    "sales.budgets.update",
+    "sales.invoices.view",
+    "sales.invoices.create",
+    "treasury.view",
+    "banking.view",
+    "purchases.received_invoices.view",
+    "purchase_cost.view",
+    "internal_cost.view",
+    "margin_percent.view",
+    "margin_amount.view",
+    "profitability.view",
+    "agenda.view",
+    "agenda.manage",
+    "followups.view",
+    "followups.manage",
+    "documents.view",
+    "documents.manage",
+    "tasks.view",
+    "clients.update",
+  ] as const;
+  const fullAccess = await Promise.all(
+    fullCapabilities.map((capability) =>
+      resolveAuthorization(auth, capability),
+    ),
+  );
+  if (
+    fullAccess.some(
+      (decision) => !decision.allowed || decision.scope !== "COMPANY",
+    )
+  ) {
+    const client = await prisma.client.findFirst({
+      where: { id, companyId: auth.companyId },
+      select: {
+        id: true,
+        nombre: true,
+        nombreComercial: true,
+        razonSocial: true,
+        estado: true,
+        origen: true,
+        archivadoAt: true,
+        telefono: true,
+        email: true,
+      },
+    });
     if (!client) notFound();
-    return <RestrictedClientDetail client={client} />;
+    return <ScopedClientDetail auth={auth} client={client} />;
   }
   const [summary, treasury, operationalContext] = await Promise.all([
     getClientCrmSummary(id, auth.companyId),
     getEconomicControl({ clientId: id, period: "30d" }),
-    getClientOperationalContext(id)
+    getClientOperationalContext(id),
   ]);
   if (!summary) notFound();
 
-  const requestedView = query.vista ?? (query.tab ? legacyTabs[query.tab] ?? query.tab : "resumen");
-  const activeTab = tabs.some(([tab]) => tab === requestedView) ? requestedView as (typeof tabs)[number][0] : "resumen";
+  const requestedView =
+    query.vista ??
+    (query.tab ? (legacyTabs[query.tab] ?? query.tab) : "resumen");
+  const activeTab = tabs.some(([tab]) => tab === requestedView)
+    ? (requestedView as (typeof tabs)[number][0])
+    : "resumen";
   const client = summary.client;
   const returnTo = `/clientes/${client.id}`;
 
   return (
     <main className="screen">
       <EntityHeader
-        back={<ParentNavigation href="/clientes" label="Clientes" context={summary.listItem.typeLabel} />}
+        back={
+          <ParentNavigation
+            href="/clientes"
+            label="Clientes"
+            context={summary.listItem.typeLabel}
+          />
+        }
         context={`${summary.listItem.typeLabel} · ${client.origen}`}
         title={summary.listItem.displayName}
         description={`${summary.listItem.fiscalName} · ${summary.listItem.primaryContact} · ${(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}`}
-        status={<StatusPill status={client.archivadoAt ? "archivado" : client.estado} />}
-        action={<Link href={`/gestion?tipo=obra&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="primary-button"><BriefcaseBusiness size={18} /> Crear obra</Link>}
-        menu={<ClientActions clientId={client.id} clientName={summary.listItem.displayName} returnTo={returnTo} archived={Boolean(client.archivadoAt)} />}
+        status={
+          <StatusPill
+            status={client.archivadoAt ? "archivado" : client.estado}
+          />
+        }
+        action={
+          <Link
+            href={`/gestion?tipo=obra&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+                className="secondary-button"
+          >
+            <BriefcaseBusiness size={18} /> Crear obra
+          </Link>
+        }
+        menu={
+          <ClientActions
+            clientId={client.id}
+            clientName={summary.listItem.displayName}
+            returnTo={returnTo}
+            archived={Boolean(client.archivadoAt)}
+          />
+        }
       />
 
       {summary.listItem.pendingFields.length ? (
@@ -106,18 +193,54 @@ export default async function ClientDetailPage({
           tone="warning"
           title={`${summary.listItem.pendingFields.length} datos pendientes`}
           description={summary.listItem.pendingFields.slice(0, 4).join(" · ")}
-          action={<Link href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Completar datos</Link>}
+          action={
+            <Link
+              href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+              className="secondary-button"
+            >
+              Completar datos
+            </Link>
+          }
         />
       ) : null}
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen ejecutivo del cliente">
-        <StatCard title="Obras" value={`${summary.kpis.activeWorks}/${summary.kpis.totalWorks}`} detail="Activas / totales" icon={BriefcaseBusiness} />
-        <StatCard title="Facturado" value={formatCurrency(summary.kpis.billedTotal)} detail="Sin borradores" icon={Receipt} />
-        <StatCard title="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} detail="Pagos reales" icon={WalletCards} tone="success" />
-        <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
+      <section
+        className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        aria-label="Resumen ejecutivo del cliente"
+      >
+        <StatCard
+          title="Obras"
+          value={`${summary.kpis.activeWorks}/${summary.kpis.totalWorks}`}
+          detail="Activas / totales"
+          icon={BriefcaseBusiness}
+        />
+        <StatCard
+          title="Facturado"
+          value={formatCurrency(summary.kpis.billedTotal)}
+          detail="Sin borradores"
+          icon={Receipt}
+        />
+        <StatCard
+          title="Cobrado"
+          value={formatCurrency(summary.kpis.paidTotal)}
+          detail="Pagos reales"
+          icon={WalletCards}
+          tone="success"
+        />
+        <StatCard
+          title="Pendiente"
+          value={formatCurrency(summary.kpis.pendingTotal)}
+          detail="Total menos pagos"
+          icon={CircleDollarSign}
+          tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"}
+        />
       </section>
 
-      <OperationalContextSummary context={operationalContext} entityType="cliente" entityId={client.id} />
+      <OperationalContextSummary
+        context={operationalContext}
+        entityType="cliente"
+        entityId={client.id}
+      />
 
       <Tabs label="Secciones de la ficha de cliente" className="mt-5">
         {tabs.map(([tab, label]) => (
@@ -132,56 +255,528 @@ export default async function ClientDetailPage({
       </Tabs>
 
       <div className="mt-4">
-        {activeTab === "resumen" ? <div className="grid gap-4"><SummaryTab summary={summary} returnTo={returnTo} /><ContactsTab summary={summary} returnTo={returnTo} /><EntityWorkflowSummary clientId={client.id} /><DataTab summary={summary} returnTo={returnTo} /></div> : null}
-        {activeTab === "obras" ? <WorksTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "dinero" ? <div className="grid gap-4"><BudgetsTab summary={summary} returnTo={returnTo} /><InvoicesTab summary={summary} returnTo={returnTo} /><PaymentsTab summary={summary} /><ClientFinanceTab treasury={treasury} clientId={client.id} /></div> : null}
-        {activeTab === "actividad" ? <div className="grid gap-4"><ActivityTab summary={summary} /><VisitsTab summary={summary} returnTo={returnTo} /><NotesTab summary={summary} returnTo={returnTo} /></div> : null}
+        {activeTab === "resumen" ? (
+          <div className="grid gap-4">
+            <SummaryTab summary={summary} returnTo={returnTo} />
+            <ContactsTab summary={summary} returnTo={returnTo} />
+            <EntityWorkflowSummary clientId={client.id} />
+            <DataTab summary={summary} returnTo={returnTo} />
+          </div>
+        ) : null}
+        {activeTab === "obras" ? (
+          <WorksTab summary={summary} returnTo={returnTo} />
+        ) : null}
+        {activeTab === "dinero" ? (
+          <div className="grid gap-4">
+            <BudgetsTab summary={summary} returnTo={returnTo} />
+            <InvoicesTab summary={summary} returnTo={returnTo} />
+            <PaymentsTab summary={summary} />
+            <ClientFinanceTab treasury={treasury} clientId={client.id} />
+          </div>
+        ) : null}
+        {activeTab === "actividad" ? (
+          <div className="grid gap-4">
+            <ActivityTab summary={summary} />
+            <VisitsTab summary={summary} returnTo={returnTo} />
+            <NotesTab summary={summary} returnTo={returnTo} />
+          </div>
+        ) : null}
         {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
       </div>
     </main>
   );
 }
 
-function RestrictedClientDetail({ client }: { client: { id: string; nombre: string; nombreComercial: string | null; razonSocial: string | null; estado: string; origen: string; archivadoAt: Date | null } }) {
+async function ScopedClientDetail({
+  auth,
+  client,
+}: {
+  auth: Awaited<ReturnType<typeof requireCapability>>;
+  client: {
+    id: string;
+    nombre: string;
+    nombreComercial: string | null;
+    razonSocial: string | null;
+    estado: string;
+    origen: string;
+    archivadoAt: Date | null;
+    telefono: string | null;
+    email: string | null;
+  };
+}) {
   const name = client.nombreComercial ?? client.razonSocial ?? client.nombre;
-  return <main className="screen"><EntityHeader back={<ParentNavigation href="/clientes" label="Clientes" />} context={client.origen} title={name} description="Ficha de cliente" status={<StatusPill status={client.archivadoAt ? "archivado" : client.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar la ficha del cliente, pero no presupuestos, facturas, cobros ni importes." /></main>;
+  const [
+    workDecision,
+    budgetDecision,
+    budgetCreateDecision,
+    pricingDecision,
+    invoiceDecision,
+    clientUpdateDecision,
+    followupDecision,
+  ] = await Promise.all([
+    resolveAuthorization(auth, "work.view"),
+    resolveAuthorization(auth, "sales.budgets.view"),
+    resolveAuthorization(auth, "sales.budgets.create"),
+    resolveAuthorization(auth, "sales.pricing.view"),
+    resolveAuthorization(auth, "sales.invoices.view"),
+    resolveAuthorization(auth, "clients.update"),
+    resolveAuthorization(auth, "followups.manage"),
+  ]);
+  const [
+    workIds,
+    budgetWorkIds,
+    budgetClientIds,
+    budgetCreateWorkIds,
+    budgetCreateClientIds,
+    pricingWorkIds,
+    pricingClientIds,
+    invoiceWorkIds,
+    invoiceClientIds,
+    clientUpdateIds,
+    followupWorkIds,
+    followupClientIds,
+    contacts,
+  ] = await Promise.all([
+    workDecision.allowed
+      ? resolveScopedEntityIds(auth, "work.view", "Work")
+      : Promise.resolve([]),
+    budgetDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.budgets.view", "Work")
+      : Promise.resolve([]),
+    budgetDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.budgets.view", "Client")
+      : Promise.resolve([]),
+    budgetCreateDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.budgets.create", "Work")
+      : Promise.resolve([]),
+    budgetCreateDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.budgets.create", "Client")
+      : Promise.resolve([]),
+    pricingDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.pricing.view", "Work")
+      : Promise.resolve([]),
+    pricingDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.pricing.view", "Client")
+      : Promise.resolve([]),
+    invoiceDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.invoices.view", "Work")
+      : Promise.resolve([]),
+    invoiceDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.invoices.view", "Client")
+      : Promise.resolve([]),
+    clientUpdateDecision.allowed
+      ? resolveScopedEntityIds(auth, "clients.update", "Client")
+      : Promise.resolve([]),
+    followupDecision.allowed
+      ? resolveScopedEntityIds(auth, "followups.manage", "Work")
+      : Promise.resolve([]),
+    followupDecision.allowed
+      ? resolveScopedEntityIds(auth, "followups.manage", "Client")
+      : Promise.resolve([]),
+    prisma.contact.findMany({
+      where: {
+        companyId: auth.companyId,
+        clientId: client.id,
+        archivedAt: null,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        apellidos: true,
+        cargo: true,
+        telefono: true,
+        email: true,
+      },
+      orderBy: { nombre: "asc" },
+      take: 50,
+    }),
+  ]);
+  const [works, budgets, invoices] = await Promise.all([
+    workDecision.allowed
+      ? prisma.work.findMany({
+          where: {
+            companyId: auth.companyId,
+            clienteId: client.id,
+            ...(workIds === null ? {} : { id: { in: workIds } }),
+          },
+          select: { id: true, titulo: true, estado: true, direccion: true },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
+        })
+      : Promise.resolve([]),
+    budgetDecision.allowed
+      ? prisma.budget.findMany({
+          where: {
+            companyId: auth.companyId,
+            clienteId: client.id,
+            ...relatedClientScope(
+              budgetDecision.scope,
+              budgetWorkIds,
+              budgetClientIds,
+            ),
+          },
+          select: {
+            id: true,
+            numero: true,
+            titulo: true,
+            estado: true,
+            total: true,
+            obraId: true,
+          },
+          orderBy: { fechaCreacion: "desc" },
+          take: 50,
+        })
+      : Promise.resolve([]),
+    invoiceDecision.allowed
+      ? prisma.invoice.findMany({
+          where: {
+            companyId: auth.companyId,
+            clienteId: client.id,
+            ...relatedClientScope(
+              invoiceDecision.scope,
+              invoiceWorkIds,
+              invoiceClientIds,
+            ),
+          },
+          select: {
+            id: true,
+            numero: true,
+            concepto: true,
+            estado: true,
+            total: true,
+            pendiente: true,
+          },
+          orderBy: { fechaEmision: "desc" },
+          take: 50,
+        })
+      : Promise.resolve([]),
+  ]);
+  const canCreateClientBudget =
+    budgetCreateDecision.allowed &&
+    pricingDecision.allowed &&
+    budgetCreateDecision.scope !== "SELECTED_WORKS" &&
+    pricingDecision.scope !== "SELECTED_WORKS" &&
+    relationAllowedForClient(
+      budgetCreateDecision.scope,
+      budgetCreateWorkIds,
+      budgetCreateClientIds,
+      null,
+      client.id,
+    ) &&
+    relationAllowedForClient(
+      pricingDecision.scope,
+      pricingWorkIds,
+      pricingClientIds,
+      null,
+      client.id,
+    );
+  const canCreateContact =
+    clientUpdateDecision.allowed &&
+    (clientUpdateIds === null || clientUpdateIds.includes(client.id));
+  const canCreateClientFollowup =
+    followupDecision.allowed &&
+    followupDecision.scope !== "SELECTED_WORKS" &&
+    relationAllowedForClient(
+      followupDecision.scope,
+      followupWorkIds,
+      followupClientIds,
+      null,
+      client.id,
+    );
+  const returnTo = `/clientes/${client.id}`;
+  return (
+    <main className="screen">
+      <EntityHeader
+        back={<ParentNavigation href="/clientes" label="Clientes" />}
+        context={client.origen}
+        title={name}
+        description={`${client.telefono ?? client.email ?? "Sin contacto directo"} · Vista según tu alcance`}
+        status={
+          <StatusPill
+            status={client.archivadoAt ? "archivado" : client.estado}
+          />
+        }
+      />
+      {canCreateClientBudget || canCreateContact || canCreateClientFollowup ? (
+        <section className="mt-4 flex flex-wrap gap-2">
+          {canCreateClientBudget ? (
+            <Link
+              href={`/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+              className="secondary-button"
+            >
+              <FileText size={18} />
+              Crear presupuesto
+            </Link>
+          ) : null}
+          {canCreateContact ? (
+            <Link
+              href={`/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+              className="secondary-button"
+            >
+              <Plus size={18} />
+              Añadir contacto
+            </Link>
+          ) : null}
+          {canCreateClientFollowup ? (
+            <Link
+              href={`/gestion?tipo=recordatorio&clienteId=${client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`}
+              className="secondary-button"
+            >
+              <MessageCircle size={18} />
+              Crear seguimiento
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
+      <section className="mt-5 grid gap-4 xl:grid-cols-2">
+        <ScopedList title="Contactos" empty="Sin contactos disponibles.">
+          {contacts.map((contact) => (
+            <article
+              key={contact.id}
+              className="rounded-lg border border-slate-200 p-3"
+            >
+              <p className="font-black text-obra-ink">
+                {contact.nombre} {contact.apellidos ?? ""}
+              </p>
+              <p className="text-sm text-slate-500">
+                {contact.cargo ?? "Contacto"} ·{" "}
+                {contact.telefono ?? contact.email ?? "Sin dato"}
+              </p>
+            </article>
+          ))}
+        </ScopedList>
+        {workDecision.allowed ? (
+          <ScopedList
+            title="Trabajos autorizados"
+            empty="Sin trabajos en tu alcance."
+          >
+            {works.map((work) => {
+              const canCreateWorkBudget =
+                budgetCreateDecision.allowed &&
+                pricingDecision.allowed &&
+                relationAllowedForClient(
+                  budgetCreateDecision.scope,
+                  budgetCreateWorkIds,
+                  budgetCreateClientIds,
+                  work.id,
+                  client.id,
+                ) &&
+                relationAllowedForClient(
+                  pricingDecision.scope,
+                  pricingWorkIds,
+                  pricingClientIds,
+                  work.id,
+                  client.id,
+                );
+              return (
+                <article
+                  key={work.id}
+                  className="rounded-lg border border-slate-200 p-3"
+                >
+                  <Link href={`/obras/${work.id}`} className="block">
+                    <p className="font-black text-obra-ink">{work.titulo}</p>
+                    <p className="text-sm text-slate-500">
+                      {statusLabel(work.estado)} · {work.direccion}
+                    </p>
+                  </Link>
+                  {canCreateWorkBudget ? (
+                    <Link
+                      href={`/gestion?tipo=presupuesto&clienteId=${client.id}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`}
+                      className="secondary-button mt-2"
+                    >
+                      Crear presupuesto
+                    </Link>
+                  ) : null}
+                </article>
+              );
+            })}
+          </ScopedList>
+        ) : null}
+        {budgetDecision.allowed ? (
+          <ScopedList
+            title="Presupuestos autorizados"
+            empty="Sin presupuestos en tu alcance."
+          >
+            {budgets.map((budget) => (
+              <Link
+                key={budget.id}
+                href={`/presupuestos/${budget.id}`}
+                className="rounded-lg border border-slate-200 p-3"
+              >
+                <p className="font-black text-obra-ink">
+                  {budget.numero} · {budget.titulo}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {statusLabel(budget.estado)}
+                  {pricingDecision.allowed &&
+                  relationAllowedForClient(
+                    pricingDecision.scope,
+                    pricingWorkIds,
+                    pricingClientIds,
+                    budget.obraId,
+                    client.id,
+                  )
+                    ? ` · ${formatCurrency(budget.total)}`
+                    : ""}
+                </p>
+              </Link>
+            ))}
+          </ScopedList>
+        ) : null}
+        {invoiceDecision.allowed ? (
+          <ScopedList
+            title="Facturas autorizadas"
+            empty="Sin facturas en tu alcance."
+          >
+            {invoices.map((invoice) => (
+              <Link
+                key={invoice.id}
+                href={`/dinero/${invoice.id}`}
+                className="rounded-lg border border-slate-200 p-3"
+              >
+                <p className="font-black text-obra-ink">
+                  {invoice.numero} · {invoice.concepto}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {statusLabel(invoice.estado)} ·{" "}
+                  {formatCurrency(invoice.total)} ·{" "}
+                  {formatCurrency(invoice.pendiente)} pendiente
+                </p>
+              </Link>
+            ))}
+          </ScopedList>
+        ) : null}
+      </section>
+    </main>
+  );
 }
 
-function ClientActions({ clientId, clientName, returnTo, archived }: { clientId: string; clientName: string; returnTo: string; archived: boolean }) {
+function ScopedList({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: ReactNode;
+}) {
+  const hasChildren = Array.isArray(children)
+    ? children.length > 0
+    : Boolean(children);
+  return (
+    <section className="card p-4">
+      <h2 className="font-black text-obra-ink">{title}</h2>
+      <div className="mt-3 grid gap-2">
+        {hasChildren ? (
+          children
+        ) : (
+          <p className="text-sm text-slate-500">{empty}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+function relatedClientScope(
+  scope: string,
+  workIds: string[] | null,
+  clientIds: string[] | null,
+) {
+  if (scope === "COMPANY") return {};
+  if (scope === "SELECTED_CLIENTS")
+    return { clienteId: { in: clientIds ?? [] } };
+  if (scope === "SELECTED_WORKS") return { obraId: { in: workIds ?? [] } };
+  const OR: Array<Record<string, unknown>> = [];
+  if (workIds?.length) OR.push({ obraId: { in: workIds } });
+  if (clientIds?.length)
+    OR.push({ clienteId: { in: clientIds }, obraId: null });
+  return OR.length ? { OR } : { id: { in: [] as string[] } };
+}
+function relationAllowedForClient(
+  scope: string,
+  workIds: string[] | null,
+  clientIds: string[] | null,
+  workId: string | null,
+  clientId: string,
+) {
+  if (scope === "COMPANY") return true;
+  if (scope === "SELECTED_WORKS")
+    return Boolean(workId && workIds?.includes(workId));
+  if (scope === "SELECTED_CLIENTS")
+    return Boolean(clientIds?.includes(clientId));
+  return workId
+    ? Boolean(workIds?.includes(workId))
+    : Boolean(clientIds?.includes(clientId));
+}
+
+function ClientActions({
+  clientId,
+  clientName,
+  returnTo,
+  archived,
+}: {
+  clientId: string;
+  clientName: string;
+  returnTo: string;
+  archived: boolean;
+}) {
   const encodedReturn = encodeURIComponent(returnTo);
   const visitDate = encodeURIComponent(tomorrowAtTenInputValue());
   return (
     <details className="relative">
-      <summary className="secondary-button cursor-pointer list-none">Más acciones</summary>
+      <summary className="secondary-button cursor-pointer list-none">
+        Más acciones
+      </summary>
       <div className="absolute right-0 z-20 mt-2 grid min-w-64 gap-1 rounded-xl border border-border bg-surface p-2 shadow-xl [&_a]:justify-start">
-      <Link href={`/gestion?tipo=cliente&id=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
-        <UserRound size={18} />
-        Editar
-      </Link>
-      <Link href={`/gestion?tipo=presupuesto&clienteId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
-        <FileText size={18} />
-        Presupuesto
-      </Link>
-      <Link href={`/gestion?tipo=factura&clienteId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
-        <Receipt size={18} />
-        Factura
-      </Link>
-      <Link href={`/gestion?tipo=eventoAgenda&clienteId=${clientId}&tipoEvento=visita&titulo=Visita%20con%20${encodeURIComponent(clientName)}&fechaInicio=${visitDate}&returnTo=${encodedReturn}`} className="secondary-button">
-        <CalendarClock size={18} />
-        Visita
-      </Link>
-      <Link href={`/gestion?tipo=recordatorio&clienteId=${clientId}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodedReturn}`} className="secondary-button">
-        <MessageCircle size={18} />
-        Seguimiento
-      </Link>
-      <Link href={`/gestion?tipo=contacto&clientId=${clientId}&returnTo=${encodedReturn}`} className="secondary-button">
-        <Plus size={18} />
-        Contacto
-      </Link>
-      <Link href={`/capataz?clienteId=${clientId}`} className="secondary-button" aria-label={`Preguntar a Orqena sobre ${clientName}`}>
-        <Bot size={18} />
-        Preguntar a Orqena
-      </Link>
+        <Link
+          href={`/gestion?tipo=cliente&id=${clientId}&returnTo=${encodedReturn}`}
+          className="secondary-button"
+        >
+          <UserRound size={18} />
+          Editar
+        </Link>
+        <Link
+          href={`/gestion?tipo=presupuesto&clienteId=${clientId}&returnTo=${encodedReturn}`}
+          className="secondary-button"
+        >
+          <FileText size={18} />
+          Presupuesto
+        </Link>
+        <Link
+          href={`/gestion?tipo=factura&clienteId=${clientId}&returnTo=${encodedReturn}`}
+          className="secondary-button"
+        >
+          <Receipt size={18} />
+          Factura
+        </Link>
+        <Link
+          href={`/gestion?tipo=eventoAgenda&clienteId=${clientId}&tipoEvento=visita&titulo=Visita%20con%20${encodeURIComponent(clientName)}&fechaInicio=${visitDate}&returnTo=${encodedReturn}`}
+          className="secondary-button"
+        >
+          <CalendarClock size={18} />
+          Visita
+        </Link>
+        <Link
+          href={`/gestion?tipo=recordatorio&clienteId=${clientId}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodedReturn}`}
+          className="secondary-button"
+        >
+          <MessageCircle size={18} />
+          Seguimiento
+        </Link>
+        <Link
+          href={`/gestion?tipo=contacto&clientId=${clientId}&returnTo=${encodedReturn}`}
+          className="secondary-button"
+        >
+          <Plus size={18} />
+          Contacto
+        </Link>
+        <Link
+          href={`/capataz?clienteId=${clientId}`}
+          className="secondary-button"
+          aria-label={`Preguntar a Orqena sobre ${clientName}`}
+        >
+          <Bot size={18} />
+          Preguntar a Orqena
+        </Link>
         <ArchiveActions id={clientId} archived={archived} />
       </div>
     </details>
@@ -193,7 +788,10 @@ function ArchiveActions({ id, archived }: { id: string; archived: boolean }) {
     return (
       <form action={restoreClient}>
         <input type="hidden" name="id" value={id} />
-        <ConfirmSubmitButton className="secondary-button" message="¿Restaurar este cliente y volver a mostrarlo entre los activos?">
+        <ConfirmSubmitButton
+          className="secondary-button"
+          message="¿Restaurar este cliente y volver a mostrarlo entre los activos?"
+        >
           <RotateCcw size={18} />
           Restaurar
         </ConfirmSubmitButton>
@@ -204,7 +802,10 @@ function ArchiveActions({ id, archived }: { id: string; archived: boolean }) {
   return (
     <form action={archiveClient}>
       <input type="hidden" name="id" value={id} />
-      <ConfirmSubmitButton className="danger-button" message="El cliente se ocultará de la vista de activos, pero se conservarán sus obras, presupuestos, facturas y pagos.">
+      <ConfirmSubmitButton
+        className="danger-button"
+        message="El cliente se ocultará de la vista de activos, pero se conservarán sus obras, presupuestos, facturas y pagos."
+      >
         <Archive size={18} />
         Archivar
       </ConfirmSubmitButton>
@@ -212,49 +813,105 @@ function ArchiveActions({ id, archived }: { id: string; archived: boolean }) {
   );
 }
 
-function SummaryTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
+function SummaryTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
   return (
     <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
       <div className="grid gap-4">
         <SectionList
           title="Obras activas"
           emptyTitle="Este cliente todavía no tiene obras activas."
-          emptyAction={<Link href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear obra</Link>}
+          emptyAction={
+            <Link
+              href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+              className="secondary-button"
+            >
+              Crear obra
+            </Link>
+          }
         >
           {summary.activeWorks.slice(0, 3).map((work) => (
             <WorkCard key={work.id} work={work} returnTo={returnTo} compact />
           ))}
         </SectionList>
 
-        <SectionList title="Facturas pendientes" emptyTitle="No hay facturas pendientes.">
+        <SectionList
+          title="Facturas pendientes"
+          emptyTitle="No hay facturas pendientes."
+        >
           {summary.pendingInvoices.slice(0, 3).map((invoice) => (
-            <InvoiceCard key={invoice.id} invoice={invoice} returnTo={returnTo} compact />
+            <InvoiceCard
+              key={invoice.id}
+              invoice={invoice}
+              returnTo={returnTo}
+              compact
+            />
           ))}
         </SectionList>
 
-        <SectionList title="Presupuestos recientes" emptyTitle="No hay presupuestos registrados.">
+        <SectionList
+          title="Presupuestos recientes"
+          emptyTitle="No hay presupuestos registrados."
+        >
           {summary.recentBudgets.slice(0, 3).map((budget) => (
-            <BudgetCard key={budget.id} budget={budget} returnTo={returnTo} compact />
+            <BudgetCard
+              key={budget.id}
+              budget={budget}
+              returnTo={returnTo}
+              compact
+            />
           ))}
         </SectionList>
       </div>
 
       <aside className="grid gap-4">
-        <SectionList title="Próximas visitas y tareas" emptyTitle="No hay visitas o tareas próximas.">
+        <SectionList
+          title="Próximas visitas y tareas"
+          emptyTitle="No hay visitas o tareas próximas."
+        >
           {summary.upcomingEvents.slice(0, 4).map((event) => (
-            <CompactRow key={event.id} icon={CalendarClock} title={event.titulo} detail={`${statusLabel(event.tipo)} · ${formatDate(event.fechaInicio)}`} href={`/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`} />
+            <CompactRow
+              key={event.id}
+              icon={CalendarClock}
+              title={event.titulo}
+              detail={`${statusLabel(event.tipo)} · ${formatDate(event.fechaInicio)}`}
+              href={`/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`}
+            />
           ))}
         </SectionList>
 
-        <SectionList title="Seguimientos pendientes" emptyTitle="No hay seguimientos pendientes.">
+        <SectionList
+          title="Seguimientos pendientes"
+          emptyTitle="No hay seguimientos pendientes."
+        >
           {summary.pendingReminders.slice(0, 4).map((reminder) => (
-            <CompactRow key={reminder.id} icon={Bell} title={statusLabel(reminder.tipo)} detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)}`} href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`} />
+            <CompactRow
+              key={reminder.id}
+              icon={Bell}
+              title={statusLabel(reminder.tipo)}
+              detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)}`}
+              href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`}
+            />
           ))}
         </SectionList>
 
-        <SectionList title="Actividad reciente" emptyTitle="Sin actividad reciente.">
+        <SectionList
+          title="Actividad reciente"
+          emptyTitle="Sin actividad reciente."
+        >
           {summary.activity.slice(0, 5).map((event) => (
-            <CompactRow key={event.id} icon={ClipboardList} title={event.text} detail={`${event.type} · ${formatDate(event.date)}`} href={event.href} />
+            <CompactRow
+              key={event.id}
+              icon={ClipboardList}
+              title={event.text}
+              detail={`${event.type} · ${formatDate(event.date)}`}
+              href={event.href}
+            />
           ))}
         </SectionList>
       </aside>
@@ -262,36 +919,79 @@ function SummaryTab({ summary, returnTo }: { summary: NonNullable<Awaited<Return
   );
 }
 
-function ContactsTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
+function ContactsTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
   return (
     <SectionList
       title="Contactos"
       description="Contactos reales del cliente, con respaldo defensivo de los campos antiguos cuando aún no se han migrado manualmente."
       emptyTitle="No hay contactos registrados."
-      emptyAction={<Link href={`/gestion?tipo=contacto&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Añadir contacto</Link>}
+      emptyAction={
+        <Link
+          href={`/gestion?tipo=contacto&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Añadir contacto
+        </Link>
+      }
     >
       {summary.contacts.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {summary.contacts.map((contact) => (
-            <article key={contact.id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-black text-obra-ink">{contact.name}</h3>
-                <p className="mt-1 text-sm text-slate-500">{contact.role}</p>
+            <article
+              key={contact.id}
+              className="rounded-xl border border-slate-200 bg-white p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-black text-obra-ink">{contact.name}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{contact.role}</p>
+                </div>
+                <div className="flex flex-wrap justify-end gap-1">
+                  {contact.flags.map((flag) => (
+                    <Badge key={flag}>{flag}</Badge>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap justify-end gap-1">
-                {contact.flags.map((flag) => <Badge key={flag}>{flag}</Badge>)}
+              <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                <p>
+                  <strong className="text-obra-ink">Teléfono:</strong>{" "}
+                  {contact.phone ?? "Sin teléfono"}
+                </p>
+                <p>
+                  <strong className="text-obra-ink">Email:</strong>{" "}
+                  {contact.email ?? "Sin email"}
+                </p>
+                {contact.notes ? (
+                  <p>
+                    <strong className="text-obra-ink">Notas:</strong>{" "}
+                    {contact.notes}
+                  </p>
+                ) : null}
               </div>
-            </div>
-            <div className="mt-3 grid gap-2 text-sm text-slate-600">
-              <p><strong className="text-obra-ink">Teléfono:</strong> {contact.phone ?? "Sin teléfono"}</p>
-              <p><strong className="text-obra-ink">Email:</strong> {contact.email ?? "Sin email"}</p>
-              {contact.notes ? <p><strong className="text-obra-ink">Notas:</strong> {contact.notes}</p> : null}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link href={contact.source === "real" ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}` : `/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Editar</Link>
-              <Link href={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=llamada&titulo=Llamada%20${encodeURIComponent(contact.name)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear llamada</Link>
-            </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={
+                    contact.source === "real"
+                      ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`
+                      : `/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`
+                  }
+                  className="secondary-button"
+                >
+                  Editar
+                </Link>
+                <Link
+                  href={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=llamada&titulo=Llamada%20${encodeURIComponent(contact.name)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`}
+                  className="secondary-button"
+                >
+                  Crear llamada
+                </Link>
+              </div>
             </article>
           ))}
         </div>
@@ -300,76 +1000,30 @@ function ContactsTab({ summary, returnTo }: { summary: NonNullable<Awaited<Retur
   );
 }
 
-function WorksTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
+function WorksTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
   return (
     <SectionList
       title="Obras del cliente"
       emptyTitle="Este cliente todavía no tiene obras."
-      emptyAction={<Link href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear obra</Link>}
+      emptyAction={
+        <Link
+          href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Crear obra
+        </Link>
+      }
     >
       {summary.client.works.length ? (
         <div className="grid gap-3">
-          {summary.client.works.map((work) => <WorkCard key={work.id} work={work} returnTo={returnTo} />)}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function BudgetsTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
-  return (
-    <SectionList
-      title="Presupuestos del cliente"
-      emptyTitle="No hay presupuestos registrados."
-      emptyAction={<Link href={`/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear presupuesto</Link>}
-    >
-      {summary.client.budgets.length ? (
-        <div className="grid gap-3">
-          {summary.client.budgets.map((budget) => <BudgetCard key={budget.id} budget={budget} returnTo={returnTo} />)}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function InvoicesTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
-  return (
-    <SectionList
-      title="Facturas del cliente"
-      emptyTitle="No hay facturas registradas."
-      emptyAction={<Link href={`/gestion?tipo=factura&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear factura</Link>}
-    >
-      {summary.client.invoices.length ? (
-        <div className="grid gap-3">
-          {summary.client.invoices.map((invoice) => <InvoiceCard key={invoice.id} invoice={invoice} returnTo={returnTo} />)}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function PaymentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>> }) {
-  return (
-    <SectionList title="Pagos" emptyTitle="No hay pagos registrados.">
-      {summary.payments.length ? (
-        <div className="grid gap-3">
-          {summary.payments.map((payment) => (
-          <article key={payment.id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="label">{payment.invoice.numero}</p>
-                <h3 className="mt-1 font-black text-obra-ink">{formatCurrency(payment.importe)}</h3>
-                <p className="mt-1 text-sm text-slate-500">{payment.invoice.concepto}</p>
-              </div>
-              <StatusPill status={payment.tipo} />
-            </div>
-            <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
-              <p><strong className="text-obra-ink">Fecha:</strong> {formatDate(payment.fecha)}</p>
-              <p><strong className="text-obra-ink">Método:</strong> {payment.metodo}</p>
-              <p><strong className="text-obra-ink">Obra:</strong> {payment.work?.titulo ?? "Sin obra"}</p>
-            </div>
-            {payment.notas ? <p className="mt-3 text-sm text-slate-600">{payment.notas}</p> : null}
-          </article>
+          {summary.client.works.map((work) => (
+            <WorkCard key={work.id} work={work} returnTo={returnTo} />
           ))}
         </div>
       ) : null}
@@ -377,39 +1031,214 @@ function PaymentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<type
   );
 }
 
-function ClientFinanceTab({ treasury, clientId }: { treasury: Awaited<ReturnType<typeof getEconomicControl>>; clientId: string }) {
+function BudgetsTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
+  return (
+    <SectionList
+      title="Presupuestos del cliente"
+      emptyTitle="No hay presupuestos registrados."
+      emptyAction={
+        <Link
+          href={`/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Crear presupuesto
+        </Link>
+      }
+    >
+      {summary.client.budgets.length ? (
+        <div className="grid gap-3">
+          {summary.client.budgets.map((budget) => (
+            <BudgetCard key={budget.id} budget={budget} returnTo={returnTo} />
+          ))}
+        </div>
+      ) : null}
+    </SectionList>
+  );
+}
+
+function InvoicesTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
+  return (
+    <SectionList
+      title="Facturas del cliente"
+      emptyTitle="No hay facturas registradas."
+      emptyAction={
+        <Link
+          href={`/gestion?tipo=factura&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Crear factura
+        </Link>
+      }
+    >
+      {summary.client.invoices.length ? (
+        <div className="grid gap-3">
+          {summary.client.invoices.map((invoice) => (
+            <InvoiceCard
+              key={invoice.id}
+              invoice={invoice}
+              returnTo={returnTo}
+            />
+          ))}
+        </div>
+      ) : null}
+    </SectionList>
+  );
+}
+
+function PaymentsTab({
+  summary,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+}) {
+  return (
+    <SectionList title="Pagos" emptyTitle="No hay pagos registrados.">
+      {summary.payments.length ? (
+        <div className="grid gap-3">
+          {summary.payments.map((payment) => (
+            <article
+              key={payment.id}
+              className="rounded-xl border border-slate-200 bg-white p-4"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="label">{payment.invoice.numero}</p>
+                  <h3 className="mt-1 font-black text-obra-ink">
+                    {formatCurrency(payment.importe)}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {payment.invoice.concepto}
+                  </p>
+                </div>
+                <StatusPill status={payment.tipo} />
+              </div>
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                <p>
+                  <strong className="text-obra-ink">Fecha:</strong>{" "}
+                  {formatDate(payment.fecha)}
+                </p>
+                <p>
+                  <strong className="text-obra-ink">Método:</strong>{" "}
+                  {payment.metodo}
+                </p>
+                <p>
+                  <strong className="text-obra-ink">Obra:</strong>{" "}
+                  {payment.work?.titulo ?? "Sin obra"}
+                </p>
+              </div>
+              {payment.notas ? (
+                <p className="mt-3 text-sm text-slate-600">{payment.notas}</p>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </SectionList>
+  );
+}
+
+function ClientFinanceTab({
+  treasury,
+  clientId,
+}: {
+  treasury: Awaited<ReturnType<typeof getEconomicControl>>;
+  clientId: string;
+}) {
   const receivables = treasury.receivables.slice(0, 5);
   return (
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <SectionList title="Posición económica del cliente" emptyTitle="Sin métricas financieras.">
+      <SectionList
+        title="Posición económica del cliente"
+        emptyTitle="Sin métricas financieras."
+      >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <FinanceBox label="Facturado" value={formatCurrency(treasury.receivableSummary.documented)} />
-          <FinanceBox label="Cobrado" value={formatCurrency(treasury.receivableSummary.settled)} />
-          <FinanceBox label="Pendiente" value={formatCurrency(treasury.receivableSummary.pending)} tone={treasury.receivableSummary.pending ? "warning" : "neutral"} />
-          <FinanceBox label="Vencido" value={formatCurrency(treasury.receivableSummary.overdue)} tone={treasury.receivableSummary.overdue ? "danger" : "neutral"} />
+          <FinanceBox
+            label="Facturado"
+            value={formatCurrency(treasury.receivableSummary.documented)}
+          />
+          <FinanceBox
+            label="Cobrado"
+            value={formatCurrency(treasury.receivableSummary.settled)}
+          />
+          <FinanceBox
+            label="Pendiente"
+            value={formatCurrency(treasury.receivableSummary.pending)}
+            tone={treasury.receivableSummary.pending ? "warning" : "neutral"}
+          />
+          <FinanceBox
+            label="Vencido"
+            value={formatCurrency(treasury.receivableSummary.overdue)}
+            tone={treasury.receivableSummary.overdue ? "danger" : "neutral"}
+          />
         </div>
-        <p className="mt-3 text-sm leading-6 text-slate-600">Importes trazados a facturas emitidas y pagos registrados. No se presenta una puntuación ni un saldo bancario atribuido al cliente.</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Importes trazados a facturas emitidas y pagos registrados. No se
+          presenta una puntuación ni un saldo bancario atribuido al cliente.
+        </p>
       </SectionList>
-      <SectionList title="Próximos cobros" emptyTitle="Sin cobros próximos registrados.">
+      <SectionList
+        title="Próximos cobros"
+        emptyTitle="Sin cobros próximos registrados."
+      >
         {receivables.length ? (
           <div className="grid gap-3">
             {receivables.map((item) => (
-              <Link key={item.id} href={item.href} className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="label">{item.pending > 0 ? "Pendiente" : "Liquidada"}</p>
+              <Link
+                key={item.id}
+                href={item.href}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <p className="label">
+                  {item.pending > 0 ? "Pendiente" : "Liquidada"}
+                </p>
                 <h3 className="mt-1 font-black text-obra-ink">{item.number}</h3>
-                <p className="mt-1 text-sm text-slate-500">{formatCurrency(item.pending)} · {item.dueDate ? formatDate(item.dueDate) : "sin vencimiento"}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {formatCurrency(item.pending)} ·{" "}
+                  {item.dueDate ? formatDate(item.dueDate) : "sin vencimiento"}
+                </p>
               </Link>
             ))}
           </div>
         ) : null}
-        <Link href={`/tesoreria?vista=cobros&periodo=30d&cliente=${clientId}`} className="primary-button mt-4 inline-flex">Abrir control económico</Link>
+        <Link
+          href={`/tesoreria?vista=cobros&periodo=30d&cliente=${clientId}`}
+          className="primary-button mt-4 inline-flex"
+        >
+          Abrir control económico
+        </Link>
       </SectionList>
     </div>
   );
 }
 
-function FinanceBox({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "warning" | "danger" | "success" }) {
-  const toneClass = tone === "danger" ? "bg-red-50 text-red-700" : tone === "warning" ? "bg-amber-50 text-amber-800" : tone === "success" ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-obra-ink";
+function FinanceBox({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "warning" | "danger" | "success";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "bg-red-50 text-red-700"
+      : tone === "warning"
+        ? "bg-amber-50 text-amber-800"
+        : tone === "success"
+          ? "bg-emerald-50 text-emerald-700"
+          : "bg-slate-50 text-obra-ink";
   return (
     <div className={`rounded-lg p-3 ${toneClass}`}>
       <p className="text-xs font-bold uppercase opacity-75">{label}</p>
@@ -418,50 +1247,106 @@ function FinanceBox({ label, value, tone = "neutral" }: { label: string; value: 
   );
 }
 
-function VisitsTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
+function VisitsTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <SectionList
         title="Visitas y reuniones"
         emptyTitle="No hay visitas registradas."
-        emptyAction={<Link href={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=visita&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Registrar visita</Link>}
+        emptyAction={
+          <Link
+            href={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=visita&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`}
+            className="secondary-button"
+          >
+            Registrar visita
+          </Link>
+        }
       >
         {summary.client.agendaEvents.map((event) => (
-          <CompactRow key={event.id} icon={CalendarClock} title={event.titulo} detail={`${statusLabel(event.tipo)} · ${statusLabel(event.estado)} · ${formatDate(event.fechaInicio)}`} href={`/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`} />
+          <CompactRow
+            key={event.id}
+            icon={CalendarClock}
+            title={event.titulo}
+            detail={`${statusLabel(event.tipo)} · ${statusLabel(event.estado)} · ${formatDate(event.fechaInicio)}`}
+            href={`/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          />
         ))}
       </SectionList>
 
       <SectionList
         title="Seguimientos"
         emptyTitle="No hay seguimientos pendientes."
-        emptyAction={<Link href={`/gestion?tipo=recordatorio&clienteId=${summary.client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear seguimiento</Link>}
+        emptyAction={
+          <Link
+            href={`/gestion?tipo=recordatorio&clienteId=${summary.client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`}
+            className="secondary-button"
+          >
+            Crear seguimiento
+          </Link>
+        }
       >
         {summary.client.reminders.map((reminder) => (
-          <CompactRow key={reminder.id} icon={Bell} title={statusLabel(reminder.tipo)} detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)} · ${reminder.canal}`} href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`} />
+          <CompactRow
+            key={reminder.id}
+            icon={Bell}
+            title={statusLabel(reminder.tipo)}
+            detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)} · ${reminder.canal}`}
+            href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          />
         ))}
       </SectionList>
     </div>
   );
 }
 
-function DocumentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>> }) {
+function DocumentsTab({
+  summary,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+}) {
   const returnTo = `/clientes/${summary.client.id}?tab=documentos`;
   return (
     <SectionList
       title="Documentos"
       description="Archivos, presupuestos y facturas relacionados con este cliente."
       emptyTitle="No hay documentos asociados."
-      emptyAction={<Link href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Registrar documento</Link>}
+      emptyAction={
+        <Link
+          href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Registrar documento
+        </Link>
+      }
     >
       {summary.documents.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {summary.documents.map((document) => (
-            <Link key={document.id} href={document.href ?? `/gestion?tipo=documento&id=${document.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-obra-yellowDark hover:bg-obra-muted">
-            <p className="label">{document.type}</p>
-            <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
-            <p className="mt-2 text-sm text-slate-500">{document.relatedLabel}</p>
-            <p className="mt-1 text-xs font-bold uppercase text-slate-500">{document.source}</p>
-            <p className="mt-1 text-sm font-bold text-slate-600">{formatDate(document.date)}</p>
+            <Link
+              key={document.id}
+              href={
+                document.href ??
+                `/gestion?tipo=documento&id=${document.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`
+              }
+              className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-obra-yellowDark hover:bg-obra-muted"
+            >
+              <p className="label">{document.type}</p>
+              <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                {document.relatedLabel}
+              </p>
+              <p className="mt-1 text-xs font-bold uppercase text-slate-500">
+                {document.source}
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-600">
+                {formatDate(document.date)}
+              </p>
             </Link>
           ))}
         </div>
@@ -470,21 +1355,37 @@ function DocumentsTab({ summary }: { summary: NonNullable<Awaited<ReturnType<typ
   );
 }
 
-function ActivityTab({ summary }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>> }) {
+function ActivityTab({
+  summary,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+}) {
   return (
-    <SectionList title="Actividad reciente" emptyTitle="Sin actividad reciente.">
+    <SectionList
+      title="Actividad reciente"
+      emptyTitle="Sin actividad reciente."
+    >
       {summary.activity.length ? (
         <div className="card divide-y divide-slate-100">
           {summary.activity.map((event) => (
             <div key={event.id} className="flex gap-3 p-4">
-            <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-obra-yellow/25 text-obra-yellowDark">
-              <ClipboardList size={18} />
-            </span>
-            <div className="min-w-0">
-              <p className="font-black text-obra-ink">{event.text}</p>
-              <p className="mt-1 text-sm text-slate-500">{event.type} · {formatDate(event.date)}</p>
-              {event.href ? <Link href={event.href} className="mt-2 inline-flex text-sm font-bold text-obra-ink underline underline-offset-4">Ver entidad</Link> : null}
-            </div>
+              <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-obra-yellow/25 text-obra-yellowDark">
+                <ClipboardList size={18} />
+              </span>
+              <div className="min-w-0">
+                <p className="font-black text-obra-ink">{event.text}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {event.type} · {formatDate(event.date)}
+                </p>
+                {event.href ? (
+                  <Link
+                    href={event.href}
+                    className="mt-2 inline-flex text-sm font-bold text-obra-ink underline underline-offset-4"
+                  >
+                    Ver entidad
+                  </Link>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -493,29 +1394,94 @@ function ActivityTab({ summary }: { summary: NonNullable<Awaited<ReturnType<type
   );
 }
 
-function NotesTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
+function NotesTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
   const notes = [
-    summary.client.notas ? { id: "client", title: "Nota interna del cliente", text: summary.client.notas, date: summary.client.ultimaInteraccion ?? summary.client.fechaCreacion } : null,
-    ...summary.client.internalNotes.filter((note) => !note.archivedAt).map((note) => ({ id: note.id, title: note.work ? `Obra: ${note.work.titulo}` : note.budget ? `Presupuesto: ${note.budget.numero}` : note.invoice ? `Factura: ${note.invoice.numero}` : "Nota interna", text: note.content, date: note.createdAt })),
-    ...summary.client.works.filter((work) => work.notas).map((work) => ({ id: `work-${work.id}`, title: `Obra: ${work.titulo}`, text: work.notas ?? "", date: work.fechaInicio ?? summary.client.fechaCreacion })),
-    ...summary.client.agendaEvents.filter((event) => event.notas).map((event) => ({ id: `event-${event.id}`, title: event.titulo, text: event.notas ?? "", date: event.fechaInicio })),
-    ...summary.client.reminders.filter((reminder) => reminder.mensaje).map((reminder) => ({ id: `reminder-${reminder.id}`, title: statusLabel(reminder.tipo), text: reminder.mensaje, date: reminder.fechaProgramada }))
-  ].filter(Boolean) as Array<{ id: string; title: string; text: string; date: Date }>;
+    summary.client.notas
+      ? {
+          id: "client",
+          title: "Nota interna del cliente",
+          text: summary.client.notas,
+          date:
+            summary.client.ultimaInteraccion ?? summary.client.fechaCreacion,
+        }
+      : null,
+    ...summary.client.internalNotes
+      .filter((note) => !note.archivedAt)
+      .map((note) => ({
+        id: note.id,
+        title: note.work
+          ? `Obra: ${note.work.titulo}`
+          : note.budget
+            ? `Presupuesto: ${note.budget.numero}`
+            : note.invoice
+              ? `Factura: ${note.invoice.numero}`
+              : "Nota interna",
+        text: note.content,
+        date: note.createdAt,
+      })),
+    ...summary.client.works
+      .filter((work) => work.notas)
+      .map((work) => ({
+        id: `work-${work.id}`,
+        title: `Obra: ${work.titulo}`,
+        text: work.notas ?? "",
+        date: work.fechaInicio ?? summary.client.fechaCreacion,
+      })),
+    ...summary.client.agendaEvents
+      .filter((event) => event.notas)
+      .map((event) => ({
+        id: `event-${event.id}`,
+        title: event.titulo,
+        text: event.notas ?? "",
+        date: event.fechaInicio,
+      })),
+    ...summary.client.reminders
+      .filter((reminder) => reminder.mensaje)
+      .map((reminder) => ({
+        id: `reminder-${reminder.id}`,
+        title: statusLabel(reminder.tipo),
+        text: reminder.mensaje,
+        date: reminder.fechaProgramada,
+      })),
+  ].filter(Boolean) as Array<{
+    id: string;
+    title: string;
+    text: string;
+    date: Date;
+  }>;
 
   return (
     <SectionList
       title="Notas internas"
       description="Notas internas estructuradas. No se usan en PDFs ni en mensajes a clientes."
       emptyTitle="No hay notas internas registradas."
-      emptyAction={<Link href={`/gestion?tipo=notaInterna&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Añadir nota</Link>}
+      emptyAction={
+        <Link
+          href={`/gestion?tipo=notaInterna&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Añadir nota
+        </Link>
+      }
     >
       {notes.length ? (
         <div className="grid gap-3">
           {notes.map((note) => (
-            <article key={note.id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="label">{formatDate(note.date)}</p>
-            <h3 className="mt-1 font-black text-obra-ink">{note.title}</h3>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{note.text}</p>
+            <article
+              key={note.id}
+              className="rounded-xl border border-slate-200 bg-white p-4"
+            >
+              <p className="label">{formatDate(note.date)}</p>
+              <h3 className="mt-1 font-black text-obra-ink">{note.title}</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                {note.text}
+              </p>
             </article>
           ))}
         </div>
@@ -524,14 +1490,27 @@ function NotesTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnTy
   );
 }
 
-function DataTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>; returnTo: string }) {
+function DataTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
   const client = summary.client;
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <SectionList
         title="Datos fiscales"
         emptyTitle="Sin datos fiscales."
-        emptyAction={<Link href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Completar datos</Link>}
+        emptyAction={
+          <Link
+            href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+            className="secondary-button"
+          >
+            Completar datos
+          </Link>
+        }
       >
         <DataGrid
           rows={[
@@ -546,15 +1525,21 @@ function DataTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnTyp
             ["País", client.pais],
             ["Email de facturación", client.emailFacturacion],
             ["Teléfono de facturación", client.telefonoFacturacion],
-            ["Persona de facturación", client.contactoFacturacionNombre]
+            ["Persona de facturación", client.contactoFacturacionNombre],
           ]}
         />
       </SectionList>
 
-      <SectionList title="Datos pendientes" emptyTitle="No hay datos pendientes.">
+      <SectionList
+        title="Datos pendientes"
+        emptyTitle="No hay datos pendientes."
+      >
         <div className="grid gap-2">
           {summary.listItem.pendingFields.map((field) => (
-            <div key={field} className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">
+            <div
+              key={field}
+              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900"
+            >
               <Bell size={17} />
               {field}
             </div>
@@ -565,9 +1550,31 @@ function DataTab({ summary, returnTo }: { summary: NonNullable<Awaited<ReturnTyp
   );
 }
 
-function WorkCard({ work, returnTo, compact = false }: { work: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>["client"]["works"][number]; returnTo: string; compact?: boolean }) {
-  const invoiceTotal = work.invoices.reduce((sum, invoice) => sum + invoice.total, 0);
-  const pendingTotal = work.invoices.reduce((sum, invoice) => sum + Math.max(0, invoice.total - invoice.payments.reduce((paid, payment) => paid + payment.importe, 0)), 0);
+function WorkCard({
+  work,
+  returnTo,
+  compact = false,
+}: {
+  work: NonNullable<
+    Awaited<ReturnType<typeof getClientCrmSummary>>
+  >["client"]["works"][number];
+  returnTo: string;
+  compact?: boolean;
+}) {
+  const invoiceTotal = work.invoices.reduce(
+    (sum, invoice) => sum + invoice.total,
+    0,
+  );
+  const pendingTotal = work.invoices.reduce(
+    (sum, invoice) =>
+      sum +
+      Math.max(
+        0,
+        invoice.total -
+          invoice.payments.reduce((paid, payment) => paid + payment.importe, 0),
+      ),
+    0,
+  );
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -578,50 +1585,133 @@ function WorkCard({ work, returnTo, compact = false }: { work: NonNullable<Await
         </div>
         <StatusPill status={work.estado} />
       </div>
-      <div className={`mt-3 grid gap-2 text-sm text-slate-600 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}>
-        <p><strong className="text-obra-ink">Inicio:</strong> {formatDate(work.fechaInicio)}</p>
-        <p><strong className="text-obra-ink">Última:</strong> {formatDate(work.agendaEvents[0]?.fechaInicio ?? work.fechaInicio)}</p>
-        <p><strong className="text-obra-ink">Facturado:</strong> {formatCurrency(invoiceTotal)}</p>
-        <p><strong className="text-obra-ink">Pendiente:</strong> {formatCurrency(pendingTotal)}</p>
+      <div
+        className={`mt-3 grid gap-2 text-sm text-slate-600 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
+      >
+        <p>
+          <strong className="text-obra-ink">Inicio:</strong>{" "}
+          {formatDate(work.fechaInicio)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Última:</strong>{" "}
+          {formatDate(work.agendaEvents[0]?.fechaInicio ?? work.fechaInicio)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Facturado:</strong>{" "}
+          {formatCurrency(invoiceTotal)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Pendiente:</strong>{" "}
+          {formatCurrency(pendingTotal)}
+        </p>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link href={`/gestion?tipo=obra&id=${work.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Editar</Link>
-        <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Crear presupuesto</Link>
-        <Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&tipoEvento=visita&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Registrar visita</Link>
+        <Link
+          href={`/gestion?tipo=obra&id=${work.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Editar
+        </Link>
+        <Link
+          href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Crear presupuesto
+        </Link>
+        <Link
+          href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&tipoEvento=visita&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Registrar visita
+        </Link>
       </div>
     </article>
   );
 }
 
-function BudgetCard({ budget, returnTo, compact = false }: { budget: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>["client"]["budgets"][number]; returnTo: string; compact?: boolean }) {
+function BudgetCard({
+  budget,
+  returnTo,
+  compact = false,
+}: {
+  budget: NonNullable<
+    Awaited<ReturnType<typeof getClientCrmSummary>>
+  >["client"]["budgets"][number];
+  returnTo: string;
+  compact?: boolean;
+}) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="label">{budget.numero}</p>
           <h3 className="mt-1 font-black text-obra-ink">{budget.titulo}</h3>
-          <p className="mt-1 text-sm text-slate-500">{budget.work?.titulo ?? "Sin obra asociada"}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {budget.work?.titulo ?? "Sin obra asociada"}
+          </p>
         </div>
         <StatusPill status={budget.estado} />
       </div>
-      <div className={`mt-3 grid gap-2 text-sm text-slate-600 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-5"}`}>
-        <p><strong className="text-obra-ink">Base:</strong> {formatCurrency(budget.subtotal)}</p>
-        <p><strong className="text-obra-ink">IVA:</strong> {formatCurrency(budget.iva)}</p>
-        <p><strong className="text-obra-ink">Total:</strong> {formatCurrency(budget.total)}</p>
-        <p><strong className="text-obra-ink">Validez:</strong> {formatDate(budget.fechaValidez)}</p>
-        <p><strong className="text-obra-ink">Actualizado:</strong> {formatDate(budget.fechaEnvio ?? budget.fechaCreacion)}</p>
+      <div
+        className={`mt-3 grid gap-2 text-sm text-slate-600 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-5"}`}
+      >
+        <p>
+          <strong className="text-obra-ink">Base:</strong>{" "}
+          {formatCurrency(budget.subtotal)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">IVA:</strong>{" "}
+          {formatCurrency(budget.iva)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Total:</strong>{" "}
+          {formatCurrency(budget.total)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Validez:</strong>{" "}
+          {formatDate(budget.fechaValidez)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Actualizado:</strong>{" "}
+          {formatDate(budget.fechaEnvio ?? budget.fechaCreacion)}
+        </p>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link href={`/presupuestos/${budget.id}`} className="secondary-button">Ver</Link>
-        <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Editar</Link>
-        <Link href={`/presupuestos/${budget.id}/pdf`} className="secondary-button">Ver PDF</Link>
+        <Link href={`/presupuestos/${budget.id}`} className="secondary-button">
+          Ver
+        </Link>
+        <Link
+          href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Editar
+        </Link>
+        <Link
+          href={`/presupuestos/${budget.id}/pdf`}
+          className="secondary-button"
+        >
+          Ver PDF
+        </Link>
       </div>
     </article>
   );
 }
 
-function InvoiceCard({ invoice, returnTo, compact = false }: { invoice: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>["client"]["invoices"][number]; returnTo: string; compact?: boolean }) {
-  const paid = invoice.payments.reduce((sum, payment) => sum + payment.importe, 0);
+function InvoiceCard({
+  invoice,
+  returnTo,
+  compact = false,
+}: {
+  invoice: NonNullable<
+    Awaited<ReturnType<typeof getClientCrmSummary>>
+  >["client"]["invoices"][number];
+  returnTo: string;
+  compact?: boolean;
+}) {
+  const paid = invoice.payments.reduce(
+    (sum, payment) => sum + payment.importe,
+    0,
+  );
   const pending = Math.max(0, invoice.total - paid);
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4">
@@ -629,22 +1719,57 @@ function InvoiceCard({ invoice, returnTo, compact = false }: { invoice: NonNulla
         <div>
           <p className="label">{invoice.numero}</p>
           <h3 className="mt-1 font-black text-obra-ink">{invoice.concepto}</h3>
-          <p className="mt-1 text-sm text-slate-500">{invoice.work?.titulo ?? "Sin obra asociada"}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {invoice.work?.titulo ?? "Sin obra asociada"}
+          </p>
         </div>
         <StatusPill status={invoice.estado} />
       </div>
-      <div className={`mt-3 grid gap-2 text-sm text-slate-600 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-5"}`}>
-        <p><strong className="text-obra-ink">Total:</strong> {formatCurrency(invoice.total)}</p>
-        <p><strong className="text-obra-ink">Pagado:</strong> {formatCurrency(paid)}</p>
-        <p><strong className="text-obra-ink">Pendiente:</strong> {formatCurrency(pending)}</p>
-        <p><strong className="text-obra-ink">Emisión:</strong> {formatDate(invoice.fechaEmision)}</p>
-        <p><strong className="text-obra-ink">Vence:</strong> {formatDate(invoice.fechaVencimiento)}</p>
+      <div
+        className={`mt-3 grid gap-2 text-sm text-slate-600 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-5"}`}
+      >
+        <p>
+          <strong className="text-obra-ink">Total:</strong>{" "}
+          {formatCurrency(invoice.total)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Pagado:</strong>{" "}
+          {formatCurrency(paid)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Pendiente:</strong>{" "}
+          {formatCurrency(pending)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Emisión:</strong>{" "}
+          {formatDate(invoice.fechaEmision)}
+        </p>
+        <p>
+          <strong className="text-obra-ink">Vence:</strong>{" "}
+          {formatDate(invoice.fechaVencimiento)}
+        </p>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link href={`/dinero/${invoice.id}`} className="secondary-button">Ver</Link>
-        <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Editar</Link>
-        <Link href={`/dinero/${invoice.id}/pdf`} className="secondary-button">Ver PDF</Link>
-        {pending > 0 ? <Link href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Registrar pago</Link> : null}
+        <Link href={`/dinero/${invoice.id}`} className="secondary-button">
+          Ver
+        </Link>
+        <Link
+          href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          className="secondary-button"
+        >
+          Editar
+        </Link>
+        <Link href={`/dinero/${invoice.id}/pdf`} className="secondary-button">
+          Ver PDF
+        </Link>
+        {pending > 0 ? (
+          <Link
+            href={`/gestion?tipo=pago&facturaId=${invoice.id}&returnTo=${encodeURIComponent(returnTo)}`}
+            className="secondary-button"
+          >
+            Registrar pago
+          </Link>
+        ) : null}
       </div>
     </article>
   );
@@ -655,7 +1780,7 @@ function SectionList({
   description,
   emptyTitle,
   emptyAction,
-  children
+  children,
 }: {
   title: string;
   description?: string;
@@ -663,17 +1788,35 @@ function SectionList({
   emptyAction?: ReactNode;
   children?: ReactNode;
 }) {
-  const childArray = children ? (Array.isArray(children) ? children : [children]) : [];
+  const childArray = children
+    ? Array.isArray(children)
+      ? children
+      : [children]
+    : [];
   const hasContent = childArray.some(Boolean);
   return (
     <section>
       <SectionHeader title={title} description={description} />
-      {hasContent ? <div className="grid gap-3">{children}</div> : <EmptyState title={emptyTitle} icon={FolderOpen} action={emptyAction} />}
+      {hasContent ? (
+        <div className="grid gap-3">{children}</div>
+      ) : (
+        <EmptyState title={emptyTitle} icon={FolderOpen} action={emptyAction} />
+      )}
     </section>
   );
 }
 
-function CompactRow({ icon: Icon, title, detail, href }: { icon: ComponentType<{ size?: number; className?: string }>; title: string; detail: string; href?: string }) {
+function CompactRow({
+  icon: Icon,
+  title,
+  detail,
+  href,
+}: {
+  icon: ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  detail: string;
+  href?: string;
+}) {
   const content = (
     <span className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-obra-graphite">
@@ -685,15 +1828,26 @@ function CompactRow({ icon: Icon, title, detail, href }: { icon: ComponentType<{
       </span>
     </span>
   );
-  return href ? <Link href={href} className="block transition hover:scale-[0.995]">{content}</Link> : content;
+  return href ? (
+    <Link href={href} className="block transition hover:scale-[0.995]">
+      {content}
+    </Link>
+  ) : (
+    content
+  );
 }
 
 function DataGrid({ rows }: { rows: Array<[string, string | null]> }) {
   return (
     <dl className="grid gap-2">
       {rows.map(([label, value]) => (
-        <div key={label} className="grid gap-1 rounded-lg border border-slate-100 bg-white p-3 sm:grid-cols-[12rem_1fr]">
-          <dt className="text-xs font-bold uppercase text-slate-500">{label}</dt>
+        <div
+          key={label}
+          className="grid gap-1 rounded-lg border border-slate-100 bg-white p-3 sm:grid-cols-[12rem_1fr]"
+        >
+          <dt className="text-xs font-bold uppercase text-slate-500">
+            {label}
+          </dt>
           <dd className="font-bold text-obra-ink">{value || "Pendiente"}</dd>
         </div>
       ))}
@@ -702,7 +1856,11 @@ function DataGrid({ rows }: { rows: Array<[string, string | null]> }) {
 }
 
 function Badge({ children }: { children: ReactNode }) {
-  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{children}</span>;
+  return (
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
+      {children}
+    </span>
+  );
 }
 
 function tomorrowAtTenInputValue() {

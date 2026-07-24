@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 
 export async function EntityWorkflowSummary({
   clientId,
@@ -13,7 +14,17 @@ export async function EntityWorkflowSummary({
   invoiceId?: string;
   budgetId?: string;
 }) {
-  const { companyId } = await requireCompanyContext();
+  const context = await requireCompanyContext();
+  const { companyId } = context;
+  const [tasksDecision, followupsDecision] = await Promise.all([
+    resolveAuthorization(context, "tasks.view"), resolveAuthorization(context, "followups.view")
+  ]);
+  const [taskIds, followupWorkIds, followupClientIds] = await Promise.all([
+    tasksDecision.allowed ? resolveScopedTaskIds(context, "tasks.view") : Promise.resolve([]),
+    followupsDecision.allowed ? resolveScopedEntityIds(context, "followups.view", "Work") : Promise.resolve([]),
+    followupsDecision.allowed ? resolveScopedEntityIds(context, "followups.view", "Client") : Promise.resolve([])
+  ]);
+  const followupEntityAllowed = followupsDecision.allowed && (followupsDecision.scope === "COMPANY" || (workId ? Boolean(followupWorkIds?.includes(workId)) : clientId ? Boolean(followupClientIds?.includes(clientId)) : false));
   const entityWhere = {
     ...(clientId ? { clientId } : {}),
     ...(workId ? { workId } : {}),
@@ -21,18 +32,19 @@ export async function EntityWorkflowSummary({
     ...(budgetId ? { budgetId } : {})
   };
   const [tasks, followups] = await Promise.all([
-    prisma.task.findMany({
-      where: { companyId, ...entityWhere, archivedAt: null, status: { notIn: ["completed", "cancelled", "archived"] } },
+    tasksDecision.allowed ? prisma.task.findMany({
+      where: { companyId, ...entityWhere, ...(taskIds === null ? {} : { id: { in: taskIds } }), archivedAt: null, status: { notIn: ["completed", "cancelled", "archived"] } },
       include: { checklist: true },
       orderBy: { dueAt: "asc" },
       take: 3
-    }),
-    prisma.followUp.findMany({
+    }) : Promise.resolve([]),
+    followupEntityAllowed ? prisma.followUp.findMany({
       where: { companyId, ...entityWhere, archivedAt: null, status: { notIn: ["completed", "cancelled", "archived"] } },
       orderBy: { nextActionAt: "asc" },
       take: 3
-    })
+    }) : Promise.resolve([])
   ]);
+  if (!tasksDecision.allowed && !followupsDecision.allowed) return null;
   const query = new URLSearchParams(entityWhere);
 
   return (

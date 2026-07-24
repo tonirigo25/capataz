@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import {
   editFollowUpAction,
   changeFollowUpStatusAction,
@@ -28,6 +28,9 @@ export default async function FollowUpDetailPage({
     },
   });
   if (!item) notFound();
+  if (item.workId) await assertScopedEntityAccess(auth, "followups.view", "Work", item.workId);
+  else if (item.clientId) await assertScopedEntityAccess(auth, "followups.view", "Client", item.clientId);
+  else if (auth.scope !== "COMPANY") notFound();
   const automationRun=item.automationRunId?await prisma.automationRun.findFirst({where:{id:item.automationRunId,companyId:auth.companyId},include:{definition:true}}):null;
   const [client, contact, work, budget, invoice] = await Promise.all([
     item.clientId

@@ -34,12 +34,11 @@ import { clsx } from "clsx";
 import {
   createActions,
   isProductDestinationActive,
-  primaryNavigation,
   resolveRouteContext,
-  secondaryNavigation,
   type ProductDestination,
   type ProductIcon
 } from "@/lib/product-navigation";
+import type { PortalManifest } from "@/lib/commercial/portal-manifest";
 
 type DesktopPanel = "more" | "create" | "user" | null;
 type Overlay = "search" | "create" | "more" | null;
@@ -64,6 +63,7 @@ const icons: Record<ProductIcon, LucideIcon> = {
 
 export function AppChrome({
   children,
+  portalManifest,
   capabilities,
   modeLabel,
   unreadNotifications,
@@ -73,6 +73,7 @@ export function AppChrome({
   logoutAction
 }: {
   children: ReactNode;
+  portalManifest: PortalManifest;
   capabilities: string[];
   modeLabel?: string;
   unreadNotifications: number;
@@ -200,7 +201,7 @@ export function AppChrome({
 
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-border bg-surface lg:block">
         <DesktopNavigation
-          capabilities={capabilities}
+          navigation={portalManifest.navigation}
           pathname={pathname}
           companyName={companyName}
           userName={userName}
@@ -213,7 +214,7 @@ export function AppChrome({
       <header className="sticky top-0 z-30 border-b border-border bg-surface/95">
         <div className="mx-auto flex h-16 max-w-product items-center gap-2 px-4 sm:px-6 lg:px-8">
           <Link
-            href="/hoy"
+            href={portalManifest.safeHome}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white lg:hidden"
             aria-label="Ir a Hoy"
           >
@@ -238,7 +239,7 @@ export function AppChrome({
           </button>
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <button
+            {portalManifest.quickActions.length ? <><button
               type="button"
               className="icon-button lg:hidden"
               aria-label="Buscar en Orqena"
@@ -253,10 +254,10 @@ export function AppChrome({
               onClick={(event) => openDesktopPanel("create", event.currentTarget)}
             >
               <Plus size={18} aria-hidden="true" />Crear
-            </button>
-            <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
+            </button></> : null}
+            {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
               <Bot size={18} aria-hidden="true" />Orqena
-            </Link>
+            </Link> : null}
             <NotificationLink unread={unreadNotifications} />
           </div>
         </div>
@@ -265,7 +266,8 @@ export function AppChrome({
       <main id="main-content" className="relative">{children}</main>
 
       <MobileBottomNavigation
-        capabilities={capabilities}
+        items={portalManifest.mobileNavigation}
+        canCreate={portalManifest.quickActions.length > 0}
         pathname={pathname}
         overlay={overlay}
         onOpen={openOverlay}
@@ -273,7 +275,7 @@ export function AppChrome({
 
       {desktopPanel === "more" ? (
         <DesktopMorePanel
-          capabilities={capabilities}
+          groups={portalManifest.navigationGroups}
           ref={panelRef}
           pathname={pathname}
           unread={unreadNotifications}
@@ -315,12 +317,13 @@ export function AppChrome({
             )}
           >
             {overlay === "search" ? (
-              <SearchDialog id={dialogId} onClose={() => setOverlay(null)} />
+              <SearchDialog id={dialogId} showDashboard={portalManifest.navigation.some((item) => item.href === "/dashboard")} onClose={() => setOverlay(null)} />
             ) : overlay === "create" ? (
               <MobileCreateSheet capabilities={capabilities} id={dialogId} onClose={() => setOverlay(null)} />
             ) : (
               <MobileMoreSheet
-                capabilities={capabilities}
+                navigation={portalManifest.navigation}
+                groups={portalManifest.navigationGroups}
                 id={dialogId}
                 pathname={pathname}
                 unread={unreadNotifications}
@@ -340,7 +343,7 @@ export function AppChrome({
 }
 
 function DesktopNavigation({
-  capabilities,
+  navigation,
   pathname,
   companyName,
   userName,
@@ -348,7 +351,7 @@ function DesktopNavigation({
   desktopPanel,
   onOpenPanel
 }: {
-  capabilities: string[];
+  navigation: ProductDestination[];
   pathname: string;
   companyName: string;
   userName: string;
@@ -371,7 +374,7 @@ function DesktopNavigation({
 
       <nav className="flex-1 px-3" aria-label="Navegación principal">
         <div className="grid gap-1">
-          {primaryNavigation.filter((item) => !item.capability || capabilities.includes(item.capability)).map((item) => (
+          {navigation.map((item) => (
             <NavigationLink key={item.href} item={item} pathname={pathname} />
           ))}
         </div>
@@ -414,12 +417,12 @@ function DesktopNavigation({
 }
 
 const DesktopMorePanel = forwardRef<HTMLDivElement, {
-  capabilities: string[];
+  groups: PortalManifest["navigationGroups"];
   pathname: string;
   unread: number;
   onClose: () => void;
 }>(function DesktopMorePanel({
-  capabilities,
+  groups,
   pathname,
   unread,
   onClose
@@ -440,7 +443,7 @@ const DesktopMorePanel = forwardRef<HTMLDivElement, {
         </button>
       </div>
       <div className="grid gap-5">
-        {secondaryNavigation.map((group) => ({...group,items:group.items.filter((item)=>!item.capability||capabilities.includes(item.capability))})).filter((group)=>group.items.length).map((group) => (
+        {groups.map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -509,30 +512,27 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
 });
 
 function MobileBottomNavigation({
-  capabilities,
+  items,
+  canCreate,
   pathname,
   overlay,
   onOpen
 }: {
-  capabilities: string[];
+  items: ProductDestination[];
+  canCreate: boolean;
   pathname: string;
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
-  const mobileItems = [
-    primaryNavigation.find((item) => item.href === "/hoy")!,
-    primaryNavigation.find((item) => item.href === "/clientes" && (!item.capability || capabilities.includes(item.capability))) ?? primaryNavigation[0],
-    primaryNavigation.find((item) => item.href === "/obras" && (!item.capability || capabilities.includes(item.capability))) ?? primaryNavigation[0]
-  ];
+  const mobileItems = items.slice(0, canCreate ? 3 : 4);
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] lg:hidden"
       aria-label="Navegación móvil"
     >
-      <div className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1">
-        <BottomLink item={mobileItems[0]} pathname={pathname} />
-        <BottomLink item={mobileItems[1]} pathname={pathname} />
-        <button
+      <div className="mx-auto flex h-16 max-w-lg justify-around px-1">
+        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
+        {canCreate ? <button
           type="button"
           className={clsx("shell-bottom-item", overlay === "create" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
           aria-label="Crear"
@@ -543,8 +543,8 @@ function MobileBottomNavigation({
             <Plus size={19} aria-hidden="true" />
           </span>
           <span>Crear</span>
-        </button>
-        <BottomLink item={mobileItems[2]} pathname={pathname} />
+        </button> : null}
+        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
         <button
           type="button"
           className={clsx("shell-bottom-item", overlay === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
@@ -575,7 +575,7 @@ function BottomLink({ item, pathname }: { item: ProductDestination; pathname: st
   );
 }
 
-function SearchDialog({ id, onClose }: { id: string; onClose: () => void }) {
+function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboard: boolean; onClose: () => void }) {
   return (
     <div className="p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
@@ -608,12 +608,12 @@ function SearchDialog({ id, onClose }: { id: string; onClose: () => void }) {
         <span><kbd className="font-semibold">Enter</kbd> buscar</span>
         <span><kbd className="font-semibold">Esc</kbd> cerrar</span>
       </div>
-      <div className="mt-5 border-t border-border pt-4">
+      {showDashboard ? <div className="mt-5 border-t border-border pt-4">
         <p className="type-label mb-2">Accesos</p>
         <Link href="/dashboard" onClick={onClose} className="shell-menu-row">
           <BarChart3 size={18} aria-hidden="true" />Dashboard
         </Link>
-      </div>
+      </div> : null}
     </div>
   );
 }
@@ -627,7 +627,8 @@ function MobileCreateSheet({ id, capabilities, onClose }: { id: string; capabili
 }
 
 function MobileMoreSheet({
-  capabilities,
+  navigation,
+  groups,
   id,
   pathname,
   unread,
@@ -638,7 +639,8 @@ function MobileMoreSheet({
   logoutAction,
   onClose
 }: {
-  capabilities: string[];
+  navigation: ProductDestination[];
+  groups: PortalManifest["navigationGroups"];
   id: string;
   pathname: string;
   unread: number;
@@ -651,19 +653,19 @@ function MobileMoreSheet({
 }) {
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
-      <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
+      {navigation.some((item) => item.href === "/capataz") ? <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
         <Bot size={20} aria-hidden="true" />Orqena
-      </Link>
+      </Link> : null}
       <div className="grid gap-5">
         <section>
           <h3 className="type-label mb-2">Trabajo y gestión</h3>
           <div className="grid gap-1">
-            {primaryNavigation.filter((item) => !["/hoy", "/clientes", "/obras"].includes(item.href) && (!item.capability || capabilities.includes(item.capability))).map((item) => (
+            {navigation.filter((item) => !["/hoy", "/clientes", "/obras", "/capataz"].includes(item.href)).map((item) => (
               <NavigationLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />
             ))}
           </div>
         </section>
-        {secondaryNavigation.slice(0, 2).map((group) => ({...group,items:group.items.filter((item)=>!item.capability||capabilities.includes(item.capability))})).filter((group)=>group.items.length).map((group) => (
+        {groups.slice(0, 2).map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -750,7 +752,7 @@ function NavigationGroup({
   unread,
   onNavigate
 }: {
-  group: (typeof secondaryNavigation)[number];
+  group: PortalManifest["navigationGroups"][number];
   pathname: string;
   unread: number;
   onNavigate: () => void;

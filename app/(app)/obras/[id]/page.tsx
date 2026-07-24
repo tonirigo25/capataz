@@ -26,14 +26,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
-import { EmptyState, EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
+import { EmptyState, EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { OperationalContextSummary } from "@/components/operational-signals";
-import { getWorkOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getWorkOperationalContext } from "@/lib/operational-intelligence/queries";
 import { prisma } from "@/lib/prisma";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { statusClass } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import type { EconomicDocument } from "@/lib/economic-control/types";
@@ -91,14 +91,28 @@ export default async function WorkDetailPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requireCapability("work.view");
-  const economicAccess = await Promise.all([
-    resolveAuthorization(auth, "sales.budgets.view"),
-    resolveAuthorization(auth, "sales.invoices.view"),
-    resolveAuthorization(auth, "treasury.view")
-  ]);
-  if (economicAccess.some((decision) => !decision.allowed)) {
-    const work = await prisma.work.findFirst({ where: { id, companyId: auth.companyId }, select: { id: true, titulo: true, tipoTrabajo: true, direccion: true, estado: true, codigo: true, numeroInterno: true, client: { select: { nombre: true } } } });
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
+  if (scopedWorkIds !== null && !scopedWorkIds.includes(id)) notFound();
+  const projectBudgetAccess = await resolveAuthorization(auth, "project_budget_control.view");
+  const projectBudgetIds = projectBudgetAccess.allowed ? await resolveScopedEntityIds(auth, "project_budget_control.view", "Work") : [];
+  const projectBudgetAllowedHere = projectBudgetAccess.allowed && (projectBudgetIds === null || projectBudgetIds.includes(id));
+  const canUpdateWork = await resolveAuthorization(auth, "work.update");
+  const economicCapabilities = ["sales.budgets.view", "sales.invoices.view", "treasury.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
+  const economicAccess = await Promise.all(economicCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  const economicScopes = await Promise.all(economicCapabilities.map((capability, index) => economicAccess[index].allowed ? resolveScopedEntityIds(auth, capability, "Work") : Promise.resolve([])));
+  const fullEconomicAccessHere = economicAccess.every((decision) => decision.allowed) && economicScopes.every((ids) => ids === null || ids.includes(id));
+  const moduleCapabilities = ["documents.view", "documents.manage", "agenda.view", "agenda.manage", "followups.view", "followups.manage", "purchases.received_invoices.view", "purchases.received_invoices.manage", "sales.budgets.create", "sales.budgets.update", "sales.invoices.create", "treasury.collections.register", "orqena.use", "orqena.execute"] as const;
+  const moduleAccess = await Promise.all(moduleCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  const moduleScopes = await Promise.all(moduleCapabilities.map((capability, index) => moduleAccess[index].allowed ? resolveScopedEntityIds(auth, capability, "Work") : Promise.resolve([])));
+  const membersAccess = await resolveAuthorization(auth, "company.members.view");
+  const fullModuleAccessHere = membersAccess.allowed && moduleAccess.every((decision) => decision.allowed) && moduleScopes.every((ids) => ids === null || ids.includes(id));
+  if (!canUpdateWork.allowed || !fullEconomicAccessHere || !fullModuleAccessHere) {
+    const work = await prisma.work.findFirst({ where: { id, companyId: auth.companyId }, select: { id: true, titulo: true, tipoTrabajo: true, direccion: true, estado: true, codigo: true, numeroInterno: true, presupuestoAprobado: projectBudgetAllowedHere, costePrevisto: projectBudgetAllowedHere, gastoReal: projectBudgetAllowedHere, expenses: projectBudgetAllowedHere ? { select: { importe: true } } : false, client: { select: { nombre: true } } } });
     if (!work) notFound();
+    if (projectBudgetAllowedHere) {
+      const consumed = work.gastoReal + work.expenses.reduce((sum, item) => sum + item.importe, 0);
+      return <ProjectBudgetWorkDetail work={work} consumed={consumed} />;
+    }
     return <RestrictedWorkDetail work={work} />;
   }
   const [work, treasury, operationalContext] = await Promise.all([
@@ -224,6 +238,12 @@ export default async function WorkDetailPage({
       {activeTab === "equipo" ? <div className="grid gap-4"><ContactsTab work={work} /><PeopleTab work={work} /></div> : null}
     </main>
   );
+}
+
+function ProjectBudgetWorkDetail({ work, consumed }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; presupuestoAprobado: number; costePrevisto: number; client: { nombre: string } }; consumed: number }) {
+  const available = work.presupuestoAprobado - consumed;
+  const deviation = consumed - work.costePrevisto;
+  return <main className="screen"><ParentNavigation href="/obras" label="Obras" context={work.client.nombre} /><PageHeader eyebrow={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} badge={<StatusBadge status={work.estado} />} /><section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section></main>;
 }
 
 function RestrictedWorkDetail({ work }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } } }) {

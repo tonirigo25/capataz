@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { requireCapability } from "@/lib/commercial/authorization";
+import { getPurchaseAccess, purchaseRelationAllowed } from "@/lib/commercial/purchase-access";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,10 @@ export default async function ExpensesMaterialsPage({
   searchParams: Promise<{ filtro?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCapability("purchases.received_invoices.view");
-  const [expenses, materials] = await Promise.all([
+  const auth = await requireCapability("purchases.received_invoices.view");
+  const { companyId } = auth;
+  const access = await getPurchaseAccess(auth);
+  const [allExpenses, allMaterials] = await Promise.all([
     prisma.expense.findMany({
       where: { companyId },
       orderBy: { fecha: "desc" },
@@ -30,6 +33,9 @@ export default async function ExpensesMaterialsPage({
       include: { work: { include: { client: true } } }
     })
   ]);
+  const expenses = allExpenses.filter((expense) => purchaseRelationAllowed(access.read, expense.obraId, expense.clienteId));
+  const materials = allMaterials.filter((material) => purchaseRelationAllowed(access.read, material.obraId, material.work.clienteId));
+  const canCreateUnassigned = access.manage.allowed && access.manage.scope === "COMPANY";
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.importe, 0);
   const visibleMaterials = materials.filter((material) => {
@@ -49,7 +55,7 @@ export default async function ExpensesMaterialsPage({
       <SectionHeader
         title="Gastos y materiales"
         description="Tickets, compras y faltas por obra."
-        action={
+        action={canCreateUnassigned ?
           <div className="flex flex-wrap gap-2">
             <Link href="/gastos-materiales/lector" className="primary-button">
               <FileScan size={18} />
@@ -64,7 +70,7 @@ export default async function ExpensesMaterialsPage({
               Material
             </Link>
           </div>
-        }
+        : undefined}
       />
 
       <CompactFilterBar className="mb-3"><form action="/gastos-materiales" className="flex gap-2">
@@ -109,15 +115,15 @@ export default async function ExpensesMaterialsPage({
                 <StatusPill status={material.estado} />
               </div>
               {material.notas ? <p className="mt-3 text-sm leading-6 text-slate-600">{material.notas}</p> : null}
-              <Link href={`/gestion?tipo=material&id=${material.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
+              {purchaseRelationAllowed(access.manage, material.obraId, material.work.clienteId) ? <Link href={`/gestion?tipo=material&id=${material.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
                 <Pencil size={18} />
                 Editar
-              </Link>
-              <div className="mt-3 flex flex-wrap gap-2">
+              </Link> : null}
+              {purchaseRelationAllowed(access.manage, material.obraId, material.work.clienteId) ? <div className="mt-3 flex flex-wrap gap-2">
                 <MaterialStatusButton id={material.id} estado="comprado" label="Comprado" />
                 <MaterialStatusButton id={material.id} estado="entregado" label="Entregado" />
                 <MaterialStatusButton id={material.id} estado="falta" label="Falta" />
-              </div>
+              </div> : null}
             </article>
           ))}
         </div>
@@ -142,10 +148,10 @@ export default async function ExpensesMaterialsPage({
                 <span>{statusLabel(expense.categoria)}</span>
                 <span>{formatDate(expense.fecha)}</span>
               </div>
-              <Link href={`/gestion?tipo=gasto&id=${expense.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
+              {purchaseRelationAllowed(access.manage, expense.obraId, expense.clienteId) ? <Link href={`/gestion?tipo=gasto&id=${expense.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
                 <Pencil size={18} />
                 Editar
-              </Link>
+              </Link> : null}
             </article>
           ))}
         </div>

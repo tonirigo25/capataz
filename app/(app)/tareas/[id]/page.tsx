@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import {
   changeTaskStatusAction,
   updateTaskAction,
@@ -26,22 +26,33 @@ export default async function TaskDetailPage({
 }) {
   const { id } = await params;
   const auth = await requireCapability("tasks.view");
-  const economicAllowed=(await resolveAuthorization(auth,"sales.invoices.view")).allowed;
+  const allowedTaskIds = await resolveScopedTaskIds(auth, "tasks.view");
+  if (allowedTaskIds !== null && !allowedTaskIds.includes(id)) notFound();
+  const [budgetAccess, invoiceAccess] = await Promise.all([
+    resolveAuthorization(auth, "sales.budgets.view"),
+    resolveAuthorization(auth, "sales.invoices.view")
+  ]);
+  const [budgetWorkIds, budgetClientIds, invoiceWorkIds, invoiceClientIds] = await Promise.all([
+    budgetAccess.allowed ? resolveScopedEntityIds(auth, "sales.budgets.view", "Work") : Promise.resolve([]),
+    budgetAccess.allowed ? resolveScopedEntityIds(auth, "sales.budgets.view", "Client") : Promise.resolve([]),
+    invoiceAccess.allowed ? resolveScopedEntityIds(auth, "sales.invoices.view", "Work") : Promise.resolve([]),
+    invoiceAccess.allowed ? resolveScopedEntityIds(auth, "sales.invoices.view", "Client") : Promise.resolve([])
+  ]);
   const canManage=(await resolveAuthorization(auth,"tasks.manage")).allowed;
   const task = await prisma.task.findFirst({
     where: { id, companyId: auth.companyId },
     include: {
       checklist: { orderBy: { order: "asc" } },
-      subtasks: { where:{companyId:auth.companyId}, orderBy: { createdAt: "asc" } },
-      dependencies: { where:{dependsOnTask:{companyId:auth.companyId}}, include: { dependsOnTask: true } },
-      blocking: { where:{task:{companyId:auth.companyId}}, include: { task: true } },
+      subtasks: { where:{companyId:auth.companyId, ...(allowedTaskIds === null ? {} : { id: { in: allowedTaskIds } })}, orderBy: { createdAt: "asc" } },
+      dependencies: { where:{dependsOnTask:{companyId:auth.companyId, ...(allowedTaskIds === null ? {} : { id: { in: allowedTaskIds } })}}, include: { dependsOnTask: true } },
+      blocking: { where:{task:{companyId:auth.companyId, ...(allowedTaskIds === null ? {} : { id: { in: allowedTaskIds } })}}, include: { task: true } },
       comments: { where: { archivedAt: null }, orderBy: { createdAt: "desc" } },
       history: { orderBy: { createdAt: "desc" } },
       recurrence: true,
     },
   });
   if (!task) notFound();
-  const [parentTask,automationRun]=await Promise.all([task.parentTaskId?prisma.task.findFirst({where:{id:task.parentTaskId,companyId:auth.companyId},select:{id:true,title:true}}):null,task.automationRunId?prisma.automationRun.findFirst({where:{id:task.automationRunId,companyId:auth.companyId},include:{definition:true}}):null]);
+  const [parentTask,automationRun]=await Promise.all([task.parentTaskId?prisma.task.findFirst({where:{id:task.parentTaskId,companyId:auth.companyId,...(allowedTaskIds===null?{}:{AND:[{id:{in:allowedTaskIds}}]})},select:{id:true,title:true}}):null,task.automationRunId?prisma.automationRun.findFirst({where:{id:task.automationRunId,companyId:auth.companyId},include:{definition:true}}):null]);
   const [client, work, budget, invoice, candidates] = await Promise.all([
     task.clientId
       ? prisma.client.findFirst({
@@ -55,20 +66,20 @@ export default async function TaskDetailPage({
           select: { titulo: true },
         })
       : null,
-    task.budgetId && economicAllowed
+    task.budgetId && budgetAccess.allowed
       ? prisma.budget.findFirst({
-          where: { id: task.budgetId, companyId:auth.companyId },
+          where: { id: task.budgetId, companyId:auth.companyId, ...relationScope(budgetAccess.scope, budgetWorkIds, budgetClientIds) },
           select: { numero: true, titulo: true },
         })
       : null,
-    task.invoiceId && economicAllowed
+    task.invoiceId && invoiceAccess.allowed
       ? prisma.invoice.findFirst({
-          where: { id: task.invoiceId, companyId:auth.companyId },
+          where: { id: task.invoiceId, companyId:auth.companyId, ...relationScope(invoiceAccess.scope, invoiceWorkIds, invoiceClientIds) },
           select: { numero: true, concepto: true },
         })
       : null,
     prisma.task.findMany({
-      where: { id: { not: id }, companyId:auth.companyId, archivedAt: null },
+      where: { id: { not: id, ...(allowedTaskIds === null ? {} : { in: allowedTaskIds }) }, companyId:auth.companyId, archivedAt: null },
       select: { id: true, title: true },
       orderBy: { title: "asc" },
       take: 100,
@@ -506,3 +517,13 @@ const inputDate = (date: Date | null | undefined) =>
         .toISOString()
         .slice(0, 16)
     : "";
+
+function relationScope(scope: string, workIds: string[] | null, clientIds: string[] | null) {
+  if (scope === "COMPANY") return {};
+  if (scope === "SELECTED_WORKS") return { obraId: { in: workIds ?? [] } };
+  if (scope === "SELECTED_CLIENTS") return { clienteId: { in: clientIds ?? [] } };
+  const OR: Array<Record<string, unknown>> = [];
+  if (workIds?.length) OR.push({ obraId: { in: workIds } });
+  if (clientIds?.length) OR.push({ clienteId: { in: clientIds }, obraId: null });
+  return OR.length ? { OR } : { id: { in: [] as string[] } };
+}

@@ -31,8 +31,7 @@ import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, Toolbar } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
-import { getOperationalContextsForWorks } from "@/lib/operational-intelligence/queries";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { statusClass } from "@/lib/status";
 import {
   calculateWorkFinancials,
@@ -77,27 +76,68 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   const query = await searchParams;
   const auth = await requireCapability("work.view");
   const { companyId } = auth;
-  const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
+  const visibility = {
+    budgets: (await resolveAuthorization(auth, "sales.budgets.view")).allowed,
+    invoices: (await resolveAuthorization(auth, "sales.invoices.view")).allowed,
+    purchaseCost: (await resolveAuthorization(auth, "purchase_cost.view")).allowed,
+    internalCost: (await resolveAuthorization(auth, "internal_cost.view")).allowed,
+    marginPercent: (await resolveAuthorization(auth, "margin_percent.view")).allowed,
+    marginAmount: (await resolveAuthorization(auth, "margin_amount.view")).allowed,
+    profit: (await resolveAuthorization(auth, "profitability.view")).allowed,
+    projectBudget: (await resolveAuthorization(auth, "project_budget_control.view")).allowed,
+    createWork: (await resolveAuthorization(auth, "work.create")).allowed,
+    updateWork: (await resolveAuthorization(auth, "work.update")).allowed,
+    createBudget: (await resolveAuthorization(auth, "sales.budgets.create")).allowed,
+    createInvoice: (await resolveAuthorization(auth, "sales.invoices.create")).allowed,
+    createExpense: (await resolveAuthorization(auth, "purchases.received_invoices.manage")).allowed
+  };
+  const scopedEconomicCapabilities = [visibility.budgets ? "sales.budgets.view" : null, visibility.invoices ? "sales.invoices.view" : null, visibility.purchaseCost ? "purchase_cost.view" : null, visibility.internalCost ? "internal_cost.view" : null, visibility.marginPercent ? "margin_percent.view" : null, visibility.marginAmount ? "margin_amount.view" : null, visibility.profit ? "profitability.view" : null, visibility.projectBudget ? "project_budget_control.view" : null].filter((key): key is Parameters<typeof resolveScopedEntityIds>[1] => Boolean(key));
+  const economicScopes = await Promise.all(scopedEconomicCapabilities.map((capability) => resolveScopedEntityIds(auth, capability, "Work")));
+  const economicScopeByCapability = new Map(scopedEconomicCapabilities.map((capability, index) => [capability, economicScopes[index]]));
+  const [createBudgetScope, createInvoiceScope, createExpenseScope, updateWorkScope] = await Promise.all([
+    visibility.createBudget ? resolveScopedEntityIds(auth, "sales.budgets.create", "Work") : Promise.resolve([]),
+    visibility.createInvoice ? resolveScopedEntityIds(auth, "sales.invoices.create", "Work") : Promise.resolve([]),
+    visibility.createExpense ? resolveScopedEntityIds(auth, "purchases.received_invoices.manage", "Work") : Promise.resolve([]),
+    visibility.updateWork ? resolveScopedEntityIds(auth, "work.update", "Work") : Promise.resolve([])
+  ]);
+  const scopeWhere = scopedWorkIds === null ? {} : { id: { in: scopedWorkIds } };
+  const economicAllowed = visibility.budgets || visibility.invoices || visibility.purchaseCost || visibility.internalCost || visibility.marginPercent || visibility.marginAmount || visibility.profit || visibility.projectBudget;
   if (!economicAllowed) {
-    const operationalWorks = await prisma.work.findMany({ where: { companyId, ...(query.buscar ? { titulo: { contains: query.buscar, mode: "insensitive" } } : {}) }, select: { id: true, titulo: true, estado: true, prioridad: true, fechaInicio: true, fechaFinPrevista: true, client: { select: { nombre: true } } }, orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }], take: 100 });
-    return <main className="screen"><PageHeader eyebrow="Trabajos" title="Trabajos" description="Planificación autorizada, sin información económica." /><ResultCount shown={operationalWorks.length} total={operationalWorks.length} noun="trabajos" /><div className="mt-4 grid gap-3 md:grid-cols-2">{operationalWorks.map((work) => <Link key={work.id} href={`/obras/${work.id}`} className="card p-4"><h2 className="font-black text-obra-ink">{work.titulo}</h2><p className="mt-1 text-sm text-slate-600">{work.client.nombre}</p><p className="mt-2 text-xs font-bold uppercase text-slate-500">{workStatusMeta(work.estado).label}</p></Link>)}</div></main>;
+    const operationalWorks = await prisma.work.findMany({ where: { companyId, ...scopeWhere, ...(query.buscar ? { titulo: { contains: query.buscar, mode: "insensitive" } } : {}) }, select: { id: true, titulo: true, estado: true, prioridad: true, fechaInicio: true, fechaFinPrevista: true, client: { select: { nombre: true } } }, orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }], take: 100 });
+    return <main className="screen"><PageHeader eyebrow="Trabajos" title="Trabajos" description="Planificación autorizada, sin información económica." action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link> : undefined} /><ResultCount shown={operationalWorks.length} total={operationalWorks.length} noun="trabajos" /><div className="mt-4 grid gap-3 md:grid-cols-2">{operationalWorks.map((work) => <Link key={work.id} href={`/obras/${work.id}`} className="card p-4"><h2 className="font-black text-obra-ink">{work.titulo}</h2><p className="mt-1 text-sm text-slate-600">{work.client.nombre}</p><p className="mt-2 text-xs font-bold uppercase text-slate-500">{workStatusMeta(work.estado).label}</p></Link>)}</div></main>;
   }
   const works = await prisma.work.findMany({
-    where: { companyId },
+    where: { companyId, ...scopeWhere },
     orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
     include: workListInclude
   });
-  const operationalContexts = await getOperationalContextsForWorks(works.map((work) => work.id));
-
   const enriched = works.map((work) => {
+    const itemVisibility: WorkEconomicVisibility = {
+      ...visibility,
+      budgets: visibility.budgets && scopeAllows(economicScopeByCapability.get("sales.budgets.view"), work.id),
+      invoices: visibility.invoices && scopeAllows(economicScopeByCapability.get("sales.invoices.view"), work.id),
+      purchaseCost: visibility.purchaseCost && scopeAllows(economicScopeByCapability.get("purchase_cost.view"), work.id),
+      internalCost: visibility.internalCost && scopeAllows(economicScopeByCapability.get("internal_cost.view"), work.id),
+      marginPercent: visibility.marginPercent && scopeAllows(economicScopeByCapability.get("margin_percent.view"), work.id),
+      marginAmount: visibility.marginAmount && scopeAllows(economicScopeByCapability.get("margin_amount.view"), work.id),
+      profit: visibility.profit && scopeAllows(economicScopeByCapability.get("profitability.view"), work.id),
+      projectBudget: visibility.projectBudget && scopeAllows(economicScopeByCapability.get("project_budget_control.view"), work.id),
+      createBudget: visibility.createBudget && scopeAllows(createBudgetScope, work.id),
+      createInvoice: visibility.createInvoice && scopeAllows(createInvoiceScope, work.id),
+      createExpense: visibility.createExpense && scopeAllows(createExpenseScope, work.id),
+      updateWork: visibility.updateWork && scopeAllows(updateWorkScope, work.id)
+    };
     const financial = calculateWorkFinancials(work);
-    const fallbackNextAction = getWorkNextAction(work);
-    const principal = operationalContexts.get(work.id)?.principal;
-    const nextAction: ReturnType<typeof getWorkNextAction> = principal ? { label: principal.nextStep, tone: principal.level === "urgente" ? "danger" : principal.level === "atencion" ? "warning" : "info", href: principal.entity.href } : fallbackNextAction;
+    const nextAction: ReturnType<typeof getWorkNextAction> = isBlockedWorkStatus(work.estado)
+      ? { label: "Revisar bloqueo operativo", tone: "danger", href: "resumen" }
+      : isActiveWorkStatus(work.estado)
+        ? { label: "Revisar planificación", tone: "neutral", href: "resumen" }
+        : { label: "Revisar estado", tone: "neutral", href: "resumen" };
     const status = workStatusMeta(work.estado);
     const priority = workPriorityMeta(work.prioridad);
     const pendingMaterials = work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado));
-    const pendingDocs = work.budgets.length + work.invoices.length + work.documents.length;
+    const pendingDocs = (itemVisibility.budgets ? work.budgets.length : 0) + (itemVisibility.invoices ? work.invoices.length : 0) + work.documents.length;
     return {
       work,
       financial,
@@ -106,7 +146,8 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       priority,
       pendingMaterials,
       pendingDocs,
-      hasRisk: isBlockedWorkStatus(work.estado) || financial.marginPercent < 15 || financial.pending > 0
+      visibility: itemVisibility,
+      hasRisk: isBlockedWorkStatus(work.estado) || (itemVisibility.marginPercent && financial.marginPercent < 15) || (itemVisibility.invoices && financial.pending > 0)
     };
   });
 
@@ -116,12 +157,12 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   const totals = enriched.reduce((acc, item) => {
     acc.active += isActiveWorkStatus(item.work.estado) ? 1 : 0;
     acc.blocked += isBlockedWorkStatus(item.work.estado) ? 1 : 0;
-    acc.invoiced += item.financial.invoiced;
-    acc.pending += item.financial.pending;
-    acc.cost += item.financial.realCost;
-    acc.benefit += item.financial.benefit;
+    if (item.visibility.invoices) { acc.invoiced += item.financial.invoiced; acc.pending += item.financial.pending; }
+    if (item.visibility.profit || item.visibility.marginAmount) acc.benefit += item.financial.benefit;
+    if (item.visibility.purchaseCost) acc.purchaseCost += item.work.gastoReal + item.work.subcontratasCoste + item.work.expenses.reduce((sum, expense) => sum + expense.importe, 0);
+    if (item.visibility.internalCost) acc.internalCost += item.work.costePrevisto;
     return acc;
-  }, { active: 0, blocked: 0, invoiced: 0, pending: 0, cost: 0, benefit: 0 });
+  }, { active: 0, blocked: 0, invoiced: 0, pending: 0, cost: 0, benefit: 0, purchaseCost: 0, internalCost: 0 });
   const avgMargin = totals.invoiced ? Math.round((totals.benefit / totals.invoiced) * 1000) / 10 : 0;
   const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
 
@@ -131,14 +172,15 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         eyebrow="Centro operativo"
         title="Trabajos"
         description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos de cada trabajo."
-        action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link>}
+        action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link> : undefined}
         secondaryActions={<Link href="/capataz" className="secondary-button">Abrir Orqena</Link>}
       >
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
           <ExecutiveMetric icon={BriefcaseBusiness} label="Activas" value={String(totals.active)} detail={`${totals.blocked} bloqueadas`} tone={totals.blocked ? "warning" : "neutral"} />
-          <ExecutiveMetric icon={Receipt} label="Facturado" value={formatCurrency(totals.invoiced)} detail={`${formatCurrency(totals.pending)} pendiente`} />
-          <ExecutiveMetric icon={Banknote} label="Coste real" value={formatCurrency(totals.cost)} detail="Gastos imputados" />
-          <ExecutiveMetric icon={BadgeEuro} label="Beneficio" value={formatCurrency(totals.benefit)} detail={`${avgMargin}% margen medio`} tone={avgMargin < 15 && totals.invoiced ? "danger" : "success"} />
+          {visibility.invoices ? <ExecutiveMetric icon={Receipt} label="Facturado" value={formatCurrency(totals.invoiced)} detail={`${formatCurrency(totals.pending)} pendiente`} /> : null}
+          {visibility.purchaseCost ? <ExecutiveMetric icon={Banknote} label="Coste de compra" value={formatCurrency(totals.purchaseCost)} detail="Compras y gastos imputados" /> : null}
+          {visibility.internalCost ? <ExecutiveMetric icon={Banknote} label="Coste interno" value={formatCurrency(totals.internalCost)} detail="Coste previsto autorizado" /> : null}
+          {(visibility.profit || visibility.marginAmount) ? <ExecutiveMetric icon={BadgeEuro} label={visibility.profit ? "Beneficio" : "Margen"} value={formatCurrency(totals.benefit)} detail={visibility.marginPercent ? `${avgMargin}% margen medio` : "Importe autorizado"} tone={visibility.marginPercent && avgMargin < 15 && totals.invoiced ? "danger" : "success"} /> : null}
           <ExecutiveMetric icon={AlertTriangle} label="Con riesgo" value={String(enriched.filter((item) => item.hasRisk).length)} detail="Margen, cobro o bloqueo" tone="warning" />
         </div>
       </PageHeader>
@@ -178,7 +220,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           title={works.length ? "No hay trabajos para estos filtros" : "Todavía no hay trabajos"}
           description={works.length ? "Cambia la búsqueda o limpia los filtros activos." : "Crea el primer trabajo y vincúlalo a un cliente para organizar su ejecución."}
           icon={BriefcaseBusiness}
-          action={<Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link>}
+          action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link> : undefined}
         />
       ) : view === "tabla" ? (
         <WorkTable items={visibleWorks} />
@@ -195,8 +237,11 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   );
 }
 
+type WorkEconomicVisibility = { budgets: boolean; invoices: boolean; purchaseCost: boolean; internalCost: boolean; marginPercent: boolean; marginAmount: boolean; profit: boolean; projectBudget: boolean; createWork: boolean; updateWork: boolean; createBudget: boolean; createInvoice: boolean; createExpense: boolean };
+
 function WorkCard({ item }: { item: WorkItem }) {
   const { work, financial, status, priority, nextAction, pendingMaterials } = item;
+  const visibility = item.visibility;
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-obra-yellowDark">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -217,10 +262,14 @@ function WorkCard({ item }: { item: WorkItem }) {
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
-        <Mini label="Presupuestado" value={formatCurrency(financial.budgeted)} />
-        <Mini label="Facturado" value={formatCurrency(financial.invoiced)} />
-        <Mini label="Pendiente" value={formatCurrency(financial.pending)} tone={financial.pending ? "warning" : "neutral"} />
-        <Mini label="Margen" value={`${financial.marginPercent}%`} tone={financial.marginPercent < 15 && financial.budgeted ? "danger" : "success"} />
+        {visibility.budgets ? <Mini label="Presupuestado" value={formatCurrency(financial.budgeted)} /> : null}
+        {visibility.invoices ? <Mini label="Facturado" value={formatCurrency(financial.invoiced)} /> : null}
+        {visibility.invoices ? <Mini label="Pendiente" value={formatCurrency(financial.pending)} tone={financial.pending ? "warning" : "neutral"} /> : null}
+        {visibility.marginPercent ? <Mini label="Margen" value={`${financial.marginPercent}%`} tone={financial.marginPercent < 15 && financial.budgeted ? "danger" : "success"} /> : null}
+        {visibility.marginAmount ? <Mini label="Margen importe" value={formatCurrency(financial.benefit)} /> : null}
+        {visibility.purchaseCost ? <Mini label="Coste compra" value={formatCurrency(work.gastoReal + work.subcontratasCoste + work.expenses.reduce((sum, expense) => sum + expense.importe, 0))} /> : null}
+        {visibility.internalCost ? <Mini label="Coste interno" value={formatCurrency(work.costePrevisto)} /> : null}
+        {visibility.projectBudget ? <Mini label="Disponible" value={formatCurrency(work.presupuestoAprobado - financial.realCost)} /> : null}
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.85fr]">
@@ -236,11 +285,11 @@ function WorkCard({ item }: { item: WorkItem }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><FileText size={17} /> Presupuesto</Link>
-        <Link href={`/gestion?tipo=factura&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Receipt size={17} /> Factura</Link>
-        <Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Euro size={17} /> Gasto</Link>
-        <WorkStatusButton id={work.id} estado="en_curso" label="En curso" />
-        <WorkStatusButton id={work.id} estado="finalizada" label="Finalizar" />
+        {visibility.createBudget ? <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><FileText size={17} /> Presupuesto</Link> : null}
+        {visibility.createInvoice ? <Link href={`/gestion?tipo=factura&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Receipt size={17} /> Factura</Link> : null}
+        {visibility.createExpense ? <Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Euro size={17} /> Gasto</Link> : null}
+        {visibility.updateWork ? <WorkStatusButton id={work.id} estado="en_curso" label="En curso" /> : null}
+        {visibility.updateWork ? <WorkStatusButton id={work.id} estado="finalizada" label="Finalizar" /> : null}
       </div>
     </article>
   );
@@ -260,7 +309,7 @@ function WorkTable({ items }: { items: WorkItem[] }) {
             <MetricLine label="Última actualización" value={formatDate(item.work.updatedAt)} />
             <MetricLine label="Próxima fecha" value={formatDate(item.work.fechaFinPrevista ?? item.work.fechaInicioPrevista ?? item.work.fechaInicio)} />
             <MetricLine label="Próxima acción" value={item.nextAction.label} />
-            <MetricLine label={item.hasRisk ? "Riesgo · margen" : "Margen"} value={`${item.financial.marginPercent}%`} />
+            {item.visibility.marginPercent ? <MetricLine label={item.hasRisk ? "Riesgo · margen" : "Margen"} value={`${item.financial.marginPercent}%`} /> : item.visibility.marginAmount ? <MetricLine label="Margen importe" value={formatCurrency(item.financial.benefit)} /> : <MetricLine label="Prioridad" value={item.priority.label} />}
             <Link href={`/obras/${item.work.id}`} className="secondary-button justify-center">Abrir</Link>
           </div>
         </article>
@@ -281,8 +330,9 @@ function CompactList({ items }: { items: WorkItem[] }) {
             </div>
             <div className="flex flex-wrap gap-2">
               <StatusBadge status={item.work.estado} iconLabel={item.status.icon} />
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">{formatCurrency(item.financial.pending)} pendiente</span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">{item.financial.marginPercent}% margen</span>
+              {item.visibility.invoices ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">{formatCurrency(item.financial.pending)} pendiente</span> : null}
+              {item.visibility.marginPercent ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">{item.financial.marginPercent}% margen</span> : null}
+              {item.visibility.marginAmount ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">{formatCurrency(item.financial.benefit)} margen</span> : null}
             </div>
           </div>
         </Link>
@@ -419,9 +469,9 @@ function filterWorks(items: WorkItem[], query: WorksQuery) {
 
 function sortWorks(items: WorkItem[], order: string) {
   return [...items].sort((a, b) => {
-    if (order === "rentabilidad") return a.financial.marginPercent - b.financial.marginPercent;
+    if (order === "rentabilidad") return (a.visibility.marginPercent ? a.financial.marginPercent : Number.POSITIVE_INFINITY) - (b.visibility.marginPercent ? b.financial.marginPercent : Number.POSITIVE_INFINITY);
     if (order === "fecha") return timeValue(a.work.fechaFinPrevista ?? a.work.fechaInicioPrevista ?? a.work.fechaInicio) - timeValue(b.work.fechaFinPrevista ?? b.work.fechaInicioPrevista ?? b.work.fechaInicio);
-    if (order === "importe") return b.financial.budgeted - a.financial.budgeted;
+    if (order === "importe") return (b.visibility.budgets ? b.financial.budgeted : 0) - (a.visibility.budgets ? a.financial.budgeted : 0);
     if (order === "cliente") return a.work.client.nombre.localeCompare(b.work.client.nombre, "es");
     const riskA = (a.hasRisk ? 10 : 0) + workPriorityMeta(a.work.prioridad).rank + (isBlockedWorkStatus(a.work.estado) ? 10 : 0);
     const riskB = (b.hasRisk ? 10 : 0) + workPriorityMeta(b.work.prioridad).rank + (isBlockedWorkStatus(b.work.estado) ? 10 : 0);
@@ -473,5 +523,8 @@ type WorkItem = {
   priority: ReturnType<typeof workPriorityMeta>;
   pendingMaterials: WorkListRecord["materials"];
   pendingDocs: number;
+  visibility: WorkEconomicVisibility;
   hasRisk: boolean;
 };
+
+function scopeAllows(ids: string[] | null | undefined, id: string) { return ids === null || Boolean(ids?.includes(id)); }

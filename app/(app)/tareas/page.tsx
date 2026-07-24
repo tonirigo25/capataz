@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { createTaskAction, completeTaskAction } from "./actions";
-import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 export const dynamic = "force-dynamic";
 export default async function TasksPage({
   searchParams,
@@ -15,6 +15,8 @@ export default async function TasksPage({
     week = new Date(now.getTime() + 7 * 86400000);
   const auth = await requireCapability("tasks.view");
   const canManage=(await resolveAuthorization(auth,"tasks.manage")).allowed;
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
+  const taskScope = auth.scope === "COMPANY" ? {} : { OR: [{ assigneeId: auth.userId }, { workId: { in: scopedWorkIds ?? [] } }] };
   const filter = query.filtro ?? "open";
   const date =
     filter === "today"
@@ -29,6 +31,7 @@ export default async function TasksPage({
   const tasks = await prisma.task.findMany({
     where: {
       companyId: auth.companyId,
+      ...taskScope,
       archivedAt: null,
       ...(date ? { dueAt: date } : {}),
       ...(filter === "blocked"

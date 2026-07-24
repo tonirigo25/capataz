@@ -17,8 +17,7 @@ export function FilterSheet({ open, title = "Filtros", children, onClose, onClea
 export function ResponsiveFilterPanel({ children, className, label = "Buscar y filtrar", count = 0, onClear, onApply }: { children: ReactNode; className?: string; label?: string; count?: number; onClear?: () => void; onApply?: () => void }) {
   const [open, setOpen] = useState(false);
   return <div className={className} aria-label={label}>
-    <div className="md:hidden"><FilterTrigger count={count} onClick={() => setOpen(true)} /></div>
-    <div className="hidden surface p-4 md:block"><div className="[&_form]:grid [&_form]:gap-3">{children}</div></div>
+    <div className="flex items-center gap-2"><FilterTrigger count={count} onClick={() => setOpen(true)} /></div>
     <FilterSheet open={open} onClose={() => setOpen(false)} onClear={onClear} onApply={onApply}>{children}</FilterSheet>
   </div>;
 }

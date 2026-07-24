@@ -29,6 +29,7 @@ import {
 } from "@/lib/agenda";
 import { formatDate, formatDay } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,8 @@ export default async function AgendaPage({
   searchParams: Promise<{ vista?: string; dia?: string; tipo?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
+  const auth = await requireCapability("agenda.view");
+  const canManage = (await resolveAuthorization(auth, "agenda.manage")).allowed;
   const view = views.some((item) => item.id === query.vista) ? query.vista! : "hoy";
   const selectedDay = query.dia ? startOfDay(new Date(`${query.dia}T00:00:00`)) : startOfDay(new Date());
   const items = filterAgendaItems(await getAgendaItems(), query.tipo, query.buscar);
@@ -52,6 +55,7 @@ export default async function AgendaPage({
   const weekStart = startOfWeek(selectedDay);
   const weekItems = itemsBetween(items, weekStart, addDays(weekStart, 7));
   const nextVisit = items.find((item) => item.tipo === "visita" && item.fechaInicio >= new Date() && item.estado !== "cancelado");
+  if (!canManage) return <ReadOnlyAgenda items={items} />;
 
   return (
     <main className="screen">
@@ -141,6 +145,10 @@ function TodayView({ items }: { items: AgendaItem[] }) {
       })}
     </div>
   );
+}
+
+function ReadOnlyAgenda({ items }: { items: AgendaItem[] }) {
+  return <main className="screen"><PageHeader eyebrow="Planificación" title="Agenda" description="Agenda autorizada en modo de solo lectura."/><div className="grid gap-3">{items.map((item) => <article key={`${item.source}-${item.id}`} className="card p-4"><p className="text-xs font-bold uppercase text-slate-500">{statusLabel(item.tipo)} · {formatDate(item.fechaInicio)}</p><h2 className="mt-1 font-black text-obra-ink">{item.titulo}</h2>{item.descripcion ? <p className="mt-2 text-sm text-slate-600">{item.descripcion}</p> : null}<StatusPill status={item.estado}/></article>)}{!items.length ? <EmptyState title="No hay eventos disponibles" description="No hay elementos dentro de tu alcance." icon={CalendarClock}/> : null}</div></main>;
 }
 
 function agendaHref(view: string, day: Date, query: { tipo?: string; buscar?: string }) {

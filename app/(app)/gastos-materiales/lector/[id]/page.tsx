@@ -8,19 +8,25 @@ import { requireCapability } from "@/lib/commercial/authorization";
 import { categoryForDocument, EXPENSE_DOCUMENT_TYPES, normalizeExpenseExtraction } from "@/lib/expense-document";
 import { formatCurrency } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getPurchaseAccess, purchaseDocumentWhere, purchaseRelationAllowed } from "@/lib/commercial/purchase-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExpenseDocumentReviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; saved?: string; invoice?: string }> }) {
   const [{ id }, query, context] = await Promise.all([params, searchParams, requireCapability("purchases.received_invoices.view")]);
-  const [document, works, clients, partners] = await Promise.all([
-    prisma.document.findFirst({ where: { id, companyId: context.companyId, archivedAt: null }, include: { expense: true } }),
+  const access = await getPurchaseAccess(context);
+  const [document, allWorks, allClients, partners] = await Promise.all([
+    prisma.document.findFirst({ where: { id, companyId: context.companyId, ...purchaseDocumentWhere(access.read), archivedAt: null }, include: { expense: true } }),
     prisma.work.findMany({ where: { companyId: context.companyId, archivada: false }, orderBy: { titulo: "asc" }, select: { id: true, titulo: true, clienteId: true } }),
     prisma.client.findMany({ where: { companyId: context.companyId, archivadoAt: null }, orderBy: { nombre: "asc" }, select: { id: true, nombre: true } }),
     prisma.businessPartner.findMany({ where: { companyId: context.companyId, archivedAt: null, status: { not: "BLOCKED" } }, orderBy: { commercialName: "asc" }, select: { id: true, commercialName: true, kind: true, taxId: true } })
   ]);
   if (!document) notFound();
+  const works = allWorks.filter((work) => purchaseRelationAllowed(access.manage, work.id, work.clienteId));
+  const clients = allClients.filter((client) => purchaseRelationAllowed(access.manage, null, client.id));
   const proposal = normalizeExpenseExtraction(document.extractedData);
+  const canManage = purchaseRelationAllowed(access.manage, document.workId, document.clientId);
+  if (!canManage) return <main className="screen"><SectionHeader title="Consultar justificante" description={document.name} action={<Link href="/gastos-materiales/lector" className="secondary-button">Volver</Link>} /><section className="card mt-5 p-5"><p className="font-black text-obra-ink">Documento disponible en modo lectura</p><p className="mt-2 text-sm text-slate-600">Estado: {document.status}. La revisión, reextracción y eliminación requieren permiso de gestión dentro del alcance.</p><Link href={`/gastos-materiales/lector/${document.id}/archivo`} className="secondary-button mt-4"><Download size={18} /> Descargar archivo</Link></section></main>;
   const duplicateIds = await findDuplicateExpenseDocumentIds({ excludeDocumentId: document.id, sha256: document.sha256, invoiceNumber: proposal.invoiceNumber, issuerName: proposal.issuerName, issuerTaxId: proposal.issuerTaxId, issueDate: proposal.issueDate, total: proposal.total });
   const duplicates = duplicateIds.length ? await prisma.document.findMany({ where: { companyId: context.companyId, id: { in: duplicateIds } }, select: { id: true, name: true, extractedTotal: true } }) : [];
   const saved = Boolean(document.expenseId);

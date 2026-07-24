@@ -95,7 +95,7 @@ export default async function RecommendationsPage({
   const nivel = validLevel(query.nivel);
   const origen = validSource(query.origen);
   const q = query.q?.trim() ?? "";
-  const { companyId } = await requireCapability("reports.view");
+  const { companyId } = await requireCapability("orqena.execute");
   const result = await getBusinessRecommendations({ companyId, status: estado, level: nivel, source: origen, q, limit: 250 });
   const recommendationHistory = await getProactiveAuditEventsForRecommendations(result.recommendations.map((item) => item.fingerprint));
 

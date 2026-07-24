@@ -17,7 +17,7 @@ import {
   type BusinessTrendPoint
 } from "@/lib/business-intelligence";
 import { invoiceBalance, round } from "@/lib/business-metrics";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import { buildOperationalHealth, getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 
@@ -37,7 +37,13 @@ export default async function DashboardPage({
   searchParams: Promise<{ periodo?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCapability("reports.view");
+  const auth = await requireCapability("reports.view");
+  const { companyId } = auth;
+  const requiredCapabilities = ["sales.budgets.view", "sales.invoices.view", "treasury.view", "banking.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view", "work.view", "tasks.view", "followups.view", "agenda.view", "documents.view"] as const;
+  const decisions = await Promise.all(requiredCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  if (decisions.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) {
+    return <ProductPage layout="analytical"><EmptyState title="Dashboard restringido" description="Este panel combina información económica y operativa global. Tu portal mantiene disponibles únicamente los módulos y alcances autorizados." icon={ShieldAlert} action={<Link href="/hoy" className="secondary-button">Volver a Hoy</Link>} /></ProductPage>;
+  }
   const requestedPeriod = supportedPeriods.has(query.periodo ?? "") ? query.periodo : "this_month";
   const [summary, intelligence, economic] = await Promise.all([
     getBusinessIntelligenceSummary({ companyId, period: requestedPeriod }),
