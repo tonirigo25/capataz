@@ -713,8 +713,8 @@ export default async function TeamPage() {
       </section>
 
       {owner ? (
-        <section className="mt-6">
-          <h2 className="type-section-title">Invitaciones y aprobaciones</h2>
+        <section className="mt-6" aria-labelledby="invitation-approvals">
+          <h2 id="invitation-approvals" className="type-section-title">Invitaciones y aprobaciones</h2>
           <div className="mt-3 grid gap-2">
             {invitations.length ? (
               invitations.map((item) => (

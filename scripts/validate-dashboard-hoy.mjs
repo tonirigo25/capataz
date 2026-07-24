@@ -239,6 +239,7 @@ const cases = [
     ok: todayPage.includes('"assigned-work": "Trabajos asignados"') &&
       todayPage.includes('tasks: "Tareas"') &&
       todayPage.includes('"daily-plan": "Plan del día"') &&
+      todayPage.includes(": información preparada para") &&
       !todayPage.includes('return value.replaceAll("-"')
   }
 ];

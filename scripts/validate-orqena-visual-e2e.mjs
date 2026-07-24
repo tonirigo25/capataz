@@ -60,7 +60,7 @@ async function waitForLoaded(page) {
   await page.waitForFunction(() => {
     const text = document.body.innerText;
     const skeletons = document.querySelectorAll("[data-skeleton], [aria-busy='true'], .animate-pulse");
-    return skeletons.length === 0 && !/Cargando(?:…|\.\.\.)/i.test(text);
+    return skeletons.length === 0 && !/Cargando(?:\s+[^.\n…]{1,80})?(?:…|\.\.\.)/i.test(text);
   }, undefined, { timeout: 15_000 }).catch(() => { throw new Error(`SKELETON_OR_LOADING_STATE:${page.url()}`); });
 }
 async function stabilizeVisuals(page) {
@@ -109,6 +109,7 @@ try {
     if (name === "advisor-restricted") {
       if (!restricted && (response?.status() ?? 200) < 400) throw new Error(`RESTRICTED_ACCESS_NOT_EXPLAINED:${route}`);
     } else if (restricted) throw new Error(`UNEXPECTED_RESTRICTED_ACCESS:${route}:${profile ?? "PUBLIC"}`);
+    if (name === "owner-outbox" && !await page.locator("article.card").count()) throw new Error("OUTBOX_EVIDENCE_EMPTY");
     const file = join(screenshotsDir, `${String(records.length + 1).padStart(2, "0")}-${name}-${width}x${height}.png`);
     await page.screenshot({ path: file, fullPage: true, caret: "initial" });
     if (!existsSync(file) || statSync(file).size < 3_000) throw new Error(`INVALID_SCREENSHOT:${file}`);
@@ -162,9 +163,12 @@ try {
   await employeeContext.close();
   const approvalContext = await browser.newContext({ viewport: { width: 1024, height: 900 } });
   const approval = await approvalContext.newPage(); await login(approval, profileEmails.owner); await goto(approval, "/equipo"); await waitForLoaded(approval);
-  const lifecycleCard = approval.locator("article,div.card").filter({ hasText: profileEmails.inviteLifecycle }).first();
-  if (!await lifecycleCard.count()) throw new Error("OWNER_APPROVAL_REQUEST_MISSING");
-  await lifecycleCard.getByRole("button", { name: "Aprobar", exact: true }).click(); await approval.waitForTimeout(600);
+  const invitationSection = approval.getByRole("region", { name: "Invitaciones y aprobaciones", exact: true });
+  const lifecycleCard = invitationSection.locator("div.card").filter({ hasText: profileEmails.inviteLifecycle });
+  if (await lifecycleCard.count() !== 1) throw new Error("OWNER_APPROVAL_REQUEST_MISSING");
+  const approveButton = lifecycleCard.getByRole("button", { name: "Aprobar", exact: true });
+  if (await approveButton.count() !== 1) throw new Error("OWNER_APPROVAL_BUTTON_MISSING");
+  await approveButton.click(); await lifecycleCard.waitFor({ state: "detached", timeout: 60_000 });
   await approvalContext.close();
   const activeContext = await browser.newContext({ viewport: { width: 1024, height: 900 } });
   const active = await activeContext.newPage(); await login(active, profileEmails.inviteLifecycle); await goto(active, "/hoy"); await waitForLoaded(active);

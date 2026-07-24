@@ -112,7 +112,7 @@ const homeWidgetLabels: Record<string, string> = {
 function homeWidgetLabel(value: string) {
   return homeWidgetLabels[value] ?? value.replaceAll("-", " ").replace(/^./, (letter) => letter.toLocaleUpperCase("es-ES"));
 }
-function homeWidgetDescription(value: string, profile: string) { return `${homeWidgetLabel(value)} preparada para ${profile === "WORKER" ? "tu jornada y trabajos asignados" : "las responsabilidades de tu perfil"}.`; }
+function homeWidgetDescription(value: string, profile: string) { return `${homeWidgetLabel(value)}: información preparada para ${profile === "WORKER" ? "tu jornada y trabajos asignados" : "las responsabilidades de tu perfil"}.`; }
 function timeLabel(date: Date) { return date.getHours() === 0 && date.getMinutes() === 0 ? "Sin hora" : new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(date); }
 function startOfDay(date: Date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
 function addDays(date: Date, days: number) { const copy = new Date(date); copy.setDate(copy.getDate() + days); return copy; }

@@ -95,6 +95,22 @@ async function main() {
     await prisma.invitation.upsert({ where: { tokenHash: hashToken(`staging-${suffix}-stable-token`) }, update: { expiresAt, status: "PENDING" }, create: { ...invitationBase, emailNormalized, tokenHash: hashToken(`staging-${suffix}-stable-token`), expiresAt } });
   }
   await prisma.invitation.upsert({ where: { tokenHash: hashToken("staging-owner-approval-stable-token") }, update: { status: "PENDING_OWNER_APPROVAL", expiresAt: new Date(Date.now() + 7 * 86400000), functionalProfileKey: "WORKER" }, create: { ...invitationBase, emailNormalized: "invite-approval@staging.orqena.invalid", functionalProfileKey: "WORKER", status: "PENDING_OWNER_APPROVAL", tokenHash: hashToken("staging-owner-approval-stable-token"), expiresAt: new Date(Date.now() + 7 * 86400000) } });
+  await prisma.emailOutbox.upsert({
+    where: { id: "staging-outbox-1" },
+    update: {
+      companyId: business.id, invitationId: null, eventKey: "owner_approval_requested", templateKey: "owner_approval_requested", templateVersion: 1,
+      recipient: "owner@staging.orqena.invalid", subject: "Acceso sintético pendiente de aprobación",
+      textBody: "Solicitud sintética preparada para revisión local.", htmlBody: "<p>Solicitud sintética preparada para revisión local.</p>",
+      payload: { synthetic: true }, status: "PENDING", attempts: 0, availableAt: new Date(), processedAt: null, lastError: null, createdById: owner.id
+    },
+    create: {
+      id: "staging-outbox-1", companyId: business.id, eventKey: "owner_approval_requested", templateKey: "owner_approval_requested", templateVersion: 1,
+      recipient: "owner@staging.orqena.invalid", subject: "Acceso sintético pendiente de aprobación",
+      textBody: "Solicitud sintética preparada para revisión local.", htmlBody: "<p>Solicitud sintética preparada para revisión local.</p>",
+      payload: { synthetic: true }, createdById: owner.id
+    }
+  });
+  await prisma.emailDeliveryAttempt.deleteMany({ where: { outboxId: "staging-outbox-1" } });
 
   const platform = await prisma.platformAccount.upsert({ where: { userId: owner.id }, update: { role: "PLATFORM_OWNER", status: "ACTIVE" }, create: { userId: owner.id, role: "PLATFORM_OWNER" } });
   await prisma.supportAccessGrant.create({ data: { companyId: business.id, platformAccountId: platform.id, reason: "Auditoría sintética de staging", ticketReference: "STAGING-001", capabilityKeys: ["company.view", "reports.view"], expiresAt: new Date(Date.now() + 2 * 3600000) } });
