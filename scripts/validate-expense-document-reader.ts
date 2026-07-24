@@ -25,7 +25,7 @@ assert.equal(valid.mimeType, "image/png", "1 subida válida");
 expectThrows(() => validateExpenseDocumentFile({ filename: "script.svg", browserMime: "image/svg+xml", bytes: Buffer.from("<svg/>") }), /Formato no admitido/);
 expectThrows(() => validateExpenseDocumentFile({ filename: "grande.png", browserMime: "image/png", bytes: Buffer.concat([png, Buffer.alloc(MAX_EXPENSE_DOCUMENT_BYTES)]) }), /10 MB/);
 assert.equal(sanitizeFilename("../../factura<script>.pdf"), "factura-script-.pdf", "4 nombre malicioso saneado");
-assert.match(downloadRoute, /requireCompanyContext/, "5 descarga requiere sesión");
+assert.match(downloadRoute, /requireCapability\("purchases\.received_invoices\.view"\)/, "5 descarga requiere capacidad económica");
 assert.match(downloadRoute, /id, companyId/, "6 descarga aísla empresa");
 for (const relation of ["work.findFirst", "client.findFirst", "companyId: context.companyId"]) assert.match(actions, new RegExp(relation.replace(".", "\\.")), `7 relación propia ${relation}`);
 

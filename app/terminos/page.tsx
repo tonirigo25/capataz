@@ -5,10 +5,10 @@ export default function TermsPage() {
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
       <LegalBackButton />
-      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">Capataz</Link>
+      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">Orqena</Link>
       <h1 className="mt-4 text-3xl font-black text-obra-ink">Términos de uso</h1>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Capataz es una herramienta de gestión y asistencia para profesionales de reformas, construcción e instalaciones.
+        Orqena es una herramienta de gestión y asistencia para autónomos y empresas.
       </p>
 
       <section className="card mt-6 grid gap-4 p-5 text-sm leading-6 text-slate-600">
@@ -19,7 +19,7 @@ export default function TermsPage() {
           Los documentos generados son una ayuda operativa. Las facturas o borradores deben revisarse con una asesoría o gestoría si no hay facturación legal definitiva configurada.
         </Block>
         <Block title="Comunicaciones">
-          Capataz prepara mensajes y recordatorios, pero no envía WhatsApp, emails ni reclamaciones sin confirmación explícita del usuario.
+          Orqena prepara mensajes y recordatorios, pero no los envía sin confirmación explícita del usuario.
         </Block>
         <Block title="Modo demo">
           El modo demo usa datos ficticios para que revisores y usuarios puedan probar dashboard, agenda, presupuestos, facturas, PDFs, recordatorios y chat sin crear datos reales ni pagar.

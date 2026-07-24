@@ -4,11 +4,12 @@ import { isInternalApi, isProtectedPage, isPublicApi, isPublicResource, safeRetu
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const visualQa = process.env.CAPATAZ_VISUAL_QA === "true" && process.env.NODE_ENV !== "production";
   if (isPublicResource(pathname) || isPublicApi(pathname) || isInternalApi(pathname)) {
     return NextResponse.next();
   }
 
-  if (isProtectedPage(pathname) && !request.cookies.has(SESSION_COOKIE_NAME)) {
+  if (isProtectedPage(pathname) && !visualQa && !request.cookies.has(SESSION_COOKIE_NAME)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", safeReturnPath(pathname, search));
     return NextResponse.redirect(loginUrl);

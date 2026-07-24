@@ -448,6 +448,7 @@ async function validateIntegration() {
   const workPage = fs.readFileSync("app/(app)/obras/[id]/page.tsx", "utf8");
   const clientPage = fs.readFileSync("app/(app)/clientes/[id]/page.tsx", "utf8");
   const nav = fs.readFileSync("lib/product-navigation.ts", "utf8");
+  const portalManifest = fs.readFileSync("lib/commercial/portal-manifest.ts", "utf8");
   const migration = fs.readFileSync("prisma/migrations/20260711200000_treasury_cashflow_profitability/migration.sql", "utf8");
   const schema = fs.readFileSync("prisma/schema.prisma", "utf8");
 
@@ -461,7 +462,13 @@ async function validateIntegration() {
   expect(treasuryPage.includes("getEconomicControl") && fs.readFileSync("components/treasury-registration.tsx", "utf8").includes("createCashMovement"), "[treasury-integration] treasury page missing economic control or registration flows");
   expect(treasuryActions.includes("createCashTransfer") && treasuryActions.includes("saveTreasurySettings"), "[treasury-integration] treasury actions missing key commands");
   expect(fs.existsSync("app/(app)/tesoreria/export/route.ts"), "[treasury-integration] treasury CSV export route missing");
-  expect(hoyPage.includes("getEconomicControl") && hoyPage.includes("forecast.outflows"), "[treasury-integration] Hoy page missing compact economic pulse");
+  expect(
+    hoyPage.includes("buildPortalManifest")
+      && !hoyPage.includes("getEconomicControl")
+      && portalManifest.includes('FINANCE: ["collections", "payments", "invoices", "due-dates", "treasury"')
+      && portalManifest.includes('return ["/hoy", "/dinero", "/tesoreria", "/capataz"]'),
+    "[treasury-integration] Finance portal missing authorized economic destinations",
+  );
   expect(workPage.includes("WorkTreasuryTab") && workPage.includes("getEconomicControl"), "[treasury-integration] Work 360 missing economic control tab");
   expect(clientPage.includes("ClientFinanceTab") && clientPage.includes("getEconomicControl"), "[treasury-integration] Client 360 missing finance tab");
   expect(nav.includes('href: "/tesoreria"'), "[treasury-integration] navigation missing treasury link");

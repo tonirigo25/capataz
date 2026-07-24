@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { createTaskAction, completeTaskAction } from "./actions";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 export const dynamic = "force-dynamic";
 export default async function TasksPage({
   searchParams,
@@ -12,6 +13,10 @@ export default async function TasksPage({
     now = new Date(),
     tomorrow = new Date(now.getTime() + 86400000),
     week = new Date(now.getTime() + 7 * 86400000);
+  const auth = await requireCapability("tasks.view");
+  const canManage=(await resolveAuthorization(auth,"tasks.manage")).allowed;
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
+  const taskScope = auth.scope === "COMPANY" ? {} : { OR: [{ assigneeId: auth.userId }, { workId: { in: scopedWorkIds ?? [] } }] };
   const filter = query.filtro ?? "open";
   const date =
     filter === "today"
@@ -25,6 +30,8 @@ export default async function TasksPage({
             : undefined;
   const tasks = await prisma.task.findMany({
     where: {
+      companyId: auth.companyId,
+      ...taskScope,
       archivedAt: null,
       ...(date ? { dueAt: date } : {}),
       ...(filter === "blocked"
@@ -50,7 +57,7 @@ export default async function TasksPage({
         title="Tareas"
         description="Bandeja, planificación, bloqueos, recurrencia y trabajo automático."
       />
-      <nav
+      <CompactFilterBar><nav
         className="flex gap-2 overflow-x-auto pb-2"
         aria-label="Filtros de tareas"
       >
@@ -77,8 +84,9 @@ export default async function TasksPage({
             {label}
           </Link>
         ))}
-      </nav>
-      <form
+      </nav></CompactFilterBar>
+      <ResultCount shown={tasks.length} total={tasks.length} noun="tareas" />
+      {canManage ? <form
         action={createTaskAction}
         className="card grid gap-3 p-4 md:grid-cols-4"
       >
@@ -104,7 +112,7 @@ export default async function TasksPage({
           </select>
         </label>
         <button className="primary-button md:col-span-4">Crear tarea</button>
-      </form>
+      </form> : null}
       {tasks.length ? (
         <section className="grid gap-3" aria-live="polite">
           {tasks.map((task) => (
@@ -138,7 +146,7 @@ export default async function TasksPage({
                   >
                     Abrir
                   </Link>
-                  {task.status !== "completed" ? (
+                  {canManage && task.status !== "completed" ? (
                     <form action={completeTaskAction}>
                       <input type="hidden" name="id" value={task.id} />
                       <button className="primary-button">Completar</button>

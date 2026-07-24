@@ -1,5 +1,6 @@
 import { getAppMode } from "@/lib/app-mode";
 import { getCapatazAIStatus } from "@/lib/ai/capataz-ai";
+import { getEmailProviderStatus } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 const requiredPublicVars = [
@@ -31,6 +32,10 @@ export type SystemStatus = {
     required: boolean;
   };
   database: "ok" | "error";
+  providers: {
+    billing: "local";
+    email: "local" | "resend" | "missing";
+  };
   missingPublicVars: string[];
   missingServerVars: string[];
   missingRecommendedVars: string[];
@@ -63,6 +68,10 @@ export async function getSystemStatus(): Promise<SystemStatus> {
       required: openAIRequired
     },
     database,
+    providers: {
+      billing: "local",
+      email: getEmailProviderStatus()
+    },
     missingPublicVars,
     missingServerVars: openAIRequired ? requiredAIProductionVars.filter((key) => !process.env[key]) : [],
     missingRecommendedVars: recommendedServerVars.filter((key) => !process.env[key] && !process.env.NEXT_PUBLIC_WEB_BASE_URL)

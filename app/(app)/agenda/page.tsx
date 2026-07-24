@@ -16,7 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AgendaEventControls } from "@/components/agenda-event-controls";
 import { StatusPill } from "@/components/status-pill";
-import { EmptyState, FilterBar, Notice, PageHeader, SearchInput, Tabs } from "@/components/ui-primitives";
+import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, Tabs } from "@/components/ui-primitives";
 import {
   addDays,
   getAgendaItems,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/agenda";
 import { formatDate, formatDay } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,8 @@ export default async function AgendaPage({
   searchParams: Promise<{ vista?: string; dia?: string; tipo?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
+  const auth = await requireCapability("agenda.view");
+  const canManage = (await resolveAuthorization(auth, "agenda.manage")).allowed;
   const view = views.some((item) => item.id === query.vista) ? query.vista! : "hoy";
   const selectedDay = query.dia ? startOfDay(new Date(`${query.dia}T00:00:00`)) : startOfDay(new Date());
   const items = filterAgendaItems(await getAgendaItems(), query.tipo, query.buscar);
@@ -52,6 +55,7 @@ export default async function AgendaPage({
   const weekStart = startOfWeek(selectedDay);
   const weekItems = itemsBetween(items, weekStart, addDays(weekStart, 7));
   const nextVisit = items.find((item) => item.tipo === "visita" && item.fechaInicio >= new Date() && item.estado !== "cancelado");
+  if (!canManage) return <ReadOnlyAgenda items={items} />;
 
   return (
     <main className="screen">
@@ -69,15 +73,15 @@ export default async function AgendaPage({
 
       <Notice className="mb-4" tone="info" title="Resumen de hoy" description={`Tienes ${todayItems.filter((item) => item.tipo === "visita").length} visitas, ${todayItems.filter((item) => item.tipo.includes("seguimiento")).length} seguimientos y ${todayItems.filter((item) => item.tipo === "vencimiento_factura").length} vencimientos.${nextVisit ? ` La próxima cita es ${nextVisit.titulo} a las ${timeLabel(nextVisit.fechaInicio)}.` : ""}`} />
 
-      <FilterBar className="mb-4">
+      <CompactFilterBar className="mb-4">
         <form action="/agenda" className="grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_12rem_auto]">
           <input type="hidden" name="vista" value={view} />
           <input type="hidden" name="dia" value={toDateInputValue(selectedDay)} />
-          <label><span className="label mb-1 block">Buscar</span><SearchInput name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, obra…" /></label>
+          <label><span className="label mb-1 block">Buscar</span><CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, trabajo…" /></label>
           <label><span className="label mb-1 block">Tipo</span><select className="field" name="tipo" defaultValue={query.tipo ?? "todos"}><option value="todos">Todos</option><option value="visitas">Visitas</option><option value="cobros">Cobros</option><option value="presupuestos">Presupuestos</option><option value="materiales">Materiales</option><option value="tareas">Tareas</option></select></label>
           <button className="primary-button self-end" type="submit"><Search size={18} /> Aplicar</button>
         </form>
-      </FilterBar>
+      </CompactFilterBar>
 
       <Tabs label="Vistas de agenda" className="mb-3">
         {views.map((item) => (
@@ -94,9 +98,9 @@ export default async function AgendaPage({
       </Tabs>
 
       <nav className="mb-5 flex items-center justify-between gap-2" aria-label="Cambiar fecha">
-        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(addDays(selectedDay, -1))}`} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
-        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(new Date())}`} className="secondary-button">Hoy</Link>
-        <Link href={`/agenda?vista=${view}&dia=${toDateInputValue(addDays(selectedDay, 1))}`} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
+        <Link href={agendaHref(view, addDays(selectedDay, -1), query)} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
+        <Link href={agendaHref(view, new Date(), query)} className="secondary-button">Hoy</Link>
+        <Link href={agendaHref(view, addDays(selectedDay, 1), query)} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
       </nav>
 
       {view === "hoy" ? <TodayView items={todayItems} /> : null}
@@ -125,7 +129,7 @@ function TodayView({ items }: { items: AgendaItem[] }) {
           <p className="mt-1 text-sm font-semibold text-slate-600">{formatDate(next.fechaInicio)}</p>
         </section>
       ) : null}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
         <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda" className="secondary-button">Visita</Link>
         <Link href="/gestion?tipo=recordatorio&returnTo=/agenda" className="secondary-button">Recordatorio</Link>
         <Link href="/gestion?tipo=eventoAgenda&tipoEvento=seguimiento_cobro&returnTo=/agenda" className="secondary-button">Seguimiento</Link>
@@ -141,6 +145,17 @@ function TodayView({ items }: { items: AgendaItem[] }) {
       })}
     </div>
   );
+}
+
+function ReadOnlyAgenda({ items }: { items: AgendaItem[] }) {
+  return <main className="screen"><PageHeader eyebrow="Planificación" title="Agenda" description="Agenda autorizada en modo de solo lectura."/><div className="grid gap-3">{items.map((item) => <article key={`${item.source}-${item.id}`} className="card p-4"><p className="text-xs font-bold uppercase text-slate-500">{statusLabel(item.tipo)} · {formatDate(item.fechaInicio)}</p><h2 className="mt-1 font-black text-obra-ink">{item.titulo}</h2>{item.descripcion ? <p className="mt-2 text-sm text-slate-600">{item.descripcion}</p> : null}<StatusPill status={item.estado}/></article>)}{!items.length ? <EmptyState title="No hay eventos disponibles" description="No hay elementos dentro de tu alcance." icon={CalendarClock}/> : null}</div></main>;
+}
+
+function agendaHref(view: string, day: Date, query: { tipo?: string; buscar?: string }) {
+  const params = new URLSearchParams({ vista: view, dia: toDateInputValue(day) });
+  if (query.buscar) params.set("buscar", query.buscar);
+  if (query.tipo) params.set("tipo", query.tipo);
+  return `/agenda?${params.toString()}`;
 }
 
 function WeekView({ items, weekStart }: { items: AgendaItem[]; weekStart: Date }) {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/automation-templates";
 import {
@@ -8,6 +8,7 @@ import {
   runAutomationAction,
   toggleAutomationAction,
 } from "./actions";
+import { requireCapability } from "@/lib/commercial/authorization";
 export const dynamic = "force-dynamic";
 export default async function AutomationsPage({
   searchParams,
@@ -15,8 +16,10 @@ export default async function AutomationsPage({
   searchParams: Promise<{ estado?: string }>;
 }) {
   const { estado = "all" } = await searchParams;
+  const auth = await requireCapability("company.update");
   const items = await prisma.automationDefinition.findMany({
     where: {
+      companyId: auth.companyId,
       archivedAt: null,
       ...(estado === "all" ? {} : { status: estado as never }),
     },
@@ -38,7 +41,7 @@ export default async function AutomationsPage({
         title="Automatizaciones"
         description="Definiciones versionadas, condiciones estructuradas, historial, dry run y retries."
       />
-      <nav
+      <CompactFilterBar><nav
         className="flex gap-2 overflow-x-auto pb-2"
         aria-label="Filtros de automatizaciones"
       >
@@ -62,7 +65,8 @@ export default async function AutomationsPage({
             {label}
           </Link>
         ))}
-      </nav>
+      </nav></CompactFilterBar>
+      <ResultCount shown={items.length} total={items.length} noun="automatizaciones" />
       <form
         action={createAutomationAction}
         className="card grid gap-3 p-4 md:grid-cols-2"

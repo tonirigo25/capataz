@@ -5,9 +5,10 @@ import {
   InteractiveRow,
   PageHeader,
   ProductPage,
-  SearchInput
+  CompactSearch
 } from "@/components/ui-primitives";
 import { globalSearch } from "@/lib/search";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  await requireCapability("company.view");
   const query = ((await searchParams).q ?? "").trim();
   const groups = await globalSearch(query);
   const total = Object.values(groups).reduce((sum, items) => sum + items.length, 0);
@@ -28,8 +30,8 @@ export default async function SearchPage({
       />
 
       <form action="/buscar" className="mb-8 flex max-w-3xl gap-2" role="search">
-        <label htmlFor="global-search-page" className="sr-only">Buscar en Capataz</label>
-        <SearchInput
+        <label htmlFor="global-search-page" className="sr-only">Buscar en Orqena</label>
+        <CompactSearch
           id="global-search-page"
           name="q"
           defaultValue={query}

@@ -1,6 +1,8 @@
 import type { TaskPriority, TaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 export async function createTask(input: {
+  companyId: string;
   title: string;
   description?: string;
   priority?: TaskPriority;
@@ -15,9 +17,10 @@ export async function createTask(input: {
   parentTaskId?: string;
   assigneeId?: string;
 }) {
+  const companyId=input.companyId;
   return prisma.task.create({
     data: {
-      ...input,
+      ...input, companyId,
       status: input.requiresConfirmation ? "inbox" : "planned",
     },
   });
@@ -28,8 +31,9 @@ export async function changeTaskStatus(
   actorId?: string,
   reason?: string,
 ) {
+  const companyId=(await requireCompanyContext()).companyId;
   return prisma.$transaction(async (tx) => {
-    const task = await tx.task.findUniqueOrThrow({ where: { id } });
+    const task = await tx.task.findFirstOrThrow({ where: { id, companyId } });
     const updated = await tx.task.update({
       where: { id },
       data: {
@@ -56,8 +60,11 @@ export async function addTaskDependency(
   dependsOnTaskId: string,
   type = "finish_to_start",
 ) {
+  const companyId=(await requireCompanyContext()).companyId;
+  const owned=await prisma.task.count({where:{id:{in:[taskId,dependsOnTaskId]},companyId}});if(owned!==2)throw new Error("TASK_NOT_AVAILABLE");
   if (taskId === dependsOnTaskId) throw new Error("TASK_DEPENDENCY_CYCLE");
   const dependencies = await prisma.taskDependency.findMany({
+    where:{task:{companyId},dependsOnTask:{companyId}},
     select: { taskId: true, dependsOnTaskId: true },
   });
   const graph = new Map<string, string[]>();
@@ -85,6 +92,7 @@ export async function addTaskDependency(
 }
 
 export async function addChecklistItem(taskId: string, title: string) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.task.findFirst({where:{id:taskId,companyId},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   const last = await prisma.taskChecklistItem.aggregate({
     where: { taskId },
     _max: { order: true },
@@ -98,6 +106,7 @@ export async function toggleChecklistItem(
   completed: boolean,
   actorId?: string,
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.taskChecklistItem.findFirst({where:{id,task:{companyId}},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   return prisma.taskChecklistItem.update({
     where: { id },
     data: {
@@ -118,9 +127,11 @@ export async function editTask(
     blockedReason?: string | null;
   },
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.task.findFirst({where:{id,companyId},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   return prisma.task.update({ where: { id }, data });
 }
 export async function archiveTask(id: string) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.task.findFirst({where:{id,companyId},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   return prisma.task.update({
     where: { id },
     data: { status: "archived", archivedAt: new Date() },
@@ -131,12 +142,14 @@ export async function addTaskComment(
   content: string,
   authorId?: string,
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.task.findFirst({where:{id:taskId,companyId},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   if (!content.trim()) throw new Error("TASK_COMMENT_REQUIRED");
   return prisma.taskComment.create({
     data: { taskId, content: content.trim(), authorId },
   });
 }
 export async function editChecklistItem(id: string, title: string) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.taskChecklistItem.findFirst({where:{id,task:{companyId}},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   if (!title.trim()) throw new Error("CHECKLIST_TITLE_REQUIRED");
   return prisma.taskChecklistItem.update({
     where: { id },
@@ -144,9 +157,10 @@ export async function editChecklistItem(id: string, title: string) {
   });
 }
 export async function moveChecklistItem(id: string, direction: "up" | "down") {
+  const companyId=(await requireCompanyContext()).companyId;
   return prisma.$transaction(async (tx) => {
-    const item = await tx.taskChecklistItem.findUniqueOrThrow({
-      where: { id },
+    const item = await tx.taskChecklistItem.findFirstOrThrow({
+      where: { id, task:{companyId} },
     });
     const other = await tx.taskChecklistItem.findFirst({
       where: {
@@ -168,12 +182,14 @@ export async function moveChecklistItem(id: string, direction: "up" | "down") {
   });
 }
 export async function removeTaskDependency(id: string) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.taskDependency.findFirst({where:{id,task:{companyId},dependsOnTask:{companyId}},select:{id:true}}))throw new Error("TASK_NOT_AVAILABLE");
   return prisma.taskDependency.delete({ where: { id } });
 }
 export async function createSubtask(
   parentTaskId: string,
-  input: { title: string; dueAt?: Date },
+  input: { companyId: string; title: string; dueAt?: Date },
 ) {
+  const companyId=input.companyId;
   let cursor: string | undefined = parentTaskId,
     depth = 0;
   const seen = new Set<string>();
@@ -182,12 +198,12 @@ export async function createSubtask(
       throw new Error("TASK_SUBTASK_DEPTH_EXCEEDED");
     seen.add(cursor);
     const parent: { parentTaskId: string | null } =
-      await prisma.task.findUniqueOrThrow({
-        where: { id: cursor },
+      await prisma.task.findFirstOrThrow({
+        where: { id: cursor, companyId },
         select: { parentTaskId: true },
       });
     cursor = parent.parentTaskId ?? undefined;
     depth++;
   }
-  return createTask({ ...input, parentTaskId, origin: "subtask" });
+  return createTask({ ...input, companyId, parentTaskId, origin: "subtask" });
 }

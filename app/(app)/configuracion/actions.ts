@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireCompanyContext, requireCompanyRole } from "@/lib/auth/session";
+import { requireCompanyContext } from "@/lib/auth/session";
+import { requireActiveOwner } from "@/lib/commercial/owner-governance";
 
 export async function saveUserProfile(formData: FormData) {
   const auth = await requireCompanyContext();
@@ -36,7 +37,7 @@ export async function saveUserProfile(formData: FormData) {
 }
 
 export async function saveCompanySettings(formData: FormData) {
-  const auth = await requireCompanyRole(["ADMIN"]);
+  const auth = await requireActiveOwner();
   const data = {
     nombreComercial: text(formData, "nombreComercial") || "Mi empresa",
     razonSocial: optionalText(formData, "razonSocial"),

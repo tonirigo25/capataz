@@ -36,11 +36,24 @@ function loadMiddleware() {
   return loadTsModule("middleware.ts", { mocks: { "next/server": nextServerMock() } });
 }
 
-function loadRoute({ requireCompanyContext, buildBusinessCsvExport }) {
+function loadRoute({
+  requireCompanyContext,
+  buildBusinessCsvExport,
+  resolveAuthorization = async (_context, capability) => ({
+    allowed: true,
+    capability,
+    scope: "COMPANY",
+    source: "fixture",
+  }),
+}) {
   return loadTsModule("app/(app)/inteligencia/export/route.ts", {
     mocks: {
       "next/server": nextServerMock(),
       "@/lib/auth/session": { requireCompanyContext },
+      "@/lib/commercial/authorization": {
+        requireCapability: requireCompanyContext,
+        resolveAuthorization,
+      },
       "@/lib/business-intelligence": { buildBusinessCsvExport }
     }
   });
@@ -79,6 +92,16 @@ expect(works.headers.get("cache-control") === "private, no-store", "[intelligenc
 expect(works.headers.get("x-content-type-options") === "nosniff", "[intelligence-csv] works export should set nosniff", Object.fromEntries(works.headers));
 expect(worksText.includes("Obra A") && !worksText.includes("Obra B"), "[intelligence-csv] works CSV must contain only authenticated tenant data", worksText);
 expect(calls.at(-1).params.companyId === "company-A", "[intelligence-csv] route must derive companyId from session, not query string", calls.at(-1));
+
+const scopedRoute = loadRoute({
+  requireCompanyContext: async () => ({ companyId: "company-A", userId: "user-A", sessionId: "session-A", membershipId: "membership-A", role: "OWNER", isDemo: false, companyName: "Empresa A" }),
+  resolveAuthorization: async (_context, capability) => ({ allowed: true, capability, scope: "OWN", source: "fixture" }),
+  buildBusinessCsvExport: async () => {
+    throw new Error("scoped export must not reach the CSV builder");
+  },
+});
+const scoped = await scopedRoute.GET(new Request("https://example.test/inteligencia/export?tipo=works"));
+expect(scoped.status === 403, "[intelligence-csv] combined export must reject non-COMPANY scope", scoped.status);
 
 const pending = await route.GET(new Request("https://example.test/inteligencia/export?tipo=pending-invoices"));
 const pendingText = await pending.text();

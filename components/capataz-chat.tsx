@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -30,6 +30,10 @@ import {
   deleteChatConversation,
   getOrCreateInitialConversation,
   loadChatConversations,
+  preparePendingProposal,
+  cancelPendingProposal,
+  executePendingProposal,
+  type PendingProposalOperation,
   renameChatConversation,
   runChatCommand,
   type ChatActionResult,
@@ -46,6 +50,7 @@ import { canApplyConversationLoad } from "@/lib/chat-conversation-rules";
 import { formatCurrency } from "@/lib/format";
 
 type ChatData = {
+  capabilities: string[];
   userProfile: {
     id: string;
     nombre: string | null;
@@ -134,7 +139,7 @@ type ChatData = {
     forecastNet: number;
     href: string;
     suggestions: string[];
-  };
+  } | null;
 };
 
 type ActionCard =
@@ -278,17 +283,7 @@ const samples = [
   "¿Quién me debe dinero?"
 ];
 
-const quickCreates = [
-  { href: "/gestion?tipo=cliente&returnTo=/capataz", label: "Cliente" },
-  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/capataz", label: "Visita" },
-  { href: "/gestion?tipo=presupuesto&returnTo=/capataz", label: "Presupuesto" },
-  { href: "/gestion?tipo=factura&returnTo=/capataz", label: "Factura" },
-  { href: "/gestion?tipo=gasto&returnTo=/capataz", label: "Gasto" },
-  { href: "/gestion?tipo=pago&returnTo=/capataz", label: "Pago" },
-  { href: "/gestion?tipo=recordatorio&returnTo=/capataz", label: "Recordatorio" }
-];
-
-const chatConversationStorageKey = "capataz-chat-conversation-id";
+const chatConversationStorageKey = (companyId: string, userId: string) => `orqena-chat-conversation-id:${companyId}:${userId}`;
 const defaultProgressSteps = [
   "Leyendo tu mensaje...",
   "Analizando datos...",
@@ -297,15 +292,15 @@ const defaultProgressSteps = [
   "Guardando cambios..."
 ];
 
-export function CapatazChat({ data }: { data: ChatData }) {
+export function CapatazChat({ data, userId }: { data: ChatData; userId: string }) {
   const router = useRouter();
+  const companyId = data.company?.id ?? "unassigned";
   const displayName = userName(data);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [progressSteps, setProgressSteps] = useState(defaultProgressSteps);
   const [progressIndex, setProgressIndex] = useState(0);
   const [showExamples, setShowExamples] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
   const [chatContext, setChatContext] = useState<ChatCommandContext | null>(null);
   const [conversationId, setConversationId] = useState("");
   const [conversations, setConversations] = useState<ChatHistoryConversation[]>([]);
@@ -316,10 +311,20 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const inFlightRef = useRef(false);
   const mountedRef = useRef(false);
   const loadRequestRef = useRef(0);
+  const bootConversationRef = useRef(bootConversation);
+  bootConversationRef.current = bootConversation;
+  const companyGenerationRef = useRef(0);
+  const activeCompanyRef = useRef(companyId);
+  const [renderedCompanyId, setRenderedCompanyId] = useState(companyId);
   const activeConversationRef = useRef("");
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const transcriptionAbortRef = useRef<AbortController | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const followLatestRef = useRef(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     welcomeMessage(displayName)
   ]);
@@ -328,9 +333,27 @@ export function CapatazChat({ data }: { data: ChatData }) {
   const missingProfile = data.completion.profile.missingRequired.length + data.completion.profile.missingRecommended.length;
   const missingCompany = data.completion.company.missingRequired.length + data.completion.company.missingRecommended.length;
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  useLayoutEffect(() => {
+    const container = messagesRef.current;
+    if (!container || !followLatestRef.current) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: isSending ? "auto" : "smooth" });
   }, [messages, isSending, progressIndex]);
+
+  function trackMessageScroll() {
+    const container = messagesRef.current;
+    if (!container) return;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 96;
+    followLatestRef.current = nearBottom;
+    setShowJumpToLatest(!nearBottom);
+  }
+
+  function jumpToLatest() {
+    const container = messagesRef.current;
+    if (!container) return;
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }
 
   useEffect(() => {
     if (!isSending) return;
@@ -347,29 +370,50 @@ export function CapatazChat({ data }: { data: ChatData }) {
   }, [isSending]);
 
   useEffect(() => {
+    const generation = ++companyGenerationRef.current;
+    activeCompanyRef.current = companyId;
+    loadRequestRef.current += 1;
+    inFlightRef.current = false;
+    stopAndClearVoiceCapture();
+    setRenderedCompanyId(companyId);
+    setConversationId("");
+    setConversations([]);
+    setMessages([welcomeMessage(displayName)]);
+    setChatContext(null);
+    setInput("");
+    setShowHistory(false);
+    setShowJumpToLatest(false);
+    activeConversationRef.current = "";
+    followLatestRef.current = true;
+    setChatState("booting");
     mountedRef.current = true;
-    bootConversation();
+    void bootConversationRef.current(companyId, generation);
     return () => {
       mountedRef.current = false;
+      loadRequestRef.current += 1;
+      companyGenerationRef.current += 1;
+      inFlightRef.current = false;
+      stopAndClearVoiceCapture(false);
     };
-  }, []);
+  }, [companyId, userId, displayName]);
 
-  async function bootConversation() {
+  async function bootConversation(expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current) {
     const requestId = ++loadRequestRef.current;
     setChatState("booting");
     try {
-      const preferred = safeLocalStorageGet(chatConversationStorageKey);
+      const storageKey = chatConversationStorageKey(expectedCompanyId, userId);
+      const preferred = safeLocalStorageGet(storageKey);
       const initial = await getOrCreateInitialConversation(preferred);
-      if (!mountedRef.current || requestId !== loadRequestRef.current) return;
+      if (!canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !mountedRef.current || requestId !== loadRequestRef.current) return;
       activeConversationRef.current = initial.selected.id;
       setConversationId(initial.selected.id);
       setConversations(initial.conversations);
       setMessages(messagesFromConversation(initial.selected, displayName));
       setChatContext(contextFromConversation(initial.selected));
-      safeLocalStorageSet(chatConversationStorageKey, initial.selected.id);
+      safeLocalStorageSet(storageKey, initial.selected.id);
       setChatState("ready");
     } catch {
-      if (!mountedRef.current || requestId !== loadRequestRef.current) return;
+      if (!canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !mountedRef.current || requestId !== loadRequestRef.current) return;
       setMessages([welcomeMessage(displayName)]);
       setChatState("failed");
     }
@@ -377,10 +421,12 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
   async function refreshConversations(nextSelectedId = conversationId, syncSelected = false) {
     const expectedId = nextSelectedId || activeConversationRef.current;
+    const expectedCompanyId = companyId;
+    const expectedGeneration = companyGenerationRef.current;
     const requestId = ++loadRequestRef.current;
     try {
       const loaded = await loadChatConversations(false);
-      if (!mountedRef.current || !canApplyConversationLoad(expectedId, activeConversationRef.current || expectedId, requestId, loadRequestRef.current)) return;
+      if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current) || !canApplyConversationLoad(expectedId, activeConversationRef.current || expectedId, requestId, loadRequestRef.current)) return;
       setConversations(loaded);
       const selected = loaded.find((item) => item.id === expectedId);
       if (syncSelected && selected && selected.id === activeConversationRef.current) {
@@ -405,11 +451,15 @@ export function CapatazChat({ data }: { data: ChatData }) {
     const userMessageId = crypto.randomUUID();
     const idempotencyKey = `chat:${userMessageId}`;
     const sendingConversationId = conversationId;
+    const sendingCompanyId = companyId;
+    const sendingGeneration = companyGenerationRef.current;
     const userMessage: Message = { id: userMessageId, role: "user", text };
     const startedAt = Date.now();
     setProgressSteps(progressStepsForMessage(text));
     setProgressIndex(0);
     setMessages((current) => [...current, userMessage]);
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
     setInput("");
     inFlightRef.current = true;
     setIsSending(true);
@@ -420,7 +470,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] mensaje recibido", { text, chatContext });
       const command = await runChatCommand(text, chatContext, { messageId: userMessageId, idempotencyKey, conversationId: sendingConversationId, clientStartedAt: startedAt });
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] resultado accion", command);
-      if (!mountedRef.current || activeConversationRef.current !== sendingConversationId) return;
+      if (!mountedRef.current || !canApplyCompanyResult(sendingCompanyId, activeCompanyRef.current, sendingGeneration, companyGenerationRef.current) || activeConversationRef.current !== sendingConversationId) return;
       const assistantMessage: Message = command.handled
         ? { id: crypto.randomUUID(), role: "assistant", text: command.text, result: command.result }
         : { id: crypto.randomUUID(), role: "assistant", ...respond(text, data, pendingDebt) };
@@ -431,7 +481,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
       refreshConversations(sendingConversationId);
     } catch {
       failed = true;
-      if (!mountedRef.current || activeConversationRef.current !== sendingConversationId) return;
+      if (!mountedRef.current || !canApplyCompanyResult(sendingCompanyId, activeCompanyRef.current, sendingGeneration, companyGenerationRef.current) || activeConversationRef.current !== sendingConversationId) return;
       setMessages((current) => [
         ...current,
         {
@@ -447,30 +497,34 @@ export function CapatazChat({ data }: { data: ChatData }) {
       if (process.env.NEXT_PUBLIC_APP_ENV !== "production") console.info("[capataz-chat] render total", { durationMs: Date.now() - startedAt });
       inFlightRef.current = false;
       setIsSending(false);
-      if (mountedRef.current && activeConversationRef.current === sendingConversationId && !failed) setChatState("ready");
+      if (mountedRef.current && canApplyCompanyResult(sendingCompanyId, activeCompanyRef.current, sendingGeneration, companyGenerationRef.current) && activeConversationRef.current === sendingConversationId && !failed) setChatState("ready");
     }
   }
 
   async function startNewConversation() {
     if (inFlightRef.current) return;
+    const expectedCompanyId = companyId;
+    const expectedGeneration = companyGenerationRef.current;
     const conversation = await createChatConversation("Nueva conversación");
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     activeConversationRef.current = conversation.id;
     setConversationId(conversation.id);
     persistChatContext(null);
     setMessages([welcomeMessage(displayName)]);
     setInput("");
     setChatState("ready");
-    safeLocalStorageSet(chatConversationStorageKey, conversation.id);
+    safeLocalStorageSet(chatConversationStorageKey(companyId, userId), conversation.id);
     setShowHistory(false);
     await refreshConversations(conversation.id);
   }
 
   function openConversation(conversation: ChatHistoryConversation) {
+    followLatestRef.current = true;
     activeConversationRef.current = conversation.id;
     setConversationId(conversation.id);
     setMessages(messagesFromConversation(conversation, displayName));
     persistChatContext(contextFromConversation(conversation));
-    safeLocalStorageSet(chatConversationStorageKey, conversation.id);
+    safeLocalStorageSet(chatConversationStorageKey(companyId, userId), conversation.id);
     setChatState("ready");
     setShowHistory(false);
   }
@@ -478,12 +532,16 @@ export function CapatazChat({ data }: { data: ChatData }) {
   async function renameConversation(conversation: ChatHistoryConversation) {
     const title = window.prompt("Nuevo título de la conversación", conversation.title);
     if (!title?.trim()) return;
+    const expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current;
     await renameChatConversation(conversation.id, title.trim());
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     await refreshConversations(conversation.id);
   }
 
   async function archiveConversation(conversation: ChatHistoryConversation) {
+    const expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current;
     await archiveChatConversation(conversation.id);
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     if (conversation.id === conversationId) {
       await startNewConversation();
       return;
@@ -494,7 +552,9 @@ export function CapatazChat({ data }: { data: ChatData }) {
   async function removeConversation(conversation: ChatHistoryConversation) {
     const ok = window.confirm(`¿Borrar la conversación "${conversation.title}"? Esta acción no borra clientes, obras, presupuestos ni facturas.`);
     if (!ok) return;
+    const expectedCompanyId = companyId, expectedGeneration = companyGenerationRef.current;
     await deleteChatConversation(conversation.id);
+    if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
     if (conversation.id === conversationId) {
       await startNewConversation();
       return;
@@ -517,36 +577,75 @@ export function CapatazChat({ data }: { data: ChatData }) {
     try {
       setVoiceError("");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current || activeCompanyRef.current !== companyId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const recorder = new MediaRecorder(stream);
       audioChunksRef.current = [];
+      voiceStreamRef.current = stream;
       recorderRef.current = recorder;
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
       recorder.onstop = async () => {
+        const expectedCompanyId = companyId;
+        const expectedGeneration = companyGenerationRef.current;
         stream.getTracks().forEach((track) => track.stop());
+        voiceStreamRef.current = null;
+        recorderRef.current = null;
         setVoiceStatus("transcribing");
         try {
           const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+          audioChunksRef.current = [];
           const formData = new FormData();
           formData.append("audio", blob, "dictado.webm");
-          const response = await fetch("/api/capataz/transcribe", { method: "POST", body: formData });
+          transcriptionAbortRef.current?.abort();
+          const controller = new AbortController();
+          transcriptionAbortRef.current = controller;
+          const response = await fetch("/api/capataz/transcribe", { method: "POST", body: formData, signal: controller.signal });
           const payload = await response.json().catch(() => null) as { text?: string; error?: string } | null;
           if (!response.ok || !payload?.text) throw new Error(payload?.error || "No se pudo transcribir el audio.");
+          if (!mountedRef.current || !canApplyCompanyResult(expectedCompanyId, activeCompanyRef.current, expectedGeneration, companyGenerationRef.current)) return;
           const transcribedText = payload.text.trim();
           setInput((current) => current ? `${current} ${transcribedText}` : transcribedText);
           setVoiceStatus("idle");
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          audioChunksRef.current = [];
           setVoiceStatus("error");
           setVoiceError(error instanceof Error ? error.message : "No se pudo transcribir el audio.");
         }
       };
       recorder.start();
       setVoiceStatus("recording");
-    } catch {
+    } catch (error) {
+      stopAndClearVoiceCapture();
       setVoiceStatus("error");
-      setVoiceError("No tengo permiso para usar el micrófono. Activa el permiso del navegador y vuelve a intentarlo.");
+      setVoiceError(isVoicePermissionError(error)
+        ? "No tengo permiso para usar el micrófono. Puedes seguir escribiendo o reintentar después de activar el permiso del navegador."
+        : "No se pudo iniciar el dictado. Puedes seguir escribiendo y reintentar.");
     }
+  }
+
+  function stopAndClearVoiceCapture(updateState = true) {
+    transcriptionAbortRef.current?.abort();
+    transcriptionAbortRef.current = null;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder?.state === "recording") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      try { recorder.stop(); } catch { /* El navegador ya cerró la captura. */ }
+    }
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = null;
+    audioChunksRef.current = [];
+    if (updateState) setVoiceStatus("idle");
+  }
+
+  if (renderedCompanyId !== companyId) {
+    return <div className="min-h-[calc(100dvh-150px)]" aria-busy="true" aria-label="Cargando conversaciones de la empresa activa" />;
   }
 
   return (
@@ -581,15 +680,20 @@ export function CapatazChat({ data }: { data: ChatData }) {
 
       <div className="flex flex-col">
       {data.operationalContext ? (
-        <section className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto de ${data.operationalContext.entityName}`}>
+        <details className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto de ${data.operationalContext.entityName}`}>
+          <summary className="cursor-pointer font-semibold">Contexto de {data.operationalContext.entityName}</summary>
+          <div className="mt-3">
           <p className="type-label">Contexto operativo · {data.operationalContext.entityType}</p>
           <p className="type-object-title mt-1 text-content">{data.operationalContext.entityName}</p>
           <p className="type-secondary mt-1">{data.operationalContext.phrase}</p>
           <p className="type-meta mt-2">Siguiente paso: {data.operationalContext.nextStep}</p>
           <div className="mt-3 flex flex-wrap gap-2">{data.operationalContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
-        </section>
+          </div>
+        </details>
       ) : null}
-      <section className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
+      {data.economicContext ? <details className="mb-3 rounded-xl border border-border bg-surface p-4" aria-label={`Contexto económico de ${data.economicContext.entityName}`}>
+        <summary className="cursor-pointer font-semibold">Contexto actual · {data.economicContext.entityName}</summary>
+        <div className="mt-3">
         <p className="type-label">Contexto económico · datos registrados</p>
         <p className="type-object-title mt-1 text-content">{data.economicContext.entityName}</p>
         <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
@@ -601,7 +705,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </div>
         <p className="type-meta mt-2">Contexto limitado a cifras agregadas y trazables; no se exponen documentos completos en el chat.</p>
         <div className="mt-3 flex flex-wrap gap-2"><a href={data.economicContext.href} className="secondary-button min-h-10 px-3 text-xs">Abrir origen</a>{data.economicContext.suggestions.map((suggestion) => <button key={suggestion} type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, suggestion)} disabled={isSending}>{suggestion}</button>)}</div>
-      </section>
+        </div>
+      </details> : null}
       <div className="mb-3 flex flex-wrap gap-2">
         <button type="button" className="secondary-button min-h-10 px-3 text-xs lg:hidden" onClick={() => setShowHistory(true)}>
           <History size={16} /> Historial
@@ -609,23 +714,11 @@ export function CapatazChat({ data }: { data: ChatData }) {
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowExamples((open) => !open)}>
           Ver ejemplos
         </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Completar mis datos")}>
-          Completar mis datos
-        </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => setShowCreate((open) => !open)}>
-          Crear algo rápido
-        </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={startNewConversation} disabled={isSending}>
           Nueva conversación
         </button>
         <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Ver pendientes")} disabled={isSending}>
           Ver pendientes
-        </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "Continuar tarea")} disabled={isSending}>
-          Continuar tarea
-        </button>
-        <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => submit(undefined, "déjalo pendiente")} disabled={isSending}>
-          Aparcar tarea
         </button>
       </div>
 
@@ -647,16 +740,6 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </div>
       ) : null}
 
-      {showCreate ? (
-        <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-card">
-          {quickCreates.map((item) => (
-            <Link key={item.href} href={item.href} className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-bold text-obra-ink hover:bg-obra-yellow/15">
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      ) : null}
-
       {missingProfile || missingCompany ? (
         <div className="mb-3 rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
           {displayName ? `${displayName}, ` : ""}
@@ -666,15 +749,15 @@ export function CapatazChat({ data }: { data: ChatData }) {
         </div>
       ) : null}
 
-      <div className="card flex-1 overflow-hidden">
-        <div className="max-h-[62dvh] min-h-[360px] space-y-3 overflow-y-auto p-4">
+      <div className="card relative flex-1 overflow-hidden">
+        <div ref={messagesRef} onScroll={trackMessageScroll} className="h-[42dvh] min-h-[280px] space-y-3 overflow-y-auto overscroll-contain p-4 md:h-auto md:max-h-[62dvh] md:min-h-[360px]" aria-live="polite">
           {chatState === "booting" ? (
             <div className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">Cargando conversación...</div>
           ) : null}
           {chatState === "failed" ? (
             <div className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
               No he podido cargar el historial. Puedes seguir usando el chat y reintentar la carga.
-              <button type="button" className="secondary-button ml-2 px-3 py-1 text-xs" onClick={bootConversation}>Reintentar</button>
+              <button type="button" className="secondary-button ml-2 px-3 py-1 text-xs" onClick={() => void bootConversation()}>Reintentar</button>
             </div>
           ) : null}
           {messages.map((message) => (
@@ -692,7 +775,7 @@ export function CapatazChat({ data }: { data: ChatData }) {
                 <MessageText text={message.text} />
                 {pdfPreviewPathFromText(message.text) ? <PdfInlinePreview path={pdfPreviewPathFromText(message.text)!} /> : null}
                 {message.result ? <ActionResultCard result={message.result} /> : null}
-                {message.card ? <ActionCardView card={message.card} data={data} /> : null}
+                {message.card ? <ActionCardView card={message.card} data={data} conversationId={conversationId} /> : null}
                 {message.retryText ? (
                   <button type="button" className="secondary-button mt-2 text-xs" onClick={() => submit(undefined, message.retryText)} disabled={isSending}>
                     Reintentar
@@ -720,12 +803,17 @@ export function CapatazChat({ data }: { data: ChatData }) {
           <div ref={bottomRef} />
         </div>
 
+        {showJumpToLatest ? <button type="button" className="secondary-button absolute bottom-24 left-1/2 z-10 -translate-x-1/2 shadow-lg" onClick={jumpToLatest}>Ir al último mensaje</button> : null}
+
         <form onSubmit={submit} className="border-t border-slate-200 p-3">
           {voiceStatus !== "idle" || voiceError ? (
-            <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-semibold ${voiceStatus === "error" ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+            <div role={voiceStatus === "error" ? "alert" : "status"} aria-live="polite" className={`mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${voiceStatus === "error" ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-600"}`}>
+              <span>
               {voiceStatus === "recording" ? "Grabando audio... pulsa el micrófono para parar." : null}
               {voiceStatus === "transcribing" ? "Transcribiendo audio..." : null}
               {voiceStatus === "error" ? voiceError : null}
+              </span>
+              {voiceStatus === "error" ? <button type="button" className="secondary-button min-h-11" onClick={() => { setVoiceError(""); setVoiceStatus("idle"); void toggleDictation(); }}>Reintentar</button> : null}
             </div>
           ) : null}
           <div className="flex gap-2">
@@ -733,8 +821,8 @@ export function CapatazChat({ data }: { data: ChatData }) {
               className="field"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              aria-label="Mensaje para Capataz"
-              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Capataz..."}
+              aria-label="Mensaje para Orqena"
+              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Orqena..."}
             />
             <button
               type="button"
@@ -762,7 +850,7 @@ function welcomeMessage(displayName: string | null): Message {
     role: "assistant",
     text: displayName
       ? `Hola ${displayName}, dime qué necesitas y lo dejamos ordenado.`
-      : "Hola, soy Capataz. Puedo ayudarte con clientes, visitas, presupuestos, facturas, cobros y recordatorios. ¿Cómo te llamas?"
+      : "Hola, soy Orqena. Puedo ayudarte a ordenar clientes, trabajo, ventas, cobros y agenda. ¿Por dónde empezamos?"
   };
 }
 
@@ -1161,7 +1249,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         type: "agenda-event",
         eventType: "recordatorio_interno",
         title: `Llamar a ${client?.nombre ?? findMentionedName(text) ?? "cliente"}`,
-        description: "Llamada preparada desde Capataz.",
+        description: "Llamada preparada con Orqena.",
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         dateTime: normalized.includes("viernes") ? nextFridayAtTen() : tomorrowAtTen(),
         requiereConfirmacion: false
@@ -1180,7 +1268,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         title: `Seguimiento cobro ${openInvoice?.numero ?? ""}`.trim() || "Seguimiento de cobro",
         description: openInvoice
           ? `Revisar cobro pendiente de ${formatCurrency(openInvoice.pendiente)}.`
-          : "Seguimiento de cobro preparado desde Capataz.",
+          : "Seguimiento de cobro preparado con Orqena.",
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         invoiceId: openInvoice?.id,
         dateTime: normalized.includes("lunes") ? nextWeekdayAt(1, 10) : tomorrowAtTen(),
@@ -1382,21 +1470,147 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
   return { text: "Necesito un poco más de contexto. Dime, por ejemplo: “crear presupuesto para un cliente por 14000”, “haz factura de una cocina por 4200” o “genera el PDF del último documento”." };
 }
 
-function ActionCardView({ card, data }: { card: ActionCard; data: ChatData }) {
-  if (card.type === "expense") return <ExpenseCard card={card} data={data} />;
-  if (card.type === "payment") return <PaymentCard card={card} data={data} />;
-  if (card.type === "follow-up") return <FollowUpCard card={card} data={data} />;
-  if (card.type === "client") return <ClientCard card={card} data={data} />;
-  if (card.type === "visit") return <VisitCard card={card} data={data} />;
-  if (card.type === "budget") return <BudgetCard card={card} data={data} />;
-  if (card.type === "invoice") return <InvoiceCard card={card} data={data} />;
-  if (card.type === "accept-budget") return <AcceptBudgetCard card={card} data={data} />;
-  if (card.type === "close-work") return <CloseWorkCard card={card} data={data} />;
-  if (card.type === "agenda-event") return <AgendaEventCard card={card} data={data} />;
-  if (card.type === "agenda-reprogram") return <AgendaReprogramCard card={card} />;
-  if (card.type === "user-profile") return <UserProfileCard card={card} />;
-  if (card.type === "company-settings") return <CompanySettingsCard card={card} />;
-  return <AgendaStatusCard card={card} />;
+function ActionCardView({ card, data, conversationId }: { card: ActionCard; data: ChatData; conversationId: string }) {
+  let content: React.ReactNode;
+  if (card.type === "expense") content = <ExpenseCard card={card} data={data} />;
+  else if (card.type === "payment") content = <PaymentCard card={card} data={data} />;
+  else if (card.type === "follow-up") content = <FollowUpCard card={card} data={data} />;
+  else if (card.type === "client") content = <ClientCard card={card} data={data} />;
+  else if (card.type === "visit") content = <VisitCard card={card} data={data} />;
+  else if (card.type === "budget") content = <BudgetCard card={card} data={data} />;
+  else if (card.type === "invoice") content = <InvoiceCard card={card} data={data} />;
+  else if (card.type === "accept-budget") content = <AcceptBudgetCard card={card} data={data} />;
+  else if (card.type === "close-work") content = <CloseWorkCard card={card} data={data} />;
+  else if (card.type === "agenda-event") content = <AgendaEventCard card={card} data={data} />;
+  else if (card.type === "agenda-reprogram") content = <AgendaReprogramCard card={card} />;
+  else if (card.type === "user-profile") content = <UserProfileCard card={card} />;
+  else if (card.type === "company-settings") content = <CompanySettingsCard card={card} />;
+  else content = <AgendaStatusCard card={card} />;
+  const proposalType = proposalTypeForCard(card);
+  const operation = proposalOperationForCard(card);
+  return proposalType && operation ? <ProposalLifecycle card={card} proposalType={proposalType} operation={operation} conversationId={conversationId}>{content}</ProposalLifecycle> : content;
+}
+
+function proposalTypeForCard(card: ActionCard): "client" | "work" | "budget" | "invoice" | "task" | "document" | null {
+  if (card.type === "client") return "client";
+  if (card.type === "budget") return "budget";
+  if (card.type === "invoice" || card.type === "payment") return "invoice";
+  if (card.type === "accept-budget" || card.type === "close-work") return "work";
+  if (["follow-up", "visit", "agenda-event", "agenda-reprogram", "agenda-status"].includes(card.type)) return "task";
+  if (card.type === "expense") return "document";
+  return null;
+}
+
+function proposalOperationForCard(card: ActionCard): PendingProposalOperation | null {
+  if (["expense", "follow-up", "client", "visit", "budget", "invoice", "agenda-event"].includes(card.type)) return "manual";
+  if (card.type === "payment") return "payment";
+  if (card.type === "accept-budget") return "accept-budget";
+  if (card.type === "close-work") return "work-status";
+  if (card.type === "agenda-reprogram") return "agenda-reprogram";
+  if (card.type === "agenda-status") return "agenda-status";
+  return null;
+}
+
+function canApplyCompanyResult(expectedCompanyId: string, activeCompanyId: string, expectedGeneration: number, activeGeneration: number) {
+  return expectedCompanyId === activeCompanyId && expectedGeneration === activeGeneration;
+}
+
+function isVoicePermissionError(error: unknown) {
+  if (!(error instanceof Error) && !(typeof DOMException !== "undefined" && error instanceof DOMException)) return false;
+  return ["NotAllowedError", "PermissionDeniedError", "SecurityError"].includes(error.name);
+}
+
+type ProposalReceipt = { id: string; expiresAt: string };
+
+function ProposalLifecycle({ card, proposalType, operation, conversationId, children }: { card: ActionCard; proposalType: string; operation: PendingProposalOperation; conversationId: string; children: React.ReactNode }) {
+  const router = useRouter();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [receipt, setReceipt] = useState<ProposalReceipt | null>(null);
+  const [status, setStatus] = useState<"preparing" | "ready" | "cancelling" | "cancelled" | "confirmed" | "expired" | "error">("preparing");
+  const [error, setError] = useState("");
+  const [preparationRevision, setPreparationRevision] = useState(0);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.querySelectorAll<HTMLButtonElement>("form button:not([type=button])").forEach((button) => { button.hidden = true; });
+  }, [children]);
+
+  useEffect(() => {
+    let active = true;
+    void preparePendingProposal(conversationId, { type: proposalType, payload: card as unknown as Record<string, unknown>, review: card as unknown as Record<string, unknown> })
+      .then((prepared) => {
+        if (!active) return;
+        setReceipt({ id: prepared.id, expiresAt: prepared.expiresAt });
+        setStatus(new Date(prepared.expiresAt).getTime() <= Date.now() ? "expired" : "ready");
+      })
+      .catch(() => { if (active) { setStatus("error"); setError("No se pudo preparar la propuesta. No se ha ejecutado ninguna acción."); } });
+    return () => { active = false; };
+  }, [card, proposalType, conversationId, preparationRevision]);
+
+  useEffect(() => {
+    if (!receipt || status !== "ready") return;
+    const remaining = new Date(receipt.expiresAt).getTime() - Date.now();
+    if (remaining <= 0) { setStatus("expired"); return; }
+    const timer = window.setTimeout(() => setStatus("expired"), Math.min(remaining, 2_147_483_647));
+    return () => window.clearTimeout(timer);
+  }, [receipt, status]);
+
+  async function cancelProposal() {
+    if (!receipt || status === "cancelled" || status === "cancelling") return;
+    setStatus("cancelling");
+    setError("");
+    try {
+      await cancelPendingProposal(conversationId, receipt.id);
+      setStatus("cancelled");
+    } catch {
+      setStatus("error");
+      setError("No se pudo cancelar ahora. La propuesta no se ha ejecutado; puedes reintentar.");
+    }
+  }
+
+  async function confirmProposal() {
+    if (status !== "ready" || !receipt) return;
+    const form = containerRef.current?.querySelector<HTMLFormElement>("form");
+    if (!form) return;
+    setStatus("preparing");
+    setError("");
+    try {
+      const result = await executePendingProposal(conversationId, receipt.id, operation, new FormData(form));
+      if (result.status === "expired") { setStatus("expired"); return; }
+      setStatus("confirmed");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("caducado")) setStatus("expired");
+      else { setStatus("error"); setError("No se pudo confirmar. La propuesta no se ha ejecutado; puedes reintentar."); }
+    }
+  }
+
+  function editProposal() {
+    if (status !== "ready") return;
+    containerRef.current?.querySelector<HTMLElement>("input:not([type=hidden]), select, textarea")?.focus();
+  }
+
+  if (status === "cancelled") return <div role="status" className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 font-semibold text-obra-ink">Propuesta cancelada</div>;
+  if (status === "confirmed") return <div role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 font-semibold text-emerald-800">Propuesta confirmada</div>;
+  if (status === "expired") return (
+    <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-obra-ink">
+      <p role="status" className="font-bold">Esta propuesta ha caducado</p>
+      <button type="button" className="secondary-button mt-3 min-h-11" onClick={() => { setReceipt(null); setStatus("preparing"); setError(""); setPreparationRevision((value) => value + 1); }}>Preparar de nuevo</button>
+    </div>
+  );
+
+  return (
+    <div ref={containerRef} className="proposal-lifecycle" onSubmitCapture={(event) => event.preventDefault()}>
+      {children}
+      {error ? <p role="alert" className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Acciones de la propuesta">
+        <button type="button" className="primary-button min-h-11" disabled={status !== "ready"} aria-busy={status === "preparing"} onClick={confirmProposal}>Confirmar</button>
+        <button type="button" className="secondary-button min-h-11" disabled={status !== "ready"} onClick={editProposal}>Editar</button>
+        <button type="button" className="secondary-button min-h-11" disabled={!receipt || status === "preparing" || status === "cancelling"} aria-busy={status === "cancelling"} onClick={cancelProposal}>{status === "cancelling" ? "Cancelando…" : "Cancelar"}</button>
+      </div>
+    </div>
+  );
 }
 
 function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-profile" }> }) {
@@ -1405,7 +1619,7 @@ function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-pro
       <input type="hidden" name="id" value={card.profile.id} />
       <CardTitle icon={UserRound} title="Mi perfil preparado" />
       <div className="rounded-lg bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-600">
-        Estos datos son personales del profesional que usa Capataz. No sustituyen los datos fiscales de empresa.
+        Estos datos corresponden a tu perfil personal. Los datos fiscales de la empresa se configuran por separado.
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <InputField name="nombre" label="Nombre" value={card.profile.nombre} />
@@ -1428,7 +1642,7 @@ function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-pro
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
-        <button type="submit" className="primary-button w-full">Guardar</button>
+        <button type="submit" className="primary-button w-full">Confirmar cambios</button>
         <Link href="/configuracion#perfil" className="secondary-button w-full">Editar</Link>
         <button type="reset" className="secondary-button w-full">Cancelar</button>
       </div>
@@ -1442,7 +1656,7 @@ function CompanySettingsCard({ card }: { card: Extract<ActionCard, { type: "comp
       <input type="hidden" name="id" value={card.company.id} />
       <CardTitle icon={Building2} title="Datos de empresa preparados" />
       <div className="rounded-lg bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-600">
-        Estos datos se usarán en presupuestos, facturas y PDFs. Capataz no los usará para llamarte por tu nombre.
+        Estos datos se usarán en presupuestos, facturas y documentos. Tu nombre preferido se configura en el perfil personal.
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <InputField name="nombreComercial" label="Nombre comercial" value={card.company.nombreComercial} />
@@ -1469,7 +1683,7 @@ function CompanySettingsCard({ card }: { card: Extract<ActionCard, { type: "comp
       <TextareaField name="condicionesPorDefecto" label="Condiciones por defecto" value={card.company.condicionesPorDefecto} />
       <TextareaField name="textoLegal" label="Texto legal" value={card.company.textoLegal} />
       <div className="grid gap-2 sm:grid-cols-3">
-        <button type="submit" className="primary-button w-full">Guardar</button>
+        <button type="submit" className="primary-button w-full">Confirmar cambios</button>
         <Link href="/configuracion#empresa" className="secondary-button w-full">Editar</Link>
         <button type="reset" className="secondary-button w-full">Cancelar</button>
       </div>
@@ -1489,8 +1703,8 @@ function ExpenseCard({ card, data }: { card: Extract<ActionCard, { type: "expens
       <InputField name="concepto" label="Concepto" value={card.concept} />
       <InputField name="proveedor" label="Proveedor" value="Proveedor pendiente" />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Preparado por Capataz" />
-      <button type="submit" className="primary-button w-full">Guardar</button>
+      <TextareaField name="notas" label="Notas" value="Preparado con Orqena" />
+      <button type="submit" className="primary-button w-full">Confirmar gasto</button>
     </form>
   );
 }
@@ -1506,7 +1720,7 @@ function PaymentCard({ card, data }: { card: Extract<ActionCard, { type: "paymen
       <SelectField name="metodo" label="Método" value="transferencia" options={[["transferencia", "Transferencia"], ["bizum", "Bizum"], ["efectivo", "Efectivo"], ["tarjeta", "Tarjeta"]]} />
       <SelectField name="tipo" label="Tipo" value="pago_parcial" options={[["senal", "Señal"], ["pago_parcial", "Pago parcial"], ["pago_final", "Pago final"], ["regularizacion", "Regularización"]]} />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Pago preparado por Capataz" />
+      <TextareaField name="notas" label="Notas" value="Pago preparado con Orqena" />
       <button type="submit" className="primary-button w-full">Confirmar pago</button>
     </form>
   );
@@ -1561,8 +1775,8 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
       <InputField name="email" label="Email" type="email" value="" />
       <InputField name="direccion" label="Dirección" value="Pendiente" />
       <InputField name="tipoCliente" label="Tipo" value="Particular" />
-      <InputField name="origen" label="Origen" value="Asistente Capataz" />
-      <TextareaField name="notas" label="Notas" value={`Lead preparado por Capataz. Trabajo solicitado: ${card.job}.`} />
+      <InputField name="origen" label="Origen" value="Orqena" />
+      <TextareaField name="notas" label="Notas" value={`Cliente potencial preparado con Orqena. Trabajo solicitado: ${card.job}.`} />
       {limited ? (
         <DemoLimitButton
           className="primary-button w-full"
@@ -1570,10 +1784,10 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
           limit={data.demoLimits.clientsLimit}
           icon={UserPlus}
         >
-          Guardar cliente
+          Confirmar cliente
         </DemoLimitButton>
       ) : (
-        <button type="submit" className="primary-button w-full">Guardar cliente</button>
+        <button type="submit" className="primary-button w-full">Confirmar cliente</button>
       )}
     </form>
   );
@@ -1591,7 +1805,7 @@ function VisitCard({ card, data }: { card: Extract<ActionCard, { type: "visit" }
       <InputField name="titulo" label="Título" value="Visita con cliente" />
       <InputField name="fechaInicio" label="Fecha/hora" type="datetime-local" value={card.dateTime} />
       <TextareaField name="descripcion" label="Notas de la visita" value={card.message} />
-      <button type="submit" className="primary-button w-full">Guardar visita</button>
+      <button type="submit" className="primary-button w-full">Confirmar visita</button>
     </form>
   );
 }
@@ -1611,7 +1825,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="titulo" label="Título" value={card.title} />
       <SelectField name="estado" label="Estado" value="borrador" options={[["borrador", "Borrador"], ["pendiente_revision", "Pendiente revisión"]]} />
       <input type="hidden" name="ivaPercent" value={ivaPercent} />
-      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada por Capataz", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
+      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada con Orqena", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
       <InputField name="subtotal" label="Subtotal" type="number" value={base} />
       <InputField name="iva" label="IVA" type="number" value={iva} />
       <InputField name="descuento" label="Descuento" type="number" value={0} />
@@ -1619,7 +1833,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="margenEstimado" label="Margen estimado" type="number" value={Math.round(card.amount * 0.25 * 100) / 100} />
       <InputField name="fechaValidez" label="Fecha validez" type="datetime-local" value={inDaysInputValue(15)} />
       <TextareaField name="condiciones" label="Condiciones" value="Validez 15 días. Fechas sujetas a disponibilidad de materiales." />
-      <TextareaField name="observaciones" label="Observaciones" value="Propuesta preparada por Capataz. Revisar antes de enviar." />
+      <TextareaField name="observaciones" label="Observaciones" value="Propuesta preparada con Orqena. Revísala antes de enviar." />
       <InputField name="formaPago" label="Forma de pago" value="Transferencia / según acuerdo" />
       {limited ? (
         <DemoLimitButton
@@ -1628,10 +1842,10 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
           limit={data.demoLimits.budgetLimit}
           icon={FileText}
         >
-          Guardar presupuesto
+          Confirmar presupuesto
         </DemoLimitButton>
       ) : (
-        <button type="submit" className="primary-button w-full">Guardar presupuesto</button>
+        <button type="submit" className="primary-button w-full">Confirmar presupuesto</button>
       )}
     </form>
   );
@@ -1657,13 +1871,13 @@ function InvoiceCard({ card, data }: { card: Extract<ActionCard, { type: "invoic
       <InputField name="pendiente" label="Pendiente" type="number" value={card.amount} />
       <InputField name="fechaEmision" label="Fecha emisión" type="datetime-local" value={nowInputValue()} />
       <InputField name="fechaVencimiento" label="Fecha vencimiento" type="datetime-local" value={inDaysInputValue(7)} />
-      <TextareaField name="observaciones" label="Observaciones" value="Borrador preparado por Capataz. Revisa con gestoría antes de usarlo como factura legal." />
+      <TextareaField name="observaciones" label="Observaciones" value="Borrador preparado con Orqena. Revisa los datos fiscales antes de emitirlo." />
       <InputField name="metodoPago" label="Método de pago" value="transferencia" />
       <TextareaField name="datosBancarios" label="Datos bancarios" value={data.company?.iban ?? ""} />
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
         Esta acción sólo crea la factura en la demo. No se envía email ni WhatsApp.
       </div>
-      <button type="submit" className="primary-button w-full">Guardar factura</button>
+      <button type="submit" className="primary-button w-full">Confirmar factura</button>
     </form>
   );
 }
@@ -1701,7 +1915,7 @@ function CloseWorkCard({ card, data }: { card: Extract<ActionCard, { type: "clos
       <CardTitle icon={Hammer} title="Cierre de obra preparado" />
       <SelectField name="id" label="Obra" value={card.workId} options={data.works.map((work) => [work.id, `${work.titulo} · ${work.clientName}`])} />
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
-        Si hay facturas pendientes, Capataz dejará la obra como pendiente de cobro en lugar de cerrarla.
+        Si hay facturas pendientes, el trabajo quedará pendiente de cobro en lugar de cerrarse.
       </div>
       <button type="submit" className="primary-button w-full">Confirmar cierre</button>
     </form>
@@ -1750,7 +1964,7 @@ function AgendaEventCard({ card, data }: { card: Extract<ActionCard, { type: "ag
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">
         Guardar crea un evento interno. No se integra Google Calendar, Outlook, WhatsApp ni email.
       </div>
-      <button type="submit" className="primary-button w-full">Guardar evento</button>
+      <button type="submit" className="primary-button w-full">Confirmar evento</button>
     </form>
   );
 }

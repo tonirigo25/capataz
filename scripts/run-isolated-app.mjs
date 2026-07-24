@@ -2,6 +2,12 @@ import { spawn, execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
+import {
+  installCleanupSignalHandlers,
+  startIsolatedPostgres,
+  stopIsolatedPostgres,
+  terminateOwnedProcess,
+} from "./isolated-postgres-runtime.mjs";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
 if (!root) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
@@ -10,29 +16,29 @@ const { default: EmbeddedPostgres } = await import(
     join(root, "node_modules", "embedded-postgres", "dist", "index.js"),
   ).href
 );
-const password = randomBytes(24).toString("hex"),
-  port = Number(process.env.CAPATAZ_UI_POSTGRES_PORT ?? 55433),
-  pg = new EmbeddedPostgres({
-    databaseDir: join(root, `ui-${Date.now()}`),
-    user: "postgres",
-    password,
-    port,
-    persistent: true,
-  });
+const password = randomBytes(24).toString("hex");
 let child;
+let runtime;
+let shuttingDown = false;
 async function shutdown() {
-  child?.kill();
-  await pg.stop().catch(() => {});
+  if (shuttingDown) return;
+  shuttingDown = true;
+  terminateOwnedProcess(child);
+  await stopIsolatedPostgres(runtime).catch(() => {});
   process.exit(0);
 }
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-await pg.initialise();
-await pg.start();
-await pg.createDatabase("capataz_test_ui");
+const removeSignalHandlers = installCleanupSignalHandlers(shutdown);
+runtime = await startIsolatedPostgres({
+  EmbeddedPostgres,
+  root,
+  suite: "isolated-ui",
+  password,
+  preferredPort: process.env.CAPATAZ_UI_POSTGRES_PORT,
+});
+await runtime.pg.createDatabase("capataz_test_ui");
 const env = {
   ...process.env,
-  DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_ui?schema=public`,
+  DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${runtime.port}/capataz_test_ui?schema=public`,
   CAPATAZ_TEST_DATABASE_ISOLATED: "true",
   APP_ENV: "test",
   NEXT_PUBLIC_APP_ENV: "test",
@@ -68,4 +74,7 @@ child = spawn("npm.cmd", ["run", "dev", "--", "-p", "3000"], {
   stdio: "inherit",
   shell: true,
 });
-child.on("exit", shutdown);
+child.on("exit", () => {
+  removeSignalHandlers();
+  shutdown();
+});

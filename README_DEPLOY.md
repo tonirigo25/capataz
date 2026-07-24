@@ -59,11 +59,14 @@ OPENAI_FAST_TIMEOUT_MS=10000
 OPENAI_REASONING_TIMEOUT_MS=30000
 NEXT_PUBLIC_APP_MODE=test
 NEXT_PUBLIC_APP_ENV=staging
+ORQENA_PUBLIC_REGISTRATION_ENABLED=false
 NEXT_PUBLIC_WEB_BASE_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=soporte@capataz.app
 ```
 
 Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites demo durante pruebas. Para demo pública limitada se puede usar `demo`. Para producción comercial futura, `production`.
+
+`ORQENA_PUBLIC_REGISTRATION_ENABLED` debe permanecer en `false` durante la beta privada. En producción, si no se configura, el registro público también permanece cerrado por defecto; las altas mediante invitación válida siguen disponibles.
 
 `DATABASE_URL` debe venir como variable referenciada desde el servicio PostgreSQL de Railway.
 
@@ -183,3 +186,6 @@ La ruta publica `/api/status` devuelve `app`, `database`, `environment` y `times
 Tambien devuelve `ai.openai` como `ok` o `missing` y el modelo configurado, sin mostrar la clave. Si `NEXT_PUBLIC_APP_ENV=production`, `OPENAI_API_KEY` pasa a ser obligatoria para el healthcheck.
 
 Para diagnostico de modelos IA existe `/api/status/ai`. Por defecto no llama a OpenAI; con `/api/status/ai?live=1` hace una llamada minima a `OPENAI_MODEL_FAST` y `OPENAI_MODEL_REASONING` y devuelve sólo estado, modelo y duración, nunca la clave.
+# Macrofase 2
+
+La migración `20260722190000_orqena_commercial_platform` es aditiva. No inserta operadores internos, planes premium ni usuarios. El catálogo y el primer PLATFORM_OWNER se configuran con el script local explícito documentado en README; en un despliegue futuro deberá existir un procedimiento autorizado separado. No hay proveedor de billing ni correo transaccional real habilitado por esta migración.

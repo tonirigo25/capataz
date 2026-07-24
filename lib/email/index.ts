@@ -20,10 +20,22 @@ class SafeDevelopmentProvider implements EmailProvider {
   }
 }
 
+function localProviderAllowed() {
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase();
+  return process.env.EMAIL_PROVIDER === "local" && ["development", "test", "staging"].includes(appEnv ?? "");
+}
+
+export function getEmailProviderStatus() {
+  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) return "resend" as const;
+  if (localProviderAllowed() || process.env.NODE_ENV !== "production") return "local" as const;
+  return "missing" as const;
+}
+
 function getProvider(): EmailProvider {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (apiKey && from) return new ResendEmailProvider(apiKey, from);
+  if (localProviderAllowed()) return new SafeDevelopmentProvider();
   if (process.env.NODE_ENV === "production") throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
   return new SafeDevelopmentProvider();
 }
@@ -39,10 +51,10 @@ function appUrl(path: string, token: string) {
 
 export async function sendVerificationEmail(to: string, token: string) {
   const url = appUrl("/verificar-email", token);
-  await getProvider().send({ to, subject: "Verifica tu correo en Capataz", text: `Verifica tu correo abriendo este enlace: ${url}`, html: `<p>Confirma tu correo para activar tu cuenta de Capataz.</p><p><a href="${url}">Verificar correo</a></p>` });
+  await getProvider().send({ to, subject: "Verifica tu correo en Orqena", text: `Verifica tu correo abriendo este enlace: ${url}`, html: `<p>Confirma tu correo para activar tu cuenta de Orqena.</p><p><a href="${url}">Verificar correo</a></p>` });
 }
 
 export async function sendPasswordResetEmail(to: string, token: string) {
   const url = appUrl("/restablecer-contrasena", token);
-  await getProvider().send({ to, subject: "Restablece tu contraseña de Capataz", text: `Restablece tu contraseña abriendo este enlace: ${url}`, html: `<p>Se ha solicitado un cambio de contraseña para tu cuenta.</p><p><a href="${url}">Restablecer contraseña</a></p><p>Si no lo solicitaste, ignora este mensaje.</p>` });
+  await getProvider().send({ to, subject: "Restablece tu contraseña de Orqena", text: `Restablece tu contraseña abriendo este enlace: ${url}`, html: `<p>Se ha solicitado un cambio de contraseña para tu cuenta.</p><p><a href="${url}">Restablecer contraseña</a></p><p>Si no lo solicitaste, ignora este mensaje.</p>` });
 }

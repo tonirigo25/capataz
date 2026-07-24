@@ -38,7 +38,7 @@ export function ConfirmedPaymentForm({
         <div>
           <h2 className="text-lg font-black text-obra-ink">Registrar cobro</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Primero revisas el importe. Capataz sólo actualiza la factura cuando confirmas.
+            Revisa el importe. La factura solo se actualizará cuando confirmes.
           </p>
         </div>
       </div>

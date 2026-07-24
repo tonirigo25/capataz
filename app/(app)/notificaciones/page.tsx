@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Bell, BellOff, CheckCheck, ChevronRight } from "lucide-react";
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/app/(app)/notificaciones/actions";
 import { SectionHeader } from "@/components/section-header";
-import { EmptyState } from "@/components/ui-primitives";
+import { EmptyState, ResultCount } from "@/components/ui-primitives";
 import { formatDate } from "@/lib/format";
 import { getNotificationItems } from "@/lib/notifications";
 
@@ -35,6 +35,7 @@ export default async function NotificationsPage() {
         <Metric label="Total activas" value={notifications.length} />
       </section>
 
+      <ResultCount shown={notifications.length} total={notifications.length} noun="notificaciones" />
       {notifications.length ? (
         <div className="grid gap-3">
           {notifications.map((notification) => (

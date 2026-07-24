@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
 import { companyCore } from "@/lib/tenant/core";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 
 export type AgendaSource = "evento" | "recordatorio" | "factura" | "obra" | "material" | "presupuesto";
 
@@ -32,9 +32,24 @@ export type AgendaItem = {
   href: string;
 };
 
-export async function getAgendaItems() {
-  const { companyId } = await requireCompanyContext();
-  const [events, reminders, invoices, works, materials, budgets] = await companyCore(prisma, companyId).agendaSources();
+export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
+  const context = await requireCapability("agenda.view");
+  const { companyId } = context;
+  const [invoiceDecision, budgetDecision, workDecision, materialDecision, followupDecision] = await Promise.all([
+    resolveAuthorization(context, "sales.invoices.view"), resolveAuthorization(context, "sales.budgets.view"),
+    resolveAuthorization(context, "work.view"), resolveAuthorization(context, "purchases.received_invoices.view"), resolveAuthorization(context, "followups.view")
+  ]);
+  const invoiceAllowed = invoiceDecision.allowed && options?.includeEconomic !== false;
+  const budgetAllowed = budgetDecision.allowed && options?.includeEconomic !== false;
+  const scopedWorkIds = await resolveScopedEntityIds(context, "agenda.view", "Work");
+  const [invoiceWorkIds, invoiceClientIds, budgetWorkIds, budgetClientIds, workIds, materialWorkIds, followupWorkIds, followupClientIds] = await Promise.all([
+    invoiceAllowed ? resolveScopedEntityIds(context, "sales.invoices.view", "Work") : Promise.resolve([]), invoiceAllowed ? resolveScopedEntityIds(context, "sales.invoices.view", "Client") : Promise.resolve([]),
+    budgetAllowed ? resolveScopedEntityIds(context, "sales.budgets.view", "Work") : Promise.resolve([]), budgetAllowed ? resolveScopedEntityIds(context, "sales.budgets.view", "Client") : Promise.resolve([]),
+    workDecision.allowed ? resolveScopedEntityIds(context, "work.view", "Work") : Promise.resolve([]),
+    materialDecision.allowed ? resolveScopedEntityIds(context, "purchases.received_invoices.view", "Work") : Promise.resolve([]),
+    followupDecision.allowed ? resolveScopedEntityIds(context, "followups.view", "Work") : Promise.resolve([]), followupDecision.allowed ? resolveScopedEntityIds(context, "followups.view", "Client") : Promise.resolve([])
+  ]);
+  const [events, reminders, invoices, works, materials, budgets] = await companyCore(prisma, companyId).agendaSources(invoiceAllowed || budgetAllowed, scopedWorkIds);
 
   const items: AgendaItem[] = [];
 
@@ -55,9 +70,9 @@ export async function getAgendaItems() {
       obraId: event.obraId,
       obraTitulo: event.work?.titulo ?? null,
       presupuestoId: event.presupuestoId,
-      presupuestoNumero: event.budget?.numero ?? null,
+      presupuestoNumero: event.budget && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, event.obraId, event.clienteId) ? event.budget.numero : null,
       facturaId: event.facturaId,
-      facturaNumero: event.invoice?.numero ?? null,
+      facturaNumero: event.invoice && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, event.obraId, event.clienteId) ? event.invoice.numero : null,
       direccion: event.direccion,
       notas: event.notas,
       requiereConfirmacion: event.requiereConfirmacion,
@@ -68,7 +83,7 @@ export async function getAgendaItems() {
   });
 
   reminders
-    .filter((reminder) => reminder.estado !== "cancelado")
+    .filter((reminder) => reminder.estado !== "cancelado" && followupDecision.allowed && relationAllowed(followupDecision.scope, followupWorkIds, followupClientIds, reminder.obraId, reminder.clienteId))
     .forEach((reminder) => {
       const tipo = agendaTypeFromReminder(reminder.tipo);
       items.push({
@@ -87,9 +102,9 @@ export async function getAgendaItems() {
         obraId: reminder.obraId,
         obraTitulo: reminder.work?.titulo ?? null,
         presupuestoId: reminder.presupuestoId,
-        presupuestoNumero: reminder.budget?.numero ?? null,
+        presupuestoNumero: reminder.budget && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, reminder.obraId, reminder.clienteId) ? reminder.budget.numero : null,
         facturaId: reminder.facturaId,
-        facturaNumero: reminder.invoice?.numero ?? null,
+        facturaNumero: reminder.invoice && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, reminder.obraId, reminder.clienteId) ? reminder.invoice.numero : null,
         direccion: reminder.work?.direccion ?? reminder.client?.direccion ?? null,
         notas: "Derivado de recordatorio",
         requiereConfirmacion: reminder.requiereConfirmacion,
@@ -99,8 +114,8 @@ export async function getAgendaItems() {
       });
     });
 
-  invoices
-    .filter((invoice) => invoice.pendiente > 0)
+  if (invoiceAllowed) invoices
+    .filter((invoice) => invoice.pendiente > 0 && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, invoice.obraId, invoice.clienteId))
     .forEach((invoice) => {
       const liveStatus = deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
       items.push({
@@ -131,7 +146,7 @@ export async function getAgendaItems() {
       });
     });
 
-  works.forEach((work) => {
+  works.filter((work) => workDecision.allowed && scopeAllows(workIds, work.id)).forEach((work) => {
     if (work.fechaInicio) {
       items.push(workAgendaItem(work.id, "inicio_obra", `Inicio obra ${work.titulo}`, work.fechaInicio, work));
     }
@@ -141,7 +156,7 @@ export async function getAgendaItems() {
   });
 
   materials
-    .filter((material) => ["pendiente", "falta"].includes(material.estado))
+    .filter((material) => materialDecision.allowed && scopeAllows(materialWorkIds, material.obraId) && ["pendiente", "falta"].includes(material.estado))
     .forEach((material) => {
       items.push({
         id: `material-${material.id}`,
@@ -171,8 +186,8 @@ export async function getAgendaItems() {
       });
     });
 
-  budgets
-    .filter((budget) => ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado))
+  if (budgetAllowed) budgets
+    .filter((budget) => relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, budget.obraId, budget.clienteId) && ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado))
     .forEach((budget) => {
       items.push({
         id: `presupuesto-${budget.id}`,
@@ -203,6 +218,14 @@ export async function getAgendaItems() {
     });
 
   return items.sort((a, b) => a.fechaInicio.getTime() - b.fechaInicio.getTime());
+}
+
+function scopeAllows(ids: string[] | null, id: string) { return ids === null || ids.includes(id); }
+function relationAllowed(scope: string, workIds: string[] | null, clientIds: string[] | null, workId: string | null, clientId: string | null) {
+  if (scope === "COMPANY") return true;
+  if (scope === "SELECTED_WORKS") return Boolean(workId && workIds?.includes(workId));
+  if (scope === "SELECTED_CLIENTS") return Boolean(clientId && clientIds?.includes(clientId));
+  return workId ? Boolean(workIds?.includes(workId)) : Boolean(clientId && clientIds?.includes(clientId));
 }
 
 export function itemsForDay(items: AgendaItem[], day: Date) {

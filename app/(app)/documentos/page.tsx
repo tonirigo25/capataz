@@ -2,12 +2,13 @@ import Link from "next/link";
 import { Archive, ClipboardSignature, Download, Eye, FileArchive, FileText, FolderOpen, Plus, Receipt, ScrollText } from "lucide-react";
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
-import { documentCategories, documentPlaceholders, documentTemplateAssets } from "@/lib/document-templates";
+import { documentCategories, documentTemplateAssets } from "@/lib/document-templates";
 import { documentDetail, repositoryDocumentDisplay } from "@/lib/documents";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -21,22 +22,40 @@ const categoryIcons = {
 };
 
 export default async function DocumentsPage() {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("documents.view");
+  const { companyId } = auth;
+  const manifest = await buildPortalManifest(auth);
+  const canUpload = (await resolveAuthorization(auth, "documents.upload")).allowed;
+  const canManage = (await resolveAuthorization(auth, "documents.manage")).allowed;
+  const canCreateBudget = (await resolveAuthorization(auth, "sales.budgets.create")).allowed;
+  const canUpdateBudget = (await resolveAuthorization(auth, "sales.budgets.update")).allowed;
+  const canCreateInvoice = (await resolveAuthorization(auth, "sales.invoices.create")).allowed;
+  const canViewBudgets = (await resolveAuthorization(auth, "sales.budgets.view")).allowed;
+  const canViewInvoices = (await resolveAuthorization(auth, "sales.invoices.view")).allowed;
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "documents.view", "Work");
+  const budgetWorkIds = canViewBudgets ? await resolveScopedEntityIds(auth, "sales.budgets.view", "Work") : [];
+  const invoiceWorkIds = canViewInvoices ? await resolveScopedEntityIds(auth, "sales.invoices.view", "Work") : [];
+  const documentScope = scopedWorkIds === null ? {} : { workId: { in: scopedWorkIds } };
+  const economicAllowed = (await resolveAuthorization(auth, "reports.view")).allowed;
+  if (!economicAllowed) {
+    const operationalDocuments = await prisma.document.findMany({ where: { companyId, ...documentScope, archivedAt: null, classification: { in: manifest.documentClasses } }, select: { id: true, name: true, category: true, createdAt: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } }, orderBy: { createdAt: "desc" }, take: 50 });
+    return <main className="screen"><SectionHeader title="Documentos" description="Documentación operativa autorizada." action={canUpload ? <Link href="/gestion?tipo=documento&returnTo=/documentos" className="primary-button"><Plus size={18} />Documento</Link> : undefined} /><div className="grid gap-3 md:grid-cols-2">{operationalDocuments.map((document) => <article key={document.id} className="card p-4"><h2 className="font-black text-obra-ink">{document.name}</h2><p className="mt-1 text-sm text-slate-600">{document.work?.titulo ?? document.client?.nombre ?? "Documento interno"}</p><p className="mt-2 text-xs text-slate-500">{formatDate(document.createdAt)}</p></article>)}</div></main>;
+  }
   const [budgets, invoices, repositoryDocuments] = await Promise.all([
-    prisma.budget.findMany({
-      where: { companyId },
+    canViewBudgets ? prisma.budget.findMany({
+      where: { companyId, ...(budgetWorkIds === null ? {} : { obraId: { in: budgetWorkIds } }) },
       orderBy: { fechaCreacion: "desc" },
       take: 5,
       include: { client: true, work: true }
-    }),
-    prisma.invoice.findMany({
-      where: { companyId },
+    }) : Promise.resolve([]),
+    canViewInvoices ? prisma.invoice.findMany({
+      where: { companyId, ...(invoiceWorkIds === null ? {} : { obraId: { in: invoiceWorkIds } }) },
       orderBy: { fechaEmision: "desc" },
       take: 5,
       include: { client: true, work: true }
-    }),
+    }) : Promise.resolve([]),
     prisma.document.findMany({
-      where: { companyId, archivedAt: null },
+      where: { companyId, ...documentScope, archivedAt: null, classification: { in: manifest.documentClasses } },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { client: true, work: true, budget: true, invoice: true, expense: true }
@@ -48,21 +67,21 @@ export default async function DocumentsPage() {
     <main className="screen">
       <SectionHeader
         title="Documentos"
-        description="Presupuestos, facturas, plantillas y documentos profesionales generados desde datos editables."
+        description="Todos los documentos de tu negocio, ordenados y listos para revisar."
         action={
           <div className="flex flex-wrap gap-2">
-            <Link href="/gestion?tipo=presupuesto&returnTo=/documentos" className="primary-button">
+            {canCreateBudget ? <Link href="/gestion?tipo=presupuesto&returnTo=/documentos" className="primary-button">
               <Plus size={18} />
               Presupuesto
-            </Link>
-            <Link href="/gestion?tipo=factura&returnTo=/documentos" className="secondary-button">
+            </Link> : null}
+            {canCreateInvoice ? <Link href="/gestion?tipo=factura&returnTo=/documentos" className="secondary-button">
               <Plus size={18} />
               Factura
-            </Link>
-            <Link href="/gestion?tipo=documento&returnTo=/documentos" className="secondary-button">
+            </Link> : null}
+            {canUpload ? <Link href="/gestion?tipo=documento&returnTo=/documentos" className="secondary-button">
               <Plus size={18} />
               Documento
-            </Link>
+            </Link> : null}
           </div>
         }
       />
@@ -81,10 +100,9 @@ export default async function DocumentsPage() {
       </section>
 
       <section className="card mb-5 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Flujo seguro</h2>
+        <h2 className="text-lg font-black text-obra-ink">Tú decides antes de crear</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Capataz permite revisar y editar cliente, obra, partidas, IVA, totales, condiciones, validez, vencimiento y estado antes de generar el PDF final.
-          No se envía ningún documento por WhatsApp ni email sin confirmación explícita del usuario.
+          Revisa los datos y confirma cuando estén correctos. Orqena no envía documentos sin tu autorización.
         </p>
       </section>
 
@@ -115,21 +133,10 @@ export default async function DocumentsPage() {
         </div>
       </section>
 
-      <section className="card mb-5 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Placeholders soportados</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {documentPlaceholders.map((placeholder) => (
-            <code key={placeholder} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-              [[{placeholder}]]
-            </code>
-          ))}
-        </div>
-      </section>
-
       <section id="archivos" className="card mb-5 scroll-mt-24 p-4">
-        <h2 className="text-lg font-black text-obra-ink">Repositorio documental</h2>
+        <h2 className="text-lg font-black text-obra-ink">Archivos y documentos</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Capataz registra documentos reales asociados a cliente, obra, presupuesto, factura o gasto. En este entorno no hay almacenamiento de subida configurado, por lo que no se muestra un botón de upload: se guarda una ficha documental y, si existe, una URL HTTPS o ruta interna segura.
+          Orqena reúne los documentos asociados a clientes, trabajos, presupuestos, facturas y gastos. Cuando un archivo está disponible, puedes abrirlo desde su ficha.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {documents.map((document) => (
@@ -140,7 +147,7 @@ export default async function DocumentsPage() {
               <p className="mt-1 text-xs font-bold uppercase text-slate-500">{documentDetail(document)}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {document.href ? <Link href={document.href} className="secondary-button">Abrir</Link> : null}
-                <Link href={`/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`} className="secondary-button">Editar ficha</Link>
+                {canManage ? <Link href={`/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`} className="secondary-button">Editar ficha</Link> : null}
               </div>
             </article>
           ))}
@@ -170,7 +177,7 @@ export default async function DocumentsPage() {
                 </div>
                 <p className="mt-3 text-sm font-black text-obra-ink">{formatCurrency(budget.total)}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/documentos`} className="secondary-button">Editar</Link>
+                  {canUpdateBudget ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/documentos`} className="secondary-button">Editar</Link> : null}
                   <Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank" className="secondary-button">Vista PDF</Link>
                   <Link href={`/presupuestos/${budget.id}/pdf`} className="secondary-button">Descargar</Link>
                 </div>
@@ -198,7 +205,7 @@ export default async function DocumentsPage() {
                     {formatDate(invoice.fechaEmision)} · Pendiente {formatCurrency(invoice.pendiente)}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/documentos`} className="secondary-button">Editar</Link>
+                    {canCreateInvoice ? <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/documentos`} className="secondary-button">Editar</Link> : null}
                     <Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank" className="secondary-button">Vista PDF</Link>
                     <Link href={`/dinero/${invoice.id}/pdf`} className="secondary-button">Descargar</Link>
                   </div>
@@ -218,7 +225,7 @@ function categoryDetail(id: string) {
     facturas: "Crear, editar, cobrar y descargar",
     albaranes: "Preparado para siguientes fases",
     contratos: "Preparado para siguientes fases",
-    archivos: "Repositorio documental",
+    archivos: "Archivos y documentos",
     plantillas: "DOCX y PDF base"
   };
   return details[id] ?? "Documentos";

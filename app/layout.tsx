@@ -1,27 +1,30 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/app/pwa-register";
+import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Capataz",
-  description: "Tu asistente IA para reformas y construcción.",
-  applicationName: "Capataz",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_BASE_URL || "http://localhost:3000"),
+  title: { default: brand.metadata.title, template: brand.metadata.titleTemplate },
+  description: brand.metadata.description,
+  applicationName: brand.productName,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Capataz"
+    title: brand.pwa.name
   },
   icons: {
-    icon: "/icons/capataz.svg",
-    apple: "/icons/capataz.svg"
-  }
+    icon: "/icons/orqena.svg",
+    apple: "/icons/orqena.svg"
+  },
+  alternates: { canonical: "/" }
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#f6c945"
+  themeColor: "#0a443b"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

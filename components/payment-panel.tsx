@@ -53,7 +53,7 @@ export function PaymentPanel({ invoices }: { invoices: InvoiceOption[] }) {
           <div>
             <h2 className="text-lg font-black text-obra-ink">Preparar recordatorio</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Se guarda como pendiente de confirmación. Capataz no lo envía automáticamente.
+              Se guarda como pendiente hasta que confirmes el envío.
             </p>
           </div>
         </div>

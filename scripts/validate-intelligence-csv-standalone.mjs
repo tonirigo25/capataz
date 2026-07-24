@@ -4,38 +4,32 @@ import http from "node:http";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import {
+  availableLoopbackPort,
+  installCleanupSignalHandlers,
+  startIsolatedPostgres,
+  stopIsolatedPostgres,
+  terminateOwnedProcess,
+} from "./isolated-postgres-runtime.mjs";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
 if (!root) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
 const { default: EmbeddedPostgres } = await import(pathToFileURL(join(root, "node_modules", "embedded-postgres", "dist", "index.js")).href);
 
-const pgPort = Number(process.env.CAPATAZ_CSV_STANDALONE_POSTGRES_PORT ?? 55491);
-const appPort = Number(process.env.CAPATAZ_CSV_STANDALONE_APP_PORT ?? 3017);
+const appPort = process.env.CAPATAZ_CSV_STANDALONE_APP_PORT
+  ? Number(process.env.CAPATAZ_CSV_STANDALONE_APP_PORT)
+  : await availableLoopbackPort();
 const password = randomBytes(24).toString("hex");
 const databaseName = "capataz_test_csv_export";
-const databaseUrl = `postgresql://postgres:${password}@127.0.0.1:${pgPort}/${databaseName}?schema=public`;
-const env = {
-  ...process.env,
-  DATABASE_URL: databaseUrl,
-  CAPATAZ_TEST_DATABASE_ISOLATED: "true",
-  APP_ENV: "test",
-  NEXT_PUBLIC_APP_ENV: "test",
-  NODE_ENV: "production",
-  HOSTNAME: "127.0.0.1",
-  PORT: String(appPort)
-};
-assertIsolatedTestDatabase(env);
-
-const pg = new EmbeddedPostgres({
-  databaseDir: join(root, `csv-export-${Date.now()}`),
-  user: "postgres",
-  password,
-  port: pgPort,
-  persistent: true
-});
-
+let databaseUrl;
+let env;
+let runtime;
 let child;
+const removeSignalHandlers = installCleanupSignalHandlers(async () => {
+  terminateOwnedProcess(child);
+  await stopIsolatedPostgres(runtime).catch(() => undefined);
+});
 
 function hashToken(token) {
   return createHash("sha256").update(token, "utf8").digest("hex");
@@ -45,7 +39,7 @@ function expect(condition, message, details) {
   if (!condition) {
     console.error(message);
     if (details !== undefined) console.error(details);
-    process.exit(1);
+    throw new Error(message);
   }
 }
 
@@ -110,6 +104,15 @@ async function seed() {
         email: `empresa-csv-${key.toLowerCase()}@example.invalid`
       }
     });
+    await prisma.companyEntitlementOverride.create({
+      data: {
+        companyId: company.id,
+        key: "exports",
+        type: "BOOLEAN",
+        value: true,
+        reason: "isolated CSV export validation",
+      },
+    });
     await prisma.companyMembership.create({ data: { userId: user.id, companyId: company.id, role: "OWNER", status: "active", acceptedAt: now, joinedAt: now } });
     await prisma.session.create({ data: { userId: user.id, tokenHash: hashToken(token), expiresAt, userAgent: "csv-standalone-test" } });
     const client = await prisma.client.create({
@@ -162,9 +165,27 @@ async function seed() {
 }
 
 try {
-  await pg.initialise();
-  await pg.start();
-  await pg.createDatabase(databaseName);
+  runtime = await startIsolatedPostgres({
+    EmbeddedPostgres,
+    root,
+    suite: "intelligence-csv-standalone",
+    password,
+    preferredPort: process.env.CAPATAZ_CSV_STANDALONE_POSTGRES_PORT,
+  });
+  const pgPort = runtime.port;
+  databaseUrl = `postgresql://postgres:${password}@127.0.0.1:${pgPort}/${databaseName}?schema=public`;
+  env = {
+    ...process.env,
+    DATABASE_URL: databaseUrl,
+    CAPATAZ_TEST_DATABASE_ISOLATED: "true",
+    APP_ENV: "test",
+    NEXT_PUBLIC_APP_ENV: "test",
+    NODE_ENV: "production",
+    HOSTNAME: "127.0.0.1",
+    PORT: String(appPort)
+  };
+  assertIsolatedTestDatabase(env);
+  await runtime.pg.createDatabase(databaseName);
   execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
   const tenants = await seed();
 
@@ -190,7 +211,12 @@ try {
   ]) {
     const response = await httpRequest(`${baseUrl}/inteligencia/export?tipo=${tipo}`, { cookie: cookieA });
     const text = response.text;
-    expect(response.status === 200, `[intelligence-csv-standalone] ${tipo} should return 200`, response.status);
+    expect(response.status === 200, `[intelligence-csv-standalone] ${tipo} should return 200`, {
+      status: response.status,
+      location: response.headers.location,
+      contentType: response.headers["content-type"],
+      body: response.text.slice(0, 300),
+    });
     expect(String(response.headers["content-type"] ?? "").startsWith("text/csv"), `[intelligence-csv-standalone] ${tipo} should return CSV`, response.headers);
     expect(String(response.headers["content-disposition"] ?? "").includes("attachment"), `[intelligence-csv-standalone] ${tipo} should be attachment`, response.headers);
     expect(response.headers["cache-control"] === "private, no-store", `[intelligence-csv-standalone] ${tipo} should be private/no-store`, response.headers);
@@ -208,6 +234,7 @@ try {
   expect(!/migrate deploy|db:deploy/i.test(childOutput), "[intelligence-csv-standalone] startup must not execute migrations", childOutput);
   console.log(JSON.stringify({ ok: true, isolated: true, host: "127.0.0.1", database: databaseName, appPort, checked: ["works", "pending-invoices"] }));
 } finally {
-  child?.kill();
-  await pg.stop().catch(() => {});
+  removeSignalHandlers();
+  terminateOwnedProcess(child);
+  await stopIsolatedPostgres(runtime);
 }

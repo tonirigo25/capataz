@@ -53,6 +53,7 @@ function businessRecommendations() {
     mocks: {
       "@/lib/business-signals": businessSignalMocks,
       "@/lib/prisma": prismaMock,
+      "@/lib/auth/session": { requireCompanyContext: async () => ({ companyId: "company-test", userId: "user-test", membershipId: "membership-test" }) },
       "@/lib/proactive-audit": { logProactiveAuditEvent: async () => undefined },
       "@/lib/proactive-rules": proactiveRules()
     },
@@ -171,7 +172,7 @@ function runChatChecks() {
   for (const [, action] of cases) {
     expect(actions.includes(`case "${action}"`), `[proactive] missing chat case ${action}`);
   }
-  expect(actions.includes("No he cambiado ningún registro"), "[proactive] chat query must avoid mutation");
+  expect(actions.includes("noMutation: true"), "[proactive] read-only chat query must avoid mutation");
 }
 
 function runIntegrationChecks() {

@@ -1,6 +1,8 @@
 import type { FollowUpPriority, FollowUpStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 export async function createFollowUp(input: {
+  companyId: string;
   title: string;
   type?: string;
   priority?: FollowUpPriority;
@@ -13,7 +15,8 @@ export async function createFollowUp(input: {
   budgetId?: string;
   automationRunId?: string;
 }) {
-  return prisma.followUp.create({ data: input });
+  const companyId=input.companyId;
+  return prisma.followUp.create({ data: { ...input, companyId } });
 }
 export async function addFollowUpAttempt(
   followUpId: string,
@@ -24,6 +27,7 @@ export async function addFollowUpAttempt(
     nextActionAt?: Date;
   },
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.followUp.findFirst({where:{id:followUpId,companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");
   return prisma.$transaction(async (tx) => {
     const attempt = await tx.followUpAttempt.create({
       data: { followUpId, ...input },
@@ -44,6 +48,7 @@ export async function recordFollowUpOutcome(
   summary?: string,
   status: FollowUpStatus = "completed",
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.followUp.findFirst({where:{id:followUpId,companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");
   return prisma.$transaction(async (tx) => {
     const outcome = await tx.followUpOutcome.create({
       data: { followUpId, type, summary },
@@ -72,6 +77,7 @@ export async function editFollowUp(
     expectedOutcome?: string | null;
   },
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.followUp.findFirst({where:{id,companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");
   return prisma.followUp.update({ where: { id }, data });
 }
 export async function changeFollowUpStatus(
@@ -79,6 +85,7 @@ export async function changeFollowUpStatus(
   status: FollowUpStatus,
   resultSummary?: string,
 ) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.followUp.findFirst({where:{id,companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");
   return prisma.followUp.update({
     where: { id },
     data: {
@@ -90,6 +97,7 @@ export async function changeFollowUpStatus(
   });
 }
 export async function archiveFollowUp(id: string) {
+  const companyId=(await requireCompanyContext()).companyId;if(!await prisma.followUp.findFirst({where:{id,companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");
   return prisma.followUp.update({
     where: { id },
     data: { status: "archived", archivedAt: new Date() },

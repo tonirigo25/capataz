@@ -1,10 +1,14 @@
 import { buildTreasuryCsvExport } from "@/lib/treasury";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("reports.export");
+  const { companyId } = auth;
+  const requiredCapabilities = ["treasury.view", "banking.view", "sales.invoices.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
+  const decisions = await Promise.all(requiredCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  if (auth.scope !== "COMPANY" || decisions.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) return new Response("Alcance insuficiente para exportar datos económicos combinados.", { status: 403 });
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") ?? "forecast";
   const csv = await buildTreasuryCsvExport(tipo, {
@@ -23,7 +27,7 @@ export async function GET(request: Request) {
   return new Response(csv, {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="capataz-tesoreria-${tipo}.csv"`
+      "content-disposition": `attachment; filename="orqena-tesoreria-${tipo}.csv"`
     }
   });
 }

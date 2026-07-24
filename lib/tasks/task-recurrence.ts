@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireCompanyContext } from "@/lib/auth/session";
 const DAYS: Record<string, number> = {
   SU: 0,
   MO: 1,
@@ -126,19 +127,21 @@ const startOfDay = (d: Date) =>
 export async function generateRecurringTasks(now = new Date()) {
   const series = await prisma.taskRecurrence.findMany({
     where: {
+      companyId: { not: null },
       active: true,
       nextOccurrenceAt: { lte: new Date(now.getTime() + 45 * 86400000) },
     },
   });
   let generated = 0;
   for (const recurrence of series) {
+    const companyId=recurrence.companyId!;
     let next: Date | null = recurrence.nextOccurrenceAt ?? recurrence.startsAt;
     const windowEnd = new Date(
         now.getTime() + recurrence.generationWindowDays * 86400000,
       ),
       rule = parseRRule(recurrence.rrule);
     let seriesCount = await prisma.task.count({
-      where: { recurrenceId: recurrence.id },
+      where: { recurrenceId: recurrence.id, companyId },
     });
     while (
       next &&
@@ -160,6 +163,7 @@ export async function generateRecurringTasks(now = new Date()) {
         await prisma.task.create({
           data: {
             title: `Tarea recurrente · ${recurrence.frequency}`,
+            companyId,
             origin: "recurrence",
             status: "planned",
             recurrenceId: recurrence.id,
@@ -187,7 +191,9 @@ export async function editTaskSeries(
   scope: "this" | "following" | "all",
   data: { dueAt?: Date; title?: string },
 ) {
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId }, include: { recurrence: true } });
+  const {companyId}=await requireCompanyContext();
+  const task = await prisma.task.findFirstOrThrow({ where: { id: taskId, companyId }, include: { recurrence: true } });
+  if(task.recurrenceId && task.recurrence?.companyId!==companyId)throw new Error("TASK_RECURRENCE_NOT_AVAILABLE");
   if (!task.recurrenceId || !task.recurrence) return prisma.task.update({ where: { id: taskId }, data });
   if (scope === "this") {
     const existing = Array.isArray(task.recurrence.exdates) ? task.recurrence.exdates.map(String) : [];
@@ -197,11 +203,11 @@ export async function editTaskSeries(
       return tx.task.update({ where: { id: taskId }, data: { ...data, recurrenceId: null, occurrenceKey: null } });
     });
   }
-  if (scope === "all") return prisma.task.updateMany({ where: { recurrenceId: task.recurrenceId, completedAt: null }, data });
+  if (scope === "all") return prisma.task.updateMany({ where: { recurrenceId: task.recurrenceId, companyId, completedAt: null }, data });
   const splitAt = task.dueAt ?? new Date();
   return prisma.$transaction(async (tx) => {
-    const nextSeries = await tx.taskRecurrence.create({ data: { frequency: task.recurrence!.frequency, rrule: task.recurrence!.rrule, timezone: task.recurrence!.timezone, startsAt: data.dueAt ?? splitAt, endsAt: task.recurrence!.endsAt, nextOccurrenceAt: data.dueAt ?? splitAt, generationWindowDays: task.recurrence!.generationWindowDays, active: task.recurrence!.active, exdates: task.recurrence!.exdates ?? undefined } });
+    const nextSeries = await tx.taskRecurrence.create({ data: { companyId, frequency: task.recurrence!.frequency, rrule: task.recurrence!.rrule, timezone: task.recurrence!.timezone, startsAt: data.dueAt ?? splitAt, endsAt: task.recurrence!.endsAt, nextOccurrenceAt: data.dueAt ?? splitAt, generationWindowDays: task.recurrence!.generationWindowDays, active: task.recurrence!.active, exdates: task.recurrence!.exdates ?? undefined } });
     await tx.taskRecurrence.update({ where: { id: task.recurrenceId! }, data: { endsAt: new Date(splitAt.getTime() - 1) } });
-    return tx.task.updateMany({ where: { recurrenceId: task.recurrenceId, completedAt: null, dueAt: { gte: splitAt } }, data: { ...data, recurrenceId: nextSeries.id } });
+    return tx.task.updateMany({ where: { recurrenceId: task.recurrenceId, companyId, completedAt: null, dueAt: { gte: splitAt } }, data: { ...data, recurrenceId: nextSeries.id } });
   });
 }

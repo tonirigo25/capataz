@@ -3,7 +3,20 @@ import { readFileSync } from "node:fs";
 import * as routeAccess from "../lib/route-access";
 
 const startedAt = Date.now();
-const publicPages = ["/", "/login", "/registro", "/recuperar-contrasena", "/verificar-email"];
+const publicPages = [
+  "/",
+  "/login",
+  "/registro",
+  "/recuperar-contrasena",
+  "/verificar-email",
+  "/demo",
+  "/contacto",
+  "/producto",
+  "/sectores",
+  "/sectores/construction",
+  "/planes",
+  "/seguridad"
+];
 const protectedPages = [
   "/hoy", "/clientes", "/obras/obra-1", "/proveedores", "/subcontratas",
   "/facturas-proveedor", "/facturas-subcontratas", "/gastos-materiales",
@@ -13,11 +26,21 @@ const protectedPages = [
 
 for (const path of publicPages) assert.equal(routeAccess.isPublicPage(path), true, `${path} must be public`);
 for (const path of protectedPages) assert.equal(routeAccess.isProtectedPage(path), true, `${path} must be protected`);
-for (const path of ["/service-worker.js", "/manifest.webmanifest", "/offline.html", "/icons/capataz.svg", "/_next/static/chunk.js"]) {
+for (const path of [
+  "/service-worker.js",
+  "/manifest.webmanifest",
+  "/offline.html",
+  "/icons/capataz.svg",
+  "/_next/static/chunk.js",
+  "/marketing/hero-owner-desktop.webp",
+  "/marketing/today-worker.webp"
+]) {
   assert.equal(routeAccess.isPublicResource(path), true, `${path} must remain public`);
 }
+assert.equal(routeAccess.isPublicPage("/sectores-privados"), false);
+assert.equal(routeAccess.isPublicResource("/marketing-private/file.webp"), false);
 assert.equal(routeAccess.isPublicApi("/api/status"), true);
-assert.equal(routeAccess.isPublicApi("/api/status/ai"), true);
+assert.equal(routeAccess.isPublicApi("/api/status/ai"), false, "AI status must not inherit the public health endpoint");
 assert.equal(routeAccess.isInternalApi("/api/internal/proactive-evaluate"), true);
 assert.equal(routeAccess.isProtectedPage("/api/capataz/transcribe"), false);
 assert.equal(routeAccess.safeReturnPath("/obras/123", "?tab=costes"), "/obras/123?tab=costes");
@@ -33,5 +56,12 @@ assert.match(middleware, /authenticated app layout validates/);
 const transcribe = readFileSync(new URL("../app/api/capataz/transcribe/route.ts", import.meta.url), "utf8");
 assert.match(transcribe, /getOptionalSession/);
 assert.match(transcribe, /status: 401/);
+assert.match(transcribe, /resolveActiveCompany/);
+assert.match(transcribe, /resolveAuthorization\(context, "orqena\.use"\)/);
+assert.match(transcribe, /status: 403/);
 
-console.log(JSON.stringify({ ok: true, tests: 37, elapsedMs: Date.now() - startedAt }));
+const aiStatus = readFileSync(new URL("../app/api/status/ai/route.ts", import.meta.url), "utf8");
+assert.match(aiStatus, /getOptionalSession/);
+assert.match(aiStatus, /status: 401/);
+
+console.log(JSON.stringify({ ok: true, tests: 52, elapsedMs: Date.now() - startedAt }));

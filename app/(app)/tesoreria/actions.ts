@@ -15,10 +15,10 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation, type ProactiveEvaluationScope } from "@/lib/proactive-evaluation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export async function createFinancialAccount(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const currentManualBalance = optionalNumber(formData, "currentManualBalance");
 
@@ -40,7 +40,7 @@ export async function createFinancialAccount(formData: FormData) {
 }
 
 export async function updateFinancialAccount(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const id = text(formData, "id");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const currentManualBalance = optionalNumber(formData, "currentManualBalance");
@@ -64,7 +64,7 @@ export async function updateFinancialAccount(formData: FormData) {
 }
 
 export async function archiveFinancialAccount(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const id = text(formData, "id");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   await prisma.financialAccount.updateMany({
@@ -76,7 +76,7 @@ export async function archiveFinancialAccount(formData: FormData) {
 }
 
 export async function createCashMovement(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const type = text(formData, "type") as CashMovementType;
   const amount = number(formData, "amount");
@@ -110,7 +110,7 @@ export async function createCashMovement(formData: FormData) {
 }
 
 export async function createCashTransfer(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const fromAccountId = text(formData, "fromAccountId");
   const toAccountId = text(formData, "toAccountId");
@@ -161,7 +161,7 @@ export async function createCashTransfer(formData: FormData) {
 }
 
 export async function createRecurringExpense(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const amount = number(formData, "amount");
   if (amount <= 0) throw new Error("El importe debe ser positivo.");
@@ -187,7 +187,7 @@ export async function createRecurringExpense(formData: FormData) {
 }
 
 export async function createExpectedCashFlow(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const amount = number(formData, "amount");
   if (amount <= 0) throw new Error("El importe debe ser positivo.");
@@ -216,7 +216,7 @@ export async function createExpectedCashFlow(formData: FormData) {
 }
 
 export async function saveTreasurySettings(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
+  const { companyId } = await requireCapability("treasury.manage");
   const returnTo = optionalText(formData, "returnTo") ?? "/tesoreria";
   const existing = await prisma.treasurySettings.findFirst({ where: { companyId }, orderBy: { updatedAt: "desc" } });
   const data = {

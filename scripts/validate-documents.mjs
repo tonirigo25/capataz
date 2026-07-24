@@ -30,8 +30,8 @@ expect(actions.includes("assertSafeDocumentUrl") && actions.includes("HTTPS"), "
 expect(actions.includes("async function saveDocument"), "missing saveDocument action");
 expect(actions.includes("async function savePhoto"), "missing savePhoto action");
 expect(gestionPage.includes('case "documento"') && gestionPage.includes('case "foto"'), "missing document/photo forms");
-expect(documentsPage.includes("Repositorio documental") && documentsPage.includes("no hay almacenamiento de subida configurado"), "documents page must be honest about storage");
+expect(documentsPage.includes('title="Documentos"') && documentsPage.includes("Cuando un archivo está disponible, puedes abrirlo desde su ficha"), "documents page explains file availability in user language");
 expect(workPage.includes("repositoryDocuments") && workPage.includes("Registrar documento"), "Work 360 does not expose repository documents");
-expect(worksLib.includes("Ficha documental sin archivo adjunto"), "work document presentation must distinguish metadata-only documents");
+expect(worksLib.includes("Ficha sin archivo adjunto"), "work document presentation must distinguish metadata-only documents");
 
 console.log("[documents] OK schema, categories, MIME/URL guards, repository UI and work integration");

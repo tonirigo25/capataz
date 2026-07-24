@@ -10,13 +10,29 @@ import { runAutomation } from "@/lib/automations/automation-runner";
 import { retryAutomationRun } from "@/lib/automations/automation-retries";
 import { confirmAutomationStep } from "@/lib/automations/automation-confirmations";
 import { executeAutomationAction } from "@/lib/automations/automation-actions";
+import type { Prisma } from "@prisma/client";
+import { requireCapability } from "@/lib/commercial/authorization";
 const refresh = () => revalidatePath("/automatizaciones");
+
+async function automationAuth() {
+  return requireCapability("company.update");
+}
+
+async function ownedDefinition(id: string) {
+  const auth = await automationAuth();
+  const definition = await prisma.automationDefinition.findFirst({ where: { id, companyId: auth.companyId }, select: { id: true } });
+  if (!definition) throw new Error("AUTOMATION_NOT_AVAILABLE");
+  return auth;
+}
 export async function createAutomationAction(data: FormData) {
+  const auth = await automationAuth();
   const name = String(data.get("name") ?? "").trim();
   if (!name) return;
   await prisma.automationDefinition.create({
     data: {
       name,
+      companyId: auth.companyId,
+      createdById: auth.userId,
       description: String(data.get("description") ?? "") || undefined,
       versions: {
         create: {
@@ -44,11 +60,16 @@ export async function createAutomationAction(data: FormData) {
   refresh();
 }
 export async function publishAutomationAction(data: FormData) {
-  await publishAutomationVersion(String(data.get("versionId")));
+  const versionId = String(data.get("versionId"));
+  const auth = await automationAuth();
+  const version = await prisma.automationVersion.findFirst({ where: { id: versionId, definition: { companyId: auth.companyId } }, select: { id: true } });
+  if (!version) throw new Error("AUTOMATION_VERSION_NOT_AVAILABLE");
+  await publishAutomationVersion(version.id);
   refresh();
 }
 export async function runAutomationAction(data: FormData) {
   const id = String(data.get("id"));
+  await ownedDefinition(id);
   await runAutomation({
     definitionId: id,
     idempotencyKey: `automation:${id}:manual:${randomUUID()}`,
@@ -61,15 +82,18 @@ export async function runAutomationAction(data: FormData) {
 export async function toggleAutomationAction(data: FormData) {
   const id = String(data.get("id")),
     active = data.get("active") === "true";
-  await prisma.automationDefinition.update({
-    where: { id },
+  const auth = await automationAuth();
+  const updated = await prisma.automationDefinition.updateMany({
+    where: { id, companyId: auth.companyId },
     data: { active, status: active ? "active" : "paused" },
   });
+  if (updated.count !== 1) throw new Error("AUTOMATION_NOT_AVAILABLE");
   refresh();
 }
 export async function duplicateAutomationAction(data: FormData) {
-  const source = await prisma.automationDefinition.findUniqueOrThrow({
-    where: { id: String(data.get("id")) },
+  const auth = await automationAuth();
+  const source = await prisma.automationDefinition.findFirstOrThrow({
+    where: { id: String(data.get("id")), companyId: auth.companyId },
     include: {
       currentVersion: {
         include: { triggers: true, conditions: true, actions: true },
@@ -81,6 +105,8 @@ export async function duplicateAutomationAction(data: FormData) {
       name: `${source.name} (copia)`,
       description: source.description,
       category: source.category,
+      companyId: auth.companyId,
+      createdById: auth.userId,
     },
   });
   if (source.currentVersion)
@@ -88,8 +114,9 @@ export async function duplicateAutomationAction(data: FormData) {
   refresh();
 }
 export async function newAutomationVersionAction(data: FormData) {
-  const definition = await prisma.automationDefinition.findUniqueOrThrow({
-    where: { id: String(data.get("id")) },
+  const auth = await automationAuth();
+  const definition = await prisma.automationDefinition.findFirstOrThrow({
+    where: { id: String(data.get("id")), companyId: auth.companyId },
     include: {
       currentVersion: {
         include: { triggers: true, conditions: true, actions: true },
@@ -107,25 +134,30 @@ export async function newAutomationVersionAction(data: FormData) {
   refresh();
 }
 export async function archiveAutomationAction(data: FormData) {
-  await prisma.automationDefinition.update({
-    where: { id: String(data.get("id")) },
+  const auth = await automationAuth();
+  const result = await prisma.automationDefinition.updateMany({
+    where: { id: String(data.get("id")), companyId: auth.companyId },
     data: { active: false, status: "archived", archivedAt: new Date() },
   });
+  if (result.count !== 1) throw new Error("AUTOMATION_NOT_AVAILABLE");
   refresh();
 }
 export async function disableAutomationAction(data: FormData) {
   const id = String(data.get("id"));
-  await prisma.automationDefinition.update({
-    where: { id },
+  const auth = await automationAuth();
+  const result = await prisma.automationDefinition.updateMany({
+    where: { id, companyId: auth.companyId },
     data: { active: false, status: "disabled" },
   });
+  if (result.count !== 1) throw new Error("AUTOMATION_NOT_AVAILABLE");
   refresh();
   revalidatePath(`/automatizaciones/${id}`);
 }
 export async function saveDraftVersionAction(data: FormData) {
+  const auth = await automationAuth();
   const versionId = String(data.get("versionId")),
-    version = await prisma.automationVersion.findUniqueOrThrow({
-      where: { id: versionId },
+    version = await prisma.automationVersion.findFirstOrThrow({
+      where: { id: versionId, definition: { companyId: auth.companyId } },
     });
   if (version.status !== "draft")
     throw new Error("PUBLISHED_VERSION_IMMUTABLE");
@@ -205,6 +237,7 @@ export async function saveDraftVersionAction(data: FormData) {
 }
 export async function saveAutomationScheduleAction(data: FormData) {
   const id = String(data.get("id"));
+  await ownedDefinition(id);
   await prisma.automationSchedule.upsert({
     where: { automationDefinitionId: id },
     update: {
@@ -232,17 +265,20 @@ export async function saveAutomationScheduleAction(data: FormData) {
 }
 export async function retryRunNowAction(data: FormData) {
   const runId = String(data.get("runId"));
-  await prisma.automationRun.update({
-    where: { id: runId },
+  const auth = await automationAuth();
+  const result = await prisma.automationRun.updateMany({
+    where: { id: runId, companyId: auth.companyId },
     data: { status: "queued", nextRetryAt: new Date(), lockUntil: null },
   });
+  if (result.count !== 1) throw new Error("AUTOMATION_RUN_NOT_AVAILABLE");
   await retryAutomationRun(runId);
   revalidatePath(`/automatizaciones/${String(data.get("definitionId"))}`);
 }
 export async function cancelRunAction(data: FormData) {
   const runId = String(data.get("runId"));
+  const auth = await automationAuth();
   await prisma.automationRun.updateMany({
-    where: { id: runId, status: { in: ["queued", "waiting_confirmation"] } },
+    where: { id: runId, companyId: auth.companyId, status: { in: ["queued", "waiting_confirmation"] } },
     data: {
       status: "cancelled",
       nextRetryAt: null,
@@ -253,9 +289,10 @@ export async function cancelRunAction(data: FormData) {
   revalidatePath(`/automatizaciones/${String(data.get("definitionId"))}`);
 }
 export async function confirmStepAction(data: FormData) {
+  const auth = await automationAuth();
   const stepId = String(data.get("stepId")),
-    step = await prisma.automationStepRun.findUniqueOrThrow({
-      where: { id: stepId },
+    step = await prisma.automationStepRun.findFirstOrThrow({
+      where: { id: stepId, run: { companyId: auth.companyId } },
       include: { run: true, action: true },
     });
   await confirmAutomationStep({
@@ -305,7 +342,7 @@ export async function confirmStepAction(data: FormData) {
   revalidatePath(`/automatizaciones/${String(data.get("definitionId"))}`);
 }
 async function cloneVersion(
-  source: Awaited<ReturnType<typeof loadVersion>>,
+  source: Prisma.AutomationVersionGetPayload<{ include: { triggers: true; conditions: true; actions: true } }>,
   definitionId: string,
   version: number,
 ) {
@@ -363,8 +400,3 @@ async function cloneVersion(
     });
   return created;
 }
-const loadVersion = (id: string) =>
-  prisma.automationVersion.findUnique({
-    where: { id },
-    include: { triggers: true, conditions: true, actions: true },
-  });

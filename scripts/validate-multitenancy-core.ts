@@ -8,18 +8,36 @@ import { hashPassword } from "../lib/auth/crypto";
 import { companyCore } from "../lib/tenant/core";
 import { reserveDocumentNumber } from "../lib/numbering";
 import { prisma as appPrisma } from "../lib/prisma";
+import {
+  installCleanupSignalHandlers,
+  startIsolatedPostgres,
+  stopIsolatedPostgres,
+  type IsolatedPostgresRuntime,
+} from "./isolated-postgres-runtime.mjs";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 async function main() {
   const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
   if (!root) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
   const { default: EmbeddedPostgres } = await import(pathToFileURL(join(root, "node_modules", "embedded-postgres", "dist", "index.js")).href);
-  const password = randomBytes(24).toString("hex"), port = Number(process.env.CAPATAZ_TENANT_POSTGRES_PORT ?? 55435);
-  const pg = new EmbeddedPostgres({ databaseDir: join(root, `tenant-${Date.now()}`), user: "postgres", password, port, persistent: true });
+  const password = randomBytes(24).toString("hex");
   let prisma: PrismaClient | undefined;
+  let runtime: IsolatedPostgresRuntime | undefined;
+  const removeSignalHandlers = installCleanupSignalHandlers(async () => {
+    await prisma?.$disconnect().catch(() => undefined);
+    await appPrisma.$disconnect().catch(() => undefined);
+    await stopIsolatedPostgres(runtime).catch(() => undefined);
+  });
   try {
-    await pg.initialise(); await pg.start(); await pg.createDatabase("capataz_test_tenant");
-    const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_tenant?schema=public`;
+    runtime = await startIsolatedPostgres({
+      EmbeddedPostgres,
+      root,
+      suite: "multitenancy-core",
+      password,
+      preferredPort: process.env.CAPATAZ_TENANT_POSTGRES_PORT,
+    });
+    await runtime.pg.createDatabase("capataz_test_tenant");
+    const url = `postgresql://postgres:${password}@127.0.0.1:${runtime.port}/capataz_test_tenant?schema=public`;
     const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
     assertIsolatedTestDatabase(env);
     execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
@@ -76,7 +94,15 @@ async function main() {
     assert.equal(sequences.find((sequence) => sequence.companyId === a.id)?.nextValue, 22);
     assert.equal(sequences.find((sequence) => sequence.companyId === b.id)?.nextValue, 3);
     console.log(JSON.stringify({ ok: true, listIsolation: true, idIsolation: true, mutationIsolation: true, relationIsolation: true, aggregateIsolation: true, documentsIsolation: true, companyNumbering: true, concurrentNumberReservations: concurrentA.length, concurrentRange: [...new Set(concurrentA)].sort(), nextB }));
-  } finally { await prisma?.$disconnect(); await appPrisma.$disconnect(); await pg.stop(); }
+  } finally {
+    removeSignalHandlers();
+    await prisma?.$disconnect();
+    await appPrisma.$disconnect();
+    await stopIsolatedPostgres(runtime);
+  }
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+main().then(
+  () => process.exit(0),
+  (error) => { console.error(error); process.exit(1); }
+);

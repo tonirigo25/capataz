@@ -13,11 +13,11 @@ export function isUnlimitedMode(mode: AppMode = getAppMode()) {
 export function appModeLabel(mode: AppMode = getAppMode()) {
   if (mode === "test") return "Modo pruebas ilimitado";
   if (mode === "production") return "Modo producción";
-  return "Estás usando Capataz en modo demo";
+  return "Estás usando Orqena en modo demostración";
 }
 
 export function appModeDescription(mode: AppMode = getAppMode()) {
   if (mode === "test") return "Sin límites demo para crear, editar y generar PDFs durante pruebas.";
   if (mode === "production") return "Límites según el plan activo cuando se conecte suscripción real.";
-  return "Demo pública con límites comerciales y PDFs marcados como Demo Capataz.";
+  return "Demostración pública con límites de uso y documentos identificados como demostración.";
 }

@@ -17,7 +17,7 @@ export default function AppError({
   return (
     <main className="screen">
       <section className="empty-state">
-        <h1>Capataz no puede cargar los datos ahora mismo</h1>
+        <h1>Orqena no puede cargar los datos ahora mismo</h1>
         <p>
           La aplicación sigue disponible, pero esta pantalla no se ha podido completar. No se ha guardado ni enviado ninguna acción.
         </p>

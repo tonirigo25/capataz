@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { CashMovementStatus, ExpenseCategory, InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   BILLABLE_INVOICE_EXCLUDED_STATUSES,
@@ -98,7 +98,7 @@ export const TREASURY_DEFINITIONS = [
     id: "registered_cash_balance",
     name: "Saldo de tesorería registrado",
     formula: "Suma de saldos de cuentas activas: saldo manual vigente o saldo inicial más movimientos confirmados.",
-    limitation: "Si no hay cuentas o cajas configuradas, Capataz no muestra saldo bancario."
+    limitation: "Añade una cuenta o caja para completar el saldo disponible."
   },
   {
     id: "cash_flow",
@@ -190,7 +190,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
         ...(filters.workId ? { workId: filters.workId } : {}),
         ...(filters.clientId ? { clientId: filters.clientId } : {}),
         ...(filters.category ? { category: filters.category } : {}),
-        ...(filters.status ? { status: filters.status as any } : {}),
+        ...(filters.status ? { status: filters.status as CashMovementStatus } : {}),
         date: { lte: horizon.end }
       },
       include: {
@@ -207,7 +207,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
     prisma.invoice.findMany({
       where: {
         companyId,
-        estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as any },
+        estado: { notIn: BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] },
         ...(filters.workId ? { obraId: filters.workId } : {}),
         ...(filters.clientId ? { clienteId: filters.clientId } : {})
       },
@@ -219,7 +219,7 @@ export async function getTreasuryOverview(params: TreasuryParams = {}) {
         companyId,
         ...(filters.workId ? { obraId: filters.workId } : {}),
         ...(filters.clientId ? { clienteId: filters.clientId } : {}),
-        ...(filters.category ? { categoria: filters.category as any } : {})
+        ...(filters.category ? { categoria: filters.category as ExpenseCategory } : {})
       },
       include: {
         client: { select: { id: true, nombre: true } },
@@ -1352,7 +1352,7 @@ function forecastAssumptions(scenario: TreasuryScenarioId, registeredBalance: nu
     `Horizonte: ${formatShortDate(horizon.start)} a ${formatShortDate(horizon.end)}.`,
     "Las facturas pendientes se tratan como cobros previstos, no como dinero disponible.",
     "Los gastos sin fecha de pago no se ubican arbitrariamente en el calendario.",
-    "No incluye movimientos bancarios externos no registrados en Capataz."
+    "Incluye los movimientos registrados hasta este momento."
   ];
 }
 

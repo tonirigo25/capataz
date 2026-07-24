@@ -1,8 +1,12 @@
-# Capataz
+# Orqena
 
-PWA web móvil para autónomos y pequeñas pymes de construcción, reformas e instalaciones.
+Plataforma SaaS multiempresa para autónomos y pymes de distintos sectores.
 
-Capataz es un asistente IA de obra: ayuda a ordenar leads, presupuestos, obras, gastos, facturas, cobros, materiales pendientes y seguimientos. Dispone de registro, verificación, recuperación, sesiones opacas y aislamiento multiempresa; la empresa activa se deriva siempre de la sesión server-side. OpenAI es opcional y las acciones sensibles siguen siendo editables y requieren confirmación. No integra todavía WhatsApp comercial, calendarios externos ni Stripe reales.
+Orqena es un sistema operativo empresarial con asistencia conversacional para organizar clientes, trabajo, ventas, compras, tesorería, agenda, documentos y equipo. Dispone de registro, sesiones opacas, empresa activa persistente validada, capacidades, alcances, planes y entitlements. Las acciones sensibles son revisables y requieren confirmación.
+
+La arquitectura comercial se documenta en `docs/ORQENA_MULTI_COMPANY_ARCHITECTURE.md` y `docs/ORQENA_LAUNCH_READINESS.md`. Billing y correo reales permanecen desacoplados y desactivados.
+
+Descriptor: **Tu negocio, en orden.** `/capataz`, `CAPATAZ_*` y determinados nombres históricos se conservan como aliases técnicos compatibles durante la transición.
 
 ## Compras, proveedores y subcontratas
 
@@ -37,6 +41,17 @@ npm run dev
 ```
 
 Antes de arrancar, configura `DATABASE_URL` con una base PostgreSQL local. No uses una URL de Railway ni una base productiva para desarrollo o pruebas. Abre la URL local, registra una cuenta/empresa o inicia sesión con una cuenta del entorno local.
+
+## Configuración comercial local
+
+Solo con una base local confirmada:
+
+```powershell
+$env:CAPATAZ_LOCAL_DEMO="true"
+npm run commercial:setup-local -- --platform-owner-email propietario@local.test
+```
+
+El comando configura el catálogo sin precios y, opcionalmente, un operador interno local. No se ejecuta automáticamente ni debe apuntar a producción.
 
 ## Modo demo y modo pruebas
 

@@ -60,7 +60,7 @@ function EconomicFilters({ data }: { data: EconomicControlData }) {
         </Field>
         <button className="primary-button self-end" type="submit">Aplicar</button>
       </form>
-      <p className="type-meta mt-3">Previsión basada en vencimientos registrados. No representa movimientos bancarios confirmados.</p>
+      <p className="type-meta mt-3">Previsión calculada con los vencimientos registrados.</p>
     </Surface>
   );
 }
@@ -102,12 +102,12 @@ function SummaryArea({ data, recommendations }: { data: EconomicControlData; rec
       <TreasuryRegistration accounts={data.accounts} returnTo={economicHref(data, {})} />
 
       <section aria-labelledby="economic-work-result" className="section-shell">
-        <SectionHeading id="economic-work-result" title="Resultado de obras" description="Resultado calculado con facturación y costes existentes; no representa avance físico." action={<Link href={economicHref(data, { vista: "rentabilidad" })} className="secondary-button">Ver rentabilidad</Link>} />
+        <SectionHeading id="economic-work-result" title="Resultado de trabajos" description="Resultado calculado con la facturación y los costes registrados." action={<Link href={economicHref(data, { vista: "rentabilidad" })} className="secondary-button">Ver rentabilidad</Link>} />
         {measurableWorks.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><CompactMetric icon={TrendingUp} label="Beneficio agregado" value={formatCurrency(totalProfit)} /><CompactMetric icon={Banknote} label="Margen agregado" value={aggregateMargin === null ? "Datos insuficientes" : `${aggregateMargin.toFixed(1)} %`} /><CompactMetric icon={BriefcaseBusiness} label="Obras rentables" value={String(measurableWorks.filter((row) => (row.profit ?? 0) > 0).length)} /><CompactMetric icon={AlertTriangle} label="Margen negativo" value={String(measurableWorks.filter((row) => (row.margin ?? 0) < 0).length)} /><CompactMetric icon={CalendarDays} label="Con desviación" value={String(measurableWorks.filter((row) => (row.deviation ?? 0) > 0).length)} /></div> : <p className="type-secondary">Datos insuficientes para agregar beneficio y margen.</p>}
       </section>
 
       <section aria-labelledby="economic-attention" className="section-shell">
-        <SectionHeading id="economic-attention" title="Requiere atención" description="Señales deterministas de PD-4 sobre cobros, compras y economía de obra; no se recalculan reglas distintas en la interfaz." />
+        <SectionHeading id="economic-attention" title="Requiere atención" description="Cobros, compras y trabajos que necesitan una revisión." />
         {data.attentionSignals.length ? <div className="divide-y divide-border">{data.attentionSignals.map((signal) => <Link key={signal.id} href={signal.href} className="grid min-h-20 gap-2 py-3 hover:bg-subtle sm:grid-cols-[1fr_auto] sm:items-center"><span><span className="type-object-title block text-content">{signal.title}</span><span className="type-secondary mt-1 block">{signal.explanation}</span><span className="type-meta mt-1 block">Siguiente paso: {signal.nextStep}</span></span><span className="flex items-center gap-3"><Status tone={signal.level === "urgente" ? "risk" : signal.level === "atencion" ? "attention" : "neutral"}>{signal.level}</Status>{signal.amount !== null ? <span className="tabular font-semibold text-content">{formatCurrency(signal.amount)}</span> : null}</span></Link>)}</div> : <EmptyState icon={AlertTriangle} title="No hay señales económicas que requieran atención" description="Los próximos vencimientos permanecen disponibles en Previsión." />}
       </section>
 
@@ -157,7 +157,7 @@ function DueTimeline({ forecast }: { forecast: EconomicForecast }) {
 function ProfitabilityArea({ rows }: { rows: EconomicProfitabilityRow[] }) {
   return (
     <section aria-labelledby="profitability" className="section-shell">
-      <SectionHeading id="profitability" title="Rentabilidad por obra" description="Beneficio, margen, coste real y desviación calculados con las fórmulas existentes. No representan avance físico." />
+      <SectionHeading id="profitability" title="Rentabilidad por trabajo" description="Beneficio, margen, coste y desviación calculados con los datos registrados." />
       {rows.length ? <ResponsiveTable label="Rentabilidad por obra"><table className="min-w-full divide-y divide-border text-sm">
         <thead><tr className="text-left type-meta"><th scope="col" className="px-3 py-3">Obra</th><th scope="col" className="px-3 py-3 text-right">Beneficio</th><th scope="col" className="px-3 py-3 text-right">Margen</th><th scope="col" className="px-3 py-3 text-right">Coste real</th><th scope="col" className="px-3 py-3 text-right">Facturado</th><th scope="col" className="px-3 py-3 text-right">Desviación de coste</th><th scope="col" className="px-3 py-3 text-right">Pendiente</th></tr></thead>
         <tbody className="divide-y divide-border">{rows.map((row) => <tr key={row.workId}>

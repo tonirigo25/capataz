@@ -31,7 +31,7 @@ export function OperationalContextSummary({ context, entityType, entityId }: { c
   const href = entityType === "cliente" ? `/capataz?clienteId=${entityId}` : `/capataz?obraId=${entityId}`;
   return (
     <section className="mt-4 rounded-xl border border-border bg-surface p-4" aria-labelledby={`contexto-${entityType}`}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between"><div><p id={`contexto-${entityType}`} className="type-label">Contexto operativo</p><p className="type-object-title mt-1 text-content">{context.principal?.title ?? "Sin señales pendientes"}</p><p className="type-secondary mt-1">{context.phrase}</p><p className="type-meta mt-2">Siguiente paso: {context.nextStep}</p></div><Link href={href} className="secondary-button shrink-0"><Bot size={17} /> Preguntar a Capataz</Link></div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between"><div><p id={`contexto-${entityType}`} className="type-label">Contexto operativo</p><p className="type-object-title mt-1 text-content">{context.principal?.title ?? "Sin señales pendientes"}</p><p className="type-secondary mt-1">{context.phrase}</p><p className="type-meta mt-2">Siguiente paso: {context.nextStep}</p></div><Link href={href} className="secondary-button shrink-0"><Bot size={17} /> Preguntar a Orqena</Link></div>
       {context.signals.length > 1 ? <div className="mt-3 border-t border-border pt-3"><OperationalSignalList signals={context.signals.slice(1, 3)} /></div> : null}
     </section>
   );

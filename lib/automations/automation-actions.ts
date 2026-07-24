@@ -18,8 +18,10 @@ export async function executeAutomationAction(
   )
     throw new Error("EXTERNAL_ACTION_DISABLED");
   const config = object(action.configuration);
+  if (["create_task","create_followup"].includes(action.actionType) && !run.companyId) throw new Error("AUTOMATION_COMPANY_REQUIRED");
   if (action.actionType === "create_task")
     return createTask({
+      companyId: run.companyId!,
       title: String(config.title ?? "Tarea automática"),
       description: config.description ? String(config.description) : undefined,
       automationRunId: run.id,
@@ -28,6 +30,7 @@ export async function executeAutomationAction(
     });
   if (action.actionType === "create_followup")
     return createFollowUp({
+      companyId: run.companyId!,
       title: String(config.title ?? "Seguimiento automático"),
       type: String(config.type ?? "general"),
       automationRunId: run.id,

@@ -4,22 +4,27 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import {
+  installCleanupSignalHandlers,
+  startIsolatedPostgres,
+  stopIsolatedPostgres,
+} from "./isolated-postgres-runtime.mjs";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 const { reserveDocumentNumber, reserveDocumentNumberInTransaction } = await import("../lib/numbering.ts");
 
 const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
 if (!root) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
-const port = Number(process.env.CAPATAZ_NUMBERING_POSTGRES_PORT ?? 55437);
 const { default: EmbeddedPostgres } = await import(pathToFileURL(join(root, "node_modules", "embedded-postgres", "dist", "index.js")).href);
 const password = randomBytes(24).toString("hex");
-const pg = new EmbeddedPostgres({ databaseDir: join(root, `numbering-${Date.now()}`), user: "postgres", password, port, persistent: true });
 const databaseName = "capataz_test_numbering";
-const url = `postgresql://postgres:${password}@127.0.0.1:${port}/${databaseName}?schema=public`;
-const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
 const transactionOptions = { maxWait: 30_000, timeout: 30_000 };
-assertIsolatedTestDatabase(env);
 let db;
 let calls = 0;
+let runtime;
+const removeSignalHandlers = installCleanupSignalHandlers(async () => {
+  await db?.$disconnect().catch(() => undefined);
+  await stopIsolatedPostgres(runtime).catch(() => undefined);
+});
 
 async function company(slug, overrides = {}) {
   return db.company.create({ data: { slug, nombreComercial: slug, budgetPrefix: "P", budgetSeries: "2026", invoicePrefix: "F", invoiceSeries: "2026", ...overrides } });
@@ -37,9 +42,17 @@ async function reserve(companyId, type) {
 }
 
 try {
-  await pg.initialise();
-  await pg.start();
-  await pg.createDatabase(databaseName);
+  runtime = await startIsolatedPostgres({
+    EmbeddedPostgres,
+    root,
+    suite: "numbering-contract",
+    password,
+    preferredPort: process.env.CAPATAZ_NUMBERING_POSTGRES_PORT,
+  });
+  await runtime.pg.createDatabase(databaseName);
+  const url = `postgresql://postgres:${password}@127.0.0.1:${runtime.port}/${databaseName}?schema=public`;
+  const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
+  assertIsolatedTestDatabase(env);
   execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
   db = new PrismaClient({ datasources: { db: { url } }, transactionOptions });
 
@@ -99,6 +112,7 @@ try {
   assert.equal(await db.companyDocumentSequence.count({ where: { companyId: missing.id } }), 0);
   console.log(JSON.stringify({ ok: true, isolated: true, host: "127.0.0.1", database: databaseName, calls, transactionOptions, cases: { companyAFirstSecond: true, companyBIndependent: true, invoiceIndependent: true, seriesIndependent: true, yearsIndependent: true, legacyMaxPlusOne: true, sequenceAboveMax: true, sequenceBelowMax: true, concurrency20: true, crossCompanyIsolation: true, rollbackNoAdvance: true, missingCompanyNoSequence: true } }));
 } finally {
+  removeSignalHandlers();
   await db?.$disconnect();
-  await pg.stop();
+  await stopIsolatedPostgres(runtime);
 }

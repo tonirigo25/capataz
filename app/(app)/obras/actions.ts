@@ -4,14 +4,16 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { validWorkStatus } from "@/lib/works";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 
 export async function updateWorkStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const estado = validWorkStatus(String(formData.get("estado") ?? ""));
   if (!id || !estado) return;
 
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("work.update");
+  const { companyId } = auth;
+  await assertScopedEntityAccess(auth, "work.update", "Work", id);
   const work = await prisma.work.findFirst({ where: { id, companyId }, include: { invoices: true } });
   if (!work) return;
 

@@ -44,16 +44,17 @@ export function lineTotal(cantidad: number, precioUnitario: number) {
   return money(Math.max(0, cantidad) * Math.max(0, precioUnitario));
 }
 
-export function normalizeLine(item: any): BudgetLine {
-  const cantidad = num(item?.cantidad, 1);
-  const precioUnitario = num(item?.precioUnitario ?? item?.precio, 0);
+export function normalizeLine(item: unknown): BudgetLine {
+  const value = item && typeof item === "object" ? item as Record<string, unknown> : {};
+  const cantidad = num(value.cantidad, 1);
+  const precioUnitario = num(value.precioUnitario ?? value.precio, 0);
   return {
-    descripcion: String(item?.descripcion ?? item?.concepto ?? "Partida").trim(),
+    descripcion: String(value.descripcion ?? value.concepto ?? "Partida").trim(),
     cantidad,
-    unidad: String(item?.unidad ?? "ud").trim() || "ud",
+    unidad: String(value.unidad ?? "ud").trim() || "ud",
     precioUnitario,
-    total: num(item?.total, lineTotal(cantidad, precioUnitario)),
-    categoria: String(item?.categoria ?? "General").trim() || "General"
+    total: num(value.total, lineTotal(cantidad, precioUnitario)),
+    categoria: String(value.categoria ?? "General").trim() || "General"
   };
 }
 

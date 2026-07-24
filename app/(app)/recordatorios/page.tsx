@@ -8,7 +8,8 @@ import { StatusPill } from "@/components/status-pill";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { CompactFilterBar, ResultCount } from "@/components/ui-primitives";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,11 @@ export default async function RemindersPage({
   searchParams: Promise<{ filtro?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("followups.view");
+  const { companyId } = auth;
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
   const reminders = await prisma.reminder.findMany({
-    where: { companyId },
+    where: { companyId, ...(scopedWorkIds === null ? {} : { obraId: { in: scopedWorkIds } }) },
     orderBy: { fechaProgramada: "asc" },
     include: { client: true, work: true, invoice: true, budget: true }
   });
@@ -81,13 +84,15 @@ export default async function RemindersPage({
         <StatCard href="/recordatorios?filtro=cancelado" title="Cancelados" value={String(counts.cancelled)} detail={`${counts.done} realizados`} icon={ShieldAlert} />
       </section>
 
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <CompactFilterBar className="mb-4"><div className="flex gap-2 overflow-x-auto pb-1">
         {filterLabels.map(([id, label]) => (
           <Link key={id} href={`/recordatorios?filtro=${id}`} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${((query.filtro ?? "todos") === id) ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>
             {label}
           </Link>
         ))}
-      </div>
+      </div></CompactFilterBar>
+
+      <ResultCount shown={filtered.length} total={reminders.length} noun="recordatorios" />
 
       <div className="grid gap-3">
         {filtered.map((reminder) => (

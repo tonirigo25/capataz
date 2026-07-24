@@ -3,10 +3,12 @@ import { FileScan, PackageCheck, Pencil, Plus, ReceiptText } from "lucide-react"
 import { updateMaterialStatus } from "@/app/(app)/gastos-materiales/actions";
 import { SectionHeader } from "@/components/section-header";
 import { StatusPill } from "@/components/status-pill";
+import { CompactFilterBar, CompactSearch, ResultCount } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
+import { getPurchaseAccess, purchaseRelationAllowed } from "@/lib/commercial/purchase-access";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +18,10 @@ export default async function ExpensesMaterialsPage({
   searchParams: Promise<{ filtro?: string; buscar?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
-  const [expenses, materials] = await Promise.all([
+  const auth = await requireCapability("purchases.received_invoices.view");
+  const { companyId } = auth;
+  const access = await getPurchaseAccess(auth);
+  const [allExpenses, allMaterials] = await Promise.all([
     prisma.expense.findMany({
       where: { companyId },
       orderBy: { fecha: "desc" },
@@ -29,6 +33,9 @@ export default async function ExpensesMaterialsPage({
       include: { work: { include: { client: true } } }
     })
   ]);
+  const expenses = allExpenses.filter((expense) => purchaseRelationAllowed(access.read, expense.obraId, expense.clienteId));
+  const materials = allMaterials.filter((material) => purchaseRelationAllowed(access.read, material.obraId, material.work.clienteId));
+  const canCreateUnassigned = access.manage.allowed && access.manage.scope === "COMPANY";
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.importe, 0);
   const visibleMaterials = materials.filter((material) => {
@@ -48,7 +55,7 @@ export default async function ExpensesMaterialsPage({
       <SectionHeader
         title="Gastos y materiales"
         description="Tickets, compras y faltas por obra."
-        action={
+        action={canCreateUnassigned ?
           <div className="flex flex-wrap gap-2">
             <Link href="/gastos-materiales/lector" className="primary-button">
               <FileScan size={18} />
@@ -63,19 +70,20 @@ export default async function ExpensesMaterialsPage({
               Material
             </Link>
           </div>
-        }
+        : undefined}
       />
 
-      <form action="/gastos-materiales" className="card mb-3 flex gap-2 p-3">
+      <CompactFilterBar className="mb-3"><form action="/gastos-materiales" className="flex gap-2">
         <input type="hidden" name="filtro" value={query.filtro ?? "todos"} />
-        <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Buscar cemento cola, proveedor, obra..." />
+        <CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Material, proveedor o trabajo…" />
         <button type="submit" className="secondary-button shrink-0">Buscar</button>
-      </form>
+      </form></CompactFilterBar>
 
       <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
         <Link href="/gastos-materiales" className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${!query.filtro ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>Todo</Link>
         <Link href="/gastos-materiales?filtro=pendientes" className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${query.filtro === "pendientes" ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>Pendientes</Link>
       </div>
+      <ResultCount shown={visibleMaterials.length + visibleExpenses.length} total={materials.length + expenses.length} noun="resultados" />
 
       <section className="mb-5 grid grid-cols-2 gap-3">
         <div className="card p-4">
@@ -107,15 +115,15 @@ export default async function ExpensesMaterialsPage({
                 <StatusPill status={material.estado} />
               </div>
               {material.notas ? <p className="mt-3 text-sm leading-6 text-slate-600">{material.notas}</p> : null}
-              <Link href={`/gestion?tipo=material&id=${material.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
+              {purchaseRelationAllowed(access.manage, material.obraId, material.work.clienteId) ? <Link href={`/gestion?tipo=material&id=${material.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
                 <Pencil size={18} />
                 Editar
-              </Link>
-              <div className="mt-3 flex flex-wrap gap-2">
+              </Link> : null}
+              {purchaseRelationAllowed(access.manage, material.obraId, material.work.clienteId) ? <div className="mt-3 flex flex-wrap gap-2">
                 <MaterialStatusButton id={material.id} estado="comprado" label="Comprado" />
                 <MaterialStatusButton id={material.id} estado="entregado" label="Entregado" />
                 <MaterialStatusButton id={material.id} estado="falta" label="Falta" />
-              </div>
+              </div> : null}
             </article>
           ))}
         </div>
@@ -140,10 +148,10 @@ export default async function ExpensesMaterialsPage({
                 <span>{statusLabel(expense.categoria)}</span>
                 <span>{formatDate(expense.fecha)}</span>
               </div>
-              <Link href={`/gestion?tipo=gasto&id=${expense.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
+              {purchaseRelationAllowed(access.manage, expense.obraId, expense.clienteId) ? <Link href={`/gestion?tipo=gasto&id=${expense.id}&returnTo=/gastos-materiales`} className="secondary-button mt-3">
                 <Pencil size={18} />
                 Editar
-              </Link>
+              </Link> : null}
             </article>
           ))}
         </div>

@@ -3,13 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 async function ownedReminder(id: string) {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("agenda.manage");
+  const { companyId } = auth;
   const core = companyCore(prisma, companyId);
   const reminder = await core.getReminder(id);
+  if (reminder?.obraId) await assertScopedEntityAccess(auth, "agenda.manage", "Work", reminder.obraId);
+  else if (reminder?.clienteId) await assertScopedEntityAccess(auth, "agenda.manage", "Client", reminder.clienteId);
+  else if (reminder && auth.scope !== "COMPANY") throw new Error("SCOPED_ENTITY_FORBIDDEN");
   return { companyId, core, reminder };
 }
 

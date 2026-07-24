@@ -231,6 +231,9 @@ function resetState() {
       }
     ]
   };
+  for (const collection of ["clients", "works", "budgets", "invoices", "payments", "expenses", "documents", "events", "reminders"]) {
+    for (const item of state[collection]) item.companyId = "test-company";
+  }
 }
 
 resetState();
@@ -244,6 +247,8 @@ const mockPrisma = {
     create: async (args = {}) => {
       const item = withTimestamps({
         id: args.data?.id ?? nextId("conversation"),
+        companyId: args.data?.companyId ?? "test-company",
+        ownerUserId: args.data?.ownerUserId ?? "test-user",
         title: args.data?.title ?? "Nueva conversación",
         status: args.data?.status ?? "active",
         activeTask: args.data?.activeTask ?? null,
@@ -278,6 +283,7 @@ const mockPrisma = {
     create: async (args = {}) => {
       const item = withTimestamps({
         id: args.data?.id ?? nextId("message"),
+        companyId: args.data?.companyId ?? "test-company",
         conversationId: args.data?.conversationId,
         idempotencyKey: args.data?.idempotencyKey ?? null,
         role: args.data?.role,
@@ -298,6 +304,7 @@ const mockPrisma = {
       }
       const item = withTimestamps({
         id: args.create?.id ?? nextId("message"),
+        companyId: args.create?.companyId ?? "test-company",
         conversationId: args.create?.conversationId,
         idempotencyKey: args.create?.idempotencyKey ?? args.where?.idempotencyKey ?? null,
         role: args.create?.role,
@@ -498,7 +505,27 @@ function loadTsModule(relativePath) {
       };
     }
     if (specifier === "@/lib/numbering") return { nextDocumentNumber: async () => "P-TEST-001", reserveDocumentNumberInTransaction: async () => "P-TEST-001" };
-    if (specifier === "@/lib/auth/session") return { requireCompanyContext: async () => ({ companyId: undefined, userId: "test-user", displayName: "Test" }) };
+    if (specifier === "@/lib/auth/session") return { requireCompanyContext: async () => ({ sessionId: "isolated-test-session", companyId: "test-company", userId: "test-user", membershipId: "test-membership", displayName: "Test" }) };
+    if (specifier === "@/lib/commercial/authorization") {
+      const authorization = {
+        companyId: "test-company",
+        userId: "test-user",
+        membershipId: "test-membership",
+        functionalProfileKey: "OWNER",
+        scope: "COMPANY",
+      };
+      return {
+        requireCapability: async () => authorization,
+        resolveAuthorization: async (_context, capability) => ({
+          allowed: true,
+          capability,
+          scope: "COMPANY",
+          source: "fixture",
+        }),
+        resolveScopedEntityIds: async () => null,
+        resolveScopedTaskIds: async () => null,
+      };
+    }
     if (specifier === "@/lib/tenant/company-settings") return { companySettingsView: (company) => company };
     if (specifier === "@/lib/status") return { deriveInvoiceStatus: () => "pendiente_pago" };
     if (specifier === "@/lib/chat-workflow-contract") return { handleChatWorkflowContract: async () => null };
@@ -560,7 +587,7 @@ function expectNoQueryMutation(result) {
 
 function expectRoute(result, expected) {
   expect(result.handled === true, "message was not handled", result);
-  expect(result.diagnostics?.intentKind === expected.intentKind, `unexpected intent kind for ${expected.handler}`, result.diagnostics);
+  expect(result.diagnostics?.intentKind === expected.intentKind, `unexpected intent kind for ${expected.handler}`, result);
   expect(result.diagnostics?.handler === expected.handler, `unexpected handler for ${expected.handler}`, result.diagnostics);
   expect(result.diagnostics?.noMutation === true, "query diagnostics did not mark noMutation", result.diagnostics);
   const intentLog = lastLog("chat:intent");
@@ -619,8 +646,9 @@ async function testExplicitCreateStillUsesParser() {
   const result = await runMessage("haz presupuesto para Pedro por 5000");
   const intentLog = lastLog("chat:intent");
   expect(intentLog?.metadata?.classifiedKind === "create", "create request did not log create intent", intentLog?.metadata);
-  expect(result.created?.budgetId, "explicit create did not create a budget", result);
-  expect(state.mutations.budget === 1, "explicit create did not use budget creation path", state.mutations);
+  expect(result.handled === false, "explicit create must be handed to proposal review", result);
+  expect(!result.created?.budgetId, "explicit create bypassed proposal confirmation", result);
+  expect(state.mutations.budget === 0, "explicit create mutated before confirmation", state.mutations);
 }
 
 async function testPendingDetailFollowUp() {
@@ -628,6 +656,8 @@ async function testPendingDetailFollowUp() {
   const conversationId = "conversation-followup";
   state.conversations.push(withTimestamps({
     id: conversationId,
+    companyId: "test-company",
+    ownerUserId: "test-user",
     title: "Seguimiento pendientes",
     status: "active",
     activeTask: null,
@@ -824,6 +854,11 @@ function matchesWhere(row, where) {
     if (key === "messages" && expected?.none !== undefined) {
       const hasMessages = state.messages.some((message) => message.conversationId === row.id);
       if (hasMessages) return false;
+      continue;
+    }
+    if (key === "conversation") {
+      const conversation = state.conversations.find((item) => item.id === row.conversationId);
+      if (!conversation || !matchesWhere(conversation, expected)) return false;
       continue;
     }
     if (!matchesValue(row[key], expected)) return false;

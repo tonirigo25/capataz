@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SectionHeader } from "@/components/section-header";
-import { EmptyState } from "@/components/ui-primitives";
+import { CompactFilterBar, EmptyState, ResultCount } from "@/components/ui-primitives";
 import {
   ACTIVITY_KIND_OPTIONS,
   ACTIVITY_PERIOD_OPTIONS,
@@ -23,6 +23,8 @@ import {
   type ActivityPeriod
 } from "@/lib/activity";
 import { formatDate } from "@/lib/format";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,11 @@ export default async function ActivityPage({
   searchParams: Promise<{ tipo?: string; periodo?: string }>;
 }) {
   const query = await searchParams;
+  const auth = await requireCapability("reports.view");
+  if (auth.scope !== "COMPANY") redirect("/acceso-restringido?reason=scope");
+  const activityCapabilities = ["clients.view", "work.view", "sales.budgets.view", "sales.invoices.view", "treasury.view", "purchase_cost.view", "agenda.view", "documents.view"] as const;
+  const activityDecisions = await Promise.all(activityCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  if (activityDecisions.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) redirect("/acceso-restringido?reason=permission");
   const selectedKind = parseKind(query.tipo);
   const selectedPeriod = parsePeriod(query.periodo);
   const items = await getActivityFeed({ kind: selectedKind, period: selectedPeriod });
@@ -56,7 +63,7 @@ export default async function ActivityPage({
         description="Cambios recientes de clientes, obras, documentos, agenda y cobros. No muestra logs técnicos internos."
       />
 
-      <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+      <CompactFilterBar className="mb-4"><section className="grid gap-3 lg:grid-cols-[1fr_auto]">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {ACTIVITY_KIND_OPTIONS.map((option) => (
             <Link
@@ -79,7 +86,9 @@ export default async function ActivityPage({
             </Link>
           ))}
         </div>
-      </section>
+      </section></CompactFilterBar>
+
+      <ResultCount shown={items.length} total={items.length} noun="movimientos" />
 
       {items.length ? (
         <section className="grid gap-3" aria-label="Actividad reciente">

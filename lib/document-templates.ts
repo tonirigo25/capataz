@@ -43,7 +43,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     kind: "budget",
     format: "docx",
     label: "Plantilla presupuesto DOCX",
-    fileName: "Plantilla_Presupuesto_Capataz.docx",
+    fileName: "Plantilla_Presupuesto_Orqena.docx",
     relativePath: "templates/documents/Plantilla_Presupuesto_Capataz.docx",
     contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   },
@@ -52,7 +52,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     kind: "budget",
     format: "pdf",
     label: "Plantilla presupuesto PDF",
-    fileName: "Plantilla_Presupuesto_Capataz.pdf",
+    fileName: "Plantilla_Presupuesto_Orqena.pdf",
     relativePath: "templates/documents/Plantilla_Presupuesto_Capataz.pdf",
     contentType: "application/pdf"
   },
@@ -61,7 +61,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     kind: "invoice",
     format: "docx",
     label: "Plantilla factura DOCX",
-    fileName: "Plantilla_Factura_Capataz.docx",
+    fileName: "Plantilla_Factura_Orqena.docx",
     relativePath: "templates/documents/Plantilla_Factura_Capataz.docx",
     contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   },
@@ -70,7 +70,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     kind: "invoice",
     format: "pdf",
     label: "Plantilla factura PDF",
-    fileName: "Plantilla_Factura_Capataz.pdf",
+    fileName: "Plantilla_Factura_Orqena.pdf",
     relativePath: "templates/documents/Plantilla_Factura_Capataz.pdf",
     contentType: "application/pdf"
   }
@@ -82,14 +82,14 @@ export const documentTemplates = {
     title: "Presupuesto profesional",
     sourceDocx: "Plantilla_Presupuesto_Capataz.docx",
     sourcePdf: "Plantilla_Presupuesto_Capataz.pdf",
-    visualLabel: "Plantilla profesional de presupuesto Capataz"
+    visualLabel: "Plantilla profesional de presupuesto Orqena"
   },
   invoice: {
     kind: "invoice" as const,
     title: "Factura profesional",
     sourceDocx: "Plantilla_Factura_Capataz.docx",
     sourcePdf: "Plantilla_Factura_Capataz.pdf",
-    visualLabel: "Plantilla profesional de factura Capataz"
+    visualLabel: "Plantilla profesional de factura Orqena"
   }
 };
 
@@ -102,4 +102,3 @@ export function fillTemplatePlaceholders(template: string, values: Partial<Recor
     return result.replaceAll(`[[${placeholder}]]`, values[placeholder] ?? "");
   }, template);
 }
-

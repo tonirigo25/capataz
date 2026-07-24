@@ -465,7 +465,7 @@ function buildDataQualityIssues({
   documents
 }: {
   invoices: BusinessInvoice[];
-  clients: Array<{ id: string; nombre: string; tipo: string; nifCif: string | null; direccionFiscal: string | null; invoices: any[] }>;
+  clients: Array<{ id: string; nombre: string; tipo: string; nifCif: string | null; direccionFiscal: string | null; invoices: BusinessInvoice[] }>;
   works: Array<ReturnType<typeof calculateWorkProfitability>>;
   documents: Array<{ id: string; metadata: unknown }>;
 }): BusinessDataQualityIssue[] {

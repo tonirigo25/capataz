@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
-import { getOptionalSession } from "@/lib/auth/session";
+import { resolveAuthorization } from "@/lib/commercial/authorization";
+import { getOptionalSession, resolveActiveCompany, type CompanyContext } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  if (!await getOptionalSession()) {
-    return NextResponse.json({ error: "Inicia sesión para usar el dictado." }, { status: 401 });
-  }
+  const session = await getOptionalSession();
+  if (!session) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const active = await resolveActiveCompany(session.userId);
+  if (!active.membership || active.requiresSelection) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+  const membership = active.membership;
+  const context: CompanyContext = { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
+  const authorization = await resolveAuthorization(context, "orqena.use");
+  if (!authorization.allowed) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "Falta OPENAI_API_KEY en el backend." }, { status: 500 });

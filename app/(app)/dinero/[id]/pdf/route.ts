@@ -4,17 +4,19 @@ import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf
 import { fillTemplatePlaceholders } from "@/lib/document-templates";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requireCompanyContext();
+  const auth = await requireCapability("sales.invoices.view");
   const core = companyCore(prisma, auth.companyId);
   const invoice = await core.getInvoiceDocument(id);
   if (!invoice) notFound();
+  if (invoice.obraId) await assertScopedEntityAccess(auth, "sales.invoices.view", "Work", invoice.obraId);
+  else await assertScopedEntityAccess(auth, "sales.invoices.view", "Client", invoice.clienteId);
 
   const company = await core.company();
   const preview = new URL(request.url).searchParams.get("preview") === "1";
@@ -86,7 +88,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${invoice.numero}.pdf"`,
-      "X-Capataz-Template-Placeholders": encodeURIComponent(placeholderSummary)
+      "X-Orqena-Template-Placeholders": encodeURIComponent(placeholderSummary)
     }
   });
 }

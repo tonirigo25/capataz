@@ -3,45 +3,54 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
+import { requireCapability } from "@/lib/commercial/authorization";
 
-const ids = {
-  client: "flow-client-bano",
-  visit: "flow-visit-bano",
-  budget: "flow-budget-bano",
-  budgetFollowUp: "flow-budget-follow-up",
-  work: "flow-work-bano",
-  expense: "flow-expense-bano",
-  material: "flow-material-bano",
-  invoice: "flow-invoice-bano",
-  partialPayment: "flow-payment-partial",
-  finalPayment: "flow-payment-final",
-  collectionReminder: "flow-collection-reminder"
-};
+function demoIds(companyId: string) {
+  const suffix = companyId.replace(/[^a-zA-Z0-9_-]/g, "").slice(-32);
+  return {
+    client: `flow-client-bano-${suffix}`,
+    visit: `flow-visit-bano-${suffix}`,
+    budget: `flow-budget-bano-${suffix}`,
+    budgetFollowUp: `flow-budget-follow-up-${suffix}`,
+    work: `flow-work-bano-${suffix}`,
+    expense: `flow-expense-bano-${suffix}`,
+    material: `flow-material-bano-${suffix}`,
+    invoice: `flow-invoice-bano-${suffix}`,
+    partialPayment: `flow-payment-partial-${suffix}`,
+    finalPayment: `flow-payment-final-${suffix}`,
+    collectionReminder: `flow-collection-reminder-${suffix}`
+  };
+}
 
 export async function runGuidedDemoStep(formData: FormData) {
+  const auth = await requireCapability("company.update");
+  const company = await prisma.company.findFirst({ where: { id: auth.companyId, isDemo: true }, select: { id: true } });
+  if (!company) throw new Error("GUIDED_DEMO_NOT_AVAILABLE");
+  await assertDemoOwnership(auth.companyId);
   const step = Number(formData.get("step") ?? 0);
 
   if (step === 0) {
-    await resetGuidedDemo();
+    await resetGuidedDemo(auth.companyId);
   } else if (step >= 1 && step <= 12) {
     for (let current = 1; current <= step; current += 1) {
-      await applyStep(current);
+      await applyStep(current, auth.companyId);
     }
   }
 
   revalidateAll();
 }
 
-async function applyStep(step: number) {
+async function applyStep(step: number, companyId: string) {
+  const ids = demoIds(companyId);
   switch (step) {
     case 1:
-      await ensureClient("nuevo", "Lead entrante desde llamada. Quiere reformar un baño.");
+      await ensureClient(companyId, "nuevo", "Lead entrante desde llamada. Quiere reformar un baño.");
       return;
     case 2:
-      await ensureClient("visita_pendiente", "Datos completos. Quiere plato de ducha, alicatado y mampara.");
+      await ensureClient(companyId, "visita_pendiente", "Datos completos. Quiere plato de ducha, alicatado y mampara.");
       return;
     case 3:
-      await ensureClient("visita_pendiente", "Visita agendada para tomar medidas.");
+      await ensureClient(companyId, "visita_pendiente", "Visita agendada para tomar medidas.");
       await prisma.reminder.upsert({
         where: { id: ids.visit },
         update: {
@@ -56,6 +65,7 @@ async function applyStep(step: number) {
         },
         create: {
           id: ids.visit,
+          companyId,
           clienteId: ids.client,
           tipo: "confirmar_visita",
           canal: "interno",
@@ -70,8 +80,8 @@ async function applyStep(step: number) {
     case 4:
       await prisma.budget.upsert({
         where: { id: ids.budget },
-        update: budgetData("borrador"),
-        create: { id: ids.budget, ...budgetData("borrador") }
+        update: budgetData(companyId, "borrador"),
+        create: { id: ids.budget, ...budgetData(companyId, "borrador") }
       });
       await prisma.client.update({ where: { id: ids.client }, data: { estado: "presupuesto_pendiente" } });
       return;
@@ -83,16 +93,16 @@ async function applyStep(step: number) {
       await prisma.client.update({ where: { id: ids.client }, data: { estado: "seguimiento_pendiente" } });
       await prisma.reminder.upsert({
         where: { id: ids.budgetFollowUp },
-        update: followUpData(),
-        create: { id: ids.budgetFollowUp, ...followUpData() }
+        update: followUpData(companyId),
+        create: { id: ids.budgetFollowUp, ...followUpData(companyId) }
       });
       return;
     case 6:
       await prisma.budget.update({ where: { id: ids.budget }, data: { estado: "aceptado" } });
       await prisma.work.upsert({
         where: { id: ids.work },
-        update: workData("en_curso"),
-        create: { id: ids.work, ...workData("en_curso") }
+        update: workData(companyId, "en_curso"),
+        create: { id: ids.work, ...workData(companyId, "en_curso") }
       });
       await prisma.budget.update({ where: { id: ids.budget }, data: { obraId: ids.work } });
       await prisma.reminder.updateMany({ where: { id: ids.visit }, data: { obraId: ids.work } });
@@ -101,38 +111,38 @@ async function applyStep(step: number) {
     case 7:
       await prisma.expense.upsert({
         where: { id: ids.expense },
-        update: expenseData(),
-        create: { id: ids.expense, ...expenseData() }
+        update: expenseData(companyId),
+        create: { id: ids.expense, ...expenseData(companyId) }
       });
       await prisma.material.upsert({
         where: { id: ids.material },
-        update: materialData("pendiente"),
-        create: { id: ids.material, ...materialData("pendiente") }
+        update: materialData(companyId, "pendiente"),
+        create: { id: ids.material, ...materialData(companyId, "pendiente") }
       });
       await prisma.work.update({ where: { id: ids.work }, data: { gastoReal: 420, margenEstimado: 520 } });
       return;
     case 8:
       await prisma.invoice.upsert({
         where: { id: ids.invoice },
-        update: invoiceData(0, 1500, "pendiente_pago"),
-        create: { id: ids.invoice, ...invoiceData(0, 1500, "pendiente_pago") }
+        update: invoiceData(companyId, 0, 1500, "pendiente_pago"),
+        create: { id: ids.invoice, ...invoiceData(companyId, 0, 1500, "pendiente_pago") }
       });
       await prisma.client.update({ where: { id: ids.client }, data: { estado: "pendiente_cobro" } });
       return;
     case 9:
-      await upsertPayment(ids.partialPayment, 500, "pago_parcial", "Pago parcial de anticipo.");
-      await recalculateInvoice();
+      await upsertPayment(companyId, ids.partialPayment, 500, "pago_parcial", "Pago parcial de anticipo.");
+      await recalculateInvoice(companyId);
       return;
     case 10:
       await prisma.reminder.upsert({
         where: { id: ids.collectionReminder },
-        update: collectionReminderData(),
-        create: { id: ids.collectionReminder, ...collectionReminderData() }
+        update: collectionReminderData(companyId),
+        create: { id: ids.collectionReminder, ...collectionReminderData(companyId) }
       });
       return;
     case 11:
-      await upsertPayment(ids.finalPayment, 1000, "pago_final", "Pago final recibido.");
-      await recalculateInvoice();
+      await upsertPayment(companyId, ids.finalPayment, 1000, "pago_final", "Pago final recibido.");
+      await recalculateInvoice(companyId);
       return;
     case 12:
       await prisma.work.update({ where: { id: ids.work }, data: { estado: "cerrada", fechaFinPrevista: dayAt(0, 18) } });
@@ -141,18 +151,20 @@ async function applyStep(step: number) {
   }
 }
 
-async function resetGuidedDemo() {
-  await prisma.payment.deleteMany({ where: { id: { in: [ids.partialPayment, ids.finalPayment] } } });
-  await prisma.reminder.deleteMany({ where: { id: { in: [ids.visit, ids.budgetFollowUp, ids.collectionReminder] } } });
-  await prisma.material.deleteMany({ where: { id: ids.material } });
-  await prisma.expense.deleteMany({ where: { id: ids.expense } });
-  await prisma.invoice.deleteMany({ where: { id: ids.invoice } });
-  await prisma.budget.deleteMany({ where: { id: ids.budget } });
-  await prisma.work.deleteMany({ where: { id: ids.work } });
-  await prisma.client.deleteMany({ where: { id: ids.client } });
+async function resetGuidedDemo(companyId: string) {
+  const ids = demoIds(companyId);
+  await prisma.payment.deleteMany({ where: { id: { in: [ids.partialPayment, ids.finalPayment] }, companyId } });
+  await prisma.reminder.deleteMany({ where: { id: { in: [ids.visit, ids.budgetFollowUp, ids.collectionReminder] }, companyId } });
+  await prisma.material.deleteMany({ where: { id: ids.material, companyId } });
+  await prisma.expense.deleteMany({ where: { id: ids.expense, companyId } });
+  await prisma.invoice.deleteMany({ where: { id: ids.invoice, companyId } });
+  await prisma.budget.deleteMany({ where: { id: ids.budget, companyId } });
+  await prisma.work.deleteMany({ where: { id: ids.work, companyId } });
+  await prisma.client.deleteMany({ where: { id: ids.client, companyId } });
 }
 
-async function ensureClient(estado: "nuevo" | "visita_pendiente" | "presupuesto_pendiente" | "seguimiento_pendiente", notas: string) {
+async function ensureClient(companyId: string, estado: "nuevo" | "visita_pendiente" | "presupuesto_pendiente" | "seguimiento_pendiente", notas: string) {
+  const ids = demoIds(companyId);
   await prisma.client.upsert({
     where: { id: ids.client },
     update: {
@@ -168,6 +180,7 @@ async function ensureClient(estado: "nuevo" | "visita_pendiente" | "presupuesto_
     },
     create: {
       id: ids.client,
+      companyId,
       nombre: "Laura Martín",
       telefono: "+34 655 123 456",
       email: "laura.martin@example.com",
@@ -182,8 +195,10 @@ async function ensureClient(estado: "nuevo" | "visita_pendiente" | "presupuesto_
   });
 }
 
-function budgetData(estado: "borrador" | "pendiente_respuesta") {
+function budgetData(companyId: string, estado: "borrador" | "pendiente_respuesta") {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     clienteId: ids.client,
     obraId: null,
     numero: "P-DEMO-BAÑO",
@@ -205,8 +220,10 @@ function budgetData(estado: "borrador" | "pendiente_respuesta") {
   };
 }
 
-function workData(estado: "en_curso" | "cerrada") {
+function workData(companyId: string, estado: "en_curso" | "cerrada") {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     clienteId: ids.client,
     titulo: "Baño Laura Martín",
     direccion: "Calle Azulejo 14, Madrid",
@@ -221,8 +238,10 @@ function workData(estado: "en_curso" | "cerrada") {
   };
 }
 
-function expenseData() {
+function expenseData(companyId: string) {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     obraId: ids.work,
     clienteId: ids.client,
     proveedor: "Suministros Baño Centro",
@@ -235,8 +254,10 @@ function expenseData() {
   };
 }
 
-function materialData(estado: "pendiente" | "entregado") {
+function materialData(companyId: string, estado: "pendiente" | "entregado") {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     obraId: ids.work,
     nombre: "Mampara frontal",
     cantidad: "1 unidad",
@@ -245,8 +266,10 @@ function materialData(estado: "pendiente" | "entregado") {
   };
 }
 
-function invoiceData(pagado: number, pendiente: number, estado: "pendiente_pago" | "parcialmente_pagada" | "pagada") {
+function invoiceData(companyId: string, pagado: number, pendiente: number, estado: "pendiente_pago" | "parcialmente_pagada" | "pagada") {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     clienteId: ids.client,
     obraId: ids.work,
     numero: "F-DEMO-BAÑO",
@@ -262,7 +285,8 @@ function invoiceData(pagado: number, pendiente: number, estado: "pendiente_pago"
   };
 }
 
-async function upsertPayment(id: string, importe: number, tipo: "pago_parcial" | "pago_final", notas: string) {
+async function upsertPayment(companyId: string, id: string, importe: number, tipo: "pago_parcial" | "pago_final", notas: string) {
+  const ids = demoIds(companyId);
   await prisma.payment.upsert({
     where: { id },
     update: {
@@ -274,6 +298,7 @@ async function upsertPayment(id: string, importe: number, tipo: "pago_parcial" |
     },
     create: {
       id,
+      companyId,
       facturaId: ids.invoice,
       clienteId: ids.client,
       obraId: ids.work,
@@ -286,9 +311,10 @@ async function upsertPayment(id: string, importe: number, tipo: "pago_parcial" |
   });
 }
 
-async function recalculateInvoice() {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: ids.invoice },
+async function recalculateInvoice(companyId: string) {
+  const ids = demoIds(companyId);
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: ids.invoice, companyId },
     include: { payments: true }
   });
   if (!invoice) return;
@@ -301,8 +327,10 @@ async function recalculateInvoice() {
   });
 }
 
-function followUpData() {
+function followUpData(companyId: string) {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     clienteId: ids.client,
     obraId: null,
     presupuestoId: ids.budget,
@@ -316,8 +344,10 @@ function followUpData() {
   };
 }
 
-function collectionReminderData() {
+function collectionReminderData(companyId: string) {
+  const ids = demoIds(companyId);
   return {
+    companyId,
     clienteId: ids.client,
     obraId: ids.work,
     facturaId: ids.invoice,
@@ -336,6 +366,22 @@ function dayAt(offset: number, hour: number) {
   date.setDate(date.getDate() + offset);
   date.setHours(hour, 0, 0, 0);
   return date;
+}
+
+async function assertDemoOwnership(companyId: string) {
+  const ids = demoIds(companyId);
+  const records = await Promise.all([
+    prisma.client.findUnique({ where: { id: ids.client }, select: { companyId: true } }),
+    prisma.work.findUnique({ where: { id: ids.work }, select: { companyId: true } }),
+    prisma.budget.findUnique({ where: { id: ids.budget }, select: { companyId: true } }),
+    prisma.invoice.findUnique({ where: { id: ids.invoice }, select: { companyId: true } }),
+    prisma.expense.findUnique({ where: { id: ids.expense }, select: { companyId: true } }),
+    prisma.material.findUnique({ where: { id: ids.material }, select: { companyId: true } }),
+    prisma.payment.findMany({ where: { id: { in: [ids.partialPayment, ids.finalPayment] } }, select: { companyId: true } }),
+    prisma.reminder.findMany({ where: { id: { in: [ids.visit, ids.budgetFollowUp, ids.collectionReminder] } }, select: { companyId: true } }),
+  ]);
+  const owners = records.flatMap((record) => Array.isArray(record) ? record : record ? [record] : []);
+  if (owners.some((record) => record.companyId !== companyId)) throw new Error("GUIDED_DEMO_ID_CONFLICT");
 }
 
 function revalidateAll() {

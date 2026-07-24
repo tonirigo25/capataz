@@ -13,7 +13,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { EmptyState, PageHeader, TableShell } from "@/components/ui-primitives";
+import { CompactFilterBar, EmptyState, PageHeader, TableShell } from "@/components/ui-primitives";
 import {
   formatCurrency,
   formatDate,
@@ -23,7 +23,7 @@ import {
   type BusinessKpi
 } from "@/lib/business-intelligence";
 import { round } from "@/lib/business-metrics";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,11 @@ export default async function BusinessIntelligencePage({
   searchParams: Promise<{ periodo?: string; from?: string; to?: string }>;
 }) {
   const query = await searchParams;
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("reports.view");
+  const { companyId } = auth;
+  const combinedCapabilities = ["work.view", "sales.budgets.view", "sales.invoices.view", "treasury.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
+  const combinedAccess = await Promise.all(combinedCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  if (combinedAccess.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) return <main className="screen"><EmptyState title="Inteligencia restringida" description="Este informe combina métricas globales de ventas, trabajos, cobros, compras, costes y rentabilidad. Consulta los módulos disponibles en tu portal." icon={ShieldAlert} action={<Link href="/hoy" className="secondary-button">Volver a Hoy</Link>} /></main>;
   const summary = await getBusinessIntelligenceSummary({ companyId, period: query.periodo, from: query.from, to: query.to });
   const periodQuery = new URLSearchParams();
   periodQuery.set("periodo", summary.period.id);
@@ -49,7 +53,7 @@ export default async function BusinessIntelligencePage({
         action={<Link href="#metricas" className="secondary-button"><Info size={18} /> Cómo se calcula</Link>}
         secondaryActions={<Link href={`/inteligencia/export?tipo=summary&${periodQuery.toString()}`} className="secondary-button"><Download size={18} /> CSV resumen</Link>}
       >
-        <form action="/inteligencia" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+        <CompactFilterBar><form action="/inteligencia" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
           <label>
             <span className="label mb-1 block">Periodo</span>
             <select className="field" name="periodo" defaultValue={summary.period.id}>
@@ -62,7 +66,7 @@ export default async function BusinessIntelligencePage({
           <Field name="from" label="Desde" defaultValue={query.from ?? ""} />
           <Field name="to" label="Hasta" defaultValue={query.to ?? ""} />
           <button className="primary-button self-end" type="submit">Actualizar</button>
-        </form>
+        </form></CompactFilterBar>
         <p className="mt-3 text-xs font-bold text-slate-500">
           Actualizado {formatDate(summary.updatedAt)} · Zona horaria {summary.period.timezone} · {summary.period.isComplete ? "periodo cerrado" : "periodo en curso"}.
         </p>
@@ -263,7 +267,7 @@ function KpiCard({ kpi }: { kpi: BusinessKpi }) {
 }
 
 function AlertList({ alerts }: { alerts: BusinessAlert[] }) {
-  if (!alerts.length) return <EmptyState title="Sin alertas deterministas" description="No hay facturas vencidas, márgenes negativos ni desviaciones críticas detectadas." icon={ShieldAlert} />;
+  if (!alerts.length) return <EmptyState title="Sin alertas relevantes" description="No hay facturas vencidas, márgenes negativos ni desviaciones críticas detectadas." icon={ShieldAlert} />;
   return (
     <div className="grid gap-2">
       {alerts.map((alert) => (

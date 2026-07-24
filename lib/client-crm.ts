@@ -344,15 +344,15 @@ const clientSelect = {
 
 type ClientCrmRecord = Prisma.ClientGetPayload<{ select: typeof clientSelect }>;
 
-export async function getClientList(query: ClientListQuery, companyId: string): Promise<ClientListResult> {
+export async function getClientList(query: ClientListQuery, companyId: string, scopedClientIds: string[] | null = null): Promise<ClientListResult> {
   const now = new Date();
-  const where = { AND: [{ companyId }, buildClientWhere(query)] };
+  const where = { AND: [{ companyId, ...(scopedClientIds === null ? {} : { id: { in: scopedClientIds } }) }, buildClientWhere(query)] };
   const [clients, typeOptions] = await Promise.all([
     prisma.client.findMany({
       where,
       select: clientSelect
     }),
-    getClientTypeOptions(companyId)
+    scopedClientIds === null ? getClientTypeOptions(companyId) : Promise.resolve([])
   ]);
 
   const filters = parseFilters(query.filtros);

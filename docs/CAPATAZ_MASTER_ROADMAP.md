@@ -369,3 +369,9 @@ Para frontend/PWA: conservar artefacto anterior, versionar cache y poder desacti
 - [ ] UX 390/768/1440, accesibilidad, carga/vacío/error y contenido extremo aprobados.
 - [ ] Textos legales, privacidad, cookies, encargados y derechos RGPD revisados.
 - [ ] Onboarding, soporte, términos comerciales y materiales de tienda coinciden con el producto real.
+# Actualización 22 de julio de 2026 — Orqena
+
+La marca visible evoluciona a **Orqena — Tu negocio, en orden.** La ruta `/capataz`, las variables `CAPATAZ_*`, los nombres históricos y los contratos técnicos compatibles se conservan como aliases durante la Macrofase 1. Se incorporan perfiles sectoriales, onboarding base, contexto conversacional estructurado, memoria confirmable, completitud y relaciones tenant-safe. Estado: completado localmente y pendiente de integración/publicación autorizada. La plataforma comercial, billing, roles finales y despliegue permanecen en Macrofase 2.
+# Macrofase 2 · Plataforma comercial multiempresa
+
+La evolución comercial de Orqena incorpora empresa activa persistente, selector explícito, autorización por capacidades y alcances, planes y entitlements, suscripción local simulada, uso, equipos, invitaciones, plataforma interna, soporte temporal, auditoría y demos. Véase `ORQENA_MACROPHASE_2_REPORT.md` y `ORQENA_LAUNCH_READINESS.md` para evidencia y pendientes externos.

@@ -7,6 +7,7 @@ import type {
   ClientStatus,
   CostBehavior,
   DocumentCategory,
+  DocumentClassification,
   EventoAgendaEstado,
   EventoAgendaTipo,
   ExpenseCategory,
@@ -19,16 +20,34 @@ import type {
   ReminderStatus,
   ReminderType,
   WorkPriority,
-  WorkStatus
+  WorkStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calculateBudgetTotals, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
-import { clientDraftFromFormData, clientDuplicateRedirectUrl, findClientDuplicateCandidate } from "@/lib/client-crm";
+import {
+  calculateBudgetTotals,
+  normalizeLine,
+  parseBudgetLines,
+  serializeBudgetLines,
+} from "@/lib/budget-lines";
+import {
+  clientDraftFromFormData,
+  clientDuplicateRedirectUrl,
+  findClientDuplicateCandidate,
+} from "@/lib/client-crm";
 import { ALLOWED_DOCUMENT_MIME_TYPES } from "@/lib/documents";
 import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
+import {
+  assertScopedEntityAccess,
+  requireApprovalAuthority,
+  requireCapability,
+  resolveAuthorization,
+  resolveScopedEntityIds,
+} from "@/lib/commercial/authorization";
 import { requireCompanyContext } from "@/lib/auth/session";
+import { managementCapability } from "@/lib/commercial/management-capabilities";
+import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 
 type ManualEntity =
   | "cliente"
@@ -46,9 +65,75 @@ type ManualEntity =
   | "foto";
 
 export async function saveManualRecord(formData: FormData) {
-  const { companyId } = await requireCompanyContext();
   const tipo = text(formData, "tipo") as ManualEntity;
   const id = optionalText(formData, "id");
+  const auth = await requireCapability(managementCapability(tipo, Boolean(id)));
+  const { companyId } = auth;
+  await assertManualRecordScope(auth, tipo, id, formData);
+  if (tipo === "presupuesto") {
+    const pricing = await resolveAuthorization(auth, "sales.pricing.view");
+    if (!pricing.allowed) throw new Error("SALES_PRICING_REQUIRED");
+    const workId = optionalText(formData, "obraId");
+    const clientId = optionalText(formData, "clienteId");
+    if (workId)
+      await assertScopedEntityAccess(
+        auth,
+        "sales.pricing.view",
+        "Work",
+        workId,
+      );
+    else if (clientId) {
+      if (auth.scope === "SELECTED_WORKS" || pricing.scope === "SELECTED_WORKS")
+        throw new Error("SCOPE_REQUIRED");
+      await assertScopedEntityAccess(
+        auth,
+        "sales.pricing.view",
+        "Client",
+        clientId,
+      );
+    } else if (pricing.scope !== "COMPANY") throw new Error("SCOPE_REQUIRED");
+  }
+  if (tipo === "presupuesto" && number(formData, "descuento") > 0) {
+    if (!(await resolveAuthorization(auth, "sales.discount.apply")).allowed)
+      throw new Error("PERMISSION_REQUIRED");
+    const subtotal = number(formData, "subtotal");
+    await requireApprovalAuthority(auth, "discount.approve", {
+      amount: number(formData, "total"),
+      discountPercent:
+        subtotal > 0 ? (number(formData, "descuento") / subtotal) * 100 : 100,
+      workId: optionalText(formData, "obraId"),
+      clientId: optionalText(formData, "clienteId"),
+    });
+  }
+  if (
+    tipo === "presupuesto" &&
+    ["aceptado", "rechazado", "caducado"].includes(
+      optionalText(formData, "estado") ?? "",
+    )
+  ) {
+    if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed)
+      throw new Error("PERMISSION_REQUIRED");
+    await requireApprovalAuthority(auth, "quote.approve", {
+      amount: number(formData, "total"),
+      marginPercent: number(formData, "margenEstimado"),
+      workId: optionalText(formData, "obraId"),
+      clientId: optionalText(formData, "clienteId"),
+    });
+  }
+  if (tipo === "factura" && optionalText(formData, "estado") !== "borrador") {
+    if (!(await resolveAuthorization(auth, "sales.invoices.issue")).allowed)
+      throw new Error("PERMISSION_REQUIRED");
+    await requireApprovalAuthority(auth, "invoice.issue", {
+      amount: number(formData, "total"),
+      workId: optionalText(formData, "obraId"),
+      clientId: optionalText(formData, "clienteId"),
+    });
+  }
+  if (tipo === "gasto")
+    await requireApprovalAuthority(auth, "purchase.approve", {
+      amount: number(formData, "importe"),
+      workId: optionalText(formData, "obraId"),
+    });
   const returnTo = optionalText(formData, "returnTo") ?? targetFor(tipo);
 
   switch (tipo) {
@@ -86,7 +171,7 @@ export async function saveManualRecord(formData: FormData) {
       await saveInternalNote(formData, id);
       break;
     case "documento":
-      await saveDocument(formData, id);
+      await saveDocument(formData, id, auth);
       break;
     case "foto":
       await savePhoto(formData, id);
@@ -95,16 +180,33 @@ export async function saveManualRecord(formData: FormData) {
       throw new Error("Tipo de gestión no soportado.");
   }
 
-  if (["cliente", "obra", "presupuesto", "factura", "pago", "gasto", "material", "recordatorio", "eventoAgenda", "documento"].includes(tipo)) {
+  if (
+    [
+      "cliente",
+      "obra",
+      "presupuesto",
+      "factura",
+      "pago",
+      "gasto",
+      "material",
+      "recordatorio",
+      "eventoAgenda",
+      "documento",
+    ].includes(tipo)
+  ) {
     await reevaluateProactiveAfterMutation({
       companyId,
       entityType: tipo,
       entityId: id,
-      clientId: optionalText(formData, "clienteId") ?? optionalText(formData, "clientId"),
+      clientId:
+        optionalText(formData, "clienteId") ??
+        optionalText(formData, "clientId"),
       workId: optionalText(formData, "obraId"),
       invoiceId: optionalText(formData, "facturaId"),
-      budgetId: optionalText(formData, "presupuestoId") ?? optionalText(formData, "budgetId"),
-      reason: `manual_${tipo}_saved`
+      budgetId:
+        optionalText(formData, "presupuestoId") ??
+        optionalText(formData, "budgetId"),
+      reason: `manual_${tipo}_saved`,
     });
   }
 
@@ -122,21 +224,159 @@ export async function saveManualRecord(formData: FormData) {
   redirect(returnTo);
 }
 
+async function assertManualRecordScope(
+  auth: Awaited<ReturnType<typeof requireCapability>>,
+  tipo: ManualEntity,
+  id: string | null,
+  formData: FormData,
+) {
+  const { companyId, capability } = auth;
+  if (tipo === "cliente") {
+    if (!id) return;
+    return assertScopedEntityAccess(auth, "clients.update", "Client", id);
+  }
+  const assertRelated = async (
+    workId?: string | null,
+    clientId?: string | null,
+  ) => {
+    if (workId)
+      await assertScopedEntityAccess(auth, capability, "Work", workId);
+    else if (clientId) {
+      if (auth.scope === "SELECTED_WORKS") throw new Error("SCOPE_REQUIRED");
+      await assertScopedEntityAccess(auth, capability, "Client", clientId);
+    }
+  };
+  const submittedWorkId =
+    optionalText(formData, "obraId") ?? optionalText(formData, "workId");
+  const submittedClientId =
+    optionalText(formData, "clienteId") ?? optionalText(formData, "clientId");
+  await assertRelated(submittedWorkId, submittedClientId);
+  if (tipo === "pago" && !id) {
+    const facturaId = optionalText(formData, "facturaId");
+    if (!facturaId) throw new Error("Factura obligatoria.");
+    const invoice = await prisma.invoice.findFirstOrThrow({
+      where: { id: facturaId, companyId },
+      select: { obraId: true, clienteId: true },
+    });
+    return assertRelated(invoice.obraId, invoice.clienteId);
+  }
+  if (!id && !submittedWorkId && !submittedClientId && auth.scope !== "COMPANY")
+    throw new Error("SCOPE_REQUIRED");
+  if (!id) return;
+  if (tipo === "obra")
+    return assertScopedEntityAccess(auth, "work.update", "Work", id);
+  if (tipo === "documento")
+    return assertScopedEntityAccess(auth, "documents.manage", "Document", id);
+  if (tipo === "recordatorio") {
+    const item = await prisma.reminder.findFirstOrThrow({
+      where: { id, companyId },
+      select: { obraId: true, clienteId: true },
+    });
+    return assertRelated(item.obraId, item.clienteId);
+  }
+  if (tipo === "eventoAgenda") {
+    const item = await prisma.eventoAgenda.findFirstOrThrow({
+      where: { id, companyId },
+      select: { obraId: true, clienteId: true },
+    });
+    return assertRelated(item.obraId, item.clienteId);
+  }
+  if (tipo === "foto") {
+    const item = await prisma.workPhoto.findFirstOrThrow({
+      where: { id, work: { companyId } },
+      select: { obraId: true },
+    });
+    return assertScopedEntityAccess(auth, capability, "Work", item.obraId);
+  }
+  if (tipo === "material") {
+    const item = await prisma.material.findFirstOrThrow({
+      where: { id, companyId },
+      select: { obraId: true },
+    });
+    return assertScopedEntityAccess(auth, capability, "Work", item.obraId);
+  }
+  if (tipo === "presupuesto") {
+    const item = await prisma.budget.findFirstOrThrow({
+      where: { id, companyId },
+      select: {
+        obraId: true,
+        clienteId: true,
+        estado: true,
+        total: true,
+        margenEstimado: true,
+      },
+    });
+    if (item.estado === "aceptado") {
+      if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed)
+        throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
+      await requireApprovalAuthority(auth, "quote.approve", {
+        amount: item.total,
+        marginPercent: item.margenEstimado,
+        workId: item.obraId,
+        clientId: item.clienteId,
+      });
+    }
+    return assertRelated(item.obraId, item.clienteId);
+  }
+  if (tipo === "factura") {
+    const item = await prisma.invoice.findFirstOrThrow({
+      where: { id, companyId },
+      select: { obraId: true, clienteId: true },
+    });
+    return assertRelated(item.obraId, item.clienteId);
+  }
+  if (tipo === "pago") {
+    const item = await prisma.payment.findFirstOrThrow({
+      where: { id, companyId },
+      select: { obraId: true, clienteId: true },
+    });
+    return assertRelated(item.obraId, item.clienteId);
+  }
+  if (tipo === "gasto") {
+    const item = await prisma.expense.findFirstOrThrow({
+      where: { id, companyId },
+      select: { obraId: true, clienteId: true },
+    });
+    return assertRelated(item.obraId, item.clienteId);
+  }
+  if (tipo === "contacto") {
+    const item = await prisma.contact.findFirstOrThrow({
+      where: { id, companyId },
+      select: { clientId: true },
+    });
+    return assertRelated(null, item.clientId);
+  }
+  if (tipo === "notaInterna") {
+    const item = await prisma.internalNote.findFirstOrThrow({
+      where: { id, companyId },
+      select: { workId: true, clientId: true },
+    });
+    return assertRelated(item.workId, item.clientId);
+  }
+}
+
 async function saveClient(formData: FormData, id: string | null) {
   const { companyId } = await requireCompanyContext();
   const draft = clientDraftFromFormData(formData);
-  const duplicateConfirmed = optionalText(formData, "confirmDuplicate") === "true";
+  const duplicateConfirmed =
+    optionalText(formData, "confirmDuplicate") === "true";
   if (!id && !duplicateConfirmed) {
     const duplicate = await findClientDuplicateCandidate(draft, companyId);
     if (duplicate) {
       const target = optionalText(formData, "returnTo") ?? "/clientes";
-      redirect(`${clientDuplicateRedirectUrl(draft, duplicate)}&returnTo=${encodeURIComponent(target)}`);
+      redirect(
+        `${clientDuplicateRedirectUrl(draft, duplicate)}&returnTo=${encodeURIComponent(target)}`,
+      );
     }
   }
 
   const data = {
     companyId,
-    nombre: draft.nombre ?? draft.razonSocial ?? draft.nombreComercial ?? "Cliente sin nombre",
+    nombre:
+      draft.nombre ??
+      draft.razonSocial ??
+      draft.nombreComercial ??
+      "Cliente sin nombre",
     nombreComercial: draft.nombreComercial,
     razonSocial: draft.razonSocial,
     nifCif: draft.nifCif,
@@ -159,7 +399,7 @@ async function saveClient(formData: FormData, id: string | null) {
     estado: (draft.estado ?? "pendiente_datos") as ClientStatus,
     origen: draft.origen ?? "Manual",
     notas: draft.notas,
-    ultimaInteraccion: optionalDate(formData, "ultimaInteraccion")
+    ultimaInteraccion: optionalDate(formData, "ultimaInteraccion"),
   };
 
   if (id) await prisma.client.updateMany({ where: { id, companyId }, data });
@@ -167,7 +407,17 @@ async function saveClient(formData: FormData, id: string | null) {
 }
 
 async function saveWork(formData: FormData, id: string | null) {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCompanyContext();
+  const { companyId } = auth;
+  const allowed = async (
+    capability: Parameters<typeof resolveAuthorization>[1],
+  ) => (await resolveAuthorization(auth, capability)).allowed;
+  const canSales = await allowed("sales.budgets.view");
+  const canInternalCost = await allowed("internal_cost.view");
+  const canPurchaseCost = await allowed("purchase_cost.view");
+  const canMargin =
+    (await allowed("margin_amount.view")) ||
+    (await allowed("margin_percent.view"));
   const data = {
     companyId,
     numeroInterno: optionalText(formData, "numeroInterno"),
@@ -195,56 +445,111 @@ async function saveWork(formData: FormData, id: string | null) {
     descripcion: optionalText(formData, "descripcion"),
     observacionesInternas: optionalText(formData, "observacionesInternas"),
     notasPrivadas: optionalText(formData, "notasPrivadas"),
-    presupuestoAprobado: number(formData, "presupuestoAprobado"),
-    costePrevisto: number(formData, "costePrevisto"),
-    gastoReal: number(formData, "gastoReal"),
-    margenEstimado: number(formData, "margenEstimado"),
+    ...(canSales && formData.has("presupuestoAprobado")
+      ? { presupuestoAprobado: number(formData, "presupuestoAprobado") }
+      : {}),
+    ...(canInternalCost && formData.has("costePrevisto")
+      ? { costePrevisto: number(formData, "costePrevisto") }
+      : {}),
+    ...(canPurchaseCost && formData.has("gastoReal")
+      ? { gastoReal: number(formData, "gastoReal") }
+      : {}),
+    ...(canMargin && formData.has("margenEstimado")
+      ? { margenEstimado: number(formData, "margenEstimado") }
+      : {}),
     horasEstimadas: number(formData, "horasEstimadas"),
     horasReales: number(formData, "horasReales"),
-    subcontratasCoste: number(formData, "subcontratasCoste"),
+    ...(canPurchaseCost && formData.has("subcontratasCoste")
+      ? { subcontratasCoste: number(formData, "subcontratasCoste") }
+      : {}),
     archivada: formData.get("archivada") === "on",
-    archivadaAt: formData.get("archivada") === "on" ? optionalDate(formData, "archivadaAt") ?? new Date() : null,
-    notas: optionalText(formData, "notas")
+    archivadaAt:
+      formData.get("archivada") === "on"
+        ? (optionalDate(formData, "archivadaAt") ?? new Date())
+        : null,
+    notas: optionalText(formData, "notas"),
   };
 
   if (id) await prisma.work.updateMany({ where: { id, companyId }, data });
-  else await prisma.work.create({ data });
+  else
+    await prisma.work.create({
+      data: {
+        ...data,
+        presupuestoAprobado: data.presupuestoAprobado ?? 0,
+        costePrevisto: data.costePrevisto ?? 0,
+        gastoReal: data.gastoReal ?? 0,
+        margenEstimado: data.margenEstimado ?? 0,
+        subcontratasCoste: data.subcontratasCoste ?? 0,
+      },
+    });
 }
 
 async function saveBudget(formData: FormData, id: string | null) {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCompanyContext();
+  const { companyId } = auth;
+  const canMargin =
+    (await resolveAuthorization(auth, "margin_amount.view")).allowed ||
+    (await resolveAuthorization(auth, "margin_percent.view")).allowed;
   const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
   const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
   const descuento = number(formData, "descuento");
-  const calculated = calculateBudgetTotals(lines, number(formData, "ivaPercent", 21), descuento);
+  const calculated = calculateBudgetTotals(
+    lines,
+    number(formData, "ivaPercent", 21),
+    descuento,
+  );
   const subtotal = number(formData, "subtotal", calculated.subtotal);
   const iva = number(formData, "iva", calculated.iva);
-  const total = number(formData, "total", Math.max(0, subtotal - descuento + iva));
+  const total = number(
+    formData,
+    "total",
+    Math.max(0, subtotal - descuento + iva),
+  );
   const requestedNumero = optionalText(formData, "numero");
   const data = {
     companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
     titulo: text(formData, "titulo"),
-    partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), subtotal),
+    partidas: lines.length
+      ? serializeBudgetLines(lines)
+      : normalizePartidas(optionalText(formData, "partidas"), subtotal),
     subtotal,
     iva,
     descuento,
     total,
-    margenEstimado: number(formData, "margenEstimado"),
+    ...(canMargin && formData.has("margenEstimado")
+      ? { margenEstimado: number(formData, "margenEstimado") }
+      : {}),
     estado: text(formData, "estado") as BudgetStatus,
     fechaEnvio: optionalDate(formData, "fechaEnvio"),
     fechaValidez: optionalDate(formData, "fechaValidez"),
     fechaSeguimiento: optionalDate(formData, "fechaSeguimiento"),
     condiciones: optionalText(formData, "condiciones"),
     observaciones: optionalText(formData, "observaciones"),
-    formaPago: optionalText(formData, "formaPago")
+    formaPago: optionalText(formData, "formaPago"),
   };
 
   if (id) {
-    await prisma.budget.updateMany({ where: { id, companyId }, data: { ...data, ...(requestedNumero ? { numero: requestedNumero } : {}) } });
+    await prisma.budget.updateMany({
+      where: { id, companyId },
+      data: {
+        ...data,
+        ...(requestedNumero ? { numero: requestedNumero } : {}),
+      },
+    });
   } else {
-    await prisma.$transaction(async (tx) => tx.budget.create({ data: { ...data, numero: requestedNumero ?? await reserveDocumentNumberInTransaction(tx, companyId, "budget") } }));
+    await prisma.$transaction(async (tx) =>
+      tx.budget.create({
+        data: {
+          ...data,
+          margenEstimado: data.margenEstimado ?? 0,
+          numero:
+            requestedNumero ??
+            (await reserveDocumentNumberInTransaction(tx, companyId, "budget")),
+        },
+      }),
+    );
   }
 }
 
@@ -252,7 +557,11 @@ async function saveInvoice(formData: FormData, id: string | null) {
   const { companyId } = await requireCompanyContext();
   const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
   const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
-  const calculated = calculateBudgetTotals(lines, number(formData, "ivaPercent", 21), 0);
+  const calculated = calculateBudgetTotals(
+    lines,
+    number(formData, "ivaPercent", 21),
+    0,
+  );
   const importeBase = number(formData, "importeBase", calculated.subtotal);
   const iva = number(formData, "iva", calculated.iva);
   const total = number(formData, "total", importeBase + iva);
@@ -267,7 +576,9 @@ async function saveInvoice(formData: FormData, id: string | null) {
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
     concepto: text(formData, "concepto"),
-    partidas: lines.length ? serializeBudgetLines(lines) : normalizePartidas(optionalText(formData, "partidas"), importeBase),
+    partidas: lines.length
+      ? serializeBudgetLines(lines)
+      : normalizePartidas(optionalText(formData, "partidas"), importeBase),
     importeBase,
     iva,
     total,
@@ -275,21 +586,55 @@ async function saveInvoice(formData: FormData, id: string | null) {
     pendiente,
     fechaEmision: requiredDate(formData, "fechaEmision"),
     fechaVencimiento,
-    estado: manualStatus === "borrador" ? "borrador" : pendingStateRequiresAuto(total, pagado, pendiente, fechaVencimiento) ? autoStatus : manualStatus ?? autoStatus,
+    estado:
+      manualStatus === "borrador"
+        ? "borrador"
+        : pendingStateRequiresAuto(total, pagado, pendiente, fechaVencimiento)
+          ? autoStatus
+          : (manualStatus ?? autoStatus),
     observaciones: optionalText(formData, "observaciones"),
     metodoPago: optionalText(formData, "metodoPago"),
-    datosBancarios: optionalText(formData, "datosBancarios")
+    datosBancarios: optionalText(formData, "datosBancarios"),
   };
 
   if (id) {
-    await prisma.invoice.updateMany({ where: { id, companyId }, data: { ...data, ...(requestedNumero ? { numero: requestedNumero } : {}) } });
+    await prisma.invoice.updateMany({
+      where: { id, companyId },
+      data: {
+        ...data,
+        ...(requestedNumero ? { numero: requestedNumero } : {}),
+      },
+    });
   } else {
-    await prisma.$transaction(async (tx) => tx.invoice.create({ data: { ...data, numero: requestedNumero ?? await reserveDocumentNumberInTransaction(tx, companyId, "invoice") } }));
+    await prisma.$transaction(async (tx) =>
+      tx.invoice.create({
+        data: {
+          ...data,
+          numero:
+            requestedNumero ??
+            (await reserveDocumentNumberInTransaction(
+              tx,
+              companyId,
+              "invoice",
+            )),
+        },
+      }),
+    );
   }
 }
 
-function pendingStateRequiresAuto(total: number, paid: number, pending: number, dueDate: Date) {
-  return pending <= 0 || (paid > 0 && pending > 0) || dueDate < startOfToday() || pending < total;
+function pendingStateRequiresAuto(
+  total: number,
+  paid: number,
+  pending: number,
+  dueDate: Date,
+) {
+  return (
+    pending <= 0 ||
+    (paid > 0 && pending > 0) ||
+    dueDate < startOfToday() ||
+    pending < total
+  );
 }
 
 function startOfToday() {
@@ -300,7 +645,9 @@ function startOfToday() {
 async function savePayment(formData: FormData, id: string | null) {
   const { companyId } = await requireCompanyContext();
   const facturaId = text(formData, "facturaId");
-  const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: facturaId, companyId },
+  });
   if (!invoice) throw new Error("Factura no encontrada.");
 
   const data = {
@@ -312,7 +659,7 @@ async function savePayment(formData: FormData, id: string | null) {
     metodo: text(formData, "metodo"),
     fecha: requiredDate(formData, "fecha"),
     tipo: text(formData, "tipoPago") as PaymentType,
-    notas: optionalText(formData, "notas")
+    notas: optionalText(formData, "notas"),
   };
 
   if (id) await prisma.payment.updateMany({ where: { id, companyId }, data });
@@ -324,7 +671,9 @@ async function savePayment(formData: FormData, id: string | null) {
 async function saveExpense(formData: FormData, id: string | null) {
   const { companyId } = await requireCompanyContext();
   const obraId = text(formData, "obraId");
-  const work = await prisma.work.findFirst({ where: { id: obraId, companyId } });
+  const work = await prisma.work.findFirst({
+    where: { id: obraId, companyId },
+  });
   const data = {
     companyId,
     obraId,
@@ -334,12 +683,16 @@ async function saveExpense(formData: FormData, id: string | null) {
     categoria: text(formData, "categoria") as ExpenseCategory,
     importe: number(formData, "importe"),
     fecha: requiredDate(formData, "fecha"),
-    paymentStatus: optionalText(formData, "paymentStatus") as ExpenseCashStatus | null,
+    paymentStatus: optionalText(
+      formData,
+      "paymentStatus",
+    ) as ExpenseCashStatus | null,
     paymentDueDate: optionalDate(formData, "paymentDueDate"),
     paidAt: optionalDate(formData, "paidAt"),
-    costBehavior: (optionalText(formData, "costBehavior") ?? "unknown") as CostBehavior,
+    costBehavior: (optionalText(formData, "costBehavior") ??
+      "unknown") as CostBehavior,
     fotoTicketUrl: optionalText(formData, "fotoTicketUrl"),
-    notas: optionalText(formData, "notas")
+    notas: optionalText(formData, "notas"),
   };
 
   if (id) await prisma.expense.updateMany({ where: { id, companyId }, data });
@@ -354,7 +707,7 @@ async function saveMaterial(formData: FormData, id: string | null) {
     nombre: text(formData, "nombre"),
     cantidad: text(formData, "cantidad"),
     estado: text(formData, "estado") as MaterialStatus,
-    notas: optionalText(formData, "notas")
+    notas: optionalText(formData, "notas"),
   };
 
   if (id) await prisma.material.updateMany({ where: { id, companyId }, data });
@@ -376,8 +729,11 @@ async function saveReminder(formData: FormData, id: string | null) {
     mensaje: text(formData, "mensaje"),
     fechaProgramada: requiredDate(formData, "fechaProgramada"),
     estado,
-    requiereConfirmacion: estado === "pendiente_confirmacion" || formData.get("requiereConfirmacion") === "on",
-    confirmadoPorUsuario: estado === "programado" || formData.get("confirmadoPorUsuario") === "on"
+    requiereConfirmacion:
+      estado === "pendiente_confirmacion" ||
+      formData.get("requiereConfirmacion") === "on",
+    confirmadoPorUsuario:
+      estado === "programado" || formData.get("confirmadoPorUsuario") === "on",
   };
 
   if (id) await prisma.reminder.updateMany({ where: { id, companyId }, data });
@@ -385,8 +741,55 @@ async function saveReminder(formData: FormData, id: string | null) {
 }
 
 async function saveAgendaEvent(formData: FormData, id: string | null) {
-  const { companyId } = await requireCompanyContext();
+  const auth = await requireCapability("agenda.manage");
+  const { companyId } = auth;
   const estado = text(formData, "estado") as EventoAgendaEstado;
+  let clienteId = optionalText(formData, "clienteId");
+  const obraId = optionalText(formData, "obraId");
+  const presupuestoId = optionalText(formData, "presupuestoId");
+  const facturaId = optionalText(formData, "facturaId");
+  const contactId = optionalText(formData, "contactId");
+  const [work, budget, invoice, contact] = await Promise.all([
+    obraId
+      ? prisma.work.findFirst({
+          where: { id: obraId, companyId },
+          select: { clienteId: true },
+        })
+      : null,
+    presupuestoId
+      ? prisma.budget.findFirst({
+          where: { id: presupuestoId, companyId },
+          select: { clienteId: true, obraId: true },
+        })
+      : null,
+    facturaId
+      ? prisma.invoice.findFirst({
+          where: { id: facturaId, companyId },
+          select: { clienteId: true, obraId: true },
+        })
+      : null,
+    contactId
+      ? prisma.contact.findFirst({
+          where: { id: contactId, companyId },
+          select: { clientId: true },
+        })
+      : null,
+  ]);
+  if (obraId && !work) throw new Error("Trabajo no disponible.");
+  const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
+  if (scopedWorkIds !== null && (!obraId || !scopedWorkIds.includes(obraId)))
+    throw new Error("Trabajo no asignado.");
+  if (work) clienteId = work.clienteId;
+  if (
+    (budget &&
+      (budget.clienteId !== clienteId ||
+        (obraId && budget.obraId && budget.obraId !== obraId))) ||
+    (invoice &&
+      (invoice.clienteId !== clienteId ||
+        (obraId && invoice.obraId && invoice.obraId !== obraId))) ||
+    (contact && contact.clientId !== clienteId)
+  )
+    throw new Error("Las relaciones de agenda no son compatibles.");
   const data = {
     companyId,
     titulo: text(formData, "titulo"),
@@ -397,20 +800,22 @@ async function saveAgendaEvent(formData: FormData, id: string | null) {
     fechaFin: optionalDate(formData, "fechaFin"),
     horaInicio: optionalText(formData, "horaInicio"),
     horaFin: optionalText(formData, "horaFin"),
-    clienteId: optionalText(formData, "clienteId"),
-    obraId: optionalText(formData, "obraId"),
-    presupuestoId: optionalText(formData, "presupuestoId"),
-    facturaId: optionalText(formData, "facturaId"),
+    clienteId,
+    obraId,
+    presupuestoId,
+    facturaId,
     recordatorioId: optionalText(formData, "recordatorioId"),
-    contactId: optionalText(formData, "contactId"),
+    contactId,
     direccion: optionalText(formData, "direccion"),
     notas: optionalText(formData, "notas"),
     requiereConfirmacion: formData.get("requiereConfirmacion") === "on",
     confirmadoPorUsuario:
-      ["confirmado", "realizado"].includes(estado) || formData.get("confirmadoPorUsuario") === "on"
+      ["confirmado", "realizado"].includes(estado) ||
+      formData.get("confirmadoPorUsuario") === "on",
   };
 
-  if (id) await prisma.eventoAgenda.updateMany({ where: { id, companyId }, data });
+  if (id)
+    await prisma.eventoAgenda.updateMany({ where: { id, companyId }, data });
   else await prisma.eventoAgenda.create({ data });
 }
 
@@ -420,8 +825,17 @@ async function saveContact(formData: FormData, id: string | null) {
   const isPrimary = formData.get("isPrimary") === "on";
   const isBillingContact = formData.get("isBillingContact") === "on";
   const isSiteContact = formData.get("isSiteContact") === "on";
-  const archivedAt = formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null;
-  if (!(await prisma.client.findFirst({ where: { id: clientId, companyId }, select: { id: true } }))) throw new Error("Cliente no disponible.");
+  const archivedAt =
+    formData.get("archived") === "on"
+      ? (optionalDate(formData, "archivedAt") ?? new Date())
+      : null;
+  if (
+    !(await prisma.client.findFirst({
+      where: { id: clientId, companyId },
+      select: { id: true },
+    }))
+  )
+    throw new Error("Cliente no disponible.");
   const data = {
     companyId,
     clientId,
@@ -434,33 +848,61 @@ async function saveContact(formData: FormData, id: string | null) {
     isBillingContact,
     isSiteContact,
     notes: optionalText(formData, "notes"),
-    archivedAt
+    archivedAt,
   };
 
   await prisma.$transaction(async (tx) => {
-    const otherContacts = id ? { companyId, clientId, id: { not: id } } : { companyId, clientId };
-    if (isPrimary) await tx.contact.updateMany({ where: otherContacts, data: { isPrimary: false } });
-    if (isBillingContact) await tx.contact.updateMany({ where: otherContacts, data: { isBillingContact: false } });
-    if (isSiteContact) await tx.contact.updateMany({ where: otherContacts, data: { isSiteContact: false } });
-    const ownedId = id ? (await tx.contact.findFirstOrThrow({ where: { id, companyId }, select: { id: true } })).id : null;
-    const contact = ownedId ? await tx.contact.update({ where: { id: ownedId }, data }) : await tx.contact.create({ data });
+    const otherContacts = id
+      ? { companyId, clientId, id: { not: id } }
+      : { companyId, clientId };
+    if (isPrimary)
+      await tx.contact.updateMany({
+        where: otherContacts,
+        data: { isPrimary: false },
+      });
+    if (isBillingContact)
+      await tx.contact.updateMany({
+        where: otherContacts,
+        data: { isBillingContact: false },
+      });
+    if (isSiteContact)
+      await tx.contact.updateMany({
+        where: otherContacts,
+        data: { isSiteContact: false },
+      });
+    const ownedId = id
+      ? (
+          await tx.contact.findFirstOrThrow({
+            where: { id, companyId },
+            select: { id: true },
+          })
+        ).id
+      : null;
+    const contact = ownedId
+      ? await tx.contact.update({ where: { id: ownedId }, data })
+      : await tx.contact.create({ data });
     if (!contact.archivedAt) {
       await syncLegacyContactFields(tx, contact);
     }
   });
 }
 
-async function syncLegacyContactFields(tx: PrismaTransaction, contact: {
-  clientId: string;
-  nombre: string;
-  apellidos: string | null;
-  cargo: string | null;
-  telefono: string | null;
-  email: string | null;
-  isPrimary: boolean;
-  isBillingContact: boolean;
-}) {
-  const fullName = [contact.nombre, contact.apellidos].filter(Boolean).join(" ");
+async function syncLegacyContactFields(
+  tx: PrismaTransaction,
+  contact: {
+    clientId: string;
+    nombre: string;
+    apellidos: string | null;
+    cargo: string | null;
+    telefono: string | null;
+    email: string | null;
+    isPrimary: boolean;
+    isBillingContact: boolean;
+  },
+) {
+  const fullName = [contact.nombre, contact.apellidos]
+    .filter(Boolean)
+    .join(" ");
   if (contact.isPrimary) {
     await tx.client.update({
       where: { id: contact.clientId },
@@ -468,8 +910,8 @@ async function syncLegacyContactFields(tx: PrismaTransaction, contact: {
         contactoPrincipalNombre: fullName,
         contactoPrincipalCargo: contact.cargo,
         contactoPrincipalTelefono: contact.telefono,
-        contactoPrincipalEmail: contact.email
-      }
+        contactoPrincipalEmail: contact.email,
+      },
     });
   }
   if (contact.isBillingContact) {
@@ -478,8 +920,8 @@ async function syncLegacyContactFields(tx: PrismaTransaction, contact: {
       data: {
         contactoFacturacionNombre: fullName,
         telefonoFacturacion: contact.telefono,
-        emailFacturacion: contact.email
-      }
+        emailFacturacion: contact.email,
+      },
     });
   }
 }
@@ -494,19 +936,37 @@ async function saveInternalNote(formData: FormData, id: string | null) {
     budgetId: optionalText(formData, "budgetId"),
     authorId: optionalText(formData, "authorId"),
     content: text(formData, "content"),
-    archivedAt: formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null
+    archivedAt:
+      formData.get("archived") === "on"
+        ? (optionalDate(formData, "archivedAt") ?? new Date())
+        : null,
   };
-  if (!data.clientId && !data.workId && !data.invoiceId && !data.budgetId) throw new Error("La nota interna debe estar asociada a una entidad.");
-  if (id) await prisma.internalNote.updateMany({ where: { id, companyId }, data });
+  if (!data.clientId && !data.workId && !data.invoiceId && !data.budgetId)
+    throw new Error("La nota interna debe estar asociada a una entidad.");
+  if (id)
+    await prisma.internalNote.updateMany({ where: { id, companyId }, data });
   else await prisma.internalNote.create({ data });
 }
 
-async function saveDocument(formData: FormData, id: string | null) {
-  const { companyId } = await requireCompanyContext();
+async function saveDocument(
+  formData: FormData,
+  id: string | null,
+  auth: Awaited<ReturnType<typeof requireCapability>>,
+) {
+  const { companyId, userId } = auth;
+  const manifest = await buildPortalManifest(auth);
+  const requestedClassification = (optionalText(formData, "classification") ??
+    manifest.documentClasses[0]) as DocumentClassification | undefined;
+  if (
+    !requestedClassification ||
+    !manifest.documentClasses.includes(requestedClassification)
+  )
+    throw new Error("DOCUMENT_CLASSIFICATION_FORBIDDEN");
   const url = optionalText(formData, "url");
   const safeUrl = assertSafeDocumentUrl(url);
   const mimeType = optionalText(formData, "mimeType");
-  if (mimeType && !ALLOWED_DOCUMENT_MIME_TYPES.includes(mimeType)) throw new Error("Tipo de archivo no permitido.");
+  if (mimeType && !ALLOWED_DOCUMENT_MIME_TYPES.includes(mimeType))
+    throw new Error("Tipo de archivo no permitido.");
   const data = {
     companyId,
     name: text(formData, "name"),
@@ -516,15 +976,26 @@ async function saveDocument(formData: FormData, id: string | null) {
     storageKey: optionalText(formData, "storageKey"),
     url: safeUrl,
     category: text(formData, "category") as DocumentCategory,
+    classification: requestedClassification,
     clientId: optionalText(formData, "clientId"),
     workId: optionalText(formData, "workId"),
     budgetId: optionalText(formData, "budgetId"),
     invoiceId: optionalText(formData, "invoiceId"),
     expenseId: optionalText(formData, "expenseId"),
-    uploadedById: optionalText(formData, "uploadedById"),
-    archivedAt: formData.get("archived") === "on" ? optionalDate(formData, "archivedAt") ?? new Date() : null
+    uploadedById: userId,
+    archivedAt:
+      formData.get("archived") === "on"
+        ? (optionalDate(formData, "archivedAt") ?? new Date())
+        : null,
   };
-  if (!data.clientId && !data.workId && !data.budgetId && !data.invoiceId && !data.expenseId) throw new Error("El documento debe estar asociado a una entidad.");
+  if (
+    !data.clientId &&
+    !data.workId &&
+    !data.budgetId &&
+    !data.invoiceId &&
+    !data.expenseId
+  )
+    throw new Error("El documento debe estar asociado a una entidad.");
   if (id) await prisma.document.updateMany({ where: { id, companyId }, data });
   else await prisma.document.create({ data });
 }
@@ -541,27 +1012,45 @@ async function savePhoto(formData: FormData, id: string | null) {
     autor: optionalText(formData, "autor"),
     ubicacion: optionalText(formData, "ubicacion"),
     notas: optionalText(formData, "notas"),
-    tomadaEn: requiredDate(formData, "tomadaEn")
+    tomadaEn: requiredDate(formData, "tomadaEn"),
   };
-  if (!(await prisma.work.findFirst({ where: { id: data.obraId, companyId }, select: { id: true } }))) throw new Error("Obra no disponible.");
-  if (data.documentId && !(await prisma.document.findFirst({ where: { id: data.documentId, companyId }, select: { id: true } }))) throw new Error("Documento no disponible.");
+  if (
+    !(await prisma.work.findFirst({
+      where: { id: data.obraId, companyId },
+      select: { id: true },
+    }))
+  )
+    throw new Error("Obra no disponible.");
+  if (
+    data.documentId &&
+    !(await prisma.document.findFirst({
+      where: { id: data.documentId, companyId },
+      select: { id: true },
+    }))
+  )
+    throw new Error("Documento no disponible.");
   if (id) {
-    const photo = await prisma.workPhoto.findFirst({ where: { id, work: { companyId } }, select: { id: true } });
+    const photo = await prisma.workPhoto.findFirst({
+      where: { id, work: { companyId } },
+      select: { id: true },
+    });
     if (!photo) throw new Error("Foto no disponible.");
     await prisma.workPhoto.update({ where: { id: photo.id }, data });
-  }
-  else await prisma.workPhoto.create({ data });
+  } else await prisma.workPhoto.create({ data });
 }
 
 async function recalculateInvoice(facturaId: string) {
   const { companyId } = await requireCompanyContext();
   const invoice = await prisma.invoice.findFirst({
     where: { id: facturaId, companyId },
-    include: { payments: true }
+    include: { payments: true },
   });
   if (!invoice) return;
 
-  const pagado = invoice.payments.reduce((sum, payment) => sum + payment.importe, 0);
+  const pagado = invoice.payments.reduce(
+    (sum, payment) => sum + payment.importe,
+    0,
+  );
   const pendiente = Math.max(0, invoice.total - pagado);
 
   await prisma.invoice.updateMany({
@@ -569,8 +1058,12 @@ async function recalculateInvoice(facturaId: string) {
     data: {
       pagado,
       pendiente,
-      estado: deriveInvoiceStatus(invoice.total, pendiente, invoice.fechaVencimiento)
-    }
+      estado: deriveInvoiceStatus(
+        invoice.total,
+        pendiente,
+        invoice.fechaVencimiento,
+      ),
+    },
   });
 }
 
@@ -641,7 +1134,7 @@ function targetFor(tipo: ManualEntity) {
     contacto: "/clientes",
     notaInterna: "/hoy",
     documento: "/documentos",
-    foto: "/obras"
+    foto: "/obras",
   };
   return targets[tipo] ?? "/hoy";
 }

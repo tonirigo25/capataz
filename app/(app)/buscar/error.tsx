@@ -8,7 +8,7 @@ export default function SearchError({ reset }: { reset: () => void }) {
       <PageHeader title="Búsqueda" description="Encuentra información de toda la empresa." />
       <ErrorState
         title="No se pudo completar la búsqueda"
-        description="El resto de Capataz sigue disponible. Vuelve a intentarlo."
+        description="El resto de Orqena sigue disponible. Vuelve a intentarlo."
         retry={<button type="button" className="secondary-button" onClick={reset}>Reintentar</button>}
       />
     </ProductPage>

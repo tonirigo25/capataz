@@ -1,74 +1,41 @@
-import { ArrowRight, Bot, ClipboardCheck, ShieldCheck, WalletCards } from "lucide-react";
+import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Bot, CalendarDays, Check, ChevronDown, FileText, LockKeyhole, ShieldCheck, Users, WalletCards, type LucideIcon } from "lucide-react";
+import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PortalPreview } from "@/components/marketing/portal-preview";
+import { brand } from "@/lib/brand";
+import { isPublicRegistrationEnabled } from "@/lib/public-registration";
 
-const highlights = [
-  { icon: Bot, label: "Chat de obra", text: "Apunta gastos, pagos y seguimientos con frases normales." },
-  { icon: ClipboardCheck, label: "Día claro", text: "Leads, visitas, materiales y tareas urgentes en una vista." },
-  { icon: WalletCards, label: "Cobros bajo control", text: "Facturas vencidas y pagos parciales sin perder el hilo." }
+export const metadata: Metadata = {
+  title: "Orqena — Tu negocio, en orden.",
+  description: "Clientes, trabajo, agenda, documentos y control empresarial conectados en Orqena.",
+  keywords: ["Sistema operativo empresarial con IA", "gestión de clientes", "operaciones", "agenda de equipo"],
+  alternates: { canonical: "/" },
+  openGraph: { title: "Orqena — Tu negocio, en orden.", description: "Un sistema de trabajo conectado para equipos que necesitan claridad y control.", images: [{ url: "/marketing/hero-owner-desktop.webp", width: 1568, height: 1003, alt: "Panel de trabajo de Orqena" }] },
+};
+
+const connected: Array<[LucideIcon, string, string]> = [
+  [Users, "Clientes y equipo", "Relaciones, responsables y próximos pasos en su contexto."],
+  [CalendarDays, "Trabajo y agenda", "Planificación, tareas y actividad sin perseguir información."],
+  [WalletCards, "Ventas y control", "Propuestas, cobros y decisiones con datos conectados."],
+  [FileText, "Documentos", "Archivos vinculados a clientes y trabajos, donde hacen falta."],
 ];
 
-export default function LoginPage() {
-  return (
-    <main className="mx-auto grid min-h-dvh w-full max-w-5xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_420px] lg:items-center">
-      <section className="flex flex-col justify-between gap-8">
-        <div>
-          <div className="mb-8 flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-obra-ink text-xl font-black text-obra-yellow">
-              C
-            </span>
-            <div>
-              <h1 className="text-3xl font-black text-obra-ink">Capataz</h1>
-              <p className="text-sm font-semibold text-slate-500">Tu asistente IA para reformas y construcción.</p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {highlights.map(({ icon: Icon, label, text }) => (
-              <article key={label} className="card p-4">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-obra-yellow/30 text-obra-yellowDark">
-                  <Icon size={21} />
-                </div>
-                <h2 className="text-base font-bold text-obra-ink">{label}</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-600">{text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <div className="hidden rounded-lg border border-obra-yellowDark/20 bg-obra-yellow/20 p-4 text-sm font-semibold text-obra-yellowDark sm:block">
-          Capataz prepara borradores y recordatorios, pero nunca envía WhatsApp, emails, facturas o reclamaciones sin confirmación.
-        </div>
-      </section>
-
-      <section className="card p-5">
-        <div className="mb-5">
-          <h2 className="text-xl font-black text-obra-ink">Tu empresa, bien separada</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Entra en tu espacio de trabajo o crea una empresa nueva con sus propios datos y miembros.
-          </p>
-        </div>
-
-        <div className="mt-5 grid gap-3">
-          <Link href="/login" className="primary-button w-full">Entrar</Link>
-          <Link href="/registro" className="secondary-button w-full">
-            <ShieldCheck size={18} />
-            Crear cuenta
-            <ArrowRight size={17} />
-          </Link>
-        </div>
-
-        <div className="mt-5 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-          La sesión se valida en el servidor y la empresa activa no se toma de campos enviados por el navegador.
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold text-slate-600">
-          <Link href="/privacidad" className="hover:text-obra-ink">Privacidad</Link>
-          <Link href="/terminos" className="hover:text-obra-ink">Términos</Link>
-          <Link href="/cookies" className="hover:text-obra-ink">Cookies</Link>
-          <Link href="/politicas" className="hover:text-obra-ink">Políticas</Link>
-          <Link href="/soporte" className="hover:text-obra-ink">Soporte</Link>
-        </div>
-      </section>
-    </main>
-  );
+export default function LandingPage() {
+  const publicRegistrationEnabled = isPublicRegistrationEnabled();
+  return <MarketingPage>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", name: brand.legalProductName, url: "/", logo: "/icons/orqena.svg" }, { "@type": "SoftwareApplication", name: brand.productName, applicationCategory: "BusinessApplication", operatingSystem: "Web", description: brand.metadata.description }] }) }} />
+    <section className="marketing-hero"><div className="marketing-container grid items-center gap-12 py-14 lg:grid-cols-[.92fr_1.08fr] lg:py-24"><div className="relative z-10"><p className="marketing-eyebrow">Sistema operativo para equipos reales</p><h1 className="marketing-display mt-4">Tu negocio, en orden.<br /><span className="text-[#177267]">Sin perder el movimiento.</span></h1><p className="marketing-lede mt-6">Orqena conecta clientes, trabajo, agenda, documentos y control para que cada persona tenga el contexto que necesita para avanzar.</p><div className="mt-8 flex flex-wrap gap-3"><Link href={publicRegistrationEnabled ? "/registro" : "/demo"} className="marketing-button">{publicRegistrationEnabled ? "Empezar" : "Solicitar acceso"} <ArrowRight size={18} /></Link><Link href="#orqena" className="marketing-outline-button">Ver Orqena en acción</Link></div><p className="mt-5 text-xs leading-5 text-content-secondary">{publicRegistrationEnabled ? "Empieza por una acción útil." : "Orqena está disponible como beta privada."} Las decisiones sensibles siempre esperan revisión humana.</p></div><div className="marketing-hero-visual"><div className="marketing-hero-desktop"><Image src="/marketing/hero-owner-desktop.webp" alt="Vista de propietario de Orqena con actividad, agenda y control" width={1568} height={1003} priority sizes="(min-width: 1024px) 58vw, 100vw" /></div><div className="marketing-hero-mobile"><Image src="/marketing/hero-worker-mobile.webp" alt="Portal móvil de un empleado con tareas y agenda" width={1024} height={1536} priority sizes="(min-width: 1024px) 20vw, 35vw" /></div><div className="marketing-proposal-card"><Bot size={19} /><div><strong>Orqena prepara el siguiente paso</strong><p>Revisas, editas y confirmas.</p></div><Check size={18} /></div></div></div></section>
+    <section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16 lg:py-24"><div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr]"><div><p className="marketing-eyebrow">Una visión compartida</p><h2 className="marketing-title mt-4">Menos perseguir información. Más trabajo que avanza.</h2></div><p className="marketing-lede">La operación no sucede en módulos aislados. Orqena mantiene las relaciones visibles: el cliente, el trabajo, la tarea, el documento y la decisión que hay detrás.</p></div><div className="mt-10 grid gap-px overflow-hidden rounded-3xl border border-[#d9dfd4] bg-[#d9dfd4] sm:grid-cols-2">{connected.map(([Icon, title, text]) => <article key={title} className="bg-[#fbfaf5] p-6"><Icon className="text-[#0d5b51]" size={24} /><h3 className="mt-5 text-lg font-black tracking-tight">{title}</h3><p className="mt-2 text-sm leading-6 text-content-secondary">{text}</p></article>)}</div></div></section>
+    <section id="orqena" className="marketing-container grid gap-10 py-16 lg:grid-cols-[1fr_.9fr] lg:py-24"><div className="order-2 lg:order-1"><Image className="marketing-product-image" src="/marketing/orqena-proposal.webp" alt="Propuesta de Orqena preparada para su revisión" width={1586} height={992} sizes="(min-width: 1024px) 50vw, 100vw" /></div><div className="order-1 flex flex-col justify-center lg:order-2"><p className="marketing-eyebrow">Orqena, en contexto</p><h2 className="marketing-title mt-4">La inteligencia no sustituye el criterio. Lo acompaña.</h2><p className="marketing-lede mt-5">Pregunta, encuentra contexto y prepara propuestas dentro del trabajo. Antes de ejecutar una acción importante, tú decides.</p><ul className="mt-7 space-y-3 text-sm font-medium">{["Respuestas con el contexto de la empresa activa", "Propuestas claras, editables y cancelables", "Confirmación humana para acciones sensibles"].map(item => <li key={item} className="flex gap-3"><Check className="mt-0.5 shrink-0 text-[#167366]" size={18} />{item}</li>)}</ul></div></section>
+    <section className="marketing-container py-8 lg:py-12"><div className="grid overflow-hidden rounded-[2rem] bg-[#e7f0ea] lg:grid-cols-[1fr_.9fr]"><div className="p-8 sm:p-12"><p className="marketing-eyebrow">Producto conectado</p><h2 className="marketing-title mt-4">La información se mueve con el trabajo, no entre pestañas.</h2><p className="marketing-lede mt-5">Desde un cliente se entiende su actividad. Desde un trabajo se ve la planificación. Desde una decisión se conserva el porqué.</p><Link className="marketing-text-link mt-7" href="/producto">Explorar el producto <ArrowRight size={17} /></Link></div><Image className="h-full min-h-[280px] w-full object-cover" src="/marketing/client-workflow.webp" alt="Flujo de cliente, trabajo y documentos conectado" width={1568} height={1003} sizes="(min-width: 1024px) 45vw, 100vw" /></div></section>
+    <PortalPreview />
+    <section className="marketing-container grid gap-10 py-16 lg:grid-cols-[.9fr_1.1fr] lg:py-24"><div><p className="marketing-eyebrow">Adaptado al terreno</p><h2 className="marketing-title mt-4">Un lenguaje cercano a tu forma de trabajar.</h2><p className="marketing-lede mt-5">Orqena conserva una base común y adapta etiquetas y prioridades para obra, instalaciones, servicios profesionales, taller, hostelería y más.</p><Link className="marketing-text-link mt-7" href="/sectores">Ver sectores <ArrowRight size={17} /></Link></div><div className="grid gap-3 sm:grid-cols-2">{["Construcción y obra", "Instalaciones", "Servicios profesionales", "Taller y reparación", "Hostelería", "Equipos que trabajan en campo"].map((sector, index) => <Link href="/sectores" key={sector} className="marketing-sector-row"><span>{String(index + 1).padStart(2, "0")}</span><strong>{sector}</strong><ArrowRight size={17} /></Link>)}</div></section>
+    <section className="bg-[#093d35] text-white"><div className="marketing-container grid gap-9 py-16 lg:grid-cols-[.8fr_1.2fr] lg:py-24"><div><p className="marketing-eyebrow text-[#a8d8cd]">Diseñado para el movimiento</p><h2 className="marketing-title mt-4 text-white">El trabajo no espera a que vuelvas al escritorio.</h2><p className="mt-5 max-w-lg leading-7 text-[#d4e1d8]">En móvil, cada persona encuentra sus destinos principales, su agenda y las acciones que tiene asignadas.</p></div><div className="grid grid-cols-2 gap-4"><Image className="rounded-[1.5rem] bg-[#e9efe8] p-2 shadow-2xl" src="/marketing/today-worker.webp" alt="Portal operativo de empleado" width={1448} height={1086} sizes="(min-width: 1024px) 30vw, 50vw" /><Image className="mt-10 rounded-[1.5rem] bg-[#e9efe8] p-2 shadow-2xl" src="/marketing/agenda-mobile.webp" alt="Agenda contextual móvil" width={1024} height={1536} sizes="(min-width: 1024px) 20vw, 35vw" /></div></div></section>
+    <section className="marketing-container grid gap-8 py-16 lg:grid-cols-2 lg:py-24"><div><p className="marketing-eyebrow">Privacidad y control</p><h2 className="marketing-title mt-4">Cada empresa y cada persona, en su lugar.</h2><p className="marketing-lede mt-5">El contexto de empresa, membresía y permisos se comprueba en servidor. La interfaz muestra únicamente lo que corresponde a cada portal.</p><Link className="marketing-text-link mt-7" href="/seguridad">Conocer nuestro enfoque <ArrowRight size={17} /></Link></div><div className="space-y-4">{[[LockKeyhole, "Acceso contextual", "Empresa activa, membresía y alcance comprobados antes de acceder."], [ShieldCheck, "Acciones bajo revisión", "Las operaciones sensibles requieren confirmación explícita."], [FileText, "Trazabilidad útil", "Los cambios relevantes conservan el contexto necesario para revisarlos."]].map(([Icon, title, text]) => { const Mark = Icon as typeof LockKeyhole; return <article key={title as string} className="marketing-control-row"><Mark size={22} /><div><h3>{title as string}</h3><p>{text as string}</p></div></article>; })}</div></section>
+    <section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16 text-center lg:py-24"><p className="marketing-eyebrow">Planes pensados para crecer</p><h2 className="marketing-title mx-auto mt-4 max-w-2xl">Una base para cada etapa, sin inventar condiciones.</h2><p className="marketing-lede mx-auto mt-5">El catálogo actual presenta funcionalidades y el tipo de equipo al que se dirige. Cuando las condiciones comerciales estén definidas, se comunicarán con claridad.</p><Link className="marketing-button mt-8" href="/planes">Ver planes</Link></div></section>
+    <section className="marketing-container py-16 lg:py-24"><div className="grid gap-10 rounded-[2rem] bg-[#e9f0e8] p-7 sm:p-12 lg:grid-cols-[.9fr_1.1fr]"><div><p className="marketing-eyebrow">Preguntas frecuentes</p><h2 className="marketing-title mt-4">Lo importante, sin letra pequeña.</h2></div><div className="space-y-3">{[["¿Orqena se adapta a distintos sectores?", "Sí. Parte de una base de operación común y adapta el lenguaje visible a cada actividad."], ["¿Puedo empezar con una demo?", "Sí. Cuéntanos brevemente cómo trabajáis y prepararemos una conversación útil."], ["¿Qué hace Orqena con IA?", "Ayuda a encontrar contexto y preparar propuestas; tú revisas y confirmas las acciones sensibles."]].map(([question, answer]) => <details key={question} className="marketing-faq"><summary>{question}<ChevronDown size={18} /></summary><p>{answer}</p></details>)}</div></div></section>
+    <section className="marketing-final-cta"><div className="marketing-container py-16 text-center lg:py-24"><p className="marketing-eyebrow text-[#a8d8cd]">Un siguiente paso claro</p><h2 className="marketing-title mx-auto mt-4 max-w-3xl text-white">Pon orden sin parar tu negocio.</h2><p className="mx-auto mt-5 max-w-xl text-[#d4e1d8]">Conoce Orqena con una demostración adaptada a la forma de trabajar de tu equipo.</p><Link className="marketing-button marketing-button--light mt-8" href="/demo">Solicitar una demo <ArrowRight size={18} /></Link></div></section>
+  </MarketingPage>;
 }

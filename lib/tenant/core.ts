@@ -26,26 +26,31 @@ export function companyCore(db: Db, companyId: string) {
     listDocuments: () => db.document.findMany({ where: { companyId, archivedAt: null } }),
     listAccounts: () => db.financialAccount.findMany({ where: { companyId, archivedAt: null } }),
     listMovements: () => db.cashMovement.findMany({ where: { companyId, archivedAt: null } }),
-    dashboard: async () => {
+    dashboard: async (includeEconomic = true) => {
       const [clients, works, budgets, invoices, materials, reminders, expenses] = await Promise.all([
-        db.client.findMany({ where: { companyId }, orderBy: { ultimaInteraccion: "desc" }, include: { budgets: true, invoices: true, works: true } }),
-        db.work.findMany({ where: { companyId }, orderBy: { fechaFinPrevista: "asc" }, include: { client: true, materials: true, invoices: true } }),
-        db.budget.findMany({ where: { companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true, work: true } }),
-        db.invoice.findMany({ where: { companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true, payments: true } }),
+        db.client.findMany({ where: { companyId }, orderBy: { ultimaInteraccion: "desc" }, include: { budgets: includeEconomic, invoices: includeEconomic, works: true } }),
+        db.work.findMany({ where: { companyId }, orderBy: { fechaFinPrevista: "asc" }, include: { client: true, materials: true, invoices: includeEconomic } }),
+        includeEconomic ? db.budget.findMany({ where: { companyId }, orderBy: { fechaCreacion: "desc" }, include: { client: true, work: true } }) : Promise.resolve([]),
+        includeEconomic ? db.invoice.findMany({ where: { companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true, payments: true } }) : Promise.resolve([]),
         db.material.findMany({ where: { companyId }, orderBy: { nombre: "asc" }, include: { work: { include: { client: true } } } }),
-        db.reminder.findMany({ where: { companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true, work: true, invoice: true, budget: true } }),
-        db.expense.findMany({ where: { companyId }, orderBy: { fecha: "desc" }, include: { work: { include: { client: true } } } })
+        db.reminder.findMany({ where: { companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true, work: true, invoice: includeEconomic, budget: includeEconomic } }),
+        includeEconomic ? db.expense.findMany({ where: { companyId }, orderBy: { fecha: "desc" }, include: { work: { include: { client: true } } } }) : Promise.resolve([])
       ]);
       return { clients, works, budgets, invoices, materials, reminders, expenses };
     },
-    agendaSources: () => Promise.all([
-      db.eventoAgenda.findMany({ where: { companyId }, orderBy: { fechaInicio: "asc" }, include: { client: true, contact: true, work: true, budget: true, invoice: true, reminder: true } }),
-      db.reminder.findMany({ where: { companyId }, orderBy: { fechaProgramada: "asc" }, include: { client: true, contact: true, work: true, invoice: true, budget: true } }),
-      db.invoice.findMany({ where: { companyId }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true } }),
-      db.work.findMany({ where: { companyId }, orderBy: { fechaInicio: "asc" }, include: { client: true } }),
-      db.material.findMany({ where: { companyId }, orderBy: { nombre: "asc" }, include: { work: { include: { client: true } } } }),
-      db.budget.findMany({ where: { companyId }, orderBy: { fechaSeguimiento: "asc" }, include: { client: true, work: true } })
-    ]),
+    agendaSources: (includeEconomic = true, scopedWorkIds: string[] | null = null) => {
+      const workScope = scopedWorkIds === null ? {} : { obraId: { in: scopedWorkIds } };
+      const workRelationScope = scopedWorkIds === null ? {} : { work: { id: { in: scopedWorkIds } } };
+      const workIdScope = scopedWorkIds === null ? {} : { id: { in: scopedWorkIds } };
+      return Promise.all([
+        db.eventoAgenda.findMany({ where: { companyId, ...workScope }, orderBy: { fechaInicio: "asc" }, include: { client: true, contact: true, work: true, budget: includeEconomic, invoice: includeEconomic, reminder: true } }),
+        db.reminder.findMany({ where: { companyId, ...workScope }, orderBy: { fechaProgramada: "asc" }, include: { client: true, contact: true, work: true, invoice: includeEconomic, budget: includeEconomic } }),
+        includeEconomic ? db.invoice.findMany({ where: { companyId, ...workScope }, orderBy: { fechaVencimiento: "asc" }, include: { client: true, work: true } }) : Promise.resolve([]),
+        db.work.findMany({ where: { companyId, ...workIdScope }, orderBy: { fechaInicio: "asc" }, include: { client: true } }),
+        db.material.findMany({ where: { companyId, ...workRelationScope }, orderBy: { nombre: "asc" }, include: { work: { include: { client: true } } } }),
+        includeEconomic ? db.budget.findMany({ where: { companyId, ...workScope }, orderBy: { fechaSeguimiento: "asc" }, include: { client: true, work: true } }) : Promise.resolve([])
+      ]);
+    },
     totals: async () => {
       const [invoices, payments, expenses] = await Promise.all([
         db.invoice.aggregate({ where: { companyId }, _sum: { total: true, pendiente: true } }),

@@ -465,11 +465,12 @@ function scopeBusinessSignalDrafts(drafts: BusinessSignalDraft[], companyId?: st
   }));
 }
 
-export async function dismissBusinessSignal(fingerprint: string, reason: string, dismissedBy = "usuario") {
+export async function dismissBusinessSignal(companyId: string, fingerprint: string, reason: string, dismissedBy = "usuario") {
   const cleanReason = reason.trim() || "Descartada por el usuario";
-  const previous = await prisma.businessSignalState.findUnique({ where: { fingerprint } });
-  const state = await prisma.businessSignalState.update({
-    where: { fingerprint },
+  const previous = await prisma.businessSignalState.findFirst({ where: { fingerprint, companyId } });
+  if (!previous) return;
+  await prisma.businessSignalState.updateMany({
+    where: { fingerprint, companyId },
     data: {
       status: "dismissed",
       dismissedAt: new Date(),
@@ -479,6 +480,7 @@ export async function dismissBusinessSignal(fingerprint: string, reason: string,
       snoozeReason: null
     }
   });
+  const state = previous;
   await logProactiveAuditEvent({
     eventType: "signal_status_changed",
     origin: "user",
@@ -516,12 +518,13 @@ export async function dismissBusinessSignal(fingerprint: string, reason: string,
   }
 }
 
-export async function snoozeBusinessSignal(fingerprint: string, preset: SignalSnoozePreset, reason?: string) {
+export async function snoozeBusinessSignal(companyId: string, fingerprint: string, preset: SignalSnoozePreset, reason?: string) {
   const now = new Date();
   const until = resolveSnoozeUntil(preset, now);
-  const previous = await prisma.businessSignalState.findUnique({ where: { fingerprint } });
-  await prisma.businessSignalState.update({
-    where: { fingerprint },
+  const previous = await prisma.businessSignalState.findFirst({ where: { fingerprint, companyId } });
+  if (!previous) return null;
+  await prisma.businessSignalState.updateMany({
+    where: { fingerprint, companyId },
     data: {
       status: "snoozed",
       snoozedUntil: until,
@@ -545,10 +548,11 @@ export async function snoozeBusinessSignal(fingerprint: string, preset: SignalSn
   return until;
 }
 
-export async function resolveBusinessSignal(fingerprint: string, resolution = "Resuelta manualmente por el usuario") {
-  const previous = await prisma.businessSignalState.findUnique({ where: { fingerprint } });
-  await prisma.businessSignalState.update({
-    where: { fingerprint },
+export async function resolveBusinessSignal(companyId: string, fingerprint: string, resolution = "Resuelta manualmente por el usuario") {
+  const previous = await prisma.businessSignalState.findFirst({ where: { fingerprint, companyId } });
+  if (!previous) return;
+  await prisma.businessSignalState.updateMany({
+    where: { fingerprint, companyId },
     data: {
       status: "resolved",
       resolvedAt: new Date(),
