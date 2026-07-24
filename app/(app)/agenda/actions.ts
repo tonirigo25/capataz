@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { EventoAgendaEstado } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 export async function updateAgendaEventStatus(formData: FormData) {
@@ -12,9 +12,13 @@ export async function updateAgendaEventStatus(formData: FormData) {
   const estado = String(formData.get("estado") ?? "") as EventoAgendaEstado;
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !estado || !confirmado) return;
-  const { companyId } = await requireCapability("agenda.manage");
+  const auth = await requireCapability("agenda.manage");
+  const { companyId } = auth;
   const core = companyCore(prisma, companyId);
-  if (!(await core.getAgendaEvent(id))) return;
+  const current = await core.getAgendaEvent(id);
+  if (!current) return;
+  if (current.obraId) await assertScopedEntityAccess(auth, "agenda.manage", "Work", current.obraId);
+  else if (auth.scope !== "COMPANY") throw new Error("SCOPED_AGENDA_FORBIDDEN");
 
   const event = await core.updateAgendaEvent(id, {
       estado,
@@ -32,9 +36,13 @@ export async function reprogramAgendaEvent(formData: FormData) {
   const fechaFin = String(formData.get("fechaFin") ?? "");
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!id || !fechaInicio || !confirmado) return;
-  const { companyId } = await requireCapability("agenda.manage");
+  const auth = await requireCapability("agenda.manage");
+  const { companyId } = auth;
   const core = companyCore(prisma, companyId);
-  if (!(await core.getAgendaEvent(id))) return;
+  const current = await core.getAgendaEvent(id);
+  if (!current) return;
+  if (current.obraId) await assertScopedEntityAccess(auth, "agenda.manage", "Work", current.obraId);
+  else if (auth.scope !== "COMPANY") throw new Error("SCOPED_AGENDA_FORBIDDEN");
 
   const start = new Date(fechaInicio);
   const end = fechaFin ? new Date(fechaFin) : null;

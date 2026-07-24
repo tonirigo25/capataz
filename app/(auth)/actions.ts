@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth/config";
 import { createOpaqueToken, hashPassword, hashToken, normalizeEmail, validatePassword, verifyPassword } from "@/lib/auth/crypto";
-import { createSession, revokeCurrentSession } from "@/lib/auth/session";
+import { createSession, getAvailableCompanies, revokeCurrentSession } from "@/lib/auth/session";
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
+import { queueEmailEvent } from "@/lib/email/outbox";
 
 const genericCredentials = "No hemos podido iniciar sesión con esos datos.";
 
@@ -19,11 +20,14 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
   const email = text(form, "email");
   const emailNormalized = normalizeEmail(email);
   const companyName = text(form, "companyName");
+  const invitationToken = text(form, "invitationToken");
   const password = String(form.get("password") ?? "");
   const confirmation = String(form.get("passwordConfirmation") ?? "");
   const acceptedTerms = form.get("acceptedTerms") === "on";
   const fields = { displayName, email, companyName };
-  if (!displayName || !companyName || !/^\S+@\S+\.\S+$/.test(emailNormalized)) return { status: "error", message: "Revisa tu nombre, correo y empresa.", fields };
+  const invitation = invitationToken ? await prisma.invitation.findUnique({ where: { tokenHash: hashToken(invitationToken) } }) : null;
+  const invitationValid = invitation && ["PENDING", "PENDING_EMPLOYEE"].includes(invitation.status) && invitation.expiresAt > new Date() && invitation.emailNormalized === emailNormalized;
+  if (!displayName || (!companyName && !invitationValid) || !/^\S+@\S+\.\S+$/.test(emailNormalized)) return { status: "error", message: "Revisa tu nombre, correo y empresa.", fields };
   const passwordErrors = validatePassword(password);
   if (passwordErrors.length || password !== confirmation) return { status: "error", message: password !== confirmation ? "Las contraseñas no coinciden." : passwordErrors[0], fields };
   if (!acceptedTerms) return { status: "error", message: "Debes aceptar los términos y la política de privacidad.", fields };
@@ -37,7 +41,13 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
     await ensureBasePlans(prisma);
     user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({ data: { email, emailNormalized, passwordHash, displayName } });
-      await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
+      if (invitationValid && invitation) {
+        await tx.companyMembership.create({ data: { userId: created.id, companyId: invitation.companyId, status: "pending_owner_approval", role: invitation.role, functionalProfileKey: invitation.functionalProfileKey, accessMode: invitation.accessMode, invitedAt: invitation.createdAt, acceptedAt: new Date(), invitedById: invitation.inviterId, origin: "invitation" } });
+        await tx.invitation.update({ where: { id: invitation.id }, data: { status: "PENDING_OWNER_APPROVAL", acceptedAt: new Date(), employeeAcceptedAt: new Date() } });
+        await queueEmailEvent(tx as typeof prisma, { companyId: invitation.companyId, invitationId: invitation.id, eventKey: "owner_approval_requested", recipient: "owner-notification@orqena.invalid", createdById: created.id });
+      } else {
+        await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
+      }
       await tx.emailVerificationToken.create({ data: { userId: created.id, tokenHash: hashToken(rawToken), expiresAt } });
       return { id: created.id, email: created.email };
     });
@@ -68,6 +78,11 @@ export async function loginAction(_previous: AuthActionState, form: FormData): P
   await prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: now } });
   await createSession(user.id);
   await recordSecurityEvent({ type: "login_success", outcome: "success", userId: user.id });
+  const activeMemberships = await getAvailableCompanies(user.id);
+  if (!activeMemberships.length) {
+    const pendingMembership = await prisma.companyMembership.findFirst({ where: { userId: user.id, status: "pending_owner_approval" }, select: { id: true } });
+    if (pendingMembership) redirect("/acceso-pendiente");
+  }
   redirect("/hoy");
 }
 

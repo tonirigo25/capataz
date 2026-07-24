@@ -101,7 +101,6 @@ export async function getPartnerDetail(companyId: string, id: string, kind: Busi
 }
 
 export async function getPurchaseInvoiceList(companyId: string, kind: BusinessPartnerKind, query: { search?: string; status?: string } = {}) {
-  await markOverduePurchaseInvoices(companyId);
   const search = clean(query.search, 120);
   return prisma.purchaseInvoice.findMany({
     where: {
@@ -122,14 +121,13 @@ export async function getPurchaseInvoiceList(companyId: string, kind: BusinessPa
       work: { select: { id: true, titulo: true } },
       payments: { orderBy: { paidAt: "desc" } },
       documents: { where: { archivedAt: null }, select: { id: true, name: true } },
-      expense: { select: { id: true } }
+      expense: { select: { id: true, clienteId: true } }
     },
     orderBy: [{ dueDate: "asc" }, { issueDate: "desc" }]
   });
 }
 
 export async function getPurchaseInvoiceDetail(companyId: string, id: string, kind: BusinessPartnerKind) {
-  await markOverduePurchaseInvoices(companyId);
   return prisma.purchaseInvoice.findFirst({
     where: { id, companyId, kind },
     include: {
@@ -252,13 +250,6 @@ export async function updatePartnerLearning(tx: Prisma.TransactionClient, input:
       workConfirmations,
       vatConfirmations
     }
-  });
-}
-
-async function markOverduePurchaseInvoices(companyId: string) {
-  await prisma.purchaseInvoice.updateMany({
-    where: { companyId, status: { in: ["PENDING", "PARTIALLY_PAID"] }, pendingAmount: { gt: 0 }, dueDate: { lt: startOfDay(new Date()) } },
-    data: { status: "OVERDUE" }
   });
 }
 

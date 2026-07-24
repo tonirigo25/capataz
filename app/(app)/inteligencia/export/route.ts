@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildBusinessCsvExport } from "@/lib/business-intelligence";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,11 @@ function safeFilename(value: string) {
 }
 
 export async function GET(request: Request) {
-  const { companyId } = await requireCapability("reports.export");
+  const auth = await requireCapability("reports.export");
+  const { companyId } = auth;
+  const combinedCapabilities = ["work.view", "sales.budgets.view", "sales.invoices.view", "treasury.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
+  const combinedAccess = await Promise.all(combinedCapabilities.map((capability) => resolveAuthorization(auth, capability)));
+  if (combinedAccess.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) return NextResponse.json({ error: "Alcance insuficiente para una exportación combinada." }, { status: 403 });
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") ?? "summary";
   if (!isAllowedType(tipo)) {

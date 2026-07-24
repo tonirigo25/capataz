@@ -8,7 +8,7 @@ import type {
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireApprovalAuthority, requireCapability, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { prisma } from "@/lib/prisma";
 import {
   expenseCategoryForPurchase,
@@ -94,6 +94,7 @@ export async function createPurchaseInvoice(formData: FormData) {
   const workId = optionalText(formData, "workId");
   const work = workId ? await prisma.work.findFirst({ where: { id: workId, companyId: context.companyId, archivada: false }, select: { id: true, clienteId: true } }) : null;
   if (workId && !work) fail(base, "invalid_work");
+  await assertProcurementScope(context, work?.id, work?.clienteId);
   const issueDate = requiredDate(text(formData, "issueDate"), base);
   const dueDate = requiredDate(text(formData, "dueDate"), base);
   if (dueDate < issueDate) fail(base, "invalid_due_date");
@@ -116,6 +117,7 @@ export async function createPurchaseInvoice(formData: FormData) {
   const vatRate = optionalNumber(text(formData, "vatRate"), 0, 100, base);
   const withholdingRate = optionalNumber(text(formData, "withholdingRate"), 0, 100, base);
   const fiscalType = requiredEnum<FiscalDocumentType>(text(formData, "fiscalType"), ["FULL_INVOICE", "SIMPLIFIED_INVOICE", "CORRECTIVE_INVOICE"], base);
+  await requireApprovalAuthority(context, "supplier_invoice.approve", { amount: amounts.total, workId: work?.id, clientId: work?.clienteId });
 
   const invoice = await prisma.$transaction(async (tx) => {
     const created = await tx.purchaseInvoice.create({
@@ -178,9 +180,12 @@ export async function registerPurchaseInvoicePayment(formData: FormData) {
   const id = requiredText(formData, "purchaseInvoiceId", base);
   const invoice = await prisma.purchaseInvoice.findFirst({ where: { id, companyId: context.companyId, kind }, include: { expense: true } });
   if (!invoice || invoice.status === "VOID") fail(base, "not_found");
+  await assertProcurementScope(context, invoice.workId, invoice.expense?.clienteId);
   const amount = requiredNumber(text(formData, "amount"), 0.01, invoice.pendingAmount, `${base}/${id}`);
   const paidAt = requiredDate(text(formData, "paidAt"), `${base}/${id}`);
   const method = requiredText(formData, "method", `${base}/${id}`);
+  await requireApprovalAuthority(context, "payment.approve", { amount, workId: invoice.workId });
+  await requireApprovalAuthority(context, "payment.execute", { amount, workId: invoice.workId });
   await prisma.$transaction(async (tx) => {
     await tx.purchaseInvoicePayment.create({ data: { companyId: context.companyId, purchaseInvoiceId: id, amount, paidAt, method, reference: optionalText(formData, "reference"), notes: optionalText(formData, "notes") } });
     const paidAmount = round(invoice.paidAmount + amount);
@@ -202,6 +207,7 @@ export async function voidPurchaseInvoice(formData: FormData) {
   if (text(formData, "confirmed") !== "yes") fail(`${base}/${id}`, "confirmation_required");
   const invoice = await prisma.purchaseInvoice.findFirst({ where: { id, companyId: context.companyId, kind }, include: { expense: true } });
   if (!invoice || invoice.paidAmount > 0) fail(`${base}/${id}`, "cannot_void");
+  await assertProcurementScope(context, invoice.workId, invoice.expense?.clienteId);
   await prisma.$transaction(async (tx) => {
     await tx.purchaseInvoice.update({ where: { id }, data: { status: "VOID", pendingAmount: 0, voidedAt: new Date() } });
     if (invoice.expense) await tx.expense.update({ where: { id: invoice.expense.id }, data: { paymentStatus: "cancelled" } });
@@ -216,6 +222,15 @@ function partnerStatus(value: string): BusinessPartnerStatus { return ["ACTIVE",
 function documentStatus(value: string) { return ["VALID", "EXPIRING", "EXPIRED", "INCOMPLETE", "NOT_REQUIRED"].includes(value) ? value as "VALID" | "EXPIRING" | "EXPIRED" | "INCOMPLETE" | "NOT_REQUIRED" : "INCOMPLETE"; }
 function partnerBase(kind: BusinessPartnerKind) { return kind === "SUBCONTRACTOR" ? "/subcontratas" : "/proveedores"; }
 function invoiceBase(kind: BusinessPartnerKind) { return kind === "SUBCONTRACTOR" ? "/facturas-subcontratas" : "/facturas-proveedor"; }
+async function assertProcurementScope(context: Awaited<ReturnType<typeof requireCapability>>, workId?: string | null, clientId?: string | null) {
+  if (workId) return assertScopedEntityAccess(context, context.capability, "Work", workId);
+  if (clientId) return assertScopedEntityAccess(context, context.capability, "Client", clientId);
+  const [workIds, clientIds] = await Promise.all([
+    resolveScopedEntityIds(context, context.capability, "Work"),
+    resolveScopedEntityIds(context, context.capability, "Client")
+  ]);
+  if (workIds !== null || clientIds !== null) throw new Error("SCOPE_REQUIRED");
+}
 function text(formData: FormData, key: string) { return String(formData.get(key) ?? "").trim(); }
 function optionalText(formData: FormData, key: string) { return text(formData, key) || null; }
 function requiredText(formData: FormData, key: string, base: string) { const value = text(formData, key); if (!value) fail(base, "required_fields"); return value.slice(0, 500); }

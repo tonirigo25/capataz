@@ -6,7 +6,7 @@ import type { PaymentType, ReminderChannel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 
 export async function registerPayment(formData: FormData) {
   const facturaId = String(formData.get("facturaId") ?? "");
@@ -22,9 +22,11 @@ export async function registerPayment(formData: FormData) {
     throw new Error("Importe o factura no válidos.");
   }
 
-  const { companyId } = await requireCapability("treasury.collections.register");
+  const auth = await requireCapability("treasury.collections.register");
+  const { companyId } = auth;
   const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice) throw new Error("Factura no encontrada.");
+  if (invoice.obraId) await assertScopedEntityAccess(auth, "treasury.collections.register", "Work", invoice.obraId); else await assertScopedEntityAccess(auth, "treasury.collections.register", "Client", invoice.clienteId);
 
   const nuevoPagado = Math.min(invoice.total, invoice.pagado + importe);
   const nuevoPendiente = Math.max(0, invoice.total - nuevoPagado);
@@ -67,12 +69,14 @@ export async function prepareCollectionReminder(formData: FormData) {
   const canal = String(formData.get("canal") ?? "whatsapp") as ReminderChannel;
   const fecha = String(formData.get("fechaProgramada") ?? "");
 
-  const { companyId } = await requireCapability("treasury.collections.register");
+  const auth = await requireCapability("treasury.collections.register");
+  const { companyId } = auth;
   const invoice = await prisma.invoice.findFirst({
     where: { id: facturaId, companyId },
     include: { client: true, work: true }
   });
   if (!invoice) throw new Error("Factura no encontrada.");
+  if (invoice.obraId) await assertScopedEntityAccess(auth, "treasury.collections.register", "Work", invoice.obraId); else await assertScopedEntityAccess(auth, "treasury.collections.register", "Client", invoice.clienteId);
 
   const fechaProgramada = fecha ? new Date(fecha) : tomorrowAtTen();
   const isOverdue = invoice.fechaVencimiento < new Date() && invoice.pendiente > 0;
@@ -105,9 +109,11 @@ export async function markInvoicePaid(formData: FormData) {
   const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
   if (!facturaId || !confirmado) throw new Error("Confirmación requerida.");
 
-  const { companyId } = await requireCapability("treasury.collections.register");
+  const auth = await requireCapability("treasury.collections.register");
+  const { companyId } = auth;
   const invoice = await prisma.invoice.findFirst({ where: { id: facturaId, companyId } });
   if (!invoice || invoice.pendiente <= 0) return;
+  if (invoice.obraId) await assertScopedEntityAccess(auth, "treasury.collections.register", "Work", invoice.obraId); else await assertScopedEntityAccess(auth, "treasury.collections.register", "Client", invoice.clienteId);
 
   await prisma.$transaction([
     prisma.payment.create({

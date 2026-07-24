@@ -20,8 +20,8 @@ import {
   editTaskSeries,
 } from "@/lib/tasks/task-recurrence";
 import { prisma } from "@/lib/prisma";
-import { requireCapability } from "@/lib/commercial/authorization";
-async function taskGuard(data:FormData){const auth=await requireCapability("tasks.manage");const ids=["id","taskId","parentTaskId","dependsOnTaskId"].map(key=>String(data.get(key)??"")).filter(Boolean);for(const id of ids){const found=await prisma.task.findFirst({where:{companyId:auth.companyId,OR:[{id},{checklist:{some:{id}}},{dependencies:{some:{id}}},{blocking:{some:{id}}}]},select:{id:true}});if(!found)throw new Error("TASK_NOT_AVAILABLE");}return auth;}
+import { assertScopedTaskAccess, requireCapability } from "@/lib/commercial/authorization";
+async function taskGuard(data:FormData){const auth=await requireCapability("tasks.manage");const ids=["id","taskId","parentTaskId","dependsOnTaskId"].map(key=>String(data.get(key)??"")).filter(Boolean);for(const id of ids){const found=await prisma.task.findFirst({where:{companyId:auth.companyId,OR:[{id},{checklist:{some:{id}}},{dependencies:{some:{id}}},{blocking:{some:{id}}}]},select:{id:true}});if(!found)throw new Error("TASK_NOT_AVAILABLE");await assertScopedTaskAccess(auth,"tasks.manage",found.id);}return auth;}
 export async function createTaskAction(data: FormData) {
   const auth=await requireCapability("tasks.manage");
   const title = String(data.get("title") ?? "").trim();
@@ -36,6 +36,7 @@ export async function createTaskAction(data: FormData) {
       | "medium"
       | "high"
       | "urgent",
+    assigneeId: auth.scope === "COMPANY" ? undefined : auth.userId,
   });
   revalidatePath("/tareas");
   revalidatePath("/hoy");

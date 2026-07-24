@@ -3,7 +3,7 @@ import { parseBudgetLines } from "@/lib/budget-lines";
 import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf";
 import { fillTemplatePlaceholders } from "@/lib/document-templates";
 import { prisma } from "@/lib/prisma";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const core = companyCore(prisma, auth.companyId);
   const budget = await core.getBudgetDocument(id);
   if (!budget) notFound();
+  if (budget.obraId) await assertScopedEntityAccess(auth, "sales.budgets.view", "Work", budget.obraId);
+  else await assertScopedEntityAccess(auth, "sales.budgets.view", "Client", budget.clienteId);
+  const pricing = await requireCapability("sales.pricing.view");
+  if (budget.obraId) await assertScopedEntityAccess(pricing, "sales.pricing.view", "Work", budget.obraId);
+  else await assertScopedEntityAccess(pricing, "sales.pricing.view", "Client", budget.clienteId);
 
   const company = await core.company();
   const preview = new URL(request.url).searchParams.get("preview") === "1";

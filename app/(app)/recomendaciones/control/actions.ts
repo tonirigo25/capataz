@@ -6,7 +6,7 @@ import { runProactiveEvaluation } from "@/lib/proactive-evaluation";
 import { requireCapability } from "@/lib/commercial/authorization";
 
 export async function runProactiveEvaluationAction() {
-  const auth = await requireCapability("reports.view");
+  const auth = await requireCapability("orqena.execute");
   const result = await runProactiveEvaluation({ type: "manual", triggeredBy: "control_center", scope: { companyId: auth.companyId } });
   revalidatePath("/recomendaciones/control");
   revalidatePath("/recomendaciones");

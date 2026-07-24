@@ -4,7 +4,7 @@ import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf
 import { fillTemplatePlaceholders } from "@/lib/document-templates";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const core = companyCore(prisma, auth.companyId);
   const invoice = await core.getInvoiceDocument(id);
   if (!invoice) notFound();
+  if (invoice.obraId) await assertScopedEntityAccess(auth, "sales.invoices.view", "Work", invoice.obraId);
+  else await assertScopedEntityAccess(auth, "sales.invoices.view", "Client", invoice.clienteId);
 
   const company = await core.company();
   const preview = new URL(request.url).searchParams.get("preview") === "1";

@@ -4,7 +4,7 @@ import type { ExpenseCategory, ExpenseDocumentType, FiscalDocumentType, Prisma }
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireApprovalAuthority, requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { documentStorage } from "@/lib/document-storage";
 import { EXPENSE_DOCUMENT_TYPES, normalizeExpenseExtraction, parseDate, parseMoney, validateExpenseDocumentFile } from "@/lib/expense-document";
 import { DocumentExtractionNotConfiguredError, resolveDocumentExtractionProvider } from "@/lib/document-extraction";
@@ -14,13 +14,18 @@ export async function updateMaterialStatus(formData: FormData) {
   const id = text(formData, "id");
   const estado = text(formData, "estado");
   if (!id || !estado) return;
-  const { companyId } = await requireCapability("purchases.received_invoices.manage");
+  const context = await requireCapability("purchases.received_invoices.manage");
+  const { companyId } = context;
+  const material = await prisma.material.findFirst({ where: { id, companyId }, select: { obraId: true } });
+  if (!material) return;
+  await assertExpenseScope(context, material.obraId, null);
   await prisma.material.updateMany({ where: { id, companyId }, data: { estado: estado as never } });
   revalidateExpensePaths();
 }
 
 export async function uploadExpenseDocument(formData: FormData) {
   const context = await requireCapability("purchases.received_invoices.manage");
+  await assertExpenseScope(context, null, null);
   const file = formData.get("document");
   if (!(file instanceof File)) redirectWithError("Selecciona un archivo para continuar.");
   let validated: ReturnType<typeof validateExpenseDocumentFile>;
@@ -64,9 +69,13 @@ export async function uploadExpenseDocument(formData: FormData) {
 }
 
 export async function retryExpenseDocumentExtraction(formData: FormData) {
-  const { companyId } = await requireCapability("purchases.received_invoices.manage");
+  const context = await requireCapability("purchases.received_invoices.manage");
+  const { companyId } = context;
   const id = text(formData, "id");
   if (!id) return;
+  const document = await prisma.document.findFirst({ where: { id, companyId }, select: { workId: true, clientId: true } });
+  if (!document) return;
+  await assertExpenseScope(context, document.workId, document.clientId);
   await processDocument(id, companyId);
   revalidatePath(`/gastos-materiales/lector/${id}`);
 }
@@ -89,12 +98,14 @@ export async function saveExpenseFromDocument(formData: FormData) {
     const client = await prisma.client.findFirst({ where: { id: finalClientId, companyId: context.companyId, archivadoAt: null }, select: { id: true } });
     if (!client || (work && work.clienteId !== finalClientId)) redirect(`/gastos-materiales/lector/${document.id}?error=invalid_relation`);
   }
+  await assertExpenseScope(context, work?.id, finalClientId);
   const partner = businessPartnerId ? await prisma.businessPartner.findFirst({ where: { id: businessPartnerId, companyId: context.companyId, archivedAt: null, status: { not: "BLOCKED" } } }) : null;
   if (businessPartnerId && !partner) redirect(`/gastos-materiales/lector/${document.id}?error=invalid_partner`);
 
   const issueDate = parseDate(text(formData, "issueDate"));
   const total = parseMoney(text(formData, "total"));
   if (!issueDate || total == null || total < 0) redirect(`/gastos-materiales/lector/${document.id}?error=required_fields`);
+  await requireApprovalAuthority(context, "purchase.approve", { amount: total, workId: work?.id, clientId: finalClientId });
   const duplicateIds = await findDuplicateExpenseDocumentIds({
     excludeDocumentId: document.id, sha256: document.sha256,
     invoiceNumber: optionalText(formData, "invoiceNumber"), issuerName: optionalText(formData, "issuerName"),
@@ -194,10 +205,12 @@ export async function saveExpenseFromDocument(formData: FormData) {
 }
 
 export async function deleteExpenseDocument(formData: FormData) {
-  const { companyId } = await requireCapability("purchases.received_invoices.manage");
+  const context = await requireCapability("purchases.received_invoices.manage");
+  const { companyId } = context;
   const id = text(formData, "id");
-  const document = await prisma.document.findFirst({ where: { id, companyId }, select: { id: true, storageKey: true, expenseId: true } });
+  const document = await prisma.document.findFirst({ where: { id, companyId }, select: { id: true, storageKey: true, expenseId: true, workId: true, clientId: true } });
   if (!document) redirect("/gastos-materiales/lector?error=not_found");
+  await assertExpenseScope(context, document.workId, document.clientId);
   if (document.expenseId && text(formData, "confirmLinked") !== "yes") redirect(`/gastos-materiales/lector/${id}?error=linked_confirmation_required`);
   await prisma.document.update({ where: { id: document.id }, data: { status: "CANCELLED" } });
   if (document.storageKey) await documentStorage.delete({ companyId, storageKey: document.storageKey });
@@ -259,8 +272,34 @@ async function processDocument(id: string, companyId: string) {
   }
 }
 
+async function assertExpenseScope(context: Awaited<ReturnType<typeof requireCapability>>, workId?: string | null, clientId?: string | null) {
+  if (workId) return assertScopedEntityAccess(context, context.capability, "Work", workId);
+  if (clientId) return assertScopedEntityAccess(context, context.capability, "Client", clientId);
+  const [workIds, clientIds] = await Promise.all([
+    resolveScopedEntityIds(context, context.capability, "Work"),
+    resolveScopedEntityIds(context, context.capability, "Client")
+  ]);
+  if (workIds !== null || clientIds !== null) throw new Error("SCOPE_REQUIRED");
+}
+
 export async function findDuplicateExpenseDocumentIds(input: { excludeDocumentId?: string; sha256?: string | null; invoiceNumber?: string | null; issuerName?: string | null; issuerTaxId?: string | null; issueDate?: string | null; total?: number | null }) {
-  const { companyId } = await requireCapability("purchases.received_invoices.manage");
+  const context = await requireCapability("purchases.received_invoices.manage");
+  const { companyId } = context;
+  const decision = await resolveAuthorization(context, "purchases.received_invoices.manage");
+  const [workIds, clientIds, documentIds] = await Promise.all([
+    resolveScopedEntityIds(context, context.capability, "Work"),
+    resolveScopedEntityIds(context, context.capability, "Client"),
+    resolveScopedEntityIds(context, context.capability, "Document")
+  ]);
+  const scopeWhere: Prisma.DocumentWhereInput = decision.scope === "COMPANY" ? {} : decision.scope === "SELECTED_WORKS"
+    ? { workId: { in: workIds ?? [] } }
+    : decision.scope === "SELECTED_CLIENTS"
+      ? { clientId: { in: clientIds ?? [] } }
+      : { OR: [
+          ...(documentIds?.length ? [{ id: { in: documentIds } }] : []),
+          ...(workIds?.length ? [{ workId: { in: workIds } }] : []),
+          ...(clientIds?.length ? [{ clientId: { in: clientIds }, workId: null }] : [])
+        ] };
   const or: Prisma.DocumentWhereInput[] = [];
   if (input.sha256) or.push({ sha256: input.sha256 });
   if (input.invoiceNumber && input.issuerTaxId) or.push({ extractedInvoiceNo: { equals: input.invoiceNumber, mode: "insensitive" }, extractedIssuerTaxId: { equals: input.issuerTaxId, mode: "insensitive" } });
@@ -270,7 +309,7 @@ export async function findDuplicateExpenseDocumentIds(input: { excludeDocumentId
     or.push({ extractedIssueDate: { gte: new Date(date.getTime() - 86_400_000), lte: new Date(date.getTime() + 86_400_000) }, extractedTotal: { gte: input.total - 0.01, lte: input.total + 0.01 }, extractedIssuer: { equals: input.issuerName, mode: "insensitive" } });
   }
   if (!or.length) return [];
-  const rows = await prisma.document.findMany({ where: { companyId, id: input.excludeDocumentId ? { not: input.excludeDocumentId } : undefined, OR: or, archivedAt: null }, select: { id: true }, take: 10 });
+  const rows = await prisma.document.findMany({ where: { companyId, ...scopeWhere, id: input.excludeDocumentId ? { not: input.excludeDocumentId } : undefined, AND: [{ OR: or }], archivedAt: null }, select: { id: true }, take: 10 });
   return rows.map((row) => row.id);
 }
 

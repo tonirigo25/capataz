@@ -9,16 +9,69 @@ import {
   archiveFollowUp,
 } from "@/lib/followups/followup-engine";
 import { prisma } from "@/lib/prisma";
-import { requireCapability } from "@/lib/commercial/authorization";
-async function followUpGuard(data:FormData){const auth=await requireCapability("followups.manage");const id=String(data.get("followUpId")??data.get("id")??"");if(id&&!await prisma.followUp.findFirst({where:{id,companyId:auth.companyId},select:{id:true}}))throw new Error("FOLLOWUP_NOT_AVAILABLE");return auth;}
+import {
+  assertScopedEntityAccess,
+  requireCapability,
+} from "@/lib/commercial/authorization";
+async function followUpGuard(data: FormData) {
+  const auth = await requireCapability("followups.manage");
+  const id = String(data.get("followUpId") ?? data.get("id") ?? "");
+  if (id) {
+    const item = await prisma.followUp.findFirst({
+      where: { id, companyId: auth.companyId },
+      select: { id: true, workId: true, clientId: true },
+    });
+    if (!item) throw new Error("FOLLOWUP_NOT_AVAILABLE");
+    if (item.workId)
+      await assertScopedEntityAccess(
+        auth,
+        "followups.manage",
+        "Work",
+        item.workId,
+      );
+    else if (item.clientId)
+      await assertScopedEntityAccess(
+        auth,
+        "followups.manage",
+        "Client",
+        item.clientId,
+      );
+    else if (auth.scope !== "COMPANY")
+      throw new Error("SCOPED_ENTITY_FORBIDDEN");
+  }
+  return auth;
+}
 export async function createFollowUpAction(data: FormData) {
-  const auth=await requireCapability("followups.manage");
+  const auth = await requireCapability("followups.manage");
+  const workId = String(data.get("workId") ?? "") || undefined;
+  const clientId = String(data.get("clientId") ?? "") || undefined;
+  if (!workId && !clientId && auth.scope !== "COMPANY")
+    throw new Error("SCOPED_ENTITY_REQUIRED");
+  if (auth.scope === "SELECTED_WORKS" && !workId)
+    throw new Error("SCOPED_ENTITY_REQUIRED");
+  if (workId) {
+    await assertScopedEntityAccess(auth, "followups.manage", "Work", workId);
+    const work = await prisma.work.findFirst({
+      where: { id: workId, companyId: auth.companyId },
+      select: { clienteId: true },
+    });
+    if (!work || (clientId && work.clienteId !== clientId))
+      throw new Error("FOLLOWUP_RELATION_INVALID");
+  } else if (clientId)
+    await assertScopedEntityAccess(
+      auth,
+      "followups.manage",
+      "Client",
+      clientId,
+    );
   const title = String(data.get("title") ?? "").trim();
   if (!title) return;
   await createFollowUp({
-    companyId:auth.companyId,
+    companyId: auth.companyId,
     title,
     type: String(data.get("type") ?? "general"),
+    workId,
+    clientId,
     nextActionAt: data.get("nextActionAt")
       ? new Date(String(data.get("nextActionAt")))
       : undefined,
@@ -72,7 +125,7 @@ export async function changeFollowUpStatusAction(data: FormData) {
   refresh(id);
 }
 export async function registerAttemptAction(data: FormData) {
-  const auth=await followUpGuard(data);
+  const auth = await followUpGuard(data);
   const id = String(data.get("followUpId")),
     nextActionAt = data.get("nextActionAt")
       ? new Date(String(data.get("nextActionAt")))
@@ -86,7 +139,7 @@ export async function registerAttemptAction(data: FormData) {
   if (data.get("createReminder") === "true" && nextActionAt)
     await prisma.reminder.create({
       data: {
-        companyId:auth.companyId,
+        companyId: auth.companyId,
         tipo: "recordatorio_interno",
         mensaje: `Seguimiento: ${String(data.get("summary") ?? "próxima acción")}`,
         fechaProgramada: nextActionAt,

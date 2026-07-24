@@ -14,7 +14,7 @@ import { requireCapability } from "@/lib/commercial/authorization";
 const VALID_SNOOZE_PRESETS = new Set<SignalSnoozePreset>(["tomorrow", "week", "month"]);
 
 export async function markRecommendationViewedAction(formData: FormData) {
-  await requireCapability("company.view");
+  await requireCapability("orqena.execute");
   const fingerprint = clean(formData.get("fingerprint"));
   if (!fingerprint) return;
   await markRecommendationViewed(fingerprint);
@@ -22,7 +22,7 @@ export async function markRecommendationViewedAction(formData: FormData) {
 }
 
 export async function snoozeRecommendationAction(formData: FormData) {
-  await requireCapability("company.view");
+  await requireCapability("orqena.execute");
   const fingerprint = clean(formData.get("fingerprint"));
   const preset = clean(formData.get("preset")) as SignalSnoozePreset;
   if (!fingerprint || !VALID_SNOOZE_PRESETS.has(preset)) return;
@@ -31,7 +31,7 @@ export async function snoozeRecommendationAction(formData: FormData) {
 }
 
 export async function dismissRecommendationAction(formData: FormData) {
-  await requireCapability("company.view");
+  await requireCapability("orqena.execute");
   const fingerprint = clean(formData.get("fingerprint"));
   const reason = clean(formData.get("reason"));
   if (!fingerprint) return;
@@ -40,7 +40,7 @@ export async function dismissRecommendationAction(formData: FormData) {
 }
 
 export async function acceptRecommendationAction(formData: FormData) {
-  await requireCapability("company.view");
+  await requireCapability("orqena.execute");
   const fingerprint = clean(formData.get("fingerprint"));
   if (!fingerprint) return;
   await acceptBusinessRecommendation(fingerprint);

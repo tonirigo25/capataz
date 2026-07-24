@@ -65,7 +65,9 @@ import { ACTIVE_WORK_STATUSES, buildWorkDocuments, calculateWorkFinancials } fro
 import { requireCompanyContext, withCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 import { runConversationTurn } from "@/lib/orqena/conversation-service";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
+import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
+import type { CapabilityKey } from "@/lib/commercial/catalog";
 import type { OrqenaEntityType, PendingConfirmation } from "@/lib/orqena/types";
 import {
   appendMessageForCompany,
@@ -94,8 +96,7 @@ async function conversationTenantContext(): Promise<ConversationTenantContext> {
     const isolated = await requireCompanyContext();
     if (isolated.sessionId === "isolated-test-session") return { userId: isolated.userId, companyId: isolated.companyId, membershipId: isolated.membershipId };
   }
-  const { userId, companyId, membershipId, scope } = await requireCapability("orqena.use");
-  if (scope !== "COMPANY") throw new Error("Conversación no disponible.");
+  const { userId, companyId, membershipId } = await requireCapability("orqena.use");
   return { userId, companyId, membershipId };
 }
 
@@ -194,9 +195,84 @@ type ChatPerfTrace = {
 
 export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}): Promise<ChatCommandResult> {
   const authorization = await requireOrqenaAuthorization();
-  if (authorization && authorization.scope !== "COMPANY") return { handled: true, text: "Orqena no puede consultar datos fuera de tu alcance actual. Pide a un administrador que revise el acceso asignado." };
+  if (authorization) {
+    const profile = authorization.functionalProfileKey ?? "";
+    if (["PROJECT_MANAGER", "WORK_MANAGER", "TEAM_SUPERVISOR", "WORKER", "EXTERNAL_COLLABORATOR"].includes(profile)) {
+      return answerScopedPortalQuery(authorization, text, context ?? null);
+    }
+    const classified = classifyChatIntent(text);
+    const databaseIntent = databaseIntentForMessage(text, classified, context ?? null);
+    const requiredCapability = databaseIntent ? capabilityForOrqenaIntent(databaseIntent) : null;
+    if (databaseIntent && !requiredCapability) return { handled: true, text: "Esa consulta no tiene una política de acceso segura en tu portal. No se ha leído ni modificado ningún dato." };
+    if (requiredCapability) {
+      const requiredCapabilities = [...new Set([requiredCapability, ...additionalCapabilitiesForOrqenaIntent(databaseIntent!)])];
+      const decisions = await Promise.all(requiredCapabilities.map((capability) => resolveAuthorization(authorization, capability)));
+      if (decisions.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) return { handled: true, text: "Esa consulta está fuera de tu alcance en Orqena. No se ha leído ni modificado ningún dato." };
+    }
+  }
   if (authorization && typeof withCompanyContext === "function") return withCompanyContext(authorization, () => runChatCommandInCompany(text, context, options));
   return runChatCommandInCompany(text, context, options);
+}
+
+function capabilityForOrqenaIntent(intent: ChatIntentClassification): CapabilityKey | null {
+  const action = intent.action ?? "";
+  if (action.startsWith("recommendations_")) return "orqena.execute";
+  if (action === "client_payments") return "treasury.view";
+  if (action === "project_highest_expenses") return "purchase_cost.view";
+  if (action === "recent_documents") return "reports.view";
+  if (action.startsWith("treasury_")) return "treasury.view";
+  if (action.startsWith("business_") || action.startsWith("signals_") || ["client_highest_debt", "outstanding_invoices"].includes(action)) return "reports.view";
+  if (["work_highest_revenue", "work_lowest_margin"].includes(action)) return "profitability.view";
+  if ((action.includes("budget") || action.includes("quote")) && /(create|complete|convert|update)/.test(action)) return "sales.budgets.create";
+  if (action.includes("invoice") && /(create|complete|convert|update|mark|register)/.test(action)) return "sales.invoices.create";
+  if (action.includes("budget") || action.includes("quote")) return "sales.budgets.view";
+  if (action.includes("invoice") || action.includes("revenue") || action.includes("collected")) return "sales.invoices.view";
+  if (action.startsWith("tasks_") || intent.kind === "pending_summary" || intent.kind === "pending_details") return "tasks.view";
+  if (action.startsWith("followups_")) return "followups.view";
+  if (action.includes("agenda") || action.includes("visit")) return "agenda.view";
+  if (action.includes("document")) return "documents.view";
+  if (action.includes("client") || action.includes("contact")) return "clients.view";
+  if (action.includes("work") || action.includes("project")) return "work.view";
+  if (action.startsWith("automations_")) return "orqena.execute";
+  return null;
+}
+
+function additionalCapabilitiesForOrqenaIntent(intent: ChatIntentClassification): CapabilityKey[] {
+  const action = intent.action ?? "";
+  const combinedBusiness: CapabilityKey[] = ["reports.view", "work.view", "sales.budgets.view", "sales.pricing.view", "sales.invoices.view", "treasury.view", "banking.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"];
+  const combinedTreasury: CapabilityKey[] = ["sales.invoices.view", "treasury.view", "banking.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"];
+  if (action.startsWith("business_") || action.startsWith("signals_") || ["business_health", "client_highest_debt"].includes(action)) return combinedBusiness;
+  if (action.startsWith("treasury_")) return combinedTreasury;
+  if (action.includes("budget") || action.includes("quote")) return ["sales.pricing.view"];
+  if (["work_highest_revenue", "work_lowest_margin"].includes(action)) return ["sales.invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"];
+  if (action === "recent_documents") return ["documents.view", "sales.budgets.view", "sales.pricing.view", "sales.invoices.view"];
+  return [];
+}
+
+async function answerScopedPortalQuery(authorization: Awaited<ReturnType<typeof requireOrqenaAuthorization>>, text: string, context: ChatCommandContext | null): Promise<ChatCommandResult> {
+  if (!authorization) return { handled: true, text: "No hay un portal profesional activo." };
+  const intent = databaseIntentForMessage(text, classifyChatIntent(text), context);
+  const capability = intent ? capabilityForOrqenaIntent(intent) : null;
+  if (!capability || !["work.view", "tasks.view", "agenda.view", "documents.view"].includes(capability)) return { handled: true, text: "Puedo ayudarte con tus trabajos, tareas, agenda y documentos asignados. Esa consulta general está fuera de tu alcance." };
+  const decision = await resolveAuthorization(authorization, capability);
+  if (!decision.allowed) return { handled: true, text: "Esa consulta está fuera de tu alcance." };
+  if (capability === "tasks.view") {
+    const ids = await resolveScopedTaskIds(authorization, "tasks.view");
+    const tasks = await prisma.task.findMany({ where: { companyId: authorization.companyId, archivedAt: null, ...(ids === null ? {} : { id: { in: ids } }) }, select: { title: true, status: true }, orderBy: { updatedAt: "desc" }, take: 5 });
+    return { handled: true, text: tasks.length ? `Tus tareas asignadas: ${tasks.map((item) => `${item.title} (${item.status})`).join("; ")}.` : "No tienes tareas asignadas disponibles." };
+  }
+  const workIds = await resolveScopedEntityIds(authorization, capability, "Work");
+  if (capability === "work.view") {
+    const works = await prisma.work.findMany({ where: { companyId: authorization.companyId, ...(workIds === null ? {} : { id: { in: workIds } }) }, select: { titulo: true, estado: true }, orderBy: { updatedAt: "desc" }, take: 5 });
+    return { handled: true, text: works.length ? `Tus trabajos disponibles: ${works.map((item) => `${item.titulo} (${item.estado})`).join("; ")}.` : "No tienes trabajos asignados disponibles." };
+  }
+  if (capability === "agenda.view") {
+    const events = await prisma.eventoAgenda.findMany({ where: { companyId: authorization.companyId, ...(workIds === null ? {} : { obraId: { in: workIds } }) }, select: { titulo: true, fechaInicio: true }, orderBy: { fechaInicio: "asc" }, take: 5 });
+    return { handled: true, text: events.length ? `Tu agenda asignada: ${events.map((item) => `${item.titulo} (${item.fechaInicio.toLocaleDateString("es-ES")})`).join("; ")}.` : "No tienes citas asignadas disponibles." };
+  }
+  const documentIds = await resolveScopedEntityIds(authorization, "documents.view", "Document");
+  const documents = await prisma.document.findMany({ where: { companyId: authorization.companyId, archivedAt: null, ...(documentIds === null ? {} : { id: { in: documentIds } }), classification: "OPERATIONAL" }, select: { name: true }, orderBy: { createdAt: "desc" }, take: 5 });
+  return { handled: true, text: documents.length ? `Tus documentos operativos: ${documents.map((item) => item.name).join("; ")}.` : "No tienes documentos operativos asignados disponibles." };
 }
 
 async function runChatCommandInCompany(text: string, context: ChatCommandContext | null | undefined, options: ChatCommandOptions): Promise<ChatCommandResult> {
@@ -350,6 +426,15 @@ async function executeLocalChatPlan(text: string, plan: ReturnType<typeof planCh
       handled: true,
       text: response ?? "Sigo con la acción anterior. Dime si quieres usar lo existente, crear algo nuevo o dejarlo pendiente.",
       context: plan.context
+    };
+  }
+
+  const mutationCapabilities = capabilitiesForLocalMutation(plan);
+  if (mutationCapabilities.length && !await canExecuteOrqenaMutation(mutationCapabilities)) {
+    return {
+      handled: true,
+      text: "Tu portal permite consultar esta información, pero no modificarla desde Orqena. No se ha creado ni actualizado ningún dato.",
+      context: plan.context,
     };
   }
 
@@ -521,6 +606,36 @@ async function executeLocalChatPlan(text: string, plan: ReturnType<typeof planCh
   }
 
   return { handled: false, text: "" };
+}
+
+function capabilitiesForLocalMutation(plan: ReturnType<typeof planChatMessage>): CapabilityKey[] {
+  const action = plan.action;
+  if (["use_existing_work_for_budget", "create_new_work_for_budget", "create_budget"].includes(action)) {
+    return ["orqena.execute", "sales.budgets.create", "sales.pricing.view"];
+  }
+  if (action === "complete_budget") return ["orqena.execute", "sales.budgets.update", "sales.pricing.view"];
+  if (["create_invoice", "convert_budget_to_invoice"].includes(action)) return ["orqena.execute", "sales.invoices.create"];
+  if (action === "complete_invoice") return ["orqena.execute", "sales.invoices.create"];
+  if (["register_activity", "complete_activity"].includes(action)) return ["orqena.execute", "agenda.manage"];
+  if (["mark_invoice_paid", "register_payment"].includes(action)) return ["orqena.execute", "treasury.collections.register"];
+  if (action === "select_document") {
+    const pendingAction = String(plan.context.activeTask?.draftData?.action ?? "");
+    if (pendingAction === "mark_invoice_paid" || pendingAction === "register_payment") {
+      return ["orqena.execute", "treasury.collections.register"];
+    }
+  }
+  return [];
+}
+
+async function canExecuteOrqenaMutation(capabilities: CapabilityKey[]) {
+  try {
+    const context = await requireCompanyContext();
+    const decisions = await Promise.all(capabilities.map((capability) => resolveAuthorization(context, capability)));
+    return decisions.every((decision) => decision.allowed && decision.scope === "COMPANY");
+  } catch (error) {
+    if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED === "true" && error instanceof Error && error.message.includes("outside a request scope")) return true;
+    throw error;
+  }
 }
 
 async function withStructuredResult(result: ChatCommandResult): Promise<ChatCommandResult> {
@@ -3184,7 +3299,7 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
       budgets: data.budgets.length,
       invoices: data.invoices.length
     });
-    const ai = await interpretCapatazMessageWithAI({ message: text, context, data });
+    const ai = await interpretCapatazMessageWithAI({ message: text, context: safeAIChatContext(context), data });
     await logChatPerf(trace, "ai:interpret", aiStarted, "ok", {
       intent: ai.intent,
       confidence: ai.confidence,
@@ -3214,7 +3329,15 @@ async function runAIChatCommand(text: string, context: ChatCommandContext | null
 }
 
 async function buildAIContext(context: ChatCommandContext | null, text: string) {
-  const { companyId } = await requireCompanyContext();
+  const authorization = await requireCompanyContext();
+  const { companyId } = authorization;
+  const [manifest, clientsDecision, worksDecision, budgetsDecision, invoicesDecision] = await Promise.all([
+    buildPortalManifest(authorization),
+    resolveAuthorization(authorization, "clients.view"),
+    resolveAuthorization(authorization, "work.view"),
+    resolveAuthorization(authorization, "sales.budgets.view"),
+    resolveAuthorization(authorization, "sales.invoices.view"),
+  ]);
   const ids: Partial<ReturnType<typeof contextIds>> = context ? contextIds(context) : {};
   const nameHints = extractPotentialNameHints(text);
   const clientWhere = ids.clientId
@@ -3223,80 +3346,81 @@ async function buildAIContext(context: ChatCommandContext | null, text: string) 
       ? { OR: nameHints.map((hint) => ({ nombre: { contains: hint, mode: "insensitive" as const } })) }
       : undefined;
 
+  const [clientIds, workIds, budgetWorkIds, budgetClientIds, invoiceWorkIds, invoiceClientIds] = await Promise.all([
+    clientsDecision.allowed ? resolveScopedEntityIds(authorization, "clients.view", "Client") : Promise.resolve([]),
+    worksDecision.allowed ? resolveScopedEntityIds(authorization, "work.view", "Work") : Promise.resolve([]),
+    budgetsDecision.allowed ? resolveScopedEntityIds(authorization, "sales.budgets.view", "Work") : Promise.resolve([]),
+    budgetsDecision.allowed ? resolveScopedEntityIds(authorization, "sales.budgets.view", "Client") : Promise.resolve([]),
+    invoicesDecision.allowed ? resolveScopedEntityIds(authorization, "sales.invoices.view", "Work") : Promise.resolve([]),
+    invoicesDecision.allowed ? resolveScopedEntityIds(authorization, "sales.invoices.view", "Client") : Promise.resolve([]),
+  ]);
   const [clients, works, budgets, invoices] = await Promise.all([
-    prisma.client.findMany({
-      where: { companyId, ...(clientWhere ?? {}) },
+    clientsDecision.allowed ? prisma.client.findMany({
+      where: { companyId, AND: [clientIds === null ? {} : { id: { in: clientIds } }, clientWhere ?? {}] },
       orderBy: { ultimaInteraccion: "desc" },
       take: clientWhere ? 12 : 8,
       select: {
-        id: true,
-        nombre: true,
-        telefono: true,
-        email: true,
-        direccion: true,
         tipo: true,
         estado: true,
-        origen: true,
-        notas: true
       }
-    }),
-    prisma.work.findMany({
-      where: { companyId, ...(ids.workId ? { id: ids.workId } : ids.clientId ? { clienteId: ids.clientId } : {}) },
+    }) : Promise.resolve([]),
+    worksDecision.allowed ? prisma.work.findMany({
+      where: { companyId, AND: [workIds === null ? {} : { id: { in: workIds } }, ids.workId ? { id: ids.workId } : ids.clientId ? { clienteId: ids.clientId } : {}] },
       orderBy: { id: "desc" },
       take: ids.workId || ids.clientId ? 12 : 8,
       select: {
-        id: true,
-        clienteId: true,
-        titulo: true,
-        direccion: true,
         tipoTrabajo: true,
         estado: true,
-        notas: true,
-        client: { select: { nombre: true } }
       }
-    }),
-    prisma.budget.findMany({
-      where: { companyId, ...(ids.budgetId ? { id: ids.budgetId } : ids.clientId ? { clienteId: ids.clientId } : {}) },
+    }) : Promise.resolve([]),
+    budgetsDecision.allowed ? prisma.budget.findMany({
+      where: { companyId, AND: [scopedRelationWhere(budgetsDecision.scope, budgetWorkIds, budgetClientIds), ids.budgetId ? { id: ids.budgetId } : ids.clientId ? { clienteId: ids.clientId } : {}] },
       orderBy: { fechaCreacion: "desc" },
       take: ids.budgetId || ids.clientId ? 10 : 6,
       select: {
-        id: true,
-        clienteId: true,
-        obraId: true,
-        numero: true,
-        titulo: true,
-        total: true,
+        ...(manifest.fieldVisibility.sale_price ? { total: true } : {}),
         estado: true,
-        client: { select: { nombre: true } }
       }
-    }),
-    prisma.invoice.findMany({
-      where: { companyId, ...(ids.invoiceId ? { id: ids.invoiceId } : ids.clientId ? { clienteId: ids.clientId } : {}) },
+    }) : Promise.resolve([]),
+    invoicesDecision.allowed ? prisma.invoice.findMany({
+      where: { companyId, AND: [scopedRelationWhere(invoicesDecision.scope, invoiceWorkIds, invoiceClientIds), ids.invoiceId ? { id: ids.invoiceId } : ids.clientId ? { clienteId: ids.clientId } : {}] },
       orderBy: { fechaEmision: "desc" },
       take: ids.invoiceId || ids.clientId ? 10 : 6,
       select: {
-        id: true,
-        clienteId: true,
-        obraId: true,
-        numero: true,
-        concepto: true,
-        total: true,
-        pagado: true,
-        pendiente: true,
+        ...(manifest.fieldVisibility.sale_price ? { total: true } : {}),
+        ...(manifest.fieldVisibility.treasury ? { pagado: true, pendiente: true } : {}),
         estado: true,
-        client: { select: { nombre: true } }
       }
-    })
+    }) : Promise.resolve([])
   ]);
 
   return {
-    chatContext: context,
+    chatContext: safeAIChatContext(context),
     clients,
     works,
     budgets,
     invoices,
     currentDate: new Date().toISOString()
   };
+}
+
+function safeAIChatContext(context: ChatCommandContext | null) {
+  if (!context?.activeTask) return null;
+  return {
+    activeTask: {
+      type: context.activeTask.type,
+      status: context.activeTask.status,
+      pendingFields: context.activeTask.pendingFields?.filter((field) => /^[a-z0-9_-]{1,64}$/i.test(field)).slice(0, 12) ?? [],
+      availableActions: context.activeTask.availableActions?.filter((action) => /^[a-z0-9_-]{1,64}$/i.test(action)).slice(0, 12) ?? [],
+    },
+  };
+}
+
+function scopedRelationWhere(scope: string, workIds: string[] | null, clientIds: string[] | null) {
+  if (scope === "COMPANY") return {};
+  if (scope === "SELECTED_WORKS") return { obraId: { in: workIds ?? [] } };
+  if (scope === "SELECTED_CLIENTS") return { clienteId: { in: clientIds ?? [] } };
+  return { obraId: { in: workIds ?? [] } };
 }
 
 async function executeAIChatCommand(ai: CapatazAIResult, context: ChatCommandContext | null): Promise<ChatCommandResult | null> {

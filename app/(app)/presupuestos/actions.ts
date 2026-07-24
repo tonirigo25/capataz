@@ -7,12 +7,23 @@ import { calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, seri
 import { findBudgetTemplate } from "@/lib/budget-templates";
 import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, requireApprovalAuthority, requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import type { BudgetStatus } from "@prisma/client";
 
 async function budgetContext(id: string | undefined, capability: "sales.budgets.update" | "sales.budgets.approve" | "sales.budgets.create" | "sales.invoices.create") {
   const auth = await requireCapability(capability);
   const budget = id ? await prisma.budget.findFirst({ where: { id, companyId: auth.companyId }, include: { client: true } }) : null;
+  if (budget?.obraId) await assertScopedEntityAccess(auth, capability, "Work", budget.obraId);
+  else if (budget) await assertScopedEntityAccess(auth, capability, "Client", budget.clienteId);
+  const pricing = await resolveAuthorization(auth, "sales.pricing.view");
+  if (!pricing.allowed) throw new Error("SALES_PRICING_REQUIRED");
+  if (budget?.obraId) await assertScopedEntityAccess(auth, "sales.pricing.view", "Work", budget.obraId);
+  else if (budget) await assertScopedEntityAccess(auth, "sales.pricing.view", "Client", budget.clienteId);
+  if (budget?.estado === "aceptado" && capability === "sales.budgets.update") {
+    if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed) throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
+    await requireApprovalAuthority(auth, "quote.approve", { amount: budget.total, marginPercent: budget.margenEstimado ?? undefined, workId: budget.obraId, clientId: budget.clienteId });
+  }
+  if (capability === "sales.budgets.approve" && budget) await requireApprovalAuthority(auth, "quote.approve", { amount: budget.total, marginPercent: budget.margenEstimado ?? undefined, workId: budget.obraId, clientId: budget.clienteId });
   return { auth, budget };
 }
 
@@ -165,6 +176,8 @@ export async function duplicateBudget(formData: FormData) {
 
 export async function createBudgetFromTemplate(formData: FormData) {
   const auth = await requireCapability("sales.budgets.create");
+  const pricing = await resolveAuthorization(auth, "sales.pricing.view");
+  if (!pricing.allowed) throw new Error("SALES_PRICING_REQUIRED");
   const templateId = String(formData.get("templateId") ?? "");
   const clienteId = String(formData.get("clienteId") ?? "");
   const obraId = optionalText(formData, "obraId");
@@ -174,6 +187,13 @@ export async function createBudgetFromTemplate(formData: FormData) {
   const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const client = await prisma.client.findFirst({ where: { id: clienteId, companyId: auth.companyId }, select: { id: true } });
   if (!client || (obraId && !(await prisma.work.findFirst({ where: { id: obraId, companyId: auth.companyId }, select: { id: true } })))) return;
+  if (obraId) await assertScopedEntityAccess(auth, "sales.budgets.create", "Work", obraId);
+  else await assertScopedEntityAccess(auth, "sales.budgets.create", "Client", clienteId);
+  if (obraId) await assertScopedEntityAccess(auth, "sales.pricing.view", "Work", obraId);
+  else {
+    if (auth.scope === "SELECTED_WORKS" || pricing.scope === "SELECTED_WORKS") throw new Error("SCOPE_REQUIRED");
+    await assertScopedEntityAccess(auth, "sales.pricing.view", "Client", clienteId);
+  }
   const totals = calculateBudgetTotals(template.lines, company.defaultVat, 0);
   const budget = await prisma.$transaction(async (tx) => tx.budget.create({
     data: {
@@ -237,9 +257,14 @@ export async function deleteBudgetLine(formData: FormData) {
 }
 
 async function updateBudgetLinesAndTotals(budgetId: string, lines: ReturnType<typeof parseBudgetLines>, discount: number) {
-  const auth = await requireCapability("sales.budgets.update");
+  const { auth } = await budgetContext(budgetId, "sales.budgets.update");
   const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const totals = calculateBudgetTotals(lines, company.defaultVat, discount);
+  const current = await prisma.budget.findFirstOrThrow({ where: { id: budgetId, companyId: auth.companyId }, select: { estado: true, margenEstimado: true, obraId: true, clienteId: true } });
+  if (current.estado === "aceptado") {
+    if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed) throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
+    await requireApprovalAuthority(auth, "quote.approve", { amount: totals.total, marginPercent: current.margenEstimado, workId: current.obraId, clientId: current.clienteId });
+  }
   await prisma.budget.updateMany({
     where: { id: budgetId, companyId: auth.companyId },
     data: {

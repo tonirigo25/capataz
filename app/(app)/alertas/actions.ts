@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 const VALID_SNOOZE_PRESETS = new Set<SignalSnoozePreset>(["tomorrow", "week", "month"]);
 
 export async function dismissSignalAction(formData: FormData) {
-  const { companyId } = await requireCapability("reports.view");
+  const { companyId } = await requireCapability("orqena.execute");
   const fingerprint = String(formData.get("fingerprint") ?? "");
   const reason = String(formData.get("reason") ?? "");
   if (!fingerprint) return;
@@ -23,7 +23,7 @@ export async function dismissSignalAction(formData: FormData) {
 }
 
 export async function snoozeSignalAction(formData: FormData) {
-  const { companyId } = await requireCapability("reports.view");
+  const { companyId } = await requireCapability("orqena.execute");
   const fingerprint = String(formData.get("fingerprint") ?? "");
   const preset = String(formData.get("preset") ?? "tomorrow") as SignalSnoozePreset;
   if (!fingerprint || !VALID_SNOOZE_PRESETS.has(preset)) return;
@@ -33,7 +33,7 @@ export async function snoozeSignalAction(formData: FormData) {
 }
 
 export async function resolveSignalAction(formData: FormData) {
-  const { companyId } = await requireCapability("reports.view");
+  const { companyId } = await requireCapability("orqena.execute");
   const fingerprint = String(formData.get("fingerprint") ?? "");
   const resolution = String(formData.get("resolution") ?? "");
   if (!fingerprint) return;
