@@ -8,3 +8,7 @@ El contexto tiene límites explícitos: 12 mensajes, 12 recuerdos, 5 documentos 
 ## Privacidad conversacional por usuario
 
 Cada conversación nueva exige `companyId` y `ownerUserId`. El repositorio conversacional combina ambos campos en listar, abrir, buscar, mutar mensajes, recuperar tareas y procesar propuestas. Los logs guardan empresa y actor. La memoria originada en chat solo se recupera cuando la conversación pertenece al usuario activo. Orqena no eleva privilegios: las consultas económicas se omiten completamente cuando falta la capability correspondiente.
+
+## PortalManifest y contexto mínimo
+
+`PortalManifest` es el contrato de servidor compartido por shell, Hoy, navegación, búsqueda, Crear, notificaciones, configuración, móvil y Orqena. Describe perfil, paquetes, scopes, autoridades, campos, clases documentales y herramientas disponibles. El constructor del chat solo consulta módulos incluidos: clientes y trabajos se filtran por IDs autorizados; facturas, presupuestos, materiales, agenda, recordatorios, inteligencia y datos societarios no se consultan si falta su capability. Los perfiles limitados reciben consulta dentro de alcance y nunca un volcado completo que después se oculte en la interfaz.

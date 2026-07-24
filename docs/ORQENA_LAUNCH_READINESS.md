@@ -39,6 +39,6 @@ Cuenta, catálogo, webhooks firmados, conciliación y pruebas en sandbox. Stripe
 ## Pendiente de correo transaccional real
 
 Proveedor, dominio remitente, plantillas revisadas, rebotes y reputación. No se han enviado correos reales.
-## Puerta final de privacidad y roles
+## Puerta final de portales profesionales
 
-La release candidate requiere la migración aditiva de propietario de conversación y perfil funcional, preflight legacy sin contenido, suite `test:orqena-final-product-closure`, suites focales, runner aislado, typecheck, build y validación remota del SHA desplegado. La integración generativa real continúa separada y requiere una credencial específica de staging.
+La release candidate exige una sola migración aditiva de cierre, 12 perfiles, 25 paquetes, gobierno exclusivo del propietario, invitación de doble aprobación, `PortalManifest`, scopes en base de datos, campos económicos separados, outbox local sin persistir enlaces ni tokens, suites focales, runner aislado único, typecheck, build y E2E remoto del SHA desplegado. La provisión y las cuentas de prueba son sintéticas e idempotentes. Producción permanece fuera del proceso.
