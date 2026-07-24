@@ -2,6 +2,7 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { brand } from "@/lib/brand";
+import { isPublicRegistrationEnabled } from "@/lib/public-registration";
 
 const navigation = [
   ["Producto", "/producto"],
@@ -43,6 +44,7 @@ export function MarketingHeader() {
 }
 
 export function MarketingFooter() {
+  const publicRegistrationEnabled = isPublicRegistrationEnabled();
   return (
     <footer className="border-t border-[#d9dfd4] bg-[#f4f1e8]">
       <div className="marketing-container grid gap-10 py-12 md:grid-cols-[1.3fr_repeat(3,1fr)]">
@@ -51,7 +53,7 @@ export function MarketingFooter() {
           <p className="mt-4 max-w-sm text-sm leading-6 text-content-secondary">Un sistema de trabajo conectado para que cada persona encuentre contexto, avance y control.</p>
         </div>
         <FooterLinks title="Producto" links={[["Producto", "/producto"], ["Sectores", "/sectores"], ["Planes", "/planes"], ["Seguridad", "/seguridad"]]} />
-        <FooterLinks title="Empezar" links={[["Solicitar demo", "/demo"], ["Contacto", "/contacto"], ["Crear cuenta", "/registro"], ["Entrar", "/login"]]} />
+        <FooterLinks title="Empezar" links={[["Solicitar demo", "/demo"], ["Contacto", "/contacto"], [publicRegistrationEnabled ? "Crear cuenta" : "Beta privada", publicRegistrationEnabled ? "/registro" : "/demo"], ["Entrar", "/login"]]} />
         <FooterLinks title="Información" links={[["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Soporte", "/soporte"]]} />
       </div>
       <div className="marketing-container border-t border-[#d9dfd4] py-5 text-xs text-content-secondary">© {new Date().getFullYear()} Orqena. {brand.tagline}</div>

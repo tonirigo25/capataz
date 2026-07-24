@@ -5,7 +5,7 @@ import { loginAction } from "@/app/(auth)/actions";
 import { initialAuthState } from "@/lib/auth/state";
 import { AuthMessage } from "@/components/auth/auth-shell";
 
-export function LoginForm() {
+export function LoginForm({ publicRegistrationEnabled }: { publicRegistrationEnabled: boolean }) {
   const [state, action, pending] = useActionState(loginAction, initialAuthState);
   return <form action={action} className="grid gap-4">
     <AuthMessage state={state} />
@@ -13,6 +13,6 @@ export function LoginForm() {
     <label><span className="label mb-1 block">Contraseña</span><input className="field" name="password" type="password" autoComplete="current-password" required /></label>
     <Link href="/recuperar-contrasena" className="text-sm font-bold text-obra-yellowDark hover:underline">He olvidado mi contraseña</Link>
     <button className="primary-button w-full" disabled={pending}>{pending ? "Comprobando…" : "Entrar"}</button>
-    <p className="text-center text-sm text-slate-600">¿Aún no tienes cuenta? <Link href="/registro" className="font-bold text-obra-yellowDark hover:underline">Crear cuenta</Link></p>
+    <p className="text-center text-sm text-slate-600">{publicRegistrationEnabled ? <>¿Aún no tienes cuenta? <Link href="/registro" className="font-bold text-obra-yellowDark hover:underline">Crear cuenta</Link></> : <>Acceso limitado a la beta privada. <Link href="/demo" className="font-bold text-obra-yellowDark hover:underline">Solicitar demo</Link></>}</p>
   </form>;
 }

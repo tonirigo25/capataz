@@ -59,11 +59,14 @@ OPENAI_FAST_TIMEOUT_MS=10000
 OPENAI_REASONING_TIMEOUT_MS=30000
 NEXT_PUBLIC_APP_MODE=test
 NEXT_PUBLIC_APP_ENV=staging
+ORQENA_PUBLIC_REGISTRATION_ENABLED=false
 NEXT_PUBLIC_WEB_BASE_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=soporte@capataz.app
 ```
 
 Para staging/revisión, `NEXT_PUBLIC_APP_MODE=test` deja Capataz sin límites demo durante pruebas. Para demo pública limitada se puede usar `demo`. Para producción comercial futura, `production`.
+
+`ORQENA_PUBLIC_REGISTRATION_ENABLED` debe permanecer en `false` durante la beta privada. En producción, si no se configura, el registro público también permanece cerrado por defecto; las altas mediante invitación válida siguen disponibles.
 
 `DATABASE_URL` debe venir como variable referenciada desde el servicio PostgreSQL de Railway.
 

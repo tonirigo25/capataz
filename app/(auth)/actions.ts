@@ -10,6 +10,7 @@ import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
 import { queueEmailEvent } from "@/lib/email/outbox";
+import { isPublicRegistrationEnabled } from "@/lib/public-registration";
 
 const genericCredentials = "No hemos podido iniciar sesión con esos datos.";
 
@@ -27,6 +28,9 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
   const fields = { displayName, email, companyName };
   const invitation = invitationToken ? await prisma.invitation.findUnique({ where: { tokenHash: hashToken(invitationToken) } }) : null;
   const invitationValid = invitation && ["PENDING", "PENDING_EMPLOYEE"].includes(invitation.status) && invitation.expiresAt > new Date() && invitation.emailNormalized === emailNormalized;
+  if (!invitationValid && !isPublicRegistrationEnabled()) {
+    return { status: "error", message: "Orqena está en beta privada. Para crear una cuenta necesitas una invitación válida.", fields };
+  }
   if (!displayName || (!companyName && !invitationValid) || !/^\S+@\S+\.\S+$/.test(emailNormalized)) return { status: "error", message: "Revisa tu nombre, correo y empresa.", fields };
   const passwordErrors = validatePassword(password);
   if (passwordErrors.length || password !== confirmation) return { status: "error", message: password !== confirmation ? "Las contraseñas no coinciden." : passwordErrors[0], fields };
