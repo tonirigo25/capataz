@@ -3,7 +3,12 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
-import { platform, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
+import {
+  installCleanupSignalHandlers,
+  startIsolatedPostgres,
+  stopIsolatedPostgres,
+} from "./isolated-postgres-runtime.mjs";
 import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 const packageRoot = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
@@ -14,45 +19,25 @@ const { default: EmbeddedPostgres } = await import(
   ).href
 );
 const password = randomBytes(24).toString("hex");
-const port = Number(process.env.CAPATAZ_QA_POSTGRES_PORT ?? 55432);
-const pg = new EmbeddedPostgres({
-  databaseDir: join(packageRoot, `data-${Date.now()}`),
-  user: "postgres",
-  password,
-  port,
-  persistent: true,
-  // PostgreSQL 18 can leave a reparented io_worker holding inherited pipes on
-  // Windows while taskkill closes the postmaster. This isolated validation is
-  // latency-insensitive, so synchronous I/O makes teardown deterministic.
-  postgresFlags: ["-c", "io_method=sync"],
+let runtime;
+let tempRoot;
+const removeSignalHandlers = installCleanupSignalHandlers(async () => {
+  await stopIsolatedPostgres(runtime).catch(() => undefined);
+  if (tempRoot) rmSync(tempRoot, { recursive: true, force: true });
 });
 
-async function stopIsolatedPostgres() {
-  const child = pg.process;
-  if (platform() !== "win32" || !child?.pid) {
-    await pg.stop();
-    return;
-  }
-
-  // embedded-postgres launches taskkill asynchronously on Windows. If the
-  // postmaster exits before stop() installs its listener, cleanup can wait
-  // forever while a fork child keeps the inherited socket open. A synchronous
-  // tree termination is scoped to this cluster's recorded PID and closes all
-  // descendants before the validation process returns.
-  spawnSync("taskkill", ["/pid", String(child.pid), "/f", "/t"], {
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  child.stdin?.destroy();
-  child.stdout?.destroy();
-  child.stderr?.destroy();
-  child.removeAllListeners();
-  pg.process = undefined;
-}
-
 try {
-  await pg.initialise();
-  await pg.start();
+  runtime = await startIsolatedPostgres({
+    EmbeddedPostgres,
+    root: packageRoot,
+    suite: "automation-postgres-isolated",
+    password,
+    preferredPort: process.env.CAPATAZ_QA_POSTGRES_PORT,
+    // PostgreSQL 18 can leave a reparented io_worker holding inherited pipes
+    // on Windows. Synchronous I/O makes scoped teardown deterministic.
+    postgresFlags: ["-c", "io_method=sync"],
+  });
+  const { pg, port } = runtime;
   await pg.createDatabase("capataz_test_fresh");
   const url = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_fresh?schema=public`;
   const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true" };
@@ -102,7 +87,7 @@ try {
   const upgradeUrl = `postgresql://postgres:${password}@127.0.0.1:${port}/capataz_test_upgrade?schema=public`,
     upgradeEnv = { ...process.env, DATABASE_URL: upgradeUrl, CAPATAZ_TEST_DATABASE_ISOLATED: "true" };
   assertIsolatedTestDatabase(upgradeEnv);
-  const tempRoot = mkdtempSync(join(tmpdir(), "capataz-migrations-"));
+  tempRoot = mkdtempSync(join(tmpdir(), "capataz-migrations-"));
   cpSync(join(process.cwd(), "prisma"), join(tempRoot, "prisma"), {
     recursive: true,
   });
@@ -114,7 +99,7 @@ try {
     "20260712210000_company_numbering_and_settings",
     "20260713193000_company_document_sequences",
   ];
-  const postIdentityMigrations = ["20260717120000_procurement_management", "20260722120000_orqena_macrophase_1", "20260722190000_orqena_commercial_platform", "20260723230000_private_chat_ownership_and_profiles"];
+  const postIdentityMigrations = ["20260717120000_procurement_management", "20260722120000_orqena_macrophase_1", "20260722190000_orqena_commercial_platform", "20260723230000_private_chat_ownership_and_profiles", "20260724150000_orqena_professional_portals_closure"];
   for (const migration of [...incrementalMigrations, ...postIdentityMigrations]) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
     "npx.cmd",
@@ -263,6 +248,7 @@ try {
   );
   await upgraded.end();
   rmSync(tempRoot, { recursive: true, force: true });
+  tempRoot = undefined;
   if (JSON.stringify(before.rows[0]) !== JSON.stringify(after.rows[0]))
     throw new Error("INCREMENTAL_ROW_COUNTS_CHANGED");
   console.log(
@@ -284,5 +270,7 @@ try {
     }),
   );
 } finally {
-  await stopIsolatedPostgres();
+  removeSignalHandlers();
+  if (tempRoot) rmSync(tempRoot, { recursive: true, force: true });
+  await stopIsolatedPostgres(runtime);
 }

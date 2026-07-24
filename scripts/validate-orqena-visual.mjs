@@ -5,25 +5,47 @@ import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { chromium } from "playwright-core";
+import {
+  availableLoopbackPort,
+  installCleanupSignalHandlers,
+  startIsolatedPostgres,
+  stopIsolatedPostgres,
+  terminateOwnedProcess,
+} from "./isolated-postgres-runtime.mjs";
+import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 
 const root = process.cwd();
 const pgRoot = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
 if (!pgRoot) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
 const { default: EmbeddedPostgres } = await import(pathToFileURL(join(pgRoot, "node_modules", "embedded-postgres", "dist", "index.js")).href);
-const port = Number(process.env.ORQENA_VISUAL_PG_PORT ?? 56540);
-const webPort = Number(process.env.ORQENA_VISUAL_WEB_PORT ?? 3060);
+const webPort = process.env.ORQENA_VISUAL_WEB_PORT
+  ? Number(process.env.ORQENA_VISUAL_WEB_PORT)
+  : await availableLoopbackPort();
 const password = randomBytes(18).toString("hex");
-const databaseUrl = `postgresql://postgres:${password}@127.0.0.1:${port}/orqena_visual_qa?schema=public`;
 const output = process.env.ORQENA_VISUAL_REPORT_DIR ?? join(process.env.TEMP ?? root, `orqena-visual-${Date.now()}`);
 const chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-const pg = new EmbeddedPostgres({ databaseDir: join(pgRoot, `visual-${Date.now()}`), user: "postgres", password, port, persistent: true, postgresFlags: ["-c", "io_method=sync"] });
-const env = { ...process.env, DATABASE_URL: databaseUrl, CAPATAZ_TEST_DATABASE_ISOLATED: "true", CAPATAZ_VISUAL_QA: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
 const routes = ["", "login", "registro", "hoy", "clientes", "obras", "capataz", "onboarding", "crear-empresa", "seleccionar-empresa", "equipo", "equipos", "plan-y-uso", "auditoria", "plataforma", "aceptar-invitacion", "configuracion"];
 const viewports = [[390, 844], [768, 1024], [1024, 900], [1440, 1000]];
-let server; let browser;
+let server; let browser; let runtime;
+const removeSignalHandlers = installCleanupSignalHandlers(async () => {
+  await browser?.close().catch(() => undefined);
+  terminateOwnedProcess(server);
+  await stopIsolatedPostgres(runtime).catch(() => undefined);
+});
 try {
   mkdirSync(output, { recursive: true });
-  await pg.initialise(); await pg.start(); await pg.createDatabase("orqena_visual_qa");
+  runtime = await startIsolatedPostgres({
+    EmbeddedPostgres,
+    root: pgRoot,
+    suite: "orqena-visual",
+    password,
+    preferredPort: process.env.ORQENA_VISUAL_PG_PORT,
+    postgresFlags: ["-c", "io_method=sync"],
+  });
+  const databaseUrl = `postgresql://postgres:${password}@127.0.0.1:${runtime.port}/capataz_test_orqena_visual?schema=public`;
+  const env = { ...process.env, DATABASE_URL: databaseUrl, CAPATAZ_TEST_DATABASE_ISOLATED: "true", CAPATAZ_VISUAL_QA: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
+  assertIsolatedTestDatabase(env);
+  await runtime.pg.createDatabase("capataz_test_orqena_visual");
   execFileSync(process.execPath, [join(root, "node_modules/prisma/build/index.js"), "migrate", "deploy"], { cwd: root, env, stdio: "inherit" });
   execFileSync(process.execPath, [join(root, "prisma/seed.js")], { cwd: root, env, stdio: "inherit" });
   const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
@@ -68,7 +90,8 @@ try {
   writeFileSync(join(output, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
   console.log(JSON.stringify(report, null, 2));
 } finally {
+  removeSignalHandlers();
   if (browser) await browser.close().catch(() => {});
-  if (server?.pid) { try { execFileSync("taskkill", ["/pid", String(server.pid), "/f", "/t"], { stdio: "ignore", windowsHide: true }); } catch {} }
-  await pg.stop().catch(() => {});
+  terminateOwnedProcess(server);
+  await stopIsolatedPostgres(runtime);
 }

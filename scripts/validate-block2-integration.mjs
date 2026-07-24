@@ -36,7 +36,14 @@ for (const nav of ["/agenda", "/actividad", "/notificaciones", "/documentos", "/
 }
 
 expect(files.client.includes("Contactos") && files.client.includes("Documentos") && files.client.includes("Notas internas"), "Client 360 missing Block 2 tabs");
-expect(files.work.includes("Contactos") && files.work.includes("Documentos") && files.work.includes("Fotograf") && files.work.includes("Notas"), "Work 360 missing Block 2 tabs");
+expect(
+  ["ContactsTab", "DocumentsTab", "WorkProgressGallery", "NotesTab"].every((consumer) => files.work.includes(consumer))
+    && files.work.includes('fotografias: "progreso"')
+    && files.work.includes('notas: "progreso"')
+    && files.work.includes('documentos: "archivos"')
+    && files.work.includes('contactos: "equipo"'),
+  "Work 360 missing consolidated Block 2 areas or legacy routes",
+);
 expect(files.chatActions.includes("queryClientContacts") && files.chatActions.includes("queryWorkDocuments") && files.chatActions.includes("queryPendingNotifications"), "chat actions missing Block 2 queries");
 expect(fs.existsSync("docs/MULTIEMPRESA_OWNERSHIP_PLAN.md"), "missing ownership plan doc");
 expect(fs.existsSync("docs/BLOQUE_2_CIERRE_FINAL.md"), "missing Block 2 closure doc");

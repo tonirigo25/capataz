@@ -72,8 +72,8 @@ const cases = [
   ["shell usa sidebar de 240 px y objetivos táctiles", chrome.includes("lg:pl-60") && chrome.includes("w-60") && styles.includes("--cap-control: 2.75rem")],
   ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
   ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Orqena") && !today.includes("¿Qué ha pasado hoy?")],
-  ["Hoy limita la primera zona a tres señales", today.includes("limit: query.categoria ? 20 : 3") && today.includes("Necesita tu atención")],
-  ["Hoy deriva consultas compartidas de la empresa activa", today.includes("requireCompanyContext") && today.includes("getDashboardData()") && today.includes("getAgendaItems()") && today.includes("getEconomicControl(")],
+  ["Hoy limita la primera zona a tres señales", today.includes("portal.homeWidgets.slice(0, 3).map") && today.includes("Tus prioridades")],
+  ["Hoy deriva consultas desde contexto autorizado", today.includes('requireCapability("company.view")') && today.includes("buildPortalManifest(auth)") && today.includes("getAgendaItems()")],
   ["foco, safe area y movimiento reducido", styles.includes(":focus-visible") && styles.includes("env(safe-area-inset-bottom)") && styles.includes("prefers-reduced-motion: reduce")],
   ["campos evitan zoom involuntario en iOS", styles.includes("font-size: 16px") && styles.includes("--cap-control-field: 3rem")]
 ];

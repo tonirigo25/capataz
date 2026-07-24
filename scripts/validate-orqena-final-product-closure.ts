@@ -1,131 +1,156 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { prisma } from "../lib/prisma";
+import { hashPassword, hashToken } from "../lib/auth/crypto";
+import { withCompanyContext, type CompanyContext } from "../lib/auth/session";
+import { ensureBasePlans } from "../lib/commercial/provisioning";
+import type { CapabilityKey } from "../lib/commercial/catalog";
+import { getEntitlements, resolveAuthorization, resolveScopedEntityIds } from "../lib/commercial/authorization";
+import { buildPortalManifest } from "../lib/commercial/portal-manifest";
+import { functionalProfileCapabilities, profileDefaultPackages, resolveFunctionalProfile, type FunctionalProfileKey } from "../lib/commercial/functional-profiles";
+import { acceptEmployeeInvitation, approveEmployeeMembership } from "../lib/commercial/invitation-service";
+import { requireActiveOwner } from "../lib/commercial/owner-governance";
 
-/**
- * Contract matrix for the Orqena release close.  This is intentionally a
- * deterministic source-and-schema contract: remote browser evidence belongs
- * to the staging audit, while this command is safe for the isolated runner.
- */
-const root = process.cwd();
-const read = (path: string) => readFileSync(join(root, path), "utf8");
-const exists = (path: string) => existsSync(join(root, path));
-const source = {
-  actions: read("app/(app)/capataz/actions.ts"),
-  chat: read("components/capataz-chat.tsx"),
-  repository: read("lib/orqena/conversation-repository.ts"),
-  session: read("lib/auth/session.ts"),
-  switcher: read("app/seleccionar-empresa/actions.ts"),
-  schema: read("prisma/schema.prisma"),
-  catalog: read("lib/commercial/catalog.ts"),
-  authorization: read("lib/commercial/authorization.ts"),
-  profiles: read("lib/commercial/functional-profiles.ts"),
-  memory: read("lib/orqena/memory-service.ts"),
-  context: read("lib/orqena/context-builder.ts"),
-  notifications: read("lib/notifications.ts"),
-  stagingProvisioner: read("scripts/provision-staging.ts"),
-  stagingRunner: read("scripts/validate-orqena-staging.mjs"),
-  visualRunner: read("scripts/validate-orqena-visual.mjs"),
-  structure: read("scripts/validate-orqena-conversation-structure.mjs"),
-  integration: read("scripts/validate-orqena-conversation-integration.ts"),
-  proposal: read("scripts/validate-orqena-proposal-lifecycle.mjs"),
-  voice: read("scripts/validate-orqena-voice-denied.mjs")
+type ProfileCase = {
+  key: FunctionalProfileKey;
+  role: "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER";
+  positive: readonly CapabilityKey[];
+  negative: readonly CapabilityKey[];
+  readOnly?: boolean;
 };
 
-type Contract = { id: string; area: string; verify: () => void };
-const contracts: Contract[] = [];
-function contract(id: string, area: string, verify: () => void) { contracts.push({ id, area, verify }); }
-function contains(value: string, needle: string, label = `missing ${needle}`) { assert.ok(value.includes(needle), label); }
-function matches(value: string, pattern: RegExp, label = `missing ${pattern}`) { assert.match(value, pattern, label); }
+const checkedCapabilities = ["company.view", "clients.view", "work.view", "agenda.view", "tasks.view", "documents.view", "orqena.use"] as const satisfies readonly CapabilityKey[];
+const profiles: readonly ProfileCase[] = [
+  { key: "OWNER", role: "OWNER", positive: checkedCapabilities, negative: [] },
+  { key: "GENERAL_MANAGER", role: "MANAGER", positive: checkedCapabilities, negative: ["company.members.invite", "treasury.view"] },
+  { key: "SALES_MANAGER", role: "MANAGER", positive: ["company.view", "clients.view", "agenda.view", "tasks.view", "documents.view", "orqena.use", "sales.budgets.create"], negative: ["treasury.view", "company.members.invite"] },
+  { key: "SALES", role: "MEMBER", positive: ["company.view", "clients.view", "agenda.view", "tasks.view", "documents.view", "orqena.use", "sales.budgets.create"], negative: ["margin_amount.view", "treasury.view", "company.members.invite"] },
+  { key: "ADMINISTRATIVE", role: "ADMIN", positive: ["company.view", "clients.view", "agenda.view", "tasks.view", "documents.view", "orqena.use"], negative: ["work.view", "treasury.view", "company.members.invite"] },
+  { key: "FINANCE", role: "ADMIN", positive: ["company.view", "documents.view", "orqena.use", "sales.invoices.view", "treasury.view"], negative: ["company.members.invite", "work.view"] },
+  { key: "PROCUREMENT_MANAGER", role: "MANAGER", positive: ["company.view", "documents.view", "orqena.use", "purchases.suppliers.view", "purchase_cost.view"], negative: ["sales.invoices.view", "treasury.view", "company.members.invite"] },
+  { key: "PROJECT_MANAGER", role: "MANAGER", positive: ["company.view", "work.view", "agenda.view", "tasks.view", "documents.view", "orqena.use"], negative: ["clients.view", "profitability.view", "company.members.invite"] },
+  { key: "TEAM_SUPERVISOR", role: "MEMBER", positive: ["company.view", "work.view", "agenda.view", "tasks.view", "documents.view", "orqena.use"], negative: ["clients.view", "treasury.view", "company.members.invite"] },
+  { key: "WORKER", role: "MEMBER", positive: ["company.view", "work.view", "agenda.view", "tasks.view", "documents.view", "orqena.use"], negative: ["clients.view", "treasury.view", "company.members.invite"] },
+  { key: "EXTERNAL_COLLABORATOR", role: "MEMBER", positive: ["company.view", "work.view", "agenda.view", "documents.view"], negative: ["clients.view", "treasury.view", "company.members.invite"] },
+  { key: "ADVISOR_AUDITOR", role: "VIEWER", positive: ["company.view", "documents.view", "orqena.use", "reports.view"], negative: ["clients.view", "treasury.view", "company.members.invite"], readOnly: true }
+];
 
-// C01-C06: deterministic fixture and runner boundaries.
-contract("C01", "fixture", () => contains(source.stagingProvisioner, "requireStaging()", "staging fixture gate missing"));
-contract("C02", "fixture", () => contains(source.integration, "CAPATAZ_TEST_DATABASE_ISOLATED=true", "isolated DB gate missing"));
-contract("C03", "fixture", () => matches(source.stagingProvisioner, /@staging\.orqena\.invalid/g, "synthetic staging identities missing"));
-contract("C04", "fixture", () => contains(source.stagingProvisioner, "EXPECTED_PROJECT_ID", "explicit staging project gate missing"));
-contract("C05", "fixture", () => contains(source.stagingProvisioner, "EXPECTED_ENVIRONMENT_ID", "explicit staging environment gate missing"));
-contract("C06", "fixture", () => { assert.ok(exists("scripts/run-all-tests-isolated.mjs")); assert.ok(exists("scripts/validate-orqena-staging.mjs")); });
-
-// C07-C20: conversation privacy, identity, persistence and company switching.
-contract("C07", "conversation", () => matches(source.repository, /type ConversationTenantContext[\s\S]*userId[\s\S]*companyId[\s\S]*membershipId/, "tenant context incomplete"));
-contract("C08", "conversation", () => contains(source.actions, 'requireCapability("orqena.use")', "conversation capability gate missing"));
-contract("C09", "conversation", () => { contains(source.repository, "const conversationScope", "conversation scope helper missing"); matches(source.repository, /getConversationForCompany[\s\S]*where: \{ id, \.\.\.conversationScope\(context\)/, "conversation ID not company scoped"); });
-contract("C10", "conversation", () => matches(source.repository, /archiveConversationForCompany[\s\S]*where: \{ id, \.\.\.conversationScope\(context\)/, "archive not company scoped"));
-contract("C11", "conversation", () => matches(source.repository, /deleteConversationForCompany[\s\S]*where: \{ id, \.\.\.conversationScope\(context\)/, "delete not company scoped"));
-contract("C12", "conversation", () => contains(source.schema, "@@unique([companyId, conversationId, idempotencyKey])", "idempotency is not tenant scoped"));
-contract("C13", "conversation", () => contains(source.structure, "Direct Prisma chat access is forbidden", "repository structural guard missing"));
-contract("C14", "conversation", () => contains(source.chat, "orqena-chat-conversation-id:${companyId}:${userId}", "localStorage is not company/user segmented"));
-contract("C15", "conversation", () => { for (const token of ['setConversationId("")', "setConversations([])", "setChatContext(null)", 'activeConversationRef.current = ""']) contains(source.chat, token, `company reset missing ${token}`); });
-contract("C16", "conversation", () => { contains(source.chat, "companyGenerationRef"); contains(source.chat, "canApplyCompanyResult"); });
-contract("C17", "conversation", () => contains(source.session, "withCompanyContext", "fixed request company context missing"));
-contract("C18", "conversation", () => matches(source.repository, /findLatestPendingTaskForCompany[\s\S]*\.\.\.conversationScope\(context\)/, "pending task lookup unscoped"));
-contract("C19", "conversation", () => { contains(source.switcher, 'pendingConfirmation: { path: ["userId"]'); contains(source.switcher, 'pendingConfirmation: { path: ["status"], equals: "PENDING" }'); });
-contract("C20", "conversation", () => { contains(source.integration, "actor-bound-cancel"); contains(source.integration, "async-context-race"); });
-
-// C21-C32: proposal lifecycle, confirmation and deterministic execution.
-contract("C21", "proposal", () => contains(source.actions, "export async function preparePendingProposal"));
-contract("C22", "proposal", () => contains(source.actions, "export async function cancelPendingProposal"));
-contract("C23", "proposal", () => contains(source.actions, "export async function executePendingProposal"));
-contract("C24", "proposal", () => matches(source.repository, /pending\.userId !== context\.userId[\s\S]*pending\.membershipId !== context\.membershipId/, "proposal actor binding missing"));
-contract("C25", "proposal", () => { contains(source.repository, 'status: "EXPIRED"'); contains(source.chat, "Esta propuesta ha caducado"); });
-contract("C26", "proposal", () => contains(source.actions, "proposalTargetsMatch", "proposal target binding missing"));
-contract("C27", "proposal", () => { contains(source.chat, "Propuesta cancelada"); contains(source.actions, "alreadyCancelled"); });
-contract("C28", "proposal", () => { matches(source.actions, /if \(wantsBudget[\s\S]{0,180}handled: false/); matches(source.actions, /if \(wantsInvoice[\s\S]{0,180}handled: false/); });
-contract("C29", "proposal", () => contains(source.actions, "looksLikeWorkflowContractMutation(normalizedText) || enrichedContext?.pendingDisambiguation"));
-contract("C30", "proposal", () => contains(source.proposal, "requestSubmit", "proposal test must guard direct form submission"));
-contract("C31", "proposal", () => { contains(source.repository, 'status: "EXECUTING"'); contains(source.repository, "finishPendingProposalExecutionForCompany"); });
-contract("C32", "proposal", () => { contains(source.chat, "Confirmar"); contains(source.chat, "Editar"); contains(source.chat, "Cancelar"); });
-
-// C33-C38: profiles, capabilities and restricted scope.
-contract("C33", "profiles", () => { for (const role of ["OWNER", "PURCHASING_MANAGER", "GENERAL_MANAGER", "ADMINISTRATIVE", "SALES", "WORK_MANAGER", "WORKER", "VIEWER", "EXTERNAL_COLLABORATOR"]) contains(source.profiles, role, `profile missing ${role}`); });
-contract("C34", "profiles", () => contains(source.authorization, "resolveAuthorization", "authorization resolver missing"));
-contract("C35", "profiles", () => contains(source.authorization, 'effect === "DENY"', "deny override missing"));
-contract("C36", "profiles", () => contains(source.actions, "scope !== \"COMPANY\"", "Orqena scope boundary missing"));
-contract("C37", "profiles", () => contains(source.stagingProvisioner, '"VIEWER"', "viewer staging fixture missing"));
-contract("C38", "profiles", () => contains(source.stagingRunner, "platformDenied", "viewer denial E2E guard missing"));
-
-// C39-C42: voice safety.
-contract("C39", "voice", () => contains(source.voice, "NotAllowedError|PermissionDeniedError|SecurityError", "voice denial contract missing"));
-contract("C40", "voice", () => { contains(source.chat, "transcriptionAbortRef"); contains(source.chat, "AbortController"); });
-contract("C41", "voice", () => { contains(source.chat, "audioChunksRef.current = []"); contains(source.chat, "getTracks().forEach((track) => track.stop())"); });
-contract("C42", "voice", () => { contains(source.chat, "No tengo permiso para usar el micrófono"); contains(source.chat, "Reintentar"); });
-
-// C43-C50: history UX, copy and responsive safety.
-contract("C43", "ux", () => { contains(source.chat, "followLatestRef"); contains(source.chat, "Ir al último mensaje"); });
-contract("C44", "ux", () => matches(source.chat, /container\.scrollTo\(\{ top: container\.scrollHeight/, "chat should control scrolling inside its container"));
-contract("C45", "ux", () => assert.doesNotMatch(source.chat, /scrollIntoView/, "blind scrollIntoView regression"));
-contract("C46", "ux", () => contains(source.chat, "min-h-11", "proposal controls lack touch target"));
-contract("C47", "ux", () => contains(source.chat, 'aria-label="Acciones de la propuesta"', "proposal controls lack accessible group"));
-contract("C48", "ux", () => contains(source.chat, "sm:grid-cols-3", "proposal controls lack responsive layout"));
-contract("C49", "ux", () => contains(source.chat, "No se pudo confirmar. La propuesta no se ha ejecutado", "recoverable confirmation copy missing"));
-contract("C50", "ux", () => { contains(source.visualRunner, "Chat composer is not visible"); contains(source.stagingRunner, "OVERFLOW"); });
-
-// C51-C57: all persisted Orqena business context has a tenant boundary.
-contract("C51", "business", () => matches(source.actions, /prisma\.client\.findMany\([\s\S]{0,240}where: \{ companyId/, "client query boundary missing"));
-contract("C52", "business", () => matches(source.actions, /prisma\.work\.findMany\([\s\S]{0,240}where: \{ companyId/, "work query boundary missing"));
-contract("C53", "business", () => matches(source.actions, /prisma\.budget\.findMany\([\s\S]{0,240}where: \{ companyId/, "budget query boundary missing"));
-contract("C54", "business", () => matches(source.actions, /prisma\.invoice\.findMany\([\s\S]{0,240}where: \{ companyId/, "invoice query boundary missing"));
-contract("C55", "business", () => { contains(source.notifications, "deriveNotifications(companyId)"); contains(source.notifications, "where: { companyId"); });
-contract("C56", "business", () => contains(source.memory, "companyId: input.companyId", "business memory boundary missing"));
-contract("C57", "business", () => { contains(source.context, "getConversationContextForCompany"); contains(source.context, "relevantMemories({ companyId"); });
-
-// C58-C66: fixed profile matrix for the external E2E runner.
-const profiles = ["OWNER", "PURCHASING_MANAGER", "GENERAL_MANAGER", "ADMINISTRATIVE", "SALES", "WORK_MANAGER", "WORKER", "VIEWER", "EXTERNAL_COLLABORATOR"] as const;
-contract("C58", "e2e-profile", () => assert.equal(profiles.length, 9, "nine E2E profiles required"));
-contract("C59", "e2e-profile", () => assert.deepEqual(profiles.slice(0, 3), ["OWNER", "PURCHASING_MANAGER", "GENERAL_MANAGER"]));
-contract("C60", "e2e-profile", () => assert.ok(profiles.includes("ADMINISTRATIVE") && profiles.includes("SALES")));
-contract("C61", "e2e-profile", () => assert.ok(profiles.includes("WORK_MANAGER") && profiles.includes("WORKER")));
-contract("C62", "e2e-profile", () => assert.ok(profiles.includes("VIEWER") && profiles.includes("EXTERNAL_COLLABORATOR")));
-contract("C63", "e2e-profile", () => matches(source.stagingRunner, /\[390, 844\][\s\S]*\[1440, 1000\]/, "four target viewports missing"));
-contract("C64", "e2e-profile", () => contains(source.stagingRunner, "captureErrors", "E2E console/network capture missing"));
-contract("C65", "e2e-profile", () => contains(source.stagingRunner, "cross-company", "cross-company E2E boundary missing"));
-contract("C66", "e2e-profile", () => { assert.ok(profiles.length * 4 === 36, "capture budget must stay at 36"); });
-
-assert.equal(contracts.length, 66, "final closure matrix must contain exactly 66 contracts");
-const passed: string[] = [];
-for (const item of contracts) {
-  item.verify();
-  passed.push(item.id);
+function requireIsolatedDatabase() {
+  if (process.env.CAPATAZ_TEST_DATABASE_ISOLATED !== "true") throw new Error("CAPATAZ_TEST_DATABASE_ISOLATED=true es obligatorio.");
+  const raw = process.env.DATABASE_URL;
+  if (!raw) throw new Error("DATABASE_URL aislada es obligatoria.");
+  const url = new URL(raw);
+  const database = url.pathname.replace(/^\//, "");
+  if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname) || !database.startsWith("capataz_test")) throw new Error("La prueba sólo puede usar PostgreSQL local capataz_test*.");
 }
-assert.equal(new Set(passed).size, 66, "contract IDs must be unique");
-console.log(JSON.stringify({ ok: true, suite: "orqena-final-product-closure", contracts: passed.length, profiles, captureBudget: 36, areas: [...new Set(contracts.map((item) => item.area))] }));
+
+function context(input: { userId: string; membershipId: string; companyId: string; role: ProfileCase["role"] }): CompanyContext {
+  return {
+    sessionId: `closure-${input.membershipId}`, userId: input.userId, membershipId: input.membershipId, companyId: input.companyId,
+    email: "closure@orqena.invalid", displayName: "Cierre Orqena", expiresAt: new Date(Date.now() + 60_000), role: input.role,
+    isDemo: true, companyName: "Cierre Orqena", companyStatus: "active", commercialStatus: "ACTIVE"
+  };
+}
+
+async function main() {
+  requireIsolatedDatabase();
+  await ensureBasePlans(prisma);
+  const suffix = `${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const passwordHash = await hashPassword("Orqena-functional-closure-2026!");
+  const company = await prisma.company.create({ data: { slug: `closure-${suffix}`, nombreComercial: `Cierre Orqena ${suffix}`, status: "active", isDemo: true, organizationType: "COMPANY", sectorKey: "construction" } });
+  const users = new Map<string, { id: string }>();
+  const memberships = new Map<FunctionalProfileKey, { id: string; userId: string }>();
+  const traces: Array<Record<string, unknown>> = [];
+
+  try {
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { key: "BUSINESS" } });
+    await prisma.subscription.create({ data: { companyId: company.id, planId: plan.id, status: "ACTIVE", provider: "local", currentPeriodStart: new Date(Date.now() - 60_000), currentPeriodEnd: new Date(Date.now() + 86400000) } });
+
+    for (const profile of profiles) {
+      const email = `${profile.key.toLowerCase().replaceAll("_", "-")}-${suffix}@orqena.invalid`;
+      const user = await prisma.user.create({ data: { email, emailNormalized: email, displayName: profile.key, passwordHash, status: "active", emailVerifiedAt: new Date(), activeCompanyId: company.id } });
+      users.set(profile.key, user);
+      const membership = await prisma.companyMembership.create({ data: { userId: user.id, companyId: company.id, role: profile.role, functionalProfileKey: profile.key, accessMode: profile.readOnly ? "READ_ONLY" : "STANDARD", status: "active", acceptedAt: new Date(), joinedAt: new Date(), origin: "functional-closure" } });
+      memberships.set(profile.key, { id: membership.id, userId: user.id });
+      await prisma.membershipAccessPackage.createMany({ data: profileDefaultPackages[profile.key].map((packageKey) => ({ companyId: company.id, membershipId: membership.id, packageKey })) });
+    }
+
+    const worker = memberships.get("WORKER")!;
+    await prisma.scopeAssignment.create({ data: { companyId: company.id, membershipId: worker.id, capabilityKey: "work.view", scope: "ASSIGNED", entityType: "Work", entityId: "closure-work" } });
+    const generalManager = memberships.get("GENERAL_MANAGER")!;
+    await prisma.approvalAuthority.create({ data: { companyId: company.id, membershipId: generalManager.id, authorityKey: "quote.approve", maxAmount: 100000, scope: "COMPANY" } });
+
+    for (const profile of profiles) {
+      const member = memberships.get(profile.key)!;
+      const auth = context({ userId: member.userId, membershipId: member.id, companyId: company.id, role: profile.role });
+      const manifest = await buildPortalManifest(auth);
+      assert.equal(manifest.profile, profile.key, `${profile.key}: profile resolved incorrectly`);
+      assert.equal(manifest.readOnly, Boolean(profile.readOnly), `${profile.key}: read-only mode mismatch`);
+      assert.ok(manifest.navigation.length > 0 || manifest.safeHome === "/acceso-restringido", `${profile.key}: empty portal without a safe home`);
+      assert.ok(manifest.packages.length > 0, `${profile.key}: packages missing from PortalManifest`);
+      if (profile.key === "WORKER") assert.ok(manifest.scopes.some((scope) => scope.capabilityKey === "work.view" && scope.scope === "ASSIGNED"), "WORKER: assigned scope missing from PortalManifest");
+      if (profile.key === "GENERAL_MANAGER") assert.ok(manifest.approvalAuthorities.some((item) => item.key === "quote.approve" && item.maxAmount === "100000"), "GENERAL_MANAGER: delegated approval missing from PortalManifest");
+
+      for (const capability of checkedCapabilities) {
+        const decision = await resolveAuthorization(auth, capability);
+        traces.push({ profile: profile.key, capability, resolvedProfile: resolveFunctionalProfile(profile.key, profile.role), baseCapabilities: functionalProfileCapabilities[profile.key], packages: manifest.packages, entitlements: (await getEntitlements(company.id)).values, scope: decision.scope, decision: decision.allowed, reason: decision.reason });
+      }
+      for (const capability of profile.positive) assert.equal((await resolveAuthorization(auth, capability)).allowed, true, `${profile.key}: expected ${capability} to be allowed`);
+      for (const capability of profile.negative) assert.equal((await resolveAuthorization(auth, capability)).allowed, false, `${profile.key}: expected ${capability} to be denied`);
+    }
+
+    const owner = memberships.get("OWNER")!;
+    const sales = memberships.get("SALES")!;
+    const ownerContext = context({ userId: owner.userId, membershipId: owner.id, companyId: company.id, role: "OWNER" });
+    const salesContext = context({ userId: sales.userId, membershipId: sales.id, companyId: company.id, role: "MEMBER" });
+    const workerContext = context({ userId: worker.userId, membershipId: worker.id, companyId: company.id, role: "MEMBER" });
+    assert.equal((await resolveAuthorization(ownerContext, "company.members.invite")).allowed, true, "OWNER must govern invitations");
+    assert.equal((await withCompanyContext(ownerContext, () => requireActiveOwner())).ownerMembership.id, owner.id, "OWNER must satisfy the central governance guard");
+    await assert.rejects(withCompanyContext(salesContext, () => requireActiveOwner()), /OWNER_REQUIRED/, "Non-owner must not satisfy the central governance guard");
+    assert.equal((await resolveAuthorization(salesContext, "margin_amount.view")).allowed, false, "SALES must not see margin without a grant");
+    await prisma.membershipPermissionOverride.create({ data: { membershipId: sales.id, capabilityKey: "margin_amount.view", effect: "GRANT", changedById: owner.userId, reason: "Functional closure field grant" } });
+    assert.equal((await resolveAuthorization(salesContext, "margin_amount.view")).allowed, true, "SALES must see margin after an explicit grant");
+    assert.equal((await resolveAuthorization(workerContext, "work.update")).scope, "ASSIGNED", "Mutating work access must inherit the selected work.view scope");
+    assert.deepEqual(await resolveScopedEntityIds(workerContext, "work.update", "Work"), ["closure-work"], "Mutating work access must inherit selected work IDs");
+    await prisma.membershipPermissionOverride.create({ data: { membershipId: worker.id, capabilityKey: "sales.invoices.view", effect: "GRANT", changedById: owner.userId, reason: "Economic hard-boundary check" } });
+    assert.equal((await resolveAuthorization(workerContext, "sales.invoices.view")).allowed, false, "WORKER must never receive economic access through an override");
+
+    const auditor = memberships.get("ADVISOR_AUDITOR")!;
+    await prisma.membershipPermissionOverride.create({ data: { membershipId: auditor.id, capabilityKey: "documents.upload", effect: "GRANT", changedById: owner.userId, reason: "Read-only mutation guard" } });
+    assert.equal((await resolveAuthorization(context({ userId: auditor.userId, membershipId: auditor.id, companyId: company.id, role: "VIEWER" }), "documents.upload")).allowed, false, "READ_ONLY must not mutate even after a grant");
+
+    const token = `closure-${suffix}-one-use-token`;
+    const invitation = await prisma.invitation.create({ data: { companyId: company.id, inviterId: owner.userId, emailNormalized: `invite-${suffix}@orqena.invalid`, role: "MEMBER", functionalProfileKey: "WORKER", accessMode: "STANDARD", status: "PENDING_EMPLOYEE", tokenHash: hashToken(token), accessPackageKeys: ["OPERATIONS", "OPERATIONAL_DOCUMENTS"], scopeTemplate: [{ capabilityKey: "work.view", scope: "ASSIGNED", entityId: "closure-work" }], expiresAt: new Date(Date.now() + 86400000) } });
+    const outbox = await prisma.emailOutbox.create({ data: { companyId: company.id, invitationId: invitation.id, eventKey: "employee_invited", templateKey: "employee_invited", templateVersion: 1, recipient: invitation.emailNormalized, subject: "Invitación sintética", status: "PENDING", createdById: owner.userId, payload: { synthetic: true } } });
+    assert.notEqual(invitation.tokenHash, token, "Invitation token must be persisted only as a hash");
+    assert.equal(outbox.status, "PENDING", "Invitation must create a pending local outbox event");
+    const invitee = await prisma.user.create({ data: { email: invitation.emailNormalized, emailNormalized: invitation.emailNormalized, displayName: "Empleado invitado", passwordHash, status: "active", emailVerifiedAt: new Date() } });
+    users.set("invitee", invitee);
+    const pendingMembership = await acceptEmployeeInvitation({ token, userId: invitee.id, email: invitee.email });
+    assert.equal(pendingMembership.status, "pending_owner_approval", "Accepted employee must remain pending until owner approval");
+    assert.equal((await resolveAuthorization(context({ userId: invitee.id, membershipId: pendingMembership.id, companyId: company.id, role: "MEMBER" }), "work.view")).allowed, false, "Pending member must not enter the company portal");
+    const approvedMembership = await approveEmployeeMembership({ companyId: company.id, ownerId: owner.userId, invitationId: invitation.id });
+    assert.equal(approvedMembership.status, "active", "Owner approval must activate the membership");
+    assert.equal((await resolveAuthorization(context({ userId: invitee.id, membershipId: approvedMembership.id, companyId: company.id, role: "MEMBER" }), "work.view")).allowed, true, "Approved worker must receive the selected operational package");
+    await assert.rejects(acceptEmployeeInvitation({ token, userId: invitee.id, email: invitee.email }), /INVITATION_NOT_AVAILABLE/, "Invitation token must be single-use");
+
+    const report = { ok: true, suite: "orqena-final-product-closure", isolated: true, profiles: profiles.map((item) => item.key), checks: { profileResolution: profiles.length, portalManifests: profiles.length, authorizationTraces: traces.length, ownerGovernance: true, explicitFieldGrant: true, economicBoundary: true, inheritedMutationScope: true, readOnlyMutationDenied: true, invitationOutbox: true, invitationPendingDenied: true, invitationOwnerApproval: true, invitationSingleUse: true }, ...(process.env.ORQENA_AUTHORIZATION_TRACE === "true" ? { traces } : {}) };
+    console.log(JSON.stringify(report, null, 2));
+  } finally {
+    await prisma.emailOutbox.deleteMany({ where: { companyId: company.id } });
+    await prisma.invitation.deleteMany({ where: { companyId: company.id } });
+    await prisma.auditLog.deleteMany({ where: { companyId: company.id } });
+    await prisma.subscription.deleteMany({ where: { companyId: company.id } });
+    await prisma.user.updateMany({ where: { activeCompanyId: company.id }, data: { activeCompanyId: null } });
+    await prisma.companyMembership.deleteMany({ where: { companyId: company.id } });
+    await prisma.company.delete({ where: { id: company.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [...users.values()].map((user) => user.id) } } });
+    await prisma.$disconnect();
+  }
+}
+
+main().catch(async (error) => {
+  await prisma.$disconnect().catch(() => undefined);
+  console.error(error);
+  process.exitCode = 1;
+});

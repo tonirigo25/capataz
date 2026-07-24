@@ -506,7 +506,26 @@ function loadTsModule(relativePath) {
     }
     if (specifier === "@/lib/numbering") return { nextDocumentNumber: async () => "P-TEST-001", reserveDocumentNumberInTransaction: async () => "P-TEST-001" };
     if (specifier === "@/lib/auth/session") return { requireCompanyContext: async () => ({ sessionId: "isolated-test-session", companyId: "test-company", userId: "test-user", membershipId: "test-membership", displayName: "Test" }) };
-    if (specifier === "@/lib/commercial/authorization") return { requireCapability: async () => ({ companyId: "test-company", userId: "test-user", membershipId: "test-membership", scope: "COMPANY" }) };
+    if (specifier === "@/lib/commercial/authorization") {
+      const authorization = {
+        companyId: "test-company",
+        userId: "test-user",
+        membershipId: "test-membership",
+        functionalProfileKey: "OWNER",
+        scope: "COMPANY",
+      };
+      return {
+        requireCapability: async () => authorization,
+        resolveAuthorization: async (_context, capability) => ({
+          allowed: true,
+          capability,
+          scope: "COMPANY",
+          source: "fixture",
+        }),
+        resolveScopedEntityIds: async () => null,
+        resolveScopedTaskIds: async () => null,
+      };
+    }
     if (specifier === "@/lib/tenant/company-settings") return { companySettingsView: (company) => company };
     if (specifier === "@/lib/status") return { deriveInvoiceStatus: () => "pendiente_pago" };
     if (specifier === "@/lib/chat-workflow-contract") return { handleChatWorkflowContract: async () => null };
