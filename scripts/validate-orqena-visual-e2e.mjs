@@ -61,17 +61,22 @@ async function waitForLoaded(page) {
   }, undefined, { timeout: 15_000 }).catch(() => { throw new Error(`SKELETON_OR_LOADING_STATE:${page.url()}`); });
 }
 async function stabilizeVisuals(page) {
-  await page.evaluate(async () => {
-    const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-    const step = Math.max(Math.floor(window.innerHeight * 0.75), 320);
-    for (let offset = 0; offset < document.documentElement.scrollHeight; offset += step) {
-      window.scrollTo(0, offset);
-      await pause(80);
-    }
-    window.scrollTo(0, document.documentElement.scrollHeight);
-    await pause(120);
-    window.scrollTo(0, 0);
-  });
+  const images = page.locator("img");
+  for (let index = 0; index < await images.count(); index += 1) {
+    const image = images.nth(index);
+    if (!await image.isVisible()) continue;
+    await image.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(180);
+    await image.evaluate((element) => {
+      if (element.complete && element.naturalWidth > 0) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error(`IMAGE_TIMEOUT:${element.alt}`)), 15_000);
+        element.addEventListener("load", () => { window.clearTimeout(timeout); resolve(); }, { once: true });
+        element.addEventListener("error", () => { window.clearTimeout(timeout); reject(new Error(`IMAGE_ERROR:${element.alt}`)); }, { once: true });
+      });
+    });
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForFunction(() => Array.from(document.images).every((image) => {
     const rendered = image.getClientRects().length > 0;
     return !rendered || (image.complete && image.naturalWidth > 0);
