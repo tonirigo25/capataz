@@ -30,7 +30,7 @@ export const PUBLIC_RESOURCE_PATHS = new Set([
   "/sitemap.xml"
 ]);
 
-export const PUBLIC_API_PREFIXES = ["/api/status"];
+export const PUBLIC_API_PREFIXES = ["/api/status", "/api/health/live", "/api/health/ready", "/api/security/csp-report"];
 export const INTERNAL_API_PREFIXES = ["/api/internal"];
 export const PROTECTED_PAGE_PREFIXES = [
   "/acceso-pendiente", "/acceso-restringido", "/actividad", "/agenda", "/alertas", "/auditoria",

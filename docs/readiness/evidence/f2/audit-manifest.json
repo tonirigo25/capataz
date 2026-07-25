@@ -1,0 +1,80 @@
+{
+  "phase": "F2",
+  "verdict": "PARTIAL",
+  "branch": "feat/readiness-f2-platform-core",
+  "baseBranch": "feat/readiness-f1-contract",
+  "baseCommit": "dbabd19e6a891042a674b6c0d3756b3b4eb91510",
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "databaseTarget": "ephemeral isolated PostgreSQL only",
+    "externalProvidersCalled": false
+  },
+  "requirements": {
+    "total": 19,
+    "pass": 13,
+    "readyForExternalInput": 2,
+    "pending": 4,
+    "blocked": 0,
+    "waived": 0
+  },
+  "schema": {
+    "sha256": "6207a6d6031768d90bb57e1a5c536e44ed20a52794c26c19da9e31fcf092fdea",
+    "models": 130,
+    "relations": 222,
+    "migration": "20260725200000_readiness_f2_transactional_outbox",
+    "totalMigrationsAppliedFromFresh": 36
+  },
+  "validation": {
+    "platformCoreChecks": "21/21 PASS",
+    "isolatedPostgres": "PASS",
+    "authRegression": "PASS",
+    "healthStandalone": "PASS",
+    "otelExporter": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "staticPagesGenerated": 64,
+    "routeAccess": "52/52 PASS",
+    "publicIndexing": "PASS",
+    "singleMigrationOwner": "PASS",
+    "databaseSafety": "PASS"
+  },
+  "isolatedPostgres": {
+    "loopbackOnly": true,
+    "dynamicPorts": true,
+    "runtimeCleanedUp": true,
+    "sessionOldTokenRevoked": true,
+    "idempotentOperationsForSameKey": 1,
+    "tenantARateLimitAllowed": 5,
+    "tenantBRateLimitAllowed": 3,
+    "outboxRollback": true,
+    "outboxClaimed": 1,
+    "webhookReplayDetected": true,
+    "encryptedCredentialRoundTrip": true,
+    "crossSiteStatus": 403,
+    "crossSiteWrites": 0
+  },
+  "health": {
+    "publicMinimal": ["/api/health/live", "/api/health/ready", "/api/status"],
+    "internalProtected": "/api/internal/status",
+    "railwayHealthcheckPath": "/api/health/ready",
+    "releaseShaObserved": "f2-local-validation",
+    "migrationHeadObserved": "20260725200000_readiness_f2_transactional_outbox"
+  },
+  "pending": {
+    "ARCH-007": "20 action files still require semantic classification or domain-service extraction",
+    "ARCH-011": "production provider adapters do not yet pass the shared fake/production contract suite",
+    "SEC-004": "request IDs are global, but actor/company/job context is not yet installed at every legacy boundary",
+    "OBS-004": "end-to-end actor, tenant and job correlation remains incomplete for legacy actions and jobs"
+  },
+  "externalInput": {
+    "SEC-005": "authorized staging deploy and zero-violation CSP E2E window before enforce",
+    "SEC-006": "authorized staging security-header scan"
+  },
+  "temporaryResources": {
+    "isolatedPostgresInstances": 5,
+    "localStandaloneInstances": 1,
+    "externalCost": 0,
+    "teardown": "PASS"
+  }
+}

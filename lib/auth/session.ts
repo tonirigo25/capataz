@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { authConfig, SESSION_COOKIE_NAME } from "@/lib/auth/config";
 import { createOpaqueToken, hashToken } from "@/lib/auth/crypto";
 import { recordSecurityEvent } from "@/lib/auth/audit";
+import { rotateSessionRecord } from "@/lib/auth/session-store";
 
 export type AuthenticatedSession = {
   sessionId: string;
@@ -37,8 +38,31 @@ export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
   const headerStore = await headers();
   const userAgent = headerStore.get("user-agent")?.slice(0, 180) ?? null;
-  await prisma.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt, userAgent } });
   const cookieStore = await cookies();
+  const previousToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  await prisma.$transaction(async (transaction) => {
+    if (previousToken) {
+      await transaction.session.updateMany({ where: { tokenHash: hashToken(previousToken), revokedAt: null }, data: { revokedAt: new Date() } });
+    }
+    await transaction.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt, userAgent } });
+  });
+  setSessionCookie(cookieStore, token, expiresAt);
+}
+
+export async function rotateCurrentSession(reason: "company_selection" | "privilege_elevation" | "password_change") {
+  const cookieStore = await cookies();
+  const oldToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (!oldToken) throw new Error("SESSION_ROTATION_REQUIRES_SESSION");
+  const oldHash = hashToken(oldToken);
+  const current = await prisma.session.findUnique({ where: { tokenHash: oldHash } });
+  if (!current || current.revokedAt || current.expiresAt <= new Date()) throw new Error("SESSION_ROTATION_INVALID_SESSION");
+  const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
+  const rotated = await rotateSessionRecord({ prisma, sessionId: current.id, userId: current.userId, expiresAt, userAgent: current.userAgent, ipHash: current.ipHash });
+  setSessionCookie(cookieStore, rotated.token, expiresAt);
+  await recordSecurityEvent({ type: "session_rotated", outcome: "success", userId: current.userId, metadata: { reason } });
+}
+
+function setSessionCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, token: string, expiresAt: Date) {
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

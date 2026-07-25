@@ -32,6 +32,9 @@ export function validateRuntimeConfig(phase = "runtime") {
     if ((process.env.STORAGE_PROVIDER || "local").trim().toLowerCase() === "local") {
       errors.push("production STORAGE_PROVIDER must use private object storage");
     }
+    if (phase !== "build") {
+      requireNames(errors, "production security configuration is incomplete", ["APP_ENCRYPTION_KEYS", "APP_ACTIVE_KEY_VERSION", "JOB_RUNNER_SECRET"]);
+    }
   }
 
   if (enabled("EMAIL_LIVE_ENABLED")) {

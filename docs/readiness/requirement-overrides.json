@@ -48,5 +48,100 @@
     "status": "PASS",
     "evidence": ["docs/architecture/MIGRATION_STRATEGY.md", "scripts/readiness/validate-migrations-isolated.mjs", "docs/readiness/evidence/f1/generated-schema-diff.sql"],
     "notes": ["M01-M10 applied from fresh PostgreSQL and a second deploy had no pending migrations; no destructive SQL found."]
+  },
+  "ARCH-007": {
+    "status": "PENDING",
+    "evidence": ["lib/commercial/platform-service.ts", "lib/commercial/demo-service.ts", "docs/readiness/evidence/f2/action-boundary-audit.md"],
+    "notes": ["Platform and demo boundaries were extracted, but 20 action files still have direct Prisma access requiring semantic classification or extraction."]
+  },
+  "ARCH-008": {
+    "status": "PASS",
+    "evidence": ["lib/platform/idempotency.ts", "scripts/readiness/validate-f2-postgres.ts"],
+    "notes": ["A PostgreSQL advisory transaction lock makes repeated keys execute once; isolated replay performed one operation."]
+  },
+  "ARCH-009": {
+    "status": "PASS",
+    "evidence": ["lib/platform/outbox.ts", "prisma/migrations/20260725200000_readiness_f2_transactional_outbox/migration.sql", "scripts/readiness/validate-f2-postgres.ts", "docs/adr/0006-business-event-outbox.md"],
+    "notes": ["BusinessEvent is the additive transactional outbox; rollback removed both business transaction and event, and SKIP LOCKED claiming passed."]
+  },
+  "ARCH-011": {
+    "status": "PENDING",
+    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "scripts/readiness/validate-f2-platform-core.ts"],
+    "notes": ["Six fake providers pass their local contract checks; production adapters still need to pass the identical suite."]
+  },
+  "SEC-001": {
+    "status": "PASS",
+    "evidence": ["lib/auth/session.ts", "scripts/validate-auth-crypto.ts", "scripts/validate-auth-postgres.ts"],
+    "notes": ["Opaque hashes, HttpOnly Secure SameSite cookies, expiry, revocation and token regression passed on isolated PostgreSQL."]
+  },
+  "SEC-002": {
+    "status": "PASS",
+    "evidence": ["lib/auth/session-store.ts", "lib/auth/session.ts", "app/seleccionar-empresa/actions.ts", "app/(app)/plataforma/actions.ts", "scripts/readiness/validate-f2-postgres.ts"],
+    "notes": ["Login revokes a prior cookie session; company selection and support privilege elevation rotate; password reset revokes all sessions. The old token row was proven revoked."]
+  },
+  "SEC-004": {
+    "status": "PENDING",
+    "evidence": ["middleware.ts", "lib/platform/request-context.ts", "lib/auth/audit.ts"],
+    "notes": ["Request and correlation IDs are propagated globally, but every legacy action, job and webhook has not yet installed actor, company and job context."]
+  },
+  "SEC-005": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["next.config.ts", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
+    "notes": ["Report-only policy and collector pass locally. Enforce requires an authorized staging deployment and a zero-required-violation E2E observation window."]
+  },
+  "SEC-006": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
+    "notes": ["Local standalone responses contain the full header set. Acceptance explicitly requires an authorized staging scan."]
+  },
+  "SEC-007": {
+    "status": "PASS",
+    "evidence": ["lib/security/browser-request.ts", "middleware.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
+    "notes": ["Same-origin validation passed; a cross-site POST returned 403 with zero DemoRequest writes."]
+  },
+  "SEC-008": {
+    "status": "PASS",
+    "evidence": ["lib/platform/rate-limit.ts", "app/(auth)/actions.ts", "lib/commercial/demo-service.ts", "lib/commercial/platform-service.ts", "app/api/capataz/transcribe/route.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts"],
+    "notes": ["Persistent limits cover login, register, demo, support, AI and webhook boundaries. Concurrent isolated tests admitted exactly 5 of 8 in tenant A and all 3 independent attempts in tenant B."]
+  },
+  "SEC-009": {
+    "status": "PASS",
+    "evidence": ["lib/platform/webhooks.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-postgres.ts"],
+    "notes": ["Stripe timestamped HMAC, Resend Standard Webhooks and fiscal HMAC verification are implemented; tampering failed and duplicate event storage was replay-safe."]
+  },
+  "SEC-010": {
+    "status": "PASS",
+    "evidence": ["lib/platform/encryption.ts", "lib/platform/credentials.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-postgres.ts"],
+    "notes": ["AES-256-GCM envelopes use versioned keys and tenant-scoped associated data; persisted ciphertext round-tripped without plaintext storage."]
+  },
+  "OBS-001": {
+    "status": "PASS",
+    "evidence": ["lib/observability/logger.ts", "scripts/readiness/validate-f2-platform-core.ts"],
+    "notes": ["Structured JSON logger uses an explicit allowlist, hashes actor identifiers and redacts email/token-like values."]
+  },
+  "OBS-002": {
+    "status": "PASS",
+    "evidence": ["lib/observability/otel-node.ts", "scripts/readiness/validate-otel-exporter.mjs"],
+    "notes": ["No endpoint starts a no-op path; a provider-neutral OTLP HTTP exporter sent one real span to an ephemeral local collector."]
+  },
+  "OBS-003": {
+    "status": "PASS",
+    "evidence": ["instrumentation.ts", "instrumentation-client.ts", "lib/observability/otel-node.ts", "docs/readiness/evidence/f2/audit-manifest.json"],
+    "notes": ["Node-only server instrumentation and client release/environment bootstrap compile in the production build."]
+  },
+  "OBS-004": {
+    "status": "PENDING",
+    "evidence": ["middleware.ts", "lib/platform/request-context.ts", "lib/observability/logger.ts"],
+    "notes": ["Privacy-bounded fields exist, but full actor, tenant and job propagation through every legacy boundary remains incomplete."]
+  },
+  "OBS-005": {
+    "status": "PASS",
+    "evidence": ["app/api/health/live/route.ts", "app/api/health/ready/route.ts", "app/api/internal/status/route.ts", "railway.json", "scripts/readiness/validate-f2-health-isolated.mjs"],
+    "notes": ["Public health responses expose only ok; internal status returns 404 without authorization; Railway points to ready."]
+  },
+  "OBS-006": {
+    "status": "PASS",
+    "evidence": ["lib/observability/release.ts", "app/api/internal/status/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
+    "notes": ["Protected diagnosis reported exact local release, deployment and migration head without returning the secret or database URL."]
   }
 }

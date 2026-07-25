@@ -51,3 +51,19 @@ Completed on `feat/readiness-f1-contract` from program commit `9ad3bec5afb982af9
 - All ten F1 requirements in the 233-item ledger are `PASS`; the remaining 223 retain their prior state.
 
 Evidence: `docs/readiness/evidence/f1/audit-manifest.json`, `generated-schema-diff.sql`, generated architecture artifacts, migrations, and executable validators.
+
+## F2 - Platform core, security and observability - PARTIAL
+
+Implemented on `feat/readiness-f2-platform-core` from F1 commit `dbabd19e6a891042a674b6c0d3756b3b4eb91510`. Production and staging were not modified; all database/runtime checks used disposable loopback resources.
+
+- Added reusable PostgreSQL idempotency, persistent tenant-scoped rate limits, transactional BusinessEvent outbox with `SKIP LOCKED`, provider contracts/fakes, signed webhook verification/replay handling, and AES-256-GCM credential envelopes.
+- Preserved opaque sessions and added transactional rotation for login replacement, company selection and support privilege elevation; password changes revoke all previous sessions.
+- Added request/correlation headers, PII-safe structured logs, Node-only OpenTelemetry plus client bootstrap, CSP report-only collection, full security headers, Origin/Host/CSRF validation, minimal public health and protected detailed status.
+- Migration 36 applied from fresh PostgreSQL. Concurrency exposed a Prisma-upsert race in the initial limiter; the final advisory-lock implementation passed exactly 5/8 same-tenant attempts while a second tenant passed 3/3 independently.
+- Isolated tests proved one idempotent execution, transactional outbox rollback and claim, webhook replay safety, encrypted credential round-trip, old-session revocation, protected health details and cross-site POST `403` with zero writes.
+- Static F2 suite passed 21/21, auth regression passed, route access passed 52/52, OTLP exported one real span, TypeScript passed, and the production build generated 64 pages.
+- Requirement ledger: 13 `PASS`, 2 `READY_FOR_EXTERNAL_INPUT`, 4 `PENDING`. F2 is not represented as closed.
+- Remaining technical debt is explicit: 20 direct-Prisma action files need classification/extraction; production provider adapters need shared contract coverage; complete actor/tenant/job context propagation remains.
+- External gates are limited to authorized staging CSP observation/enforcement and the staging security-header scan.
+
+Evidence: `docs/readiness/evidence/f2/audit-manifest.json`, `action-boundary-audit.md`, the isolated validators, and migration `20260725200000_readiness_f2_transactional_outbox`.

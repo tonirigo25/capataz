@@ -1952,7 +1952,7 @@ model AutomationConfirmation {
 }
 
 model BusinessEvent {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   type             String
   companyId        String?
   actorId          String?
@@ -1963,12 +1963,21 @@ model BusinessEvent {
   causationId      String?
   payloadSanitized Json?
   occurredAt       DateTime
-  recordedAt       DateTime @default(now())
-  schemaVersion    Int      @default(1)
+  recordedAt       DateTime  @default(now())
+  schemaVersion    Int       @default(1)
+  idempotencyKey   String?   @unique
+  destination      String?
+  deliveryStatus   String    @default("PROCESSED")
+  attempts         Int       @default(0)
+  availableAt      DateTime  @default(now())
+  processedAt      DateTime?
+  lastError        String?
 
   @@index([type, occurredAt])
   @@index([entityType, entityId])
   @@index([correlationId])
+  @@index([deliveryStatus, availableAt])
+  @@index([companyId, deliveryStatus])
 }
 
 model Task {

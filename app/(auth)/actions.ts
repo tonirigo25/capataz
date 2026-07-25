@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth/config";
 import { createOpaqueToken, hashPassword, hashToken, normalizeEmail, validatePassword, verifyPassword } from "@/lib/auth/crypto";
@@ -11,6 +12,7 @@ import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
 import { queueEmailEvent } from "@/lib/email/outbox";
 import { isPublicRegistrationEnabled } from "@/lib/public-registration";
+import { consumeRateLimit } from "@/lib/platform/rate-limit";
 
 const genericCredentials = "No hemos podido iniciar sesión con esos datos.";
 
@@ -26,6 +28,7 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
   const confirmation = String(form.get("passwordConfirmation") ?? "");
   const acceptedTerms = form.get("acceptedTerms") === "on";
   const fields = { displayName, email, companyName };
+  if (!(await allowAuthAttempt("register", emailNormalized, 5))) return { status: "error", message: "Demasiados intentos. Espera unos minutos antes de continuar.", fields };
   const invitation = invitationToken ? await prisma.invitation.findUnique({ where: { tokenHash: hashToken(invitationToken) } }) : null;
   const invitationValid = invitation && ["PENDING", "PENDING_EMPLOYEE"].includes(invitation.status) && invitation.expiresAt > new Date() && invitation.emailNormalized === emailNormalized;
   if (!invitationValid && !isPublicRegistrationEnabled()) {
@@ -66,6 +69,7 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
 export async function loginAction(_previous: AuthActionState, form: FormData): Promise<AuthActionState> {
   const email = text(form, "email");
   const password = String(form.get("password") ?? "");
+  if (!(await allowAuthAttempt("login", normalizeEmail(email), 10))) return { status: "error", message: genericCredentials, fields: { email } };
   const user = await prisma.user.findUnique({ where: { emailNormalized: normalizeEmail(email) } });
   if (!user) { await recordSecurityEvent({ type: "login_attempt", outcome: "failure" }); return { status: "error", message: genericCredentials, fields: { email } }; }
   const now = new Date();
@@ -134,4 +138,11 @@ export async function verifyEmailToken(token: string) {
   ]);
   await recordSecurityEvent({ type: "email_verified", outcome: "success", userId: verification.userId });
   return true;
+}
+
+async function allowAuthAttempt(scope: string, email: string, limit: number) {
+  const requestHeaders = await headers();
+  const source = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const result = await consumeRateLimit({ prisma, scope, subject: `${email}:${source}`, limit, windowMs: 15 * 60_000 });
+  return result.allowed;
 }

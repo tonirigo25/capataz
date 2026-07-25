@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/config";
 import { shouldSendNoIndexHeader, X_ROBOTS_TAG_VALUE } from "@/lib/public-indexing";
 import { isInternalApi, isProtectedPage, isPublicApi, isPublicResource, safeReturnPath } from "@/lib/route-access";
+import { validateBrowserRequest } from "@/lib/security/browser-request";
 
-function applyIndexingPolicy(request: NextRequest, response: NextResponse) {
+function applyResponsePolicies(request: NextRequest, response: NextResponse, requestId: string) {
+  response.headers.set("X-Request-Id", requestId);
   if (shouldSendNoIndexHeader(request.nextUrl.pathname)) {
     response.headers.set("X-Robots-Tag", X_ROBOTS_TAG_VALUE);
   }
@@ -12,23 +14,39 @@ function applyIndexingPolicy(request: NextRequest, response: NextResponse) {
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const requestId = validRequestId(request.headers.get("x-request-id")) ?? crypto.randomUUID();
+  const verdict = validateBrowserRequest(request);
+  if (!verdict.allowed) {
+    const response = pathname.startsWith("/api/")
+      ? NextResponse.json({ ok: false, error: verdict.code, requestId }, { status: 403 })
+      : new NextResponse("Forbidden", { status: 403 });
+    return applyResponsePolicies(request, response, requestId);
+  }
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set("x-request-id", requestId);
+  forwardedHeaders.set("x-correlation-id", validRequestId(request.headers.get("x-correlation-id")) ?? requestId);
   const visualQa = process.env.CAPATAZ_VISUAL_QA === "true" && process.env.NODE_ENV !== "production";
   if (isPublicResource(pathname) || isPublicApi(pathname) || isInternalApi(pathname)) {
-    const response = NextResponse.next();
+    const response = NextResponse.next({ request: { headers: forwardedHeaders } });
     return pathname.endsWith(".html") || !isPublicResource(pathname)
-      ? applyIndexingPolicy(request, response)
+      ? applyResponsePolicies(request, response, requestId)
       : response;
   }
 
   if (isProtectedPage(pathname) && !visualQa && !request.cookies.has(SESSION_COOKIE_NAME)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", safeReturnPath(pathname, search));
-    return applyIndexingPolicy(request, NextResponse.redirect(loginUrl));
+    return applyResponsePolicies(request, NextResponse.redirect(loginUrl), requestId);
   }
 
   // A cookie only avoids an early redirect. The authenticated app layout validates
   // the opaque token and active company membership against PostgreSQL.
-  return applyIndexingPolicy(request, NextResponse.next());
+  return applyResponsePolicies(request, NextResponse.next({ request: { headers: forwardedHeaders } }), requestId);
+}
+
+function validRequestId(value: string | null) {
+  const normalized = value?.trim();
+  return normalized && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(normalized) ? normalized : null;
 }
 
 export const config = {

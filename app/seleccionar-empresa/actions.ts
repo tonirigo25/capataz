@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { requireAuthenticatedUser, requireCompanyMembership } from "@/lib/auth/session";
+import { requireAuthenticatedUser, requireCompanyMembership, rotateCurrentSession } from "@/lib/auth/session";
 
 export async function switchActiveCompany(formData: FormData) {
   const session = await requireAuthenticatedUser();
@@ -32,6 +32,7 @@ export async function switchActiveCompany(formData: FormData) {
     })),
     prisma.auditLog.create({ data: { companyId: membership.companyId, userActorId: session.userId, action: "active_company.switched", targetType: "Company", targetId: membership.companyId, metadata: { membershipId: membership.id } } })
   ]);
+  await rotateCurrentSession("company_selection");
   revalidatePath("/", "layout");
   redirect("/hoy");
 }

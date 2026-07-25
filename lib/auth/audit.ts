@@ -1,5 +1,7 @@
 import { SecurityAuditOutcome } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { log, safeErrorCode } from "@/lib/observability/logger";
+import { getRequestContext } from "@/lib/platform/request-context";
 
 type AuditInput = {
   type: string;
@@ -12,12 +14,9 @@ type AuditInput = {
 
 export async function recordSecurityEvent(input: AuditInput) {
   try {
-    await prisma.securityAuditEvent.create({ data: input });
+    const requestId = input.requestId ?? getRequestContext()?.requestId ?? null;
+    await prisma.securityAuditEvent.create({ data: { ...input, requestId } });
   } catch (error) {
-    console.error("[security-audit] event could not be persisted", {
-      type: input.type,
-      requestId: input.requestId ?? null,
-      cause: error instanceof Error ? error.name : "unknown"
-    });
+    log("error", "security_audit_persist_failed", { operation: input.type, errorCode: safeErrorCode(error) });
   }
 }
