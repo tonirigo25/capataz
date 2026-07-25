@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BriefcaseBusiness, Check, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, UsersRound } from "lucide-react";
+import { brand } from "@/lib/brand";
 
 type DemoSector = {
   slug: string;
@@ -22,12 +23,12 @@ const profiles = [
 ] as const;
 
 const objectives = [
-  { id: "captar-cliente", name: "Captar cliente", steps: ["Contexto", "Cliente", "Seguimiento", "Propuesta", "Orqena", "Móvil", "Resultado"] },
-  { id: "preparar-presupuesto", name: "Preparar presupuesto", steps: ["Contexto", "Cliente", "Partidas", "Aprobación", "Orqena", "Móvil", "Resultado"] },
-  { id: "coordinar-trabajo", name: "Coordinar trabajo", steps: ["Contexto", "Plan", "Equipo", "Avance", "Orqena", "Móvil", "Resultado"] },
-  { id: "registrar-factura", name: "Registrar factura", steps: ["Contexto", "Documento", "Relación", "Vencimiento", "Orqena", "Móvil", "Resultado"] },
-  { id: "controlar-pagos", name: "Controlar pagos", steps: ["Contexto", "Vencimiento", "Cobro", "Tesorería", "Orqena", "Móvil", "Resultado"] },
-  { id: "gestionar-equipo", name: "Gestionar equipo", steps: ["Contexto", "Portal", "Alcance", "Tarea", "Orqena", "Móvil", "Resultado"] },
+  { id: "captar-cliente", name: "Captar cliente", steps: ["Contexto", "Cliente", "Seguimiento", "Propuesta", brand.productName, "Móvil", "Resultado"] },
+  { id: "preparar-presupuesto", name: "Preparar presupuesto", steps: ["Contexto", "Cliente", "Partidas", "Aprobación", brand.productName, "Móvil", "Resultado"] },
+  { id: "coordinar-trabajo", name: "Coordinar trabajo", steps: ["Contexto", "Plan", "Equipo", "Avance", brand.productName, "Móvil", "Resultado"] },
+  { id: "registrar-factura", name: "Registrar factura", steps: ["Contexto", "Documento", "Relación", "Vencimiento", brand.productName, "Móvil", "Resultado"] },
+  { id: "controlar-pagos", name: "Controlar pagos", steps: ["Contexto", "Vencimiento", "Cobro", "Tesorería", brand.productName, "Móvil", "Resultado"] },
+  { id: "gestionar-equipo", name: "Gestionar equipo", steps: ["Contexto", "Portal", "Alcance", "Tarea", brand.productName, "Móvil", "Resultado"] },
 ] as const;
 
 export function DemoStudio({ sectors }: { sectors: DemoSector[] }) {

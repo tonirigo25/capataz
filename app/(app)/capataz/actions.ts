@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { brand } from "@/lib/brand";
 import { parseBudgetLines, serializeBudgetLines, type BudgetLine } from "@/lib/budget-lines";
 import {
   createActivityCompletionContext,
@@ -3534,7 +3535,7 @@ async function createBudgetDraftFromAI(ai: CapatazAIResult): Promise<ChatCommand
         direccion: entities.direccion_fiscal ?? entities.obra_direccion ?? entities.obra_localidad ?? "Dirección pendiente",
         tipo: clientTypeFromAI(ai),
         estado: pendingFields.length ? "pendiente_datos" : "presupuesto_pendiente",
-        origen: "Orqena",
+        origen: brand.productName,
         notas: buildAIClientNotes(ai),
         ultimaInteraccion: new Date()
       }
@@ -3713,7 +3714,7 @@ async function registerActivityFromChat(command: ParsedActivityCommand): Promise
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: command.pendingConfirmation ? "seguimiento_pendiente" : "visita_pendiente",
-        origen: "Orqena",
+        origen: brand.productName,
         notas: "Cliente provisional creado desde una actividad registrada en Orqena.",
         ultimaInteraccion: new Date()
       }
@@ -3957,7 +3958,7 @@ async function createBudgetDraftFromChat(command: ParsedBudgetCommand, options: 
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
-        origen: "Orqena",
+        origen: brand.productName,
         notas: "Cliente provisional preparado por Orqena. Faltan apellidos, teléfono, NIF/CIF, correo y dirección fiscal.",
         ultimaInteraccion: new Date()
       }
@@ -4444,7 +4445,7 @@ async function createInvoiceDraftFromChat(command: ParsedInvoiceCommand): Promis
         direccion: "Dirección pendiente",
         tipo: "Particular",
         estado: "pendiente_datos",
-        origen: "Orqena",
+        origen: brand.productName,
         notas: "Cliente provisional preparado por Orqena para una factura. Faltan NIF/CIF y dirección fiscal.",
         ultimaInteraccion: new Date()
       }

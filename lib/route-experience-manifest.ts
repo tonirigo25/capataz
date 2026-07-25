@@ -1,3 +1,5 @@
+import { brand } from "@/lib/brand";
+
 export type RouteExperience = {
   family: "marketing" | "auth" | "onboarding" | "home" | "list" | "record" | "form" | "assistant" | "settings" | "platform" | "state";
   shell: "marketing" | "auth" | "app" | "standalone";
@@ -29,7 +31,7 @@ const shared = {
 } as const;
 
 export const routeExperienceManifest: RouteExperienceRule[] = [
-  rule("public-home", /^\/$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Orqena", primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
+  rule("public-home", /^\/$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: brand.productName, primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-product", /^\/(?:producto(?:\/\[modulo\])?|soluciones)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Producto", primaryAction: "Explorar demo", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-sectors", /^\/sectores(?:\/\[sector\])?$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Sectores", primaryAction: "Explorar perfil", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-commercial", /^\/(?:planes|seguridad|demo|contacto)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Información comercial", primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
@@ -48,7 +50,7 @@ export const routeExperienceManifest: RouteExperienceRule[] = [
   rule("procurement-records", /^\/(?:proveedores|subcontratas|facturas-proveedor|facturas-subcontratas)\/\[id\]$|^\/gastos-materiales\/lector\/\[id\]$/, { ...shared, family: "record", shell: "app", access: "capability", title: "Registro de compra", primaryAction: "Revisar", mobile: "record-page", empty: "guided", screenshotGroup: "records" }),
   rule("operational-lists", /^\/(?:agenda|actividad|alertas|automatizaciones|documentos|notificaciones|recordatorios|seguimientos|tareas)$/, { ...shared, family: "list", shell: "app", access: "capability", title: "Operación", primaryAction: "Crear", mobile: "native-list", empty: "guided", screenshotGroup: "lists" }),
   rule("operational-records", /^\/(?:automatizaciones|seguimientos|tareas)\/\[id\]$/, { ...shared, family: "record", shell: "app", access: "capability", title: "Detalle operativo", primaryAction: "Actualizar", mobile: "record-page", empty: "guided", screenshotGroup: "records" }),
-  rule("assistant", /^\/capataz$/, { ...shared, family: "assistant", shell: "app", access: "capability", title: "Orqena", primaryAction: "Nueva conversación", empty: "guided", screenshotGroup: "control" }),
+  rule("assistant", /^\/capataz$/, { ...shared, family: "assistant", shell: "app", access: "capability", title: brand.productName, primaryAction: "Nueva conversación", empty: "guided", screenshotGroup: "control" }),
   rule("forms", /^\/gestion$/, { ...shared, family: "form", shell: "app", access: "capability", title: "Editar", primaryAction: "Guardar", mobile: "sheet-form", empty: "not-applicable", screenshotGroup: "records" }),
   rule("control", /^\/(?:buscar|inteligencia|recomendaciones(?:\/control)?|tesoreria)$/, { ...shared, family: "home", shell: "app", access: "capability", title: "Control", primaryAction: "Revisar", empty: "guided", screenshotGroup: "control" }),
   rule("team", /^\/(?:equipo|equipos)(?:\/(?:\[membershipId\]\/portal|outbox))?$/, { ...shared, family: "settings", shell: "app", access: "capability", title: "Equipo", primaryAction: "Gestionar acceso", empty: "guided", screenshotGroup: "control" }),

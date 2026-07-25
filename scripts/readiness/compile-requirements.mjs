@@ -4,7 +4,10 @@ import path from "node:path";
 const root = process.cwd();
 const sourcePath = path.join(root, "docs", "readiness", "MASTER_PROGRAM_PROMPT.md");
 const outputPath = path.join(root, "docs", "readiness", "requirements.yaml");
+const overridesPath = path.join(root, "docs", "readiness", "requirement-overrides.json");
 const source = (await readFile(sourcePath, "utf8")).replace(/\r\n/g, "\n");
+const overrides = JSON.parse(await readFile(overridesPath, "utf8").catch(() => "{}"));
+const validStatuses = new Set(["PENDING", "PASS", "BLOCKED", "READY_FOR_EXTERNAL_INPUT", "WAIVED"]);
 
 const requirementPattern =
   /^- \[ \] \*\*([A-Z]+-\d{3}) · (F\d+)\*\* — (.+?)\s*$\n\s*\*\*Evidencia:\*\* (.+?)\s*$/gm;
@@ -30,6 +33,10 @@ const ids = new Set(requirements.map(({ id }) => id));
 if (ids.size !== requirements.length) {
   throw new Error("Requirement IDs must be unique");
 }
+for (const [id, override] of Object.entries(overrides)) {
+  if (!ids.has(id)) throw new Error(`Unknown requirement override: ${id}`);
+  if (!validStatuses.has(override.status)) throw new Error(`Invalid status for ${id}: ${override.status}`);
+}
 
 const quote = (value) => JSON.stringify(value);
 const lines = [
@@ -42,15 +49,18 @@ const lines = [
 ];
 
 for (const item of requirements) {
+  const override = overrides[item.id] ?? {};
+  const evidence = override.evidence ?? [];
+  const notes = override.notes ?? [];
   lines.push(
     `  - id: ${quote(item.id)}`,
     `    area: ${quote(item.area)}`,
     `    phase: ${quote(item.phase)}`,
-    `    status: ${quote(item.status)}`,
+    `    status: ${quote(override.status ?? item.status)}`,
     `    requirement: ${quote(item.requirement)}`,
     `    acceptance: ${quote(item.acceptance)}`,
-    "    evidence: []",
-    "    notes: []",
+    `    evidence: [${evidence.map(quote).join(", ")}]`,
+    `    notes: [${notes.map(quote).join(", ")}]`,
   );
 }
 

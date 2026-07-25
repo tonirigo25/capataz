@@ -23,11 +23,11 @@ requirements:
   - id: "GOV-003"
     area: "GOV"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Centralizar nombre, identidad legal, URLs, soporte, remitentes y aliases en configuración tipada."
     acceptance: "No quedan literales comerciales dispersos fuera de tests/compatibilidad."
-    evidence: []
-    notes: []
+    evidence: ["lib/config/brand.ts", "lib/brand.ts", "scripts/readiness/validate-f1-contract.mjs"]
+    notes: ["Commercial identity scan passed with no product, support, or legacy domain literals outside central configuration and compatibility keys."]
   - id: "GOV-004"
     area: "GOV"
     phase: "F9"
@@ -103,51 +103,51 @@ requirements:
   - id: "ARCH-001"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener un monolito modular Next.js, evitando microservicios prematuros."
     acceptance: "Los límites se expresan por módulos y contratos; un web y workers separados comparten código."
-    evidence: []
-    notes: []
+    evidence: ["docs/architecture/DOMAIN_MAP.md", "docs/adr/0001-modular-monolith.md"]
+    notes: ["One Next.js modular monolith; web and workers share application modules and contracts."]
   - id: "ARCH-002"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir bounded contexts: identidad, tenants, CRM/trabajos, ventas, compras, tesorería, fiscal, privacidad, soporte, IA y plataforma."
     acceptance: "Mapa de módulos y dependencias aprobado."
-    evidence: []
-    notes: []
+    evidence: ["docs/architecture/DOMAIN_MAP.md"]
+    notes: ["Eleven bounded contexts and dependency rules are documented."]
   - id: "ARCH-003"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear configuración de entorno tipada y validada al arranque."
     acceptance: "Build/ready fallan con mensaje seguro ante variables obligatorias ausentes."
-    evidence: []
-    notes: []
+    evidence: ["lib/config/server.ts", "scripts/readiness/validate-runtime-config.mjs", "scripts/start-standalone.mjs"]
+    notes: ["Development validation passes; incomplete production configuration fails closed without printing values."]
   - id: "ARCH-004"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear feature flags por entorno/empresa para fiscal, billing, email, IA, analítica e indexación."
     acceptance: "Todos los nuevos motores nacen desactivados y se activan gradualmente."
-    evidence: []
-    notes: []
+    evidence: ["lib/feature-flags.ts", "prisma/migrations/20260725100000_readiness_m01_platform_contracts/migration.sql", ".env.example"]
+    notes: ["Fiscal, billing, live email, AI, analytics, and indexing default off; company overrides are tenant-scoped."]
   - id: "ARCH-005"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Documentar ERD y diccionario de datos del esquema objetivo."
     acceptance: "Artefactos generados automáticamente desde Prisma y revisados."
-    evidence: []
-    notes: []
+    evidence: ["docs/architecture/generated/DATA_DICTIONARY.md", "docs/architecture/generated/ERD.mmd", "docs/architecture/generated/ERD.svg", "docs/architecture/generated/schema-manifest.json"]
+    notes: ["Generated from the validated Prisma schema; 130 models and 222 relations."]
   - id: "ARCH-006"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir owner técnico y contrato de cada módulo."
     acceptance: "CODEOWNERS/mapa de ownership sin zonas huérfanas."
-    evidence: []
-    notes: []
+    evidence: [".github/CODEOWNERS", "docs/architecture/OWNERSHIP.md"]
+    notes: ["Fallback ownership covers the repository; specialist approval gaps are explicit external-input gates."]
   - id: "ARCH-007"
     area: "ARCH"
     phase: "F2"
@@ -175,11 +175,11 @@ requirements:
   - id: "ARCH-010"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Migrar importes críticos a Decimal mediante columnas espejo y reconciliación."
     acceptance: "Diferencia total antes/después = 0; no se usa Float en evidencia fiscal."
-    evidence: []
-    notes: []
+    evidence: ["prisma/migrations/20260725190000_readiness_m10_money_decimal_transition/migration.sql", "scripts/readiness/backfill-money-decimals.ts", "scripts/readiness/reconcile-money-decimals.ts", "docs/readiness/evidence/f1/audit-manifest.json"]
+    notes: ["32 nullable mirrors; isolated dry-run/apply reconciled 32 pairs with aggregate absolute difference 0. Legacy Float fields remain for reversible cutover."]
   - id: "ARCH-011"
     area: "ARCH"
     phase: "F2"
@@ -191,19 +191,19 @@ requirements:
   - id: "ARCH-012"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Versionar contratos de eventos, prompts, plantillas y artefactos."
     acceptance: "Cada evento persistido identifica versión de esquema."
-    evidence: []
-    notes: []
+    evidence: ["contracts/events/v1/envelope.schema.json", "contracts/prompts/v1/contract.json", "contracts/templates/v1/contract.json", "contracts/artifacts/v1/contract.json"]
+    notes: ["Persisted contract families require explicit schema or content versions."]
   - id: "ARCH-013"
     area: "ARCH"
     phase: "F1"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Diseñar migraciones aditivas, backfills idempotentes y rollback operativo."
     acceptance: "Cada migración tiene dry-run, guard y plan de reversión."
-    evidence: []
-    notes: []
+    evidence: ["docs/architecture/MIGRATION_STRATEGY.md", "scripts/readiness/validate-migrations-isolated.mjs", "docs/readiness/evidence/f1/generated-schema-diff.sql"]
+    notes: ["M01-M10 applied from fresh PostgreSQL and a second deploy had no pending migrations; no destructive SQL found."]
   - id: "ARCH-014"
     area: "ARCH"
     phase: "F11"

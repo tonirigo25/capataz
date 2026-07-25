@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { brand } from "@/lib/brand";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
@@ -1775,7 +1776,7 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
       <InputField name="email" label="Email" type="email" value="" />
       <InputField name="direccion" label="Dirección" value="Pendiente" />
       <InputField name="tipoCliente" label="Tipo" value="Particular" />
-      <InputField name="origen" label="Origen" value="Orqena" />
+      <InputField name="origen" label="Origen" value={brand.productName} />
       <TextareaField name="notas" label="Notas" value={`Cliente potencial preparado con Orqena. Trabajo solicitado: ${card.job}.`} />
       {limited ? (
         <DemoLimitButton

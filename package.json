@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build && node scripts/prepare-standalone.mjs",
+    "build": "prisma generate && node scripts/readiness/validate-runtime-config.mjs build && next build && node scripts/prepare-standalone.mjs",
     "start": "node scripts/start-standalone.mjs",
     "typecheck": "prisma generate && tsc --noEmit",
+    "readiness:validate-config": "node scripts/readiness/validate-runtime-config.mjs ready",
+    "readiness:generate-schema-docs": "node scripts/readiness/generate-schema-docs.mjs",
+    "readiness:validate-f1": "node scripts/readiness/validate-f1-contract.mjs",
+    "readiness:validate-migrations": "node scripts/readiness/validate-migrations-isolated.mjs",
     "test:ai": "node scripts/validate-capataz-ai.mjs",
     "test:auth-crypto": "tsx scripts/validate-auth-crypto.ts",
     "test:auth-transaction": "tsx scripts/validate-auth-postgres.ts",
@@ -162,27 +166,51 @@
     "mobile:ios:open": "cap open ios"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1095.0",
+    "@aws-sdk/s3-request-presigner": "^3.1095.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@capacitor/ios": "^8.4.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
     "@prisma/client": "^6.10.1",
+    "@sentry/nextjs": "^10.68.0",
     "clsx": "^2.1.1",
+    "fast-xml-parser": "^5.10.1",
     "lucide-react": "^0.468.0",
-    "next": "^15.3.4",
+    "next": "^15.5.22",
+    "otplib": "^13.4.1",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "resend": "^6.18.0",
+    "stripe": "^22.3.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@cyclonedx/cyclonedx-npm": "^6.0.0",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^22.10.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "audit-ci": "^7.1.0",
     "autoprefixer": "^10.4.20",
+    "license-checker-rseidelsohn": "^5.0.1",
     "playwright-core": "^1.61.1",
-    "postcss": "^8.4.49",
+    "postcss": "^8.5.23",
     "prisma": "^6.10.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8",
+    "postcss": "$postcss",
+    "sharp": "0.35.3"
   }
 }

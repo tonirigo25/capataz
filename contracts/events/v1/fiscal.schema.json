@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orqena.invalid/contracts/events/v1/fiscal.schema.json",
+  "title": "Fiscal ledger event payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fiscalDocumentId", "eventType", "recordHash"],
+  "properties": {
+    "fiscalDocumentId": { "type": "string", "minLength": 1 },
+    "eventType": { "enum": ["issued", "corrected", "voided", "transmission_queued", "transmission_result"] },
+    "recordHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "previousHash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+  }
+}

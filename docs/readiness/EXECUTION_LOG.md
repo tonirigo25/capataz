@@ -34,6 +34,20 @@ Captured on 2026-07-25 in an isolated Railway environment created from staging a
 
 Evidence: `docs/readiness/evidence/f0/audit-manifest.json` and the four hashed PNG captures in the same directory.
 
-## F1 - Contract freeze - IN PROGRESS
+## F1 - Contract freeze - PASS
 
-Started from the clean program baseline after F0 teardown. No production, staging, PR #24, or Marketing V2 branch mutation is permitted in this phase.
+Completed on `feat/readiness-f1-contract` from program commit `9ad3bec5afb982af98d38fa343db989d1c7c40eb`. Production, staging, PR #24, and the Marketing V2 branch were not modified.
+
+- The typed configuration contract centralizes environment, brand, public, server-only, URL, sender, and support values. The standalone entrypoint now fails closed for incomplete live gates without printing values.
+- Fiscal, billing, live email, AI, analytics, and public indexing default off. Tenant overrides are represented by `FeatureFlag` and require an explicit company.
+- The modular-monolith map defines eleven bounded contexts, dependency rules, web/worker boundaries, ownership, and repository fallback CODEOWNERS.
+- Prisma contains 38 additive target tables and 32 nullable Decimal mirror columns. No legacy Float field was removed or converted.
+- M01–M10 applied successfully on fresh isolated PostgreSQL: 35 total migrations, ten readiness migrations, 38 target tables, and a second deploy with no pending migrations.
+- The money backfill passed dry-run and apply against one isolated tenant. Reconciliation covered 32 field pairs with aggregate absolute difference `0`.
+- The generated Prisma documentation contains 130 models and 222 relations; its manifest SHA matches the schema. The SVG overview was rendered and visually reviewed.
+- Contracts for events, prompts, templates, and artifacts are versioned under `contracts/*/v1`.
+- `npm run readiness:validate-f1` passed 56 controls; Prisma validate/generate, TypeScript, runtime-config positive/negative checks, and the production build all passed. The build generated 63 static pages.
+- A clean `npm ci` and production dependency audit passed with zero known vulnerabilities after raising Next.js to 15.5.22 and pinning safe transitive versions.
+- All ten F1 requirements in the 233-item ledger are `PASS`; the remaining 223 retain their prior state.
+
+Evidence: `docs/readiness/evidence/f1/audit-manifest.json`, `generated-schema-diff.sql`, generated architecture artifacts, migrations, and executable validators.
