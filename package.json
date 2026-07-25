@@ -47,6 +47,7 @@
     "test:orqena-voice-denied": "node scripts/validate-orqena-voice-denied.mjs",
     "test:orqena-final-product-closure": "node scripts/run-orqena-final-product-closure-isolated.mjs",
     "test:orqena-experience-v4": "node scripts/validate-orqena-experience-v4.mjs",
+    "test:public-indexing": "tsx scripts/validate-public-indexing.ts",
     "test:chat-query": "node scripts/validate-chat-query.mjs",
     "test:chat-routing": "node scripts/validate-chat-routing.mjs",
     "test:dashboard-hoy": "node scripts/validate-dashboard-hoy.mjs",

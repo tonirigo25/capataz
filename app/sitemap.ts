@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
 import { marketingProductCatalog, marketingSectorCatalog } from "@/lib/marketing/catalog";
+import { isPublicIndexingEnabled } from "@/lib/public-indexing";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (!isPublicIndexingEnabled()) return [];
+
   const baseUrl = process.env.NEXT_PUBLIC_WEB_BASE_URL ?? "http://localhost:3000";
   const routes = [
     "", "/producto", ...marketingProductCatalog.map((item) => `/producto/${item.slug}`),

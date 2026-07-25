@@ -2,27 +2,31 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/app/pwa-register";
 import { brand } from "@/lib/brand";
+import { getPublicRobotsMetadata } from "@/lib/public-indexing";
 import { ThemeProvider, themeBootScript } from "@/components/theme/theme-provider";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_BASE_URL || "http://localhost:3000"),
-  title: { default: brand.metadata.title, template: brand.metadata.titleTemplate },
-  description: brand.metadata.description,
-  applicationName: brand.productName,
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: brand.pwa.name
-  },
-  icons: {
-    icon: [
-      { url: "/brand/favicon.svg", type: "image/svg+xml" },
-      { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" }
-    ],
-    apple: "/brand/apple-touch-icon.png"
-  },
-  alternates: { canonical: "/" }
-};
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_BASE_URL || "http://localhost:3000"),
+    title: { default: brand.metadata.title, template: brand.metadata.titleTemplate },
+    description: brand.metadata.description,
+    applicationName: brand.productName,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: brand.pwa.name
+    },
+    icons: {
+      icon: [
+        { url: "/brand/favicon.svg", type: "image/svg+xml" },
+        { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" }
+      ],
+      apple: "/brand/apple-touch-icon.png"
+    },
+    alternates: { canonical: "/" },
+    robots: getPublicRobotsMetadata(),
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
