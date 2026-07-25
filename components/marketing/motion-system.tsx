@@ -127,10 +127,12 @@ export function PlaybackControls({
 export function DemoController({
   labels,
   interval = 3200,
+  autoplay = false,
   children,
 }: {
   labels: readonly string[];
   interval?: number;
+  autoplay?: boolean;
   children: (state: {
     activeIndex: number;
     playing: boolean;
@@ -146,7 +148,7 @@ export function DemoController({
   const documentVisible = useDocumentVisibilityPause();
   const reducedMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(autoplay);
   const [engaged, setEngaged] = useState(false);
   const cycles = useRef(0);
 
@@ -207,7 +209,7 @@ export function DemoController({
         restart: () => {
           cycles.current = 0;
           setActiveIndex(0);
-          setPlaying(true);
+          setPlaying(autoplay);
         },
       })}
     </div>
@@ -229,22 +231,28 @@ export function ProductScene({
   title,
   stages,
   accent = "brand",
+  autoplay = false,
+  device = true,
+  composition = "workspace",
   render,
 }: {
   id: string;
   title: string;
   stages: readonly ProductSceneStage[];
   accent?: "brand" | "blue" | "sand";
+  autoplay?: boolean;
+  device?: boolean;
+  composition?: "workspace" | "timeline" | "mosaic" | "ledger";
   render?: (stage: ProductSceneStage, index: number) => ReactNode;
 }) {
   const labels = useMemo(() => stages.map((stage) => stage.label), [stages]);
   return (
-    <DemoController labels={labels}>
+    <DemoController labels={labels} autoplay={autoplay}>
       {({ activeIndex, playing, reducedMotion, select, toggle, previous, next, restart }) => {
         const stage = reducedMotion ? stages[stages.length - 1] : stages[activeIndex];
         const shownIndex = reducedMotion ? stages.length - 1 : activeIndex;
         return (
-          <section className={`product-scene product-scene--${accent}`} aria-labelledby={`${id}-title`}>
+          <section className={`product-scene product-scene--${accent} product-scene--${composition}`} aria-labelledby={`${id}-title`} data-autoplay={autoplay ? "true" : "false"}>
             <div className="product-scene__topline">
               <div>
                 <span>{stage.eyebrow}</span>
@@ -280,14 +288,14 @@ export function ProductScene({
                 </div>
                 {render ? render(stage, shownIndex) : <DefaultSceneRows stage={stage} index={shownIndex} />}
               </div>
-              <div className="product-scene__phone" aria-label="Vista móvil sincronizada">
+              {device ? <div className="product-scene__phone" aria-label="Vista móvil sincronizada">
                 <span className="product-scene__phone-bar" />
                 <small>Hoy</small>
                 <strong>{stage.label}</strong>
                 <div><i style={{ width: `${Math.max(22, ((shownIndex + 1) / stages.length) * 100)}%` }} /></div>
                 <p>{stage.title}</p>
                 <button type="button" tabIndex={-1}>Ver detalle</button>
-              </div>
+              </div> : null}
             </div>
             {reducedMotion ? <ReducedMotionFallback>Movimiento reducido: se muestra el estado final.</ReducedMotionFallback> : null}
           </section>

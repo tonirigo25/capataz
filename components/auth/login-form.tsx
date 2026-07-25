@@ -13,6 +13,6 @@ export function LoginForm({ publicRegistrationEnabled }: { publicRegistrationEna
     <label><span className="label mb-1 block">Contraseña</span><input className="field" name="password" type="password" autoComplete="current-password" required /></label>
     <Link href="/recuperar-contrasena" className="text-sm font-bold text-obra-yellowDark hover:underline">He olvidado mi contraseña</Link>
     <button className="primary-button w-full" disabled={pending}>{pending ? "Comprobando…" : "Entrar"}</button>
-    <p className="text-center text-sm text-slate-600">{publicRegistrationEnabled ? <>¿Aún no tienes cuenta? <Link href="/registro" className="font-bold text-obra-yellowDark hover:underline">Crear cuenta</Link></> : <>Acceso limitado a la beta privada. <Link href="/demo" className="font-bold text-obra-yellowDark hover:underline">Solicitar demo</Link></>}</p>
+    <p className="text-center text-sm text-slate-600">{publicRegistrationEnabled ? <>¿Aún no tienes cuenta? <Link href="/registro" className="font-bold text-obra-yellowDark hover:underline">Crear cuenta</Link></> : <>Acceso limitado a la beta privada. <Link href="/demo" className="font-bold text-obra-yellowDark hover:underline">Solicitar acceso</Link></>}</p>
   </form>;
 }

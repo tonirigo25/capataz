@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { LegalBackButton } from "@/components/legal-back-button";
 import { brand } from "@/lib/brand";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Privacidad", description: "Cómo trata Orqena los datos necesarios para prestar el servicio.", alternates: { canonical: "/privacidad" }, openGraph: { title: "Privacidad en Orqena", description: "Información sobre datos, control y derechos.", images: [brand.socialImage] } };
 
 export default function PrivacyPage() {
   return (

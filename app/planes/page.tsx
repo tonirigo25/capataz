@@ -1,17 +1,75 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
-import { MarketingPage, SectionIntro } from "@/components/marketing/marketing-shell";
+import { ArrowRight, Check, Gauge, HardDrive, UsersRound } from "lucide-react";
+import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { brand } from "@/lib/brand";
 import { planCatalog } from "@/lib/commercial/plans";
+import { PUBLIC_PRICING_ENABLED } from "@/lib/commercial/unit-economics";
 
-export const metadata: Metadata = { title: "Planes", description: "Conoce el catálogo de planes de Orqena y sus funcionalidades.", alternates: { canonical: "/planes" } };
+export const metadata: Metadata = {
+  title: "Planes",
+  description: "Compara capacidades, límites y soporte de los planes de Orqena sin precios públicos no aprobados.",
+  alternates: { canonical: "/planes" },
+  openGraph: { title: "Planes Orqena", description: "Capacidades y límites explicados con claridad.", images: [brand.socialImage] },
+};
 
-const labels: Record<string, string> = { multi_company: "Multiempresa", advanced_permissions: "Permisos avanzados", team_management: "Gestión de equipo", team_scopes: "Alcances por equipo", orqena_chat: "Consultas con Orqena", orqena_actions: "Acciones con Orqena", orqena_memory: "Memoria de negocio", exports: "Exportaciones", automations: "Automatizaciones", audit_log: "Registro de auditoría", document_extraction: "Extracción documental", advanced_reports: "Informes avanzados", priority_support: "Soporte prioritario", api_access: "Acceso API", custom_roles: "Configuración avanzada de roles" };
-const limitLabels: Record<string, string> = { max_members: "personas", max_companies: "empresas", max_documents: "documentos", monthly_orqena_actions: "acciones de Orqena/mes", max_automations: "automatizaciones" };
-const faqs = [
-  ["¿Por qué no aparecen precios?", "La beta privada se configura según el equipo y el recorrido necesario. No publicamos una cifra que aún no sea una condición comercial confirmada."],
-  ["¿Puedo cambiar de plan?", "El catálogo separa capacidades y límites para que la evolución sea comprensible. Cualquier cambio se revisa antes de aplicarse."],
-  ["¿Qué ocurre al alcanzar un límite?", "Orqena informa del uso y evita presentar una ampliación como realizada hasta que haya una decisión comercial."],
-];
+const displayNames = { STARTER: "Inicial", PROFESSIONAL: "Profesional", BUSINESS: "Empresa", ENTERPRISE: "A medida" } as const;
+const support = { STARTER: "Soporte estándar", PROFESSIONAL: "Acompañamiento de equipo", BUSINESS: "Soporte prioritario", ENTERPRISE: "Acuerdo de soporte" } as const;
 
-export default function PlansPage() { return <MarketingPage><section className="marketing-container py-14 lg:py-24"><SectionIntro centered eyebrow="Planes" title="Un catálogo real, explicado sin inventar condiciones." description="Los planes recogen las funcionalidades y límites previstos para cada etapa. Las condiciones comerciales se comparten en una conversación adaptada a cada empresa." /><div className="mt-12 grid gap-4 lg:grid-cols-4">{Object.entries(planCatalog).map(([key, plan]) => { const features = Object.entries(plan.entitlements).filter(([, value]) => value === true).map(([name]) => labels[name]).filter(Boolean).slice(0, 6); const limits = Object.entries(plan.entitlements).filter(([name, value]) => limitLabels[name] && typeof value === "number").slice(0, 3); return <article key={key} className="marketing-plan-card"><p className="marketing-eyebrow">{key}</p><h2>{plan.name}</h2><p className="mt-3 text-sm leading-6 text-content-secondary">{plan.audience}</p><p className="mt-6 border-y border-[#d9dfd4] py-4 text-sm font-semibold text-[#0d5b51]">Condiciones comerciales bajo consulta</p><h3 className="mt-6 text-sm font-black">Capacidades</h3><ul className="mt-3 space-y-3">{features.map(feature => <li key={feature} className="flex gap-2 text-sm"><Check size={17} className="shrink-0 text-[#167366]" />{feature}</li>)}</ul><h3 className="mt-6 text-sm font-black">Límites de catálogo</h3><ul className="mt-3 space-y-2 text-sm text-content-secondary">{limits.map(([name, value]) => <li key={name}><strong className="tabular-nums text-content-primary">{Number(value).toLocaleString("es-ES")}</strong> {limitLabels[name]}</li>)}</ul><Link href="/demo" className="marketing-outline-button mt-8 w-full">Hablar de {plan.name} <ArrowRight size={16} /></Link></article>; })}</div></section><section className="border-y border-[#d9dfd4] bg-[var(--canvas-muted)]"><div className="marketing-container py-16"><SectionIntro level={2} eyebrow="Comparación" title="La progresión está en el control, no en nombres opacos." description="Starter ordena el día; Professional conecta equipos; Business amplía gobierno e informes; Enterprise adapta la capacidad a organizaciones complejas." /><div className="mt-9 overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]"><table className="w-full min-w-[44rem] text-left text-sm"><thead><tr>{["Plan","Personas","Empresas","Documentos","Automatizaciones"].map(item => <th key={item} className="p-4">{item}</th>)}</tr></thead><tbody>{Object.values(planCatalog).map(plan => <tr key={plan.name} className="border-t border-[var(--border)]"><th className="p-4">{plan.name}</th><td className="p-4 tabular-nums">{Number(plan.entitlements.max_members ?? 0).toLocaleString("es-ES")}</td><td className="p-4 tabular-nums">{Number(plan.entitlements.max_companies ?? 0).toLocaleString("es-ES")}</td><td className="p-4 tabular-nums">{Number(plan.entitlements.max_documents ?? 0).toLocaleString("es-ES")}</td><td className="p-4 tabular-nums">{Number(plan.entitlements.max_automations ?? 0).toLocaleString("es-ES")}</td></tr>)}</tbody></table></div></div></section><section className="marketing-container py-16"><SectionIntro level={2} eyebrow="Preguntas frecuentes" title="Lo importante, antes de elegir." /><div className="mt-8 grid gap-3">{faqs.map(([question, answer]) => <details key={question} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><summary className="cursor-pointer font-bold">{question}</summary><p className="mt-3 text-sm leading-6 text-content-secondary">{answer}</p></details>)}</div><div className="mt-12 text-center"><h2 className="marketing-title mx-auto max-w-2xl">La elección empieza por entender cómo trabaja tu equipo.</h2><Link className="marketing-button mt-8" href="/demo">Solicitar demo <ArrowRight size={18} /></Link></div></section></MarketingPage>; }
+export default function PlansPage() {
+  return (
+    <MarketingPage>
+      <section className="plans-hero">
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Planes y límites</p><h1>Elige por capacidad, no por una cifra sin contexto.</h1><p>La beta privada mantiene el precio público desactivado. Compara empresas, personas, documentos, IA, almacenamiento y soporte.</p></div>
+          <aside><Gauge size={24} /><strong>Precio público desactivado</strong><p>Los costes internos y el margen se modelan en una herramienta exclusiva para PLATFORM_OWNER.</p></aside>
+        </div>
+      </section>
+
+      <section className="marketing-container plans-grid" data-public-pricing={PUBLIC_PRICING_ENABLED ? "enabled" : "disabled"}>
+        {Object.entries(planCatalog).map(([key, plan], index) => {
+          const planKey = key as keyof typeof displayNames;
+          const features = Object.entries(plan.entitlements).filter(([, value]) => value === true).map(([name]) => featureLabel(name)).slice(0, 6);
+          const storage = Number(plan.entitlements.storage_bytes ?? 0) / 1_000_000_000;
+          return (
+            <article key={key} className={index === 1 ? "is-featured" : ""}>
+              <header><p className="marketing-eyebrow">{String(index + 1).padStart(2, "0")}</p><h2>{displayNames[planKey]}</h2><p>{plan.audience}</p></header>
+              <div className="plans-grid__limits">
+                <Limit icon={UsersRound} label="Personas" value={limit(plan.entitlements.max_members)} />
+                <Limit icon={Gauge} label="Empresas" value={limit(plan.entitlements.max_companies)} />
+                <Limit icon={HardDrive} label="Documentos/mes" value={limit(plan.entitlements.max_documents)} />
+                <Limit icon={Gauge} label="Acciones Orqena" value={limit(plan.entitlements.monthly_orqena_actions)} />
+                <Limit icon={HardDrive} label="Almacenamiento" value={`${storage.toLocaleString("es-ES")} GB`} />
+              </div>
+              <div className="plans-grid__features"><strong>Incluye</strong><ul>{features.map((feature) => <li key={feature}><Check size={15} />{feature}</li>)}</ul></div>
+              <dl><div><dt>Soporte</dt><dd>{support[planKey]}</dd></div><div><dt>Sobreuso</dt><dd>{planKey === "STARTER" ? "Revisión antes de ampliar" : "Allowance y recarga bajo acuerdo"}</dd></div></dl>
+              <Link href="/demo" className={index === 1 ? "marketing-button" : "marketing-outline-button"}>Revisar {displayNames[planKey]} <ArrowRight size={16} /></Link>
+            </article>
+          );
+        })}
+      </section>
+
+      <section className="plans-explainer">
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Cómo leer los límites</p><h2 className="marketing-title">Capacidad incluida, aviso y decisión antes del sobreuso.</h2><p>“A medida” no significa ilimitado: infraestructura, almacenamiento, procesamiento documental e IA tienen costes que deben acordarse.</p></div>
+          <ol><li><span>01</span><strong>Uso visible</strong><p>La empresa conoce su consumo.</p></li><li><span>02</span><strong>Aviso previo</strong><p>El límite no aparece por sorpresa.</p></li><li><span>03</span><strong>Decisión comercial</strong><p>Ninguna ampliación se presenta como aplicada sin revisión.</p></li></ol>
+        </div>
+      </section>
+
+      <section className="marketing-container plans-close">
+        <h2 className="marketing-title">La elección empieza por entender cómo trabaja tu equipo.</h2>
+        <p>Selecciona sector, perfil y objetivo para recorrer el producto antes de hablar de condiciones.</p>
+        <Link className="marketing-button" href="/demo">Explorar la demo <ArrowRight size={18} /></Link>
+      </section>
+    </MarketingPage>
+  );
+}
+
+function Limit({ icon: Icon, label, value }: { icon: typeof UsersRound; label: string; value: string }) {
+  return <div><Icon size={16} /><span><small>{label}</small><strong>{value}</strong></span></div>;
+}
+function limit(value: unknown) { return Number(value ?? 0).toLocaleString("es-ES"); }
+function featureLabel(value: string) {
+  const labels: Record<string, string> = { multi_company: "Multiempresa", advanced_permissions: "Permisos avanzados", custom_roles: "Roles configurables", team_management: "Gestión de equipo", team_scopes: "Alcances por equipo", orqena_chat: "Consultas con Orqena", orqena_actions: "Acciones bajo confirmación", orqena_memory: "Memoria de negocio", document_extraction: "Extracción documental", advanced_reports: "Informes avanzados", automations: "Automatizaciones", audit_log: "Registro de auditoría" };
+  return labels[value] ?? value.replaceAll("_", " ");
+}

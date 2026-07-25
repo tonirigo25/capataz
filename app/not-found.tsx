@@ -2,6 +2,13 @@ import Link from "next/link";
 import { ArrowRight, Search } from "lucide-react";
 import { BrandLockup } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Página no encontrada",
+  description: "La página solicitada no está disponible en Orqena.",
+  robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
   return (

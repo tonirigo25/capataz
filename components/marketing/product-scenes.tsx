@@ -1,17 +1,28 @@
 "use client";
 
 import {
+  ArrowRight,
   CheckCircle2,
   CircleDollarSign,
+  Clock3,
   FileCheck2,
+  FileText,
   MessageSquareText,
+  ReceiptText,
   Smartphone,
   Sparkles,
   UserRound,
   UsersRound,
+  WalletCards,
   Wrench,
 } from "lucide-react";
-import { ProductScene, type ProductSceneStage } from "@/components/marketing/motion-system";
+import {
+  DemoController,
+  PlaybackControls,
+  ProductScene,
+  SceneProgress,
+  type ProductSceneStage,
+} from "@/components/marketing/motion-system";
 
 const heroStages = [
   stage("cliente", "Cliente", "Relación abierta", "El contexto empieza unido", "Contacto, responsable y siguiente paso quedan en la misma vista.", "1 siguiente paso", "Relación"),
@@ -95,39 +106,96 @@ const agendaStages = [
 ] as const;
 
 export function HeroProductOrchestra() {
-  return <ProductScene id="hero-product-orchestra" title="Tu negocio se mueve como un solo sistema" stages={heroStages} />;
+  return <ProductScene id="hero-product-orchestra" title="Tu negocio se mueve como un solo sistema" stages={heroStages} autoplay />;
 }
 
 export function RolePortalStudio() {
-  return <ProductScene id="role-portal-studio" title="Cada persona entra en un portal distinto" stages={roleStages} accent="blue" render={(stage, index) => <RoleRows stage={stage} index={index} />} />;
+  return <ProductScene id="role-portal-studio" title="Cada persona entra en un portal distinto" stages={roleStages} accent="blue" autoplay composition="mosaic" device={false} render={(stage, index) => <RoleRows stage={stage} index={index} />} />;
 }
 
 export function Client360Demo() {
-  return <ProductScene id="client-360-demo" title="La relación completa, sin página interminable" stages={clientStages} />;
+  return <ProductScene id="client-360-demo" title="La relación completa, sin página interminable" stages={clientStages} autoplay composition="timeline" render={(stage, index) => <ClientRows stage={stage} index={index} />} />;
 }
 
 export function Work360Demo() {
-  return <ProductScene id="work-360-demo" title="El trabajo evoluciona a la vista del equipo" stages={workStages} accent="sand" />;
+  return <ProductScene id="work-360-demo" title="El trabajo evoluciona a la vista del equipo" stages={workStages} accent="sand" composition="timeline" device={false} render={(stage, index) => <WorkRows stage={stage} index={index} />} />;
 }
 
 export function OrqenaActionDemo() {
-  return <ProductScene id="orqena-action-demo" title="Orqena propone. Tú decides." stages={actionStages} accent="blue" render={(stage, index) => <ActionRows stage={stage} index={index} />} />;
+  return <ProductScene id="orqena-action-demo" title="Orqena propone. Tú decides." stages={actionStages} accent="blue" composition="mosaic" device={false} render={(stage, index) => <ActionRows stage={stage} index={index} />} />;
 }
 
 export function MobileWorkDemo() {
-  return <ProductScene id="mobile-work-demo" title="Del móvil al escritorio, sin perder contexto" stages={mobileStages} />;
+  return <ProductScene id="mobile-work-demo" title="Del móvil al escritorio, sin perder contexto" stages={mobileStages} composition="mosaic" render={(stage, index) => <MobileSyncRows stage={stage} index={index} />} />;
 }
 
 export function SalesQuoteStudioDemo() {
-  return <ProductScene id="sales-quote-studio" title="Una propuesta que se entiende y se gobierna" stages={quoteStages} accent="blue" />;
+  return <ProductScene id="sales-quote-studio" title="Una propuesta que se entiende y se gobierna" stages={quoteStages} accent="blue" composition="timeline" device={false} render={(stage, index) => <QuoteRows stage={stage} index={index} />} />;
 }
 
 export function TreasuryFlowDemo() {
-  return <ProductScene id="treasury-flow-demo" title="Cada movimiento conserva su origen" stages={treasuryStages} accent="sand" />;
+  return <ProductScene id="treasury-flow-demo" title="Cada movimiento conserva su origen" stages={treasuryStages} accent="sand" composition="ledger" device={false} render={(stage, index) => <TreasuryRows stage={stage} index={index} />} />;
 }
 
 export function ContextualAgendaDemo() {
-  return <ProductScene id="contextual-agenda-demo" title="Una agenda que entiende las relaciones" stages={agendaStages} />;
+  return <ProductScene id="contextual-agenda-demo" title="Una agenda que entiende las relaciones" stages={agendaStages} composition="mosaic" device={false} render={(stage, index) => <AgendaRows stage={stage} index={index} />} />;
+}
+
+export function BusinessWorkflow() {
+  const labels = heroStages.map((item) => item.label);
+  return (
+    <DemoController labels={labels} autoplay interval={3000}>
+      {({ activeIndex, playing, reducedMotion, select, toggle, previous, next, restart }) => {
+        const index = reducedMotion ? heroStages.length - 1 : activeIndex;
+        const current = heroStages[index];
+        const icons = [UserRound, FileText, Wrench, ReceiptText, WalletCards];
+        const Icon = icons[index];
+        return (
+          <section className="business-workflow" aria-labelledby="business-workflow-title" data-autoplay="true">
+            <header>
+              <div>
+                <p className="marketing-eyebrow">Workflow empresarial</p>
+                <h2 id="business-workflow-title">Cada etapa sabe de dónde viene y qué debe ocurrir después.</h2>
+              </div>
+              <PlaybackControls playing={playing} onToggle={toggle} onPrevious={previous} onNext={next} onRestart={restart} />
+            </header>
+            <SceneProgress labels={labels} activeIndex={index} onSelect={select} />
+            <div className="business-workflow__body" aria-live="polite">
+              <ol>
+                {heroStages.map((stage, stageIndex) => (
+                  <li key={stage.id} className={stageIndex === index ? "is-active" : stageIndex < index ? "is-done" : ""}>
+                    <button type="button" onClick={() => select(stageIndex)}>
+                      <span>{String(stageIndex + 1).padStart(2, "0")}</span>
+                      <strong>{stage.label}</strong>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <article>
+                <div className="business-workflow__record">
+                  <span><Icon size={22} /> Registro relacionado</span>
+                  <h3>{current.title}</h3>
+                  <p>{current.description}</p>
+                  <dl>
+                    <div><dt>Actor</dt><dd>{index < 2 ? "Comercial" : index === 2 ? "Responsable" : "Finanzas"}</dd></div>
+                    <div><dt>Estado</dt><dd>{current.metric}</dd></div>
+                    <div><dt>Fecha</dt><dd>{index < 3 ? "Hoy" : "Próximo vencimiento"}</dd></div>
+                  </dl>
+                </div>
+                <aside>
+                  <small>Relación anterior</small>
+                  <strong>{index === 0 ? "Primer contacto" : heroStages[index - 1].label}</strong>
+                  <ArrowRight size={18} />
+                  <small>Siguiente acción</small>
+                  <strong>{index === heroStages.length - 1 ? "Revisar continuidad" : `Preparar ${heroStages[index + 1].label.toLocaleLowerCase("es")}`}</strong>
+                </aside>
+              </article>
+            </div>
+          </section>
+        );
+      }}
+    </DemoController>
+  );
 }
 
 function stage(
@@ -181,8 +249,88 @@ function ActionRows({ stage, index }: { stage: ProductSceneStage; index: number 
   );
 }
 
+function AgendaRows({ stage, index }: { stage: ProductSceneStage; index: number }) {
+  return (
+    <div className="scene-agenda">
+      <div className="scene-agenda__day">
+        <span><Clock3 size={14} /> 09:00</span>
+        <strong>{stage.title}</strong>
+        <small>{index < 3 ? "Cliente y trabajo relacionados" : "Contexto protegido"}</small>
+      </div>
+      <div className="scene-agenda__week" aria-label="Semana sintética">
+        {["L", "M", "X", "J", "V"].map((day, dayIndex) => <span key={day} className={dayIndex === Math.min(index, 4) ? "is-active" : ""}>{day}<i>{dayIndex + 12}</i></span>)}
+      </div>
+    </div>
+  );
+}
+
+function QuoteRows({ stage, index }: { stage: ProductSceneStage; index: number }) {
+  return (
+    <div className="scene-quote">
+      <div>
+        <small>Propuesta Q-024</small>
+        <strong>{stage.title}</strong>
+        {["Servicio principal", "Preparación", "Entrega"].map((line, lineIndex) => <span key={line}>{line}<i>{lineIndex + 1}</i></span>)}
+      </div>
+      <aside><small>Aprobación</small><strong>{index < 4 ? "En preparación" : index === 4 ? "Esperando decisión" : "Lista para enviar"}</strong><CheckCircle2 size={20} /></aside>
+    </div>
+  );
+}
+
+function TreasuryRows({ stage, index }: { stage: ProductSceneStage; index: number }) {
+  return (
+    <div className="scene-ledger">
+      {treasuryStages.slice(Math.max(0, index - 1), Math.min(treasuryStages.length, index + 2)).map((item) => (
+        <article key={item.id} className={item.id === stage.id ? "is-active" : ""}>
+          <span>{item.label.includes("Factura") ? <ReceiptText size={16} /> : <WalletCards size={16} />}</span>
+          <div><strong>{item.label}</strong><small>{item.meta} · origen visible</small></div>
+          <i>{item.metric}</i>
+        </article>
+      ))}
+      <footer><span>Posición explicada</span><strong>Entradas y salidas conservan documento y fecha</strong></footer>
+    </div>
+  );
+}
+
+function ClientRows({ stage, index }: { stage: ProductSceneStage; index: number }) {
+  return (
+    <div className="scene-360">
+      <div className="scene-360__summary">
+        <span>Relación</span><strong>Cliente demo</strong><small>Responsable · Equipo comercial</small>
+      </div>
+      <div className="scene-360__timeline">
+        {clientStages.slice(0, index + 1).slice(-3).map((item) => <span key={item.id}><i /><strong>{item.label}</strong><small>{item.metric}</small></span>)}
+      </div>
+      <aside><small>Próxima acción</small><strong>{stage.title}</strong><button type="button" tabIndex={-1}>Abrir registro</button></aside>
+    </div>
+  );
+}
+
+function WorkRows({ stage, index }: { stage: ProductSceneStage; index: number }) {
+  return (
+    <div className="scene-work">
+      <div className="scene-work__progress"><span style={{ width: `${((index + 1) / workStages.length) * 100}%` }} /></div>
+      <div className="scene-work__board">
+        {["Hito", "Equipo", "Documento"].map((label, itemIndex) => <article key={label}><small>{label}</small><strong>{itemIndex === 0 ? stage.title : itemIndex === 1 ? "Responsable + equipo" : "Entrega vinculada"}</strong><CheckCircle2 size={16} /></article>)}
+      </div>
+    </div>
+  );
+}
+
+function MobileSyncRows({ stage, index }: { stage: ProductSceneStage; index: number }) {
+  return (
+    <div className="scene-mobile-sync">
+      <div><Smartphone size={18} /><span><small>Móvil</small><strong>{stage.label}</strong></span></div>
+      <ArrowRight size={18} />
+      <div><UsersRound size={18} /><span><small>Escritorio</small><strong>{index < 5 ? "Esperando actualización" : "Actividad sincronizada"}</strong></span></div>
+      <p>{stage.description}</p>
+    </div>
+  );
+}
+
 export const marketingSceneCatalog = {
   hero: { component: "HeroProductOrchestra", stages: heroStages.map((item) => item.label) },
+  workflow: { component: "BusinessWorkflow", stages: heroStages.map((item) => item.label) },
   portals: { component: "RolePortalStudio", stages: roleStages.map((item) => item.label) },
   client: { component: "Client360Demo", stages: clientStages.map((item) => item.label) },
   work: { component: "Work360Demo", stages: workStages.map((item) => item.label) },

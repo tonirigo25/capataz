@@ -16,7 +16,9 @@ export const PUBLIC_PAGE_PATHS = new Set([
   "/producto",
   "/sectores",
   "/planes",
-  "/seguridad"
+  "/seguridad",
+  "/soluciones",
+  "/aceptar-invitacion"
 ]);
 
 export const PUBLIC_RESOURCE_PATHS = new Set([
@@ -30,6 +32,15 @@ export const PUBLIC_RESOURCE_PATHS = new Set([
 
 export const PUBLIC_API_PREFIXES = ["/api/status"];
 export const INTERNAL_API_PREFIXES = ["/api/internal"];
+export const PROTECTED_PAGE_PREFIXES = [
+  "/acceso-pendiente", "/acceso-restringido", "/actividad", "/agenda", "/alertas", "/auditoria",
+  "/automatizaciones", "/buscar", "/capataz", "/clientes", "/configuracion", "/crear-empresa",
+  "/dashboard", "/demo-guiada", "/dinero", "/documentos", "/equipo", "/equipos", "/facturas-proveedor",
+  "/facturas-subcontratas", "/gastos-materiales", "/gestion", "/hoy", "/inteligencia", "/notificaciones",
+  "/obras", "/onboarding", "/plan-y-uso", "/plataforma", "/presupuestos", "/proveedores",
+  "/recomendaciones", "/recordatorios", "/seguimientos", "/seleccionar-empresa", "/subcontratas",
+  "/tareas", "/tesoreria",
+] as const;
 
 export function pathMatches(pathname: string, path: string) {
   return pathname === path || pathname.startsWith(`${path}/`);
@@ -37,14 +48,16 @@ export function pathMatches(pathname: string, path: string) {
 
 export function isPublicPage(pathname: string) {
   return PUBLIC_PAGE_PATHS.has(pathname)
-    || pathname.startsWith("/sectores/");
+    || pathname.startsWith("/sectores/")
+    || pathname.startsWith("/producto/");
 }
 
 export function isPublicResource(pathname: string) {
   return PUBLIC_RESOURCE_PATHS.has(pathname)
     || pathname.startsWith("/_next/")
     || pathname.startsWith("/icons/")
-    || pathname.startsWith("/marketing/");
+    || pathname.startsWith("/marketing/")
+    || pathname.startsWith("/brand/");
 }
 
 export function isPublicApi(pathname: string) {
@@ -56,7 +69,7 @@ export function isInternalApi(pathname: string) {
 }
 
 export function isProtectedPage(pathname: string) {
-  return !pathname.startsWith("/api/") && !isPublicPage(pathname) && !isPublicResource(pathname);
+  return !pathname.startsWith("/api/") && PROTECTED_PAGE_PREFIXES.some((path) => pathMatches(pathname, path));
 }
 
 export function safeReturnPath(pathname: string, search: string) {

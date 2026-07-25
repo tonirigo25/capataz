@@ -78,6 +78,51 @@ for (const sector of ["general_services", "construction", "installations", "prof
   check(catalog.includes(`${sector}:`), `Falta sector público ${sector}`);
 }
 
+const homeV41 = text("app/page.tsx");
+check((homeV41.match(/<section\b/g) || []).length === 9, "V4.1 debe limitar la home a nueve bloques narrativos");
+check(["v41-hero", "value-band--v41", "BusinessWorkflow", "v41-stories", "v41-client", "v41-portals", "v41-mobile-sectors", "v41-control", "v41-close"].every((marker) => homeV41.includes(marker)), "La arquitectura editorial V4.1 está incompleta");
+check(homeV41.includes('className="v41-hero"') && homeV41.includes("Todo conectado."), "El hero V4.1 no está conectado");
+check(homeV41.includes("<small>{copy}</small>"), "La banda de valor debe incluir contexto, no solo etiquetas");
+check(homeV41.includes("<BusinessWorkflow />"), "Falta el workflow empresarial visual");
+check((homeV41.match(/className: "is-(?:agenda|opportunity|finance)"/g) || []).length === 3, "La home debe contener exactamente tres historias visuales");
+check(!homeV41.includes("Work360Demo") && !homeV41.includes("OrqenaActionDemo"), "La home no debe repetir escenas profundas ya derivadas");
+check(css.includes("font-size: clamp(2.55rem, 4.8vw, 4.25rem)") && css.includes("max-width: 14.5ch"), "La escala del hero V4.1 no está limitada");
+check(css.includes(".v41-section { padding-block: clamp(3.5rem, 6.8vw, 6.5rem); }"), "El espaciado editorial V4.1 no está normalizado");
+
+const compositionManifest = text("lib/marketing/composition-manifest.ts");
+check(existsSync(path.join(root, "lib/marketing/composition-manifest.ts")), "Falta el manifiesto de composiciones");
+check(compositionManifest.includes("hasRepeatedComposition") && compositionManifest.includes("relationship-map") && compositionManifest.includes("device-duet"), "El manifiesto no evita repetición visual");
+check(motion.includes("autoplay = false") && motion.includes("data-autoplay"), "El autoplay debe ser opt-in y auditable");
+check(scenes.includes('title="Tu negocio se mueve como un solo sistema" stages={heroStages} autoplay'), "Hero Product Orchestra debe tener autoplay");
+check(scenes.includes("<DemoController labels={labels} autoplay interval={3000}>"), "Workflow empresarial debe tener autoplay");
+check(scenes.includes('stages={roleStages} accent="blue" autoplay'), "Portales por responsabilidad debe tener autoplay");
+check(scenes.includes('stages={clientStages} autoplay'), "Cliente 360 debe tener autoplay");
+check(scenes.includes('stages={workStages} accent="sand" composition="timeline"') && !scenes.includes('stages={workStages} accent="sand" autoplay'), "Trabajo 360 debe conservar interacción manual");
+
+const moduleScenes = text("components/marketing/module-scenes.tsx");
+const modulePage = text("app/producto/[modulo]/page.tsx");
+check(catalog.includes('family: "relationship" | "operation" | "control"'), "Faltan las tres familias editoriales de módulos");
+check((moduleScenes.match(/^\s{2}(?:clientes|trabajo|ventas|compras|finanzas|agenda|documentos|equipo|orqena|movil):/gm) || []).length === 10 && moduleScenes.includes("data-module-scene"), "Cada módulo necesita una escena propia");
+check(modulePage.includes("module-journey") && modulePage.includes("item.workflow.map"), "Las páginas de módulo necesitan workflow");
+check(modulePage.includes("module-faq") && modulePage.includes("item.faq.map"), "Las páginas de módulo necesitan FAQ específica");
+
+const sectorScenes = text("components/marketing/sector-scenes.tsx");
+check(sectorScenes.includes("SectorMiniScene") && text("app/sectores/page.tsx").includes("sector-mosaic"), "Sectores debe usar mini escenas en mosaico");
+check(sectorScenes.includes("data-sector-scene") && text("app/sectores/[sector]/page.tsx").includes("SectorHeroScene"), "Cada sector necesita escena identificable");
+
+const unitEconomics = text("lib/commercial/unit-economics.ts");
+check(unitEconomics.includes("PUBLIC_PRICING_ENABLED = false") && text("app/planes/page.tsx").includes("data-public-pricing"), "El precio público debe permanecer desactivado");
+check(["infrastructureBase", "costPerUser", "storageGb", "documents", "inputTokens", "outputTokens", "transcriptionMinutes", "supportHours", "targetMargin", "contingency", "overagePrice"].every((field) => unitEconomics.includes(field)), "El modelo de unit economics está incompleto");
+check(text("app/(app)/plataforma/page.tsx").includes('actor.platformRole === "PLATFORM_OWNER" ? <UnitEconomicsCalculator'), "El calculador de costes debe ser exclusivo de PLATFORM_OWNER");
+check(text("app/seguridad/page.tsx").includes("security-diagram") && text("app/seguridad/page.tsx").includes("security-mosaic"), "Seguridad debe usar diagrama y ejemplos visuales");
+const demoStudio = text("components/marketing/demo-studio.tsx");
+check(demoStudio.includes('id="demo-objective"') && demoStudio.includes("49 segundos") && demoStudio.includes("setPlaying"), "Demo debe incluir objetivo y recorrido manual de 45–90 segundos");
+const routeAccess = text("lib/route-access.ts");
+check(routeAccess.includes('pathname.startsWith("/brand/")') && routeAccess.includes("PROTECTED_PAGE_PREFIXES"), "Activos de marca y 404 deben evitar el redirect de autenticación");
+check(text("app/not-found.tsx").includes("robots: { index: false, follow: false }"), "La 404 debe declarar noindex");
+check(text("components/auth/login-form.tsx").includes("Solicitar acceso"), "El login beta debe ofrecer solicitar acceso");
+check(text("app/(app)/clientes/[id]/page.tsx").includes("ClientRelationshipRail") && text("app/(app)/obras/[id]/page.tsx").includes("WorkLifecycleRail"), "Cliente 360 y Trabajo 360 necesitan rail contextual");
+
 for (const publicRoute of [
   "app/page.tsx",
   "app/producto/page.tsx",

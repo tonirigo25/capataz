@@ -30,7 +30,7 @@ const shared = {
 
 export const routeExperienceManifest: RouteExperienceRule[] = [
   rule("public-home", /^\/$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Orqena", primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
-  rule("public-product", /^\/producto(?:\/\[modulo\])?$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Producto", primaryAction: "Explorar demo", empty: "not-applicable", screenshotGroup: "public" }),
+  rule("public-product", /^\/(?:producto(?:\/\[modulo\])?|soluciones)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Producto", primaryAction: "Explorar demo", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-sectors", /^\/sectores(?:\/\[sector\])?$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Sectores", primaryAction: "Explorar perfil", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-commercial", /^\/(?:planes|seguridad|demo|contacto)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Información comercial", primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-legal-support", /^\/(?:privacidad|politicas|terminos|cookies|soporte)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Información", primaryAction: "Volver", empty: "not-applicable", screenshotGroup: "public" }),

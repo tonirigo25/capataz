@@ -4,7 +4,7 @@ import { ArrowRight, LifeBuoy, LockKeyhole, MessagesSquare } from "lucide-react"
 import { MarketingPage, SectionIntro } from "@/components/marketing/marketing-shell";
 import { brand } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Soporte", description: "Ayuda, privacidad y soporte para usar Orqena con tranquilidad.", alternates: { canonical: "/soporte" } };
+export const metadata: Metadata = { title: "Soporte", description: "Ayuda, privacidad y soporte para usar Orqena con tranquilidad.", alternates: { canonical: "/soporte" }, openGraph: { title: "Soporte Orqena", description: "Ayuda útil con el contexto justo.", images: [brand.socialImage] } };
 export default function SupportPage() {
   return (
     <MarketingPage>

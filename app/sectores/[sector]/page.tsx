@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, Smartphone, Sparkles, UsersRound } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Smartphone, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
-import { MobileWorkDemo, OrqenaActionDemo, RolePortalStudio } from "@/components/marketing/product-scenes";
+import { MobileWorkDemo, OrqenaActionDemo } from "@/components/marketing/product-scenes";
+import { PortalPreview } from "@/components/marketing/portal-preview";
+import { SectorHeroScene } from "@/components/marketing/sector-scenes";
 import { brand } from "@/lib/brand";
 import { getMarketingSector, marketingSectorCatalog } from "@/lib/marketing/catalog";
 
@@ -19,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
     title: item.name,
     description: item.lead,
     alternates: { canonical: `/sectores/${item.slug}` },
-    openGraph: { images: [brand.socialImage] },
+    openGraph: { title: `${item.name} con Orqena`, description: item.lead, images: [brand.socialImage] },
   };
 }
 
@@ -27,77 +29,54 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
   const { sector } = await params;
   const item = getMarketingSector(sector);
   if (!item) notFound();
-  const flow = [item.terminology.clientSingular, "Presupuesto", item.terminology.workSingular, "Factura", "Resultado"];
+  const index = marketingSectorCatalog.findIndex((entry) => entry.slug === item.slug);
+  const flow = [item.terminology.clientSingular, "Propuesta", item.terminology.workSingular, "Documento", "Resultado"];
+  const modules = ["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", "Orqena"];
 
   return (
     <MarketingPage>
-      <section className="sector-profile-hero">
+      <section className={`sector-detail-hero variant-${index % 4}`}>
         <div className="marketing-container">
-          <div>
-            <p className="marketing-eyebrow">Sectores / {item.name}</p>
-            <h1>{item.name}</h1>
-            <p>{item.lead}</p>
-            <Link href="/demo" className="marketing-button">Explorar este perfil <ArrowRight size={18} /></Link>
-          </div>
-          <aside>
-            <span>Vocabulario activo</span>
-            <dl>
-              <div><dt>Relación</dt><dd>{item.terminology.clientSingular}</dd></div>
-              <div><dt>Operación</dt><dd>{item.terminology.workSingular}</dd></div>
-              <div><dt>Responsabilidad</dt><dd>{item.terminology.owner}</dd></div>
-              <div><dt>Progreso</dt><dd>{item.terminology.progress}</dd></div>
-            </dl>
-          </aside>
+          <div><p className="marketing-eyebrow">Sectores / {item.name}</p><h1>{item.name}</h1><p>{item.lead}</p><Link href={`/demo?sector=${item.slug}`} className="marketing-button">Explorar este perfil <ArrowRight size={18} /></Link></div>
+          <SectorHeroScene sectorKey={item.key} work={item.terminology.workSingular} owner={item.terminology.owner} />
         </div>
       </section>
 
-      <section className="marketing-container v4-section sector-flow">
-        <div><p className="marketing-eyebrow">Flujo adaptado</p><h2 className="marketing-title">{item.story}</h2></div>
-        <ol>{flow.map((step, index) => <li key={`${step}-${index}`}><span>{index + 1}</span><strong>{step}</strong>{index < flow.length - 1 ? <ArrowRight /> : <Check />}</li>)}</ol>
+      <section className="marketing-container sector-journey">
+        <div><p className="marketing-eyebrow">Flujo típico</p><h2 className="marketing-title">{item.story}</h2><p>El ejemplo adapta la operación, no promete una integración ni un caso de éxito.</p></div>
+        <ol>{flow.map((step, stepIndex) => <li key={`${step}-${stepIndex}`}><span>{String(stepIndex + 1).padStart(2, "0")}</span><strong>{step}</strong>{stepIndex < flow.length - 1 ? <ArrowRight size={16} /> : <Check size={16} />}</li>)}</ol>
       </section>
 
-      <section className="sector-demo-section">
-        <div className="marketing-container v4-section">
-          <div className="sector-demo-intro"><UsersRound /><p className="marketing-eyebrow">Portales</p><h2 className="marketing-title">Cada responsabilidad recibe su propia prioridad.</h2><p>{item.terminology.owner}, coordinación y equipo comparten contexto sin compartir necesariamente el mismo acceso.</p></div>
-          <RolePortalStudio />
-        </div>
+      <section className="sector-portals">
+        <div className="marketing-container"><div><p className="marketing-eyebrow">Portales</p><h2 className="marketing-title">{item.terminology.owner}, coordinación y equipo comparten contexto, no necesariamente acceso.</h2></div><PortalPreview /></div>
       </section>
 
-      <section className="marketing-container v4-section sector-modules">
-        <div><p className="marketing-eyebrow">Módulos recomendados</p><h2 className="marketing-title">La base que sostiene este recorrido.</h2></div>
-        <div>{["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", "Orqena"].map((module) => <span key={module}>{module}</span>)}</div>
+      <section className="marketing-container sector-module-strip">
+        <div><p className="marketing-eyebrow">Base recomendada</p><h2 className="marketing-title">Seis áreas sostienen este recorrido.</h2></div>
+        <div>{modules.map((module, moduleIndex) => <span key={module}><i>{String(moduleIndex + 1).padStart(2, "0")}</i><strong>{module}</strong><small>{moduleIndex < 2 ? "Contexto central" : moduleIndex < 4 ? "Continuidad" : "Responsabilidad"}</small></span>)}</div>
       </section>
 
-      <section className="sector-split">
+      <section className="sector-mobile">
         <div className="marketing-container">
-          <div><Smartphone /><p className="marketing-eyebrow">Móvil</p><h2>El trabajo cotidiano cabe en una acción clara.</h2><p>Agenda, tareas e instrucciones se priorizan según el portal.</p></div>
+          <div><Smartphone /><p className="marketing-eyebrow">Móvil</p><h2>Una acción clara para el trabajo cotidiano.</h2><p>Instrucciones, avance, evidencia sintética y sincronización con el responsable.</p></div>
           <MobileWorkDemo />
         </div>
       </section>
 
-      <section className="marketing-container v4-section sector-orqena">
-        <div><Sparkles /><p className="marketing-eyebrow">Orqena</p><h2 className="marketing-title">El contexto sectorial ayuda a hablar el mismo idioma.</h2><p>La demo es determinista y no realiza llamadas externas.</p></div>
+      <section className="marketing-container sector-assistant">
+        <div><Sparkles /><p className="marketing-eyebrow">Orqena en {item.name}</p><h2 className="marketing-title">El contexto ayuda a hablar el mismo idioma.</h2><p>La escena es determinista, usa datos sintéticos y espera confirmación.</p></div>
         <OrqenaActionDemo />
       </section>
 
       <section className="v4-faq">
         <div className="marketing-container v4-faq__layout">
-          <div><p className="marketing-eyebrow">Preguntas del sector</p><h2 className="marketing-title">Alcance claro, sin promesas regulatorias.</h2></div>
-          <div>
-            {[item.faq, ["¿Cambia la seguridad entre sectores?", "No. El sector cambia vocabulario y prioridades; el sistema de acceso permanece."]].map(([question, answer]) => (
-              <details key={question}><summary>{question}<ChevronDown size={18} /></summary><p>{answer}</p></details>
-            ))}
-          </div>
+          <div><p className="marketing-eyebrow">Preguntas del sector</p><h2 className="marketing-title">Alcance profesional, sin promesas regulatorias.</h2></div>
+          <div>{[item.faq, ["¿Cambia la seguridad entre sectores?", "No. Cambian vocabulario y prioridades; los accesos se conservan."]].map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={18} /></summary><p>{answer}</p></details>)}</div>
         </div>
       </section>
 
       <section className="v4-final">
-        <div className="marketing-container">
-          <p className="marketing-eyebrow">Demo sintética</p>
-          <h2>Recorre {item.name.toLocaleLowerCase("es")} desde el perfil que te importa.</h2>
-          <p>Sin clientes ficticios presentados como reales y sin cifras usadas como prueba social.</p>
-          <div><Link href={`/demo?sector=${item.slug}`} className="marketing-button marketing-button--light">Abrir demo <ArrowRight size={18} /></Link></div>
-        </div>
+        <div className="marketing-container"><p className="marketing-eyebrow">Ejemplo sintético</p><h2>Recorre {item.name.toLocaleLowerCase("es-ES")} desde el perfil que te importa.</h2><p>Sin empresas ficticias presentadas como clientes y sin cifras como prueba social.</p><div><Link href={`/demo?sector=${item.slug}`} className="marketing-button marketing-button--light">Abrir demo <ArrowRight size={18} /></Link></div></div>
       </section>
     </MarketingPage>
   );

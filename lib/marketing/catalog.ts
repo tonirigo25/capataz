@@ -13,6 +13,9 @@ export type MarketingModule = {
   cta: string;
   metadata: { title: string; description: string };
   visualTone: "brand" | "blue" | "sand";
+  family: "relationship" | "operation" | "control";
+  workflow: string[];
+  faq: [string, string][];
 };
 
 export const marketingProductCatalog: MarketingModule[] = [
@@ -41,6 +44,12 @@ function module(
   cta: string,
   visualTone: MarketingModule["visualTone"],
 ): MarketingModule {
+  const family: MarketingModule["family"] =
+    ["clientes", "ventas", "agenda", "equipo"].includes(slug)
+      ? "relationship"
+      : ["trabajo", "movil", "orqena"].includes(slug)
+        ? "operation"
+        : "control";
   return {
     slug,
     name,
@@ -54,7 +63,29 @@ function module(
     cta,
     metadata: { title: `${name} conectado`, description: result },
     visualTone,
+    family,
+    workflow: moduleWorkflow(slug),
+    faq: [
+      [`¿Cómo se relaciona ${name} con el resto?`, `La actividad conserva vínculos con ${relations.slice(0, 2).join(" y ").toLocaleLowerCase("es-ES")}.`],
+      ["¿La demostración usa información real?", "No. La escena pública usa datos sintéticos y no ejecuta acciones empresariales."],
+    ],
   };
+}
+
+function moduleWorkflow(slug: string) {
+  const workflows: Record<string, string[]> = {
+    clientes: ["Contacto", "Oportunidad", "Propuesta", "Trabajo", "Continuidad"],
+    trabajo: ["Planificar", "Preparar", "Ejecutar", "Revisar", "Entregar"],
+    ventas: ["Relacionar", "Definir", "Valorar", "Aprobar", "Enviar"],
+    compras: ["Solicitar", "Comparar", "Pedir", "Recibir", "Conciliar"],
+    finanzas: ["Registrar", "Vencer", "Cobrar o pagar", "Conciliar", "Prever"],
+    agenda: ["Elegir relación", "Fijar contexto", "Programar", "Realizar", "Continuar"],
+    documentos: ["Incorporar", "Clasificar", "Relacionar", "Autorizar", "Consultar"],
+    equipo: ["Invitar", "Aprobar", "Asignar portal", "Limitar alcance", "Trabajar"],
+    orqena: ["Pedir", "Analizar", "Revisar fuentes", "Editar", "Confirmar"],
+    movil: ["Abrir", "Consultar", "Avanzar", "Aportar evidencia", "Sincronizar"],
+  };
+  return workflows[slug] ?? ["Empezar", "Relacionar", "Revisar", "Decidir", "Continuar"];
 }
 
 const sectorCopy: Record<string, { slug: string; lead: string; story: string; faq: string[] }> = {

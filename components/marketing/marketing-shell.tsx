@@ -7,7 +7,7 @@ import { brand } from "@/lib/brand";
 
 const navigation = [
   ["Producto", "/producto"],
-  ["Soluciones", "/producto"],
+  ["Soluciones", "/soluciones"],
   ["Sectores", "/sectores"],
   ["Planes", "/planes"],
   ["Seguridad", "/seguridad"],
