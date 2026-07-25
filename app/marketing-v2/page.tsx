@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HeroDemo } from "./_components/hero-demo";
+import { LandingSections, MarketingFooter } from "./_components/landing-sections";
 import { MarketingHeader } from "./_components/marketing-header";
 import styles from "./page.module.css";
 
@@ -25,7 +26,9 @@ export default function CapatazMarketingPreviewPage() {
       <MarketingHeader />
       <main>
         <HeroDemo />
+        <LandingSections />
       </main>
+      <MarketingFooter />
     </div>
   );
 }

@@ -30,9 +30,7 @@ const initialActions: Record<DemoId, LocalAction> = {
 export function HeroDemo() {
   const [activeId, setActiveId] = useState<DemoId>("audio");
   const [actions, setActions] = useState(initialActions);
-  const [accessRequested, setAccessRequested] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const accessMessageRef = useRef<HTMLParagraphElement>(null);
 
   const activeAction = actions[activeId];
 
@@ -63,16 +61,11 @@ export function HeroDemo() {
     setActions((current) => ({ ...current, [activeId]: action }));
   };
 
-  const requestAccess = () => {
-    setAccessRequested(true);
-    requestAnimationFrame(() => accessMessageRef.current?.focus());
-  };
-
   return (
     <section className={styles.hero} aria-labelledby="capataz-hero-title">
       <div className={styles.heroGrid}>
-        <div className={styles.heroCopy} id="producto">
-          <p className={styles.eyebrow} id="para-quien">IA práctica para construcción y reformas</p>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>IA práctica para construcción y reformas</p>
           <h1 id="capataz-hero-title">Habla con Capataz. Tu negocio se pone al día.</h1>
           <p className={styles.heroSubtitle}>
             Manda un audio, una foto, una factura o un mensaje. Capataz prepara
@@ -85,29 +78,18 @@ export function HeroDemo() {
               <Mic aria-hidden="true" />
               Probar con un audio
             </button>
-            <button className={styles.secondaryAction} type="button" onClick={requestAccess}>
+            <a className={styles.secondaryAction} href="#solicitar-acceso">
               Solicitar acceso
-            </button>
+            </a>
           </div>
 
-          <p className={styles.demoNote} id="seguridad">
+          <p className={styles.demoNote}>
             <ShieldCheck aria-hidden="true" />
             Demo con datos de ejemplo. Nada se guarda ni se envía.
           </p>
-
-          {accessRequested ? (
-            <p
-              ref={accessMessageRef}
-              className={styles.accessMessage}
-              id="beta"
-              tabIndex={-1}
-            >
-              Solicitud local de ejemplo. En este sprint no se ha enviado ningún formulario.
-            </p>
-          ) : null}
         </div>
 
-        <div className={styles.demoShell} id="como-funciona">
+        <div className={styles.demoShell}>
           <div className={styles.demoTopline}>
             <div>
               <span>Vista previa local</span>

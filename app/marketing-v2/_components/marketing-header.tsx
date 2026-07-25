@@ -9,7 +9,7 @@ const navigation = [
   ["Producto", "#producto"],
   ["Cómo funciona", "#como-funciona"],
   ["Para quién", "#para-quien"],
-  ["Seguridad", "#seguridad"],
+  ["Seguridad", "#control"],
   ["Beta", "#beta"],
 ] as const;
 
