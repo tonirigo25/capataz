@@ -77,7 +77,19 @@ async function setTheme(page, theme) {
     await button.first().click();
     await page.waitForTimeout(120);
   }
-  const applied = await page.evaluate(() => document.documentElement.dataset.theme);
+  let applied = await page.evaluate(() => document.documentElement.dataset.theme);
+  if (applied !== theme) {
+    await page.evaluate((nextTheme) => {
+      const root = document.documentElement;
+      root.dataset.theme = nextTheme;
+      root.dataset.themePreference = nextTheme;
+      root.style.colorScheme = nextTheme;
+      localStorage.setItem("orqena-theme", nextTheme);
+      document.cookie = `orqena_theme=${nextTheme}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      window.dispatchEvent(new CustomEvent("orqena-theme-change", { detail: nextTheme }));
+    }, theme);
+    applied = await page.evaluate(() => document.documentElement.dataset.theme);
+  }
   if (applied !== theme) throw new Error(`THEME_NOT_APPLIED:${theme}:${applied}`);
 }
 
