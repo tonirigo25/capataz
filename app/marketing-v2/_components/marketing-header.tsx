@@ -49,7 +49,7 @@ export function MarketingHeader() {
 
         <div className={styles.headerActions}>
           <Link className={styles.loginLink} href="/login">Entrar</Link>
-          <a className={styles.headerCta} href="#capataz-demo">Probar Capataz</a>
+          <Link className={styles.headerCta} href="/demo-v2">Probar Capataz</Link>
           <button
             ref={triggerRef}
             className={styles.menuTrigger}
@@ -70,9 +70,9 @@ export function MarketingHeader() {
             <a key={href} href={href} onClick={() => setOpen(false)}>{label}</a>
           ))}
           <Link href="/login" onClick={() => setOpen(false)}>Entrar</Link>
-          <a className={styles.mobileNavCta} href="#capataz-demo" onClick={() => setOpen(false)}>
+          <Link className={styles.mobileNavCta} href="/demo-v2" onClick={() => setOpen(false)}>
             Probar Capataz
-          </a>
+          </Link>
         </nav>
       ) : null}
     </header>

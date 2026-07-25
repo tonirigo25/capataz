@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, FileText, MessageSquareText, Mic, RotateCcw, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { demoScenarios, type DemoId } from "./demo-data";
 import styles from "../page.module.css";
@@ -52,11 +53,6 @@ export function HeroDemo() {
     selectTab(nextIndex, true);
   };
 
-  const focusAudio = () => {
-    selectTab(0, true);
-    document.getElementById("capataz-demo")?.scrollIntoView({ block: "center" });
-  };
-
   const setLocalAction = (action: LocalAction) => {
     setActions((current) => ({ ...current, [activeId]: action }));
   };
@@ -74,10 +70,10 @@ export function HeroDemo() {
           </p>
 
           <div className={styles.heroActions} aria-label="Acciones principales">
-            <button className={styles.primaryAction} type="button" onClick={focusAudio}>
+            <Link className={styles.primaryAction} href="/demo-v2">
               <Mic aria-hidden="true" />
               Probar con un audio
-            </button>
+            </Link>
             <a className={styles.secondaryAction} href="#solicitar-acceso">
               Solicitar acceso
             </a>

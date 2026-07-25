@@ -342,7 +342,7 @@ export function LandingSections() {
           <h2>Manda el primer audio. Capataz hace el papeleo contigo.</h2>
         </div>
         <div>
-          <a className={styles.finalPrimary} href="#capataz-demo">Probar Capataz</a>
+          <Link className={styles.finalPrimary} href="/demo-v2">Probar Capataz</Link>
           <a className={styles.finalSecondary} href="#solicitar-acceso">Solicitar acceso</a>
         </div>
       </section>
