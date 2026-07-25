@@ -21,8 +21,8 @@
   --cap-text-rgb: 19 35 31;
   --cap-text-muted: #52635e;
   --cap-text-muted-rgb: 82 99 94;
-  --cap-text-soft: #74817d;
-  --cap-text-soft-rgb: 116 129 125;
+  --cap-text-soft: #626e6a;
+  --cap-text-soft-rgb: 98 110 106;
   --cap-brand: #087a68;
   --cap-brand-rgb: 8 122 104;
   --cap-brand-strong: #07594e;
@@ -40,8 +40,8 @@
   --cap-steel-rgb: 56 89 81;
   --cap-success: #18794e;
   --cap-success-rgb: 24 121 78;
-  --cap-warning: #9a6700;
-  --cap-warning-rgb: 154 103 0;
+  --cap-warning: #8f5f00;
+  --cap-warning-rgb: 143 95 0;
   --cap-danger: #b42318;
   --cap-danger-rgb: 180 35 24;
   --cap-info: #245ea8;
