@@ -72,7 +72,7 @@ async function goto(page, path, expectedStatus = 200) {
 
 async function setTheme(page, theme) {
   const label = theme === "dark" ? "Oscuro" : "Claro";
-  const button = page.getByRole("button", { name: label, exact: true });
+  const button = page.locator(".theme-switcher:visible").getByRole("button", { name: label, exact: true });
   if (await button.count()) {
     await button.first().click();
     await page.waitForTimeout(120);
