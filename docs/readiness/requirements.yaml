@@ -183,11 +183,11 @@ requirements:
   - id: "ARCH-011"
     area: "ARCH"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir contratos de proveedor para billing, email, storage, IA, fiscal y observabilidad."
     acceptance: "Implementación local/fake y producción pasan la misma suite contractual."
-    evidence: ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "scripts/readiness/validate-f2-platform-core.ts"]
-    notes: ["Six fake providers pass their local contract checks; production adapters still need to pass the identical suite."]
+    evidence: ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/platform/providers/contract-suite.ts", "scripts/readiness/validate-provider-contracts.ts"]
+    notes: ["The identical six-provider suite passes fake and production adapters with injected transport doubles and zero external calls."]
   - id: "ARCH-012"
     area: "ARCH"
     phase: "F1"

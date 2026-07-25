@@ -15,6 +15,7 @@
     "readiness:validate-f2-postgres": "node scripts/readiness/run-f2-postgres-isolated.mjs",
     "readiness:validate-f2-health": "node scripts/readiness/validate-f2-health-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",
+    "readiness:validate-providers": "tsx scripts/readiness/validate-provider-contracts.ts",
     "test:ai": "node scripts/validate-capataz-ai.mjs",
     "test:auth-crypto": "tsx scripts/validate-auth-crypto.ts",
     "test:auth-transaction": "tsx scripts/validate-auth-postgres.ts",

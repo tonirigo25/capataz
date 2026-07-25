@@ -65,9 +65,9 @@
     "notes": ["BusinessEvent is the additive transactional outbox; rollback removed both business transaction and event, and SKIP LOCKED claiming passed."]
   },
   "ARCH-011": {
-    "status": "PENDING",
-    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "scripts/readiness/validate-f2-platform-core.ts"],
-    "notes": ["Six fake providers pass their local contract checks; production adapters still need to pass the identical suite."]
+    "status": "PASS",
+    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/platform/providers/contract-suite.ts", "scripts/readiness/validate-provider-contracts.ts"],
+    "notes": ["The identical six-provider suite passes fake and production adapters with injected transport doubles and zero external calls."]
   },
   "SEC-001": {
     "status": "PASS",

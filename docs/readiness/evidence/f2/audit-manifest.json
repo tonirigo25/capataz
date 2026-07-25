@@ -12,9 +12,9 @@
   },
   "requirements": {
     "total": 19,
-    "pass": 13,
+    "pass": 14,
     "readyForExternalInput": 2,
-    "pending": 4,
+    "pending": 3,
     "blocked": 0,
     "waived": 0
   },
@@ -31,6 +31,7 @@
     "authRegression": "PASS",
     "healthStandalone": "PASS",
     "otelExporter": "PASS",
+    "providerContracts": "fake and production 6/6 PASS",
     "typecheck": "PASS",
     "productionBuild": "PASS",
     "staticPagesGenerated": 64,
@@ -63,7 +64,6 @@
   },
   "pending": {
     "ARCH-007": "20 action files still require semantic classification or domain-service extraction",
-    "ARCH-011": "production provider adapters do not yet pass the shared fake/production contract suite",
     "SEC-004": "request IDs are global, but actor/company/job context is not yet installed at every legacy boundary",
     "OBS-004": "end-to-end actor, tenant and job correlation remains incomplete for legacy actions and jobs"
   },

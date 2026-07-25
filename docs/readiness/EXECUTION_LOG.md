@@ -62,8 +62,9 @@ Implemented on `feat/readiness-f2-platform-core` from F1 commit `dbabd19e6a89104
 - Migration 36 applied from fresh PostgreSQL. Concurrency exposed a Prisma-upsert race in the initial limiter; the final advisory-lock implementation passed exactly 5/8 same-tenant attempts while a second tenant passed 3/3 independently.
 - Isolated tests proved one idempotent execution, transactional outbox rollback and claim, webhook replay safety, encrypted credential round-trip, old-session revocation, protected health details and cross-site POST `403` with zero writes.
 - Static F2 suite passed 21/21, auth regression passed, route access passed 52/52, OTLP exported one real span, TypeScript passed, and the production build generated 64 pages.
-- Requirement ledger: 13 `PASS`, 2 `READY_FOR_EXTERNAL_INPUT`, 4 `PENDING`. F2 is not represented as closed.
-- Remaining technical debt is explicit: 20 direct-Prisma action files need classification/extraction; production provider adapters need shared contract coverage; complete actor/tenant/job context propagation remains.
+- Fake and production adapters for billing, email, storage, AI, fiscal and observability pass the identical six-provider contract suite with injected transports and zero external calls.
+- Requirement ledger: 14 `PASS`, 2 `READY_FOR_EXTERNAL_INPUT`, 3 `PENDING`. F2 is not represented as closed.
+- Remaining technical debt is explicit: 20 direct-Prisma action files need classification/extraction and complete actor/tenant/job context propagation remains.
 - External gates are limited to authorized staging CSP observation/enforcement and the staging security-header scan.
 
 Evidence: `docs/readiness/evidence/f2/audit-manifest.json`, `action-boundary-audit.md`, the isolated validators, and migration `20260725200000_readiness_f2_transactional_outbox`.
