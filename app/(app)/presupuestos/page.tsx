@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { duplicateBudget } from "@/app/(app)/presupuestos/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { ListWorkspace } from "@/components/workspaces";
 import { DemoLimitButton } from "@/components/demo-limit-button";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
@@ -155,7 +156,7 @@ export default async function BudgetsPage({
   const hasCriteria = activeFilter !== "todos" || Boolean(query.buscar);
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader
         eyebrow="Ventas"
         title="Presupuestos"
@@ -440,7 +441,7 @@ export default async function BudgetsPage({
           />
         </div>
       )}
-    </main>
+    </ListWorkspace>
   );
 }
 

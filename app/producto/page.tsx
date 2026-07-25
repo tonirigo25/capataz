@@ -1,11 +1,92 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, CircleDot, Sparkles } from "lucide-react";
-import { MarketingPage, SectionIntro } from "@/components/marketing/marketing-shell";
+import { ArrowRight, Check, Network, Smartphone, Sparkles } from "lucide-react";
+import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { HeroProductOrchestra, RolePortalStudio } from "@/components/marketing/product-scenes";
+import { marketingProductCatalog } from "@/lib/marketing/catalog";
+import { brand } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Producto", description: "Conoce cómo Orqena conecta clientes, trabajo, agenda y control.", alternates: { canonical: "/producto" }, openGraph: { images: ["/marketing/client-workflow.webp"] } };
+export const metadata: Metadata = {
+  title: "Producto",
+  description: "Descubre cómo Orqena conecta clientes, trabajo, ventas, compras, agenda, documentos, equipo y finanzas.",
+  alternates: { canonical: "/producto" },
+  openGraph: { title: "Producto Orqena", description: "Una operación conectada de principio a fin.", images: [brand.socialImage] },
+};
 
-const modules = [["Clientes", "Contexto de relaciones, contactos, actividad y próximos pasos."], ["Trabajo", "Planificación, avances, tareas y equipo en cada servicio o proyecto."], ["Agenda", "Una vista contextual que respeta la relación entre cliente, trabajo y actividad."], ["Control", "Cobros, pagos y decisiones con el contexto necesario para revisarlas."], ["Documentos", "Archivos conectados a la relación, no aislados en carpetas."], ["Orqena", "Consulta, prepara y revisa acciones sin perder el control humano."]];
+const journeys = [
+  ["Captar y convertir", "Cliente → propuesta → aprobación → trabajo", ["clientes", "ventas", "agenda"]],
+  ["Coordinar y entregar", "Plan → equipo → avance → documento", ["trabajo", "equipo", "movil"]],
+  ["Comprar y controlar", "Solicitud → factura → vencimiento → tesorería", ["compras", "documentos", "finanzas"]],
+] as const;
 
-export default function ProductPage() { return <MarketingPage><section className="marketing-container py-14 lg:py-24"><SectionIntro eyebrow="Producto conectado" title="Una operación completa, explicada por sus relaciones." description="Orqena no trata el negocio como una colección de pantallas. Une personas, clientes, trabajo, agenda, documentos y decisiones para que el contexto viaje con la actividad." /><div className="mt-12 grid gap-5 lg:grid-cols-[1.15fr_.85fr]"><Image className="marketing-product-image" src="/marketing/client-workflow.webp" alt="Flujo conectado entre cliente, trabajo y documentos" width={1568} height={1003} priority sizes="(min-width: 1024px) 60vw, 100vw" /><div className="rounded-[2rem] bg-[#0a443b] p-7 text-white sm:p-10"><Sparkles className="text-[#a8d8cd]" /><h2 className="mt-7 text-3xl font-black tracking-tight">Del contexto a la siguiente acción.</h2><p className="mt-4 leading-7 text-[#d4e1d8]">Orqena ayuda a preparar el siguiente paso dentro de la actividad. Tú ves el borrador, lo ajustas si hace falta y confirmas cuando corresponde.</p><Link href="/demo" className="marketing-text-link mt-8 text-white">Verlo en una demo <ArrowRight size={17} /></Link></div></div></section><section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16 lg:py-24"><div className="grid gap-10 lg:grid-cols-[.8fr_1.2fr]"><div><p className="marketing-eyebrow">Una base común</p><h2 className="marketing-title mt-4">Cada área se entiende mejor cuando comparte el mismo hilo.</h2></div><div className="grid gap-3 sm:grid-cols-2">{modules.map(([title, text], index) => <article className="rounded-2xl bg-[#fbfaf5] p-5" key={title}><span className="text-sm font-black text-[#167366]">0{index + 1}</span><h3 className="mt-5 font-black">{title}</h3><p className="mt-2 text-sm leading-6 text-content-secondary">{text}</p></article>)}</div></div></div></section><section className="marketing-container grid gap-10 py-16 lg:grid-cols-2 lg:py-24"><Image className="marketing-product-image" src="/marketing/financial-control.webp" alt="Control financiero conectado a la actividad" width={1568} height={1003} sizes="(min-width: 1024px) 50vw, 100vw" /><div className="flex flex-col justify-center"><p className="marketing-eyebrow">Claridad para decidir</p><h2 className="marketing-title mt-4">Control sin separar la cifra de su explicación.</h2><ul className="mt-7 space-y-4">{["Actividad y vencimientos en su contexto", "Acceso visible según la responsabilidad", "Decisiones sensibles con revisión humana"].map(text => <li key={text} className="flex gap-3 text-sm leading-6"><Check className="shrink-0 text-[#167366]" size={18} />{text}</li>)}</ul></div></section><section className="marketing-final-cta"><div className="marketing-container py-16 text-center"><CircleDot className="mx-auto text-[#a8d8cd]" /><h2 className="marketing-title mx-auto mt-4 max-w-2xl text-white">Conoce el recorrido que necesita tu equipo.</h2><Link href="/demo" className="marketing-button marketing-button--light mt-7">Solicitar demo <ArrowRight size={18} /></Link></div></section></MarketingPage>; }
+export default function ProductPage() {
+  return (
+    <MarketingPage>
+      <section className="product-hub-hero">
+        <div className="marketing-container">
+          <div>
+            <p className="marketing-eyebrow">Producto conectado</p>
+            <h1>Una operación. Todo conectado.</h1>
+            <p>Personas, relaciones, trabajo, documentos y decisiones comparten contexto sin convertir la interfaz en un mapa de módulos.</p>
+            <Link href="/demo" className="marketing-button">Explorar la demo <ArrowRight size={18} /></Link>
+          </div>
+          <HeroProductOrchestra />
+        </div>
+      </section>
+
+      <section className="marketing-container product-map" aria-labelledby="product-map-title">
+        <div><p className="marketing-eyebrow">Mapa de relaciones</p><h2 id="product-map-title" className="marketing-title">Diez experiencias. Un mismo hilo.</h2></div>
+        <div className="product-map__canvas">
+          <span className="is-core"><Network size={20} />Contexto</span>
+          {marketingProductCatalog.map((item, index) => (
+            <Link key={item.slug} href={`/producto/${item.slug}`} style={{ "--module-index": index } as React.CSSProperties}>
+              <small>{item.eyebrow}</small><strong>{item.name}</strong><ArrowRight size={14} />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="product-journeys">
+        <div className="marketing-container">
+          <div className="v41-section__intro"><p className="marketing-eyebrow">Tres recorridos habituales</p><h2 className="marketing-title">Empieza por el resultado, no por el menú.</h2></div>
+          <div>
+            {journeys.map(([title, flow, slugs], index) => (
+              <article key={title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <h3>{title}</h3>
+                <p>{flow}</p>
+                <div>{slugs.map((slug) => { const item = marketingProductCatalog.find((module) => module.slug === slug)!; return <Link key={slug} href={`/producto/${slug}`}>{item.name}</Link>; })}</div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="marketing-container product-portals">
+        <div>
+          <p className="marketing-eyebrow">Portales auténticos</p>
+          <h2 className="marketing-title">La responsabilidad cambia navegación, prioridad y acción.</h2>
+          <ul>{["Navegación priorizada", "Acción principal propia", "Economía solo donde corresponde"].map((item) => <li key={item}><Check size={17} />{item}</li>)}</ul>
+        </div>
+        <RolePortalStudio />
+      </section>
+
+      <section className="product-mobile">
+        <div className="marketing-container">
+          <div><Smartphone /><p className="marketing-eyebrow">Continuidad móvil</p><h2 className="marketing-title">El trabajo cotidiano cabe en una acción clara.</h2><p>Tareas, agenda, avance y evidencia se diseñan para la mano y actualizan el mismo contexto.</p></div>
+          <div className="product-mobile__steps">{["Abrir tarea", "Consultar instrucciones", "Registrar avance", "Sincronizar escritorio"].map((step, index) => <span key={step}><i>{index + 1}</i><strong>{step}</strong></span>)}</div>
+        </div>
+      </section>
+
+      <section className="v4-final">
+        <div className="marketing-container">
+          <Sparkles />
+          <p className="marketing-eyebrow">Datos sintéticos</p>
+          <h2>Elige sector, perfil y objetivo. Recorre el producto sin registrarte.</h2>
+          <p>La demostración pública no realiza llamadas de IA ni escrituras empresariales.</p>
+          <div><Link href="/demo" className="marketing-button marketing-button--light">Abrir demo <ArrowRight size={18} /></Link></div>
+        </div>
+      </section>
+    </MarketingPage>
+  );
+}

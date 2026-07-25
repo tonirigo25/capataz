@@ -17,6 +17,7 @@ import {
 import { notFound } from "next/navigation";
 import { saveBusinessPartner } from "@/app/(app)/proveedores/actions";
 import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, ResultCount, TableShell } from "@/components/ui-primitives";
+import { ListWorkspace } from "@/components/workspaces";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getPartnerDetail, getPartnerList, PARTNER_STATUS_OPTIONS } from "@/lib/procurement";
 
@@ -33,7 +34,7 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
     tag: first(query.etiqueta),
     duplicate: first(query.duplicados) === "1"
   });
-  return <main className="screen">
+  return <ListWorkspace>
     <PageHeader
       eyebrow={subcontractor ? "Red de colaboradores" : "Compras y suministros"}
       title={title}
@@ -81,7 +82,7 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
       </div>
       <div className="grid gap-3 lg:hidden">{result.items.map((partner) => <article key={partner.id} className="card p-4"><div className="flex justify-between gap-3"><div><Link href={`${base}/${partner.id}`} className="font-black text-obra-ink">{partner.commercialName}</Link><p className="text-xs text-slate-500">{partner.taxId || "NIF pendiente"}</p></div><PartnerStatus status={partner.status} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><Mini label="Obras" value={String(partner.workLinks.length)} /><Mini label="Facturado" value={formatCurrency(partner.invoiced)} /><Mini label="Pendiente" value={formatCurrency(partner.pending)} /><Mini label={subcontractor ? "Documentación" : "Documentos"} value={subcontractor ? documentStatusLabel(partner.documentStatus) : String(partner.documents.length)} /></div><Link href={`${base}/${partner.id}`} className="primary-button mt-3 w-full">Abrir ficha</Link></article>)}</div>
     </> : <EmptyState icon={Search} title={`No hay ${title.toLowerCase()} con estos criterios`} description="Cambia los filtros o crea una ficha profesional nueva." action={<Link href={`${base}?nuevo=1#ficha`} className="primary-button"><Plus size={18} />Crear ficha</Link>} />}
-  </main>;
+  </ListWorkspace>;
 }
 
 export async function PartnerProfile({ companyId, kind, id, searchParams }: { companyId: string; kind: BusinessPartnerKind; id: string; searchParams: Promise<Query> }) {

@@ -1,41 +1,245 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Bot, CalendarDays, Check, ChevronDown, FileText, LockKeyhole, ShieldCheck, Users, WalletCards, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarCheck2,
+  ChevronDown,
+  FileLock2,
+  Globe2,
+  Layers3,
+  LockKeyhole,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
-import { PortalPreview } from "@/components/marketing/portal-preview";
+import {
+  BusinessWorkflow,
+  Client360Demo,
+  ContextualAgendaDemo,
+  HeroProductOrchestra,
+  MobileWorkDemo,
+  RolePortalStudio,
+  SalesQuoteStudioDemo,
+  TreasuryFlowDemo,
+} from "@/components/marketing/product-scenes";
 import { brand } from "@/lib/brand";
-import { isPublicRegistrationEnabled } from "@/lib/public-registration";
+import { marketingSectorCatalog } from "@/lib/marketing/catalog";
 
 export const metadata: Metadata = {
   title: "Orqena — Tu negocio, en orden.",
-  description: "Clientes, trabajo, agenda, documentos y control empresarial conectados en Orqena.",
-  keywords: ["Sistema operativo empresarial con IA", "gestión de clientes", "operaciones", "agenda de equipo"],
+  description: "Clientes, trabajo, ventas, compras, agenda y finanzas conectados para cada persona de tu equipo.",
+  keywords: ["gestión multisector", "clientes", "trabajo", "agenda", "operaciones"],
   alternates: { canonical: "/" },
-  openGraph: { title: "Orqena — Tu negocio, en orden.", description: "Un sistema de trabajo conectado para equipos que necesitan claridad y control.", images: [{ url: "/marketing/hero-owner-desktop.webp", width: 1568, height: 1003, alt: "Panel de trabajo de Orqena" }] },
+  openGraph: {
+    title: "Orqena — Tu negocio, en orden.",
+    description: "Una plataforma multisector que conecta el recorrido completo del negocio.",
+    images: [{ url: brand.socialImage, width: 1200, height: 630, alt: "Orqena, tu negocio en orden" }],
+  },
 };
 
-const connected: Array<[LucideIcon, string, string]> = [
-  [Users, "Clientes y equipo", "Relaciones, responsables y próximos pasos en su contexto."],
-  [CalendarDays, "Trabajo y agenda", "Planificación, tareas y actividad sin perseguir información."],
-  [WalletCards, "Ventas y control", "Propuestas, cobros y decisiones con datos conectados."],
-  [FileText, "Documentos", "Archivos vinculados a clientes y trabajos, donde hacen falta."],
-];
+const values = [
+  [Globe2, "Adaptado a tu sector", "El vocabulario encaja en tu actividad."],
+  [UsersRound, "Un portal por persona", "Cada responsabilidad recibe foco propio."],
+  [ShieldCheck, "Bajo confirmación", "Las decisiones sensibles esperan revisión."],
+  [FileLock2, "Chats privados", "Cada conversación conserva su acceso."],
+  [Smartphone, "Web y móvil", "El contexto continúa fuera del escritorio."],
+] as const;
+
+const stories = [
+  {
+    eyebrow: "Controla el día",
+    title: "Agenda, prioridades y siguiente acción en una sola lectura.",
+    copy: "Una actividad nace vinculada a cliente, trabajo, contacto y responsable; los filtros permanecen cuando vuelves.",
+    href: "/producto/agenda",
+    scene: <ContextualAgendaDemo />,
+    className: "is-agenda",
+  },
+  {
+    eyebrow: "Convierte una oportunidad",
+    title: "De la relación a una propuesta que se puede decidir.",
+    copy: "Cliente, partidas, precio de venta, aprobación y estado avanzan sin exponer información restringida.",
+    href: "/producto/ventas",
+    scene: <SalesQuoteStudioDemo />,
+    className: "is-opportunity",
+  },
+  {
+    eyebrow: "Controla compras y finanzas",
+    title: "Cada movimiento conserva documento, fecha y origen.",
+    copy: "Proveedor, factura, vencimiento, pago y tesorería explican la posición; no se inventan saldos ni previsiones.",
+    href: "/producto/finanzas",
+    scene: <TreasuryFlowDemo />,
+    className: "is-finance",
+  },
+] as const;
 
 export default function LandingPage() {
-  const publicRegistrationEnabled = isPublicRegistrationEnabled();
-  return <MarketingPage>
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", name: brand.legalProductName, url: "/", logo: "/icons/orqena.svg" }, { "@type": "SoftwareApplication", name: brand.productName, applicationCategory: "BusinessApplication", operatingSystem: "Web", description: brand.metadata.description }] }) }} />
-    <section className="marketing-hero"><div className="marketing-container grid items-center gap-12 py-14 lg:grid-cols-[.92fr_1.08fr] lg:py-24"><div className="relative z-10"><p className="marketing-eyebrow">Sistema operativo para equipos reales</p><h1 className="marketing-display mt-4">Tu negocio, en orden.<br /><span className="text-[#177267]">Sin perder el movimiento.</span></h1><p className="marketing-lede mt-6">Orqena conecta clientes, trabajo, agenda, documentos y control para que cada persona tenga el contexto que necesita para avanzar.</p><div className="mt-8 flex flex-wrap gap-3"><Link href={publicRegistrationEnabled ? "/registro" : "/demo"} className="marketing-button">{publicRegistrationEnabled ? "Empezar" : "Solicitar acceso"} <ArrowRight size={18} /></Link><Link href="#orqena" className="marketing-outline-button">Ver Orqena en acción</Link></div><p className="mt-5 text-xs leading-5 text-content-secondary">{publicRegistrationEnabled ? "Empieza por una acción útil." : "Orqena está disponible como beta privada."} Las decisiones sensibles siempre esperan revisión humana.</p></div><div className="marketing-hero-visual"><div className="marketing-hero-desktop"><Image src="/marketing/hero-owner-desktop.webp" alt="Vista de propietario de Orqena con actividad, agenda y control" width={1568} height={1003} priority sizes="(min-width: 1024px) 58vw, 100vw" /></div><div className="marketing-hero-mobile"><Image src="/marketing/hero-worker-mobile.webp" alt="Portal móvil de un empleado con tareas y agenda" width={1024} height={1536} priority sizes="(min-width: 1024px) 20vw, 35vw" /></div><div className="marketing-proposal-card"><Bot size={19} /><div><strong>Orqena prepara el siguiente paso</strong><p>Revisas, editas y confirmas.</p></div><Check size={18} /></div></div></div></section>
-    <section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16 lg:py-24"><div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr]"><div><p className="marketing-eyebrow">Una visión compartida</p><h2 className="marketing-title mt-4">Menos perseguir información. Más trabajo que avanza.</h2></div><p className="marketing-lede">La operación no sucede en módulos aislados. Orqena mantiene las relaciones visibles: el cliente, el trabajo, la tarea, el documento y la decisión que hay detrás.</p></div><div className="mt-10 grid gap-px overflow-hidden rounded-3xl border border-[#d9dfd4] bg-[#d9dfd4] sm:grid-cols-2">{connected.map(([Icon, title, text]) => <article key={title} className="bg-[#fbfaf5] p-6"><Icon className="text-[#0d5b51]" size={24} /><h3 className="mt-5 text-lg font-black tracking-tight">{title}</h3><p className="mt-2 text-sm leading-6 text-content-secondary">{text}</p></article>)}</div></div></section>
-    <section id="orqena" className="marketing-container grid gap-10 py-16 lg:grid-cols-[1fr_.9fr] lg:py-24"><div className="order-2 lg:order-1"><Image className="marketing-product-image" src="/marketing/orqena-proposal.webp" alt="Propuesta de Orqena preparada para su revisión" width={1586} height={992} sizes="(min-width: 1024px) 50vw, 100vw" /></div><div className="order-1 flex flex-col justify-center lg:order-2"><p className="marketing-eyebrow">Orqena, en contexto</p><h2 className="marketing-title mt-4">La inteligencia no sustituye el criterio. Lo acompaña.</h2><p className="marketing-lede mt-5">Pregunta, encuentra contexto y prepara propuestas dentro del trabajo. Antes de ejecutar una acción importante, tú decides.</p><ul className="mt-7 space-y-3 text-sm font-medium">{["Respuestas con el contexto de la empresa activa", "Propuestas claras, editables y cancelables", "Confirmación humana para acciones sensibles"].map(item => <li key={item} className="flex gap-3"><Check className="mt-0.5 shrink-0 text-[#167366]" size={18} />{item}</li>)}</ul></div></section>
-    <section className="marketing-container py-8 lg:py-12"><div className="grid overflow-hidden rounded-[2rem] bg-[#e7f0ea] lg:grid-cols-[1fr_.9fr]"><div className="p-8 sm:p-12"><p className="marketing-eyebrow">Producto conectado</p><h2 className="marketing-title mt-4">La información se mueve con el trabajo, no entre pestañas.</h2><p className="marketing-lede mt-5">Desde un cliente se entiende su actividad. Desde un trabajo se ve la planificación. Desde una decisión se conserva el porqué.</p><Link className="marketing-text-link mt-7" href="/producto">Explorar el producto <ArrowRight size={17} /></Link></div><Image className="h-full min-h-[280px] w-full object-cover" src="/marketing/client-workflow.webp" alt="Flujo de cliente, trabajo y documentos conectado" width={1568} height={1003} sizes="(min-width: 1024px) 45vw, 100vw" /></div></section>
-    <PortalPreview />
-    <section className="marketing-container grid gap-10 py-16 lg:grid-cols-[.9fr_1.1fr] lg:py-24"><div><p className="marketing-eyebrow">Adaptado al terreno</p><h2 className="marketing-title mt-4">Un lenguaje cercano a tu forma de trabajar.</h2><p className="marketing-lede mt-5">Orqena conserva una base común y adapta etiquetas y prioridades para obra, instalaciones, servicios profesionales, taller, hostelería y más.</p><Link className="marketing-text-link mt-7" href="/sectores">Ver sectores <ArrowRight size={17} /></Link></div><div className="grid gap-3 sm:grid-cols-2">{["Construcción y obra", "Instalaciones", "Servicios profesionales", "Taller y reparación", "Hostelería", "Equipos que trabajan en campo"].map((sector, index) => <Link href="/sectores" key={sector} className="marketing-sector-row"><span>{String(index + 1).padStart(2, "0")}</span><strong>{sector}</strong><ArrowRight size={17} /></Link>)}</div></section>
-    <section className="bg-[#093d35] text-white"><div className="marketing-container grid gap-9 py-16 lg:grid-cols-[.8fr_1.2fr] lg:py-24"><div><p className="marketing-eyebrow text-[#a8d8cd]">Diseñado para el movimiento</p><h2 className="marketing-title mt-4 text-white">El trabajo no espera a que vuelvas al escritorio.</h2><p className="mt-5 max-w-lg leading-7 text-[#d4e1d8]">En móvil, cada persona encuentra sus destinos principales, su agenda y las acciones que tiene asignadas.</p></div><div className="grid grid-cols-2 gap-4"><Image className="rounded-[1.5rem] bg-[#e9efe8] p-2 shadow-2xl" src="/marketing/today-worker.webp" alt="Portal operativo de empleado" width={1448} height={1086} sizes="(min-width: 1024px) 30vw, 50vw" /><Image className="mt-10 rounded-[1.5rem] bg-[#e9efe8] p-2 shadow-2xl" src="/marketing/agenda-mobile.webp" alt="Agenda contextual móvil" width={1024} height={1536} sizes="(min-width: 1024px) 20vw, 35vw" /></div></div></section>
-    <section className="marketing-container grid gap-8 py-16 lg:grid-cols-2 lg:py-24"><div><p className="marketing-eyebrow">Privacidad y control</p><h2 className="marketing-title mt-4">Cada empresa y cada persona, en su lugar.</h2><p className="marketing-lede mt-5">El contexto de empresa, membresía y permisos se comprueba en servidor. La interfaz muestra únicamente lo que corresponde a cada portal.</p><Link className="marketing-text-link mt-7" href="/seguridad">Conocer nuestro enfoque <ArrowRight size={17} /></Link></div><div className="space-y-4">{[[LockKeyhole, "Acceso contextual", "Empresa activa, membresía y alcance comprobados antes de acceder."], [ShieldCheck, "Acciones bajo revisión", "Las operaciones sensibles requieren confirmación explícita."], [FileText, "Trazabilidad útil", "Los cambios relevantes conservan el contexto necesario para revisarlos."]].map(([Icon, title, text]) => { const Mark = Icon as typeof LockKeyhole; return <article key={title as string} className="marketing-control-row"><Mark size={22} /><div><h3>{title as string}</h3><p>{text as string}</p></div></article>; })}</div></section>
-    <section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16 text-center lg:py-24"><p className="marketing-eyebrow">Planes pensados para crecer</p><h2 className="marketing-title mx-auto mt-4 max-w-2xl">Una base para cada etapa, sin inventar condiciones.</h2><p className="marketing-lede mx-auto mt-5">El catálogo actual presenta funcionalidades y el tipo de equipo al que se dirige. Cuando las condiciones comerciales estén definidas, se comunicarán con claridad.</p><Link className="marketing-button mt-8" href="/planes">Ver planes</Link></div></section>
-    <section className="marketing-container py-16 lg:py-24"><div className="grid gap-10 rounded-[2rem] bg-[#e9f0e8] p-7 sm:p-12 lg:grid-cols-[.9fr_1.1fr]"><div><p className="marketing-eyebrow">Preguntas frecuentes</p><h2 className="marketing-title mt-4">Lo importante, sin letra pequeña.</h2></div><div className="space-y-3">{[["¿Orqena se adapta a distintos sectores?", "Sí. Parte de una base de operación común y adapta el lenguaje visible a cada actividad."], ["¿Puedo empezar con una demo?", "Sí. Cuéntanos brevemente cómo trabajáis y prepararemos una conversación útil."], ["¿Qué hace Orqena con IA?", "Ayuda a encontrar contexto y preparar propuestas; tú revisas y confirmas las acciones sensibles."]].map(([question, answer]) => <details key={question} className="marketing-faq"><summary>{question}<ChevronDown size={18} /></summary><p>{answer}</p></details>)}</div></div></section>
-    <section className="marketing-final-cta"><div className="marketing-container py-16 text-center lg:py-24"><p className="marketing-eyebrow text-[#a8d8cd]">Un siguiente paso claro</p><h2 className="marketing-title mx-auto mt-4 max-w-3xl text-white">Pon orden sin parar tu negocio.</h2><p className="mx-auto mt-5 max-w-xl text-[#d4e1d8]">Conoce Orqena con una demostración adaptada a la forma de trabajar de tu equipo.</p><Link className="marketing-button marketing-button--light mt-8" href="/demo">Solicitar una demo <ArrowRight size={18} /></Link></div></section>
-  </MarketingPage>;
+  const sectors = marketingSectorCatalog.filter((sector) =>
+    ["construccion", "servicios-profesionales", "taller-reparacion", "hosteleria"].includes(sector.slug),
+  );
+
+  return (
+    <MarketingPage>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              { "@type": "Organization", name: brand.legalName, url: brand.baseUrl, logo: brand.brandMark },
+              { "@type": "SoftwareApplication", name: brand.productName, applicationCategory: "BusinessApplication", operatingSystem: "Web", description: brand.metadata.description },
+            ],
+          }),
+        }}
+      />
+
+      <section className="v41-hero">
+        <div className="marketing-container v41-hero__layout">
+          <div className="v41-hero__copy">
+            <p className="marketing-eyebrow">Gestión multisector conectada</p>
+            <h1>Tu negocio avanza. <span>Todo conectado.</span></h1>
+            <p>Clientes, trabajo y dinero comparten un mismo recorrido. Cada persona ve lo necesario para hacerlo avanzar.</p>
+            <div className="v41-hero__actions">
+              <Link href="/demo" className="marketing-button">Explorar la demo <ArrowRight size={18} /></Link>
+              <Link href="/producto" className="marketing-outline-button">Ver el producto</Link>
+            </div>
+            <small>Beta privada · acceso por invitación o solicitud</small>
+          </div>
+          <div className="v41-hero__visual">
+            <HeroProductOrchestra />
+            <div className="v41-hero__signal"><BrandMark /><span><strong>Orqena prepara</strong>Tú revisas y confirmas.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="value-band value-band--v41" aria-label="Principios de Orqena">
+        <div className="marketing-container">
+          {values.map(([Icon, title, copy]) => <article key={title}><Icon size={19} /><span><strong>{title}</strong><small>{copy}</small></span></article>)}
+        </div>
+      </section>
+
+      <section className="marketing-container v41-section" aria-labelledby="workflow-title">
+        <div className="v41-section__intro">
+          <p className="marketing-eyebrow">Un recorrido completo</p>
+          <h2 id="workflow-title" className="marketing-title">Cinco momentos. Una relación que nunca se reinicia.</h2>
+          <p className="marketing-lede">Actor, registro, estado, fecha y siguiente acción viajan con cada etapa.</p>
+        </div>
+        <BusinessWorkflow />
+      </section>
+
+      <section className="v41-stories" aria-labelledby="stories-title">
+        <div className="marketing-container v41-section">
+          <div className="v41-section__intro">
+            <p className="marketing-eyebrow">Tres historias de producto</p>
+            <h2 id="stories-title" className="marketing-title">Cada problema pide una forma visual distinta.</h2>
+          </div>
+          <div className="v41-stories__grid">
+            {stories.map((story) => (
+              <article key={story.title} className={`v41-story ${story.className}`}>
+                <div className="v41-story__copy">
+                  <span>{story.eyebrow}</span>
+                  <h3>{story.title}</h3>
+                  <p>{story.copy}</p>
+                  <Link href={story.href}>Explorar la solución <ArrowRight size={16} /></Link>
+                </div>
+                <div className="v41-story__scene">{story.scene}</div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="v41-client" aria-labelledby="client-360-title">
+        <div className="marketing-container v41-feature">
+          <div>
+            <p className="marketing-eyebrow">Cliente 360</p>
+            <h2 id="client-360-title" className="marketing-title">La relación completa, sin una página interminable.</h2>
+            <p>Resumen, rail comercial, actividad, trabajos, contactos y documentos. La economía aparece solo donde corresponde.</p>
+            <Link href="/producto/clientes">Conocer Cliente 360 <ArrowRight size={16} /></Link>
+          </div>
+          <Client360Demo />
+        </div>
+      </section>
+
+      <section className="v41-portals" aria-labelledby="portals-title">
+        <div className="marketing-container v41-feature is-reversed">
+          <div>
+            <p className="marketing-eyebrow">Portales por responsabilidad</p>
+            <h2 id="portals-title" className="marketing-title">No es el mismo panel con bloques escondidos.</h2>
+            <p>Propietario, Dirección, Comercial, Finanzas, Compras, Responsable y Empleado cambian navegación, prioridad y acción principal.</p>
+            <Link href="/producto/equipo">Comparar portales <ArrowRight size={16} /></Link>
+          </div>
+          <RolePortalStudio />
+        </div>
+      </section>
+
+      <section className="marketing-container v41-section v41-mobile-sectors" aria-labelledby="mobile-sectors-title">
+        <div className="v41-mobile-sectors__intro">
+          <p className="marketing-eyebrow">En la mano y en tu sector</p>
+          <h2 id="mobile-sectors-title" className="marketing-title">La tarea cambia de forma. El control permanece.</h2>
+          <p>El móvil convierte instrucciones, avance y evidencia sintética en una secuencia clara; el sector adapta lenguaje y prioridades.</p>
+          <div className="v41-sector-list">
+            {sectors.map((sector, index) => (
+              <Link href={`/sectores/${sector.slug}`} key={sector.slug}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{sector.name}</strong>
+                <small>{sector.terminology.workPlural} · {sector.terminology.owner}</small>
+                <ArrowRight size={15} />
+              </Link>
+            ))}
+          </div>
+          <Link href="/sectores" className="marketing-text-link">Ver los trece sectores <ArrowRight size={16} /></Link>
+        </div>
+        <MobileWorkDemo />
+      </section>
+
+      <section className="v41-control" aria-labelledby="control-title">
+        <div className="marketing-container v41-control__layout">
+          <div>
+            <p className="marketing-eyebrow">Control comprensible</p>
+            <h2 id="control-title" className="marketing-title">Seguridad visible. Planes sin cifras inventadas.</h2>
+            <p>Empresa, conversación y permisos conservan su contexto. El catálogo explica capacidades y límites mientras el precio público sigue desactivado.</p>
+            <div><Link href="/seguridad" className="marketing-outline-button">Ver seguridad</Link><Link href="/planes" className="marketing-button">Comparar planes <ArrowRight size={16} /></Link></div>
+          </div>
+          <div className="v41-control__visual">
+            {[
+              [LockKeyhole, "Empresa aislada", "Contexto activo comprobado"],
+              [UsersRound, "Portal por persona", "Acceso según responsabilidad"],
+              [Sparkles, "Confirmación humana", "Propuesta antes de acción"],
+              [Layers3, "Límites explícitos", "Uso y sobreuso explicados"],
+            ].map(([Icon, title, copy]) => {
+              const ItemIcon = Icon as typeof LockKeyhole;
+              return <article key={title as string}><ItemIcon /><span><strong>{title as string}</strong><small>{copy as string}</small></span></article>;
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="v41-close">
+        <div className="marketing-container v41-close__layout">
+          <div className="v41-faq">
+            <p className="marketing-eyebrow">Antes de empezar</p>
+            <h2 className="marketing-title">Lo importante, sin letra pequeña.</h2>
+            {[
+              ["Producto", "¿Orqena sirve para más de un sector?", "Sí. La base es horizontal y el perfil adapta terminología y prioridades."],
+              ["Equipo", "¿Todos ven lo mismo?", "No. Cada portal refleja la responsabilidad y los accesos asignados."],
+              ["IA", "¿Orqena actúa sin preguntar?", "Las acciones sensibles se presentan para revisión y confirmación."],
+              ["Beta", "¿Puedo crear una cuenta libremente?", "No. La beta privada funciona mediante invitación o solicitud de acceso."],
+            ].map(([category, question, answer]) => (
+              <details key={question}><summary><span><small>{category}</small>{question}</span><ChevronDown size={18} /></summary><p>{answer}</p></details>
+            ))}
+          </div>
+          <div className="v41-final">
+            <CalendarCheck2 />
+            <p className="marketing-eyebrow">Demo guiada por ti</p>
+            <h2>Elige sector, perfil y objetivo. Recorre Orqena sin registrarte.</h2>
+            <p>Datos sintéticos, sin OpenAI real y sin escrituras empresariales.</p>
+            <div><Link href="/demo" className="marketing-button marketing-button--light">Explorar la demo <ArrowRight size={18} /></Link><Link href="/login">Entrar</Link></div>
+          </div>
+        </div>
+      </section>
+    </MarketingPage>
+  );
 }

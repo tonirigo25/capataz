@@ -15,6 +15,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { DemoLimitButton } from "@/components/demo-limit-button";
+import { ListWorkspace, RecordPeek } from "@/components/workspaces";
 import { StatusPill } from "@/components/status-pill";
 import {
   CompactFilterBar,
@@ -197,7 +198,7 @@ export default async function ClientsPage({
   );
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <PageHeader
         eyebrow="CRM"
         title="Clientes"
@@ -548,7 +549,7 @@ export default async function ClientsPage({
         page={result.page}
         totalPages={result.totalPages}
       />
-    </main>
+    </ListWorkspace>
   );
 }
 
@@ -564,6 +565,12 @@ function ClientName({ client }: { client: ClientListItem }) {
       <p className="mt-1 text-xs font-semibold text-slate-500">
         {client.fiscalName}
       </p>
+      <RecordPeek
+        title={client.displayName}
+        description={client.fiscalName || "Relación de cliente"}
+        href={`/clientes/${client.id}`}
+        meta="Resumen, actividad y próxima acción sin abandonar el listado."
+      />
       <div className="mt-2 flex flex-wrap gap-1">
         {client.fiscalId ? <Badge>{client.fiscalId}</Badge> : null}
         {client.pendingFields.length ? (

@@ -40,7 +40,7 @@ expect(
   ["ContactsTab", "DocumentsTab", "WorkProgressGallery", "NotesTab"].every((consumer) => files.work.includes(consumer))
     && files.work.includes('fotografias: "progreso"')
     && files.work.includes('notas: "progreso"')
-    && files.work.includes('documentos: "archivos"')
+    && files.work.includes('archivos: "documentos"')
     && files.work.includes('contactos: "equipo"'),
   "Work 360 missing consolidated Block 2 areas or legacy routes",
 );

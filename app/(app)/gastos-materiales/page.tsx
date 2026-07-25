@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { getPurchaseAccess, purchaseRelationAllowed } from "@/lib/commercial/purchase-access";
+import { ListWorkspace } from "@/components/workspaces";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export default async function ExpensesMaterialsPage({
   });
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <SectionHeader
         title="Gastos y materiales"
         description="Tickets, compras y faltas por obra."
@@ -156,7 +157,7 @@ export default async function ExpensesMaterialsPage({
           ))}
         </div>
       </section>
-    </main>
+    </ListWorkspace>
   );
 }
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bell, BellOff, CheckCheck, ChevronRight } from "lucide-react";
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/app/(app)/notificaciones/actions";
 import { SectionHeader } from "@/components/section-header";
+import { ListWorkspace } from "@/components/workspaces";
 import { EmptyState, ResultCount } from "@/components/ui-primitives";
 import { formatDate } from "@/lib/format";
 import { getNotificationItems } from "@/lib/notifications";
@@ -13,7 +14,7 @@ export default async function NotificationsPage() {
   const unread = notifications.filter((item) => !item.readAt);
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <SectionHeader
         title="Notificaciones"
         description="Avisos internos derivados de facturas, visitas, recordatorios, presupuestos, obras y datos incompletos. No envía mensajes externos."
@@ -72,7 +73,7 @@ export default async function NotificationsPage() {
           icon={BellOff}
         />
       )}
-    </main>
+    </ListWorkspace>
   );
 }
 

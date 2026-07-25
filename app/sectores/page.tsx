@@ -1,16 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { MarketingPage, SectionIntro } from "@/components/marketing/marketing-shell";
+import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { SectorMiniScene } from "@/components/marketing/sector-scenes";
+import { brand } from "@/lib/brand";
+import { marketingSectorCatalog } from "@/lib/marketing/catalog";
 
-export const metadata: Metadata = { title: "Sectores", description: "Orqena adapta su lenguaje y prioridades a tu forma de trabajar.", alternates: { canonical: "/sectores" } };
+export const metadata: Metadata = {
+  title: "Sectores",
+  description: "Trece perfiles sectoriales que adaptan lenguaje, prioridades y recorridos de Orqena.",
+  alternates: { canonical: "/sectores" },
+  openGraph: { title: "Sectores Orqena", description: "Una base común con un lenguaje que encaja en cada actividad.", images: [brand.socialImage] },
+};
 
-const sectors = [
-  ["construction", "Construcción y obra", "Coordina obra, equipo, materiales, avances y planificación."],
-  ["installations", "Instalaciones y mantenimiento", "Conecta avisos, técnicos, agenda y seguimiento de cada intervención."],
-  ["professional-services", "Servicios profesionales", "Une clientes, proyectos, entregas, agenda y documentos de trabajo."],
-  ["repair-workshop", "Taller y reparación", "Da continuidad a órdenes, recepción, equipo y comunicación con clientes."],
-  ["hospitality", "Hostelería y servicios", "Organiza el servicio, el equipo y las tareas que mantienen el ritmo."],
-];
-
-export default function SectorsPage() { return <MarketingPage><section className="marketing-container py-14 lg:py-24"><SectionIntro eyebrow="Sectores" title="Una base común. Un lenguaje que encaja en tu día a día." description="Orqena organiza la misma realidad empresarial —personas, clientes, trabajo y decisiones— con etiquetas y prioridades cercanas a cada actividad." /><div className="mt-12 grid gap-4 md:grid-cols-2">{sectors.map(([slug, title, description], index) => <Link key={slug} href={`/sectores/${slug}`} className="marketing-sector-card"><span>0{index + 1}</span><h2>{title}</h2><p>{description}</p><i>Conocer este sector <ArrowRight size={17} /></i></Link>)}</div></section><section className="border-t border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container grid gap-8 py-16 lg:grid-cols-[1fr_.8fr]"><div><p className="marketing-eyebrow">Sin encasillarte</p><h2 className="marketing-title mt-4">Tu actividad puede tener matices. El producto no te obliga a inventarlos.</h2></div><p className="marketing-lede">Si tu equipo combina operaciones, atención al cliente y trabajo en campo, una demostración permite revisar qué lenguaje y qué recorrido os resulta útil.</p></div></section></MarketingPage>; }
+export default function SectorsPage() {
+  return (
+    <MarketingPage>
+      <section className="sectors-hub">
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Trece perfiles sectoriales</p><h1>Una base común. Una operación que habla tu idioma.</h1><p>El sector adapta terminología, prioridades y ejemplos. El aislamiento, los permisos y la confirmación humana permanecen.</p></div>
+          <div className="sectors-hub__legend"><span>Relación</span><span>Trabajo</span><span>Responsable</span><span>Resultado</span></div>
+        </div>
+      </section>
+      <section className="marketing-container sector-mosaic" aria-label="Perfiles sectoriales">
+        {marketingSectorCatalog.map((sector, index) => (
+          <Link key={sector.slug} href={`/sectores/${sector.slug}`} className={`sector-mosaic__item tone-${index % 4}`}>
+            <SectorMiniScene index={index} work={sector.terminology.workSingular} owner={sector.terminology.owner} />
+            <div><span>{String(index + 1).padStart(2, "0")}</span><h2>{sector.name}</h2><p>{sector.lead}</p></div>
+            <dl><div><dt>Flujo</dt><dd>{sector.terminology.workPlural}</dd></div><div><dt>Perfil</dt><dd>{sector.terminology.owner}</dd></div></dl>
+            <i>Explorar perfil <ArrowRight size={16} /></i>
+          </Link>
+        ))}
+      </section>
+      <section className="sector-neutral">
+        <div className="marketing-container"><p className="marketing-eyebrow">Sin encasillarte</p><h2 className="marketing-title">“Otros” conserva un lenguaje neutral para actividades con un flujo propio.</h2><p>La configuración visible cambia; la base de seguridad no.</p><Link href="/sectores/otros" className="marketing-button">Explorar un perfil neutral <ArrowRight size={17} /></Link></div>
+      </section>
+    </MarketingPage>
+  );
+}

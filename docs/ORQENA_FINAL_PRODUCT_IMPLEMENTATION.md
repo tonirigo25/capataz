@@ -37,3 +37,15 @@ El cierre local del 24 de julio de 2026 ejecutó el runner completo después de 
 La revisión de seguridad de cierre bloquea cualquier mutación indirecta de Orqena si falta `orqena.execute`, la capacidad funcional específica o scope `COMPANY`; `READ_ONLY` no puede escribir mediante el chat. El contexto enviado a un proveedor de IA omite identificadores, nombres, direcciones, números, conceptos, relaciones y texto libre persistido. Las lecturas previas respetan capacidades, scopes y visibilidad de campos del `PortalManifest`.
 
 Los SHA, deployment, E2E remoto, capturas, artefactos y hash del ZIP se registran al cerrar la release candidate.
+
+## Experience V4
+
+La capa de experiencia se consolida sin reabrir seguridad ni persistencia. La marca visible se centraliza en `lib/brand.ts`; Relay sustituye los símbolos heredados y se entrega como SVG, favicon, Apple Touch Icon e iconos PWA. El wordmark permanece como texto.
+
+Los temas Claro, Oscuro y Sistema comparten tokens semánticos, prehidratación sin flash, persistencia local, sincronización entre pestañas, impresión clara y cobertura de superficies públicas y autenticadas. El sistema de movimiento controla viewport, visibilidad, foco, puntero, teclado, ciclos y movimiento reducido.
+
+La web pública consume nueve escenas interactivas y catálogos centrales para diez módulos y trece sectores. Planes usa capacidades y límites reales sin publicar precios ficticios; Demo cambia sector y perfil sin llamadas externas; registro público continúa cerrado.
+
+En producto autenticado, `ListWorkspace`, `RecordWorkspace` y `RecordPeek` organizan listados y fichas sin cambiar consultas o autorizaciones. Cliente 360 y Trabajo 360 conservan fronteras económicas y `PortalManifest`. `RouteExperienceManifest` clasifica automáticamente las 77 rutas existentes y su validador exige una coincidencia exacta por página.
+
+La suite V4 se añade como única suite nueva. La documentación de detalle está en `docs/ORQENA_EXPERIENCE_V4.md`; los artefactos visuales y de auditoría se mantienen fuera del repositorio.

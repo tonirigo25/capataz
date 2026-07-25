@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { LegalBackButton } from "@/components/legal-back-button";
+import type { Metadata } from "next";
+import { brand } from "@/lib/brand";
+
+export const metadata: Metadata = { title: "Cookies", description: "Uso de cookies y almacenamiento técnico en Orqena.", alternates: { canonical: "/cookies" }, openGraph: { title: "Cookies en Orqena", description: "Información sobre almacenamiento técnico.", images: [brand.socialImage] } };
 
 export default function CookiesPage() {
   return (

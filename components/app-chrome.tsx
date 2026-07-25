@@ -39,6 +39,8 @@ import {
   type ProductIcon
 } from "@/lib/product-navigation";
 import type { PortalManifest } from "@/lib/commercial/portal-manifest";
+import { BrandMark } from "@/components/brand/brand-mark";
+import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 type DesktopPanel = "more" | "create" | "user" | null;
 type Overlay = "search" | "create" | "more" | null;
@@ -218,7 +220,7 @@ export function AppChrome({
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white lg:hidden"
             aria-label="Ir a Hoy"
           >
-            C
+            <BrandMark className="h-7 w-7 text-white" />
           </Link>
           <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${context.label}`}>
             {context.label}
@@ -363,7 +365,9 @@ function DesktopNavigation({
     <div className="flex h-full flex-col">
       <div className="px-4 pb-3 pt-4">
         <Link href="/seleccionar-empresa" className="flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand font-bold text-white">C</span>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
+            <BrandMark className="h-7 w-7 text-white" />
+          </span>
           <span className="min-w-0">
             <span className="block text-base font-bold leading-5 text-content">Orqena</span>
             <span className="flex items-center gap-1 truncate text-xs text-content-secondary">{companyName}<ChevronDown size={13} aria-hidden="true"/></span>
@@ -494,6 +498,10 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
         {modeLabel ? <p className="mt-1 text-[11px] text-content-tertiary">{modeLabel}</p> : null}
       </div>
       <div className="grid gap-1 pt-2">
+        <div className="px-2 py-2">
+          <p className="mb-2 text-xs font-semibold text-content-secondary">Apariencia</p>
+          <ThemeSwitcher />
+        </div>
         <Link href="/configuracion#perfil" className="shell-menu-row" onClick={onClose}>
           <UserRound size={18} aria-hidden="true" />Perfil
         </Link>
@@ -581,7 +589,7 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en Orqena</h2>
-          <p className="type-secondary mt-1">Clientes, obras, presupuestos, facturas y documentos.</p>
+          <p className="type-secondary mt-1">Clientes, trabajos, presupuestos, facturas y documentos.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Cerrar búsqueda" onClick={onClose}>
           <X size={20} aria-hidden="true" />
@@ -598,7 +606,7 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
             name="q"
             type="search"
             autoComplete="off"
-            placeholder="Cliente, obra, factura…"
+            placeholder="Cliente, trabajo, factura…"
           />
           <button type="submit" className="primary-button absolute right-1 top-1 min-h-10 px-3">Buscar</button>
         </div>
@@ -679,6 +687,10 @@ function MobileMoreSheet({
           </div>
         </div>
         <div className="mt-3 grid gap-1">
+          <div className="px-2 py-2">
+            <p className="mb-2 text-xs font-semibold text-content-secondary">Apariencia</p>
+            <ThemeSwitcher />
+          </div>
           <Link href="/configuracion#perfil" className="shell-menu-row" onClick={onClose}>
             <CircleUserRound size={18} aria-hidden="true" />Perfil
           </Link>

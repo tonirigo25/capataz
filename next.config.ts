@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), geolocation=(), payment=()" }
     ];
-    if (process.env.NEXT_PUBLIC_APP_ENV === "staging") headers.push({ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" });
     return [{ source: "/:path*", headers }];
   }
 };

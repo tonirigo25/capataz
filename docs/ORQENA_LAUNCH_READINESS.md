@@ -42,3 +42,13 @@ Proveedor, dominio remitente, plantillas revisadas, rebotes y reputación. No se
 ## Puerta final de portales profesionales
 
 La release candidate exige una sola migración aditiva de cierre, 12 perfiles, 25 paquetes, gobierno exclusivo del propietario, invitación de doble aprobación, `PortalManifest`, scopes en base de datos, campos económicos separados, outbox local sin persistir enlaces ni tokens, suites focales, runner aislado único, typecheck, build y E2E remoto del SHA desplegado. La provisión y las cuentas de prueba son sintéticas e idempotentes. Producción permanece fuera del proceso.
+
+## Puerta Orqena Experience V4
+
+Experience V4 añade una identidad abstracta reemplazable, activos favicon/PWA, temas Claro/Oscuro/Sistema sin flash, nueve escenas de producto construidas en DOM, catálogos públicos de diez módulos y trece sectores, páginas públicas profundas, workspaces compartidos y clasificación automática de todas las rutas. No añade migraciones ni modifica el dominio de permisos.
+
+La publicación de esta fase queda limitada al staging independiente. Antes del dictamen se exige: suite V4, regresiones focales, route crawl 390/1440, typecheck, build, `git diff --check`, runner aislado único, capturas del SHA final, consola/red limpias, ZIP sin secretos y confirmación del SHA desplegado. Production, registro público, correo real y billing real permanecen sin cambios.
+
+## Puerta de indexación pública
+
+La indexación es un opt-in explícito controlado por `PUBLIC_INDEXING_ENABLED`. La beta privada usa el valor ausente o `false`; solo un lanzamiento público aprobado usa `true`. La activación queda bloqueada hasta disponer de dominio y marca definitivos, revisión legal completa y autorización comercial expresa.

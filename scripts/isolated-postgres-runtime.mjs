@@ -164,7 +164,7 @@ export async function stopIsolatedPostgres(runtime, {
 
   if (!child || child.exitCode !== null || child.signalCode !== null) {
     releaseRuntimeHandles(runtime, child);
-    removeDataDirectory(runtime.dataDir);
+    await removeDataDirectory(runtime.dataDir);
     return;
   }
 
@@ -181,6 +181,7 @@ export async function stopIsolatedPostgres(runtime, {
       });
       if (terminated.error) throw terminated.error;
       await closed;
+      terminateWindowsDescendants(pid);
     } else {
       await withTimeout(
         Promise.resolve(runtime.pg?.stop()),
@@ -195,15 +196,33 @@ export async function stopIsolatedPostgres(runtime, {
         stdio: "ignore",
         windowsHide: true,
       });
+      terminateWindowsDescendants(pid);
     } else if (child && !child.killed) {
       child.kill("SIGKILL");
     }
   } finally {
     releaseRuntimeHandles(runtime, child);
-    removeDataDirectory(runtime.dataDir);
+    await removeDataDirectory(runtime.dataDir);
   }
 
   if (stopError) throw stopError;
+}
+
+function terminateWindowsDescendants(parentPid) {
+  if (process.platform !== "win32" || !parentPid) return;
+  spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `Get-CimInstance Win32_Process -Filter "ParentProcessId = ${Number(parentPid)}" | Stop-Process -Force -ErrorAction SilentlyContinue`,
+    ],
+    {
+      stdio: "ignore",
+      windowsHide: true,
+    },
+  );
 }
 
 function releaseRuntimeHandles(runtime, child) {
@@ -214,19 +233,38 @@ function releaseRuntimeHandles(runtime, child) {
   if (runtime.pg) runtime.pg.process = undefined;
 }
 
-function removeDataDirectory(dataDir) {
-  rmSync(dataDir, {
-    recursive: true,
-    force: true,
-    maxRetries: 20,
-    retryDelay: 100,
-  });
+async function removeDataDirectory(dataDir) {
+  let lastError;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      rmSync(dataDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+        retryDelay: 100,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!["EPERM", "EBUSY", "ENOTEMPTY"].includes(error?.code) || attempt === 49) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw lastError;
 }
 
 async function waitForChildClose(child, timeoutMs, message) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
   await withTimeout(
-    new Promise((resolve) => child.once("close", resolve)),
+    new Promise((resolve) => {
+      const finish = () => {
+        child.off("exit", finish);
+        child.off("close", finish);
+        resolve();
+      };
+      child.once("exit", finish);
+      child.once("close", finish);
+    }),
     timeoutMs,
     message,
   );

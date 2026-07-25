@@ -1,18 +1,83 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Smartphone, Sparkles } from "lucide-react";
+import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { MobileWorkDemo, OrqenaActionDemo } from "@/components/marketing/product-scenes";
+import { PortalPreview } from "@/components/marketing/portal-preview";
+import { SectorHeroScene } from "@/components/marketing/sector-scenes";
+import { brand } from "@/lib/brand";
+import { getMarketingSector, marketingSectorCatalog } from "@/lib/marketing/catalog";
 
-const sectorInfo = {
-  construction: { title: "Construcción y obra", lead: "Coordina trabajo, equipo y avances con el contexto de cada obra.", labels: ["Jefe de obra", "Encargado", "Operario"], points: ["Planificación y tareas asignadas", "Avances, incidencias y documentos vinculados", "Seguimiento de clientes y trabajos"] },
-  installations: { title: "Instalaciones y mantenimiento", lead: "Une avisos, planificación, técnicos y seguimiento de cada intervención.", labels: ["Responsable de instalación", "Coordinador", "Técnico"], points: ["Agenda contextual para intervenciones", "Trabajos y archivos asignados", "Continuidad entre oficina y campo"] },
-  "professional-services": { title: "Servicios profesionales", lead: "Mantén conectados clientes, proyectos, entregas y la actividad de tu equipo.", labels: ["Responsable de proyecto", "Coordinador", "Profesional"], points: ["Clientes y proyectos en contexto", "Seguimientos, agenda y documentos", "Visibilidad según la responsabilidad"] },
-  "repair-workshop": { title: "Taller y reparación", lead: "Da continuidad a órdenes, recepción, operaciones y comunicación con clientes.", labels: ["Jefe de taller", "Encargado", "Técnico"], points: ["Trabajos y avances claros", "Tareas y archivos vinculados", "Actividad trazable por cliente"] },
-  hospitality: { title: "Hostelería y servicios", lead: "Coordina el servicio, el equipo y las tareas con una visión compartida del día.", labels: ["Responsable de servicio", "Supervisor", "Empleado"], points: ["Plan diario y equipo", "Incidencias y tareas operativas", "Agenda que acompaña el servicio"] },
-} as const;
+export function generateStaticParams() {
+  return marketingSectorCatalog.map((sector) => ({ sector: sector.slug }));
+}
 
-type Sector = keyof typeof sectorInfo;
-export function generateStaticParams() { return Object.keys(sectorInfo).map(sector => ({ sector })); }
-export async function generateMetadata({ params }: { params: Promise<{ sector: string }> }): Promise<Metadata> { const { sector } = await params; const item = sectorInfo[sector as Sector]; return item ? { title: item.title, description: item.lead, alternates: { canonical: `/sectores/${sector}` } } : {}; }
-export default async function SectorPage({ params }: { params: Promise<{ sector: string }> }) { const { sector } = await params; const item = sectorInfo[sector as Sector]; if (!item) notFound(); return <MarketingPage><section className="marketing-container grid gap-10 py-14 lg:grid-cols-[1fr_.8fr] lg:py-24"><div><p className="marketing-eyebrow">Sectores / {item.title}</p><h1 className="marketing-display mt-4">{item.title}</h1><p className="marketing-lede mt-5">{item.lead}</p><Link href="/demo" className="marketing-button mt-8">Hablar sobre mi equipo <ArrowRight size={18} /></Link></div><aside className="rounded-[2rem] bg-[#e7f0ea] p-7 sm:p-10"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#167366]">Nombres cercanos</p><div className="mt-6 space-y-3">{item.labels.map((label, index) => <div key={label} className="flex items-center gap-4 rounded-xl bg-white px-4 py-3"><span className="text-sm font-black text-[#167366]">0{index + 1}</span><strong>{label}</strong></div>)}</div></aside></section><section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container py-16"><h2 className="marketing-title max-w-2xl">Una experiencia conectada a la forma de trabajar de tu actividad.</h2><ul className="mt-9 grid gap-4 md:grid-cols-3">{item.points.map(point => <li key={point} className="rounded-2xl bg-[#fbfaf5] p-5 text-sm leading-6"><Check className="mb-4 text-[#167366]" size={20} />{point}</li>)}</ul></div></section></MarketingPage>; }
+export async function generateMetadata({ params }: { params: Promise<{ sector: string }> }): Promise<Metadata> {
+  const { sector } = await params;
+  const item = getMarketingSector(sector);
+  if (!item) return {};
+  return {
+    title: item.name,
+    description: item.lead,
+    alternates: { canonical: `/sectores/${item.slug}` },
+    openGraph: { title: `${item.name} con Orqena`, description: item.lead, images: [brand.socialImage] },
+  };
+}
+
+export default async function SectorPage({ params }: { params: Promise<{ sector: string }> }) {
+  const { sector } = await params;
+  const item = getMarketingSector(sector);
+  if (!item) notFound();
+  const index = marketingSectorCatalog.findIndex((entry) => entry.slug === item.slug);
+  const flow = [item.terminology.clientSingular, "Propuesta", item.terminology.workSingular, "Documento", "Resultado"];
+  const modules = ["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", "Orqena"];
+
+  return (
+    <MarketingPage>
+      <section className={`sector-detail-hero variant-${index % 4}`}>
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Sectores / {item.name}</p><h1>{item.name}</h1><p>{item.lead}</p><Link href={`/demo?sector=${item.slug}`} className="marketing-button">Explorar este perfil <ArrowRight size={18} /></Link></div>
+          <SectorHeroScene sectorKey={item.key} work={item.terminology.workSingular} owner={item.terminology.owner} />
+        </div>
+      </section>
+
+      <section className="marketing-container sector-journey">
+        <div><p className="marketing-eyebrow">Flujo típico</p><h2 className="marketing-title">{item.story}</h2><p>El ejemplo adapta la operación, no promete una integración ni un caso de éxito.</p></div>
+        <ol>{flow.map((step, stepIndex) => <li key={`${step}-${stepIndex}`}><span>{String(stepIndex + 1).padStart(2, "0")}</span><strong>{step}</strong>{stepIndex < flow.length - 1 ? <ArrowRight size={16} /> : <Check size={16} />}</li>)}</ol>
+      </section>
+
+      <section className="sector-portals">
+        <div className="marketing-container"><div><p className="marketing-eyebrow">Portales</p><h2 className="marketing-title">{item.terminology.owner}, coordinación y equipo comparten contexto, no necesariamente acceso.</h2></div><PortalPreview /></div>
+      </section>
+
+      <section className="marketing-container sector-module-strip">
+        <div><p className="marketing-eyebrow">Base recomendada</p><h2 className="marketing-title">Seis áreas sostienen este recorrido.</h2></div>
+        <div>{modules.map((module, moduleIndex) => <span key={module}><i>{String(moduleIndex + 1).padStart(2, "0")}</i><strong>{module}</strong><small>{moduleIndex < 2 ? "Contexto central" : moduleIndex < 4 ? "Continuidad" : "Responsabilidad"}</small></span>)}</div>
+      </section>
+
+      <section className="sector-mobile">
+        <div className="marketing-container">
+          <div><Smartphone /><p className="marketing-eyebrow">Móvil</p><h2>Una acción clara para el trabajo cotidiano.</h2><p>Instrucciones, avance, evidencia sintética y sincronización con el responsable.</p></div>
+          <MobileWorkDemo />
+        </div>
+      </section>
+
+      <section className="marketing-container sector-assistant">
+        <div><Sparkles /><p className="marketing-eyebrow">Orqena en {item.name}</p><h2 className="marketing-title">El contexto ayuda a hablar el mismo idioma.</h2><p>La escena es determinista, usa datos sintéticos y espera confirmación.</p></div>
+        <OrqenaActionDemo />
+      </section>
+
+      <section className="v4-faq">
+        <div className="marketing-container v4-faq__layout">
+          <div><p className="marketing-eyebrow">Preguntas del sector</p><h2 className="marketing-title">Alcance profesional, sin promesas regulatorias.</h2></div>
+          <div>{[item.faq, ["¿Cambia la seguridad entre sectores?", "No. Cambian vocabulario y prioridades; los accesos se conservan."]].map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={18} /></summary><p>{answer}</p></details>)}</div>
+        </div>
+      </section>
+
+      <section className="v4-final">
+        <div className="marketing-container"><p className="marketing-eyebrow">Ejemplo sintético</p><h2>Recorre {item.name.toLocaleLowerCase("es-ES")} desde el perfil que te importa.</h2><p>Sin empresas ficticias presentadas como clientes y sin cifras como prueba social.</p><div><Link href={`/demo?sector=${item.slug}`} className="marketing-button marketing-button--light">Abrir demo <ArrowRight size={18} /></Link></div></div>
+      </section>
+    </MarketingPage>
+  );
+}

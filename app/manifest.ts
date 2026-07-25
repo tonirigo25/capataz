@@ -10,15 +10,27 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/hoy",
     scope: "/",
     display: "standalone",
-    background_color: "#f6f7f8",
-    theme_color: "#f6c945",
+    background_color: "#f8f5ed",
+    theme_color: "#087a68",
     orientation: "portrait",
     categories: ["business", "productivity"],
     icons: [
       {
-        src: "/icons/orqena.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/brand/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: "/brand/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: "/brand/icon-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable"
       }
     ]

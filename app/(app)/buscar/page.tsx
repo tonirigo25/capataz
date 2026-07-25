@@ -26,7 +26,7 @@ export default async function SearchPage({
     <ProductPage layout="list">
       <PageHeader
         title="Búsqueda"
-        description="Encuentra clientes, obras, presupuestos, facturas y documentos desde un único lugar."
+        description="Encuentra clientes, trabajos, presupuestos, facturas y documentos desde un único lugar."
       />
 
       <form action="/buscar" className="mb-8 flex max-w-3xl gap-2" role="search">
@@ -35,7 +35,7 @@ export default async function SearchPage({
           id="global-search-page"
           name="q"
           defaultValue={query}
-          placeholder="Cliente, obra, factura, documento…"
+          placeholder="Cliente, trabajo, factura, documento…"
           autoFocus
         />
         <button className="primary-button shrink-0" type="submit">

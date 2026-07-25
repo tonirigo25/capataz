@@ -1,9 +1,54 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Eye, KeyRound, ShieldCheck } from "lucide-react";
-import { MarketingPage, SectionIntro } from "@/components/marketing/marketing-shell";
+import { ArrowRight, CheckCircle2, Eye, KeyRound, LockKeyhole, MessageSquareLock, ShieldCheck, UserCheck } from "lucide-react";
+import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { brand } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Seguridad", description: "El enfoque de Orqena para el acceso, el control y la trazabilidad.", alternates: { canonical: "/seguridad" } };
+export const metadata: Metadata = {
+  title: "Seguridad",
+  description: "Conoce cómo Orqena aplica contexto de empresa, portales, scopes, confirmación humana y auditoría.",
+  alternates: { canonical: "/seguridad" },
+  openGraph: { title: "Seguridad y control en Orqena", description: "Acceso y decisiones explicados en la propia experiencia.", images: [brand.socialImage] },
+};
 
-const controls = [[ShieldCheck, "Acceso por contexto", "La empresa activa, la membresía y el alcance forman parte de cada comprobación."], [Eye, "Visibilidad ajustada", "Cada portal muestra el trabajo y los módulos que corresponden a esa responsabilidad."], [KeyRound, "Decisiones bajo control", "Las acciones sensibles se preparan para revisión y requieren confirmación explícita."]];
-export default function SecurityPage() { return <MarketingPage><section className="marketing-container py-14 lg:py-24"><SectionIntro eyebrow="Seguridad y control" title="El orden también consiste en saber quién puede hacer qué." description="Orqena está diseñado para que el contexto de empresa, la membresía y las capacidades se comprueben antes de mostrar o ejecutar trabajo." /><div className="mt-12 grid gap-4 md:grid-cols-3">{controls.map(([Icon, title, description]) => { const Mark = Icon as typeof ShieldCheck; return <article key={title as string} className="marketing-security-card"><Mark size={25} /><h2>{title as string}</h2><p>{description as string}</p></article>; })}</div></section><section className="border-y border-[#d9dfd4] bg-[#f4f1e8]"><div className="marketing-container grid gap-10 py-16 lg:grid-cols-[1.1fr_.9fr]"><div><p className="marketing-eyebrow">Una experiencia visible</p><h2 className="marketing-title mt-4">El control no debería ser una capa técnica escondida.</h2><p className="marketing-lede mt-5">Los permisos y los portales ayudan a que cada persona se centre en su trabajo, sin exponer categorías, datos o acciones que no le corresponden.</p></div><ul className="space-y-4">{["El portal cambia según la responsabilidad", "Las decisiones sensibles esperan confirmación humana", "Las acciones relevantes mantienen una trazabilidad útil"].map(item => <li key={item} className="flex gap-3 rounded-xl bg-[#fbfaf5] p-4 text-sm"><CheckCircle2 className="shrink-0 text-[#167366]" size={19} />{item}</li>)}</ul></div></section><section className="marketing-container py-16 text-center"><h2 className="marketing-title mx-auto max-w-2xl">Explora el producto con el contexto de tu propia operación.</h2><Link href="/demo" className="marketing-button mt-8">Solicitar demo <ArrowRight size={18} /></Link></section></MarketingPage>; }
+const safeguards = [
+  [LockKeyhole, "Empresa activa", "Los datos se consultan dentro del contexto seleccionado."],
+  [UserCheck, "Membresía y portal", "La persona accede mediante una responsabilidad aprobada."],
+  [Eye, "Scope", "Empresa, clientes o trabajos asignados delimitan el alcance."],
+  [MessageSquareLock, "Conversación privada", "El chat mantiene usuario, empresa y acceso."],
+  [KeyRound, "Confirmación", "Las acciones sensibles esperan una decisión explícita."],
+  [ShieldCheck, "Trazabilidad", "Las operaciones administrativas relevantes quedan auditadas."],
+] as const;
+
+export default function SecurityPage() {
+  return (
+    <MarketingPage>
+      <section className="security-hero">
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Seguridad comprensible</p><h1>Acceso claro. Control en cada acción.</h1><p>Orqena combina contexto, responsabilidad, alcance y capacidad antes de mostrar o ejecutar una acción.</p><Link href="/demo" className="marketing-button">Explorar con datos sintéticos <ArrowRight size={18} /></Link></div>
+          <div className="security-diagram" role="img" aria-label="Diagrama de comprobación de acceso">
+            {["Persona", "Empresa", "Portal", "Alcance", "Capacidad"].map((step, index) => <span key={step} className={index < 4 ? "is-complete" : "is-decision"}><i>{index + 1}</i><strong>{step}</strong><small>{index === 4 ? "Permitir o explicar" : "Comprobado"}</small></span>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="marketing-container security-mosaic">
+        <div className="v41-section__intro"><p className="marketing-eyebrow">Controles visibles</p><h2 className="marketing-title">La seguridad también forma parte de la interfaz.</h2><p className="marketing-lede">No depende de ocultar un botón: el servidor vuelve a comprobar cada acción.</p></div>
+        <div>{safeguards.map(([Icon, title, copy], index) => { const Mark = Icon as typeof ShieldCheck; return <article key={title} className={`tone-${index % 3}`}><Mark size={23} /><span>{String(index + 1).padStart(2, "0")}</span><h3>{title}</h3><p>{copy}</p></article>; })}</div>
+      </section>
+
+      <section className="security-example">
+        <div className="marketing-container">
+          <div><p className="marketing-eyebrow">Ejemplo de producto</p><h2 className="marketing-title">Una propuesta de Orqena sigue siendo una propuesta.</h2><p>Fuentes, cambio previsto y alcance permanecen visibles antes de confirmar o cancelar.</p></div>
+          <article><small>Acción preparada</small><h3>Actualizar el siguiente paso del cliente</h3><dl><div><dt>Empresa</dt><dd>Contexto activo</dd></div><div><dt>Registro</dt><dd>Cliente autorizado</dd></div><div><dt>Cambio</dt><dd>Editable</dd></div></dl><div><button type="button">Cancelar</button><button type="button">Confirmar</button></div></article>
+        </div>
+      </section>
+
+      <section className="marketing-container security-close">
+        <CheckCircle2 />
+        <div><h2>Sin certificaciones inventadas.</h2><p>El alcance actual describe controles reales del producto. Cualquier certificación futura se comunicará solo después de obtenerla.</p></div>
+        <Link href="/contacto">Hablar con el equipo <ArrowRight size={16} /></Link>
+      </section>
+    </MarketingPage>
+  );
+}

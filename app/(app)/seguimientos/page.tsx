@@ -12,6 +12,7 @@ import {
   resolveAuthorization,
   resolveScopedEntityIds,
 } from "@/lib/commercial/authorization";
+import { ListWorkspace } from "@/components/workspaces";
 export const dynamic = "force-dynamic";
 export default async function FollowUpsPage({
   searchParams,
@@ -101,7 +102,7 @@ export default async function FollowUpsPage({
     take: 200,
   });
   return (
-    <main className="screen space-y-6">
+    <ListWorkspace className="space-y-6">
       <PageHeader
         eyebrow="Relaciones"
         title="Seguimientos"
@@ -237,6 +238,6 @@ export default async function FollowUpsPage({
           description="No hay seguimientos para este filtro."
         />
       )}
-    </main>
+    </ListWorkspace>
   );
 }

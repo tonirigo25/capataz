@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#F8F5ED"/>
+  <path d="M0 500C220 350 380 610 610 438c200-150 347-83 590-250v442H0Z" fill="#E2F1EC"/>
+  <path d="M90 421 209 302l94 94 136-145" fill="none" stroke="#087A68" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="42" y="373" width="96" height="96" rx="30" fill="#087A68"/>
+  <rect x="161" y="254" width="96" height="96" rx="30" fill="#087A68"/>
+  <rect x="255" y="348" width="96" height="96" rx="30" fill="#087A68"/>
+  <rect x="391" y="203" width="96" height="96" rx="30" fill="#087A68"/>
+  <text x="560" y="284" fill="#13231F" font-family="Arial, sans-serif" font-size="96" font-weight="700">Orqena</text>
+  <text x="566" y="356" fill="#52635E" font-family="Arial, sans-serif" font-size="36">Tu negocio, en orden.</text>
+</svg>

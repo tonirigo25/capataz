@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Bell, CalendarClock, Pencil, ShieldAlert } from "lucide-react";
 import { DemoLimitButton } from "@/components/demo-limit-button";
+import { ListWorkspace } from "@/components/workspaces";
 import { ReminderConfirmControls } from "@/components/reminder-confirm-controls";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
@@ -64,7 +65,7 @@ export default async function RemindersPage({
   });
 
   return (
-    <main className="screen">
+    <ListWorkspace>
       <SectionHeader
         title="Recordatorios"
         description="Seguimientos internos y mensajes preparados, siempre con confirmación."
@@ -142,6 +143,6 @@ export default async function RemindersPage({
           </details>
         ))}
       </div>
-    </main>
+    </ListWorkspace>
   );
 }

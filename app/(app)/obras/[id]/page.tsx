@@ -26,6 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
+import { RecordWorkspace } from "@/components/workspaces";
 import { EmptyState, EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
@@ -53,18 +54,19 @@ export const dynamic = "force-dynamic";
 const tabs = [
   ["resumen", "Resumen", BriefcaseBusiness],
   ["progreso", "Progreso", Camera],
-  ["dinero", "Dinero", Euro],
   ["planificacion", "Planificación", CalendarClock],
-  ["archivos", "Archivos", FileArchive],
-  ["equipo", "Equipo", Users]
+  ["equipo", "Equipo", Users],
+  ["documentos", "Documentos", FileArchive],
+  ["datos", "Datos", Settings],
+  ["economia", "Economía", Euro],
 ] as const;
 
 const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
-  cliente: "resumen", configuracion: "resumen", ia: "resumen",
+  cliente: "datos", configuracion: "datos", ia: "datos",
   fotografias: "progreso", notas: "progreso", cronologia: "progreso",
-  presupuestos: "dinero", facturas: "dinero", cobros: "dinero", tesoreria: "dinero", gastos: "dinero", materiales: "dinero", horas: "dinero", subcontratas: "dinero",
+  dinero: "economia", presupuestos: "economia", facturas: "economia", cobros: "economia", tesoreria: "economia", gastos: "economia", materiales: "economia", horas: "economia", subcontratas: "economia",
   visitas: "planificacion", recordatorios: "planificacion",
-  documentos: "archivos", contactos: "equipo", personal: "equipo"
+  archivos: "documentos", contactos: "equipo", personal: "equipo"
 };
 
 const workDetailInclude = {
@@ -138,7 +140,7 @@ export default async function WorkDetailPage({
   const openInvoices = work.invoices.filter((invoice) => Math.max(0, invoice.total - invoicePaid(invoice)) > 0);
 
   return (
-    <main className="screen">
+    <RecordWorkspace>
       <EntityHeader
         back={<ParentNavigation href="/obras" label="Obras" context={work.client.nombre} />}
         context={work.codigo ?? work.numeroInterno ?? "Espacio de trabajo"}
@@ -149,10 +151,13 @@ export default async function WorkDetailPage({
         menu={<WorkActions workId={work.id} clientId={work.clienteId} />}
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen ejecutivo de la obra">
-        <Kpi icon={Euro} label="Presupuestado" value={formatCurrency(financial.budgeted)} detail={`${financial.budgetCount} presupuestos`} />
-        <Kpi icon={WalletCards} label="Cobrado" value={formatCurrency(financial.paid)} detail={`${formatCurrency(financial.pending)} pendiente`} tone={financial.pending ? "warning" : "success"} />
-        <Kpi icon={BadgeEuro} label="Beneficio" value={formatCurrency(financial.benefit)} detail={`${financial.marginPercent}% margen`} tone={financial.marginPercent < 15 && financial.budgeted ? "danger" : "success"} />
+      <WorkLifecycleRail workId={work.id} status={work.estado} activeStep={work.photos.length ? 2 : work.agendaEvents.length ? 1 : 0} />
+
+      <section className="work-360-summary grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumen ejecutivo del trabajo">
+        <Kpi icon={Activity} label="Progreso" value={status.label} detail={nextAction.label} />
+        <Kpi icon={CalendarClock} label="Agenda" value={String(work.agendaEvents.length)} detail={work.agendaEvents[0] ? formatDate(work.agendaEvents[0].fechaInicio) : "Sin próximo evento"} />
+        <Kpi icon={Users} label="Equipo" value={work.responsable ?? "Sin asignar"} detail={work.jefeObra ?? "Responsable principal"} />
+        <Kpi icon={FileArchive} label="Documentos" value={String(documents.length)} detail="Relacionados con el trabajo" />
         <Kpi icon={AlertTriangle} label="Riesgos" value={String(risks.length)} detail={nextAction.label} tone={risks.length ? "warning" : "success"} />
       </section>
 
@@ -167,26 +172,12 @@ export default async function WorkDetailPage({
         ))}
       </Tabs>
 
+      <div id="work-360-content">
       {activeTab === "resumen" ? (
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="grid gap-4">
             <Section title="Próxima acción">
               <Notice tone={nextAction.tone === "danger" ? "danger" : nextAction.tone === "warning" ? "warning" : "info"} description={nextAction.label} />
-            </Section>
-            <Section title="Rentabilidad">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Finance label="Presupuestado" value={financial.budgeted} />
-                <Finance label="Facturado" value={financial.invoiced} />
-                <Finance label="Cobrado" value={financial.paid} />
-                <Finance label="Pendiente" value={financial.pending} tone={financial.pending ? "warning" : "neutral"} />
-                <Finance label="Gasto real" value={financial.realCost} />
-                <Finance label="Coste materiales" value={financial.materialExpenses} />
-                <Finance label="Coste subcontratas" value={financial.subcontractorExpenses} />
-                <Finance label="Costes generales" value={financial.generalExpenses} />
-                <Finance label="Coste previsto" value={financial.forecastCost} />
-                <Finance label="Beneficio" value={financial.benefit} tone={financial.benefit < 0 ? "danger" : "success"} />
-                <Finance label="Desviación" value={financial.deviation} tone={financial.deviation > 0 ? "warning" : "success"} />
-              </div>
             </Section>
             <Section title="Riesgos">
               {risks.length ? (
@@ -225,29 +216,43 @@ export default async function WorkDetailPage({
         </div>
       ) : null}
 
-      {activeTab === "resumen" ? <div className="mt-4 grid gap-4"><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /><ClientTab work={work} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
+      {activeTab === "resumen" ? <div className="mt-4 grid gap-4"><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /></div> : null}
       {activeTab === "progreso" ? <ProgressTab work={work} timeline={timeline} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
-      {activeTab === "dinero" ? <div className="grid gap-4"><CardsTab items={work.budgets} empty="No hay presupuestos asociados." render={(budget) => <BudgetCard key={budget.id} budget={budget} />} /><CardsTab items={work.invoices} empty="No hay facturas asociadas." render={(invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />} /><CardsTab items={work.payments} empty="No hay cobros registrados en esta obra." render={(payment) => <PaymentCard key={payment.id} payment={payment} />} /><WorkTreasuryTab treasury={treasury} workId={work.id} /><CardsTab items={work.expenses} empty="No hay gastos registrados." render={(expense) => <ExpenseCard key={expense.id} expense={expense} />} /><MaterialsTab materials={work.materials} pendingCount={pendingMaterials.length} workId={work.id} /><HoursTab work={work} /><SubcontractTab work={work} expenses={work.expenses} /></div> : null}
+      {activeTab === "economia" ? <div className="grid gap-4"><Section title="Economía autorizada"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Finance label="Presupuestado" value={financial.budgeted} /><Finance label="Facturado" value={financial.invoiced} /><Finance label="Cobrado" value={financial.paid} /><Finance label="Pendiente" value={financial.pending} tone={financial.pending ? "warning" : "neutral"} /><Finance label="Gasto real" value={financial.realCost} /><Finance label="Beneficio" value={financial.benefit} tone={financial.benefit < 0 ? "danger" : "success"} /></div></Section><CardsTab items={work.budgets} empty="No hay presupuestos asociados." render={(budget) => <BudgetCard key={budget.id} budget={budget} />} /><CardsTab items={work.invoices} empty="No hay facturas asociadas." render={(invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />} /><CardsTab items={work.payments} empty="No hay cobros registrados en esta obra." render={(payment) => <PaymentCard key={payment.id} payment={payment} />} /><WorkTreasuryTab treasury={treasury} workId={work.id} /><CardsTab items={work.expenses} empty="No hay gastos registrados." render={(expense) => <ExpenseCard key={expense.id} expense={expense} />} /><MaterialsTab materials={work.materials} pendingCount={pendingMaterials.length} workId={work.id} /><HoursTab work={work} /><SubcontractTab work={work} expenses={work.expenses} /></div> : null}
       {activeTab === "planificacion" ? (
         <div className="grid gap-4">
           <CardsTab items={work.agendaEvents} empty="No hay visitas o eventos registrados." render={(event) => <EventCard key={event.id} event={event} />} />
           <CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} />
         </div>
       ) : null}
-      {activeTab === "archivos" ? <DocumentsTab documents={documents} workId={work.id} clientId={work.clienteId} /> : null}
+      {activeTab === "documentos" ? <DocumentsTab documents={documents} workId={work.id} clientId={work.clienteId} /> : null}
       {activeTab === "equipo" ? <div className="grid gap-4"><ContactsTab work={work} /><PeopleTab work={work} /></div> : null}
-    </main>
+      {activeTab === "datos" ? <div className="grid gap-4"><ClientTab work={work} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
+      </div>
+    </RecordWorkspace>
+  );
+}
+
+function WorkLifecycleRail({ workId, status, activeStep }: { workId: string; status: string; activeStep: number }) {
+  const stages = ["Planificación", "Preparación", "Ejecución", "Revisión", "Entrega", "Cierre"];
+  const statusStep = ["finalizada", "archivada"].includes(status) ? 5 : ["en_curso", "pendiente_material"].includes(status) ? Math.max(2, activeStep) : activeStep;
+  const views = ["planificacion", "planificacion", "progreso", "progreso", "documentos", "resumen"];
+  return (
+    <section className="work-lifecycle-rail" aria-label="Recorrido Trabajo 360">
+      <div><p className="type-label">Trabajo 360</p><strong>Del plan al cierre</strong><span>Hitos, actividad y entregables en el mismo registro.</span></div>
+      <ol>{stages.map((stage, index) => <li key={stage} className={index < statusStep ? "is-complete" : index === statusStep ? "is-active" : "is-pending"}><Link href={`/obras/${workId}?vista=${views[index]}#work-360-content`}><i>{index + 1}</i><span><strong>{stage}</strong><small>{index < statusStep ? "Completada" : index === statusStep ? "Activa" : "Pendiente"}</small></span></Link></li>)}</ol>
+    </section>
   );
 }
 
 function ProjectBudgetWorkDetail({ work, consumed }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; presupuestoAprobado: number; costePrevisto: number; client: { nombre: string } }; consumed: number }) {
   const available = work.presupuestoAprobado - consumed;
   const deviation = consumed - work.costePrevisto;
-  return <main className="screen"><ParentNavigation href="/obras" label="Obras" context={work.client.nombre} /><PageHeader eyebrow={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} badge={<StatusBadge status={work.estado} />} /><section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section></main>;
+  return <RecordWorkspace><ParentNavigation href="/obras" label="Obras" context={work.client.nombre} /><PageHeader eyebrow={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} badge={<StatusBadge status={work.estado} />} /><section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section></RecordWorkspace>;
 }
 
 function RestrictedWorkDetail({ work }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } } }) {
-  return <main className="screen"><EntityHeader back={<ParentNavigation href="/obras" label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar el trabajo, pero no presupuestos, facturas, cobros, gastos ni tesorería." /></main>;
+  return <RecordWorkspace><EntityHeader back={<ParentNavigation href="/obras" label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar el trabajo, pero no presupuestos, facturas, cobros, gastos ni tesorería." /></RecordWorkspace>;
 }
 
 function WorkActions({ workId, clientId }: { workId: string; clientId: string }) {

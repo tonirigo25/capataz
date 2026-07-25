@@ -3,6 +3,7 @@ import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/compone
 import { prisma } from "@/lib/prisma";
 import { createTaskAction, completeTaskAction } from "./actions";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { ListWorkspace } from "@/components/workspaces";
 export const dynamic = "force-dynamic";
 export default async function TasksPage({
   searchParams,
@@ -51,7 +52,7 @@ export default async function TasksPage({
     take: 200,
   });
   return (
-    <main className="screen space-y-6">
+    <ListWorkspace className="space-y-6">
       <PageHeader
         eyebrow="Operación"
         title="Tareas"
@@ -163,7 +164,7 @@ export default async function TasksPage({
           description="No hay tareas para este filtro."
         />
       )}
-    </main>
+    </ListWorkspace>
   );
 }
 const start = (d: Date) => {

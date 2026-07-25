@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { LegalBackButton } from "@/components/legal-back-button";
+import type { Metadata } from "next";
+import { brand } from "@/lib/brand";
+
+export const metadata: Metadata = { title: "Términos de uso", description: "Condiciones de uso de Orqena durante la beta privada.", alternates: { canonical: "/terminos" }, openGraph: { title: "Términos de Orqena", description: "Condiciones de uso y control de las acciones.", images: [brand.socialImage] } };
 
 export default function TermsPage() {
   return (
