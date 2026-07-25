@@ -47,6 +47,7 @@ check(css.includes('[data-theme="dark"]'), "Faltan tokens de tema oscuro");
 check(css.includes("@media (prefers-reduced-motion: reduce)"), "Falta cobertura reduced motion");
 check(css.includes("@media (forced-colors: active)"), "Falta cobertura forced colors");
 check(css.includes("@media print"), "Falta tema claro de impresión");
+check(css.includes(".v4-feature > div > * { min-width: 0; }"), "Las escenas deben poder encogerse sin recorte en móvil");
 for (const token of ["--cap-bg", "--cap-surface", "--cap-text", "--cap-brand", "--cap-border", "--cap-success", "--cap-warning", "--cap-danger", "--cap-info"]) {
   check(css.includes(token), `Falta token semántico ${token}`);
 }

@@ -965,6 +965,7 @@ button:disabled,
 .v4-story__scene { min-width: 0; }
 .v4-feature { border-bottom: 1px solid var(--cap-border); content-visibility: auto; contain-intrinsic-size: 900px; }
 .v4-feature > div { display: grid; gap: 2rem; align-items: center; padding-block: clamp(4rem, 8vw, 7rem); }
+.v4-feature > div > * { min-width: 0; }
 .v4-feature__intro { max-width: 34rem; }
 .v4-feature__intro .marketing-title { margin-top: .7rem; }
 .v4-feature__intro > p:not(.marketing-eyebrow) { margin-top: 1rem; color: var(--cap-text-muted); line-height: 1.7; }
