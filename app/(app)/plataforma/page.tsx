@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requirePlatformAccount } from "@/lib/commercial/platform";
 import { createSupportGrant, closeSupportGrant, toggleCompanySuspension } from "./actions";
+import { UnitEconomicsCalculator } from "@/components/platform/unit-economics-calculator";
 
 export default async function PlatformPage() {
   const actor = await requirePlatformAccount();
@@ -23,6 +24,7 @@ export default async function PlatformPage() {
       </div>
     </section>
     <section className="mt-8" aria-labelledby="tenants-title"><h2 id="tenants-title" className="type-section-title">Empresas</h2><div className="mt-3 grid gap-3">{companies.map((company) => <article className="card grid gap-3 p-4 lg:grid-cols-[1fr_auto]" key={company.id}><div><strong>{company.nombreComercial}</strong><p className="type-secondary">{company.commercialStatus} · {company.subscriptions[0]?.plan.name ?? "Plan base"} · {company._count.memberships} membresías</p><p className="mt-1 text-xs text-content-tertiary">La plataforma no concede acceso a los datos del tenant.</p></div><div className="flex flex-wrap gap-2"><form action={createSupportGrant} className="flex flex-wrap gap-2"><input type="hidden" name="companyId" value={company.id}/><input required name="reason" className="field h-10 max-w-48" placeholder="Motivo obligatorio"/><input name="ticket" className="field h-10 max-w-32" placeholder="Ticket"/><input type="hidden" name="minutes" value="30"/><button className="secondary-button">Soporte 30 min</button></form>{actor.platformRole !== "PLATFORM_ANALYST" ? <form action={toggleCompanySuspension}><input type="hidden" name="companyId" value={company.id}/><input type="hidden" name="suspend" value={String(company.commercialStatus !== "SUSPENDED")}/><input type="hidden" name="reason" value="Cambio confirmado desde plataforma interna"/><button className="ghost-button">{company.commercialStatus === "SUSPENDED" ? "Reactivar" : "Suspender"}</button></form> : null}</div></article>)}</div></section>
+    {actor.platformRole === "PLATFORM_OWNER" ? <UnitEconomicsCalculator /> : null}
     {grants.length ? <aside className="fixed inset-x-3 bottom-20 z-50 rounded-xl bg-amber-100 p-4 shadow-card lg:left-auto lg:right-5 lg:w-96"><strong>Acceso temporal activo</strong>{grants.map((grant) => <form action={closeSupportGrant} key={grant.id} className="mt-2 flex items-center justify-between gap-2"><span className="text-sm">{grant.company.nombreComercial} · hasta {grant.expiresAt.toLocaleTimeString("es-ES")}</span><input type="hidden" name="grantId" value={grant.id}/><button className="ghost-button">Finalizar</button></form>)}</aside> : null}
   </main>;
 }

@@ -51,22 +51,25 @@ type DetailSearchParams = { vista?: string; tab?: string };
 
 const tabs = [
   ["resumen", "Resumen"],
-  ["obras", "Obras"],
-  ["dinero", "Dinero"],
   ["actividad", "Actividad"],
-  ["archivos", "Archivos"],
+  ["trabajos", "Trabajos"],
+  ["contactos", "Contactos"],
+  ["documentos", "Documentos"],
+  ["datos", "Datos"],
+  ["economia", "Economía"],
 ] as const;
 
 const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
-  contactos: "resumen",
-  datos: "resumen",
-  presupuestos: "dinero",
-  facturas: "dinero",
-  pagos: "dinero",
-  finanzas: "dinero",
+  obras: "trabajos",
+  archivos: "documentos",
+  dinero: "economia",
+  presupuestos: "economia",
+  facturas: "economia",
+  pagos: "economia",
+  finanzas: "economia",
   visitas: "actividad",
   notas: "actividad",
-  documentos: "archivos",
+  documentos: "documentos",
 };
 
 export default async function ClientDetailPage({
@@ -189,6 +192,8 @@ export default async function ClientDetailPage({
         }
       />
 
+      <ClientRelationshipRail summary={summary} />
+
       {summary.listItem.pendingFields.length ? (
         <Notice
           tone="warning"
@@ -206,34 +211,32 @@ export default async function ClientDetailPage({
       ) : null}
 
       <section
-        className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="client-360-summary mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
         aria-label="Resumen ejecutivo del cliente"
       >
         <StatCard
-          title="Obras"
+          title="Trabajos"
           value={`${summary.kpis.activeWorks}/${summary.kpis.totalWorks}`}
           detail="Activas / totales"
           icon={BriefcaseBusiness}
         />
         <StatCard
-          title="Facturado"
-          value={formatCurrency(summary.kpis.billedTotal)}
-          detail="Sin borradores"
-          icon={Receipt}
+          title="Propuestas"
+          value={String(summary.pendingBudgets.length)}
+          detail="Pendientes de decisión"
+          icon={FileText}
         />
         <StatCard
-          title="Cobrado"
-          value={formatCurrency(summary.kpis.paidTotal)}
-          detail="Pagos reales"
-          icon={WalletCards}
-          tone="success"
+          title="Próxima cita"
+          value={summary.upcomingEvents[0] ? formatDate(summary.upcomingEvents[0].fechaInicio) : "Sin fecha"}
+          detail={summary.upcomingEvents[0]?.titulo ?? "No programada"}
+          icon={CalendarClock}
         />
         <StatCard
-          title="Pendiente"
-          value={formatCurrency(summary.kpis.pendingTotal)}
-          detail="Total menos pagos"
-          icon={CircleDollarSign}
-          tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"}
+          title="Última actividad"
+          value={summary.activity[0] ? formatDate(summary.activity[0].date) : "Sin actividad"}
+          detail={summary.activity[0]?.text ?? "Sin registrar"}
+          icon={ClipboardList}
         />
       </section>
 
@@ -255,20 +258,26 @@ export default async function ClientDetailPage({
         ))}
       </Tabs>
 
-      <div className="mt-4">
+      <div className="mt-4" id="client-360-content">
         {activeTab === "resumen" ? (
-          <div className="grid gap-4">
+          <div className="client-360-layout grid gap-4">
             <SummaryTab summary={summary} returnTo={returnTo} />
-            <ContactsTab summary={summary} returnTo={returnTo} />
             <EntityWorkflowSummary clientId={client.id} />
-            <DataTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
-        {activeTab === "obras" ? (
+        {activeTab === "trabajos" ? (
           <WorksTab summary={summary} returnTo={returnTo} />
         ) : null}
-        {activeTab === "dinero" ? (
+        {activeTab === "contactos" ? <ContactsTab summary={summary} returnTo={returnTo} /> : null}
+        {activeTab === "documentos" ? <DocumentsTab summary={summary} /> : null}
+        {activeTab === "datos" ? <DataTab summary={summary} returnTo={returnTo} /> : null}
+        {activeTab === "economia" ? (
           <div className="grid gap-4">
+            <section className="grid gap-3 sm:grid-cols-3" aria-label="Economía autorizada del cliente">
+              <StatCard title="Facturado" value={formatCurrency(summary.kpis.billedTotal)} detail="Sin borradores" icon={Receipt} />
+              <StatCard title="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} detail="Pagos reales" icon={WalletCards} tone="success" />
+              <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
+            </section>
             <BudgetsTab summary={summary} returnTo={returnTo} />
             <InvoicesTab summary={summary} returnTo={returnTo} />
             <PaymentsTab summary={summary} />
@@ -282,9 +291,29 @@ export default async function ClientDetailPage({
             <NotesTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
-        {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
       </div>
     </RecordWorkspace>
+  );
+}
+
+function ClientRelationshipRail({
+  summary,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+}) {
+  const stages = [
+    ["Cliente", "completada", "resumen", "Relación activa"],
+    ["Oportunidad", summary.recentBudgets.length ? "completada" : "activa", "actividad", summary.recentBudgets.length ? "Contexto creado" : "Siguiente paso"],
+    ["Presupuesto", summary.recentBudgets.length ? "completada" : "pendiente", "economia", `${summary.recentBudgets.length} propuestas`],
+    ["Trabajo", summary.kpis.activeWorks ? "activa" : summary.kpis.totalWorks ? "completada" : "pendiente", "trabajos", `${summary.kpis.activeWorks} activos`],
+    ["Factura", summary.kpis.billedTotal ? "completada" : "pendiente", "economia", summary.kpis.billedTotal ? "Emitida" : "Pendiente"],
+    ["Cobro", summary.kpis.paidTotal ? "completada" : summary.kpis.billedTotal ? "activa" : "pendiente", "economia", summary.kpis.paidTotal ? "Registrado" : "Pendiente"],
+  ] as const;
+  return (
+    <section className="client-relationship-rail mt-4" aria-label="Recorrido Cliente 360">
+      <div><p className="type-label">Cliente 360</p><strong>Relación completa</strong><span>Selecciona una etapa sin abandonar la ficha.</span></div>
+      <ol>{stages.map(([label, state, view, detail], index) => <li key={label} className={`is-${state}`}><Link href={`/clientes/${summary.client.id}?vista=${view}#client-360-content`}><i>{index + 1}</i><span><strong>{label}</strong><small>{detail}</small></span></Link></li>)}</ol>
+    </section>
   );
 }
 

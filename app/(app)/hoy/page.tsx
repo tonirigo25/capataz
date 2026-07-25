@@ -25,6 +25,7 @@ export default async function TodayPage() {
   const todayAgenda = agendaItems.filter((item) => item.estado !== "cancelado" && item.fechaInicio >= todayStart && item.fechaInicio < tomorrowStart).slice(0, 4);
   const destinations = [...portal.navigation, ...portal.navigationGroups.flatMap((group) => group.items)];
   const fullDate = capitalize(new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now));
+  const experience = portalExperience(portal.profile);
 
   return (
     <ProductPage layout="operational">
@@ -35,9 +36,14 @@ export default async function TodayPage() {
         action={portal.orqenaTools.length ? <Link href="/capataz" className="primary-button"><Bot size={18} aria-hidden="true" />Hablar con Orqena</Link> : undefined}
       />
 
-      <section aria-labelledby="portal-priorities" className="section-shell">
-        <div className="mb-4"><p className="type-label">Portal personal</p><h2 id="portal-priorities" className="type-section-title mt-1 text-content">Tus prioridades</h2></div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <section className={`portal-focus portal-focus--${experience.tone}`} data-portal-home={portal.profile}>
+        <div><p className="type-label">{experience.label}</p><h2>{experience.title}</h2><p>{experience.description}</p></div>
+        <ol>{experience.flow.map((item, index) => <li key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong></li>)}</ol>
+      </section>
+
+      <section aria-labelledby="portal-priorities" className={`section-shell portal-priorities portal-priorities--${experience.tone}`}>
+        <div className="mb-4"><p className="type-label">Preparado para tu responsabilidad</p><h2 id="portal-priorities" className="type-section-title mt-1 text-content">{experience.priorityTitle}</h2></div>
+        <div className="portal-priorities__grid grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {portal.homeWidgets.slice(0, 3).map((widget) => {
             const destination = destinationForWidget(widget, destinations);
             const content = <><p className="type-object-title text-content">{homeWidgetLabel(widget)}</p><p className="type-secondary mt-1">{homeWidgetDescription(widget, portal.profile)}</p></>;
@@ -117,3 +123,13 @@ function timeLabel(date: Date) { return date.getHours() === 0 && date.getMinutes
 function startOfDay(date: Date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
 function addDays(date: Date, days: number) { const copy = new Date(date); copy.setDate(copy.getDate() + days); return copy; }
 function capitalize(value: string) { return value.charAt(0).toUpperCase() + value.slice(1); }
+
+function portalExperience(profile: string) {
+  const experiences: Record<string, { label: string; title: string; description: string; priorityTitle: string; flow: string[]; tone: string }> = {
+    SALES: { label: "Portal comercial", title: "Relaciones que deben avanzar hoy", description: "Clientes, presupuestos, seguimientos y agenda forman un pipeline legible.", priorityTitle: "Clientes y oportunidades", flow: ["Cliente", "Presupuesto", "Seguimiento", "Agenda"], tone: "sales" },
+    FINANCE: { label: "Portal finanzas", title: "Vencimientos antes que sorpresas", description: "Cobros, pagos y tesorería conservan documento y fecha de origen.", priorityTitle: "Control económico del día", flow: ["Vencimiento", "Cobro", "Pago", "Tesorería"], tone: "finance" },
+    PROCUREMENT: { label: "Portal compras", title: "De la solicitud a la recepción", description: "Proveedor, pedido y factura recibida permanecen relacionados con el trabajo.", priorityTitle: "Suministro y proveedores", flow: ["Solicitud", "Proveedor", "Recepción", "Factura"], tone: "procurement" },
+    WORKER: { label: "Portal operativo", title: "Tu jornada, sin distracciones", description: "Tareas, trabajo, agenda y avance aparecen en el orden de ejecución.", priorityTitle: "Plan del día", flow: ["Tarea", "Instrucciones", "Avance", "Cierre"], tone: "worker" },
+  };
+  return experiences[profile] ?? { label: "Portal personal", title: "Decisiones conectadas", description: "Prioridades, contexto y acciones según tu responsabilidad.", priorityTitle: "Tus prioridades", flow: ["Revisar", "Decidir", "Coordinar", "Continuar"], tone: "general" };
+}

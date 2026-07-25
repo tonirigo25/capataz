@@ -19,17 +19,17 @@ const ordered = (source, tokens) => {
   return indexes.every((index) => index >= 0) && indexes.every((index, position) => position === 0 || index > indexes[position - 1]);
 };
 
-check("cliente expone cinco áreas exactas", (client.match(/^  \["(resumen|obras|dinero|actividad|archivos)"/gm) ?? []).length === 5);
+check("cliente expone siete áreas 360 exactas", (client.match(/^  \["(resumen|actividad|trabajos|contactos|documentos|datos|economia)"/gm) ?? []).length === 7);
 check("cliente abre Resumen por defecto", client.includes(': "resumen");') && client.includes('requestedView'));
 check("cliente usa ParentNavigation y EntityHeader", client.includes("<EntityHeader") && client.includes('<ParentNavigation href="/clientes"'));
 check("cliente conserva una sola acción primaria", /Crear obra\s*<\/Link>/.test(client) && /menu=\{\s*<ClientActions/.test(client));
 check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
-check("cliente conserva mapa heredado explícito", ["contactos", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "documentos", "notas", "datos"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
+check("cliente conserva mapa heredado explícito", ["obras", "archivos", "dinero", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "notas"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
 check("listado de clientes prioriza próxima acción", clients.includes("Próxima acción") && clients.includes("client.nextAction") && clients.includes("client.activeWorksCount") && clients.includes("client.pendingTotal"));
 
-check("obra expone seis áreas exactas", (work.match(/^  \["(resumen|progreso|dinero|planificacion|archivos|equipo)"/gm) ?? []).length === 6);
+check("obra expone siete áreas 360 exactas", (work.match(/^  \["(resumen|progreso|planificacion|equipo|documentos|datos|economia)"/gm) ?? []).length === 7);
 check("obra abre Resumen por defecto", work.includes(': "resumen");') && work.includes("requestedView"));
 check("obra usa ParentNavigation y EntityHeader", work.includes("<EntityHeader") && work.includes('<ParentNavigation href="/obras"'));
 check("obra ofrece Registrar avance como acción principal", work.includes("Registrar avance") && work.includes("menu={<WorkActions"));
@@ -43,7 +43,7 @@ check("fotografías filtran URLs seguras", work.includes('photo.url.startsWith("
 check("incidencias reutilizan categoría existente", crm.includes('photo.categoria === "incidencia"') && schema.includes("model WorkPhoto"));
 check("Dinero conserva cálculos existentes", work.includes("calculateWorkFinancials(work)") && work.includes("WorkTreasuryTab") && work.includes("SubcontractTab"));
 check("Planificación integra agenda y recordatorios", work.includes('activeTab === "planificacion"') && work.includes("work.agendaEvents") && work.includes("work.reminders"));
-check("Archivos y Equipo permanecen accesibles", work.includes('activeTab === "archivos"') && work.includes('activeTab === "equipo"'));
+check("Documentos y Equipo permanecen accesibles", work.includes('activeTab === "documentos"') && work.includes('activeTab === "equipo"'));
 check("Capataz es contextual y no pestaña", work.includes("<AiTab") && !work.match(/^  \["ia"/m));
 check("obra conserva mapa heredado explícito", ["fotografias", "cronologia", "tesoreria", "materiales", "subcontratas", "configuracion"].every((tab) => work.includes(`${tab}:`)));
 check("no se inventa porcentaje físico", !work.includes("porcentajeAvance") && !work.includes("progresoFisico"));
