@@ -1,0 +1,1870 @@
+version: 1
+source: "docs/readiness/MASTER_PROGRAM_PROMPT.md"
+source_sha256: "AB5BAD912067733EF514EE834C816B7AB5BB69BCCDF050370609E12CEEB892C2"
+status_contract: ["PENDING", "PASS", "BLOCKED", "READY_FOR_EXTERNAL_INPUT", "WAIVED"]
+total: 233
+requirements:
+  - id: "GOV-001"
+    area: "GOV"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Posicionar el producto públicamente para empresas de obra, reformas e instalaciones, no como ERP horizontal genérico."
+    acceptance: "Copy y navegación pública verificadas contra un único ICP."
+    evidence: []
+    notes: []
+  - id: "GOV-002"
+    area: "GOV"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Conservar la arquitectura multisector como capacidad configurable y no como mensaje principal."
+    acceptance: "Catálogo sectorial interno configurable; home vertical-first."
+    evidence: []
+    notes: []
+  - id: "GOV-003"
+    area: "GOV"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Centralizar nombre, identidad legal, URLs, soporte, remitentes y aliases en configuración tipada."
+    acceptance: "No quedan literales comerciales dispersos fuera de tests/compatibilidad."
+    evidence: []
+    notes: []
+  - id: "GOV-004"
+    area: "GOV"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Dejar la aplicación preparada para rebranding/white-label sin fork de código."
+    acceptance: "Tema, assets, metadata, emails y PDFs resueltos desde configuración."
+    evidence: []
+    notes: []
+  - id: "GOV-005"
+    area: "GOV"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Realizar clearance de marca y documentar control de dominios antes de indexación."
+    acceptance: "Informe/decisión legal archivada; PUBLIC_INDEXING_ENABLED sigue false hasta cierre."
+    evidence: []
+    notes: []
+  - id: "GOV-006"
+    area: "GOV"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Añadir aviso de software propietario, NOTICE y reglas de contribución."
+    acceptance: "LICENSE/NOTICE/CONTRIBUTING revisados; repositorio sin licencia ambigua."
+    evidence: []
+    notes: []
+  - id: "GOV-007"
+    area: "GOV"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Inventariar autores, contribuciones asistidas y cesiones de derechos."
+    acceptance: "Matriz de cadena IP incluida en data room privado."
+    evidence: []
+    notes: []
+  - id: "GOV-008"
+    area: "GOV"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Generar inventario de terceros y obligaciones de sus licencias."
+    acceptance: "THIRD_PARTY_NOTICES y reporte automatizado sin incompatibilidades críticas."
+    evidence: []
+    notes: []
+  - id: "GOV-009"
+    area: "GOV"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Mantener precios públicos bajo aprobación comercial y mapping externo, nunca hardcodeados en UI."
+    acceptance: "Feature flag y catálogo de Price IDs validados."
+    evidence: []
+    notes: []
+  - id: "GOV-010"
+    area: "GOV"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Mantener registro de deuda técnica, limitaciones y decisiones arquitectónicas."
+    acceptance: "KNOWN_ISSUES, debt register y ADRs actualizados."
+    evidence: []
+    notes: []
+  - id: "GOV-011"
+    area: "GOV"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Definir lista exacta de activos transferibles y no transferibles."
+    acceptance: "Data room contiene manifest de repositorios, ramas, diseños, cuentas y documentación."
+    evidence: []
+    notes: []
+  - id: "GOV-012"
+    area: "GOV"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir valor del producto por tareas y resultados, no por número de módulos."
+    acceptance: "Dashboard incluye horas ahorradas, cobros recuperados y conversión."
+    evidence: []
+    notes: []
+  - id: "ARCH-001"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Mantener un monolito modular Next.js, evitando microservicios prematuros."
+    acceptance: "Los límites se expresan por módulos y contratos; un web y workers separados comparten código."
+    evidence: []
+    notes: []
+  - id: "ARCH-002"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Definir bounded contexts: identidad, tenants, CRM/trabajos, ventas, compras, tesorería, fiscal, privacidad, soporte, IA y plataforma."
+    acceptance: "Mapa de módulos y dependencias aprobado."
+    evidence: []
+    notes: []
+  - id: "ARCH-003"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Crear configuración de entorno tipada y validada al arranque."
+    acceptance: "Build/ready fallan con mensaje seguro ante variables obligatorias ausentes."
+    evidence: []
+    notes: []
+  - id: "ARCH-004"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Crear feature flags por entorno/empresa para fiscal, billing, email, IA, analítica e indexación."
+    acceptance: "Todos los nuevos motores nacen desactivados y se activan gradualmente."
+    evidence: []
+    notes: []
+  - id: "ARCH-005"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Documentar ERD y diccionario de datos del esquema objetivo."
+    acceptance: "Artefactos generados automáticamente desde Prisma y revisados."
+    evidence: []
+    notes: []
+  - id: "ARCH-006"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Definir owner técnico y contrato de cada módulo."
+    acceptance: "CODEOWNERS/mapa de ownership sin zonas huérfanas."
+    evidence: []
+    notes: []
+  - id: "ARCH-007"
+    area: "ARCH"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Mover reglas de negocio desde páginas/actions a servicios de dominio transaccionales."
+    acceptance: "Server Actions solo validan, autorizan, invocan servicio y revalidan UI."
+    evidence: []
+    notes: []
+  - id: "ARCH-008"
+    area: "ARCH"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Crear idempotencia reutilizable para mutaciones internas y proveedores."
+    acceptance: "Misma clave no duplica cobros, documentos, emails ni webhooks."
+    evidence: []
+    notes: []
+  - id: "ARCH-009"
+    area: "ARCH"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Adoptar inbox/outbox transaccional en PostgreSQL para jobs externos."
+    acceptance: "Commit de negocio y evento se guardan en la misma transacción."
+    evidence: []
+    notes: []
+  - id: "ARCH-010"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Migrar importes críticos a Decimal mediante columnas espejo y reconciliación."
+    acceptance: "Diferencia total antes/después = 0; no se usa Float en evidencia fiscal."
+    evidence: []
+    notes: []
+  - id: "ARCH-011"
+    area: "ARCH"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Definir contratos de proveedor para billing, email, storage, IA, fiscal y observabilidad."
+    acceptance: "Implementación local/fake y producción pasan la misma suite contractual."
+    evidence: []
+    notes: []
+  - id: "ARCH-012"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Versionar contratos de eventos, prompts, plantillas y artefactos."
+    acceptance: "Cada evento persistido identifica versión de esquema."
+    evidence: []
+    notes: []
+  - id: "ARCH-013"
+    area: "ARCH"
+    phase: "F1"
+    status: "PENDING"
+    requirement: "Diseñar migraciones aditivas, backfills idempotentes y rollback operativo."
+    acceptance: "Cada migración tiene dry-run, guard y plan de reversión."
+    evidence: []
+    notes: []
+  - id: "ARCH-014"
+    area: "ARCH"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Publicar ADRs de decisiones irreversibles."
+    acceptance: "Al menos arquitectura, fiscal, Decimal, outbox, storage y privacidad documentados."
+    evidence: []
+    notes: []
+  - id: "SEC-001"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Preservar sesiones opacas, hashes de token, cookies HttpOnly/Secure/SameSite y revocación."
+    acceptance: "Regresión auth completa y sin downgrade."
+    evidence: []
+    notes: []
+  - id: "SEC-002"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Rotar sesión tras login, cambio de contraseña, elevación de privilegio y selección sensible de empresa."
+    acceptance: "Pruebas demuestran invalidación del token anterior."
+    evidence: []
+    notes: []
+  - id: "SEC-003"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Añadir MFA para PLATFORM_OWNER/ADMIN y opción para OWNER."
+    acceptance: "Operaciones de plataforma bloqueadas sin segundo factor configurado."
+    evidence: []
+    notes: []
+  - id: "SEC-004"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Aplicar request ID y actor context a toda ruta, action, job y webhook."
+    acceptance: "Logs/auditoría permiten correlación extremo a extremo."
+    evidence: []
+    notes: []
+  - id: "SEC-005"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Implantar CSP en modo report-only y después enforce con nonce o hashes compatibles con Next."
+    acceptance: "Cero violaciones necesarias en E2E antes de activar enforce."
+    evidence: []
+    notes: []
+  - id: "SEC-006"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Completar headers: HSTS, frame-ancestors, Referrer, Permissions, MIME y política de recursos."
+    acceptance: "Escaneo automatizado de headers pasa en staging."
+    evidence: []
+    notes: []
+  - id: "SEC-007"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Validar Origin/Host y protección CSRF en mutaciones de navegador."
+    acceptance: "Pruebas cross-site fallan con 403 sin modificar datos."
+    evidence: []
+    notes: []
+  - id: "SEC-008"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Aplicar rate limit persistente a login, registro, demo, soporte, IA y webhooks."
+    acceptance: "Tests concurrentes respetan ventanas y no mezclan tenants."
+    evidence: []
+    notes: []
+  - id: "SEC-009"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Verificar firmas y proteger replay en webhooks Stripe/Resend/fiscales."
+    acceptance: "Payload alterado/repetido no produce efectos."
+    evidence: []
+    notes: []
+  - id: "SEC-010"
+    area: "SEC"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Cifrar tokens/certificados de integraciones por sobre con AES-GCM y versionado de clave."
+    acceptance: "Secretos tenant no quedan en texto plano ni logs."
+    evidence: []
+    notes: []
+  - id: "SEC-011"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Ampliar tests de aislamiento tenant a PDFs, exportaciones, búsquedas, chat, jobs, billing y storage."
+    acceptance: "Suite negativa de dos empresas y dos usuarios completa."
+    evidence: []
+    notes: []
+  - id: "SEC-012"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Encadenar o proteger registros de auditoría sensibles contra edición silenciosa."
+    acceptance: "Verificador detecta alteración de una fila histórica."
+    evidence: []
+    notes: []
+  - id: "SEC-013"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Mantener soporte temporal, mínimo privilegio, caducidad y cierre de sesión."
+    acceptance: "Grant expirado no permite lectura; acceso queda auditado."
+    evidence: []
+    notes: []
+  - id: "SEC-014"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Validar MIME real, extensión, tamaño, hash y escaneo de archivos."
+    acceptance: "Archivos incompatibles/maliciosos quedan en cuarentena."
+    evidence: []
+    notes: []
+  - id: "SEC-015"
+    area: "SEC"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Automatizar secret scanning, dependency audit, CodeQL, SBOM y licencias."
+    acceptance: "CI bloquea secretos y vulnerabilidades por política."
+    evidence: []
+    notes: []
+  - id: "SEC-016"
+    area: "SEC"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Realizar pentest específico de multitenencia y autorización horizontal."
+    acceptance: "Hallazgos altos/críticos cerrados antes de launch."
+    evidence: []
+    notes: []
+  - id: "SEC-017"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear plan de respuesta a incidentes y brechas."
+    acceptance: "Simulacro registra detección, contención, comunicación y postmortem."
+    evidence: []
+    notes: []
+  - id: "SEC-018"
+    area: "SEC"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Separar credenciales y permisos de development, preview, staging y production."
+    acceptance: "Ningún entorno no productivo puede alcanzar recursos productivos."
+    evidence: []
+    notes: []
+  - id: "FISC-001"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Completar gap assessment técnico-jurídico RRSIF/VERI*FACTU antes de afirmar conformidad."
+    acceptance: "Checklist firmada por especialista y trazada a pruebas."
+    evidence: []
+    notes: []
+  - id: "FISC-002"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Separar factura operativa editable de documento fiscal inmutable."
+    acceptance: "La emisión crea snapshot; ediciones posteriores son imposibles."
+    evidence: []
+    notes: []
+  - id: "FISC-003"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Usar Decimal para bases, cuotas, descuentos, retenciones y total."
+    acceptance: "Golden tests de redondeo por línea/documento."
+    evidence: []
+    notes: []
+  - id: "FISC-004"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Reservar numeración en transacción y por empresa/serie/tipo."
+    acceptance: "Prueba concurrente sin duplicados ni huecos por carrera."
+    evidence: []
+    notes: []
+  - id: "FISC-005"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Crear registro de alta/anulación append-only y hash de contenido canónico."
+    acceptance: "Recalcular cadena produce mismo hash; manipulación se detecta."
+    evidence: []
+    notes: []
+  - id: "FISC-006"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Encadenar registros según modalidad y conservar huella anterior."
+    acceptance: "Cada alta/anulación referencia correctamente su precedente."
+    evidence: []
+    notes: []
+  - id: "FISC-007"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Modelar rectificativas por sustitución/diferencias y motivo."
+    acceptance: "Documento rectificativo enlaza originales y no los sobrescribe."
+    evidence: []
+    notes: []
+  - id: "FISC-008"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Modelar anulación sin borrar evidencia."
+    acceptance: "Anulación crea nuevo registro y conserva documento/artefactos."
+    evidence: []
+    notes: []
+  - id: "FISC-009"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Generar QR y leyenda conforme al modo activo."
+    acceptance: "Contenido QR validado con fixtures oficiales/especialista."
+    evidence: []
+    notes: []
+  - id: "FISC-010"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Crear adaptador de certificado/firma y almacenamiento seguro de material criptográfico."
+    acceptance: "Certificado nunca aparece en repo/log; rotación ensayada."
+    evidence: []
+    notes: []
+  - id: "FISC-011"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Crear adaptador VERI*FACTU y modo no verificable desacoplado."
+    acceptance: "Fake/sandbox y proveedor real comparten contrato."
+    evidence: []
+    notes: []
+  - id: "FISC-012"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Registrar estado, reintentos, acuse y error de cada transmisión."
+    acceptance: "Reintento idempotente no duplica registro remoto."
+    evidence: []
+    notes: []
+  - id: "FISC-013"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Implementar libro de eventos exigible para modalidad no verificable."
+    acceptance: "Eventos críticos son append-only y exportables."
+    evidence: []
+    notes: []
+  - id: "FISC-014"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Generar declaración responsable por producto y versión desplegada."
+    acceptance: "Documento incluye versión, hash de release y capacidades reales."
+    evidence: []
+    notes: []
+  - id: "FISC-015"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Conservar evidencia de versión de software que emitió cada registro."
+    acceptance: "Consulta fiscal recupera release, configuración y hash."
+    evidence: []
+    notes: []
+  - id: "FISC-016"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Crear exportación para inspección, conservación y portabilidad."
+    acceptance: "Paquete verificable incluye registros, hashes, artefactos y manifiesto."
+    evidence: []
+    notes: []
+  - id: "FISC-017"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Clasificar facturas legacy sin retrocertificarlas."
+    acceptance: "No se etiqueta como conforme ninguna factura histórica no emitida por el motor."
+    evidence: []
+    notes: []
+  - id: "FISC-018"
+    area: "FISC"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Bloquear emisión cuando falten datos fiscales o configuración legal."
+    acceptance: "No se consume número ni se crea alta ante validación fallida."
+    evidence: []
+    notes: []
+  - id: "EINV-001"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Crear modelo semántico canónico independiente del formato."
+    acceptance: "Mismo documento produce representaciones equivalentes."
+    evidence: []
+    notes: []
+  - id: "EINV-002"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Generar UBL 2.1/EN16931 cuando sea aplicable."
+    acceptance: "XML valida contra esquema y reglas de negocio seleccionadas."
+    evidence: []
+    notes: []
+  - id: "EINV-003"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Generar UN/CEFACT CII."
+    acceptance: "XML valida contra esquema y fixtures."
+    evidence: []
+    notes: []
+  - id: "EINV-004"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Generar Facturae y firma cuando proceda."
+    acceptance: "Esquema/firma pasan validador configurado."
+    evidence: []
+    notes: []
+  - id: "EINV-005"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Diseñar adaptador EDIFACT para escenarios requeridos."
+    acceptance: "Contrato y validación documentados; activación por capacidad."
+    evidence: []
+    notes: []
+  - id: "EINV-006"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Versionar esquemas, codelists y validadores."
+    acceptance: "Artefacto registra la versión exacta utilizada."
+    evidence: []
+    notes: []
+  - id: "EINV-007"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Crear adaptadores de entrega: descarga, email seguro, plataforma privada y solución pública futura."
+    acceptance: "Cada entrega registra destino, acuse y hash sin duplicados."
+    evidence: []
+    notes: []
+  - id: "EINV-008"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Modelar aceptación, rechazo, pago y fechas de estado."
+    acceptance: "Timeline de factura B2B completo y auditable."
+    evidence: []
+    notes: []
+  - id: "EINV-009"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Conservar artefactos y acuses bajo política de retención."
+    acceptance: "Restore reproduce documento y evidencia."
+    evidence: []
+    notes: []
+  - id: "EINV-010"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Mantener transmisión pública bloqueada hasta la orden ministerial y validación legal."
+    acceptance: "Flag off por defecto; readiness explica motivo."
+    evidence: []
+    notes: []
+  - id: "EINV-011"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "No mezclar factura B2B con billing SaaS de Stripe."
+    acceptance: "Dominios, numeración y datos separados."
+    evidence: []
+    notes: []
+  - id: "EINV-012"
+    area: "EINV"
+    phase: "F3"
+    status: "PENDING"
+    requirement: "Añadir pruebas de interoperabilidad con fixtures externos."
+    acceptance: "Suite golden detecta cambios de XML/hashes."
+    evidence: []
+    notes: []
+  - id: "PRIV-001"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear Registro de Actividades de Tratamiento mantenible y exportable."
+    acceptance: "RAT incluye finalidades, bases, datos, destinatarios, transferencias y plazos."
+    evidence: []
+    notes: []
+  - id: "PRIV-002"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Versionar DPA, términos, privacidad y cookies."
+    acceptance: "Cada aceptación referencia hash y versión."
+    evidence: []
+    notes: []
+  - id: "PRIV-003"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Mantener inventario de subencargados y cambios."
+    acceptance: "Listado público/contractual actualizado con fecha."
+    evidence: []
+    notes: []
+  - id: "PRIV-004"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Definir políticas de retención por categoría y empresa."
+    acceptance: "Job dry-run muestra candidatos antes de borrar/anonimizar."
+    evidence: []
+    notes: []
+  - id: "PRIV-005"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear centro de privacidad para acceso, rectificación, supresión, oposición, limitación y portabilidad."
+    acceptance: "Solicitud recibe SLA, estado, evidencias y cierre."
+    evidence: []
+    notes: []
+  - id: "PRIV-006"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Responder derechos dentro del plazo legal y controlar prórrogas."
+    acceptance: "Alertas antes de vencimiento; auditoría de comunicación."
+    evidence: []
+    notes: []
+  - id: "PRIV-007"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear exportación portable y minimizada por interesado/empresa."
+    acceptance: "Paquete no cruza tenants y excluye secretos."
+    evidence: []
+    notes: []
+  - id: "PRIV-008"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear borrado/anominización seguro con legal hold."
+    acceptance: "Dependencias se resuelven sin romper contabilidad/fiscalidad."
+    evidence: []
+    notes: []
+  - id: "PRIV-009"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Registrar consentimientos y retiradas cuando sean la base aplicable."
+    acceptance: "Historial demuestra momento, versión y canal."
+    evidence: []
+    notes: []
+  - id: "PRIV-010"
+    area: "PRIV"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Implantar CMP solo para categorías no esenciales realmente usadas."
+    acceptance: "Sin consentimiento no cargan analítica/marketing."
+    evidence: []
+    notes: []
+  - id: "PRIV-011"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Mantener registro de brechas, decisiones y notificaciones."
+    acceptance: "Simulacro produce timeline y responsables."
+    evidence: []
+    notes: []
+  - id: "PRIV-012"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Realizar análisis de riesgos y EIPD cuando proceda."
+    acceptance: "Documento de riesgo vincula medidas técnicas y residuales."
+    evidence: []
+    notes: []
+  - id: "PRIV-013"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Clasificar datos y documentos por sensibilidad."
+    acceptance: "Gateway IA, logs, soporte y exportaciones aplican la clasificación."
+    evidence: []
+    notes: []
+  - id: "PRIV-014"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Anonimizar datos demo y evitar datos personales en fixtures."
+    acceptance: "Scanner de fixtures no encuentra emails/teléfonos reales."
+    evidence: []
+    notes: []
+  - id: "PRIV-015"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Aplicar privacidad por defecto al producto y a la telemetría."
+    acceptance: "Eventos/logs pasan revisión de campos permitidos."
+    evidence: []
+    notes: []
+  - id: "PRIV-016"
+    area: "PRIV"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Sustituir textos legales genéricos por contenido parametrizado y revisable."
+    acceptance: "No quedan afirmaciones falsas sobre envíos, facturación o proveedores."
+    evidence: []
+    notes: []
+  - id: "PRIV-017"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Registrar base jurídica y finalidad en cada integración sensible."
+    acceptance: "Catálogo de tratamientos enlaza proveedor y datos enviados."
+    evidence: []
+    notes: []
+  - id: "PRIV-018"
+    area: "PRIV"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Definir proceso de cambio de subencargado y aviso."
+    acceptance: "Runbook y plantilla de comunicación disponibles."
+    evidence: []
+    notes: []
+  - id: "AI-001"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Interponer un gateway único entre producto y proveedores de IA."
+    acceptance: "Ningún módulo llama directamente a api.openai.com."
+    evidence: []
+    notes: []
+  - id: "AI-002"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Aplicar minimización y redacción antes de construir el payload."
+    acceptance: "Tests eliminan NIF, IBAN, teléfono, email, direcciones y secretos salvo necesidad autorizada."
+    evidence: []
+    notes: []
+  - id: "AI-003"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Forzar store:false en llamadas compatibles y documentar excepciones."
+    acceptance: "Payload auditado y prueba contractual."
+    evidence: []
+    notes: []
+  - id: "AI-004"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Permitir endpoint/región y controles ZDR/MAM por configuración."
+    acceptance: "Readiness identifica región y política sin exponer claves."
+    evidence: []
+    notes: []
+  - id: "AI-005"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Registrar proveedor, modelo, snapshot, prompt/schema version y finalidad."
+    acceptance: "Cada resultado es reproducible a nivel de contrato."
+    evidence: []
+    notes: []
+  - id: "AI-006"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Medir tokens, coste estimado, latencia, errores y escalados por empresa/usuario."
+    acceptance: "Panel de uso reconcilia con proveedor."
+    evidence: []
+    notes: []
+  - id: "AI-007"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Aplicar presupuestos y límites mensuales por empresa y usuario."
+    acceptance: "Límite alcanzado degrada con mensaje y no genera sobrecoste silencioso."
+    evidence: []
+    notes: []
+  - id: "AI-008"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Mantener dos carriles fast/reasoning con política explícita de escalado."
+    acceptance: "Tests de decisión y coste."
+    evidence: []
+    notes: []
+  - id: "AI-009"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Crear fallback determinista y modo degradado."
+    acceptance: "Funciones críticas siguen permitiendo entrada manual sin IA."
+    evidence: []
+    notes: []
+  - id: "AI-010"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Versionar prompts/esquemas y usar evals de regresión."
+    acceptance: "Cambio de prompt requiere suite con umbrales."
+    evidence: []
+    notes: []
+  - id: "AI-011"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Crear corpus sintético de ambigüedades sectoriales."
+    acceptance: "17H/importe, IVA, contacto/empresa, pago y rectificativa cubiertos."
+    evidence: []
+    notes: []
+  - id: "AI-012"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Mostrar transparencia de uso de IA y revisión humana."
+    acceptance: "UI distingue extracción, sugerencia y acción ejecutada."
+    evidence: []
+    notes: []
+  - id: "AI-013"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Mantener confirmación para acciones sensibles y canales externos."
+    acceptance: "Ningún envío/emisión/pago se ejecuta solo por respuesta del modelo."
+    evidence: []
+    notes: []
+  - id: "AI-014"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Restringir IA según rol, scope, campos y clasificación."
+    acceptance: "Portal limitado no puede inferir datos económicos ocultos."
+    evidence: []
+    notes: []
+  - id: "AI-015"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Definir retención y borrado de prompts/resultados."
+    acceptance: "Job y política documentados; logs sin contenido crudo."
+    evidence: []
+    notes: []
+  - id: "AI-016"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Incluir proveedor IA en DPA/subencargados y evaluación de transferencia."
+    acceptance: "Documentación legal y técnica coherente."
+    evidence: []
+    notes: []
+  - id: "AI-017"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Crear kill switch global y por empresa."
+    acceptance: "Desactivación no rompe flujos manuales."
+    evidence: []
+    notes: []
+  - id: "AI-018"
+    area: "AI"
+    phase: "F6"
+    status: "PENDING"
+    requirement: "Detectar y medir acciones rechazadas/corregidas."
+    acceptance: "Métrica de calidad y riesgo visible."
+    evidence: []
+    notes: []
+  - id: "COMM-001"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Conservar BillingProvider y añadir adaptador Stripe; proveedor local permanece para tests."
+    acceptance: "Suite contractual ejecutada contra ambos."
+    evidence: []
+    notes: []
+  - id: "COMM-002"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Separar Plan interno de Product/Price externo mediante mapping."
+    acceptance: "Ningún Price ID aparece hardcodeado en UI."
+    evidence: []
+    notes: []
+  - id: "COMM-003"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Crear Checkout Session autenticada e idempotente."
+    acceptance: "Reintento no crea dos customers/subscriptions."
+    evidence: []
+    notes: []
+  - id: "COMM-004"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Integrar Customer Portal para método de pago, facturas y cancelación."
+    acceptance: "Portal solo se crea para la empresa/OWNER autorizados."
+    evidence: []
+    notes: []
+  - id: "COMM-005"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Verificar firma y deduplicar webhooks Stripe."
+    acceptance: "Mismo event ID se procesa una vez."
+    evidence: []
+    notes: []
+  - id: "COMM-006"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Sincronizar estados TRIALING/ACTIVE/PAST_DUE/PAUSED/CANCELED/EXPIRED."
+    acceptance: "Matriz de eventos y pruebas de transición."
+    evidence: []
+    notes: []
+  - id: "COMM-007"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Definir política de gracia y acceso read-only ante impago."
+    acceptance: "Entitlements y mutaciones responden de forma consistente."
+    evidence: []
+    notes: []
+  - id: "COMM-008"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Gestionar trial, renovación, downgrade y cancel at period end."
+    acceptance: "Fechas locales y Stripe reconciliadas."
+    evidence: []
+    notes: []
+  - id: "COMM-009"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Activar dunning y comunicaciones de pago fallido."
+    acceptance: "Eventos generan email/tarea sin duplicados."
+    evidence: []
+    notes: []
+  - id: "COMM-010"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Aplicar entitlements y límites en servidor, no solo UI."
+    acceptance: "Pruebas negativas excediendo miembros/documentos/IA."
+    evidence: []
+    notes: []
+  - id: "COMM-011"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Registrar consumo idempotente por periodo."
+    acceptance: "Uso no se duplica al reintentar una acción."
+    evidence: []
+    notes: []
+  - id: "COMM-012"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Definir sobreuso como decisión comercial, no cargo oculto."
+    acceptance: "UI avisa y requiere plan/allowance configurado."
+    evidence: []
+    notes: []
+  - id: "COMM-013"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Recoger datos fiscales de suscripción separados de clientes finales."
+    acceptance: "Billing customer no contamina facturación operacional."
+    evidence: []
+    notes: []
+  - id: "COMM-014"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Proporcionar reconciliación diaria proveedor/base."
+    acceptance: "Job detecta divergencias y no corrige sin auditoría."
+    evidence: []
+    notes: []
+  - id: "COMM-015"
+    area: "COMM"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Incluir cancelación reason y export en métricas."
+    acceptance: "Razones visibles por cohorte."
+    evidence: []
+    notes: []
+  - id: "EMAIL-001"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Unificar lib/email/index.ts y outbox bajo una fachada de servicio."
+    acceptance: "Auth, invitaciones, billing, soporte y alertas usan la misma cola."
+    evidence: []
+    notes: []
+  - id: "EMAIL-002"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Guardar el evento en outbox dentro de la transacción de negocio."
+    acceptance: "No hay estado confirmado sin email pendiente cuando corresponde."
+    evidence: []
+    notes: []
+  - id: "EMAIL-003"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Procesar outbox con worker separado y locking SKIP LOCKED."
+    acceptance: "Dos workers no envían el mismo mensaje."
+    evidence: []
+    notes: []
+  - id: "EMAIL-004"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Versionar plantillas y variables permitidas."
+    acceptance: "Render falla antes de envío si falta variable."
+    evidence: []
+    notes: []
+  - id: "EMAIL-005"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Añadir adaptador Resend y local sink."
+    acceptance: "Contrato de provider y tests con destinatarios de prueba."
+    evidence: []
+    notes: []
+  - id: "EMAIL-006"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Verificar webhooks Resend con body crudo y firma."
+    acceptance: "Webhook inválido/replay se rechaza."
+    evidence: []
+    notes: []
+  - id: "EMAIL-007"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Persistir delivery, delay, bounce, complaint, failure y suppression."
+    acceptance: "Estado de outbox se actualiza idempotentemente."
+    evidence: []
+    notes: []
+  - id: "EMAIL-008"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Mantener lista de supresión y bloquear reenvíos indebidos."
+    acceptance: "Bounce/complaint posterior no vuelve a enviarse."
+    evidence: []
+    notes: []
+  - id: "EMAIL-009"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Aplicar reintentos, backoff, dead letter y replay administrativo."
+    acceptance: "Fallo temporal se recupera; fallo permanente se explica."
+    evidence: []
+    notes: []
+  - id: "EMAIL-010"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Preparar subdominio de envío, SPF, DKIM, DMARC y reply-to como configuración."
+    acceptance: "Solo faltan valores de dominio/correo del propietario."
+    evidence: []
+    notes: []
+  - id: "EMAIL-011"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "No persistir tokens de invitación en HTML/payload/auditoría."
+    acceptance: "Scanner y tests confirman ausencia."
+    evidence: []
+    notes: []
+  - id: "EMAIL-012"
+    area: "EMAIL"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Medir entrega sin activar tracking no necesario por defecto."
+    acceptance: "Privacidad y email config son coherentes."
+    evidence: []
+    notes: []
+  - id: "STOR-001"
+    area: "STOR"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Conservar DocumentStorage y seleccionar proveedor por entorno."
+    acceptance: "Local y S3/Railway Bucket pasan suite contractual."
+    evidence: []
+    notes: []
+  - id: "STOR-002"
+    area: "STOR"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Usar bucket privado y objetos aislados por empresa."
+    acceptance: "No hay URL pública permanente ni key cruzada."
+    evidence: []
+    notes: []
+  - id: "STOR-003"
+    area: "STOR"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Generar URLs firmadas de corta duración tras autorización."
+    acceptance: "Enlace expirado/otro tenant falla."
+    evidence: []
+    notes: []
+  - id: "STOR-004"
+    area: "STOR"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Guardar hash, tamaño, MIME, nombre seguro, provider y versión."
+    acceptance: "Descarga verifica integridad."
+    evidence: []
+    notes: []
+  - id: "STOR-005"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Añadir cuarentena y adaptador de escaneo antivirus."
+    acceptance: "Archivo bloqueado no se procesa ni sirve."
+    evidence: []
+    notes: []
+  - id: "STOR-006"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Aplicar retención, legal hold y borrado verificable."
+    acceptance: "Job dry-run y evidencia de eliminación."
+    evidence: []
+    notes: []
+  - id: "STOR-007"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Separar storage de previews, staging y producción."
+    acceptance: "Bucket/credenciales/namespace distintos."
+    evidence: []
+    notes: []
+  - id: "STOR-008"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Activar backups de volúmenes y PITR de PostgreSQL."
+    acceptance: "Políticas visibles y alertas por fallo."
+    evidence: []
+    notes: []
+  - id: "STOR-009"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Automatizar restore drill a servicio nuevo sin tocar origen."
+    acceptance: "RPO/RTO medidos y checksum verificado."
+    evidence: []
+    notes: []
+  - id: "STOR-010"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear export completo de empresa con manifest y hashes."
+    acceptance: "Paquete restaura referencias sin claves externas."
+    evidence: []
+    notes: []
+  - id: "STOR-011"
+    area: "STOR"
+    phase: "F4"
+    status: "PENDING"
+    requirement: "Sustituir URLs libres de logo/sello por uploads privados autorizados."
+    acceptance: "PDFs resuelven assets sin aceptar SSRF."
+    evidence: []
+    notes: []
+  - id: "STOR-012"
+    area: "STOR"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Impedir que previews compartan volumen o referencia DATABASE_URL."
+    acceptance: "Puerta de infraestructura documentada y automatizada."
+    evidence: []
+    notes: []
+  - id: "OBS-001"
+    area: "OBS"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Crear logger estructurado y PII-safe."
+    acceptance: "Lista allowlist; scanner de logs evita payloads/secretos."
+    evidence: []
+    notes: []
+  - id: "OBS-002"
+    area: "OBS"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Añadir instrumentación OpenTelemetry desacoplada del proveedor."
+    acceptance: "Trazas locales/no-op y exportador pasan smoke."
+    evidence: []
+    notes: []
+  - id: "OBS-003"
+    area: "OBS"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Crear instrumentation.ts e instrumentation-client.ts."
+    acceptance: "Arranque server/client registra release y entorno."
+    evidence: []
+    notes: []
+  - id: "OBS-004"
+    area: "OBS"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Propagar request ID, tenant, actor y job ID con límites de privacidad."
+    acceptance: "Búsqueda correlaciona una operación completa."
+    evidence: []
+    notes: []
+  - id: "OBS-005"
+    area: "OBS"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Crear /api/health/live, /ready y status interno detallado protegido."
+    acceptance: "Railway usa ready; público no expone secretos."
+    evidence: []
+    notes: []
+  - id: "OBS-006"
+    area: "OBS"
+    phase: "F2"
+    status: "PENDING"
+    requirement: "Registrar release SHA, migration head y deployment metadata."
+    acceptance: "Diagnóstico identifica versión exacta."
+    evidence: []
+    notes: []
+  - id: "OBS-007"
+    area: "OBS"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Medir errores, latencia, tasa de jobs, colas, DB y proveedores."
+    acceptance: "Dashboard y alertas con umbrales."
+    evidence: []
+    notes: []
+  - id: "OBS-008"
+    area: "OBS"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Monitorizar cron/worker y dead letters."
+    acceptance: "Heartbeat vencido genera incidente."
+    evidence: []
+    notes: []
+  - id: "OBS-009"
+    area: "OBS"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear synthetic smoke contra rutas públicas/auth y acciones críticas no destructivas."
+    acceptance: "Ejecución programada con historial."
+    evidence: []
+    notes: []
+  - id: "OBS-010"
+    area: "OBS"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Añadir error tracking configurable sin enviar PII."
+    acceptance: "Evento de prueba aparece con datos redacted."
+    evidence: []
+    notes: []
+  - id: "OBS-011"
+    area: "OBS"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Definir SLO/SLA internos y severidades."
+    acceptance: "Runbook vincula alerta, responsable y comunicación."
+    evidence: []
+    notes: []
+  - id: "OBS-012"
+    area: "OBS"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Crear registro de incidentes y postmortems."
+    acceptance: "Incidente de simulación cerrado con acciones."
+    evidence: []
+    notes: []
+  - id: "OBS-013"
+    area: "OBS"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir Core Web Vitals y accesibilidad en páginas clave."
+    acceptance: "Gates comparan con presupuesto de rendimiento."
+    evidence: []
+    notes: []
+  - id: "OBS-014"
+    area: "OBS"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Generar informe de readiness reproducible."
+    acceptance: "Un comando produce evidencia versionada."
+    evidence: []
+    notes: []
+  - id: "CI-001"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Añadir GitHub Actions para pull_request y push protegido."
+    acceptance: "Workflow verde desde clon limpio."
+    evidence: []
+    notes: []
+  - id: "CI-002"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Usar Node compatible, npm ci y caché controlada."
+    acceptance: "Lockfile obligatorio y reproducible."
+    evidence: []
+    notes: []
+  - id: "CI-003"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Levantar PostgreSQL aislado y aplicar todas las migraciones."
+    acceptance: "Schema desde cero y upgrade fixture pasan."
+    evidence: []
+    notes: []
+  - id: "CI-004"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Ejecutar prisma validate/generate, typecheck y build."
+    acceptance: "Cualquier fallo bloquea PR."
+    evidence: []
+    notes: []
+  - id: "CI-005"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Ejecutar suites críticas de auth, tenant, permisos, numeración, fiscal, billing, email y storage."
+    acceptance: "Resumen por gate, no solo total global."
+    evidence: []
+    notes: []
+  - id: "CI-006"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Adoptar Vitest para unidad y Playwright Test para E2E sin eliminar suites existentes."
+    acceptance: "Tests nuevos reportan JUnit/artefactos."
+    evidence: []
+    notes: []
+  - id: "CI-007"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Añadir a11y, rutas, noindex/sitemap y CSP checks."
+    acceptance: "Cero critical/serious y políticas coherentes."
+    evidence: []
+    notes: []
+  - id: "CI-008"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Añadir npm audit/audit-ci, SBOM CycloneDX y licencias."
+    acceptance: "Umbral y excepciones documentadas."
+    evidence: []
+    notes: []
+  - id: "CI-009"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Añadir gitleaks/secret scan y CodeQL."
+    acceptance: "Hallazgo bloqueante falla workflow."
+    evidence: []
+    notes: []
+  - id: "CI-010"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Crear golden tests fiscales/XML/PDF y hashes."
+    acceptance: "Cambio intencional requiere actualización revisada."
+    evidence: []
+    notes: []
+  - id: "CI-011"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Crear workflow de preview/fallback Railway sin secretos productivos."
+    acceptance: "PR env se crea y elimina de forma verificable."
+    evidence: []
+    notes: []
+  - id: "CI-012"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Crear workflow de release con gates manuales por entorno."
+    acceptance: "Production requiere aprobación y SHA inmutable."
+    evidence: []
+    notes: []
+  - id: "CI-013"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Pinnear acciones por SHA y permisos mínimos."
+    acceptance: "Workflow no usa write-all."
+    evidence: []
+    notes: []
+  - id: "CI-014"
+    area: "CI"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Subir artefactos de pruebas, logs sanitizados, SBOM y manifest de release."
+    acceptance: "Data room puede reproducir una RC."
+    evidence: []
+    notes: []
+  - id: "UX-001"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Crear onboarding guiado por objetivo, empresa y oficio."
+    acceptance: "Usuario llega a primer valor sin depender de soporte."
+    evidence: []
+    notes: []
+  - id: "UX-002"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Mostrar checklist de activación: empresa, cliente, presupuesto y documento."
+    acceptance: "Evento de activación medido en siete días."
+    evidence: []
+    notes: []
+  - id: "UX-003"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Ofrecer importación segura de clientes/documentos con preview y rollback."
+    acceptance: "Errores por fila y sin duplicados."
+    evidence: []
+    notes: []
+  - id: "UX-004"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Convertir plan/uso en panel real de consumo, límites, checkout y portal."
+    acceptance: "No queda botón de simulación en producción."
+    evidence: []
+    notes: []
+  - id: "UX-005"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Crear centro de privacidad y preferencias IA/email."
+    acceptance: "Usuario gestiona derechos y opt-ins."
+    evidence: []
+    notes: []
+  - id: "UX-006"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Crear soporte autenticado con contexto mínimo y adjuntos seguros."
+    acceptance: "Ticket incluye ruta/release sin secretos."
+    evidence: []
+    notes: []
+  - id: "UX-007"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Refactorizar acciones de dinero y documentos para usar servicios de dominio."
+    acceptance: "No quedan writes fiscales directos en UI."
+    evidence: []
+    notes: []
+  - id: "UX-008"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Mejorar PDFs con assets reales, Unicode, plantillas versionadas y snapshot."
+    acceptance: "PDF multipágina y branding pasan golden test."
+    evidence: []
+    notes: []
+  - id: "UX-009"
+    area: "UX"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Integrar Marketing V2 solo después de preview aislada y revisión."
+    acceptance: "PR #24 validada; route manifest actualizado una vez."
+    evidence: []
+    notes: []
+  - id: "UX-010"
+    area: "UX"
+    phase: "F9"
+    status: "PENDING"
+    requirement: "Reducir mensaje público a flujo lead-visita-presupuesto-trabajo-gasto-factura-cobro."
+    acceptance: "Demo de 15 minutos cubre historia completa."
+    evidence: []
+    notes: []
+  - id: "UX-011"
+    area: "UX"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Mantener accesibilidad WCAG en públicos y app."
+    acceptance: "Axe y revisión teclado/reduced motion."
+    evidence: []
+    notes: []
+  - id: "UX-012"
+    area: "UX"
+    phase: "F7"
+    status: "PENDING"
+    requirement: "Mantener modo manual completo cuando IA/integraciones están desactivadas."
+    acceptance: "Todas las entidades críticas son editables sin IA."
+    evidence: []
+    notes: []
+  - id: "MET-001"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Capturar eventos first-party con allowlist y minimización."
+    acceptance: "Schema de evento rechaza propiedades no aprobadas."
+    evidence: []
+    notes: []
+  - id: "MET-002"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir activación: empresa, cliente, presupuesto y documento en siete días."
+    acceptance: "Funnel por cohorte."
+    evidence: []
+    notes: []
+  - id: "MET-003"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir WAU de usuarios y empresas."
+    acceptance: "Definición estable y documentada."
+    evidence: []
+    notes: []
+  - id: "MET-004"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir retención M1/M2/M3 y motivos de abandono."
+    acceptance: "Cohortes y cancelación vinculadas."
+    evidence: []
+    notes: []
+  - id: "MET-005"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir MRR, ARPA y expansión/contracción desde billing reconciliado."
+    acceptance: "No se infiere MRR de estados locales simulados."
+    evidence: []
+    notes: []
+  - id: "MET-006"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir coste de infraestructura, IA, almacenamiento, email y soporte."
+    acceptance: "Unit economics por plan/empresa."
+    evidence: []
+    notes: []
+  - id: "MET-007"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Calcular margen bruto y coste de servir."
+    acceptance: "Panel con metodología y fecha."
+    evidence: []
+    notes: []
+  - id: "MET-008"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir conversión de presupuesto, plazo de cobro y deuda recuperada."
+    acceptance: "Valor ligado a datos operativos."
+    evidence: []
+    notes: []
+  - id: "MET-009"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir tiempo ahorrado y acciones IA aceptadas/corregidas."
+    acceptance: "Encuesta/eventos con metodología."
+    evidence: []
+    notes: []
+  - id: "MET-010"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Crear cohortes de piloto y feedback estructurado."
+    acceptance: "Cada piloto tiene objetivo, frecuencia y resultado."
+    evidence: []
+    notes: []
+  - id: "MET-011"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Crear panel PLATFORM_OWNER de salud comercial y técnica."
+    acceptance: "Datos agregados; sin lectura de contenido tenant."
+    evidence: []
+    notes: []
+  - id: "MET-012"
+    area: "MET"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Definir experimentos y decisiones de producto."
+    acceptance: "Cada cambio de onboarding/precio tiene hipótesis y métrica."
+    evidence: []
+    notes: []
+  - id: "SUP-001"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Definir programa de 5-10 pilotos, al menos 5 de pago."
+    acceptance: "Cohorte, contrato/consentimiento y criterios de éxito."
+    evidence: []
+    notes: []
+  - id: "SUP-002"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Estandarizar onboarding y sesión inicial."
+    acceptance: "Checklist y tiempos registrados."
+    evidence: []
+    notes: []
+  - id: "SUP-003"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Crear ticketing con prioridad, SLA interno y estados."
+    acceptance: "Incidencias no quedan en email informal."
+    evidence: []
+    notes: []
+  - id: "SUP-004"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Crear base de conocimiento y troubleshooting."
+    acceptance: "Top incidencias resueltas sin intervención."
+    evidence: []
+    notes: []
+  - id: "SUP-005"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Medir horas de soporte por cuenta."
+    acceptance: "Coste integrado en unit economics."
+    evidence: []
+    notes: []
+  - id: "SUP-006"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Recoger feedback y NPS/CSAT de forma proporcionada."
+    acceptance: "Consentimiento y no spam."
+    evidence: []
+    notes: []
+  - id: "SUP-007"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Registrar razones de cancelación/churn."
+    acceptance: "Taxonomía y campo libre redacted."
+    evidence: []
+    notes: []
+  - id: "SUP-008"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Gestionar testimonios/casos con consentimiento."
+    acceptance: "Permiso, alcance y retirada registrados."
+    evidence: []
+    notes: []
+  - id: "SUP-009"
+    area: "SUP"
+    phase: "F5"
+    status: "PENDING"
+    requirement: "Definir incidentes Sev1-Sev4 y comunicación."
+    acceptance: "Plantillas y responsables listos."
+    evidence: []
+    notes: []
+  - id: "SUP-010"
+    area: "SUP"
+    phase: "F8"
+    status: "PENDING"
+    requirement: "Crear handoff comercial-soporte-producto."
+    acceptance: "No se pierde contexto y se respeta minimización."
+    evidence: []
+    notes: []
+  - id: "MOB-001"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Definir oficialmente el wrapper móvil como cliente del backend web."
+    acceptance: "Documentación/store listing coherentes."
+    evidence: []
+    notes: []
+  - id: "MOB-002"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Separar configuraciones development/staging/release."
+    acceptance: "Build no puede apuntar a localhost en release."
+    evidence: []
+    notes: []
+  - id: "MOB-003"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Configurar universal/app links y retorno de auth."
+    acceptance: "Deep link validado en Android/iOS."
+    evidence: []
+    notes: []
+  - id: "MOB-004"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Revisar cookies, sesiones y almacenamiento seguro en WebView."
+    acceptance: "Login/logout/rotación pasan E2E dispositivo."
+    evidence: []
+    notes: []
+  - id: "MOB-005"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Gestionar PDFs, descargas, uploads y permisos mínimos."
+    acceptance: "Flujos funcionan sin permisos innecesarios."
+    evidence: []
+    notes: []
+  - id: "MOB-006"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Añadir crash reporting y release mapping configurable."
+    acceptance: "Crash sintético llega sin PII."
+    evidence: []
+    notes: []
+  - id: "MOB-007"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Completar privacy labels/data safety desde el RAT real."
+    acceptance: "Metadatos de tienda coinciden con producto."
+    evidence: []
+    notes: []
+  - id: "MOB-008"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Preparar firma y rotación de keystore/certificados fuera del repo."
+    acceptance: "Runbook y backup seguro."
+    evidence: []
+    notes: []
+  - id: "MOB-009"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "Automatizar build AAB/Archive con gates."
+    acceptance: "Artefactos versionados y reproducibles."
+    evidence: []
+    notes: []
+  - id: "MOB-010"
+    area: "MOB"
+    phase: "F10"
+    status: "PENDING"
+    requirement: "No afirmar publicación hasta revisión efectiva de tiendas."
+    acceptance: "Estado y limitaciones visibles."
+    evidence: []
+    notes: []
+  - id: "DATA-001"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Crear data room con estructura de producto, tecnología, seguridad, pruebas, IP, legal, comercial y transición."
+    acceptance: "Índice y manifest con fechas/hashes."
+    evidence: []
+    notes: []
+  - id: "DATA-002"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Documentar arquitectura, ERD, data dictionary y flujos críticos."
+    acceptance: "Un nuevo equipo puede orientarse sin fundador."
+    evidence: []
+    notes: []
+  - id: "DATA-003"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Documentar despliegue, rollback, backups, restore y disaster recovery."
+    acceptance: "Simulacro y capturas/evidencia."
+    evidence: []
+    notes: []
+  - id: "DATA-004"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Publicar catálogo de comandos y suites reproducibles."
+    acceptance: "Clon limpio alcanza resultado documentado."
+    evidence: []
+    notes: []
+  - id: "DATA-005"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Mantener known issues, deuda técnica y limitaciones honestas."
+    acceptance: "No quedan promesas contradictorias con código."
+    evidence: []
+    notes: []
+  - id: "DATA-006"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Documentar matriz de dependencias/licencias/SBOM."
+    acceptance: "Revisión legal técnica completada."
+    evidence: []
+    notes: []
+  - id: "DATA-007"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Acreditar titularidad de código, diseños, datos demo y assets."
+    acceptance: "Cesiones/manifest en carpeta privada."
+    evidence: []
+    notes: []
+  - id: "DATA-008"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Definir paquete de transición y horas incluidas."
+    acceptance: "Runbook de handover y criterios de aceptación."
+    evidence: []
+    notes: []
+  - id: "DATA-009"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Crear ADRs y registro de decisiones."
+    acceptance: "Historia técnica no depende de memoria."
+    evidence: []
+    notes: []
+  - id: "DATA-010"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Definir support matrix de versiones y proveedores."
+    acceptance: "Compatibilidad y EOL conocidas."
+    evidence: []
+    notes: []
+  - id: "DATA-011"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Mantener manifest de release con SHA, migraciones, artefactos y checksums."
+    acceptance: "Cada RC es auditable."
+    evidence: []
+    notes: []
+  - id: "DATA-012"
+    area: "DATA"
+    phase: "F11"
+    status: "PENDING"
+    requirement: "Separar data room privado de documentación pública del repo."
+    acceptance: "No se exponen secretos, contratos o datos personales."
+    evidence: []
+    notes: []
