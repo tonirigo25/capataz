@@ -318,7 +318,17 @@ try {
       await capture.action(page);
       await page.waitForTimeout(180);
     }
-    await assertUsable(page, capture.route, errors);
+    if (capture.name === "login-beta") {
+      if (await page.getByText("Crear cuenta", { exact: true }).count()) throw new Error("PUBLIC_REGISTRATION_VISIBLE");
+      if (await page.getByText("Solicitar acceso", { exact: true }).count() !== 1) throw new Error("ACCESS_REQUEST_MISSING");
+    }
+    if (capture.name === "favicon") {
+      const contentType = await page.evaluate(() => document.contentType);
+      if (contentType !== "image/svg+xml") throw new Error(`FAVICON_CONTENT_TYPE:${contentType}`);
+      if (errors.length) throw new Error(JSON.stringify({ route: capture.route, errors }));
+    } else {
+      await assertUsable(page, capture.route, errors);
+    }
     const file = join(screenshotsDir, `${String(index + 1).padStart(2, "0")}-${capture.name}.png`);
     const target = capture.selector ? page.locator(capture.selector) : page;
     if (capture.selector) await target.scrollIntoViewIfNeeded();
