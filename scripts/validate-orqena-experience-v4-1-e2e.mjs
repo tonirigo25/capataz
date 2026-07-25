@@ -57,6 +57,10 @@ function captureErrors(page, errors) {
 
 async function goto(page, path, expectedStatus = 200) {
   const response = await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  if ((response?.status() ?? 0) !== expectedStatus) {
+    throw new Error(`UNEXPECTED_STATUS:${path}:${response?.status()}:${expectedStatus}`);
+  }
+  if (response?.headers()["content-type"]?.startsWith("image/")) return response;
   await page.waitForTimeout(500);
   await page.waitForFunction(() => {
     const loading = document.querySelectorAll("[aria-busy='true'], [data-skeleton], .animate-pulse");
@@ -64,9 +68,6 @@ async function goto(page, path, expectedStatus = 200) {
   }, undefined, { timeout: 15_000 }).catch(() => {
     throw new Error(`SKELETON_OR_LOADING_STATE:${path}`);
   });
-  if ((response?.status() ?? 0) !== expectedStatus) {
-    throw new Error(`UNEXPECTED_STATUS:${path}:${response?.status()}:${expectedStatus}`);
-  }
   return response;
 }
 
@@ -338,8 +339,14 @@ try {
       const contentType = await page.evaluate(() => document.contentType);
       if (contentType !== "image/svg+xml") throw new Error(`FAVICON_CONTENT_TYPE:${contentType}`);
       if (errors.length) throw new Error(JSON.stringify({ route: capture.route, errors }));
+      await page.goto("about:blank");
+      await page.setContent(`<!doctype html><html lang="es"><head><title>Favicon Orqena</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f8f5ed;color:#13231f;font-family:system-ui"><main style="display:grid;justify-items:center;gap:24px"><h1 style="margin:0;font-size:32px">Favicon Orqena</h1><img src="${baseUrl}${capture.route}" width="192" height="192" alt="Símbolo Orqena"></main></body></html>`);
+      await page.locator("img").waitFor({ state: "visible" });
     } else {
-      await assertUsable(page, capture.route, errors);
+      const usableErrors = capture.status === 404
+        ? errors.filter((error) => !error.includes("responded with a status of 404"))
+        : errors;
+      await assertUsable(page, capture.route, usableErrors);
     }
     const file = join(screenshotsDir, `${String(index + 1).padStart(2, "0")}-${capture.name}.png`);
     const target = capture.selector ? page.locator(capture.selector) : page;
