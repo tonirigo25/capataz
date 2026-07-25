@@ -9,7 +9,14 @@ type ControlState = "idle" | "editing" | "cancelled" | "confirmed";
 const stateMessages: Record<Exclude<ControlState, "idle">, string> = {
   editing: "Edición local abierta. Revisa los datos claros y dudosos antes de decidir.",
   cancelled: "Demostración cancelada. No se ha guardado ni enviado ningún dato.",
-  confirmed: "Demostración local. No se ha guardado ni enviado ningún dato.",
+  confirmed: "Confirmación simulada. La demostración no ha guardado ni enviado ningún dato.",
+};
+
+const stateLabels: Record<ControlState, string> = {
+  idle: "Esperando tu decisión",
+  editing: "Edición local abierta",
+  cancelled: "Demostración cancelada",
+  confirmed: "Confirmación simulada",
 };
 
 export function HumanControlDemo() {
@@ -20,9 +27,7 @@ export function HumanControlDemo() {
       <div className={styles.controlSummary}>
         <div className={styles.controlSummaryTop}>
           <span>Confirmación antes de actuar</span>
-          <strong data-state={state}>
-            {state === "idle" ? "Esperando tu decisión" : stateMessages[state].split(".")[0]}
-          </strong>
+          <strong data-state={state}>{stateLabels[state]}</strong>
         </div>
 
         <div className={styles.controlAction}>

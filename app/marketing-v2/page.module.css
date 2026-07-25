@@ -37,6 +37,32 @@
   outline-offset: 3px;
 }
 
+.skipLink {
+  position: fixed;
+  inset: 0.75rem auto auto 0.75rem;
+  z-index: 60;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--capataz-ink);
+  border-radius: 0.5rem;
+  background: var(--capataz-accent);
+  color: var(--capataz-ink);
+  font-weight: 800;
+  padding: 0.65rem 0.9rem;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 1rem));
+  transition: transform 160ms ease;
+}
+
+.skipLink:focus-visible {
+  transform: translateY(0);
+}
+
+.mainContent {
+  scroll-margin-top: 5.25rem;
+}
+
 .header {
   position: fixed;
   inset: 0 0 auto;
@@ -2600,6 +2626,35 @@
 @media (min-width: 68.001rem) {
   .mobileNav {
     display: none;
+  }
+}
+
+@media (min-width: 60rem) and (max-width: 68rem) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(28rem, 1fr);
+    align-items: center;
+    gap: 2rem;
+    padding: 3.25rem 0;
+  }
+
+  .heroCopy h1 {
+    max-width: 11ch;
+    font-size: clamp(3.25rem, 5.7vw, 4.25rem);
+  }
+
+  .heroSubtitle {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .heroActions {
+    margin-top: 1.5rem;
+  }
+
+  .primaryAction,
+  .secondaryAction {
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
   }
 }
 

@@ -23,8 +23,11 @@ export const metadata: Metadata = {
 export default function CapatazMarketingPreviewPage() {
   return (
     <div className={styles.page} id="top">
+      <a className={styles.skipLink} href="#main-content">
+        Saltar al contenido
+      </a>
       <MarketingHeader />
-      <main>
+      <main id="main-content" className={styles.mainContent} tabIndex={-1}>
         <HeroDemo />
         <LandingSections />
       </main>
