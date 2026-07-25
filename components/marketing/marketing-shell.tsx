@@ -21,7 +21,7 @@ export function MarketingHeader() {
         <Link href="/" aria-label={`${brand.productName}, inicio`}>
           <BrandLockup />
         </Link>
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="Navegación principal">
           {navigation.map(([label, href]) => <Link key={`${label}-${href}`} className="marketing-nav-link" href={href}>{label}</Link>)}
           <Link className="marketing-nav-link" href="/contacto">Contacto</Link>
         </nav>
@@ -31,7 +31,7 @@ export function MarketingHeader() {
           <Link href="/demo" className="marketing-button marketing-button--small">
             <span className="marketing-demo-long">Solicitar </span>demo <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
-          <details className="relative lg:hidden">
+          <details className="relative xl:hidden">
             <summary className="marketing-menu-button" aria-label="Abrir navegación"><Menu size={20} /><X className="hidden" size={20} /></summary>
             <nav className="marketing-mobile-menu" aria-label="Navegación móvil">
               {navigation.map(([label, href]) => <Link key={`${label}-${href}`} href={href}>{label}</Link>)}

@@ -103,6 +103,8 @@ for (const file of visibleFiles) {
   const content = text(file);
   check(!/>\s*Capataz\s*</i.test(content), `Referencia visible a la marca anterior en ${file}`);
 }
+const marketingShell = text("components/marketing/marketing-shell.tsx");
+check(marketingShell.includes('className="hidden items-center gap-1 xl:flex"') && marketingShell.includes('className="relative xl:hidden"'), "El header público debe conservar el menú compacto a 1024 px");
 
 check(text("components/workspaces.tsx").includes("function ListWorkspace"), "Falta ListWorkspace");
 check(text("components/workspaces.tsx").includes("function RecordWorkspace"), "Falta RecordWorkspace");
