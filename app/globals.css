@@ -621,7 +621,7 @@ button:disabled,
 .brand-candidate__grounds .is-light { background: #fffdf8; color: #087a68; }
 .brand-candidate__grounds .is-dark { background: #0d1718; color: #71e0c5; }
 .brand-candidate__grounds .is-mono { background: #e6e4de; color: #13231f; }
-@media (min-width: 900px) { .brand-candidates__grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1180px) { .brand-candidates__grid { grid-template-columns: repeat(3, 1fr); } }
 
 .card,
 .surface,
