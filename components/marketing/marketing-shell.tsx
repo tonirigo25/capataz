@@ -70,6 +70,7 @@ export function MarketingPage({ children }: { children: ReactNode }) {
   return <div className="marketing-page"><MarketingHeader /><main>{children}</main><MarketingFooter /></div>;
 }
 
-export function SectionIntro({ eyebrow, title, description, centered = false }: { eyebrow?: string; title: string; description?: string; centered?: boolean }) {
-  return <div className={centered ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}>{eyebrow ? <p className="marketing-eyebrow">{eyebrow}</p> : null}<h1 className="marketing-display mt-4">{title}</h1>{description ? <p className="marketing-lede mt-5">{description}</p> : null}</div>;
+export function SectionIntro({ eyebrow, title, description, centered = false, level = 1 }: { eyebrow?: string; title: string; description?: string; centered?: boolean; level?: 1 | 2 }) {
+  const Heading = level === 1 ? "h1" : "h2";
+  return <div className={centered ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}>{eyebrow ? <p className="marketing-eyebrow">{eyebrow}</p> : null}<Heading className="marketing-display mt-4">{title}</Heading>{description ? <p className="marketing-lede mt-5">{description}</p> : null}</div>;
 }
