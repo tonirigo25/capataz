@@ -6,9 +6,9 @@ import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Seguridad",
-  description: "Conoce cómo Orqena aplica contexto de empresa, portales, scopes, confirmación humana y auditoría.",
+  description: `Conoce cómo ${brand.productName} aplica contexto de empresa, portales, scopes, confirmación humana y auditoría.`,
   alternates: { canonical: "/seguridad" },
-  openGraph: { title: "Seguridad y control en Orqena", description: "Acceso y decisiones explicados en la propia experiencia.", images: [brand.socialImage] },
+  openGraph: { title: `Seguridad y control en ${brand.productName}`, description: "Acceso y decisiones explicados en la propia experiencia.", images: [brand.socialImage] },
 };
 
 const safeguards = [
@@ -25,7 +25,7 @@ export default function SecurityPage() {
     <MarketingPage>
       <section className="security-hero">
         <div className="marketing-container">
-          <div><p className="marketing-eyebrow">Seguridad comprensible</p><h1>Acceso claro. Control en cada acción.</h1><p>Orqena combina contexto, responsabilidad, alcance y capacidad antes de mostrar o ejecutar una acción.</p><Link href="/demo" className="marketing-button">Explorar con datos sintéticos <ArrowRight size={18} /></Link></div>
+          <div><p className="marketing-eyebrow">Seguridad comprensible</p><h1>Acceso claro. Control en cada acción.</h1><p>{brand.productName} combina contexto, responsabilidad, alcance y capacidad antes de mostrar o ejecutar una acción.</p><Link href="/demo" className="marketing-button">Explorar con datos sintéticos <ArrowRight size={18} /></Link></div>
           <div className="security-diagram" role="img" aria-label="Diagrama de comprobación de acceso">
             {["Persona", "Empresa", "Portal", "Alcance", "Capacidad"].map((step, index) => <span key={step} className={index < 4 ? "is-complete" : "is-decision"}><i>{index + 1}</i><strong>{step}</strong><small>{index === 4 ? "Permitir o explicar" : "Comprobado"}</small></span>)}
           </div>
@@ -39,7 +39,7 @@ export default function SecurityPage() {
 
       <section className="security-example">
         <div className="marketing-container">
-          <div><p className="marketing-eyebrow">Ejemplo de producto</p><h2 className="marketing-title">Una propuesta de Orqena sigue siendo una propuesta.</h2><p>Fuentes, cambio previsto y alcance permanecen visibles antes de confirmar o cancelar.</p></div>
+          <div><p className="marketing-eyebrow">Ejemplo de producto</p><h2 className="marketing-title">Una propuesta de {brand.productName} sigue siendo una propuesta.</h2><p>Fuentes, cambio previsto y alcance permanecen visibles antes de confirmar o cancelar.</p></div>
           <article><small>Acción preparada</small><h3>Actualizar el siguiente paso del cliente</h3><dl><div><dt>Empresa</dt><dd>Contexto activo</dd></div><div><dt>Registro</dt><dd>Cliente autorizado</dd></div><div><dt>Cambio</dt><dd>Editable</dd></div></dl><div><button type="button">Cancelar</button><button type="button">Confirmar</button></div></article>
         </div>
       </section>

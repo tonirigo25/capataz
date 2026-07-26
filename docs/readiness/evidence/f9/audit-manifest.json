@@ -1,0 +1,52 @@
+{
+  "phase": "F9",
+  "verdict": "PASS",
+  "branch": "feat/readiness-f9-public-brand",
+  "baseBranch": "program/orqena-production-readiness",
+  "baseCommit": "9be9838afec3c0db1495e8aa80db087dc6e8f7e6",
+  "marketingV2": {
+    "acceptedPullRequest": 24,
+    "acceptedSourceSha": "ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4",
+    "integrationMergeCommit": "b5e063b5b5bb8efcfd04da3723e068747f679e2b",
+    "sourceIsExplicitMergeParent": true,
+    "routesIntegratedOnce": true,
+    "rollbackAliasesPreservedNoindex": ["/marketing-v2", "/demo-v2"]
+  },
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "externalProvidersCalled": false,
+    "externalCalls": 0,
+    "realCustomerDataUsed": false,
+    "publicIndexingEnabled": false,
+    "publicPricingEnabled": false,
+    "analyticsDefaultEnabled": false,
+    "secretsCreated": false,
+    "secretsExposed": false
+  },
+  "requirements": {
+    "total": 8,
+    "pass": 8,
+    "readyForExternalInput": 0,
+    "pending": 0,
+    "blocked": 0,
+    "waived": 0
+  },
+  "validation": {
+    "f9Pure": "61/61 PASS",
+    "publicIndexingTransition": "PASS",
+    "f9Browser": "18/18 route-viewport combinations PASS",
+    "browserDetails": "HTTP 200; zero horizontal overflow, broken images, critical/serious axe findings, console errors, valid request failures and external requests",
+    "consent": "zero analytics requests before choice and after reject; local accept/withdraw controls PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS; 77 pages generated",
+    "dependencyAudit": "PASS; zero known production vulnerabilities",
+    "secretScan": "PASS; 901 files; zero findings"
+  },
+  "releaseContainment": {
+    "legalDocuments": "versioned parameterized drafts marked REVIEW_REQUIRED",
+    "brandDomainClearance": "READY_FOR_EXTERNAL_INPUT under GOV-005/F11",
+    "indexing": "PUBLIC_INDEXING_ENABLED remains false until GOV-005/F11 closes",
+    "pricing": "requires explicit approval, versioned catalog and external mappings"
+  }
+}

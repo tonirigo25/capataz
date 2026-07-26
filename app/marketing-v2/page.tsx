@@ -3,10 +3,11 @@ import { HeroDemo } from "./_components/hero-demo";
 import { LandingSections, MarketingFooter } from "./_components/landing-sections";
 import { MarketingHeader } from "./_components/marketing-header";
 import styles from "./page.module.css";
+import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: { absolute: "Capataz — Vista previa" },
-  description: "Vista previa aislada de la nueva web comercial de Capataz.",
+  title: { absolute: `${brand.productName} — Vista previa preservada` },
+  description: `Ruta de reversión no indexable de la web comercial de ${brand.productName}.`,
   alternates: { canonical: null },
   robots: {
     index: false,
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CapatazMarketingPreviewPage() {
+export default function MarketingPreviewPage() {
   return (
     <div className={styles.page} id="top">
       <a className={styles.skipLink} href="#main-content">

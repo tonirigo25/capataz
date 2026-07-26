@@ -29,6 +29,8 @@ import {
   type ScenarioId,
 } from "./scenarios";
 import styles from "../page.module.css";
+import { brand } from "@/lib/brand";
+import { journeyStages } from "@/app/marketing-v2/_components/landing-data";
 
 const scenarioIcons = {
   presupuesto: FilePenLine,
@@ -125,14 +127,14 @@ export function GuidedDemo() {
 
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link className={styles.wordmark} href="/marketing-v2" aria-label="Capataz, volver a la portada">
-            Capataz
+          <Link className={styles.wordmark} href="/" aria-label={`${brand.productName}, volver a la portada`}>
+            {brand.wordmark}
           </Link>
           <span className={styles.localBadge}>
             <LockKeyhole aria-hidden="true" />
             Demo guiada · local
           </span>
-          <Link className={styles.backLink} href="/marketing-v2" aria-label="Volver a la portada">
+          <Link className={styles.backLink} href="/" aria-label="Volver a la portada">
             <ArrowLeft aria-hidden="true" />
             <span>Volver a la portada</span>
           </Link>
@@ -142,10 +144,10 @@ export function GuidedDemo() {
       <main id="guided-demo" className={styles.main} tabIndex={-1}>
         <section className={styles.intro} aria-labelledby="demo-v2-title">
           <div>
-            <p className={styles.eyebrow}>Demostración guiada · menos de un minuto</p>
-            <h1 id="demo-v2-title">Prueba cómo trabaja Capataz.</h1>
+            <p className={styles.eyebrow}>Demostración guiada · recorrido de 15 minutos</p>
+            <h1 id="demo-v2-title">Prueba cómo trabaja {brand.productName}.</h1>
             <p className={styles.introText}>
-              Elige una situación real. Capataz interpretará la información,
+              Elige una situación sintética. {brand.productName} interpretará la información,
               preparará una acción y te enseñará qué ocurriría antes de confirmar.
             </p>
           </div>
@@ -156,6 +158,22 @@ export function GuidedDemo() {
               No se guarda, no se envía y no conecta con ningún servicio.
             </p>
           </div>
+        </section>
+
+        <section className={styles.scenarioSection} aria-labelledby="journey-title">
+          <div className={styles.sectionLead}>
+            <span>Historia completa · 15 minutos</span>
+            <h2 id="journey-title">Del primer contacto al cobro, sin saltos.</h2>
+          </div>
+          <ol className={styles.journeyTimeline} data-canonical-journey="lead-visita-presupuesto-trabajo-gasto-factura-cobro">
+            {journeyStages.map((stage, index) => (
+              <li key={stage.id}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{stage.label}</strong>
+                <small>{stage.action}</small>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className={styles.scenarioSection} aria-labelledby="scenario-title">
@@ -275,10 +293,10 @@ export function GuidedDemo() {
 
         <footer className={styles.footer}>
           <div>
-            <strong>Capataz</strong>
+            <strong>{brand.productName}</strong>
             <span>Demostración aislada con datos ficticios.</span>
           </div>
-          <Link href="/marketing-v2">Volver a la portada comercial</Link>
+          <Link href="/">Volver a la portada comercial</Link>
         </footer>
       </main>
     </div>
@@ -433,7 +451,7 @@ const StepPanel = forwardRef<HTMLElement, StepPanelProps>(function StepPanel(
 
 const stepDescriptions = [
   "La información llega en el lenguaje habitual del trabajo.",
-  "Capataz separa hechos, relaciones y dudas antes de proponer.",
+  `${brand.productName} separa hechos, relaciones y dudas antes de proponer.`,
   "La acción queda preparada sin ejecutarse automáticamente.",
   "Puedes ajustar los campos sencillos antes de decidir.",
   "Revisa el efecto exacto y confirma solo la simulación.",

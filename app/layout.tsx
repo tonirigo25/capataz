@@ -5,7 +5,7 @@ import { brand } from "@/lib/brand";
 import { getPublicRobotsMetadata } from "@/lib/public-indexing";
 import { ThemeProvider, themeBootScript } from "@/components/theme/theme-provider";
 import { headers } from "next/headers";
-import { WebVitalsReporter } from "@/components/web-vitals-reporter";
+import { ConsentManager } from "@/components/consent-manager";
 
 export function generateMetadata(): Metadata {
   return {
@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body>
         {children}
-        {process.env.ANALYTICS_ENABLED === "true" ? <WebVitalsReporter /> : null}
+        <ConsentManager analyticsAvailable={process.env.ANALYTICS_ENABLED === "true"} />
         <ThemeProvider />
         <PwaRegister />
       </body>

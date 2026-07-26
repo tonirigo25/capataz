@@ -8,9 +8,9 @@ import { PUBLIC_PRICING_ENABLED } from "@/lib/commercial/unit-economics";
 
 export const metadata: Metadata = {
   title: "Planes",
-  description: "Compara capacidades, límites y soporte de los planes de Orqena sin precios públicos no aprobados.",
+  description: `Compara capacidades, límites y soporte de los planes de ${brand.productName} sin precios públicos no aprobados.`,
   alternates: { canonical: "/planes" },
-  openGraph: { title: "Planes Orqena", description: "Capacidades y límites explicados con claridad.", images: [brand.socialImage] },
+  openGraph: { title: `Planes ${brand.productName}`, description: "Capacidades y límites explicados con claridad.", images: [brand.socialImage] },
 };
 
 const displayNames = { STARTER: "Inicial", PROFESSIONAL: "Profesional", BUSINESS: "Empresa", ENTERPRISE: "A medida" } as const;
@@ -38,7 +38,7 @@ export default function PlansPage() {
                 <Limit icon={UsersRound} label="Personas" value={limit(plan.entitlements.max_members)} />
                 <Limit icon={Gauge} label="Empresas" value={limit(plan.entitlements.max_companies)} />
                 <Limit icon={HardDrive} label="Documentos/mes" value={limit(plan.entitlements.max_documents)} />
-                <Limit icon={Gauge} label="Acciones Orqena" value={limit(plan.entitlements.monthly_orqena_actions)} />
+                <Limit icon={Gauge} label={`Acciones ${brand.productName}`} value={limit(plan.entitlements.monthly_orqena_actions)} />
                 <Limit icon={HardDrive} label="Almacenamiento" value={`${storage.toLocaleString("es-ES")} GB`} />
               </div>
               <div className="plans-grid__features"><strong>Incluye</strong><ul>{features.map((feature) => <li key={feature}><Check size={15} />{feature}</li>)}</ul></div>
@@ -70,6 +70,6 @@ function Limit({ icon: Icon, label, value }: { icon: typeof UsersRound; label: s
 }
 function limit(value: unknown) { return Number(value ?? 0).toLocaleString("es-ES"); }
 function featureLabel(value: string) {
-  const labels: Record<string, string> = { multi_company: "Multiempresa", advanced_permissions: "Permisos avanzados", custom_roles: "Roles configurables", team_management: "Gestión de equipo", team_scopes: "Alcances por equipo", orqena_chat: "Consultas con Orqena", orqena_actions: "Acciones bajo confirmación", orqena_memory: "Memoria de negocio", document_extraction: "Extracción documental", advanced_reports: "Informes avanzados", automations: "Automatizaciones", audit_log: "Registro de auditoría" };
+  const labels: Record<string, string> = { multi_company: "Multiempresa", advanced_permissions: "Permisos avanzados", custom_roles: "Roles configurables", team_management: "Gestión de equipo", team_scopes: "Alcances por equipo", orqena_chat: `Consultas con ${brand.productName}`, orqena_actions: "Acciones bajo confirmación", orqena_memory: "Memoria de negocio", document_extraction: "Extracción documental", advanced_reports: "Informes avanzados", automations: "Automatizaciones", audit_log: "Registro de auditoría" };
   return labels[value] ?? value.replaceAll("_", " ");
 }

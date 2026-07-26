@@ -29,6 +29,7 @@ import { entryFlows, type EntryId } from "./landing-data";
 import { LocalAccessForm } from "./local-access-form";
 import { ResponsibilityViews } from "./responsibility-views";
 import styles from "../page.module.css";
+import { brand } from "@/lib/brand";
 
 const entryIcons: Record<EntryId, LucideIcon> = {
   audio: Mic,
@@ -52,7 +53,7 @@ export function LandingSections() {
       <section id="producto" className={`${styles.section} ${styles.anchorTarget}`}>
         <SectionHeading
           eyebrow="Entradas admitidas"
-          title="Tú lo mandas. Capataz lo deja preparado."
+          title={`Tú lo mandas. ${brand.productName} lo deja preparado.`}
           text="Cuatro formas habituales de contar lo que ocurre. Cada una conserva su contexto y termina en una propuesta que puedes revisar."
         />
 
@@ -154,8 +155,8 @@ export function LandingSections() {
       >
         <SectionHeading
           eyebrow="Confirmación humana"
-          title="Capataz prepara. Tú mandas."
-          text="Antes de crear, modificar, guardar o enviar algo importante, Capataz te enseña exactamente qué ha entendido y qué ocurrirá al confirmar."
+          title={`${brand.productName} prepara. Tú mandas.`}
+          text={`Antes de crear, modificar, guardar o enviar algo importante, ${brand.productName} te enseña exactamente qué ha entendido y qué ocurrirá al confirmar.`}
         />
         <HumanControlDemo />
       </section>
@@ -165,7 +166,7 @@ export function LandingSections() {
           <SectionHeading
             eyebrow="Experiencia móvil"
             title="Hecho para utilizarse donde ocurre el trabajo."
-            text="No necesitas esperar a llegar a la oficina. Envía lo que acaba de ocurrir y Capataz lo deja preparado para revisar."
+            text={`No necesitas esperar a llegar a la oficina. Envía lo que acaba de ocurrir y ${brand.productName} lo deja preparado para revisar.`}
           />
           <p className={styles.mobileSafety}>
             <ShieldCheck aria-hidden="true" />
@@ -173,10 +174,10 @@ export function LandingSections() {
           </p>
         </div>
 
-        <div className={styles.phoneMockup} aria-label="Representación local de Capataz en un teléfono">
+        <div className={styles.phoneMockup} aria-label={`Representación local de ${brand.productName} en un teléfono`}>
           <div className={styles.phoneTopbar}>
             <span>9:41</span>
-            <strong>Capataz</strong>
+            <strong>{brand.productName}</strong>
             <span>Local</span>
           </div>
           <div className={styles.phoneGreeting}>
@@ -339,10 +340,10 @@ export function LandingSections() {
       <section className={styles.finalCta}>
         <div>
           <span>Siguiente paso</span>
-          <h2>Manda el primer audio. Capataz hace el papeleo contigo.</h2>
+          <h2>Manda el primer audio. {brand.productName} hace el papeleo contigo.</h2>
         </div>
         <div>
-          <Link className={styles.finalPrimary} href="/demo-v2">Probar Capataz</Link>
+          <Link className={styles.finalPrimary} href="/demo">Probar {brand.productName}</Link>
           <a className={styles.finalSecondary} href="#solicitar-acceso">Solicitar acceso</a>
         </div>
       </section>
@@ -355,11 +356,11 @@ export function MarketingFooter() {
     <footer className={styles.footer}>
       <div className={styles.footerTop}>
         <div>
-          <a className={styles.footerBrand} href="#top">Capataz</a>
+          <a className={styles.footerBrand} href="#top">{brand.wordmark}</a>
           <p>Trabajo, documentos y decisiones preparados para revisar.</p>
-          <span>Capataz es un producto de Orqena.</span>
+          <span>{brand.productName === brand.legalName ? brand.legalName : `${brand.productName} es un producto de ${brand.legalName}.`}</span>
         </div>
-        <nav aria-label="Secciones de Capataz">
+        <nav aria-label={`Secciones de ${brand.productName}`}>
           <strong>Portada</strong>
           <a href="#producto">Producto</a>
           <a href="#como-funciona">Cómo funciona</a>
@@ -381,7 +382,7 @@ export function MarketingFooter() {
         </nav>
       </div>
       <div className={styles.footerBottom}>
-        <span>Vista previa aislada · Datos de ejemplo</span>
+        <span>Beta privada · Datos de ejemplo</span>
         <a href="#top">Volver arriba</a>
       </div>
     </footer>

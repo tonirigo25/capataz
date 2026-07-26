@@ -1,3 +1,5 @@
+import { brand } from "@/lib/brand";
+
 export type EntryId = "audio" | "ticket" | "obra" | "documento";
 
 export type EntryFlow = {
@@ -15,7 +17,7 @@ export const entryFlows: readonly EntryFlow[] = [
     eyebrow: "Audio de un cliente",
     title: "Una conversación se convierte en trabajo revisable.",
     input: "Petición hablada, medidas y condiciones.",
-    interpretation: "Capataz separa alcance, partidas y dudas.",
+    interpretation: `${brand.productName} separa alcance, partidas y dudas.`,
     proposal: "Borrador de presupuesto con partidas, cantidades y dudas señaladas.",
   },
   {
@@ -45,11 +47,11 @@ export const entryFlows: readonly EntryFlow[] = [
 ] as const;
 
 export type JourneyId =
-  | "consulta"
+  | "lead"
+  | "visita"
   | "presupuesto"
-  | "aprobacion"
-  | "obra"
-  | "gastos"
+  | "trabajo"
+  | "gasto"
   | "factura"
   | "cobro";
 
@@ -66,13 +68,23 @@ export type JourneyStage = {
 
 export const journeyStages: readonly JourneyStage[] = [
   {
-    id: "consulta",
-    label: "Consulta",
-    received: "Audio del cliente con reforma, medidas y necesidades.",
-    record: "Cliente y oportunidad de trabajo.",
+    id: "lead",
+    label: "Lead",
+    received: "Petición inicial ficticia de una reforma.",
+    record: "Contacto y oportunidad sin datos reales.",
     owner: "Propietario",
-    status: "Alcance por aclarar",
-    action: "Revisar lo entendido y completar las dudas.",
+    status: "Por cualificar",
+    action: "Aclarar necesidad, ubicación aproximada y disponibilidad.",
+    next: "Acordar una visita.",
+  },
+  {
+    id: "visita",
+    label: "Visita",
+    received: "Notas, medidas y fotos sintéticas de la visita.",
+    record: "Visita vinculada al contacto y la oportunidad.",
+    owner: "Responsable técnico",
+    status: "Alcance por revisar",
+    action: "Confirmar mediciones, exclusiones y dudas.",
     next: "Preparar el presupuesto.",
   },
   {
@@ -83,21 +95,11 @@ export const journeyStages: readonly JourneyStage[] = [
     owner: "Propietario o administración",
     status: "Borrador revisable",
     action: "Comprobar cantidades, margen y condiciones.",
-    next: "Compartir solo después de confirmar.",
+    next: "Confirmar y abrir el trabajo.",
   },
   {
-    id: "aprobacion",
-    label: "Aprobación",
-    received: "Respuesta del cliente y cambios aceptados.",
-    record: "Presupuesto y cliente relacionados.",
-    owner: "Propietario",
-    status: "Decisión pendiente",
-    action: "Registrar la aceptación y el alcance final.",
-    next: "Abrir la obra y su planificación.",
-  },
-  {
-    id: "obra",
-    label: "Obra",
+    id: "trabajo",
+    label: "Trabajo",
     received: "Partes, fotos ficticias, tareas e incidencias.",
     record: "Reforma baño · Calle Luna 18.",
     owner: "Responsable de obra",
@@ -106,8 +108,8 @@ export const journeyStages: readonly JourneyStage[] = [
     next: "Relacionar compras, horas y cambios.",
   },
   {
-    id: "gastos",
-    label: "Gastos",
+    id: "gasto",
+    label: "Gasto",
     received: "Tickets, facturas, materiales y partes.",
     record: "Gastos vinculados a la obra.",
     owner: "Administración",
@@ -222,7 +224,7 @@ export const faqItems: readonly FaqItem[] = [
     id: "interpretacion-incorrecta",
     question: "¿Qué ocurre si interpreta algo mal?",
     answer:
-      "Capataz debe señalar lo claro y lo dudoso para que puedas editar, cancelar o confirmar. La demostración no realiza cambios reales y sirve para evaluar ese recorrido de revisión.",
+      `${brand.productName} debe señalar lo claro y lo dudoso para que puedas editar, cancelar o confirmar. La demostración no realiza cambios reales y sirve para evaluar ese recorrido de revisión.`,
   },
   {
     id: "permiso",

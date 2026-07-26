@@ -180,3 +180,19 @@ Implemented on `feat/readiness-f8-metrics-pilots` from program commit `6cab476d1
 - Requirement ledger: 22 F8 requirements are `PASS`; `MET-006` and `SUP-001` are `READY_FOR_EXTERNAL_INPUT` for current verified real cost evidence and actual 5-10 pilot companies with at least five paid/signed/consented engagements. No F8 requirement is pending, blocked or waived.
 
 Evidence: `docs/readiness/evidence/f8/audit-manifest.json`, `browser-validation.json`, the F8 validators, metrics/pilot contracts, operational methodology and migration `20260726200000_readiness_f8_metrics_pilots`.
+
+## F9 - Public brand, legal surfaces and accepted Marketing V2 - PASS
+
+Implemented on `feat/readiness-f9-public-brand` from program commit `9be9838afec3c0db1495e8aa80db087dc6e8f7e6`. Production, persistent staging and the OpenAI key workflow were not modified. Validation used only synthetic fixtures and an ephemeral standalone server on `127.0.0.1`.
+
+- Integrated the accepted PR #24 source SHA `ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4` as the explicit second parent of merge `b5e063b5b5bb8efcfd04da3723e068747f679e2b`, after the F0 isolated preview and teardown. `/marketing-v2` and `/demo-v2` occur once in the route manifest and remain noindex rollback aliases.
+- Promoted the accepted visual system to canonical `/` and `/demo`. The public message is construction/renovation/installations first; the internal multisector catalog remains configurable but is no longer the home message.
+- The canonical 15-minute synthetic story now follows exactly lead, visit, quote, work, expense, invoice and collection, with visible review/confirmation and no provider request.
+- Brand configuration now covers product/assistant names, legal identity, tagline, theme colors, marks, social assets, PWA identity and sender labels. Public metadata and legacy email subjects use that configuration; PDFs retain verified tenant logo/color input.
+- Public pricing remains fail-closed and requires the flag, approval reference, catalog version and external mappings together. The public plans surface contains no subscription amount.
+- Legal pages are versioned parameterized drafts marked `REVIEW_REQUIRED`; they describe live email, billing and provider behavior as gated and never claim inactive services as configured.
+- The CMP is absent when no nonessential category is available. With first-party analytics available, the reporter mounts only after explicit acceptance; reject/withdraw controls passed with zero traffic before choice and after rejection.
+- F9 pure validation passed 61/61 plus the noindex/indexable transition suite. The production build generated 77 pages. Browser validation passed 18/18 route/viewport combinations at 390x844 and 1440x900 with HTTP 200, zero overflow, broken images, critical/serious axe findings, console errors, valid request failures and external requests.
+- Requirement ledger: all eight F9 requirements are `PASS`; no F9 requirement is pending, blocked, waived or waiting for external input. Brand/domain clearance and final legal approval remain explicit F11 release gates; `PUBLIC_INDEXING_ENABLED=false` is unchanged.
+
+Evidence: `docs/readiness/evidence/f9/audit-manifest.json`, `browser-validation.json` and the F9 public/browser validators.

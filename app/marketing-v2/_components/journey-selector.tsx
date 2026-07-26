@@ -6,7 +6,7 @@ import { journeyStages, type JourneyId } from "./landing-data";
 import styles from "../page.module.css";
 
 export function JourneySelector() {
-  const [activeId, setActiveId] = useState<JourneyId>("consulta");
+  const [activeId, setActiveId] = useState<JourneyId>("lead");
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const selectStage = (index: number, focus = false) => {
@@ -32,7 +32,7 @@ export function JourneySelector() {
       <div
         className={styles.journeyTabs}
         role="tablist"
-        aria-label="Etapas del recorrido desde la consulta hasta el cobro"
+        aria-label="Etapas del recorrido desde el lead hasta el cobro"
       >
         {journeyStages.map((stage, index) => (
           <button

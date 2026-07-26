@@ -8,9 +8,9 @@ import { marketingSectorCatalog } from "@/lib/marketing/catalog";
 
 export const metadata: Metadata = {
   title: "Sectores",
-  description: "Trece perfiles sectoriales que adaptan lenguaje, prioridades y recorridos de Orqena.",
+  description: `Trece perfiles sectoriales que adaptan lenguaje, prioridades y recorridos de ${brand.productName}.`,
   alternates: { canonical: "/sectores" },
-  openGraph: { title: "Sectores Orqena", description: "Una base común con un lenguaje que encaja en cada actividad.", images: [brand.socialImage] },
+  openGraph: { title: `Sectores ${brand.productName}`, description: "Una base común con un lenguaje que encaja en cada actividad.", images: [brand.socialImage] },
 };
 
 export default function SectorsPage() {

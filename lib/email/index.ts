@@ -2,6 +2,7 @@ import { FakeEmailProvider } from "@/lib/platform/providers/fake";
 import { ResendEmailProvider } from "@/lib/platform/providers/production";
 import type { EmailDeliveryProvider } from "@/lib/platform/providers/contracts";
 import { Resend } from "resend";
+import { brand } from "@/lib/brand";
 
 export function getEmailProviderStatus() {
   if (process.env.EMAIL_PROVIDER === "resend" && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) return "resend" as const;
@@ -18,12 +19,12 @@ export function getEmailDeliveryProvider(): EmailDeliveryProvider {
 
 /** @deprecated Use queueEmailEvent so delivery is transactionally coupled to the business event. */
 export async function sendVerificationEmail(to: string, token: string) {
-  return getEmailDeliveryProvider().send({ recipient: to, subject: "Verifica tu correo en Orqena", text: `${appUrl("/verificar-email", token)}`, idempotencyKey: `legacy-verification:${token.slice(0, 12)}` });
+  return getEmailDeliveryProvider().send({ recipient: to, subject: `Verifica tu correo en ${brand.productName}`, text: `${appUrl("/verificar-email", token)}`, idempotencyKey: `legacy-verification:${token.slice(0, 12)}` });
 }
 
 /** @deprecated Use queueEmailEvent so delivery is transactionally coupled to the business event. */
 export async function sendPasswordResetEmail(to: string, token: string) {
-  return getEmailDeliveryProvider().send({ recipient: to, subject: "Restablece tu contraseña de Orqena", text: `${appUrl("/restablecer-contrasena", token)}`, idempotencyKey: `legacy-reset:${token.slice(0, 12)}` });
+  return getEmailDeliveryProvider().send({ recipient: to, subject: `Restablece tu contraseña de ${brand.productName}`, text: `${appUrl("/restablecer-contrasena", token)}`, idempotencyKey: `legacy-reset:${token.slice(0, 12)}` });
 }
 
 function appUrl(path: string, token: string) {

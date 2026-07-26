@@ -69,7 +69,7 @@ export function ResponsibilityViews() {
           <aside aria-label={`Navegación local de ${view.label}`}>
             <span>Vista de ejemplo</span>
             <strong>{view.label}</strong>
-            <nav aria-label={`Áreas visibles para ${view.label}`}>
+            <nav aria-label={`Áreas visibles para ${view.label}`} tabIndex={0}>
               {view.areas.map((area, index) => (
                 <span key={area} data-active={index === 0}>{area}</span>
               ))}

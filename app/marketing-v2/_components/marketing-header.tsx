@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "../page.module.css";
+import { brand } from "@/lib/brand";
 
 const navigation = [
   ["Producto", "#producto"],
@@ -37,8 +38,8 @@ export function MarketingHeader() {
   return (
     <header className={styles.header}>
       <div className={styles.headerInner}>
-        <a className={styles.wordmark} href="#top" aria-label="Capataz, inicio">
-          Capataz
+        <a className={styles.wordmark} href="#top" aria-label={`${brand.productName}, inicio`}>
+          {brand.wordmark}
         </a>
 
         <nav className={styles.desktopNav} aria-label="Navegación principal">
@@ -49,13 +50,13 @@ export function MarketingHeader() {
 
         <div className={styles.headerActions}>
           <Link className={styles.loginLink} href="/login">Entrar</Link>
-          <Link className={styles.headerCta} href="/demo-v2">Probar Capataz</Link>
+          <Link className={styles.headerCta} href="/demo">Probar {brand.productName}</Link>
           <button
             ref={triggerRef}
             className={styles.menuTrigger}
             type="button"
             aria-expanded={open}
-            aria-controls="capataz-mobile-menu"
+            aria-controls="public-mobile-menu"
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
             onClick={() => setOpen((current) => !current)}
           >
@@ -65,13 +66,13 @@ export function MarketingHeader() {
       </div>
 
       {open ? (
-        <nav id="capataz-mobile-menu" className={styles.mobileNav} aria-label="Navegación móvil">
+        <nav id="public-mobile-menu" className={styles.mobileNav} aria-label="Navegación móvil">
           {navigation.map(([label, href]) => (
             <a key={href} href={href} onClick={() => setOpen(false)}>{label}</a>
           ))}
           <Link href="/login" onClick={() => setOpen(false)}>Entrar</Link>
-          <Link className={styles.mobileNavCta} href="/demo-v2" onClick={() => setOpen(false)}>
-            Probar Capataz
+          <Link className={styles.mobileNavCta} href="/demo" onClick={() => setOpen(false)}>
+            Probar {brand.productName}
           </Link>
         </nav>
       ) : null}

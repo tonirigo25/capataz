@@ -1,4 +1,17 @@
-export const PUBLIC_PRICING_ENABLED = false as const;
+const publicPricingRequested = process.env.PUBLIC_PRICING_ENABLED === "true";
+const publicPricingApproval = process.env.PUBLIC_PRICING_APPROVAL_REF?.trim() || null;
+const publicPricingCatalogVersion = process.env.PUBLIC_PRICE_CATALOG_VERSION?.trim() || null;
+const mappedPriceKeys = (process.env.STRIPE_PRICE_KEYS ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+
+export const publicPricingPolicy = Object.freeze({
+  requested: publicPricingRequested,
+  approvalRef: publicPricingApproval,
+  catalogVersion: publicPricingCatalogVersion,
+  mappedPriceCount: mappedPriceKeys.length,
+  enabled: Boolean(publicPricingRequested && publicPricingApproval && publicPricingCatalogVersion && mappedPriceKeys.length > 0),
+});
+
+export const PUBLIC_PRICING_ENABLED = publicPricingPolicy.enabled;
 
 export type UnitEconomicsInput = {
   infrastructureBase: number;

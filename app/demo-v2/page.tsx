@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { GuidedDemo } from "./_components/guided-demo";
+import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: { absolute: "Prueba Capataz — Demostración guiada" },
+  title: { absolute: `Prueba ${brand.productName} — Demostración preservada` },
   description:
-    "Demostración local y guiada del recorrido de trabajo de Capataz.",
+    `Ruta de reversión no indexable de la demostración de ${brand.productName}.`,
   alternates: { canonical: null },
   robots: {
     index: false,
@@ -18,6 +19,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CapatazGuidedDemoPage() {
+export default function GuidedDemoPreviewPage() {
   return <GuidedDemo />;
 }

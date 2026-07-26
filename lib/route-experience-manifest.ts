@@ -32,8 +32,8 @@ const shared = {
 
 export const routeExperienceManifest: RouteExperienceRule[] = [
   rule("public-home", /^\/$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: brand.productName, primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
-  rule("public-capataz-preview", /^\/marketing-v2$/, { ...shared, family: "marketing", shell: "standalone", access: "public", title: "Capataz — Vista previa", primaryAction: "Ver la base visual", empty: "not-applicable", screenshotGroup: "public" }),
-  rule("public-capataz-demo", /^\/demo-v2$/, { ...shared, family: "marketing", shell: "standalone", access: "public", title: "Prueba Capataz — Demostración guiada", primaryAction: "Recorrer demostración", empty: "not-applicable", screenshotGroup: "public" }),
+  rule("public-marketing-preview", /^\/marketing-v2$/, { ...shared, family: "marketing", shell: "standalone", access: "public", title: `${brand.productName} — Vista previa preservada`, primaryAction: "Ver la base visual", empty: "not-applicable", screenshotGroup: "public" }),
+  rule("public-guided-demo-preview", /^\/demo-v2$/, { ...shared, family: "marketing", shell: "standalone", access: "public", title: `Prueba ${brand.productName} — Demostración guiada`, primaryAction: "Recorrer demostración", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-product", /^\/(?:producto(?:\/\[modulo\])?|soluciones)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Producto", primaryAction: "Explorar demo", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-sectors", /^\/sectores(?:\/\[sector\])?$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Sectores", primaryAction: "Explorar perfil", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-commercial", /^\/(?:planes|seguridad|demo|contacto)$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: "Información comercial", primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),

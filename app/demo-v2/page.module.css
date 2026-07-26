@@ -4,7 +4,7 @@
   --capataz-surface: #ffffff;
   --capataz-accent: #c8f36a;
   --capataz-warning: #d86b45;
-  --capataz-muted: #64736b;
+  --capataz-muted: #4a5b52;
   --capataz-line: #d8ddd6;
   --capataz-info: #3b6d8c;
 
@@ -202,6 +202,52 @@
 .scenarioSection {
   border-top: 1px solid var(--capataz-line);
   padding: clamp(3rem, 6vw, 5rem) 0;
+}
+
+.journeyTimeline {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journeyTimeline li {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-width: 0;
+  border: 1px solid var(--capataz-line);
+  border-radius: 0.9rem;
+  background: var(--capataz-paper);
+  padding: 0.9rem;
+}
+
+.journeyTimeline span,
+.journeyTimeline small {
+  color: var(--capataz-muted);
+}
+
+.journeyTimeline strong {
+  color: var(--capataz-ink);
+}
+
+.journeyTimeline small {
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 62rem) {
+  .journeyTimeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .journeyTimeline {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sectionLead {

@@ -64,7 +64,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
       </section>
 
       <section className="marketing-container sector-assistant">
-        <div><Sparkles /><p className="marketing-eyebrow">Orqena en {item.name}</p><h2 className="marketing-title">El contexto ayuda a hablar el mismo idioma.</h2><p>La escena es determinista, usa datos sintéticos y espera confirmación.</p></div>
+        <div><Sparkles /><p className="marketing-eyebrow">{brand.productName} en {item.name}</p><h2 className="marketing-title">El contexto ayuda a hablar el mismo idioma.</h2><p>La escena es determinista, usa datos sintéticos y espera confirmación.</p></div>
         <OrqenaActionDemo />
       </section>
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { demoScenarios, type DemoId } from "./demo-data";
 import styles from "../page.module.css";
+import { brand } from "@/lib/brand";
 
 type LocalAction = "idle" | "reviewing" | "editing" | "discarded";
 
@@ -58,19 +59,19 @@ export function HeroDemo() {
   };
 
   return (
-    <section className={styles.hero} aria-labelledby="capataz-hero-title">
+    <section className={styles.hero} aria-labelledby="public-hero-title">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>IA práctica para construcción y reformas</p>
-          <h1 id="capataz-hero-title">Habla con Capataz. Tu negocio se pone al día.</h1>
+          <h1 id="public-hero-title">Habla con {brand.productName}. Tu negocio se pone al día.</h1>
           <p className={styles.heroSubtitle}>
-            Manda un audio, una foto, una factura o un mensaje. Capataz prepara
+            Manda un audio, una foto, una factura o un mensaje. {brand.productName} prepara
             presupuestos, registra gastos, actualiza obras y te avisa de cobros,
             documentos y márgenes. Tú revisas y decides.
           </p>
 
           <div className={styles.heroActions} aria-label="Acciones principales">
-            <Link className={styles.primaryAction} href="/demo-v2">
+            <Link className={styles.primaryAction} href="/demo">
               <Mic aria-hidden="true" />
               Probar con un audio
             </Link>
@@ -89,12 +90,12 @@ export function HeroDemo() {
           <div className={styles.demoTopline}>
             <div>
               <span>Vista previa local</span>
-              <strong>Capataz prepara. Tú decides.</strong>
+              <strong>{brand.productName} prepara. Tú decides.</strong>
             </div>
             <span className={styles.localBadge}>Sin conexión</span>
           </div>
 
-          <div id="capataz-demo" className={styles.tabs} data-active-tab={activeId}>
+          <div id="public-demo" className={styles.tabs} data-active-tab={activeId}>
             <div className={styles.tabList} role="tablist" aria-label="Tipo de entrada para la demostración">
               {demoScenarios.map((scenario, index) => {
                 const Icon = icons[scenario.id];
