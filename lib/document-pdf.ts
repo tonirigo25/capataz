@@ -27,8 +27,6 @@ export type ProfessionalDocumentPdf = {
     address?: string | null;
     contact?: string | null;
     iban?: string | null;
-    logoUrl?: string | null;
-    sealUrl?: string | null;
     brandColor?: string | null;
     legalText?: string | null;
   };

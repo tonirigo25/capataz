@@ -95,3 +95,19 @@ Implemented on `feat/readiness-f3-fiscal` from program commit `d5e1af3a26bac103e
 - Requirement ledger: 25 F3 requirements are `PASS`; `FISC-001`, `EINV-002`, `EINV-003`, `EINV-004` and `EINV-012` are `READY_FOR_EXTERNAL_INPUT`. No F3 requirement is pending, blocked or waived.
 
 Evidence: `docs/readiness/evidence/f3/audit-manifest.json`, the two F3 validators, the fiscal/e-invoice contracts, compliance profiles, activation runbook, ADR 0007 and migration `20260726120000_readiness_f3_fiscal_einvoice_engine`.
+
+## F4 - Commercial, email and private storage - PASS WITH EXTERNAL INPUT GATE
+
+Implemented on `feat/readiness-f4-commercial` from program commit `f8be0e682236b25f5f208d259911c30e98dac862`. Production, persistent staging and PR #24 were not modified; validation used disposable loopback PostgreSQL and injected provider doubles.
+
+- Stripe checkout and customer portal require authenticated OWNER context, HTTPS return URLs, database price mappings and tenant idempotency. Raw-body signed webhooks deduplicate events, reject cross-tenant metadata and ignore stale projections.
+- All six subscription statuses passed. Failed payment creates one email plus one task, applies a seven-day grace period and later read-only access; paid clears the grace. Overuse for members, documents and AI failed closed with no automatic charge.
+- Reconciliation stores divergence in audit-only mode. Cancellation reason/cohort metrics and subscription-specific fiscal identity are separate from operational customer invoices.
+- Auth, invitation, billing, support and alert email use one transactional outbox. Two concurrent claimers had no overlapping IDs. Templates enforce variables before provider calls; retry, dead letter, admin replay, suppression and signed Resend replay passed.
+- Verification/reset/invitation action tokens are rendered in memory from an HMAC derivation secret. No plaintext token, action URL or rendered body persisted in outbox, attempts or audit.
+- Company logo/seal URLs were removed from editable settings and PDF inputs. Private uploads store safe name, MIME, size, hash, provider/version and tenant key; signed short grants reject expiry and cross-tenant access, and modified bytes fail integrity verification.
+- Fresh isolated PostgreSQL applied 39/39 migrations. The F4 pure suite passed 11/11 and the isolated integration suite passed through billing, usage, email/webhooks and storage.
+- Architectural regression classifies all 132 Server Action exports and preserves canonical context across 30 action files, 20 routes and 3 internal jobs; positive and negative fixtures passed. Auth PostgreSQL regression also passed.
+- Requirement ledger: 31 F4 requirements are `PASS`; EMAIL-010 is `READY_FOR_EXTERNAL_INPUT` for owner-approved DNS/domain/provider values. No F4 requirement remains pending, blocked or waived.
+
+Evidence: `docs/readiness/evidence/f4/audit-manifest.json`, F4 validators, ADR 0008, operational/domain runbooks and migration `20260726140000_readiness_f4_commercial_email_storage`.

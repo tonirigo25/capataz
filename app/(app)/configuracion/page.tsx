@@ -1,5 +1,5 @@
-import { Building2, Image as ImageIcon, Save, Smartphone, UserRound } from "lucide-react";
-import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
+import { Building2, Save, Smartphone, UserRound } from "lucide-react";
+import { saveCompanySettings, saveUserProfile, uploadCompanyAsset } from "@/app/(app)/configuracion/actions";
 import { SectionHeader } from "@/components/section-header";
 import { companyCompletion, profileCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
@@ -137,15 +137,8 @@ export default async function SettingsPage() {
             <Field name="prefijoFactura" label="Prefijo factura" value={company?.prefijoFactura ?? "F"} />
             <Field name="prefijoObra" label="Prefijo obra" value={company?.prefijoObra ?? "OB"} />
           </div>
-          <Field name="logoUrl" label="Logo URL o ruta local" value={company?.logoUrl ?? ""} />
-          <Field name="selloUrl" label="Sello URL o ruta local" value={company?.selloUrl ?? ""} />
           <Textarea name="condicionesPorDefecto" label="Condiciones por defecto" value={company?.condicionesPorDefecto ?? ""} />
           <Textarea name="textoLegal" label="Texto legal" value={company?.textoLegal ?? ""} />
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PreviewAsset title="Logo" url={company?.logoUrl} />
-            <PreviewAsset title="Sello" url={company?.selloUrl} />
-          </div>
 
           <div className="rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
             Previsualización documento: {company?.nombreComercial ?? "Mi empresa"} · {company?.nifCif ?? "NIF/CIF pendiente"} · serie presupuesto {company?.prefijoPresupuesto ?? "P"}-{company?.seriePresupuestos ?? "2026"}.
@@ -156,6 +149,10 @@ export default async function SettingsPage() {
             Guardar datos de empresa
           </button>
         </form>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <AssetUpload kind="logo" label="Logo privado" configured={Boolean(company.logoStoredObjectId)} />
+          <AssetUpload kind="seal" label="Sello privado" configured={Boolean(company.sealStoredObjectId)} />
+        </div>
       </section> : null}
 
       <section className="card mb-5 p-4">
@@ -278,19 +275,14 @@ function Textarea({ name, label, value }: { name: string; label: string; value: 
   );
 }
 
-function PreviewAsset({ title, url }: { title: string; url?: string | null }) {
+function AssetUpload({ kind, label, configured }: { kind: "logo" | "seal"; label: string; configured: boolean }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm font-black text-obra-ink">
-        <ImageIcon size={18} className="text-obra-yellowDark" aria-hidden="true" />
-        {title}
-      </div>
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={title} className="h-16 max-w-full rounded-lg border border-slate-100 object-contain p-2" />
-      ) : (
-        <p className="text-sm text-slate-500">Sin imagen configurada.</p>
-      )}
-    </div>
+    <form action={uploadCompanyAsset} className="rounded-lg border border-slate-200 bg-white p-3">
+      <input type="hidden" name="assetKind" value={kind} />
+      <p className="text-sm font-black text-obra-ink">{label}</p>
+      <p className="mt-1 text-xs text-slate-600">{configured ? "Archivo privado configurado." : "Sin archivo configurado."} PNG, JPEG o WebP; máximo 5 MB.</p>
+      <input className="field mt-3" type="file" name="asset" accept="image/png,image/jpeg,image/webp" required />
+      <button type="submit" className="secondary-button mt-3 w-full">Subir archivo privado</button>
+    </form>
   );
 }

@@ -13,6 +13,11 @@ const rawSchema = z.object({
   EMAIL_FROM: z.string().trim().email().optional(),
   EMAIL_REPLY_TO: z.string().trim().email().optional(),
   EMAIL_SENDING_DOMAIN: z.string().trim().min(1).optional(),
+  EMAIL_DKIM_STATUS: z.enum(["verified"]).optional(),
+  EMAIL_SPF_STATUS: z.enum(["verified"]).optional(),
+  EMAIL_DMARC_POLICY: z.enum(["quarantine", "reject"]).optional(),
+  EMAIL_TRACKING_ENABLED: z.enum(["false"]).default("false"),
+  EMAIL_TOKEN_DERIVATION_SECRET: optionalSecret,
   RESEND_API_KEY: optionalSecret,
   RESEND_WEBHOOK_SECRET: optionalSecret,
   STRIPE_SECRET_KEY: optionalSecret,
@@ -29,6 +34,7 @@ const rawSchema = z.object({
   S3_BUCKET: z.string().trim().min(1).optional(),
   S3_ACCESS_KEY_ID: optionalSecret,
   S3_SECRET_ACCESS_KEY: optionalSecret,
+  STORAGE_SIGNING_SECRET: optionalSecret,
   OTEL_EXPORTER_OTLP_ENDPOINT: optionalUrl,
   ERROR_TRACKING_DSN: optionalUrl,
   JOB_RUNNER_SECRET: optionalSecret,
@@ -86,8 +92,8 @@ export function parseServerConfig(
     if (phase !== "build" && (!config.APP_ENCRYPTION_KEYS || !config.APP_ACTIVE_KEY_VERSION)) issues.push(safeIssue("APP_ENCRYPTION_KEYS", "and active key version are required"));
     if (phase !== "build" && !config.JOB_RUNNER_SECRET) issues.push(safeIssue("JOB_RUNNER_SECRET", "is required"));
   }
-  if (config.flags.emailLive && (!config.EMAIL_FROM || !config.EMAIL_SENDING_DOMAIN || !config.RESEND_API_KEY)) {
-    issues.push(safeIssue("EMAIL_LIVE_ENABLED", "requires sender domain, from address, and provider secret"));
+  if (config.flags.emailLive && (!config.EMAIL_FROM || !config.EMAIL_REPLY_TO || !config.EMAIL_SENDING_DOMAIN || !config.RESEND_API_KEY || !config.RESEND_WEBHOOK_SECRET || !config.EMAIL_DKIM_STATUS || !config.EMAIL_SPF_STATUS || !config.EMAIL_DMARC_POLICY || !config.EMAIL_TOKEN_DERIVATION_SECRET)) {
+    issues.push(safeIssue("EMAIL_LIVE_ENABLED", "requires verified sender domain, reply-to, webhook, DMARC and token derivation secret"));
   }
   if (config.flags.billing && (!config.STRIPE_SECRET_KEY || !config.STRIPE_WEBHOOK_SECRET || config.stripePriceKeys.length === 0)) {
     issues.push(safeIssue("BILLING_ENABLED", "requires Stripe credentials and price mappings"));
@@ -98,7 +104,7 @@ export function parseServerConfig(
   if (config.flags.ai && (!config.OPENAI_API_KEY || !config.OPENAI_DATA_PROFILE)) {
     issues.push(safeIssue("AI_ENABLED", "requires provider key and approved data profile"));
   }
-  if (config.STORAGE_PROVIDER === "s3" && (!config.S3_REGION || !config.S3_BUCKET || !config.S3_ACCESS_KEY_ID || !config.S3_SECRET_ACCESS_KEY)) {
+  if (config.STORAGE_PROVIDER === "s3" && (!config.S3_REGION || !config.S3_BUCKET || !config.S3_ACCESS_KEY_ID || !config.S3_SECRET_ACCESS_KEY || !config.STORAGE_SIGNING_SECRET)) {
     issues.push(safeIssue("STORAGE_PROVIDER", "requires complete S3 configuration"));
   }
   if (issues.length > 0) {

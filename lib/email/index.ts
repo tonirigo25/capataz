@@ -1,60 +1,33 @@
-type MailMessage = { to: string; subject: string; text: string; html: string };
-
-export interface EmailProvider { send(message: MailMessage): Promise<void>; }
-
-class ResendEmailProvider implements EmailProvider {
-  constructor(private apiKey: string, private from: string) {}
-  async send(message: MailMessage) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: this.from, ...message })
-    });
-    if (!response.ok) throw new Error(`EMAIL_PROVIDER_${response.status}`);
-  }
-}
-
-class SafeDevelopmentProvider implements EmailProvider {
-  async send(message: MailMessage) {
-    console.info("[email-development] message retained", { recipientDomain: message.to.split("@")[1] ?? "unknown", subject: message.subject });
-  }
-}
-
-function localProviderAllowed() {
-  const appEnv = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase();
-  return process.env.EMAIL_PROVIDER === "local" && ["development", "test", "staging"].includes(appEnv ?? "");
-}
+import { FakeEmailProvider } from "@/lib/platform/providers/fake";
+import { ResendEmailProvider } from "@/lib/platform/providers/production";
+import type { EmailDeliveryProvider } from "@/lib/platform/providers/contracts";
+import { Resend } from "resend";
 
 export function getEmailProviderStatus() {
-  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) return "resend" as const;
-  if (localProviderAllowed() || process.env.NODE_ENV !== "production") return "local" as const;
+  if (process.env.EMAIL_PROVIDER === "resend" && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) return "resend" as const;
+  if (process.env.EMAIL_PROVIDER === "local" || process.env.NODE_ENV !== "production") return "local" as const;
   return "missing" as const;
 }
 
-function getProvider(): EmailProvider {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  if (apiKey && from) return new ResendEmailProvider(apiKey, from);
-  if (localProviderAllowed()) return new SafeDevelopmentProvider();
-  if (process.env.NODE_ENV === "production") throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
-  return new SafeDevelopmentProvider();
+export function getEmailDeliveryProvider(): EmailDeliveryProvider {
+  const status = getEmailProviderStatus();
+  if (status === "resend") return new ResendEmailProvider(new Resend(process.env.RESEND_API_KEY!), process.env.EMAIL_FROM!);
+  if (status === "local") return new FakeEmailProvider();
+  throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
+}
+
+/** @deprecated Use queueEmailEvent so delivery is transactionally coupled to the business event. */
+export async function sendVerificationEmail(to: string, token: string) {
+  return getEmailDeliveryProvider().send({ recipient: to, subject: "Verifica tu correo en Orqena", text: `${appUrl("/verificar-email", token)}`, idempotencyKey: `legacy-verification:${token.slice(0, 12)}` });
+}
+
+/** @deprecated Use queueEmailEvent so delivery is transactionally coupled to the business event. */
+export async function sendPasswordResetEmail(to: string, token: string) {
+  return getEmailDeliveryProvider().send({ recipient: to, subject: "Restablece tu contraseña de Orqena", text: `${appUrl("/restablecer-contrasena", token)}`, idempotencyKey: `legacy-reset:${token.slice(0, 12)}` });
 }
 
 function appUrl(path: string, token: string) {
-  const base = process.env.APP_BASE_URL?.replace(/\/$/, "");
-  if (!base) {
-    if (process.env.NODE_ENV === "production") throw new Error("APP_BASE_URL_NOT_CONFIGURED");
-    return `http://localhost:3000${path}?token=${encodeURIComponent(token)}`;
-  }
+  const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
+  if (!base) throw new Error("APP_BASE_URL_NOT_CONFIGURED");
   return `${base}${path}?token=${encodeURIComponent(token)}`;
-}
-
-export async function sendVerificationEmail(to: string, token: string) {
-  const url = appUrl("/verificar-email", token);
-  await getProvider().send({ to, subject: "Verifica tu correo en Orqena", text: `Verifica tu correo abriendo este enlace: ${url}`, html: `<p>Confirma tu correo para activar tu cuenta de Orqena.</p><p><a href="${url}">Verificar correo</a></p>` });
-}
-
-export async function sendPasswordResetEmail(to: string, token: string) {
-  const url = appUrl("/restablecer-contrasena", token);
-  await getProvider().send({ to, subject: "Restablece tu contraseña de Orqena", text: `Restablece tu contraseña abriendo este enlace: ${url}`, html: `<p>Se ha solicitado un cambio de contraseña para tu cuenta.</p><p><a href="${url}">Restablecer contraseña</a></p><p>Si no lo solicitaste, ignora este mensaje.</p>` });
 }

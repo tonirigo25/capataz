@@ -1176,15 +1176,15 @@ erDiagram
     String templateKey
     Int templateVersion
     Int schemaVersion
+    String idempotencyKey
     String recipient
+    String recipientHash
     String subject
     String htmlBody
     String textBody
     Json payload
     EmailOutboxStatus status
     Int attempts
-    DateTime availableAt
-    DateTime processedAt
   }
   EmailDeliveryAttempt {
     String id
@@ -1206,6 +1206,9 @@ erDiagram
     String subject
     String htmlSource
     String textSource
+    Json allowedVariables
+    String contentHash
+    Boolean trackingEnabled
     Boolean active
     DateTime createdAt
   }
@@ -1520,6 +1523,12 @@ erDiagram
     String email
     String currency
     Boolean livemode
+    String legalName
+    String taxId
+    String addressLine
+    String postalCode
+    String city
+    String countryCode
     DateTime createdAt
     DateTime updatedAt
   }
@@ -1544,13 +1553,27 @@ erDiagram
     String eventType
     Int schemaVersion
     Json payload
+    String payloadHash
+    DateTime occurredAt
     String status
     Boolean signatureVerified
     Int attempts
     DateTime processedAt
     String lastError
     DateTime createdAt
-    DateTime updatedAt
+  }
+  BillingReconciliationRun {
+    String id
+    String companyId
+    String provider
+    String status
+    Json localSnapshot
+    Json providerSnapshot
+    Json divergences
+    Int divergenceCount
+    String correctionMode
+    DateTime startedAt
+    DateTime completedAt
   }
   EmailSuppression {
     String id
@@ -1814,14 +1837,15 @@ erDiagram
     String objectKey
     String versionId
     String originalName
+    String safeName
     String mimeType
     BigInt sizeBytes
     String sha256
     String classification
     String encryption
+    String providerVersion
+    String contentDisposition
     String status
-    DateTime createdAt
-    DateTime deletedAt
   }
   UploadScan {
     String id
@@ -1991,6 +2015,8 @@ erDiagram
   Company }o--o{ SupportTicket : relates
   Company }o--o{ Incident : relates
   Company }o--o{ StoredObject : relates
+  Company }o--o{ StoredObject : relates
+  Company }o--o{ StoredObject : relates
   Company }o--o{ UploadScan : relates
   BusinessMemory }o--o{ Company : relates
   BusinessMemory }o--o{ User : relates
@@ -2047,6 +2073,7 @@ erDiagram
   BillingCustomer }o--o{ Company : relates
   BillingEvent }o--o{ Company : relates
   BillingEvent }o--o{ Subscription : relates
+  BillingReconciliationRun }o--o{ Company : relates
   LegalAcceptance }o--o{ LegalDocumentVersion : relates
   AiModelVersion }o--o{ AiUsageEvent : relates
   AiPromptVersion }o--o{ AiUsageEvent : relates

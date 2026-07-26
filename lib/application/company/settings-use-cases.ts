@@ -2,6 +2,7 @@ import { invalidateActionPath as revalidatePath } from "@/lib/application/action
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { requireActiveOwner } from "@/lib/commercial/owner-governance";
+import { getPrivateStorageService } from "@/lib/private-storage";
 
 export async function saveUserProfile(formData: FormData) {
   const auth = await requireCompanyContext();
@@ -53,8 +54,6 @@ export async function saveCompanySettings(formData: FormData) {
     iban: optionalText(formData, "iban"),
     condicionesPorDefecto: optionalText(formData, "condicionesPorDefecto"),
     textoLegal: optionalText(formData, "textoLegal"),
-    logoUrl: optionalText(formData, "logoUrl"),
-    selloUrl: optionalText(formData, "selloUrl"),
     colorMarca: text(formData, "colorMarca") || "#f6c945",
     ivaDefecto: number(formData, "ivaDefecto", 21),
     moneda: text(formData, "moneda") || "EUR",
@@ -73,8 +72,8 @@ export async function saveCompanySettings(formData: FormData) {
     direccion: data.direccionFiscal, codigoPostal: data.codigoPostal, ciudad: data.ciudad,
     provincia: data.provincia, pais: data.pais, telefono: data.telefono, email: data.email,
     web: data.web, contactPerson: data.personaContacto, iban: data.iban,
-    defaultConditions: data.condicionesPorDefecto, legalText: data.textoLegal, logoUrl: data.logoUrl,
-    sealUrl: data.selloUrl, brandColor: data.colorMarca, defaultVat: data.ivaDefecto,
+    defaultConditions: data.condicionesPorDefecto, legalText: data.textoLegal,
+    brandColor: data.colorMarca, defaultVat: data.ivaDefecto,
     currency: data.moneda, budgetValidityDays: data.validezPresupuestoDias,
     defaultPaymentTerms: data.formaPagoDefecto, budgetSeries: data.seriePresupuestos,
     invoiceSeries: data.serieFacturas, workSeries: data.serieObras, budgetPrefix: data.prefijoPresupuesto,
@@ -86,6 +85,21 @@ export async function saveCompanySettings(formData: FormData) {
   revalidatePath("/hoy");
   revalidatePath("/presupuestos");
   revalidatePath("/dinero");
+}
+
+export async function uploadCompanyAsset(formData: FormData) {
+  const auth = await requireActiveOwner();
+  const kind = text(formData, "assetKind");
+  if (!['logo', 'seal'].includes(kind)) throw new Error("COMPANY_ASSET_KIND_INVALID");
+  const file = formData.get("asset");
+  if (!(file instanceof File) || file.size === 0) throw new Error("COMPANY_ASSET_REQUIRED");
+  const storage = getPrivateStorageService();
+  const object = await storage.put({ companyId: auth.companyId, bytes: new Uint8Array(await file.arrayBuffer()), originalName: file.name, mimeType: file.type, classification: "COMPANY_BRAND", idempotencyKey: `company-${kind}:${auth.companyId}:${file.name}:${file.size}` });
+  await prisma.$transaction(async (transaction) => {
+    await transaction.company.update({ where: { id: auth.companyId }, data: kind === "logo" ? { logoStoredObjectId: object.id, logoUrl: null } : { sealStoredObjectId: object.id, sealUrl: null } });
+    await transaction.auditLog.create({ data: { companyId: auth.companyId, userActorId: auth.userId, action: `company.${kind}.uploaded`, targetType: "StoredObject", targetId: object.id, metadata: { mimeType: object.mimeType, sizeBytes: object.sizeBytes.toString(), sha256: object.sha256 } } });
+  });
+  revalidatePath("/configuracion");
 }
 
 function text(formData: FormData, key: string) {

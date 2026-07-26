@@ -887,251 +887,251 @@ requirements:
   - id: "COMM-001"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Conservar BillingProvider y añadir adaptador Stripe; proveedor local permanece para tests."
     acceptance: "Suite contractual ejecutada contra ambos."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "scripts/readiness/validate-provider-contracts.ts"]
+    notes: ["Fake and Stripe adapters pass the shared contract with injected transports and no external call."]
   - id: "COMM-002"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Separar Plan interno de Product/Price externo mediante mapping."
     acceptance: "Ningún Price ID aparece hardcodeado en UI."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/commercial/subscription-service.ts", "app/(app)/plan-y-uso/page.tsx"]
+    notes: ["External Price IDs are database mappings; UI selects internal plan and interval only."]
   - id: "COMM-003"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear Checkout Session autenticada e idempotente."
     acceptance: "Reintento no crea dos customers/subscriptions."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/subscription-service.ts", "lib/application/billing/stripe-use-cases.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["OWNER checkout replay performed one provider call and changed input with the same key was rejected."]
   - id: "COMM-004"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Integrar Customer Portal para método de pago, facturas y cancelación."
     acceptance: "Portal solo se crea para la empresa/OWNER autorizados."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/subscription-service.ts", "app/(app)/plan-y-uso/page.tsx", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Customer portal is visible to and created for the authorized OWNER tenant only."]
   - id: "COMM-005"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Verificar firma y deduplicar webhooks Stripe."
     acceptance: "Mismo event ID se procesa una vez."
-    evidence: []
-    notes: []
+    evidence: ["app/api/webhooks/stripe/route.ts", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Raw-body signature, event uniqueness, tenant checks, replay and stale-event handling passed."]
   - id: "COMM-006"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Sincronizar estados TRIALING/ACTIVE/PAST_DUE/PAUSED/CANCELED/EXPIRED."
     acceptance: "Matriz de eventos y pruebas de transición."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["TRIALING, ACTIVE, PAST_DUE, PAUSED, CANCELED and EXPIRED projections passed."]
   - id: "COMM-007"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir política de gracia y acceso read-only ante impago."
     acceptance: "Entitlements y mutaciones responden de forma consistente."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/access-policy.ts", "lib/commercial/authorization.ts", "scripts/readiness/validate-f4-commercial.ts"]
+    notes: ["Past-due access is full only during configured grace and server mutations become read-only afterward."]
   - id: "COMM-008"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Gestionar trial, renovación, downgrade y cancel at period end."
     acceptance: "Fechas locales y Stripe reconciliadas."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Trial, period dates, cancellation scheduling and provider ordering persist and reconcile."]
   - id: "COMM-009"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Activar dunning y comunicaciones de pago fallido."
     acceptance: "Eventos generan email/tarea sin duplicados."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/subscription-service.ts", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["A replayed failed-payment event produced exactly one email and one task."]
   - id: "COMM-010"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Aplicar entitlements y límites en servidor, no solo UI."
     acceptance: "Pruebas negativas excediendo miembros/documentos/IA."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/authorization.ts", "lib/commercial/usage.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Server-side negative limit tests passed for members, documents and AI actions."]
   - id: "COMM-011"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Registrar consumo idempotente por periodo."
     acceptance: "Uso no se duplica al reintentar una acción."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/usage.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Advisory locking and tenant/metric/idempotency uniqueness kept usage replay at one record."]
   - id: "COMM-012"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir sobreuso como decisión comercial, no cargo oculto."
     acceptance: "UI avisa y requiere plan/allowance configurado."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/access-policy.ts", "app/(app)/plan-y-uso/page.tsx", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Default overuse decision is BLOCK; UI states that no automatic overuse charge occurs."]
   - id: "COMM-013"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Recoger datos fiscales de suscripción separados de clientes finales."
     acceptance: "Billing customer no contamina facturación operacional."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "prisma/migrations/20260726140000_readiness_f4_commercial_email_storage/migration.sql", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["BillingCustomer carries subscription fiscal identity independently from operational clients and invoices."]
   - id: "COMM-014"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Proporcionar reconciliación diaria proveedor/base."
     acceptance: "Job detecta divergencias y no corrige sin auditoría."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/subscription-service.ts", "docs/runbooks/BILLING_EMAIL_STORAGE_OPERATIONS.md", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Daily runbook and audit-only reconciliation record divergences without silently correcting state."]
   - id: "COMM-015"
     area: "COMM"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Incluir cancelación reason y export en métricas."
     acceptance: "Razones visibles por cohorte."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Cancellation reason and month cohort are exportable as structured metrics."]
   - id: "EMAIL-001"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Unificar lib/email/index.ts y outbox bajo una fachada de servicio."
     acceptance: "Auth, invitaciones, billing, soporte y alertas usan la misma cola."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/index.ts", "lib/email/outbox.ts", "lib/application/auth/auth-use-cases.ts"]
+    notes: ["Auth, invitations, billing, support and alerts use the shared provider/outbox facade."]
   - id: "EMAIL-002"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Guardar el evento en outbox dentro de la transacción de negocio."
     acceptance: "No hay estado confirmado sin email pendiente cuando corresponde."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/outbox.ts", "lib/application/auth/auth-use-cases.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Forced business rollback removed the queued email; committed flows enqueue in their transaction."]
   - id: "EMAIL-003"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Procesar outbox con worker separado y locking SKIP LOCKED."
     acceptance: "Dos workers no envían el mismo mensaje."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/outbox.ts", "app/api/jobs/email-outbox/route.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Two concurrent SKIP LOCKED claimers returned no duplicate ID."]
   - id: "EMAIL-004"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Versionar plantillas y variables permitidas."
     acceptance: "Render falla antes de envío si falta variable."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Versioned templates persist content hashes and allowlists; a missing variable failed before provider invocation."]
   - id: "EMAIL-005"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir adaptador Resend y local sink."
     acceptance: "Contrato de provider y tests con destinatarios de prueba."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/index.ts", "lib/platform/providers/production.ts", "lib/platform/providers/fake.ts", "scripts/readiness/validate-provider-contracts.ts"]
+    notes: ["Resend and non-delivering fake/local adapters share one contract."]
   - id: "EMAIL-006"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Verificar webhooks Resend con body crudo y firma."
     acceptance: "Webhook inválido/replay se rechaza."
-    evidence: []
-    notes: []
+    evidence: ["app/api/webhooks/resend/route.ts", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Standard Webhooks verification uses raw body; invalid signature failed and signed replay deduplicated."]
   - id: "EMAIL-007"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Persistir delivery, delay, bounce, complaint, failure y suppression."
     acceptance: "Estado de outbox se actualiza idempotentemente."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Delivery attempts and webhook event types persist delivered, delay, bounce, complaint, failure and suppression state."]
   - id: "EMAIL-008"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener lista de supresión y bloquear reenvíos indebidos."
     acceptance: "Bounce/complaint posterior no vuelve a enviarse."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Active tenant/global suppression cancels a claimed item before any provider call."]
   - id: "EMAIL-009"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Aplicar reintentos, backoff, dead letter y replay administrativo."
     acceptance: "Fallo temporal se recupera; fallo permanente se explica."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Exponential retry recovered a transient failure; dead letter and audited admin replay passed."]
   - id: "EMAIL-010"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Preparar subdominio de envío, SPF, DKIM, DMARC y reply-to como configuración."
     acceptance: "Solo faltan valores de dominio/correo del propietario."
-    evidence: []
-    notes: []
+    evidence: [".env.example", "lib/email/outbox.ts", "lib/config/server.ts", "docs/compliance/EMAIL_DOMAIN_ACTIVATION.md"]
+    notes: ["Fail-closed configuration and checklist are complete; owner-approved domain, From/Reply-To, SPF, DKIM, DMARC and live credentials remain external."]
   - id: "EMAIL-011"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "No persistir tokens de invitación en HTML/payload/auditoría."
     acceptance: "Scanner y tests confirman ausencia."
-    evidence: []
-    notes: []
+    evidence: ["lib/email/outbox.ts", "lib/application/auth/auth-use-cases.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Action URLs render in memory from a derivation secret; database scan found no plaintext token or rendered URL/body."]
   - id: "EMAIL-012"
     area: "EMAIL"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir entrega sin activar tracking no necesario por defecto."
     acceptance: "Privacidad y email config son coherentes."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/email/outbox.ts", "lib/config/server.ts"]
+    notes: ["Delivery metadata is retained while open/click tracking defaults off and live config rejects tracking enabled."]
   - id: "STOR-001"
     area: "STOR"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Conservar DocumentStorage y seleccionar proveedor por entorno."
     acceptance: "Local y S3/Railway Bucket pasan suite contractual."
-    evidence: []
-    notes: []
+    evidence: ["lib/document-storage.ts", "lib/private-storage.ts", "lib/platform/providers/production.ts", "scripts/readiness/validate-provider-contracts.ts"]
+    notes: ["Legacy DocumentStorage remains; local private and S3 adapters are environment-selected and contract-tested."]
   - id: "STOR-002"
     area: "STOR"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Usar bucket privado y objetos aislados por empresa."
     acceptance: "No hay URL pública permanente ni key cruzada."
-    evidence: []
-    notes: []
+    evidence: ["lib/private-storage.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Objects use private provider storage and company-prefixed access; cross-tenant authorization failed."]
   - id: "STOR-003"
     area: "STOR"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Generar URLs firmadas de corta duración tras autorización."
     acceptance: "Enlace expirado/otro tenant falla."
-    evidence: []
-    notes: []
+    evidence: ["lib/private-storage.ts", "app/api/storage/[id]/route.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Authorized HMAC grants are capped at 15 minutes; wrong object, tamper, expiry and cross-tenant issue failed."]
   - id: "STOR-004"
     area: "STOR"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Guardar hash, tamaño, MIME, nombre seguro, provider y versión."
     acceptance: "Descarga verifica integridad."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/private-storage.ts", "scripts/readiness/validate-f4-postgres.ts"]
+    notes: ["Safe name, MIME, byte size, SHA-256, provider, bucket and version persist; modified bytes failed download."]
   - id: "STOR-005"
     area: "STOR"
     phase: "F5"
@@ -1183,11 +1183,11 @@ requirements:
   - id: "STOR-011"
     area: "STOR"
     phase: "F4"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Sustituir URLs libres de logo/sello por uploads privados autorizados."
     acceptance: "PDFs resuelven assets sin aceptar SSRF."
-    evidence: []
-    notes: []
+    evidence: ["lib/application/company/settings-use-cases.ts", "app/(app)/configuracion/page.tsx", "app/(app)/dinero/[id]/pdf/route.ts", "app/(app)/presupuestos/[id]/pdf/route.ts"]
+    notes: ["OWNER-only private uploads replace editable URLs; PDF inputs no longer accept remote asset URLs, removing SSRF."]
   - id: "STOR-012"
     area: "STOR"
     phase: "F5"

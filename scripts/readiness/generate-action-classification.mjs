@@ -63,7 +63,7 @@ function localFunctions(file) {
   return result;
 }
 
-function serviceReference(actionFile) {
+function serviceReference(actionFile, actionName) {
   for (const statement of actionFile.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
     if (!statement.moduleSpecifier.text.startsWith("@/lib/")) continue;
@@ -71,7 +71,7 @@ function serviceReference(actionFile) {
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     const aliases = new Map();
     for (const element of bindings.elements) aliases.set(element.name.text, element.propertyName?.text ?? element.name.text);
-    if ([...aliases.keys()].some((name) => name.endsWith("UseCase"))) {
+    if (aliases.has(`${actionName}UseCase`)) {
       return { fileName: path.join(root, `${statement.moduleSpecifier.text.slice(2)}.ts`), aliases };
     }
   }
@@ -166,8 +166,8 @@ const classifications = [];
 for (const absoluteAction of walk(path.join(root, "app")).sort()) {
   const actionPath = normalize(path.relative(root, absoluteAction));
   const actionFile = parse(absoluteAction);
-  const service = serviceReference(actionFile);
   for (const action of exportedFunctions(actionFile)) {
+    const service = serviceReference(actionFile, action.name);
     const id = `${actionPath}#${action.name}`;
     const serviceName = service?.aliases.get(`${action.name}UseCase`) ?? action.name;
     const resolved = service ? resolveUseCase(service.fileName, serviceName) : { file: actionFile, fileName: absoluteAction, useCase: action };
