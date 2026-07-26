@@ -14,8 +14,19 @@ type AuditInput = {
 
 export async function recordSecurityEvent(input: AuditInput) {
   try {
-    const requestId = input.requestId ?? getRequestContext()?.requestId ?? null;
-    await prisma.securityAuditEvent.create({ data: { ...input, requestId } });
+    const context = getRequestContext();
+    await prisma.securityAuditEvent.create({ data: {
+      ...input,
+      requestId: input.requestId ?? context?.requestId ?? null,
+      correlationId: context?.correlationId,
+      causationId: context?.causationId,
+      membershipId: context?.membershipId,
+      actorType: context?.actor.type,
+      jobId: context?.jobId,
+      operation: context?.operation,
+      release: context?.release,
+      environment: context?.environment,
+    } });
   } catch (error) {
     log("error", "security_audit_persist_failed", { operation: input.type, errorCode: safeErrorCode(error) });
   }

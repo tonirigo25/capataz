@@ -6,6 +6,7 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 const SAFE_FIELDS = new Set([
   "event", "requestId", "correlationId", "causationId", "companyId", "actorType",
   "actorIdHash", "jobId", "provider", "operation", "status", "statusCode", "durationMs",
+  "membershipIdHash",
   "attempt", "errorCode", "resourceType", "resourceId", "release", "environment", "deploymentId",
 ]);
 const SENSITIVE_KEY = /email|name|phone|address|payload|body|content|password|secret|token|cookie|authorization|certificate|key/i;
@@ -23,9 +24,12 @@ export function log(level: LogLevel, event: string, fields: Record<string, unkno
     companyId: context?.companyId,
     actorType: context?.actor.type,
     actorIdHash: context?.actor.id ? hashIdentifier(context.actor.id) : undefined,
+    membershipIdHash: context?.membershipId ? hashIdentifier(context.membershipId) : undefined,
     jobId: context?.jobId,
-    release: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA,
-    environment: process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NEXT_PUBLIC_APP_ENV,
+    provider: context?.provider,
+    operation: context?.operation,
+    release: context?.release ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA,
+    environment: context?.environment ?? process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NEXT_PUBLIC_APP_ENV,
     deploymentId: process.env.RAILWAY_DEPLOYMENT_ID,
   };
   for (const [key, value] of Object.entries(fields)) {

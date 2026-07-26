@@ -1,3 +1,4 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { resolveAuthorization } from "@/lib/commercial/authorization";
 import { getOptionalSession, resolveActiveCompany, type CompanyContext } from "@/lib/auth/session";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  return publicRequestContext("POST /api/capataz/transcribe", request, async () => {
   const session = await getOptionalSession();
   if (!session) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   const active = await resolveActiveCompany(session.userId);
@@ -57,6 +59,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ text });
+
+  });
 }
 
 function sanitizeTranscriptionError(message: string) {

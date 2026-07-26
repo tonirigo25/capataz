@@ -7,12 +7,16 @@ import { consumeRateLimit } from "../../lib/platform/rate-limit";
 import { persistVerifiedWebhook } from "../../lib/platform/webhooks";
 import { readEncryptedCredential, storeEncryptedCredential } from "../../lib/platform/credentials";
 import { assignCompanyTeamMember, createCompanyTeam } from "../../lib/application/company/team-service";
+import { createCorrelationProbe } from "../../lib/application/readiness/correlation-probe-service";
+import { processCorrelationProbeEvent } from "../../lib/application/readiness/correlation-probe-worker";
+import { withActionOperationContext } from "../../lib/platform/action-operation";
+import { FakeObservabilityProvider } from "../../lib/platform/providers/fake";
 
 async function main() {
  const prisma = new PrismaClient();
  try {
   const migrations = await prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  if (migrations[0]?.count !== 36) throw new Error(`EXPECTED_36_MIGRATIONS_FOUND_${migrations[0]?.count}`);
+  if (migrations[0]?.count !== 37) throw new Error(`EXPECTED_37_MIGRATIONS_FOUND_${migrations[0]?.count}`);
   const companyA = await prisma.company.create({ data: { id: "f2-company-a", slug: "f2-company-a", nombreComercial: "F2 A" } });
   const companyB = await prisma.company.create({ data: { id: "f2-company-b", slug: "f2-company-b", nombreComercial: "F2 B" } });
   const keyring = { activeVersion: "f2", keys: new Map([["f2", randomBytes(32)]]) };
@@ -40,6 +44,39 @@ async function main() {
     teamTransactionRolledBack = true;
   }
   if (!teamTransactionRolledBack || await prisma.team.count({ where: { companyId: companyA.id, name: "F2 Must Roll Back" } })) throw new Error("ACTION_SERVICE_TRANSACTION_ROLLBACK_FAILED");
+  const correlationId = "f2-action-service-worker-provider";
+  const requestId = "f2-action-request";
+  const actionContext = {
+    requestId,
+    correlationId,
+    actor: { type: "user" as const, id: user.id },
+    companyId: companyA.id,
+    membershipId: membershipA.id,
+    operation: "action.readiness.correlation_probe",
+    release: "f2-local-validation",
+    environment: "isolated-test",
+  };
+  const probe = await withActionOperationContext(actionContext, () => createCorrelationProbe(prisma, { companyId: companyA.id, userId: user.id, membershipId: membershipA.id }, { targetCompanyId: companyA.id, idempotencyKey: "f2-correlation-probe" }));
+  let probeTenantRejected = false;
+  try {
+    await withActionOperationContext({ ...actionContext, requestId: "f2-cross-tenant-request", correlationId: "f2-cross-tenant-correlation" }, () => createCorrelationProbe(prisma, { companyId: companyA.id, userId: user.id, membershipId: membershipA.id }, { targetCompanyId: companyB.id, idempotencyKey: "f2-cross-tenant-probe" }));
+  } catch (error) {
+    probeTenantRejected = error instanceof Error && error.message === "CORRELATION_PROBE_CROSS_TENANT_FORBIDDEN";
+  }
+  if (!probeTenantRejected || await prisma.businessEvent.count({ where: { idempotencyKey: "f2-cross-tenant-probe" } })) throw new Error("CORRELATION_PROBE_TENANT_NEGATIVE_FAILED");
+  const probeEvents = await claimOutboxBatch(prisma, "fake-observability");
+  if (probeEvents.length !== 1 || probeEvents[0].id !== probe.eventId) throw new Error("CORRELATION_PROBE_CLAIM_FAILED");
+  const fakeObservability = new FakeObservabilityProvider();
+  const delivered = await processCorrelationProbeEvent(prisma, probeEvents[0], fakeObservability);
+  const replayedDelivery = await processCorrelationProbeEvent(prisma, probeEvents[0], fakeObservability);
+  const [probeAudits, persistedProbe] = await Promise.all([
+    prisma.auditLog.findMany({ where: { correlationId }, orderBy: { createdAt: "asc" } }),
+    prisma.businessEvent.findUniqueOrThrow({ where: { id: probe.eventId } }),
+  ]);
+  if (delivered.replayed || !replayedDelivery.replayed || fakeObservability.events.length !== 1) throw new Error("CORRELATION_PROBE_REPLAY_EFFECT_FAILED");
+  if (probeAudits.length !== 2 || probeAudits.some((audit) => audit.correlationId !== correlationId || audit.requestId == null || audit.operation == null)) throw new Error("CORRELATION_PROBE_AUDIT_CONTEXT_FAILED");
+  if (persistedProbe.correlationId !== correlationId || persistedProbe.requestId !== requestId || persistedProbe.operation !== actionContext.operation) throw new Error("CORRELATION_PROBE_EVENT_CONTEXT_FAILED");
+  if (fakeObservability.events[0].fields.correlationId !== correlationId || fakeObservability.events[0].requestId !== probe.eventId) throw new Error("CORRELATION_PROBE_PROVIDER_CONTEXT_FAILED");
   const old = await prisma.session.create({ data: { userId: user.id, tokenHash: "old-token-hash", expiresAt: new Date(Date.now() + 60_000) } });
   const rotated = await rotateSessionRecord({ prisma, sessionId: old.id, userId: user.id, expiresAt: new Date(Date.now() + 120_000) });
   const oldAfter = await prisma.session.findUniqueOrThrow({ where: { id: old.id } });
@@ -77,7 +114,7 @@ async function main() {
   const duplicate = await persistVerifiedWebhook(prisma, webhookInput);
   if (accepted.replayed || !duplicate.replayed || await prisma.webhookEvent.count({ where: { provider: "fiscal", externalEventId: "event-1" } }) !== 1) throw new Error("WEBHOOK_REPLAY_PROTECTION_FAILED");
 
-  console.log(JSON.stringify({ ok: true, migrations: migrations[0].count, encryptedCredential: true, sessionRotation: true, idempotentOperations: operations, tenantAAllowed: attemptsA.filter((item) => item.allowed).length, tenantBAllowed: attemptsB.filter((item) => item.allowed).length, actionServiceCrossTenantRejected: crossTenantRejected, actionServiceTransactionRollback: teamTransactionRolledBack, membershipA: membershipA.companyId === companyA.id, outboxRollback: true, outboxClaimed: claimed.length, webhookReplay: duplicate.replayed }, null, 2));
+  console.log(JSON.stringify({ ok: true, migrations: migrations[0].count, encryptedCredential: true, sessionRotation: true, idempotentOperations: operations, tenantAAllowed: attemptsA.filter((item) => item.allowed).length, tenantBAllowed: attemptsB.filter((item) => item.allowed).length, actionServiceCrossTenantRejected: crossTenantRejected, actionServiceTransactionRollback: teamTransactionRolledBack, correlationProbeTenantRejected: probeTenantRejected, correlationSearchAuditRows: probeAudits.length, correlationProviderEffects: fakeObservability.events.length, correlationReplayDetected: replayedDelivery.replayed, membershipA: membershipA.companyId === companyA.id, outboxRollback: true, outboxClaimed: claimed.length, webhookReplay: duplicate.replayed }, null, 2));
  } finally {
    await prisma.$disconnect();
  }

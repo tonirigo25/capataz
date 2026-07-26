@@ -1,4 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { getRequestContext } from "@/lib/platform/request-context";
 
 type Transaction = Prisma.TransactionClient;
 
@@ -10,7 +12,7 @@ export type OutboxEventInput = {
   entityId: string;
   destination: string;
   idempotencyKey: string;
-  correlationId: string;
+  correlationId?: string;
   causationId?: string;
   payload?: Prisma.InputJsonValue;
   relatedEntities?: Prisma.InputJsonValue;
@@ -18,17 +20,23 @@ export type OutboxEventInput = {
 };
 
 export async function enqueueBusinessEvent(transaction: Transaction, input: OutboxEventInput) {
+  const context = getRequestContext();
   return transaction.businessEvent.create({
     data: {
-      companyId: input.companyId,
-      actorId: input.actorId,
+      companyId: input.companyId ?? context?.companyId,
+      actorId: input.actorId ?? context?.actor.id,
       type: input.type,
       entityType: input.entityType,
       entityId: input.entityId,
       destination: input.destination,
       idempotencyKey: input.idempotencyKey,
-      correlationId: input.correlationId,
-      causationId: input.causationId,
+      correlationId: input.correlationId ?? context?.correlationId ?? randomUUID(),
+      causationId: input.causationId ?? context?.causationId,
+      requestId: context?.requestId,
+      jobId: context?.jobId,
+      operation: context?.operation,
+      release: context?.release,
+      environment: context?.environment,
       payloadSanitized: input.payload,
       relatedEntities: input.relatedEntities,
       occurredAt: new Date(),
@@ -41,6 +49,12 @@ export async function enqueueBusinessEvent(transaction: Transaction, input: Outb
 export type ClaimedOutboxEvent = {
   id: string;
   companyId: string | null;
+  actorId: string | null;
+  requestId: string | null;
+  jobId: string | null;
+  operation: string | null;
+  release: string | null;
+  environment: string | null;
   type: string;
   entityType: string;
   entityId: string;
@@ -57,7 +71,7 @@ export async function claimOutboxBatch(prisma: PrismaClient, destination: string
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 100) throw new Error("INVALID_OUTBOX_BATCH_SIZE");
   return prisma.$transaction(async (transaction) => {
     const rows = await transaction.$queryRaw<ClaimedOutboxEvent[]>`
-      SELECT "id", "companyId", "type", "entityType", "entityId", "destination",
+      SELECT "id", "companyId", "actorId", "requestId", "jobId", "operation", "release", "environment", "type", "entityType", "entityId", "destination",
              "idempotencyKey", "correlationId", "causationId", "schemaVersion",
              "payloadSanitized", "attempts"
       FROM "BusinessEvent"

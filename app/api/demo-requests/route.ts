@@ -1,7 +1,9 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { requestProductDemo } from "@/lib/commercial/demo-service";
 
 export async function POST(request: Request) {
+  return publicRequestContext("POST /api/demo-requests", request, async () => {
   const contentType = request.headers.get("content-type") ?? "";
   const input = contentType.includes("application/json") ? await request.json() as Record<string, unknown> : Object.fromEntries((await request.formData()).entries());
   try {
@@ -21,6 +23,8 @@ export async function POST(request: Request) {
     const code = error instanceof Error ? error.message : "INVALID_DEMO_REQUEST";
     return NextResponse.json({ ok: false, error: code === "DEMO_RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_REQUEST" }, { status: code === "DEMO_RATE_LIMITED" ? 429 : 400 });
   }
+
+  });
 }
 
 function clean(value: unknown, max: number) {

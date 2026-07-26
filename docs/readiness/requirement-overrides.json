@@ -80,9 +80,9 @@
     "notes": ["Login revokes a prior cookie session; company selection and support privilege elevation rotate; password reset revokes all sessions. The old token row was proven revoked."]
   },
   "SEC-004": {
-    "status": "PENDING",
-    "evidence": ["middleware.ts", "lib/platform/request-context.ts", "lib/auth/audit.ts"],
-    "notes": ["Request and correlation IDs are propagated globally, but every legacy action, job and webhook has not yet installed actor, company and job context."]
+    "status": "PASS",
+    "evidence": ["lib/platform/action-operation.ts", "lib/platform/next-action-boundary.ts", "lib/platform/request-boundary.ts", "lib/platform/persistence-context.ts", "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql", "scripts/readiness/validate-context-boundaries.mjs", "docs/readiness/evidence/f2/context-correlation-audit.md"],
+    "notes": ["All 30 action files, 16 route handlers and 2 internal job routes install canonical context; webhook/outbox/platform wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."]
   },
   "SEC-005": {
     "status": "READY_FOR_EXTERNAL_INPUT",
@@ -130,9 +130,9 @@
     "notes": ["Node-only server instrumentation and client release/environment bootstrap compile in the production build."]
   },
   "OBS-004": {
-    "status": "PENDING",
-    "evidence": ["middleware.ts", "lib/platform/request-context.ts", "lib/observability/logger.ts"],
-    "notes": ["Privacy-bounded fields exist, but full actor, tenant and job propagation through every legacy boundary remains incomplete."]
+    "status": "PASS",
+    "evidence": ["lib/platform/request-context.ts", "lib/observability/logger.ts", "lib/platform/outbox.ts", "lib/auth/audit.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts", "docs/readiness/evidence/f2/context-correlation-audit.md"],
+    "notes": ["Request, correlation, causation, privacy-safe actor, company, membership, job, provider, operation, release and environment propagate through actions, services, audits, BusinessEvent, worker and fake provider; correlation search returned both audit rows and replay produced one effect."]
   },
   "OBS-005": {
     "status": "PASS",

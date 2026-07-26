@@ -1,3 +1,4 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { notFound } from "next/navigation";
 import { parseBudgetLines } from "@/lib/budget-lines";
 import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf";
@@ -9,6 +10,7 @@ import { companyCore } from "@/lib/tenant/core";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  return publicRequestContext("GET /presupuestos/[id]/pdf", request, async () => {
   const { id } = await context.params;
   const auth = await requireCapability("sales.budgets.view");
   const core = companyCore(prisma, auth.companyId);
@@ -84,5 +86,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${budget.numero}.pdf"`,
       "X-Orqena-Template-Placeholders": encodeURIComponent(placeholderSummary)
     }
+  });
+
   });
 }

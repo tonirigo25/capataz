@@ -48,7 +48,7 @@ try {
   const hidden = await request(`${baseUrl}/api/internal/status`);
   expect(hidden.status === 404 && !hidden.text.includes("migration"), "INTERNAL_STATUS_EXPOSED");
   const internal = await request(`${baseUrl}/api/internal/status`, { headers: { authorization: `Bearer ${internalSecret}` } });
-  expect(internal.status === 200 && internal.json?.release?.migrationHead === "20260725200000_readiness_f2_transactional_outbox" && internal.json?.release?.releaseSha === "f2-local-validation", "INTERNAL_STATUS_INCOMPLETE");
+  expect(internal.status === 200 && internal.json?.release?.migrationHead === "20260726100000_readiness_f2_observability_context" && internal.json?.release?.releaseSha === "f2-local-validation", "INTERNAL_STATUS_INCOMPLETE");
   expect(!internal.text.includes(internalSecret) && !internal.text.includes(databaseUrl), "INTERNAL_STATUS_SECRET_LEAK");
 
   const before = await demoCount(databaseUrl);

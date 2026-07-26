@@ -12,18 +12,18 @@
   },
   "requirements": {
     "total": 19,
-    "pass": 15,
+    "pass": 17,
     "readyForExternalInput": 2,
-    "pending": 2,
+    "pending": 0,
     "blocked": 0,
     "waived": 0
   },
   "schema": {
-    "sha256": "6207a6d6031768d90bb57e1a5c536e44ed20a52794c26c19da9e31fcf092fdea",
+    "sha256": "19faa2cbed2518c0b378fed8d7bc8a843a30c95ec6fd3f990b45ee04680f0f0e",
     "models": 130,
     "relations": 222,
-    "migration": "20260725200000_readiness_f2_transactional_outbox",
-    "totalMigrationsAppliedFromFresh": 36
+    "migration": "20260726100000_readiness_f2_observability_context",
+    "totalMigrationsAppliedFromFresh": 37
   },
   "validation": {
     "platformCoreChecks": "21/21 PASS",
@@ -33,6 +33,8 @@
     "otelExporter": "PASS",
     "providerContracts": "fake and production 6/6 PASS",
     "actionBoundaries": "30/30 files and 129/129 exports PASS; negative fixture PASS",
+    "contextBoundaries": "30 actions, 16 routes, 2 jobs PASS; negative fixture PASS",
+    "endToEndCorrelation": "action-service-audit-BusinessEvent-worker-fake provider PASS; replay one effect",
     "typecheck": "PASS",
     "productionBuild": "PASS",
     "staticPagesGenerated": 64,
@@ -54,6 +56,10 @@
     "webhookReplayDetected": true,
     "actionServiceCrossTenantRejected": true,
     "actionServiceTransactionRollback": true,
+    "correlationProbeTenantRejected": true,
+    "correlationSearchAuditRows": 2,
+    "correlationProviderEffects": 1,
+    "correlationReplayDetected": true,
     "encryptedCredentialRoundTrip": true,
     "crossSiteStatus": 403,
     "crossSiteWrites": 0
@@ -63,19 +69,16 @@
     "internalProtected": "/api/internal/status",
     "railwayHealthcheckPath": "/api/health/ready",
     "releaseShaObserved": "f2-local-validation",
-    "migrationHeadObserved": "20260725200000_readiness_f2_transactional_outbox"
+    "migrationHeadObserved": "20260726100000_readiness_f2_observability_context"
   },
-  "pending": {
-    "SEC-004": "request IDs are global, but actor/company/job context is not yet installed at every legacy boundary",
-    "OBS-004": "end-to-end actor, tenant and job correlation remains incomplete for legacy actions and jobs"
-  },
+  "pending": {},
   "externalInput": {
     "SEC-005": "authorized staging deploy and zero-violation CSP E2E window before enforce",
     "SEC-006": "authorized staging security-header scan"
   },
   "temporaryResources": {
-    "isolatedPostgresInstances": 6,
-    "localStandaloneInstances": 1,
+    "isolatedPostgresInstances": 9,
+    "localStandaloneInstances": 3,
     "externalCost": 0,
     "teardown": "PASS"
   }

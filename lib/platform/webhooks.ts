@@ -3,6 +3,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
 import { hashCanonical } from "@/lib/platform/idempotency";
 import { consumeRateLimit } from "@/lib/platform/rate-limit";
+import { getRequestContext } from "@/lib/platform/request-context";
 
 export type SignedWebhook = {
   provider: string;
@@ -49,6 +50,7 @@ export function verifyResendWebhook(input: { rawBody: string; id: string; timest
 }
 
 export async function persistVerifiedWebhook(prisma: PrismaClient, input: SignedWebhook) {
+  const context = getRequestContext();
   const limit = await consumeRateLimit({ prisma, scope: `webhook:${input.provider}`, subject: input.companyId ?? input.provider, companyId: input.companyId, limit: 120, windowMs: 60_000 });
   if (!limit.allowed) throw new Error("WEBHOOK_RATE_LIMITED");
   verifyHmacWebhook(input);
@@ -61,6 +63,12 @@ export async function persistVerifiedWebhook(prisma: PrismaClient, input: Signed
       schemaVersion: 1,
       payload: { bodyHash: hashCanonical(input.rawBody), timestamp: input.timestamp },
       signatureVerified: true,
+      requestId: context?.requestId,
+      correlationId: context?.correlationId,
+      causationId: context?.causationId,
+      operation: context?.operation,
+      release: context?.release,
+      environment: context?.environment,
     } });
     return { event, replayed: false };
   } catch (error) {

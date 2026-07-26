@@ -1,3 +1,4 @@
+import { internalRequestContext } from "@/lib/platform/request-boundary";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getOptionalSession } from "@/lib/auth/session";
@@ -8,10 +9,13 @@ import { getSystemStatus } from "@/lib/system-status";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  return internalRequestContext("GET /api/internal/status", request, async () => {
   if (!(await authorized(request))) return NextResponse.json({ ok: false }, { status: 404 });
   const [system, release] = await Promise.all([getSystemStatus(), internalReleaseMetadata()]);
   const ok = system.database === "ok" && system.missingPublicVars.length === 0 && system.missingServerVars.length === 0;
   return NextResponse.json({ ok, system, release }, { status: ok ? 200 : 503 });
+
+  });
 }
 
 async function authorized(request: NextRequest) {
