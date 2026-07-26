@@ -20,6 +20,16 @@ type StripeObject = {
   metadata?: Record<string, string>;
 };
 type StripeEvent = { id: string; type: string; created: number; data: { object: StripeObject } };
+const CHURN_REASONS = new Set(["customer_service", "low_quality", "missing_features", "switched_service", "too_complex", "too_expensive", "unused", "other", "unknown"]);
+
+export function sanitizeChurnComment(value: string | null | undefined) {
+  return String(value ?? "")
+    .replace(/\bsk-(?:proj-)?[A-Za-z0-9_-]{8,}\b/g, "[REDACTED_SECRET]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED_EMAIL]")
+    .replace(/\b(?:\+34[ .-]?)?[6789](?:[ .-]?\d){8}\b/g, "[REDACTED_PHONE]")
+    .replace(/\b(?:[XYZ]\d{7,8}[A-Z]|\d{8}[A-Z])\b/gi, "[REDACTED_TAX_ID]")
+    .replace(/\s+/g, " ").trim().slice(0, 500);
+}
 
 function requireOwner(context: OwnerContext) {
   if (context.role !== "OWNER") throw new Error("BILLING_OWNER_REQUIRED");
@@ -117,8 +127,8 @@ function sanitizedEvent(event: StripeEvent) {
     trialEnd: object.trial_end ?? null,
     cancelAtPeriodEnd: object.cancel_at_period_end ?? false,
     canceledAt: object.canceled_at ?? null,
-    cancellationReason: object.cancellation_details?.reason ?? null,
-    cancellationComment: object.cancellation_details?.comment ?? null,
+    cancellationReason: CHURN_REASONS.has(object.cancellation_details?.reason ?? "") ? object.cancellation_details?.reason ?? null : "other",
+    cancellationComment: sanitizeChurnComment(object.cancellation_details?.comment),
     companyId: object.metadata?.companyId ?? null,
   };
 }
@@ -188,11 +198,19 @@ export async function ingestStripeBillingWebhook(prisma: PrismaClient, input: {
 export async function reconcileBillingSubscription(prisma: PrismaClient, input: {
   companyId: string;
   provider: string;
-  providerSnapshot: { status: SubscriptionStatus; currentPeriodStart: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean; planKey: string };
+  providerSnapshot: { status: SubscriptionStatus; currentPeriodStart: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean; planKey: string; mrrEur?: number };
 }) {
   const local = await prisma.subscription.findFirstOrThrow({ where: { companyId: input.companyId }, orderBy: { createdAt: "desc" }, include: { plan: true } });
   const localSnapshot = { status: local.status, currentPeriodStart: local.currentPeriodStart.toISOString(), currentPeriodEnd: local.currentPeriodEnd.toISOString(), cancelAtPeriodEnd: local.cancelAtPeriodEnd, planKey: local.plan.key };
-  const divergences = Object.entries(input.providerSnapshot).flatMap(([field, providerValue]) => localSnapshot[field as keyof typeof localSnapshot] === providerValue ? [] : [{ field, local: String(localSnapshot[field as keyof typeof localSnapshot]), provider: String(providerValue) }]);
+  if (input.providerSnapshot.mrrEur !== undefined && (!Number.isFinite(input.providerSnapshot.mrrEur) || input.providerSnapshot.mrrEur < 0)) throw new Error("BILLING_MRR_INVALID");
+  const providerState = {
+    status: input.providerSnapshot.status,
+    currentPeriodStart: input.providerSnapshot.currentPeriodStart,
+    currentPeriodEnd: input.providerSnapshot.currentPeriodEnd,
+    cancelAtPeriodEnd: input.providerSnapshot.cancelAtPeriodEnd,
+    planKey: input.providerSnapshot.planKey,
+  };
+  const divergences = Object.entries(providerState).flatMap(([field, providerValue]) => localSnapshot[field as keyof typeof localSnapshot] === providerValue ? [] : [{ field, local: String(localSnapshot[field as keyof typeof localSnapshot]), provider: String(providerValue) }]);
   return prisma.billingReconciliationRun.create({ data: { companyId: input.companyId, provider: input.provider, status: divergences.length ? "DIVERGED" : "MATCHED", localSnapshot, providerSnapshot: input.providerSnapshot, divergences, divergenceCount: divergences.length, correctionMode: "AUDIT_ONLY", completedAt: new Date() } });
 }
 

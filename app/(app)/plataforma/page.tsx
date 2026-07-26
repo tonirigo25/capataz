@@ -13,7 +13,7 @@ export default async function PlatformPage() {
   ]);
   return <main className="screen">
     <p className="type-label">Plataforma interna · {actor.platformRole}</p>
-    <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="type-page-title mt-2">Administración de tenants</h1><Link className="secondary-button" href="/plataforma/observabilidad">Operaciones e incidentes</Link></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="type-page-title mt-2">Administración de tenants</h1><div className="flex flex-wrap gap-2"><Link className="secondary-button" href="/plataforma/observabilidad">Operaciones e incidentes</Link>{actor.platformRole === "PLATFORM_OWNER" ? <Link className="secondary-button" href="/plataforma/salud">Salud de producto y pilotos</Link> : null}</div></div>
     <section className="mt-6" aria-labelledby="demo-requests-title">
       <h2 id="demo-requests-title" className="type-section-title">Solicitudes de demo</h2>
       <div className="mt-3 grid gap-3">

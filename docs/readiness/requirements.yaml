@@ -95,11 +95,11 @@ requirements:
   - id: "GOV-012"
     area: "GOV"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir valor del producto por tareas y resultados, no por número de módulos."
     acceptance: "Dashboard incluye horas ahorradas, cobros recuperados y conversión."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/metrics.ts", "app/(app)/plataforma/salud/page.tsx", "docs/product/METRICS_AND_PILOT_METHOD.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["The aggregate PLATFORM_OWNER dashboard measures time saved, overdue debt recovered and budget conversion from allowlisted operational sources without exposing tenant content."]
   - id: "ARCH-001"
     area: "ARCH"
     phase: "F1"
@@ -1295,11 +1295,11 @@ requirements:
   - id: "OBS-013"
     area: "OBS"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir Core Web Vitals y accesibilidad en páginas clave."
     acceptance: "Gates comparan con presupuesto de rendimiento."
-    evidence: []
-    notes: []
+    evidence: ["contracts/observability/v1/web-performance-budget.json", "components/web-vitals-reporter.tsx", "scripts/readiness/validate-f8-browser.mjs"]
+    notes: ["Six local loopback public, auth and authenticated-app routes passed versioned LCP/CLS/INP/FCP/TTFB budgets, axe blocking-impact checks, keyboard focus and reduced-motion validation; no remote latency is claimed."]
   - id: "OBS-014"
     area: "OBS"
     phase: "F11"
@@ -1503,11 +1503,11 @@ requirements:
   - id: "UX-011"
     area: "UX"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener accesibilidad WCAG en públicos y app."
     acceptance: "Axe y revisión teclado/reduced motion."
-    evidence: []
-    notes: []
+    evidence: ["components/app-chrome.tsx", "app/globals.css", "scripts/readiness/validate-f8-browser.mjs", "contracts/observability/v1/web-performance-budget.json"]
+    notes: ["Public central routes plus authenticated /hoy and support have zero critical/serious axe findings; skip link, focus trap, visible focus, forced-colors and reduced-motion foundations are exercised in the app shell."]
   - id: "UX-012"
     area: "UX"
     phase: "F7"
@@ -1519,163 +1519,163 @@ requirements:
   - id: "MET-001"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Capturar eventos first-party con allowlist y minimización."
     acceptance: "Schema de evento rechaza propiedades no aprobadas."
-    evidence: []
-    notes: []
+    evidence: ["contracts/analytics/v1/events.json", "lib/product/analytics.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Versioned event and property allowlists reject unknown, non-finite and sensitive values; actor IDs are pseudonymized and event replay is idempotent."]
   - id: "MET-002"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir activación: empresa, cliente, presupuesto y documento en siete días."
     acceptance: "Funnel por cohorte."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/activation.ts", "lib/product/metrics.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Seven-day activation uses the versioned aggregate event and reports an aggregate cohort rate."]
   - id: "MET-003"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir WAU de usuarios y empresas."
     acceptance: "Definición estable y documentada."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/metrics.ts", "docs/product/METRICS_AND_PILOT_METHOD.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["WAU is defined as distinct pseudonymous actors and companies with allowlisted activity in a rolling seven-day window."]
   - id: "MET-004"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir retención M1/M2/M3 y motivos de abandono."
     acceptance: "Cohortes y cancelación vinculadas."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/metrics.ts", "lib/commercial/subscription-service.ts", "docs/product/METRICS_AND_PILOT_METHOD.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["M1/M2/M3 eligible cohorts and structured churn taxonomy are implemented; free-text cancellation context is redacted."]
   - id: "MET-005"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir MRR, ARPA y expansión/contracción desde billing reconciliado."
     acceptance: "No se infiere MRR de estados locales simulados."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/metrics.ts", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["MRR and ARPA accept only the latest MATCHED Stripe reconciliation with zero divergence; diverged and local simulated subscriptions contribute zero."]
   - id: "MET-006"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Medir coste de infraestructura, IA, almacenamiento, email y soporte."
     acceptance: "Unit economics por plan/empresa."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/product/pilot-governance.ts", "lib/product/metrics.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["The verified cost ledger covers infrastructure, AI, storage, email and support by company/plan/period and rejects unverified values from aggregates; current real provider invoices, measured usage and time evidence remain external."]
   - id: "MET-007"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Calcular margen bruto y coste de servir."
     acceptance: "Panel con metodología y fecha."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/metrics.ts", "app/(app)/plataforma/salud/page.tsx", "docs/product/METRICS_AND_PILOT_METHOD.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Dated f8-v1 gross-margin and cost-to-serve computation uses reconciled revenue and verified costs and displays no-base states instead of invented values."]
   - id: "MET-008"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir conversión de presupuesto, plazo de cobro y deuda recuperada."
     acceptance: "Valor ligado a datos operativos."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/metrics.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Budget conversion, invoice-to-payment duration and overdue recovered amount are derived from operational records and tested with synthetic fixtures."]
   - id: "MET-009"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir tiempo ahorrado y acciones IA aceptadas/corregidas."
     acceptance: "Encuesta/eventos con metodología."
-    evidence: []
-    notes: []
+    evidence: ["contracts/analytics/v1/events.json", "lib/product/metrics.ts", "docs/product/METRICS_AND_PILOT_METHOD.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Time-saving events require an approved methodology and AI outcome events distinguish accepted, corrected and rejected results without content."]
   - id: "MET-010"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear cohortes de piloto y feedback estructurado."
     acceptance: "Cada piloto tiene objetivo, frecuencia y resultado."
-    evidence: []
-    notes: []
+    evidence: ["contracts/pilots/v1/program.json", "lib/product/pilot-governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Pilot cohorts persist goals, criteria, cadence, onboarding timing, result and consented structured feedback; fixtures are not counted as live pilots."]
   - id: "MET-011"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear panel PLATFORM_OWNER de salud comercial y técnica."
     acceptance: "Datos agregados; sin lectura de contenido tenant."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/plataforma/salud/page.tsx", "lib/product/metrics.ts", "scripts/readiness/validate-f8-product.ts"]
+    notes: ["The PLATFORM_OWNER-only health surface returns aggregate commercial, value, AI, support and pilot figures and never selects ticket or tenant content."]
   - id: "MET-012"
     area: "MET"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir experimentos y decisiones de producto."
     acceptance: "Cada cambio de onboarding/precio tiene hipótesis y métrica."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/product/pilot-governance.ts", "app/(app)/plataforma/salud/page.tsx", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Onboarding, pricing and product experiments require a hypothesis, primary metric, guardrails, status and optional dated decision."]
   - id: "SUP-001"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Definir programa de 5-10 pilotos, al menos 5 de pago."
     acceptance: "Cohorte, contrato/consentimiento y criterios de éxito."
-    evidence: []
-    notes: []
+    evidence: ["contracts/pilots/v1/program.json", "lib/product/pilot-governance.ts", "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["The 5-10 company program, minimum five paid, contract/consent and success-criteria controls are implemented; actual companies, signed contracts, consents and payments require external commercial input."]
   - id: "SUP-002"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Estandarizar onboarding y sesión inicial."
     acceptance: "Checklist y tiempos registrados."
-    evidence: []
-    notes: []
+    evidence: ["lib/application/company/onboarding-use-case.ts", "lib/product/pilot-governance.ts", "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Product checklist and pilot onboarding start/completion times are persisted with chronology validation."]
   - id: "SUP-003"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear ticketing con prioridad, SLA interno y estados."
     acceptance: "Incidencias no quedan en email informal."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/support-service.ts", "lib/product/pilot-governance.ts", "app/(app)/plataforma/salud/page.tsx", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Authenticated tickets carry priority, internal response/resolution deadlines, states, time and resolution codes under tenant-scoped operations."]
   - id: "SUP-004"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear base de conocimiento y troubleshooting."
     acceptance: "Top incidencias resueltas sin intervención."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/configuracion/soporte/ayuda/page.tsx", "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md", "scripts/readiness/validate-f8-product.ts"]
+    notes: ["The authenticated knowledge base covers common access, documents, billing, privacy and operational troubleshooting without unsafe workarounds."]
   - id: "SUP-005"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir horas de soporte por cuenta."
     acceptance: "Coste integrado en unit economics."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/product/pilot-governance.ts", "lib/product/metrics.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Support minutes accumulate per tenant ticket and aggregate to support hours for cost-to-serve analysis."]
   - id: "SUP-006"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Recoger feedback y NPS/CSAT de forma proporcionada."
     acceptance: "Consentimiento y no spam."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/configuracion/soporte/page.tsx", "lib/product/pilot-governance.ts", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Optional NPS/CSAT requires explicit measurement consent; contact permission is separate and comments are redacted before persistence."]
   - id: "SUP-007"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Registrar razones de cancelación/churn."
     acceptance: "Taxonomía y campo libre redacted."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/subscription-service.ts", "scripts/readiness/validate-f8-product.ts"]
+    notes: ["Cancellation reasons use a bounded taxonomy and unknown values map to other; free-text comments redact secrets and direct identifiers."]
   - id: "SUP-008"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Gestionar testimonios/casos con consentimiento."
     acceptance: "Permiso, alcance y retirada registrados."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/product/pilot-governance.ts", "app/(app)/configuracion/soporte/page.tsx", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["Testimonial consent records explicit scopes, grant and withdrawal with a pseudonymous subject and hashed artifact reference."]
   - id: "SUP-009"
     area: "SUP"
     phase: "F5"
@@ -1687,11 +1687,11 @@ requirements:
   - id: "SUP-010"
     area: "SUP"
     phase: "F8"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear handoff comercial-soporte-producto."
     acceptance: "No se pierde contexto y se respeta minimización."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/pilot-governance.ts", "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md", "scripts/readiness/validate-f8-postgres.ts"]
+    notes: ["The handoff is limited to sanitized commercial summary, support needs and product focus, preserving continuity without copying tenant content."]
   - id: "MOB-001"
     area: "MOB"
     phase: "F10"

@@ -12,7 +12,7 @@ async function main() {
   let passed = 0;
   async function check(name: string, operation: () => unknown | Promise<unknown>) { await operation(); passed += 1; process.stdout.write(`PASS ${name}\n`); }
   const migrations = await prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  assert.equal(migrations[0]?.count, 42);
+  assert.equal(migrations[0]?.count, 43);
   const suffix = Date.now().toString(36);
   const [companyA, companyB] = await Promise.all([
     prisma.company.create({ data: { slug: `f7-a-${suffix}`, nombreComercial: "F7 Synthetic Alpha", onboardingCompletedAt: new Date("2026-07-26T10:00:00.000Z") } }),

@@ -85,7 +85,8 @@ for (const relative of [
 }
 
 const gates = JSON.parse(await readFile(path.join(root, "docs", "readiness", "external-gates.json"), "utf8"));
-check("six-live-gates", gates.gates.length === 6 && gates.gates.every((gate) => gate.status === "READY_FOR_EXTERNAL_INPUT"));
+const aiLiveGates = gates.gates.filter((gate) => /^AI-LIVE-00[1-6]$/.test(gate.id));
+check("six-live-gates", aiLiveGates.length === 6 && aiLiveGates.every((gate) => gate.status === "READY_FOR_EXTERNAL_INPUT"));
 const risk = await readFile(path.join(root, "docs", "readiness", "EXTERNAL_RISK_REGISTER.md"), "utf8");
 check("ui-blocker-no-sensitive-ids", /three attempts|three/i.test(risk) && !/org-[A-Za-z0-9]|proj_[A-Za-z0-9]/.test(risk));
 

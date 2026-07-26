@@ -1,0 +1,70 @@
+{
+  "phase": "F8",
+  "verdict": "PASS_WITH_EXTERNAL_INPUT_GATES",
+  "branch": "feat/readiness-f8-metrics-pilots",
+  "baseBranch": "program/orqena-production-readiness",
+  "baseCommit": "6cab476d112f518ac919bf03734445f08389bd94",
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "marketingV2Modified": false,
+    "databaseTarget": "ephemeral isolated loopback PostgreSQL only",
+    "browserTarget": "ephemeral standalone server on 127.0.0.1 only",
+    "externalProvidersCalled": false,
+    "externalCalls": 0,
+    "realOpenAiCalls": 0,
+    "realPilotCompaniesEnrolled": 0,
+    "realCostEvidenceLoaded": false,
+    "secretsCreated": false,
+    "secretsExposed": false
+  },
+  "requirements": {
+    "total": 24,
+    "pass": 22,
+    "readyForExternalInput": 2,
+    "pending": 0,
+    "blocked": 0,
+    "waived": 0,
+    "externalIds": ["MET-006", "SUP-001"]
+  },
+  "schema": {
+    "sha256": "348c594a2d87642a6692c255df334d0c9fbdce4378db027ba694521a1338e96a",
+    "models": 154,
+    "relations": 250,
+    "migration": "20260726200000_readiness_f8_metrics_pilots",
+    "totalMigrationsAppliedFromFresh": 43,
+    "additive": true
+  },
+  "product": {
+    "methodologyVersion": "f8-v1",
+    "eventContractVersion": 1,
+    "pilotContractVersion": 1,
+    "webPerformanceBudgetVersion": 1,
+    "analyticsDefaultEnabled": false,
+    "mrrSource": "latest MATCHED Stripe reconciliation with zero divergences",
+    "localSimulationIncludedInMrr": false,
+    "unverifiedCostIncluded": false,
+    "pilotTarget": { "minimum": 5, "maximum": 10, "minimumPaid": 5, "liveStatus": "READY_FOR_EXTERNAL_INPUT" }
+  },
+  "validation": {
+    "f8Pure": "55/55 PASS",
+    "f8IsolatedPostgres": "10/10 PASS; two tenants; synthetic fixtures only",
+    "f8Browser": "6/6 public, auth and authenticated-app routes PASS; HTTP 200; zero critical/serious axe findings; keyboard/reduced-motion and budgets PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS; 75 static pages generated",
+    "actionBoundaries": "153 exports; positive and negative PASS",
+    "contextBoundaries": "36 actions, 24 routes, 6 jobs; positive and negative PASS",
+    "f1Regression": "56/56 PASS",
+    "f2Regression": "26/26 PASS plus isolated PostgreSQL correlation/replay",
+    "f3Regression": "12/12 PASS",
+    "f4Regression": "11/11 PASS",
+    "f5Regression": "18/18 PASS plus isolated PostgreSQL 12/12 tenant/privacy",
+    "f6FakeRegression": "44/44 PASS",
+    "f6StaticRegression": "36/36 PASS",
+    "f6IsolatedPostgres": "8/8 PASS; liveCalls 0",
+    "f7Regression": "43/43 PASS plus deterministic PDF golden",
+    "providerContracts": "fake and injected production adapters PASS; zero external calls",
+    "productionDependencyAudit": "0 known vulnerabilities across 374 production dependencies",
+    "secretScan": "878 files; 6 high-confidence rules; 0 findings"
+  }
+}

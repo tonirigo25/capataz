@@ -2381,6 +2381,8 @@ model Company {
   pilotCohorts            PilotCohort[]
   pilotFeedback           PilotFeedback[]
   supportTickets          SupportTicket[]
+  serviceCosts            CompanyServiceCost[]
+  testimonialConsents     TestimonialConsent[]
   importBatches           CompanyImportBatch[]
   experiencePreference    CompanyExperiencePreference?
   incidents               Incident[]
@@ -3962,6 +3964,7 @@ model AiCircuitState {
 // Product analytics, pilot support, and incident evidence (M08).
 model ProductEvent {
   id            String   @id @default(cuid())
+  eventId       String?  @unique
   companyId     String?
   actorHash     String?
   eventName     String
@@ -3989,62 +3992,82 @@ model CompanyDailyMetric {
 }
 
 model PilotCohort {
-  id        String          @id @default(cuid())
-  companyId String
-  cohortKey String
-  status    String          @default("PLANNED")
-  startsAt  DateTime
-  endsAt    DateTime?
-  goals     Json
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  company   Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  feedback  PilotFeedback[]
+  id                    String          @id @default(cuid())
+  companyId             String
+  cohortKey             String
+  status                String          @default("PLANNED")
+  startsAt              DateTime
+  endsAt                DateTime?
+  goals                 Json
+  paid                  Boolean         @default(false)
+  contractStatus        String          @default("NOT_RECORDED")
+  consentStatus         String          @default("NOT_RECORDED")
+  successCriteria       Json            @default("[]")
+  cadence               String          @default("WEEKLY")
+  onboardingStartedAt   DateTime?
+  onboardingCompletedAt DateTime?
+  handoff               Json?
+  resultStatus          String          @default("PENDING")
+  outcome               Json?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  company               Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  feedback              PilotFeedback[]
 
   @@unique([companyId, cohortKey])
   @@index([status, startsAt])
 }
 
 model PilotFeedback {
-  id           String       @id @default(cuid())
-  companyId    String
-  cohortId     String?
-  category     String
-  severity     String?
-  sentiment    String?
-  content      String
-  reporterHash String?
-  status       String       @default("OPEN")
-  createdAt    DateTime     @default(now())
-  resolvedAt   DateTime?
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  cohort       PilotCohort? @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  id             String       @id @default(cuid())
+  companyId      String
+  cohortId       String?
+  category       String
+  severity       String?
+  sentiment      String?
+  content        String
+  score          Int?
+  consentGranted Boolean      @default(false)
+  contactAllowed Boolean      @default(false)
+  source         String       @default("IN_APP")
+  reporterHash   String?
+  status         String       @default("OPEN")
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  cohort         PilotCohort? @relation(fields: [cohortId], references: [id], onDelete: SetNull)
 
   @@index([companyId, status, createdAt])
 }
 
 model SupportTicket {
-  id                String                    @id @default(cuid())
-  companyId         String
-  actorIdHash       String
-  externalReference String?
-  category          String
-  priority          String
-  status            String                    @default("OPEN")
-  subject           String
-  description       String
-  route             String?
-  release           String?
-  requestId         String?
-  correlationId     String?
-  context           Json?
-  assignedTo        String?
-  firstResponseAt   DateTime?
-  resolvedAt        DateTime?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  company           Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  attachments       SupportTicketAttachment[]
+  id                    String                    @id @default(cuid())
+  companyId             String
+  actorIdHash           String
+  externalReference     String?
+  category              String
+  priority              String
+  status                String                    @default("OPEN")
+  subject               String
+  description           String
+  route                 String?
+  release               String?
+  requestId             String?
+  correlationId         String?
+  context               Json?
+  assignedTo            String?
+  firstResponseAt       DateTime?
+  resolvedAt            DateTime?
+  firstResponseDueAt    DateTime?
+  resolutionDueAt       DateTime?
+  supportMinutes        Int                       @default(0)
+  resolutionCode        String?
+  satisfactionScore     Int?
+  satisfactionConsentAt DateTime?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  company               Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  attachments           SupportTicketAttachment[]
 
   @@index([companyId, status, priority, createdAt])
   @@index([correlationId])
@@ -4060,6 +4083,62 @@ model SupportTicketAttachment {
 
   @@unique([ticketId, storedObjectId])
   @@index([storedObjectId])
+}
+
+model ProductExperiment {
+  id            String    @id @default(cuid())
+  experimentKey String    @unique
+  area          String
+  hypothesis    String
+  primaryMetric String
+  guardrails    Json      @default("[]")
+  status        String    @default("DRAFT")
+  startsAt      DateTime?
+  endsAt        DateTime?
+  decision      String?
+  decisionAt    DateTime?
+  evidence      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, startsAt])
+}
+
+model CompanyServiceCost {
+  id                  String   @id @default(cuid())
+  companyId           String
+  periodStart         DateTime @db.Date
+  periodEnd           DateTime @db.Date
+  category            String
+  amount              Decimal  @db.Decimal(18, 6)
+  currency            String   @default("EUR")
+  sourceType          String
+  sourceReferenceHash String
+  verified            Boolean  @default(false)
+  planKey             String?
+  createdAt           DateTime @default(now())
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, category, periodStart, periodEnd, sourceReferenceHash])
+  @@index([companyId, periodStart, periodEnd])
+  @@index([category, periodStart])
+}
+
+model TestimonialConsent {
+  id                    String    @id @default(cuid())
+  companyId             String
+  subjectHash           String
+  scope                 Json
+  status                String    @default("PENDING")
+  artifactReferenceHash String?
+  grantedAt             DateTime?
+  withdrawnAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, subjectHash])
+  @@index([status, grantedAt])
 }
 
 model CompanyExperiencePreference {

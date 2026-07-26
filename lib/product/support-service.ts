@@ -7,6 +7,11 @@ import { appendSensitiveAuditLog } from "@/lib/security/audit-chain";
 const CATEGORIES = new Set(["ACCESS", "BILLING", "DOCUMENTS", "OPERATIONS", "PRIVACY", "OTHER"]);
 const PRIORITIES = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
 
+export function supportSlaForPriority(priority: string, now = new Date()) {
+  const hours = priority === "URGENT" ? [1, 8] : priority === "HIGH" ? [4, 48] : priority === "LOW" ? [72, 240] : [24, 120];
+  return { firstResponseDueAt: new Date(now.getTime() + hours[0] * 3_600_000), resolutionDueAt: new Date(now.getTime() + hours[1] * 3_600_000) };
+}
+
 export function sanitizeSupportText(value: string, max = 4000): string {
   return value
     .replace(/\bsk-(?:proj-)?[A-Za-z0-9_-]{8,}\b/g, "[REDACTED_SECRET]")
@@ -36,6 +41,7 @@ export async function createAuthenticatedSupportTicket(prisma: PrismaClient, inp
   const route = input.route?.trim().split("?")[0];
   if (route && (!route.startsWith("/") || route.length > 120 || /[\r\n]/.test(route))) throw new Error("SUPPORT_ROUTE_INVALID");
   const context = getRequestContext();
+  const sla = supportSlaForPriority(input.priority);
   let storedObjectId: string | undefined;
   if (input.attachment && input.attachment.size > 0) {
     if (input.attachment.size > 5 * 1024 * 1024) throw new Error("SUPPORT_ATTACHMENT_TOO_LARGE");
@@ -63,6 +69,8 @@ export async function createAuthenticatedSupportTicket(prisma: PrismaClient, inp
         requestId: context?.requestId,
         correlationId: context?.correlationId,
         context: { source: "authenticated-support", attachmentCount: storedObjectId ? 1 : 0 },
+        firstResponseDueAt: sla.firstResponseDueAt,
+        resolutionDueAt: sla.resolutionDueAt,
         attachments: storedObjectId ? { create: { storedObjectId } } : undefined,
       },
     });

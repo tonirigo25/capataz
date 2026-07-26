@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T13:30:36.118Z",
+  "generatedAt": "2026-07-26T14:04:32.426Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -1079,6 +1079,48 @@
       }
     },
     {
+      "id": "app/(app)/configuracion/soporte/actions.ts#submitSupportFeedback",
+      "actionFile": "app/(app)/configuracion/soporte/actions.ts",
+      "exportName": "submitSupportFeedback",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/support/ticket-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/soporte/actions.ts#updateTestimonialConsent",
+      "actionFile": "app/(app)/configuracion/soporte/actions.ts",
+      "exportName": "updateTestimonialConsent",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "app/(app)/configuracion/soporte/actions.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
       "id": "app/(app)/demo-guiada/actions.ts#runGuidedDemoStep",
       "actionFile": "app/(app)/demo-guiada/actions.ts",
       "exportName": "runGuidedDemoStep",
@@ -1903,6 +1945,90 @@
       ],
       "operation": "COMMAND",
       "service": "lib/application/platform/platform-admin-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#savePilotCohort",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "savePilotCohort",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#saveServiceCost",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "saveServiceCost",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#saveProductExperiment",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "saveProductExperiment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#updateSupportTicket",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "updateSupportTicket",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_SUPPORT"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
       "postEffects": {
         "revalidate": true,
         "redirect": false,

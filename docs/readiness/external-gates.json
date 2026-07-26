@@ -6,6 +6,8 @@
     { "id": "AI-LIVE-003", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Real strict Structured Output validation", "reason": "Requires AI-LIVE-001" },
     { "id": "AI-LIVE-004", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Real store=false and provider metadata verification", "reason": "Requires AI-LIVE-001 and approved provider data profile" },
     { "id": "AI-LIVE-005", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Measure real aggregate tokens, cost and latency", "reason": "Requires AI-LIVE-001; no live metrics are inferred from fake results" },
-    { "id": "AI-LIVE-006", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Minimal live evaluation using only versioned synthetic fixtures", "reason": "Requires AI-LIVE-001 and project budget alerts" }
+    { "id": "AI-LIVE-006", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Minimal live evaluation using only versioned synthetic fixtures", "reason": "Requires AI-LIVE-001 and project budget alerts" },
+    { "id": "PILOT-LIVE-001", "phase": "F8", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Enroll 5-10 actual pilot companies with at least five paid, signed and consented engagements", "reason": "Technical cohort controls are complete; actual companies, contracts, consents and payments are external commercial inputs" },
+    { "id": "COST-BASELINE-001", "phase": "F8", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Load current verified infrastructure, AI, storage, email and support cost evidence", "reason": "The ledger excludes unverified inputs; current provider invoices, measured usage and approved time evidence are external" }
   ]
 }
