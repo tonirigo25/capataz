@@ -8,6 +8,7 @@ function applyResponsePolicies(request: NextRequest, response: NextResponse, req
   response.headers.set("X-Request-Id", requestId);
   response.headers.set(process.env.CSP_ENFORCE === "true" ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only", contentSecurityPolicy);
   response.headers.set("Reporting-Endpoints", 'csp-endpoint="/api/security/csp-report"');
+  if (request.nextUrl.pathname.startsWith("/api/")) response.headers.set("Cache-Control", "no-store");
   if (shouldSendNoIndexHeader(request.nextUrl.pathname)) {
     response.headers.set("X-Robots-Tag", X_ROBOTS_TAG_VALUE);
   }
