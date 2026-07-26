@@ -49,5 +49,30 @@ Completed on `feat/readiness-f1-contract` from program commit `9ad3bec5afb982af9
 - `npm run readiness:validate-f1` passed 56 controls; Prisma validate/generate, TypeScript, runtime-config positive/negative checks, and the production build all passed. The build generated 63 static pages.
 - A clean `npm ci` and production dependency audit passed with zero known vulnerabilities after raising Next.js to 15.5.22 and pinning safe transitive versions.
 - All ten F1 requirements in the 233-item ledger are `PASS`; the remaining 223 retain their prior state.
+- Pre-integration revalidation preserved head `dbabd19e6a891042a674b6c0d3756b3b4eb91510`: npm 11 clean install/audit, 35/35 migrations with an idempotent second deploy, 32-pair reconciliation, typecheck and 63-page build passed. The generated-schema hash false negative on Windows was proven to be CRLF-only; the LF-normalized hash matched the committed manifest.
+- External `Prisma Compute Deploy` check-run `89728321459` from the Prisma app failed under npm 10 on the old lockfile. It was not required because the program branch had neither branch protection nor rulesets; it was documented without representing it as green, and the lockfile repair lives in F2.
+- PR #25 was marked ready and integrated into the program branch with merge commit `6aedaa8a94a6a2a91a5ccfef95a71b576e331fce`; the phase SHA remains in history.
 
 Evidence: `docs/readiness/evidence/f1/audit-manifest.json`, `generated-schema-diff.sql`, generated architecture artifacts, migrations, and executable validators.
+
+## F2 - Platform core, security and observability - PASS
+
+Implemented on `feat/readiness-f2-platform-core` from F1 commit `dbabd19e6a891042a674b6c0d3756b3b4eb91510`. Production and persistent staging were not modified; database/runtime checks used disposable loopback resources and one isolated temporary Railway environment that was deleted after validation.
+
+- Added reusable PostgreSQL idempotency, persistent tenant-scoped rate limits, transactional BusinessEvent outbox with `SKIP LOCKED`, provider contracts/fakes, signed webhook verification/replay handling, and AES-256-GCM credential envelopes.
+- Preserved opaque sessions and added transactional rotation for login replacement, company selection and support privilege elevation; password changes revoke all previous sessions.
+- Added request/correlation headers, PII-safe structured logs, Node-only OpenTelemetry plus client bootstrap, per-request nonce CSP with report-only/enforce modes, full security headers, Origin/Host/CSRF validation, minimal public health and protected detailed status.
+- Migrations 36 and 37 applied from fresh PostgreSQL. Concurrency exposed a Prisma-upsert race in the initial limiter; the final advisory-lock implementation passed exactly 5/8 same-tenant attempts while a second tenant passed 3/3 independently.
+- The migration validator derives its expected total from the tracked migration directories; 37/37 applied and a second deploy reported no pending migrations.
+- Generated schema hashing normalizes CRLF to LF, so the F1/F2 contract is reproducible across Windows and Linux checkouts.
+- Isolated tests proved one idempotent execution, transactional outbox rollback and claim, webhook replay safety, encrypted credential round-trip, old-session revocation, protected health details and cross-site POST `403` with zero writes.
+- Static F2 suite passed 26/26, auth regression passed, route access passed 52/52, OTLP exported one real span, TypeScript passed, and the production build generated 64 pages.
+- Fake and production adapters for billing, email, storage, AI, fiscal and observability pass the identical six-provider contract suite with injected transports and zero external calls.
+- All 30 action files and 129 exports use the canonical action boundary, with zero direct Prisma action access. Capataz is split into ten use-case/query modules; isolated PostgreSQL rejected cross-tenant access and rolled a forced failure back completely.
+- All 30 action files, 16 route handlers and 2 internal job routes install canonical request/actor/tenant/job context. An action-to-provider probe preserved correlation through audit, transactional outbox, worker and replay-safe fake provider.
+- Temporary Railway report-only and enforce deployments used exact commit `30fad8740557ebccdf982fd95b854a2b43ac90cd`. Twelve representative browser surfaces plus menu/theme/form/PDF interactions produced zero CSP findings and zero violation logs; HTTP header scans passed 12/12 and 11/11.
+- The temporary environment, services and volume instances were removed. Attributable Railway cost was `$0.0035905805364022424`; an anonymous deleted volume makes the conservative upper bound `$0.00547945685476252`.
+- Staging stayed on `dc3ce593-3bc8-4abb-9167-9b9d2f774549`; production stayed on `2e266e66-be53-4008-a1b9-cbfaca21c750`, both `SUCCESS`.
+- Requirement ledger: all 19 F2 requirements are `PASS`; no F2 requirement remains pending, blocked, waived or waiting for external input.
+
+Evidence: `docs/readiness/evidence/f2/audit-manifest.json`, `action-boundary-audit.md`, `context-correlation-audit.md`, `railway-security-validation.md`, the isolated validators, and migrations `20260725200000_readiness_f2_transactional_outbox` and `20260726100000_readiness_f2_observability_context`.

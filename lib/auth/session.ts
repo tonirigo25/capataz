@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { authConfig, SESSION_COOKIE_NAME } from "@/lib/auth/config";
 import { createOpaqueToken, hashToken } from "@/lib/auth/crypto";
 import { recordSecurityEvent } from "@/lib/auth/audit";
+import { rotateSessionRecord } from "@/lib/auth/session-store";
+import { enrichRequestContext, getRequestContext } from "@/lib/platform/request-context";
 
 export type AuthenticatedSession = {
   sessionId: string;
@@ -29,7 +31,19 @@ export type CompanyContext = AuthenticatedSession & {
 const companyRequestContext = new AsyncLocalStorage<CompanyContext>();
 
 export function withCompanyContext<T>(context: CompanyContext, operation: () => Promise<T>): Promise<T> {
+  bindTrustedCompanyContext(context);
   return companyRequestContext.run(context, operation);
+}
+
+function bindTrustedCompanyContext(context: CompanyContext): CompanyContext {
+  if (getRequestContext()) {
+    enrichRequestContext({
+      actor: { type: "user", id: context.userId },
+      companyId: context.companyId,
+      membershipId: context.membershipId,
+    });
+  }
+  return context;
 }
 
 export async function createSession(userId: string) {
@@ -37,8 +51,31 @@ export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
   const headerStore = await headers();
   const userAgent = headerStore.get("user-agent")?.slice(0, 180) ?? null;
-  await prisma.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt, userAgent } });
   const cookieStore = await cookies();
+  const previousToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  await prisma.$transaction(async (transaction) => {
+    if (previousToken) {
+      await transaction.session.updateMany({ where: { tokenHash: hashToken(previousToken), revokedAt: null }, data: { revokedAt: new Date() } });
+    }
+    await transaction.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt, userAgent } });
+  });
+  setSessionCookie(cookieStore, token, expiresAt);
+}
+
+export async function rotateCurrentSession(reason: "company_selection" | "privilege_elevation" | "password_change") {
+  const cookieStore = await cookies();
+  const oldToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (!oldToken) throw new Error("SESSION_ROTATION_REQUIRES_SESSION");
+  const oldHash = hashToken(oldToken);
+  const current = await prisma.session.findUnique({ where: { tokenHash: oldHash } });
+  if (!current || current.revokedAt || current.expiresAt <= new Date()) throw new Error("SESSION_ROTATION_INVALID_SESSION");
+  const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
+  const rotated = await rotateSessionRecord({ prisma, sessionId: current.id, userId: current.userId, expiresAt, userAgent: current.userAgent, ipHash: current.ipHash });
+  setSessionCookie(cookieStore, rotated.token, expiresAt);
+  await recordSecurityEvent({ type: "session_rotated", outcome: "success", userId: current.userId, metadata: { reason } });
+}
+
+function setSessionCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, token: string, expiresAt: Date) {
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -106,20 +143,20 @@ export async function resolveActiveCompany(userId: string) {
 
 export async function requireCompanyContext(): Promise<CompanyContext> {
   const fixed = companyRequestContext.getStore();
-  if (fixed) return fixed;
+  if (fixed) return bindTrustedCompanyContext(fixed);
   let session: AuthenticatedSession;
   try {
     session = await requireAuthenticatedUser();
   } catch (error) {
     const isolated = await isolatedTestCompanyContext(error);
-    if (isolated) return isolated;
+    if (isolated) return bindTrustedCompanyContext(isolated);
     throw error;
   }
   const resolved = await resolveActiveCompany(session.userId);
   if (resolved.requiresSelection) redirect("/seleccionar-empresa");
   const membership = resolved.membership;
   if (!membership) redirect("/crear-empresa");
-  return { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, functionalProfileKey: membership.functionalProfileKey, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
+  return bindTrustedCompanyContext({ ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, functionalProfileKey: membership.functionalProfileKey, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" });
 }
 
 async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContext | null> {

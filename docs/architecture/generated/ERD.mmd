@@ -695,10 +695,13 @@ erDiagram
     Json relatedEntities
     String correlationId
     String causationId
+    String requestId
+    String jobId
+    String operation
+    String release
+    String environment
     Json payloadSanitized
     DateTime occurredAt
-    DateTime recordedAt
-    Int schemaVersion
   }
   Task {
     String id
@@ -1234,7 +1237,11 @@ erDiagram
     String reason
     String ipHash
     String userAgent
-    DateTime createdAt
+    String requestId
+    String correlationId
+    String causationId
+    String membershipId
+    String actorType
   }
   SupportAccessGrant {
     String id
@@ -1283,6 +1290,14 @@ erDiagram
     String type
     SecurityAuditOutcome outcome
     String requestId
+    String correlationId
+    String causationId
+    String membershipId
+    String actorType
+    String jobId
+    String operation
+    String release
+    String environment
     Json metadata
     DateTime createdAt
   }
@@ -1327,7 +1342,9 @@ erDiagram
     DateTime availableAt
     DateTime processedAt
     String lastError
-    DateTime receivedAt
+    String requestId
+    String correlationId
+    String causationId
   }
   IntegrationConnection {
     String id

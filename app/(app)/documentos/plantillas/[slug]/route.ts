@@ -1,3 +1,4 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { notFound } from "next/navigation";
@@ -7,6 +8,7 @@ import { requireCompanyContext } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
+  return publicRequestContext("GET /documentos/plantillas/[slug]", request, async () => {
   await requireCompanyContext();
   const { slug } = await context.params;
   const asset = getTemplateAsset(slug);
@@ -22,5 +24,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${asset.fileName}"`,
       "Cache-Control": "private, max-age=3600"
     }
+  });
+
   });
 }

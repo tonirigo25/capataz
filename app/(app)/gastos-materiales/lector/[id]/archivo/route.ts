@@ -1,3 +1,4 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { documentStorage } from "@/lib/document-storage";
@@ -6,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getPurchaseAccess, purchaseDocumentWhere } from "@/lib/commercial/purchase-access";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return publicRequestContext("GET /gastos-materiales/lector/[id]/archivo", _request, async () => {
   const [{ id }, auth] = await Promise.all([params, requireCapability("purchases.received_invoices.view")]);
   const { companyId } = auth;
   const access = await getPurchaseAccess(auth);
@@ -18,4 +20,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   } catch {
     return NextResponse.json({ error: "Documento no disponible" }, { status: 404 });
   }
+
+  });
 }

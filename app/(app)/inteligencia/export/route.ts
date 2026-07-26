@@ -1,3 +1,4 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { buildBusinessCsvExport } from "@/lib/business-intelligence";
 import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
@@ -27,6 +28,7 @@ function safeFilename(value: string) {
 }
 
 export async function GET(request: Request) {
+  return publicRequestContext("GET /inteligencia/export", request, async () => {
   const auth = await requireCapability("reports.export");
   const { companyId } = auth;
   const combinedCapabilities = ["work.view", "sales.budgets.view", "sales.invoices.view", "treasury.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
@@ -50,4 +52,6 @@ export async function GET(request: Request) {
   }
 
   return csvResponse(csv, tipo);
+
+  });
 }

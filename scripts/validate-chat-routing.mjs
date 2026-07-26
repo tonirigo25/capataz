@@ -496,6 +496,8 @@ function loadTsModule(relativePath) {
   moduleCache.set(absolutePath, module);
   const localRequire = (specifier) => {
     if (specifier === "next/cache") return { revalidatePath: () => undefined };
+    if (specifier === "next/navigation") return { redirect: () => { throw new Error("NEXT_REDIRECT"); } };
+    if (specifier === "@/lib/platform/next-action-boundary") return { executeNextAction: (_descriptor, operation) => operation() };
     if (specifier === "@/lib/prisma") return { prisma: mockPrisma };
     if (specifier === "@/lib/ai/capataz-ai") {
       return {
@@ -530,6 +532,10 @@ function loadTsModule(relativePath) {
     if (specifier === "@/lib/status") return { deriveInvoiceStatus: () => "pendiente_pago" };
     if (specifier === "@/lib/chat-workflow-contract") return { handleChatWorkflowContract: async () => null };
     if (specifier.startsWith("@/")) return loadTsModule(`${specifier.slice(2)}.ts`);
+    if (specifier.startsWith(".")) {
+      const resolved = path.resolve(path.dirname(absolutePath), specifier);
+      return loadTsModule(path.extname(resolved) ? resolved : `${resolved}.ts`);
+    }
     return require(specifier);
   };
   vm.runInNewContext(compiled, {

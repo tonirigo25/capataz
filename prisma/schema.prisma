@@ -1952,7 +1952,7 @@ model AutomationConfirmation {
 }
 
 model BusinessEvent {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   type             String
   companyId        String?
   actorId          String?
@@ -1961,14 +1961,30 @@ model BusinessEvent {
   relatedEntities  Json?
   correlationId    String
   causationId      String?
+  requestId        String?
+  jobId            String?
+  operation        String?
+  release          String?
+  environment      String?
   payloadSanitized Json?
   occurredAt       DateTime
-  recordedAt       DateTime @default(now())
-  schemaVersion    Int      @default(1)
+  recordedAt       DateTime  @default(now())
+  schemaVersion    Int       @default(1)
+  idempotencyKey   String?   @unique
+  destination      String?
+  deliveryStatus   String    @default("PROCESSED")
+  attempts         Int       @default(0)
+  availableAt      DateTime  @default(now())
+  processedAt      DateTime?
+  lastError        String?
 
   @@index([type, occurredAt])
   @@index([entityType, entityId])
   @@index([correlationId])
+  @@index([requestId])
+  @@index([jobId])
+  @@index([deliveryStatus, availableAt])
+  @@index([companyId, deliveryStatus])
 }
 
 model Task {
@@ -3007,6 +3023,16 @@ model AuditLog {
   reason          String?
   ipHash          String?
   userAgent       String?
+  requestId       String?
+  correlationId   String?
+  causationId     String?
+  membershipId    String?
+  actorType       String?
+  jobId           String?
+  provider        String?
+  operation       String?
+  release         String?
+  environment     String?
   createdAt       DateTime         @default(now())
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   platformActor   PlatformAccount? @relation("AuditPlatformActor", fields: [platformActorId], references: [id], onDelete: SetNull)
@@ -3014,6 +3040,9 @@ model AuditLog {
 
   @@index([companyId, createdAt])
   @@index([action, createdAt])
+  @@index([correlationId, createdAt])
+  @@index([requestId, createdAt])
+  @@index([jobId, createdAt])
 }
 
 model SupportAccessGrant {
@@ -3076,20 +3105,30 @@ model PasswordResetToken {
 }
 
 model SecurityAuditEvent {
-  id        String               @id @default(cuid())
-  companyId String?
-  userId    String?
-  type      String
-  outcome   SecurityAuditOutcome
-  requestId String?
-  metadata  Json?
-  createdAt DateTime             @default(now())
-  company   Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id            String               @id @default(cuid())
+  companyId     String?
+  userId        String?
+  type          String
+  outcome       SecurityAuditOutcome
+  requestId     String?
+  correlationId String?
+  causationId   String?
+  membershipId  String?
+  actorType     String?
+  jobId         String?
+  operation     String?
+  release       String?
+  environment   String?
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+  company       Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user          User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([companyId, createdAt])
   @@index([userId, createdAt])
   @@index([type, createdAt])
+  @@index([correlationId, createdAt])
+  @@index([jobId, createdAt])
 }
 
 // Platform contracts (M01). These records establish tenant-scoped, versioned
@@ -3146,12 +3185,19 @@ model WebhookEvent {
   availableAt       DateTime  @default(now())
   processedAt       DateTime?
   lastError         String?
+  requestId         String?
+  correlationId     String?
+  causationId       String?
+  operation         String?
+  release           String?
+  environment       String?
   receivedAt        DateTime  @default(now())
   company           Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([provider, externalEventId])
   @@index([provider, status, availableAt])
   @@index([companyId, receivedAt])
+  @@index([correlationId, receivedAt])
 }
 
 model IntegrationConnection {

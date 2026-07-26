@@ -42,7 +42,7 @@ for (const directory of migrationDirectories) {
 }
 
 const manifest = JSON.parse(await readFile(path.join(root, "docs", "architecture", "generated", "schema-manifest.json"), "utf8"));
-const schemaHash = createHash("sha256").update(schema).digest("hex");
+const schemaHash = createHash("sha256").update(schema.replace(/\r\n/gu, "\n")).digest("hex");
 check("generated-schema-docs", manifest.schemaSha256 === schemaHash, `manifest ${manifest.schemaSha256}, schema ${schemaHash}`);
 
 for (const relativePath of [

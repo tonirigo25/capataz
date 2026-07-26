@@ -151,27 +151,27 @@ requirements:
   - id: "ARCH-007"
     area: "ARCH"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mover reglas de negocio desde páginas/actions a servicios de dominio transaccionales."
     acceptance: "Server Actions solo validan, autorizan, invocan servicio y revalidan UI."
-    evidence: []
-    notes: []
+    evidence: ["lib/application", "lib/orqena/application/capataz", "lib/platform/next-action-boundary.ts", "docs/readiness/evidence/f2/action-boundary-classification.json", "docs/readiness/evidence/f2/action-boundary-audit.md", "scripts/readiness/validate-action-boundaries.mjs"]
+    notes: ["All 30 Server Action files and 129 exports use the canonical boundary; direct Prisma action access is zero, Capataz is split by use case/query, the negative fixture is rejected, and isolated PostgreSQL proves cross-tenant rejection plus transactional rollback."]
   - id: "ARCH-008"
     area: "ARCH"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear idempotencia reutilizable para mutaciones internas y proveedores."
     acceptance: "Misma clave no duplica cobros, documentos, emails ni webhooks."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/idempotency.ts", "scripts/readiness/validate-f2-postgres.ts"]
+    notes: ["A PostgreSQL advisory transaction lock makes repeated keys execute once; isolated replay performed one operation."]
   - id: "ARCH-009"
     area: "ARCH"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Adoptar inbox/outbox transaccional en PostgreSQL para jobs externos."
     acceptance: "Commit de negocio y evento se guardan en la misma transacción."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/outbox.ts", "prisma/migrations/20260725200000_readiness_f2_transactional_outbox/migration.sql", "scripts/readiness/validate-f2-postgres.ts", "docs/adr/0006-business-event-outbox.md"]
+    notes: ["BusinessEvent is the additive transactional outbox; rollback removed both business transaction and event, and SKIP LOCKED claiming passed."]
   - id: "ARCH-010"
     area: "ARCH"
     phase: "F1"
@@ -183,11 +183,11 @@ requirements:
   - id: "ARCH-011"
     area: "ARCH"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir contratos de proveedor para billing, email, storage, IA, fiscal y observabilidad."
     acceptance: "Implementación local/fake y producción pasan la misma suite contractual."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/platform/providers/contract-suite.ts", "scripts/readiness/validate-provider-contracts.ts"]
+    notes: ["The identical six-provider suite passes fake and production adapters with injected transport doubles and zero external calls."]
   - id: "ARCH-012"
     area: "ARCH"
     phase: "F1"
@@ -215,19 +215,19 @@ requirements:
   - id: "SEC-001"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Preservar sesiones opacas, hashes de token, cookies HttpOnly/Secure/SameSite y revocación."
     acceptance: "Regresión auth completa y sin downgrade."
-    evidence: []
-    notes: []
+    evidence: ["lib/auth/session.ts", "scripts/validate-auth-crypto.ts", "scripts/validate-auth-postgres.ts"]
+    notes: ["Opaque hashes, HttpOnly Secure SameSite cookies, expiry, revocation and token regression passed on isolated PostgreSQL."]
   - id: "SEC-002"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Rotar sesión tras login, cambio de contraseña, elevación de privilegio y selección sensible de empresa."
     acceptance: "Pruebas demuestran invalidación del token anterior."
-    evidence: []
-    notes: []
+    evidence: ["lib/auth/session-store.ts", "lib/auth/session.ts", "app/seleccionar-empresa/actions.ts", "app/(app)/plataforma/actions.ts", "scripts/readiness/validate-f2-postgres.ts"]
+    notes: ["Login revokes a prior cookie session; company selection and support privilege elevation rotate; password reset revokes all sessions. The old token row was proven revoked."]
   - id: "SEC-003"
     area: "SEC"
     phase: "F5"
@@ -239,59 +239,59 @@ requirements:
   - id: "SEC-004"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Aplicar request ID y actor context a toda ruta, action, job y webhook."
     acceptance: "Logs/auditoría permiten correlación extremo a extremo."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/action-operation.ts", "lib/platform/next-action-boundary.ts", "lib/platform/request-boundary.ts", "lib/platform/persistence-context.ts", "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql", "scripts/readiness/validate-context-boundaries.mjs", "docs/readiness/evidence/f2/context-correlation-audit.md"]
+    notes: ["All 30 action files, 16 route handlers and 2 internal job routes install canonical context; webhook/outbox/platform wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."]
   - id: "SEC-005"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Implantar CSP en modo report-only y después enforce con nonce o hashes compatibles con Next."
     acceptance: "Cero violaciones necesarias en E2E antes de activar enforce."
-    evidence: []
-    notes: []
+    evidence: ["middleware.ts", "app/layout.tsx", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"]
+    notes: ["An isolated temporary Railway environment served the exact branch SHA first in report-only and then enforce mode with per-request nonces. Twelve representative routes, interactive menu/theme/form flows, a PDF preview and CDP/log collection produced zero CSP violations; the environment was deleted after validation."]
   - id: "SEC-006"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Completar headers: HSTS, frame-ancestors, Referrer, Permissions, MIME y política de recursos."
     acceptance: "Escaneo automatizado de headers pasa en staging."
-    evidence: []
-    notes: []
+    evidence: ["middleware.ts", "next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"]
+    notes: ["The isolated Railway scan passed 12/12 report-only and 11/11 enforce probes, including HSTS, frame-ancestors, Referrer, Permissions, MIME, COOP/CORP, noindex, API no-store and removal of X-Powered-By; cross-site POST was rejected with 403."]
   - id: "SEC-007"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Validar Origin/Host y protección CSRF en mutaciones de navegador."
     acceptance: "Pruebas cross-site fallan con 403 sin modificar datos."
-    evidence: []
-    notes: []
+    evidence: ["lib/security/browser-request.ts", "middleware.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-health-isolated.mjs"]
+    notes: ["Same-origin validation passed; a cross-site POST returned 403 with zero DemoRequest writes."]
   - id: "SEC-008"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Aplicar rate limit persistente a login, registro, demo, soporte, IA y webhooks."
     acceptance: "Tests concurrentes respetan ventanas y no mezclan tenants."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/rate-limit.ts", "app/(auth)/actions.ts", "lib/commercial/demo-service.ts", "lib/commercial/platform-service.ts", "app/api/capataz/transcribe/route.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts"]
+    notes: ["Persistent limits cover login, register, demo, support, AI and webhook boundaries. Concurrent isolated tests admitted exactly 5 of 8 in tenant A and all 3 independent attempts in tenant B."]
   - id: "SEC-009"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Verificar firmas y proteger replay en webhooks Stripe/Resend/fiscales."
     acceptance: "Payload alterado/repetido no produce efectos."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/webhooks.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-postgres.ts"]
+    notes: ["Stripe timestamped HMAC, Resend Standard Webhooks and fiscal HMAC verification are implemented; tampering failed and duplicate event storage was replay-safe."]
   - id: "SEC-010"
     area: "SEC"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Cifrar tokens/certificados de integraciones por sobre con AES-GCM y versionado de clave."
     acceptance: "Secretos tenant no quedan en texto plano ni logs."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/encryption.ts", "lib/platform/credentials.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-postgres.ts"]
+    notes: ["AES-256-GCM envelopes use versioned keys and tenant-scoped associated data; persisted ciphertext round-tripped without plaintext storage."]
   - id: "SEC-011"
     area: "SEC"
     phase: "F5"
@@ -1199,51 +1199,51 @@ requirements:
   - id: "OBS-001"
     area: "OBS"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear logger estructurado y PII-safe."
     acceptance: "Lista allowlist; scanner de logs evita payloads/secretos."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/logger.ts", "scripts/readiness/validate-f2-platform-core.ts"]
+    notes: ["Structured JSON logger uses an explicit allowlist, hashes actor identifiers and redacts email/token-like values."]
   - id: "OBS-002"
     area: "OBS"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir instrumentación OpenTelemetry desacoplada del proveedor."
     acceptance: "Trazas locales/no-op y exportador pasan smoke."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/otel-node.ts", "scripts/readiness/validate-otel-exporter.mjs"]
+    notes: ["No endpoint starts a no-op path; a provider-neutral OTLP HTTP exporter sent one real span to an ephemeral local collector."]
   - id: "OBS-003"
     area: "OBS"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear instrumentation.ts e instrumentation-client.ts."
     acceptance: "Arranque server/client registra release y entorno."
-    evidence: []
-    notes: []
+    evidence: ["instrumentation.ts", "instrumentation-client.ts", "lib/observability/otel-node.ts", "docs/readiness/evidence/f2/audit-manifest.json"]
+    notes: ["Node-only server instrumentation and client release/environment bootstrap compile in the production build."]
   - id: "OBS-004"
     area: "OBS"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Propagar request ID, tenant, actor y job ID con límites de privacidad."
     acceptance: "Búsqueda correlaciona una operación completa."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/request-context.ts", "lib/observability/logger.ts", "lib/platform/outbox.ts", "lib/auth/audit.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts", "docs/readiness/evidence/f2/context-correlation-audit.md"]
+    notes: ["Request, correlation, causation, privacy-safe actor, company, membership, job, provider, operation, release and environment propagate through actions, services, audits, BusinessEvent, worker and fake provider; correlation search returned both audit rows and replay produced one effect."]
   - id: "OBS-005"
     area: "OBS"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear /api/health/live, /ready y status interno detallado protegido."
     acceptance: "Railway usa ready; público no expone secretos."
-    evidence: []
-    notes: []
+    evidence: ["app/api/health/live/route.ts", "app/api/health/ready/route.ts", "app/api/internal/status/route.ts", "railway.json", "scripts/readiness/validate-f2-health-isolated.mjs"]
+    notes: ["Public health responses expose only ok; internal status returns 404 without authorization; Railway points to ready."]
   - id: "OBS-006"
     area: "OBS"
     phase: "F2"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Registrar release SHA, migration head y deployment metadata."
     acceptance: "Diagnóstico identifica versión exacta."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/release.ts", "app/api/internal/status/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"]
+    notes: ["Protected diagnosis reported exact local release, deployment and migration head without returning the secret or database URL."]
   - id: "OBS-007"
     area: "OBS"
     phase: "F5"

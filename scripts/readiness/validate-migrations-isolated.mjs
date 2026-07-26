@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -14,6 +15,9 @@ if (!root) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
 const { default: EmbeddedPostgres } = await import(pathToFileURL(join(root, "node_modules", "embedded-postgres", "dist", "index.js")).href);
 const password = randomBytes(24).toString("hex");
 const databaseName = "capataz_test_readiness_f1";
+const expectedMigrationCount = readdirSync(join(process.cwd(), "prisma", "migrations"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .length;
 let runtime;
 const removeSignalHandlers = installCleanupSignalHandlers(async () => {
   await stopIsolatedPostgres(runtime).catch(() => undefined);
@@ -69,7 +73,9 @@ try {
   const reconciliation = runNode(tsxCli, ["scripts/readiness/reconcile-money-decimals.ts", "--company-id", "f1-company"], env);
   const reconcileReport = JSON.parse(reconciliation);
   if (!reconcileReport.reconciled) throw new Error("DECIMAL_RECONCILIATION_FAILED");
-  if (migrationResult.rows[0].count !== 35) throw new Error(`EXPECTED_35_MIGRATIONS_FOUND_${migrationResult.rows[0].count}`);
+  if (migrationResult.rows[0].count !== expectedMigrationCount) {
+    throw new Error(`EXPECTED_${expectedMigrationCount}_MIGRATIONS_FOUND_${migrationResult.rows[0].count}`);
+  }
   if (readinessMigrationResult.rows[0].count !== 10) throw new Error(`EXPECTED_10_READINESS_MIGRATIONS_FOUND_${readinessMigrationResult.rows[0].count}`);
   if (targetTables.rows[0].count !== 38) throw new Error(`EXPECTED_38_TARGET_TABLES_FOUND_${targetTables.rows[0].count}`);
   if (!/No pending migrations/i.test(secondDeploy)) throw new Error("SECOND_DEPLOY_NOT_IDEMPOTENT");

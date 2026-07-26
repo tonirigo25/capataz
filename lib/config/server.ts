@@ -83,6 +83,8 @@ export function parseServerConfig(
     if (!config.LEGAL_ENTITY_NAME) issues.push(safeIssue("LEGAL_ENTITY_NAME", "is required"));
     if (!config.LEGAL_TAX_ID) issues.push(safeIssue("LEGAL_TAX_ID", "is required"));
     if (config.STORAGE_PROVIDER === "local") issues.push(safeIssue("STORAGE_PROVIDER", "must be private object storage"));
+    if (phase !== "build" && (!config.APP_ENCRYPTION_KEYS || !config.APP_ACTIVE_KEY_VERSION)) issues.push(safeIssue("APP_ENCRYPTION_KEYS", "and active key version are required"));
+    if (phase !== "build" && !config.JOB_RUNNER_SECRET) issues.push(safeIssue("JOB_RUNNER_SECRET", "is required"));
   }
   if (config.flags.emailLive && (!config.EMAIL_FROM || !config.EMAIL_SENDING_DOMAIN || !config.RESEND_API_KEY)) {
     issues.push(safeIssue("EMAIL_LIVE_ENABLED", "requires sender domain, from address, and provider secret"));
