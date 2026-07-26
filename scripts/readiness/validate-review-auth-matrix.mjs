@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { chromium } from "playwright";
+import { chromium, request as playwrightRequest } from "playwright";
 
 const EXPECTED_ORIGIN = "https://orqena-review-web-review.up.railway.app";
 const baseUrl = (process.env.ORQENA_REVIEW_BASE_URL ?? EXPECTED_ORIGIN).replace(/\/$/u, "");
@@ -100,19 +100,22 @@ const report = {
   viewports,
   profiles: [],
   ownerSurfaces: [],
+  loginCases: [],
+  stateCases: [],
+  authenticatedCapacity: null,
   stateCoverage: {
     populated: "AUTOMATED",
     responsive: "AUTOMATED",
     readOnly: "AUTOMATED",
     restricted: "AUTOMATED",
     privilegedMfa: "AUTOMATED",
-    empty: "PENDING_BATCH",
-    loading: "PENDING_BATCH",
-    error: "PENDING_BATCH",
-    offline: "PENDING_BATCH",
-    keyboard: "PENDING_MANUAL_AND_AUTOMATED",
+    empty: "PENDING_REMOTE_BATCH",
+    loading: "PENDING_REMOTE_BATCH",
+    error: "PENDING_REMOTE_BATCH",
+    offline: "PENDING_REMOTE_BATCH",
+    keyboard: "PENDING_REMOTE_BATCH",
     screenReader: "READY_FOR_EXTERNAL_INPUT",
-    zoom: "PENDING_BATCH",
+    zoom: "PENDING_REMOTE_REFLOW_EQUIVALENT_AND_MANUAL_REAL_ZOOM",
   },
   blockingFindings: [],
   productObservations: [],
@@ -166,6 +169,7 @@ async function waitForSettled(page, route) {
 }
 
 async function login(browser, profile) {
+  const startedAt = Date.now();
   const context = await browser.newContext({
     viewport: { width: 1024, height: 900 },
     serviceWorkers: "block",
@@ -196,7 +200,7 @@ async function login(browser, profile) {
   if (diagnostics.externalHosts.size) throw new Error(`LOGIN_EXTERNAL_NETWORK:${profile.key}:${[...diagnostics.externalHosts].join(",")}`);
   const storageState = await context.storageState();
   await context.close();
-  return storageState;
+  return { storageState, durationMs: Date.now() - startedAt };
 }
 
 async function auditCurrentPage(page, route, { axe = false } = {}) {
@@ -401,10 +405,283 @@ async function auditOwnerSurface(browser, storageState, surface) {
   };
 }
 
+function percentile(values, value) {
+  const ordered = [...values].sort((a, b) => a - b);
+  return ordered[Math.min(ordered.length - 1, Math.ceil(ordered.length * value) - 1)];
+}
+
+async function auditAuthenticatedCapacity(storageState) {
+  const paths = ["/hoy", "/dashboard", "/clientes"];
+  const requestsPerPath = 15;
+  const concurrency = 5;
+  const api = await playwrightRequest.newContext({
+    baseURL: baseUrl,
+    storageState,
+    extraHTTPHeaders: { "user-agent": "orqena-review-auth-capacity-v1" },
+  });
+  const results = [];
+  try {
+    for (const path of paths) {
+      const queue = Array.from({ length: requestsPerPath }, (_, index) => index);
+      const durations = [];
+      const bytes = [];
+      let failures = 0;
+      await Promise.all(Array.from({ length: concurrency }, async () => {
+        while (queue.length) {
+          queue.pop();
+          const startedAt = performance.now();
+          try {
+            const response = await api.get(path, { failOnStatusCode: false });
+            if (response.status() !== 200) failures += 1;
+            bytes.push((await response.body()).byteLength);
+          } catch {
+            failures += 1;
+            bytes.push(0);
+          }
+          durations.push(performance.now() - startedAt);
+        }
+      }));
+      const p95Ms = Math.round(percentile(durations, 0.95));
+      const p99Ms = Math.round(percentile(durations, 0.99));
+      const caseResult = {
+        path,
+        requests: durations.length,
+        concurrency,
+        failures,
+        p95Ms,
+        p99Ms,
+        responseBytes: bytes.reduce((total, value) => total + value, 0),
+      };
+      if (failures) report.blockingFindings.push(`AUTH_CAPACITY:${path}:FAILURES_${failures}`);
+      if (p95Ms > 5_000) report.blockingFindings.push(`AUTH_CAPACITY:${path}:P95_${p95Ms}`);
+      results.push(caseResult);
+    }
+  } finally {
+    await api.dispose();
+  }
+  return {
+    syntheticOnly: true,
+    productionCapacityClaim: false,
+    thresholds: { requestsPerPath, concurrency, maxP95Ms: 5_000 },
+    results,
+  };
+}
+
+async function auditRepresentativeStates(browser, storageState) {
+  const cases = [];
+
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, storageState, serviceWorkers: "block" });
+    const page = await context.newPage();
+    const diagnostics = attachDiagnostics(page);
+    const route = "/clientes?buscar=__orqena_review_empty_state__";
+    const result = await navigateAndAudit(page, route, { axe: true });
+    const emptyVisible = await page.getByText("No hay clientes para estos filtros", { exact: true }).count() === 1;
+    const screenshot = join(screenshotRoot, "owner-state-empty-1440.png");
+    await page.screenshot({ path: screenshot, fullPage: true });
+    const findings = caseFindings({ result, diagnostics, profile: "owner-state", viewport: "1440", expectation: "allowed" });
+    if (!emptyVisible) findings.push("owner-state:empty:EMPTY_STATE_MISSING");
+    cases.push({
+      state: "empty",
+      ok: findings.length === 0,
+      route,
+      screenshot: relative(process.cwd(), screenshot),
+      emptyVisible,
+      diagnostics: diagnostics.events,
+      findings,
+    });
+    report.blockingFindings.push(...findings);
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, storageState, serviceWorkers: "block" });
+    const page = await context.newPage();
+    const diagnostics = attachDiagnostics(page);
+    const route = "/hoy?__orqena_review_state=loading";
+    const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "commit", timeout: 60_000 });
+    const loading = page.getByRole("status", { name: /Cargando prioridades|Cargando los datos/u }).first();
+    const loadingVisible = await loading.waitFor({ state: "visible", timeout: 2_500 }).then(() => true).catch(() => false);
+    const screenshot = join(screenshotRoot, "owner-state-loading-1440.png");
+    if (loadingVisible) await page.screenshot({ path: screenshot, fullPage: true });
+    await waitForSettled(page, route);
+    const settled = await auditCurrentPage(page, route, { axe: true });
+    const findings = caseFindings({
+      result: { status: response?.status() ?? 0, finalPath: new URL(page.url()).pathname, ...settled },
+      diagnostics,
+      profile: "owner-state",
+      viewport: "1440",
+      expectation: "allowed",
+    });
+    if (!loadingVisible) findings.push("owner-state:loading:LOADING_STATE_NOT_OBSERVED");
+    cases.push({
+      state: "loading",
+      ok: findings.length === 0,
+      route,
+      screenshot: loadingVisible ? relative(process.cwd(), screenshot) : null,
+      loadingVisible,
+      diagnostics: diagnostics.events,
+      findings,
+    });
+    report.blockingFindings.push(...findings);
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, storageState, serviceWorkers: "block" });
+    const page = await context.newPage();
+    const diagnostics = attachDiagnostics(page);
+    const route = "/hoy?__orqena_review_state=error";
+    const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    const errorHeading = page.getByRole("heading", { level: 1, name: "No se pudo preparar tu día", exact: true });
+    const errorVisible = await errorHeading.waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
+    const retryVisible = await page.getByRole("button", { name: "Reintentar", exact: true }).count() === 1;
+    const mainCount = await page.locator("main").count();
+    const screenshot = join(screenshotRoot, "owner-state-error-1440.png");
+    await page.screenshot({ path: screenshot, fullPage: true });
+    const expectedDiagnostics = diagnostics.events.filter((event) => event.includes("CONTINUOUS_REVIEW_SYNTHETIC_RENDER_ERROR") || event.includes("No se pudo preparar tu día") || event.includes("Error controlado"));
+    const unexpectedDiagnostics = diagnostics.events.filter((event) => !expectedDiagnostics.includes(event));
+    const findings = [];
+    if (!errorVisible) findings.push("owner-state:error:ERROR_STATE_NOT_OBSERVED");
+    if (!retryVisible) findings.push("owner-state:error:RETRY_ACTION_MISSING");
+    if (mainCount !== 1) findings.push(`owner-state:error:MAIN_COUNT_${mainCount}`);
+    if (unexpectedDiagnostics.length) findings.push(`owner-state:error:UNEXPECTED_DIAGNOSTICS_${unexpectedDiagnostics.length}`);
+    await page.goto(`${baseUrl}/hoy`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/hoy:error-recovery");
+    const recovered = await page.locator("main h1").count() === 1;
+    if (!recovered) findings.push("owner-state:error:RECOVERY_FAILED");
+    cases.push({
+      state: "error",
+      ok: findings.length === 0,
+      route,
+      status: response?.status() ?? 0,
+      screenshot: relative(process.cwd(), screenshot),
+      errorVisible,
+      retryVisible,
+      recovered,
+      expectedDiagnostics,
+      unexpectedDiagnostics,
+      findings,
+    });
+    report.blockingFindings.push(...findings);
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 1024, height: 900 }, storageState, serviceWorkers: "allow" });
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}/hoy`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/hoy:offline-prime");
+    const registered = await page.evaluate(async () => {
+      if (!("serviceWorker" in navigator)) return false;
+      return Promise.race([
+        navigator.serviceWorker.ready.then(() => true),
+        new Promise((resolve) => setTimeout(() => resolve(false), 10_000)),
+      ]);
+    }).catch(() => false);
+    if (registered && !await page.evaluate(() => Boolean(navigator.serviceWorker.controller))) {
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
+      await waitForSettled(page, "/hoy:offline-control");
+    }
+    const controlled = await page.evaluate(() => Boolean(navigator.serviceWorker?.controller)).catch(() => false);
+    await context.setOffline(true);
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(500);
+    const offlineVisible = await page.getByText("Sin conexión", { exact: true }).count() > 0;
+    const screenshot = join(screenshotRoot, "owner-state-offline-1024.png");
+    await page.screenshot({ path: screenshot, fullPage: true });
+    await context.setOffline(false);
+    await page.goto(`${baseUrl}/hoy`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/hoy:offline-recovery");
+    const recovered = await page.locator("main h1").count() === 1;
+    const findings = [];
+    if (!registered) findings.push("owner-state:offline:SERVICE_WORKER_NOT_REGISTERED");
+    if (!controlled) findings.push("owner-state:offline:SERVICE_WORKER_NOT_CONTROLLING");
+    if (!offlineVisible) findings.push("owner-state:offline:OFFLINE_STATE_NOT_OBSERVED");
+    if (!recovered) findings.push("owner-state:offline:RECOVERY_FAILED");
+    cases.push({
+      state: "offline",
+      ok: findings.length === 0,
+      route: "/hoy",
+      screenshot: relative(process.cwd(), screenshot),
+      registered,
+      controlled,
+      offlineVisible,
+      recovered,
+      findings,
+    });
+    report.blockingFindings.push(...findings);
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, storageState, serviceWorkers: "block" });
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}/hoy`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/hoy:keyboard");
+    const stops = [];
+    for (let index = 0; index < 12; index += 1) {
+      await page.keyboard.press("Tab");
+      stops.push(await page.evaluate(() => {
+        const element = document.activeElement;
+        const rect = element?.getBoundingClientRect();
+        const style = element ? getComputedStyle(element) : null;
+        return {
+          tag: element?.tagName ?? null,
+          text: element?.getAttribute("aria-label") ?? element?.textContent?.trim().slice(0, 80) ?? null,
+          visible: Boolean(rect && rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.top <= innerHeight),
+          focusStyled: Boolean(style && (style.outlineStyle !== "none" || style.boxShadow !== "none")),
+        };
+      }));
+    }
+    const findings = [];
+    if (stops.filter(({ visible }) => visible).length < 8) findings.push("owner-state:keyboard:VISIBLE_FOCUS_STOPS_LOW");
+    if (!stops.some(({ focusStyled }) => focusStyled)) findings.push("owner-state:keyboard:FOCUS_STYLE_MISSING");
+    if (stops.some(({ tag }) => !tag || tag === "BODY")) findings.push("owner-state:keyboard:FOCUS_LOST");
+    cases.push({ state: "keyboard", ok: findings.length === 0, route: "/hoy", stops, findings });
+    report.blockingFindings.push(...findings);
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 320, height: 720 }, storageState, serviceWorkers: "block" });
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}/hoy`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/hoy:reflow-400-equivalent");
+    const state = await page.evaluate(() => ({
+      overflowPx: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      mainCount: document.querySelectorAll("main").length,
+      h1Count: document.querySelectorAll("main h1").length,
+    }));
+    const findings = [];
+    if (state.overflowPx > 1) findings.push(`owner-state:reflow:OVERFLOW_${state.overflowPx}`);
+    if (state.mainCount !== 1) findings.push(`owner-state:reflow:MAIN_COUNT_${state.mainCount}`);
+    if (state.h1Count !== 1) findings.push(`owner-state:reflow:H1_COUNT_${state.h1Count}`);
+    cases.push({
+      state: "zoom-reflow-equivalent",
+      ok: findings.length === 0,
+      route: "/hoy",
+      cssViewportWidth: 320,
+      equivalence: "400% zoom at 1280 CSS px",
+      manualRealZoom: "READY_FOR_EXTERNAL_INPUT",
+      ...state,
+      findings,
+    });
+    report.blockingFindings.push(...findings);
+    await context.close();
+  }
+
+  return cases;
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
-  for (const profile of profiles) storageStates.set(profile.key, await login(browser, profile));
+  for (const profile of profiles) {
+    const loginResult = await login(browser, profile);
+    storageStates.set(profile.key, loginResult.storageState);
+    report.loginCases.push({ profile: profile.key, durationMs: loginResult.durationMs, mfa: profile.key === "owner" });
+  }
 
   for (const profile of profiles) {
     const storageState = storageStates.get(profile.key);
@@ -446,6 +723,18 @@ try {
     report.blockingFindings.push(...result.findings);
     process.stdout.write(`AUDIT_SURFACE=${surface.family};ROUTE=${surface.route};FINAL=${result.finalPath}\n`);
   }
+
+  report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
+  report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
+  for (const stateCase of report.stateCases) process.stdout.write(`AUDIT_STATE=${stateCase.state};OK=${stateCase.ok}\n`);
+  report.stateCoverage.empty = report.stateCases.find(({ state }) => state === "empty")?.ok ? "AUTOMATED_REMOTE_FILTERED_EMPTY" : "FAILED";
+  report.stateCoverage.loading = report.stateCases.find(({ state }) => state === "loading")?.ok ? "AUTOMATED_REMOTE_PREVIEW_PROBE" : "FAILED";
+  report.stateCoverage.error = report.stateCases.find(({ state }) => state === "error")?.ok ? "AUTOMATED_REMOTE_PREVIEW_PROBE_WITH_RECOVERY" : "FAILED";
+  report.stateCoverage.offline = report.stateCases.find(({ state }) => state === "offline")?.ok ? "AUTOMATED_REMOTE_SERVICE_WORKER_WITH_RECOVERY" : "FAILED";
+  report.stateCoverage.keyboard = report.stateCases.find(({ state }) => state === "keyboard")?.ok ? "AUTOMATED_REMOTE_REPRESENTATIVE" : "FAILED";
+  report.stateCoverage.zoom = report.stateCases.find(({ state }) => state === "zoom-reflow-equivalent")?.ok
+    ? "AUTOMATED_320PX_REFLOW_EQUIVALENT;REAL_200_400_PERCENT_READY_FOR_EXTERNAL_INPUT"
+    : "FAILED";
 } finally {
   await browser.close();
 }
@@ -458,6 +747,10 @@ report.summary = {
   permissionCases: report.profiles.reduce((total, profile) => total + profile.permissionCases.length, 0),
   distinctPortalSignatures: new Set(report.profiles.map(({ portalSignature }) => portalSignature)).size,
   ownerSurfaceFamilies: report.ownerSurfaces.length,
+  stateCases: report.stateCases.length,
+  stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
+  loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),
+  authenticatedCapacityCases: report.authenticatedCapacity?.results.length ?? 0,
   axeCases:
     report.profiles.reduce((total, profile) => total + profile.homes.filter(({ viewport }) => ["390", "1440"].includes(viewport)).length, 0)
     + report.profiles.reduce((total, profile) => total + profile.permissionCases.length, 0)

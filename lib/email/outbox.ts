@@ -225,7 +225,16 @@ function renderTemplate(template: { subject: string; text: string; html: string;
 
 function actionTemplate(subject: string, text: string, action: string): TemplateDefinition { return { subject, text: `${text}\n\n{{actionUrl}}`, html: `<p>${text}</p><p><a href="{{actionUrl}}">${action}</a></p>`, allowedVariables: ["actionUrl"], trackingEnabled: false }; }
 function staticTemplate(subject: string, text: string): TemplateDefinition { return { subject, text, html: `<p>${text}</p>`, allowedVariables: [], trackingEnabled: false }; }
-function normalizeEmail(value: string) { const email = value.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("EMAIL_RECIPIENT_INVALID"); return email; }
+function normalizeEmail(value: string) {
+  const email = value.trim().toLowerCase();
+  const at = email.indexOf("@");
+  const lastDot = email.lastIndexOf(".");
+  const hasWhitespace = [...email].some((character) => /\s/u.test(character));
+  if (email.length > 320 || hasWhitespace || at <= 0 || at !== email.lastIndexOf("@") || lastDot <= at + 1 || lastDot === email.length - 1) {
+    throw new Error("EMAIL_RECIPIENT_INVALID");
+  }
+  return email;
+}
 function emailHash(value: string) { return createHash("sha256").update(normalizeEmail(value)).digest("hex"); }
 function asObject(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function asStringArray(value: unknown) { return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : []; }

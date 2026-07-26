@@ -29,7 +29,7 @@ export default async function ProactiveControlPage({
         eyebrow="Sistema proactivo"
         title="Centro de control"
         description="Reevaluación, locks, auditoría y métricas internas del asistente. Las acciones externas siguen bloqueadas sin confirmación explícita."
-        badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{data.metrics.recommendationsActive} activas</span>}
+        badge={<span className="rounded-full bg-content px-3 py-1 text-xs font-black text-surface">{data.metrics.recommendationsActive} activas</span>}
         secondaryActions={<Link href="/recomendaciones" className="secondary-button"><Activity size={18} /> Volver</Link>}
       >
         <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">

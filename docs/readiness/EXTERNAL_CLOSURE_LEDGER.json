@@ -9,7 +9,7 @@
     { "id": "C3", "status": "IN_PROGRESS", "evidence": "artifacts/lighthouse" },
     { "id": "C4", "status": "IN_PROGRESS", "evidence": "docs/readiness/C4_SEO_AND_TRUST.md" },
     { "id": "C5", "status": "IN_PROGRESS", "evidence": "docs/readiness/C5_AUDIT_MATRIX.md" },
-    { "id": "C6", "status": "READY_FOR_EXTERNAL_INPUT" },
+    { "id": "C6", "status": "READY_FOR_EXTERNAL_INPUT", "evidence": "contracts/release/v1/provider-activation-gates.json", "reason": "All technical gates are fail-closed; every live provider requires its own externally authorized activation wave" },
     { "id": "C7", "status": "READY_FOR_EXTERNAL_INPUT" },
     { "id": "C8", "status": "READY_FOR_EXTERNAL_INPUT" },
     { "id": "C9", "status": "READY_FOR_EXTERNAL_INPUT" },
@@ -30,7 +30,7 @@
     { "id": "C4", "status": "PASS", "evidence": "scripts/validate-pwa-safety.mjs" },
     { "id": "C5", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "NVDA and VoiceOver manual evidence requires assisted-device execution" },
     { "id": "D1", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Requires an authorized sanitized representative production snapshot" },
-    { "id": "D2", "status": "PASS", "evidence": "docs/readiness/RELEASE_COMPATIBILITY_MATRIX.md" },
+    { "id": "D2", "status": "IN_PROGRESS", "evidence": "docs/readiness/RELEASE_COMPATIBILITY_MATRIX.md", "reason": "Flag, PWA, alias and schema compatibility pass; remote canary and operational rollback are not yet evidenced" },
     { "id": "E", "status": "PASS", "evidence": "scripts/readiness/validate-c2-funnel.mjs" },
     { "id": "F", "status": "READY_FOR_EXTERNAL_INPUT", "evidence": "docs/runbooks/RESPONSIBLE_DISCLOSURE.md", "reason": "Disclosure, degradation and honest status controls are prepared; operational channel and rotation/certificate drills need external authorization and infrastructure" },
     { "id": "G", "status": "PASS", "evidence": "docs/readiness/TECHNICAL_DEBT_REGISTER.md" }

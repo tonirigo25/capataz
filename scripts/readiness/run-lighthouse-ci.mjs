@@ -1,10 +1,11 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { chromium } from "playwright";
 import { availableLoopbackPort } from "../isolated-postgres-runtime.mjs";
 
 const cli = join(process.cwd(), "node_modules", "@lhci", "cli", "src", "cli.js");
-const chromePath = process.env.ORQENA_CHROME_PATH ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const chromePath = process.env.ORQENA_CHROME_PATH ?? chromium.executablePath();
 if (!existsSync(chromePath)) throw new Error("LIGHTHOUSE_CHROME_NOT_FOUND");
 const chromePort = await availableLoopbackPort();
 const profile = join(process.cwd(), ".lighthouseci", `chrome-${chromePort}`);

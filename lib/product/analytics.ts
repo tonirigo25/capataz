@@ -32,7 +32,39 @@ export const firstPartyEventCatalog: Record<string, EventRule> = {
   "invitation.accepted": { source: ["invitation"] },
 };
 
-const SENSITIVE_VALUE = /sk-(?:proj-)?|Bearer\s+|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:\+34[ .-]?)?[6789](?:[ .-]?\d){8}\b|\b(?:[XYZ]\d{7,8}[A-Z]|\d{8}[A-Z])\b/i;
+const EMAIL_LOCAL_CHARACTERS = new Set("abcdefghijklmnopqrstuvwxyz0123456789._%+-");
+const EMAIL_DOMAIN_CHARACTERS = new Set("abcdefghijklmnopqrstuvwxyz0123456789.-");
+
+function containsEmailLike(value: string) {
+  for (let at = value.indexOf("@"); at >= 0; at = value.indexOf("@", at + 1)) {
+    let localStart = at - 1;
+    while (localStart >= 0 && EMAIL_LOCAL_CHARACTERS.has(value[localStart])) localStart -= 1;
+    let domainEnd = at + 1;
+    while (domainEnd < value.length && EMAIL_DOMAIN_CHARACTERS.has(value[domainEnd])) domainEnd += 1;
+    const local = value.slice(localStart + 1, at);
+    const domain = value.slice(at + 1, domainEnd);
+    const lastDot = domain.lastIndexOf(".");
+    const suffix = lastDot >= 0 ? domain.slice(lastDot + 1) : "";
+    if (local && lastDot > 0 && suffix.length >= 2 && [...suffix].every((character) => character >= "a" && character <= "z")) return true;
+  }
+  return false;
+}
+
+function containsBearerCredential(value: string) {
+  for (let index = value.indexOf("bearer"); index >= 0; index = value.indexOf("bearer", index + 6)) {
+    if (/\s/u.test(value[index + 6] ?? "")) return true;
+  }
+  return false;
+}
+
+function containsSensitiveValue(value: string) {
+  const normalized = value.toLowerCase();
+  return normalized.includes("sk-")
+    || containsBearerCredential(normalized)
+    || containsEmailLike(normalized)
+    || /\b(?:\+34[ .-]?)?[6789](?:[ .-]?\d){8}\b/u.test(normalized)
+    || /\b(?:[xyz]\d{7,8}[a-z]|\d{8}[a-z])\b/u.test(normalized);
+}
 
 export function validateFirstPartyEvent(eventName: string, properties: Record<string, unknown>) {
   const rule = firstPartyEventCatalog[eventName];
@@ -45,7 +77,7 @@ export function validateFirstPartyEvent(eventName: string, properties: Record<st
     if (expected === "boolean" && typeof value !== "boolean") throw new Error(`PRODUCT_EVENT_PROPERTY_INVALID:${key}`);
     if (Array.isArray(expected) && (typeof value !== "string" || !expected.includes(value))) throw new Error(`PRODUCT_EVENT_PROPERTY_INVALID:${key}`);
   }
-  if (SENSITIVE_VALUE.test(stableStringify(properties))) throw new Error("PRODUCT_EVENT_SENSITIVE_VALUE_REJECTED");
+  if (containsSensitiveValue(stableStringify(properties))) throw new Error("PRODUCT_EVENT_SENSITIVE_VALUE_REJECTED");
   return properties as Prisma.InputJsonObject;
 }
 

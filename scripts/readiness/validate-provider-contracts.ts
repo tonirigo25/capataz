@@ -6,7 +6,13 @@ async function main() {
   const fake = await runProviderContractSuite({ billing: new FakeBillingProvider(), email: new FakeEmailProvider(), storage: new FakeStorageProvider(), ai: new FakeAiProvider(), fiscal: new FakeFiscalProvider(), observability: new FakeObservabilityProvider() });
   const objects = new Map<string, Uint8Array>();
   const s3Client = { async send(command: unknown) { const input = (command as { input: { Key: string; Body?: Uint8Array } }).input; if (input.Body) { objects.set(input.Key, input.Body); return { VersionId: "version-1" }; } return { Body: objects.get(input.Key) }; } };
-  const okFetch: typeof fetch = async (input) => new Response(JSON.stringify(String(input).includes("openai.com") ? { id: "resp_contract", output_text: "contract output" } : { reference: "fiscal_reference" }), { status: 200, headers: { "content-type": "application/json" } });
+  const okFetch: typeof fetch = async (input) => {
+    const requestUrl = new URL(input instanceof Request ? input.url : String(input));
+    const body = requestUrl.hostname === "api.openai.com"
+      ? { id: "resp_contract", output_text: "contract output" }
+      : { reference: "fiscal_reference" };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  };
   const production = await runProviderContractSuite({
     billing: new StripeBillingProvider({ checkout: { sessions: { async create() { return { id: "cs_contract" }; } } }, billingPortal: { sessions: { async create() { return { id: "bps_contract" }; } } } }, () => new Date(0)),
     email: new ResendEmailProvider({ emails: { async send() { return { data: { id: "email_contract" } }; } } }, "sender@example.invalid", () => new Date(0)),

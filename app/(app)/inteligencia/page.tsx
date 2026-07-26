@@ -67,7 +67,7 @@ export default async function BusinessIntelligencePage({
           <Field name="to" label="Hasta" defaultValue={query.to ?? ""} />
           <button className="primary-button self-end" type="submit">Actualizar</button>
         </form></CompactFilterBar>
-        <p className="mt-3 text-xs font-bold text-slate-500">
+        <p className="mt-3 text-xs font-bold text-content-secondary">
           Actualizado {formatDate(summary.updatedAt)} · Zona horaria {summary.period.timezone} · {summary.period.isComplete ? "periodo cerrado" : "periodo en curso"}.
         </p>
       </PageHeader>
@@ -199,7 +199,7 @@ function Panel({ title, icon: Icon, action, children }: { title: string; icon: L
 function HealthCard({ health }: { health: Awaited<ReturnType<typeof getBusinessIntelligenceSummary>>["health"] }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-obra-ink p-5 text-white shadow-card">
-      <p className="text-sm font-bold text-obra-yellow">Índice de salud</p>
+      <p className="text-sm font-bold text-white">Índice de salud</p>
       {health.canCalculate ? (
         <>
           <div className="mt-3 flex items-end gap-3">

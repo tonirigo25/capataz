@@ -181,7 +181,7 @@ export function statusClass(status: string) {
     "seguimiento_cobro",
     "vencimiento_factura"
   ].includes(status)) {
-    return "bg-warning/10 text-warning";
+    return "bg-warning/10 text-content";
   }
   if (["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "planificada", "preparacion", "parcialmente_terminada", "facturada", "visita", "compra_material"].includes(status)) {
     return "bg-brand-soft text-brand-strong";

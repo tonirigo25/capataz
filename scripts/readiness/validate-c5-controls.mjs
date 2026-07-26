@@ -28,6 +28,10 @@ for (const family of matrix.authenticatedFamilies) {
 const baseline = JSON.parse(read("contracts/visual/v1/baseline-approval.json"));
 assert.equal(baseline.approved, false);
 assert.equal(baseline.status, "READY_FOR_EXTERNAL_INPUT");
+const today = read("app/(app)/hoy/page.tsx");
+assert.ok(today.includes("__orqena_review_state"));
+assert.ok(today.includes('process.env.NEXT_PUBLIC_APP_ENV === "preview"'));
+assert.ok(today.includes('process.env.CREDENTIAL_SCOPE === "preview"'));
 for (const file of [
   "scripts/readiness/validate-c5-low-end.mjs",
   "scripts/readiness/validate-review-capacity.mjs",

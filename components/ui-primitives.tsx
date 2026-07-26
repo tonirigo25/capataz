@@ -37,7 +37,7 @@ export function ProductPage({
   layout?: ProductPageLayout;
   className?: string;
 }) {
-  return <div className={clsx("product-page", className)} data-layout={layout}>{children}</div>;
+  return <main className={clsx("product-page", className)} data-layout={layout}>{children}</main>;
 }
 
 export function PageHeader({
@@ -135,18 +135,21 @@ export function EmptyState({
 export function ErrorState({
   title,
   description,
-  retry
+  retry,
+  headingLevel = 2,
 }: {
   title: string;
   description?: string;
   retry?: ReactNode;
+  headingLevel?: 1 | 2;
 }) {
+  const Heading = `h${headingLevel}` as "h1" | "h2";
   return (
     <div role="alert" className="rounded-xl border border-danger/25 bg-danger/5 p-4 text-danger">
       <div className="flex gap-3">
         <AlertTriangle size={21} className="mt-0.5 shrink-0" aria-hidden="true" />
         <div>
-          <h2 className="font-semibold">{title}</h2>
+          <Heading className={headingLevel === 1 ? "type-page-title" : "font-semibold"}>{title}</Heading>
           {description ? <p className="mt-1 text-sm leading-6">{description}</p> : null}
           {retry ? <div className="mt-3">{retry}</div> : null}
         </div>
@@ -308,7 +311,7 @@ export function ResultCount({ shown, total, noun, context }: { shown: number; to
       <p className="text-sm font-semibold text-content" aria-live="polite">
         {shown === total ? `${total} ${noun}` : `${shown} de ${total} ${noun}`}
       </p>
-      {context ? <div className="text-sm font-semibold text-slate-500">{context}</div> : null}
+      {context ? <div className="text-sm font-semibold text-content-secondary">{context}</div> : null}
     </div>
   );
 }

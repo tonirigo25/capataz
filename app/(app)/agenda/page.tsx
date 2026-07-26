@@ -90,7 +90,7 @@ export default async function AgendaPage({
             key={item.id}
             href={`/agenda?vista=${item.id}&dia=${toDateInputValue(selectedDay)}${query.buscar ? `&buscar=${encodeURIComponent(query.buscar)}` : ""}${query.tipo ? `&tipo=${encodeURIComponent(query.tipo)}` : ""}`}
             className={`min-h-11 flex-1 shrink-0 rounded-lg px-3 py-2 text-center text-sm font-black ${
-              view === item.id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"
+              view === item.id ? "bg-obra-ink !text-white" : "text-slate-600 hover:bg-white"
             }`}
           >
             {item.label}
@@ -269,7 +269,7 @@ function ListView({ items, selectedType }: { items: AgendaItem[]; selectedType: 
     <div className="grid gap-4">
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map(([id, label]) => (
-          <Link key={id} href={`/agenda?vista=lista&tipo=${id}`} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${selectedType === id ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>
+          <Link key={id} href={`/agenda?vista=lista&tipo=${id}`} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${selectedType === id ? "bg-obra-ink !text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>
             {label}
           </Link>
         ))}
