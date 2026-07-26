@@ -333,7 +333,7 @@ async function collectDesktopNavigation(page) {
   return [...primary, ...secondary];
 }
 
-async function auditProfileHome(browser, profile, storageState, viewport) {
+async function openProfileHome(browser, storageState, viewport) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     storageState,
@@ -344,6 +344,28 @@ async function auditProfileHome(browser, profile, storageState, viewport) {
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
   const result = await navigateAndAudit(page, "/hoy", { axe: ["390", "1440"].includes(viewport.key) });
+  return { context, page, diagnostics, result };
+}
+
+async function auditProfileHome(browser, profile, storageState, viewport) {
+  let attempt = await openProfileHome(browser, storageState, viewport);
+  let transientDiagnostics = [];
+  const hydrationOnly = attempt.diagnostics.events.length > 0
+    && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
+  if (hydrationOnly) {
+    transientDiagnostics = [...attempt.diagnostics.events];
+    await attempt.context.close();
+    attempt = await openProfileHome(browser, storageState, viewport);
+    report.productObservations.push({
+      severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+      context: `${profile.key}:${viewport.key}:/hoy`,
+      code: "HYDRATION_REPLAY",
+      firstAttempt: transientDiagnostics,
+      replayDiagnostics: attempt.diagnostics.events,
+    });
+  }
+
+  const { context, page, diagnostics, result } = attempt;
   const screenshot = join(screenshotRoot, `${profile.key}-hoy-${viewport.key}.png`);
   await page.screenshot({ path: screenshot, fullPage: true });
   const navigation = viewport.key === "1440" ? await collectDesktopNavigation(page) : [];
@@ -363,6 +385,7 @@ async function auditProfileHome(browser, profile, storageState, viewport) {
     screenshot: relative(process.cwd(), screenshot),
     navigation,
     canCreate,
+    transientDiagnostics,
     diagnostics: diagnostics.events,
     externalHosts: [...diagnostics.externalHosts],
     findings,

@@ -7,5 +7,5 @@
 - La home actual conserva el relato V4.1; D2 debe adoptar exactamente “Del audio en la obra al cobro”.
 - La matriz de entrega contiene 43 patrones, mientras el repositorio tiene 93 páginas; D9 debe incorporar rutas especializadas y demostrar que no quedan huérfanas.
 - Trece superficies del baseline presentan más de una acción visualmente primaria; se resolverán en su bloque correspondiente sin eliminar funcionalidad.
-- La matriz autenticada D0 detectó una única hidratación `React #418` en `/dinero`; D1 incorpora un replay obligatorio antes de clasificarla.
+- Las matrices autenticadas han observado hidrataciones `React #418` aisladas en rutas distintas. D1 exige un replay en contexto nuevo tanto para las homes por perfil como para las superficies OWNER; un replay limpio queda en observación y uno repetido bloquea.
 - Safari real, Chrome Android real, NVDA, VoiceOver y zoom humano siguen `READY_FOR_EXTERNAL_INPUT`.
