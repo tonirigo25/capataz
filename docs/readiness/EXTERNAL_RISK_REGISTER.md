@@ -35,3 +35,33 @@ No organization, project, selector or other sensitive identifier is recorded in 
 - Observation: public identity, metadata, legal fields and white-label configuration are technically parameterized, but trademark clearance, definitive legal identity and proof of domain control require authorized legal/commercial evidence.
 - Containment: `PUBLIC_INDEXING_ENABLED=false`; canonical public routes remain noindex and V2 aliases remain preserved for rollback. No domain, DNS, staging or production setting was changed.
 - Required resolution: archive the authorized clearance decision and domain-control evidence before any indexing release gate can pass.
+
+## MOBILE-LINK-001
+
+- Phase/control: F10 / MOB-003
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: link allowlists, Android/iOS declarations and association payloads pass with synthetic facts; no approved domain certificate fingerprint or Apple team association was supplied.
+- Containment: `.well-known` routes return 404 when configuration or host does not match; arbitrary hosts/routes are rejected.
+- Required resolution: publish the approved association files and verify auth/open links on Android and iOS target devices.
+
+## MOBILE-SESSION-001
+
+- Phase/control: F10 / MOB-004
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: server session creation, rotation and revocation pass, and the wrapper stores no native credential. Target WebView behavior was not executed on physical/simulator Android and iOS devices.
+- Containment: authentication remains server-owned through opaque cookies; no fallback token storage was introduced.
+
+## MOBILE-FILES-001
+
+- Phase/control: F10 / MOB-005
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: permission declarations and app-scoped file paths pass, but real PDF, download, picker upload and share behavior needs target-device evidence.
+- Containment: Android declares only INTERNET, iOS has no unnecessary permission prompt and broad external storage paths are forbidden.
+
+## MOBILE-BUILD-001
+
+- Phase/control: F10 / MOB-009
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: build/signing guards and checksum manifest generation are implemented, but no signed AAB or XCArchive was built.
+- Missing external capability: approved signing material, Android JDK/toolchain and protected macOS/Xcode runner.
+- Containment: release tasks fail when signing inputs are incomplete; store state remains NOT_SUBMITTED and no artifact/publication is claimed.

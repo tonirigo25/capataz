@@ -15,6 +15,20 @@ function isLocalHost(hostname: string) {
   return hostname === "localhost" || hostname === "0.0.0.0" || hostname === "::1" || isPrivateIpv4(hostname);
 }
 
+const safeMobilePaths = ["/auth/mobile/callback", "/open"] as const;
+
+function requiredIdentifier(value: string | undefined, fallback: string, name: string) {
+  const resolved = value?.trim() || fallback;
+  if (!/^[A-Za-z][A-Za-z0-9.-]{2,100}$/.test(resolved)) throw new Error(`${name} is invalid`);
+  return resolved;
+}
+
+function requiredScheme(value: string | undefined) {
+  const resolved = value?.trim() || "orqena";
+  if (!/^[a-z][a-z0-9+.-]{1,30}$/.test(resolved)) throw new Error("CAPATAZ_MOBILE_URL_SCHEME is invalid");
+  return resolved;
+}
+
 export function resolveMobileConfig(env: MobileEnvironment) {
   const rawMode = env.CAPATAZ_MOBILE_MODE || "release";
   if (!(["development", "staging", "release"] as string[]).includes(rawMode)) {
@@ -41,10 +55,36 @@ export function resolveMobileConfig(env: MobileEnvironment) {
     if (mode === "release" && /(^|\.)staging\./i.test(url.hostname)) throw new Error("Release mobile URL must not point to staging");
   }
 
+  const appId = requiredIdentifier(env.CAPATAZ_MOBILE_APP_ID, "com.orqena.app", "CAPATAZ_MOBILE_APP_ID");
+  const appName = env.CAPATAZ_MOBILE_APP_NAME?.trim() || "Orqena";
+  if (appName.length < 2 || appName.length > 30) throw new Error("CAPATAZ_MOBILE_APP_NAME is invalid");
+  const urlScheme = requiredScheme(env.CAPATAZ_MOBILE_URL_SCHEME);
+  const appLinkHost = (env.CAPATAZ_MOBILE_APP_LINK_HOST?.trim() || url.hostname).toLowerCase();
+  if (appLinkHost !== url.hostname.toLowerCase()) throw new Error("Mobile app-link host must match the configured backend host");
+
   return {
     mode,
+    appId,
+    appName,
     serverUrl: url.toString().replace(/\/$/, ""),
+    appLinkHost,
+    urlScheme,
+    authReturnUrl: `${urlScheme}://auth/callback`,
+    universalAuthReturnUrl: `https://${appLinkHost}/auth/mobile/callback`,
     cleartext: mode === "development" && url.protocol === "http:",
-    allowMixedContent: false
+    allowMixedContent: false,
+    allowedDeepLinkPaths: safeMobilePaths,
+    nativeCredentialsStored: false,
   };
+}
+
+export function resolveMobileDeepLink(input: string, config: ReturnType<typeof resolveMobileConfig>) {
+  const url = new URL(input);
+  const isUniversal = url.protocol === "https:" && url.hostname.toLowerCase() === config.appLinkHost;
+  const isCustom = url.protocol === `${config.urlScheme}:` && url.hostname === "auth";
+  const pathname = isCustom ? `/auth/mobile${url.pathname}` : url.pathname;
+  if ((!isUniversal && !isCustom) || !config.allowedDeepLinkPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+    throw new Error("MOBILE_DEEP_LINK_NOT_ALLOWED");
+  }
+  return { pathname, search: url.search, source: isCustom ? "custom-scheme" as const : "universal-link" as const };
 }
