@@ -1820,6 +1820,7 @@ erDiagram
   }
   ProductEvent {
     String id
+    String eventId
     String companyId
     String actorHash
     String eventName
@@ -1845,8 +1846,15 @@ erDiagram
     DateTime startsAt
     DateTime endsAt
     Json goals
-    DateTime createdAt
-    DateTime updatedAt
+    Boolean paid
+    String contractStatus
+    String consentStatus
+    Json successCriteria
+    String cadence
+    DateTime onboardingStartedAt
+    DateTime onboardingCompletedAt
+    Json handoff
+    String resultStatus
   }
   PilotFeedback {
     String id
@@ -1856,6 +1864,10 @@ erDiagram
     String severity
     String sentiment
     String content
+    Int score
+    Boolean consentGranted
+    Boolean contactAllowed
+    String source
     String reporterHash
     String status
     DateTime createdAt
@@ -1884,6 +1896,48 @@ erDiagram
     String ticketId
     String storedObjectId
     DateTime createdAt
+  }
+  ProductExperiment {
+    String id
+    String experimentKey
+    String area
+    String hypothesis
+    String primaryMetric
+    Json guardrails
+    String status
+    DateTime startsAt
+    DateTime endsAt
+    String decision
+    DateTime decisionAt
+    Json evidence
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  CompanyServiceCost {
+    String id
+    String companyId
+    DateTime periodStart
+    DateTime periodEnd
+    String category
+    Decimal amount
+    String currency
+    String sourceType
+    String sourceReferenceHash
+    Boolean verified
+    String planKey
+    DateTime createdAt
+  }
+  TestimonialConsent {
+    String id
+    String companyId
+    String subjectHash
+    Json scope
+    String status
+    String artifactReferenceHash
+    DateTime grantedAt
+    DateTime withdrawnAt
+    DateTime createdAt
+    DateTime updatedAt
   }
   CompanyExperiencePreference {
     String id
@@ -2286,6 +2340,8 @@ erDiagram
   Company }o--o{ PilotCohort : relates
   Company }o--o{ PilotFeedback : relates
   Company }o--o{ SupportTicket : relates
+  Company }o--o{ CompanyServiceCost : relates
+  Company }o--o{ TestimonialConsent : relates
   Company }o--o{ CompanyImportBatch : relates
   Company }o--o{ CompanyExperiencePreference : relates
   Company }o--o{ Incident : relates

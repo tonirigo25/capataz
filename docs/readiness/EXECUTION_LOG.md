@@ -163,3 +163,20 @@ Implemented on `feat/readiness-f7-product-integration` from program commit `70fc
 - Requirement ledger: all nine F7 requirements are `PASS`; no F7 requirement is pending, blocked, waived or waiting for external input.
 
 Evidence: `docs/readiness/evidence/f7/audit-manifest.json`, the F7 validators, document rendering contract and migration `20260726190000_readiness_f7_product_integration`.
+
+## F8 - Product metrics, pilots, support and accessibility - PASS WITH EXTERNAL INPUT GATES
+
+Implemented on `feat/readiness-f8-metrics-pilots` from program commit `6cab476d112f518ac919bf03734445f08389bd94`. Production, persistent staging, Marketing V2 and the OpenAI key workflow were not modified. Validation used synthetic fixtures, disposable loopback PostgreSQL and a temporary standalone server bound to `127.0.0.1`.
+
+- Added a versioned, first-party event contract with strict event/property allowlists, value bounds, sensitive-value rejection, pseudonymous actors and idempotent event IDs. `ANALYTICS_ENABLED=false` remains the default and gates both browser reporting and ingestion.
+- Added an aggregate `f8-v1` health snapshot for activation in seven days, WAU users/companies, M1/M2/M3 retention, reconciled MRR/ARPA, verified cost-to-serve, gross margin, budget conversion, collection time, recovered debt, time saved, AI outcomes, support, pilots and experiments.
+- MRR accepts only the latest Stripe reconciliation in `MATCHED` state with zero divergences; local simulations and diverged snapshots contribute zero. Costs require a hashed source reference and explicit verification; unverified values contribute zero.
+- Added PLATFORM_OWNER governance for pilot cohorts, service costs and product experiments, plus PLATFORM_SUPPORT ticket operations. The aggregate dashboard does not select ticket subject/description/context or tenant content.
+- Pilot records cover payment, contract, consent, objectives, measurable criteria, cadence, onboarding timestamps, result, outcome and a minimized commercial-support-product handoff. Actual enrollment remains external and fixtures are never counted as real pilots.
+- Authenticated support now includes a safe knowledge base, internal SLA deadlines, time/resolution accounting, optional consented NPS/CSAT and separately authorized contact. Testimonial permissions are scoped and revocable.
+- Versioned Web Vitals budgets and the local browser gate covered `/`, `/login`, `/producto`, `/planes`, authenticated `/hoy` and authenticated support against fresh isolated PostgreSQL: all returned 200, axe reported zero critical/serious findings, keyboard focus and reduced motion passed, and measured local LCP/CLS/INP/FCP/TTFB stayed within budget. These are loopback measurements, not staging/production latency.
+- Fresh isolated PostgreSQL applied 43/43 migrations and F8 passed 10/10 two-tenant integration blocks. The pure suite passed 55/55; action/context boundaries passed for 153 exports and 36 actions/24 routes/6 jobs; typecheck and the 75-page production build passed.
+- F1-F7 regressions passed. F2 correlation/replay, F5 privacy/tenant isolation and F6 fake/budget/prompt-injection/fallback/idempotency suites passed on fresh isolated databases. Provider contracts made zero external calls; the dependency audit reported zero known production vulnerabilities and the secret scan covered 878 files with zero findings.
+- Requirement ledger: 22 F8 requirements are `PASS`; `MET-006` and `SUP-001` are `READY_FOR_EXTERNAL_INPUT` for current verified real cost evidence and actual 5-10 pilot companies with at least five paid/signed/consented engagements. No F8 requirement is pending, blocked or waived.
+
+Evidence: `docs/readiness/evidence/f8/audit-manifest.json`, `browser-validation.json`, the F8 validators, metrics/pilot contracts, operational methodology and migration `20260726200000_readiness_f8_metrics_pilots`.

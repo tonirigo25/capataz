@@ -49,7 +49,7 @@ async function main() {
   }
 
   const migrations = await prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  assert.equal(migrations[0]?.count, 42);
+  assert.equal(migrations[0]?.count, 43);
 
   const suffix = Date.now().toString(36);
   const [companyA, companyB, auditCompany] = await Promise.all([
