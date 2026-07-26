@@ -16,6 +16,13 @@ function compile(path) {
 const service = compile("lib/orqena/confirmation-service.ts");
 const component = readFileSync("components/capataz-chat.tsx", "utf8");
 const actions = readFileSync("app/(app)/capataz/actions.ts", "utf8");
+const implementation = [
+  "lib/orqena/application/capataz/orchestration.ts",
+  "lib/orqena/application/capataz/workflow-queries.ts",
+  "lib/orqena/application/capataz/ai-mutations.ts",
+  "lib/orqena/application/capataz/business-mutations.ts",
+  "lib/orqena/application/capataz/conversation-use-cases.ts",
+].map((path) => readFileSync(path, "utf8")).join("\n");
 const now = Date.now();
 const confirmation = service.createPendingConfirmation({ companyId: "company-a", conversationId: "conversation-a", userId: "owner-a", membershipId: "membership-a", action: "create", entityType: "client", payload: { name: "Synthetic" }, review: {} }, 15);
 assert.doesNotThrow(() => service.assertConfirmationOwner(confirmation, { companyId: "company-a", conversationId: "conversation-a" }));
@@ -27,18 +34,18 @@ assert.throws(() => service.assertConfirmationOwner(expired, { companyId: "compa
 assert.match(actions, /export\s+async\s+function\s+preparePendingProposal\s*\(/, "Preparing a proposal must be an explicit server action");
 assert.match(actions, /export\s+async\s+function\s+cancelPendingProposal\s*\(/, "Cancellation must be a first-class server action");
 assert.match(actions, /export\s+async\s+function\s+executePendingProposal\s*\(/, "Confirmed execution must use a first-class server gateway");
-assert.match(actions, /beginPendingProposalExecutionForCompany[\s\S]{0,4500}finishPendingProposalExecutionForCompany/, "The gateway must consume and finish the pending receipt around the business mutation");
+assert.match(implementation, /beginPendingProposalExecutionForCompany[\s\S]{0,4500}finishPendingProposalExecutionForCompany/, "The gateway must consume and finish the pending receipt around the business mutation");
 assert.doesNotMatch(component, /requestSubmit\s*\(/, "Proposal confirmation must not invoke the original form action directly");
 assert.match(component, /executePendingProposal\([^;]+new FormData\(form\)/, "Edited form data must be submitted through the confirmed gateway");
-assert.match(actions, /looksLikeExplicitWorkflowMutation[\s\S]{0,600}handled:\s*false/, "Explicit chat mutations must be routed to proposal UI instead of executing immediately");
-assert.doesNotMatch(actions, /handleChatWorkflowContract/, "The legacy workflow mutation executor must not be reachable from Orqena");
-assert.doesNotMatch(actions, /if \(wantsBudget[\s\S]{0,120}createBudgetDraftFromAI|if \(wantsInvoice[\s\S]{0,120}createInvoiceDraftFromAI|if \(wantsActivity[\s\S]{0,160}registerActivityFromAI/, "AI mutations must emit proposals instead of executing directly");
-assert.match(actions, /proposalTargetsMatch/, "Gateway must bind immutable target IDs to the reviewed proposal");
-assert.match(actions, /error\.message === "Esta propuesta ha caducado"[\s\S]{0,180}status: "expired"/, "Expiry must cross the production server-action boundary as structured state");
+assert.match(implementation, /looksLikeExplicitWorkflowMutation[\s\S]{0,600}handled:\s*false/, "Explicit chat mutations must be routed to proposal UI instead of executing immediately");
+assert.doesNotMatch(implementation, /handleChatWorkflowContract/, "The legacy workflow mutation executor must not be reachable from Orqena");
+assert.doesNotMatch(implementation, /if \(wantsBudget[\s\S]{0,120}createBudgetDraftFromAI|if \(wantsInvoice[\s\S]{0,120}createInvoiceDraftFromAI|if \(wantsActivity[\s\S]{0,160}registerActivityFromAI/, "AI mutations must emit proposals instead of executing directly");
+assert.match(implementation, /proposalTargetsMatch/, "Gateway must bind immutable target IDs to the reviewed proposal");
+assert.match(implementation, /error\.message === "Esta propuesta ha caducado"[\s\S]{0,180}status: "expired"/, "Expiry must cross the production server-action boundary as structured state");
 assert.match(component, /result\.status === "expired"[\s\S]{0,100}setStatus\("expired"\)/, "The UI must render the structured expiry state");
-assert.match(actions, /cancelPendingProposal[\s\S]{0,2500}requireCompanyContext\s*\(/, "Cancellation must derive company and actor from the server session");
-assert.match(actions, /cancelPendingProposal[\s\S]{0,3500}alreadyCancelled/, "Cancellation must return an idempotent receipt");
-assert.match(actions, /cancelPendingProposal[\s\S]{0,3500}(?:companyId|assertConfirmationOwner)/, "Cancellation must validate tenant ownership");
+assert.match(implementation, /cancelPendingProposal[\s\S]{0,2500}requireCompanyContext\s*\(/, "Cancellation must derive company and actor from the server session");
+assert.match(implementation, /cancelPendingProposal[\s\S]{0,3500}alreadyCancelled/, "Cancellation must return an idempotent receipt");
+assert.match(implementation, /cancelPendingProposal[\s\S]{0,3500}(?:companyId|assertConfirmationOwner)/, "Cancellation must validate tenant ownership");
 assert.doesNotMatch(actions, /cancelPendingProposal\s*\([^)]*companyId/, "Cancellation must never accept companyId from the browser");
 
 for (const label of ["Confirmar", "Editar", "Cancelar", "Propuesta cancelada", "Esta propuesta ha caducado", "Preparar de nuevo"]) {

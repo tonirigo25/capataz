@@ -1,6 +1,12 @@
 "use server";
-import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { requireCapability } from "@/lib/commercial/authorization";
-export async function createTeam(formData:FormData){const auth=await requireCapability("company.teams.manage");const name=String(formData.get("name")??"").trim().slice(0,80);if(!name)throw new Error("TEAM_NAME_REQUIRED");await prisma.$transaction(async(tx)=>{const team=await tx.team.create({data:{companyId:auth.companyId,name,description:String(formData.get("description")??"").trim().slice(0,240)||null}});await tx.auditLog.create({data:{companyId:auth.companyId,userActorId:auth.userId,action:"team.created",targetType:"Team",targetId:team.id}})});revalidatePath("/equipos")}
-export async function assignTeamMember(formData:FormData){const auth=await requireCapability("company.teams.manage");const teamId=String(formData.get("teamId")??"");const membershipId=String(formData.get("membershipId")??"");const [team,membership]=await Promise.all([prisma.team.findFirst({where:{id:teamId,companyId:auth.companyId,state:"ACTIVE"}}),prisma.companyMembership.findFirst({where:{id:membershipId,companyId:auth.companyId,status:"active"}})]);if(!team||!membership)throw new Error("CROSS_COMPANY_TEAM_FORBIDDEN");await prisma.teamMembership.upsert({where:{teamId_membershipId:{teamId,membershipId}},update:{},create:{teamId,membershipId}});revalidatePath("/equipos")}
+
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { createTeam as createTeamUseCase, assignTeamMember as assignTeamMemberUseCase } from "@/lib/application/company/team-use-cases";
+
+export async function createTeam(formData:FormData) {
+  return executeNextAction({ operation: "app/(app)/equipos/actions.ts#createTeam" }, () => createTeamUseCase(formData));
+}
+
+export async function assignTeamMember(formData:FormData) {
+  return executeNextAction({ operation: "app/(app)/equipos/actions.ts#assignTeamMember" }, () => assignTeamMemberUseCase(formData));
+}

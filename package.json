@@ -12,6 +12,7 @@
     "readiness:validate-f1": "node scripts/readiness/validate-f1-contract.mjs",
     "readiness:validate-migrations": "node scripts/readiness/validate-migrations-isolated.mjs",
     "readiness:validate-f2": "tsx scripts/readiness/validate-f2-platform-core.ts",
+    "readiness:validate-action-boundaries": "node scripts/readiness/validate-action-boundaries.mjs && node scripts/readiness/validate-action-boundaries-negative.mjs",
     "readiness:validate-f2-postgres": "node scripts/readiness/run-f2-postgres-isolated.mjs",
     "readiness:validate-f2-health": "node scripts/readiness/validate-f2-health-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",

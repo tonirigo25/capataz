@@ -7,6 +7,7 @@ import { authConfig, SESSION_COOKIE_NAME } from "@/lib/auth/config";
 import { createOpaqueToken, hashToken } from "@/lib/auth/crypto";
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import { rotateSessionRecord } from "@/lib/auth/session-store";
+import { enrichRequestContext, getRequestContext } from "@/lib/platform/request-context";
 
 export type AuthenticatedSession = {
   sessionId: string;
@@ -30,7 +31,19 @@ export type CompanyContext = AuthenticatedSession & {
 const companyRequestContext = new AsyncLocalStorage<CompanyContext>();
 
 export function withCompanyContext<T>(context: CompanyContext, operation: () => Promise<T>): Promise<T> {
+  bindTrustedCompanyContext(context);
   return companyRequestContext.run(context, operation);
+}
+
+function bindTrustedCompanyContext(context: CompanyContext): CompanyContext {
+  if (getRequestContext()) {
+    enrichRequestContext({
+      actor: { type: "user", id: context.userId },
+      companyId: context.companyId,
+      membershipId: context.membershipId,
+    });
+  }
+  return context;
 }
 
 export async function createSession(userId: string) {
@@ -130,20 +143,20 @@ export async function resolveActiveCompany(userId: string) {
 
 export async function requireCompanyContext(): Promise<CompanyContext> {
   const fixed = companyRequestContext.getStore();
-  if (fixed) return fixed;
+  if (fixed) return bindTrustedCompanyContext(fixed);
   let session: AuthenticatedSession;
   try {
     session = await requireAuthenticatedUser();
   } catch (error) {
     const isolated = await isolatedTestCompanyContext(error);
-    if (isolated) return isolated;
+    if (isolated) return bindTrustedCompanyContext(isolated);
     throw error;
   }
   const resolved = await resolveActiveCompany(session.userId);
   if (resolved.requiresSelection) redirect("/seleccionar-empresa");
   const membership = resolved.membership;
   if (!membership) redirect("/crear-empresa");
-  return { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, functionalProfileKey: membership.functionalProfileKey, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
+  return bindTrustedCompanyContext({ ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, functionalProfileKey: membership.functionalProfileKey, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" });
 }
 
 async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContext | null> {

@@ -14,6 +14,11 @@ export type RequestContext = {
   companyId?: string;
   actor: RequestActor;
   jobId?: string;
+  membershipId?: string;
+  provider?: string;
+  operation?: string;
+  release?: string;
+  environment?: string;
 };
 
 const contextStorage = new AsyncLocalStorage<RequestContext>();
@@ -32,6 +37,13 @@ export function getRequestContext(): RequestContext | undefined {
   return contextStorage.getStore();
 }
 
+export function enrichRequestContext(input: Partial<Omit<RequestContext, "requestId" | "correlationId">>): RequestContext {
+  const context = contextStorage.getStore();
+  if (!context) throw new Error("REQUEST_CONTEXT_REQUIRED");
+  Object.assign(context, input);
+  return context;
+}
+
 export async function requestContextFromHeaders(input: Partial<RequestContext> = {}): Promise<RequestContext> {
   const store = await headers();
   const requestId = input.requestId ?? normalizeTraceId(store.get("x-request-id"));
@@ -42,6 +54,11 @@ export async function requestContextFromHeaders(input: Partial<RequestContext> =
     companyId: input.companyId,
     actor: input.actor ?? { type: "anonymous" },
     jobId: input.jobId ?? normalizeOptionalId(store.get("x-job-id")),
+    membershipId: input.membershipId,
+    provider: input.provider,
+    operation: input.operation,
+    release: input.release ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_RELEASE_SHA,
+    environment: input.environment ?? process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   };
 }
 

@@ -6,6 +6,7 @@ import { executeIdempotent } from "../../lib/platform/idempotency";
 import { consumeRateLimit } from "../../lib/platform/rate-limit";
 import { persistVerifiedWebhook } from "../../lib/platform/webhooks";
 import { readEncryptedCredential, storeEncryptedCredential } from "../../lib/platform/credentials";
+import { assignCompanyTeamMember, createCompanyTeam } from "../../lib/application/company/team-service";
 
 async function main() {
  const prisma = new PrismaClient();
@@ -18,6 +19,27 @@ async function main() {
   const credential = await storeEncryptedCredential({ prisma, companyId: companyA.id, purpose: "stripe.webhook", plaintext: "f2-plaintext-secret", keyring });
   if (credential.ciphertext.includes("f2-plaintext-secret") || await readEncryptedCredential({ prisma, companyId: companyA.id, purpose: "stripe.webhook", keyring }) !== "f2-plaintext-secret") throw new Error("ENCRYPTED_CREDENTIAL_PERSISTENCE_FAILED");
   const user = await prisma.user.create({ data: { id: "f2-user", email: "f2@example.invalid", emailNormalized: "f2@example.invalid", passwordHash: "not-a-real-password", displayName: "F2", status: "active", emailVerifiedAt: new Date() } });
+  const userB = await prisma.user.create({ data: { id: "f2-user-b", email: "f2-b@example.invalid", emailNormalized: "f2-b@example.invalid", passwordHash: "not-a-real-password", displayName: "F2 B", status: "active", emailVerifiedAt: new Date() } });
+  const [membershipA, membershipB] = await Promise.all([
+    prisma.companyMembership.create({ data: { userId: user.id, companyId: companyA.id, role: "OWNER", status: "active", acceptedAt: new Date(), joinedAt: new Date() } }),
+    prisma.companyMembership.create({ data: { userId: userB.id, companyId: companyB.id, role: "OWNER", status: "active", acceptedAt: new Date(), joinedAt: new Date() } }),
+  ]);
+  const teamA = await createCompanyTeam(prisma, { companyId: companyA.id, userId: user.id }, { name: "F2 Team A" });
+  let crossTenantRejected = false;
+  try {
+    await assignCompanyTeamMember(prisma, { companyId: companyA.id, userId: user.id }, { teamId: teamA.id, membershipId: membershipB.id });
+  } catch (error) {
+    crossTenantRejected = error instanceof Error && error.message === "CROSS_COMPANY_TEAM_FORBIDDEN";
+  }
+  if (!crossTenantRejected || await prisma.teamMembership.count({ where: { teamId: teamA.id, membershipId: membershipB.id } })) throw new Error("ACTION_SERVICE_TENANT_ISOLATION_FAILED");
+  await prisma.auditLog.create({ data: { id: "f2-team-rollback", companyId: companyA.id, userActorId: user.id, action: "fixture", targetType: "Team" } });
+  let teamTransactionRolledBack = false;
+  try {
+    await createCompanyTeam(prisma, { companyId: companyA.id, userId: user.id }, { name: "F2 Must Roll Back", auditId: "f2-team-rollback" });
+  } catch {
+    teamTransactionRolledBack = true;
+  }
+  if (!teamTransactionRolledBack || await prisma.team.count({ where: { companyId: companyA.id, name: "F2 Must Roll Back" } })) throw new Error("ACTION_SERVICE_TRANSACTION_ROLLBACK_FAILED");
   const old = await prisma.session.create({ data: { userId: user.id, tokenHash: "old-token-hash", expiresAt: new Date(Date.now() + 60_000) } });
   const rotated = await rotateSessionRecord({ prisma, sessionId: old.id, userId: user.id, expiresAt: new Date(Date.now() + 120_000) });
   const oldAfter = await prisma.session.findUniqueOrThrow({ where: { id: old.id } });
@@ -55,7 +77,7 @@ async function main() {
   const duplicate = await persistVerifiedWebhook(prisma, webhookInput);
   if (accepted.replayed || !duplicate.replayed || await prisma.webhookEvent.count({ where: { provider: "fiscal", externalEventId: "event-1" } }) !== 1) throw new Error("WEBHOOK_REPLAY_PROTECTION_FAILED");
 
-  console.log(JSON.stringify({ ok: true, migrations: migrations[0].count, encryptedCredential: true, sessionRotation: true, idempotentOperations: operations, tenantAAllowed: attemptsA.filter((item) => item.allowed).length, tenantBAllowed: attemptsB.filter((item) => item.allowed).length, outboxRollback: true, outboxClaimed: claimed.length, webhookReplay: duplicate.replayed }, null, 2));
+  console.log(JSON.stringify({ ok: true, migrations: migrations[0].count, encryptedCredential: true, sessionRotation: true, idempotentOperations: operations, tenantAAllowed: attemptsA.filter((item) => item.allowed).length, tenantBAllowed: attemptsB.filter((item) => item.allowed).length, actionServiceCrossTenantRejected: crossTenantRejected, actionServiceTransactionRollback: teamTransactionRolledBack, membershipA: membershipA.companyId === companyA.id, outboxRollback: true, outboxClaimed: claimed.length, webhookReplay: duplicate.replayed }, null, 2));
  } finally {
    await prisma.$disconnect();
  }

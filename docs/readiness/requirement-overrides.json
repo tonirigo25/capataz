@@ -50,9 +50,9 @@
     "notes": ["M01-M10 applied from fresh PostgreSQL and a second deploy had no pending migrations; no destructive SQL found."]
   },
   "ARCH-007": {
-    "status": "PENDING",
-    "evidence": ["lib/commercial/platform-service.ts", "lib/commercial/demo-service.ts", "docs/readiness/evidence/f2/action-boundary-audit.md"],
-    "notes": ["Platform and demo boundaries were extracted, but 20 action files still have direct Prisma access requiring semantic classification or extraction."]
+    "status": "PASS",
+    "evidence": ["lib/application", "lib/orqena/application/capataz", "lib/platform/next-action-boundary.ts", "docs/readiness/evidence/f2/action-boundary-classification.json", "docs/readiness/evidence/f2/action-boundary-audit.md", "scripts/readiness/validate-action-boundaries.mjs"],
+    "notes": ["All 30 Server Action files and 129 exports use the canonical boundary; direct Prisma action access is zero, Capataz is split by use case/query, the negative fixture is rejected, and isolated PostgreSQL proves cross-tenant rejection plus transactional rollback."]
   },
   "ARCH-008": {
     "status": "PASS",

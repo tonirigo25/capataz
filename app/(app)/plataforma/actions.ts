@@ -1,34 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { rotateCurrentSession } from "@/lib/auth/session";
-import { requirePlatformAccount } from "@/lib/commercial/platform";
-import { endSupportAccess, setCompanySuspension, startSupportAccess } from "@/lib/commercial/platform-service";
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { createSupportGrant as createSupportGrantUseCase, closeSupportGrant as closeSupportGrantUseCase, toggleCompanySuspension as toggleCompanySuspensionUseCase } from "@/lib/application/platform/platform-admin-use-cases";
 
 export async function createSupportGrant(formData: FormData) {
-  const actor = await requirePlatformAccount("PLATFORM_ADMIN");
-  await startSupportAccess(actor, {
-    companyId: String(formData.get("companyId") ?? ""),
-    reason: String(formData.get("reason") ?? ""),
-    ticket: String(formData.get("ticket") ?? ""),
-    minutes: Number(formData.get("minutes") ?? 30),
-  });
-  await rotateCurrentSession("privilege_elevation");
-  revalidatePath("/plataforma");
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#createSupportGrant" }, () => createSupportGrantUseCase(formData));
 }
 
 export async function closeSupportGrant(formData: FormData) {
-  const actor = await requirePlatformAccount("PLATFORM_SUPPORT");
-  await endSupportAccess(actor, String(formData.get("grantId") ?? ""));
-  revalidatePath("/plataforma");
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#closeSupportGrant" }, () => closeSupportGrantUseCase(formData));
 }
 
 export async function toggleCompanySuspension(formData: FormData) {
-  const actor = await requirePlatformAccount("PLATFORM_ADMIN");
-  await setCompanySuspension(actor, {
-    companyId: String(formData.get("companyId") ?? ""),
-    suspended: String(formData.get("suspend")) === "true",
-    reason: String(formData.get("reason") ?? ""),
-  });
-  revalidatePath("/plataforma");
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#toggleCompanySuspension" }, () => toggleCompanySuspensionUseCase(formData));
 }

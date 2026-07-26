@@ -12,9 +12,9 @@
   },
   "requirements": {
     "total": 19,
-    "pass": 14,
+    "pass": 15,
     "readyForExternalInput": 2,
-    "pending": 3,
+    "pending": 2,
     "blocked": 0,
     "waived": 0
   },
@@ -32,6 +32,7 @@
     "healthStandalone": "PASS",
     "otelExporter": "PASS",
     "providerContracts": "fake and production 6/6 PASS",
+    "actionBoundaries": "30/30 files and 129/129 exports PASS; negative fixture PASS",
     "typecheck": "PASS",
     "productionBuild": "PASS",
     "staticPagesGenerated": 64,
@@ -51,6 +52,8 @@
     "outboxRollback": true,
     "outboxClaimed": 1,
     "webhookReplayDetected": true,
+    "actionServiceCrossTenantRejected": true,
+    "actionServiceTransactionRollback": true,
     "encryptedCredentialRoundTrip": true,
     "crossSiteStatus": 403,
     "crossSiteWrites": 0
@@ -63,7 +66,6 @@
     "migrationHeadObserved": "20260725200000_readiness_f2_transactional_outbox"
   },
   "pending": {
-    "ARCH-007": "20 action files still require semantic classification or domain-service extraction",
     "SEC-004": "request IDs are global, but actor/company/job context is not yet installed at every legacy boundary",
     "OBS-004": "end-to-end actor, tenant and job correlation remains incomplete for legacy actions and jobs"
   },
@@ -72,7 +74,7 @@
     "SEC-006": "authorized staging security-header scan"
   },
   "temporaryResources": {
-    "isolatedPostgresInstances": 5,
+    "isolatedPostgresInstances": 6,
     "localStandaloneInstances": 1,
     "externalCost": 0,
     "teardown": "PASS"

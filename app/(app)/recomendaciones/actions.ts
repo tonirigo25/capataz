@@ -1,74 +1,24 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import {
-  acceptBusinessRecommendation,
-  dismissBusinessRecommendation,
-  executeConfirmedRecommendationAction,
-  markRecommendationViewed,
-  snoozeBusinessRecommendation
-} from "@/lib/business-recommendations";
-import type { SignalSnoozePreset } from "@/lib/business-signals";
-import { requireCapability } from "@/lib/commercial/authorization";
-
-const VALID_SNOOZE_PRESETS = new Set<SignalSnoozePreset>(["tomorrow", "week", "month"]);
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { markRecommendationViewedAction as markRecommendationViewedActionUseCase, snoozeRecommendationAction as snoozeRecommendationActionUseCase, dismissRecommendationAction as dismissRecommendationActionUseCase, acceptRecommendationAction as acceptRecommendationActionUseCase, executeRecommendationAction as executeRecommendationActionUseCase } from "@/lib/application/intelligence/recommendation-use-cases";
 
 export async function markRecommendationViewedAction(formData: FormData) {
-  await requireCapability("orqena.execute");
-  const fingerprint = clean(formData.get("fingerprint"));
-  if (!fingerprint) return;
-  await markRecommendationViewed(fingerprint);
-  revalidateRecommendationConsumers();
+  return executeNextAction({ operation: "app/(app)/recomendaciones/actions.ts#markRecommendationViewedAction" }, () => markRecommendationViewedActionUseCase(formData));
 }
 
 export async function snoozeRecommendationAction(formData: FormData) {
-  await requireCapability("orqena.execute");
-  const fingerprint = clean(formData.get("fingerprint"));
-  const preset = clean(formData.get("preset")) as SignalSnoozePreset;
-  if (!fingerprint || !VALID_SNOOZE_PRESETS.has(preset)) return;
-  await snoozeBusinessRecommendation(fingerprint, preset);
-  revalidateRecommendationConsumers();
+  return executeNextAction({ operation: "app/(app)/recomendaciones/actions.ts#snoozeRecommendationAction" }, () => snoozeRecommendationActionUseCase(formData));
 }
 
 export async function dismissRecommendationAction(formData: FormData) {
-  await requireCapability("orqena.execute");
-  const fingerprint = clean(formData.get("fingerprint"));
-  const reason = clean(formData.get("reason"));
-  if (!fingerprint) return;
-  await dismissBusinessRecommendation(fingerprint, reason);
-  revalidateRecommendationConsumers();
+  return executeNextAction({ operation: "app/(app)/recomendaciones/actions.ts#dismissRecommendationAction" }, () => dismissRecommendationActionUseCase(formData));
 }
 
 export async function acceptRecommendationAction(formData: FormData) {
-  await requireCapability("orqena.execute");
-  const fingerprint = clean(formData.get("fingerprint"));
-  if (!fingerprint) return;
-  await acceptBusinessRecommendation(fingerprint);
-  revalidateRecommendationConsumers();
+  return executeNextAction({ operation: "app/(app)/recomendaciones/actions.ts#acceptRecommendationAction" }, () => acceptRecommendationActionUseCase(formData));
 }
 
 export async function executeRecommendationAction(formData: FormData) {
-  await requireCapability("orqena.execute");
-  const fingerprint = clean(formData.get("fingerprint"));
-  const actionId = clean(formData.get("actionId"));
-  const confirmed = clean(formData.get("confirmed")) === "true";
-  if (!fingerprint || !actionId || !confirmed) return;
-  const idempotencyKey = clean(formData.get("idempotencyKey")) || `${fingerprint}:${actionId}`;
-  await executeConfirmedRecommendationAction({ fingerprint, actionId, userIntent: "confirmed_from_recommendation_center", idempotencyKey });
-  revalidateRecommendationConsumers();
-}
-
-function clean(value: FormDataEntryValue | null) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function revalidateRecommendationConsumers() {
-  revalidatePath("/recomendaciones");
-  revalidatePath("/recomendaciones/control");
-  revalidatePath("/hoy");
-  revalidatePath("/alertas");
-  revalidatePath("/capataz");
-  revalidatePath("/clientes");
-  revalidatePath("/obras");
-  revalidatePath("/tesoreria");
+  return executeNextAction({ operation: "app/(app)/recomendaciones/actions.ts#executeRecommendationAction" }, () => executeRecommendationActionUseCase(formData));
 }
