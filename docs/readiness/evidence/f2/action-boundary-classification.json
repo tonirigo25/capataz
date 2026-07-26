@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T08:01:58.005Z",
+  "generatedAt": "2026-07-26T11:06:56.086Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -706,6 +706,27 @@
       "id": "app/(app)/configuracion/actions.ts#saveCompanySettings",
       "actionFile": "app/(app)/configuracion/actions.ts",
       "exportName": "saveCompanySettings",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/settings-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/actions.ts#uploadCompanyAsset",
+      "actionFile": "app/(app)/configuracion/actions.ts",
+      "exportName": "uploadCompanyAsset",
       "inputShape": [
         "formData: FormData"
       ],
@@ -1466,6 +1487,48 @@
       "service": "lib/application/billing/plan-use-case.ts",
       "postEffects": {
         "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plan-y-uso/actions.ts#startStripeCheckout",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "startStripeCheckout",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/stripe-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plan-y-uso/actions.ts#openStripeCustomerPortal",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "openStripeCustomerPortal",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/stripe-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
         "redirect": false,
         "audit": false,
         "outbox": false,
@@ -2806,7 +2869,7 @@
         "revalidate": false,
         "redirect": false,
         "audit": true,
-        "outbox": false,
+        "outbox": true,
         "businessEvent": false
       }
     },

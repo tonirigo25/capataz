@@ -44,7 +44,7 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 16) failures.push(`expected 16 routes, found ${routes.length}`);
+  if (routes.length !== 20) failures.push(`expected 20 routes, found ${routes.length}`);
   const actions = walk(path.join(root, "app"), "actions.ts");
   if (actions.length !== 30) failures.push(`expected 30 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
@@ -58,7 +58,7 @@ if (fixture) {
   const migration = fs.readFileSync(path.join(root, "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql"), "utf8");
   for (const table of ["BusinessEvent", "AuditLog", "SecurityAuditEvent", "WebhookEvent"]) if (!migration.includes(`ALTER TABLE \"${table}\"`)) failures.push(`context migration table missing: ${table}`);
   const jobRoutes = routes.filter((route) => route.calls.includes("internalJobRequestContext"));
-  if (jobRoutes.length !== 2) failures.push(`expected 2 job route boundaries, found ${jobRoutes.length}`);
+  if (jobRoutes.length !== 3) failures.push(`expected 3 job route boundaries, found ${jobRoutes.length}`);
 }
 
 const unique = [...new Set(failures)];
@@ -66,4 +66,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (30 actions, 16 routes, 2 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (30 actions, 20 routes, 3 jobs)\n");

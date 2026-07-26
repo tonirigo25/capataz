@@ -17,8 +17,13 @@ function receipt(provider: string, idempotencyKey: string): ProviderReceipt {
 export class FakeBillingProvider implements BillingProvider {
   readonly name = "fake-billing";
   readonly mode = "fake" as const;
-  async createCheckout(input: { companyId: string; priceKey: string; returnUrl: string; idempotencyKey: string }) {
+  async createCheckout(input: { companyId: string; priceKey: string; customerId?: string; returnUrl: string; idempotencyKey: string }) {
     new URL(input.returnUrl);
+    return receipt(this.name, input.idempotencyKey);
+  }
+  async createPortal(input: { companyId: string; customerId: string; returnUrl: string; idempotencyKey: string }) {
+    new URL(input.returnUrl);
+    if (!input.customerId) throw new Error("BILLING_CUSTOMER_REQUIRED");
     return receipt(this.name, input.idempotencyKey);
   }
 }

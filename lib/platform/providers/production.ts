@@ -11,12 +11,22 @@ function receipt(provider: string, reference: string, idempotencyKey: string, cl
 export class StripeBillingProvider implements BillingProvider {
   readonly name = "stripe";
   readonly mode = "live" as const;
-  constructor(private readonly client: { checkout: { sessions: { create(input: object, options: { idempotencyKey: string }): Promise<{ id: string }> } } }, private readonly clock: Clock = () => new Date()) {}
-  async createCheckout(input: { companyId: string; priceKey: string; returnUrl: string; idempotencyKey: string }) {
+  constructor(private readonly client: {
+    checkout: { sessions: { create(input: object, options: { idempotencyKey: string }): Promise<{ id: string; url?: string | null }> } };
+    billingPortal?: { sessions: { create(input: object, options: { idempotencyKey: string }): Promise<{ id: string; url?: string }> } };
+  }, private readonly clock: Clock = () => new Date()) {}
+  async createCheckout(input: { companyId: string; priceKey: string; customerId?: string; returnUrl: string; idempotencyKey: string }) {
     const returnUrl = new URL(input.returnUrl);
     if (returnUrl.protocol !== "https:") throw new Error("CHECKOUT_RETURN_URL_MUST_BE_HTTPS");
-    const session = await this.client.checkout.sessions.create({ mode: "subscription", line_items: [{ price: input.priceKey, quantity: 1 }], success_url: returnUrl.href, cancel_url: returnUrl.href, client_reference_id: input.companyId }, { idempotencyKey: input.idempotencyKey });
-    return receipt(this.name, session.id, input.idempotencyKey, this.clock);
+    const session = await this.client.checkout.sessions.create({ mode: "subscription", line_items: [{ price: input.priceKey, quantity: 1 }], success_url: returnUrl.href, cancel_url: returnUrl.href, client_reference_id: input.companyId, ...(input.customerId ? { customer: input.customerId } : {}), subscription_data: { metadata: { companyId: input.companyId } }, metadata: { companyId: input.companyId } }, { idempotencyKey: input.idempotencyKey });
+    return { ...receipt(this.name, session.id, input.idempotencyKey, this.clock), ...(session.url ? { url: session.url } : {}) };
+  }
+  async createPortal(input: { companyId: string; customerId: string; returnUrl: string; idempotencyKey: string }) {
+    if (!this.client.billingPortal) throw new Error("STRIPE_PORTAL_NOT_CONFIGURED");
+    const returnUrl = new URL(input.returnUrl);
+    if (returnUrl.protocol !== "https:" || !input.customerId) throw new Error("BILLING_PORTAL_INPUT_INVALID");
+    const session = await this.client.billingPortal.sessions.create({ customer: input.customerId, return_url: returnUrl.href }, { idempotencyKey: input.idempotencyKey });
+    return { ...receipt(this.name, session.id, input.idempotencyKey, this.clock), ...(session.url ? { url: session.url } : {}) };
   }
 }
 

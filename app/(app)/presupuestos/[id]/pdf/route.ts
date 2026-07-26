@@ -56,8 +56,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       address: [company.direccion, company.codigoPostal, company.ciudad, company.provincia, company.pais].filter(Boolean).join(", "),
       contact: [company?.telefono, company?.email, company?.web].filter(Boolean).join(" · "),
       iban: company?.iban,
-      logoUrl: company?.logoUrl,
-      sealUrl: company.sealUrl,
       brandColor: company.brandColor,
       legalText: company.legalText
     },

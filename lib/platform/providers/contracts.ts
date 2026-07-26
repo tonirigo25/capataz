@@ -6,12 +6,14 @@ export type ProviderReceipt = {
   reference: string;
   idempotencyKey: string;
   acceptedAt: string;
+  url?: string;
 };
 
 export interface BillingProvider {
   readonly name: string;
   readonly mode: ProviderMode;
-  createCheckout(input: { companyId: string; priceKey: string; returnUrl: string; idempotencyKey: string }): Promise<ProviderReceipt>;
+  createCheckout(input: { companyId: string; priceKey: string; customerId?: string; returnUrl: string; idempotencyKey: string }): Promise<ProviderReceipt>;
+  createPortal(input: { companyId: string; customerId: string; returnUrl: string; idempotencyKey: string }): Promise<ProviderReceipt>;
 }
 
 export interface EmailDeliveryProvider {

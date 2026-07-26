@@ -2,10 +2,9 @@ import { navigateAction as redirect } from "@/lib/application/action-effects";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth/config";
-import { createOpaqueToken, hashPassword, hashToken, normalizeEmail, validatePassword, verifyPassword } from "@/lib/auth/crypto";
+import { hashPassword, hashToken, normalizeEmail, validatePassword, verifyPassword } from "@/lib/auth/crypto";
 import { createSession, getAvailableCompanies, revokeCurrentSession } from "@/lib/auth/session";
 import { recordSecurityEvent } from "@/lib/auth/audit";
-import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
 import { queueEmailEvent } from "@/lib/email/outbox";
@@ -39,28 +38,28 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
   const existing = await prisma.user.findUnique({ where: { emailNormalized }, select: { id: true } });
   if (existing) return { status: "success", message: "Si el correo puede registrarse, recibirás las instrucciones para continuar." };
   const passwordHash = await hashPassword(password);
-  const rawToken = createOpaqueToken();
-  const expiresAt = new Date(Date.now() + authConfig.verificationMinutes * 60_000);
   let user: { id: string; email: string };
   try {
     await ensureBasePlans(prisma);
     user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({ data: { email, emailNormalized, passwordHash, displayName } });
+      let companyId: string;
       if (invitationValid && invitation) {
+        companyId = invitation.companyId;
         await tx.companyMembership.create({ data: { userId: created.id, companyId: invitation.companyId, status: "pending_owner_approval", role: invitation.role, functionalProfileKey: invitation.functionalProfileKey, accessMode: invitation.accessMode, invitedAt: invitation.createdAt, acceptedAt: new Date(), invitedById: invitation.inviterId, origin: "invitation" } });
         await tx.invitation.update({ where: { id: invitation.id }, data: { status: "PENDING_OWNER_APPROVAL", acceptedAt: new Date(), employeeAcceptedAt: new Date() } });
-        await queueEmailEvent(tx as typeof prisma, { companyId: invitation.companyId, invitationId: invitation.id, eventKey: "owner_approval_requested", recipient: "owner-notification@orqena.invalid", createdById: created.id });
+        await queueEmailEvent(tx, { companyId, invitationId: invitation.id, eventKey: "owner_approval_requested", recipient: "owner-notification@orqena.invalid", createdById: created.id, idempotencyKey: `owner-approval:${invitation.id}` });
       } else {
-        await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
+        const company = await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
+        companyId = company.id;
       }
-      await tx.emailVerificationToken.create({ data: { userId: created.id, tokenHash: hashToken(rawToken), expiresAt } });
+      await queueEmailEvent(tx, { companyId, eventKey: "email_verification", recipient: created.email, createdById: created.id, payload: { userId: created.id }, idempotencyKey: `email-verification:${created.id}` });
       return { id: created.id, email: created.email };
     });
   } catch {
     return { status: "error", message: "No hemos podido completar el registro. Tus datos no se han guardado; inténtalo de nuevo.", fields };
   }
   await recordSecurityEvent({ type: "registration_created", outcome: "success", userId: user.id });
-  try { await sendVerificationEmail(user.email, rawToken); } catch { return { status: "success", message: "Tu cuenta se ha creado, pero el mensaje está tardando. Usa el reenvío de verificación en unos minutos." }; }
   return { status: "success", message: "Cuenta creada. Revisa tu correo para verificarla antes de iniciar sesión." };
 }
 
@@ -99,13 +98,10 @@ export async function requestPasswordResetAction(_previous: AuthActionState, for
   const response = { status: "success" as const, message: "Si existe una cuenta con ese correo, recibirás las instrucciones." };
   const user = await prisma.user.findUnique({ where: { emailNormalized } });
   if (!user) { await recordSecurityEvent({ type: "password_reset_requested", outcome: "success" }); return response; }
-  const rawToken = createOpaqueToken();
-  await prisma.$transaction([
-    prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } }),
-    prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + authConfig.resetMinutes * 60_000) } })
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await queueEmailEvent(tx, { companyId: user.activeCompanyId ?? undefined, eventKey: "password_reset", recipient: user.email, payload: { userId: user.id }, idempotencyKey: `password-reset:${user.id}:${new Date().toISOString().slice(0, 13)}` });
+  });
   await recordSecurityEvent({ type: "password_reset_requested", outcome: "success", userId: user.id });
-  try { await sendPasswordResetEmail(user.email, rawToken); } catch { /* anti-enumeration response remains identical */ }
   return response;
 }
 

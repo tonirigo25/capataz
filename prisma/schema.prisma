@@ -2271,6 +2271,8 @@ model Company {
   legalText               String?
   logoUrl                 String?
   sealUrl                 String?
+  logoStoredObjectId      String?                           @unique
+  sealStoredObjectId      String?                           @unique
   brandColor              String                            @default("#f6c945")
   defaultVat              Float                             @default(21)
   currency                String                            @default("EUR")
@@ -2359,6 +2361,7 @@ model Company {
   electronicStatusEvents  ElectronicInvoiceStatusEvent[]
   billingCustomers        BillingCustomer[]
   billingEvents           BillingEvent[]
+  billingReconciliations  BillingReconciliationRun[]
   emailSuppressions       EmailSuppression[]
   emailWebhookEvents      EmailWebhookEvent[]
   legalAcceptances        LegalAcceptance[]
@@ -2377,6 +2380,8 @@ model Company {
   supportTickets          SupportTicket[]
   incidents               Incident[]
   storedObjects           StoredObject[]
+  logoStoredObject        StoredObject?                     @relation("CompanyLogo", fields: [logoStoredObjectId], references: [id], onDelete: SetNull)
+  sealStoredObject        StoredObject?                     @relation("CompanySeal", fields: [sealStoredObjectId], references: [id], onDelete: SetNull)
   uploadScans             UploadScan[]
 
   @@index([status])
@@ -2848,6 +2853,11 @@ model Subscription {
   currentPeriodEnd       DateTime
   cancelAtPeriodEnd      Boolean               @default(false)
   canceledAt             DateTime?
+  graceEndsAt            DateTime?
+  readOnlyAt             DateTime?
+  cancellationReason     String?
+  cancellationComment    String?
+  lastProviderEventAt    DateTime?
   metadata               Json?
   scheduledPlanKey       String?
   createdAt              DateTime              @default(now())
@@ -2927,34 +2937,41 @@ model Invitation {
 }
 
 model EmailOutbox {
-  id               String                 @id @default(cuid())
-  companyId        String?
-  invitationId     String?
-  eventKey         String
-  templateKey      String
-  templateVersion  Int
-  schemaVersion    Int                    @default(1)
-  recipient        String
-  subject          String
-  htmlBody         String?
-  textBody         String?
-  payload          Json?
-  status           EmailOutboxStatus      @default(PENDING)
-  attempts         Int                    @default(0)
-  availableAt      DateTime               @default(now())
-  processedAt      DateTime?
-  lastError        String?
-  createdById      String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  company          Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  createdBy        User?                  @relation("EmailOutboxCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  deliveryAttempts EmailDeliveryAttempt[]
-  webhookEvents    EmailWebhookEvent[]
+  id                String                 @id @default(cuid())
+  companyId         String?
+  invitationId      String?
+  eventKey          String
+  templateKey       String
+  templateVersion   Int
+  schemaVersion     Int                    @default(1)
+  idempotencyKey    String?
+  recipient         String
+  recipientHash     String?
+  subject           String
+  htmlBody          String?
+  textBody          String?
+  payload           Json?
+  status            EmailOutboxStatus      @default(PENDING)
+  attempts          Int                    @default(0)
+  availableAt       DateTime               @default(now())
+  processedAt       DateTime?
+  providerMessageId String?
+  deadLetteredAt    DateTime?
+  trackingEnabled   Boolean                @default(false)
+  lastError         String?
+  createdById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  company           Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdBy         User?                  @relation("EmailOutboxCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deliveryAttempts  EmailDeliveryAttempt[]
+  webhookEvents     EmailWebhookEvent[]
 
+  @@unique([companyId, idempotencyKey])
   @@index([companyId, status, availableAt])
   @@index([invitationId, eventKey])
   @@index([recipient, createdAt])
+  @@index([providerMessageId])
 }
 
 model EmailDeliveryAttempt {
@@ -2977,14 +2994,17 @@ model EmailDeliveryAttempt {
 }
 
 model EmailTemplateVersion {
-  id          String   @id @default(cuid())
-  templateKey String
-  version     Int
-  subject     String
-  htmlSource  String
-  textSource  String?
-  active      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  templateKey      String
+  version          Int
+  subject          String
+  htmlSource       String
+  textSource       String?
+  allowedVariables Json
+  contentHash      String
+  trackingEnabled  Boolean  @default(false)
+  active           Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
   @@unique([templateKey, version])
   @@index([templateKey, active])
@@ -3477,6 +3497,12 @@ model BillingCustomer {
   email              String?
   currency           String   @default("EUR")
   livemode           Boolean  @default(false)
+  legalName          String?
+  taxId              String?
+  addressLine        String?
+  postalCode         String?
+  city               String?
+  countryCode        String?  @default("ES")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   company            Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -3510,6 +3536,8 @@ model BillingEvent {
   eventType         String
   schemaVersion     Int           @default(1)
   payload           Json
+  payloadHash       String?
+  occurredAt        DateTime?
   status            String        @default("RECEIVED")
   signatureVerified Boolean       @default(false)
   attempts          Int           @default(0)
@@ -3522,6 +3550,24 @@ model BillingEvent {
 
   @@unique([provider, externalEventId])
   @@index([companyId, status, createdAt])
+}
+
+model BillingReconciliationRun {
+  id               String    @id @default(cuid())
+  companyId        String
+  provider         String
+  status           String    @default("STARTED")
+  localSnapshot    Json
+  providerSnapshot Json
+  divergences      Json
+  divergenceCount  Int       @default(0)
+  correctionMode   String    @default("AUDIT_ONLY")
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, startedAt])
+  @@index([status, startedAt])
 }
 
 // Email delivery governance (M05).
@@ -3884,24 +3930,29 @@ model Incident {
 
 // Private storage integrity (M09).
 model StoredObject {
-  id             String       @id @default(cuid())
-  companyId      String
-  provider       String
-  bucket         String
-  objectKey      String
-  versionId      String?
-  originalName   String?
-  mimeType       String
-  sizeBytes      BigInt
-  sha256         String
-  classification String
-  encryption     String?
-  status         String       @default("PENDING_SCAN")
-  createdAt      DateTime     @default(now())
-  deletedAt      DateTime?
-  company        Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  documents      Document[]
-  scans          UploadScan[]
+  id                 String       @id @default(cuid())
+  companyId          String
+  provider           String
+  bucket             String
+  objectKey          String
+  versionId          String?
+  originalName       String?
+  safeName           String?
+  mimeType           String
+  sizeBytes          BigInt
+  sha256             String
+  classification     String
+  encryption         String?
+  providerVersion    String?
+  contentDisposition String?      @default("attachment")
+  status             String       @default("PENDING_SCAN")
+  createdAt          DateTime     @default(now())
+  deletedAt          DateTime?
+  company            Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  logoForCompany     Company?     @relation("CompanyLogo")
+  sealForCompany     Company?     @relation("CompanySeal")
+  documents          Document[]
+  scans              UploadScan[]
 
   @@unique([provider, bucket, objectKey, versionId])
   @@index([companyId, status, createdAt])

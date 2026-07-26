@@ -5,6 +5,7 @@ import { capabilityCatalog, roleCapabilities, scopeAssignableCapabilityKeys, typ
 import { defaultPlanKey, planCatalog, type EntitlementValue } from "@/lib/commercial/plans";
 import { canHoldEconomicCapabilities, ECONOMIC_CAPABILITIES, functionalProfileCapabilities, profileDefaultPackages, resolveFunctionalProfile } from "@/lib/commercial/functional-profiles";
 import { accessPackageCapabilities, accessPackageKeys, capabilitiesForPackages, type AccessPackageKey } from "@/lib/commercial/access-packages";
+import { commercialAccessPolicy } from "@/lib/commercial/access-policy";
 
 export type AuthorizationDecision = { allowed: boolean; reason: "allowed" | "permission" | "entitlement" | "membership" | "company" | "subscription"; scope: string };
 
@@ -40,7 +41,7 @@ export async function resolveAuthorization(context: CompanyContext, capability: 
   if (membership.accessMode === "READ_ONLY" && mutating) return { allowed: false, reason: "permission", scope: "COMPANY" };
   const commercial = await getEntitlements(context.companyId);
   const isReadOperation = capability.endsWith(".view") || capability.endsWith(".export") || capability === "orqena.use" || capability === "company.billing.manage";
-  if (commercial.subscription && ["EXPIRED", "PAUSED", "CANCELED"].includes(commercial.subscription.status) && !isReadOperation) return { allowed: false, reason: "subscription", scope: "COMPANY" };
+  if (commercial.subscription && commercialAccessPolicy({ status: commercial.subscription.status, graceEndsAt: commercial.subscription.graceEndsAt }).access !== "FULL" && !isReadOperation) return { allowed: false, reason: "subscription", scope: "COMPANY" };
   const entitlement = capabilityCatalog[capability].requiredEntitlement;
   if (entitlement) {
     if (!Boolean(commercial.values[entitlement])) return { allowed: false, reason: "entitlement", scope: "COMPANY" };
