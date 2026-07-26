@@ -22,6 +22,17 @@ const pass = (label, condition, detail = "") => {
 };
 
 const normalize = (value) => String(value).toLowerCase().replace(/\s+/gu, "");
+const relativeLuminance = (hex) => {
+  const channels = String(hex).replace("#", "").match(/.{2}/gu)?.map((value) => Number.parseInt(value, 16) / 255) ?? [];
+  const [red = 0, green = 0, blue = 0] = channels.map((value) => (
+    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  ));
+  return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
+};
+const contrastRatio = (foreground, background) => {
+  const values = [relativeLuminance(foreground), relativeLuminance(background)].sort((left, right) => right - left);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+};
 const cssVariables = new Map(
   [...styles.matchAll(/(--fos-[a-z0-9-]+)\s*:\s*([^;]+);/giu)]
     .map(([, name, value]) => [name, value.trim()]),
@@ -67,10 +78,31 @@ const tokenMappings = [
   ["--fos-motion-easing", tokens.motion.easing],
 ];
 
-for (const [name, expected] of tokenMappings) {
+const semanticTokenMappings = [
+  ["--fos-color-text-muted-aa", tokens.semanticColor.textMuted.value],
+  ["--fos-color-warning-text-aa", tokens.semanticColor.warningText.value],
+  ["--fos-color-danger-text-aa", tokens.semanticColor.dangerText.value],
+];
+
+for (const [name, expected] of [...tokenMappings, ...semanticTokenMappings]) {
   const actual = cssVariables.get(name);
   pass(`token ${name}`, normalize(actual) === normalize(expected), `expected ${expected}, received ${actual ?? "missing"}`);
 }
+
+pass(
+  "semantic muted text meets AA on stone and lime",
+  contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.stone.value) >= 4.5
+    && contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.lime.value) >= 4.5,
+);
+pass(
+  "semantic warning and danger text meet AA on paper",
+  contrastRatio(tokens.semanticColor.warningText.value, tokens.color.paper.value) >= 4.5
+    && contrastRatio(tokens.semanticColor.dangerText.value, tokens.color.paper.value) >= 4.5,
+);
+pass(
+  "active navigation ink meets AA on lime",
+  contrastRatio(tokens.color.ink.value, tokens.color.lime.value) >= 4.5,
+);
 
 pass("manifest baseline SHA", manifest.baselineSha === BASELINE_SHA);
 pass("manifest review is independent", manifest.review?.independent === true && manifest.review?.syntheticDataOnly === true);
@@ -118,7 +150,7 @@ if (failures.length) {
 console.log(JSON.stringify({
   ok: true,
   baselineSha: BASELINE_SHA,
-  tokens: tokenMappings.length,
+  tokens: tokenMappings.length + semanticTokenMappings.length,
   routes: routeMatrix.length - 1,
   profiles: manifest.profiles.length,
   states: manifest.states.length,

@@ -48,6 +48,23 @@
       "role": "Success"
     }
   },
+  "semanticColor": {
+    "textMuted": {
+      "value": "#5B6761",
+      "source": "inkMuted",
+      "role": "AA text on stone, paper, surface and lime"
+    },
+    "warningText": {
+      "value": "#AE431F",
+      "source": "orange",
+      "role": "AA warning text on pale warning surfaces"
+    },
+    "dangerText": {
+      "value": "#A7332B",
+      "source": "red",
+      "role": "AA danger text on pale danger surfaces"
+    }
+  },
   "typography": {
     "family": {
       "sans": "Inter, ui-sans-serif, system-ui, sans-serif",

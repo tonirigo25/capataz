@@ -391,7 +391,7 @@ function DesktopNavigation({
           type="button"
           className={clsx(
             "mt-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-            desktopPanel === "more" ? "bg-brand-soft text-content" : "text-content-secondary hover:bg-subtle hover:text-content"
+            desktopPanel === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
           )}
           aria-expanded={desktopPanel === "more"}
           aria-controls="desktop-more-navigation"
@@ -833,7 +833,7 @@ function NavigationLink({
       aria-current={active ? "page" : undefined}
       className={clsx(
         "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-        active ? "bg-brand-soft text-content" : "text-content-secondary hover:bg-subtle hover:text-content"
+        active ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
       )}
     >
       <Icon size={19} aria-hidden="true" />
