@@ -1380,32 +1380,37 @@ erDiagram
     String id
     String companyId
     String invoiceId
+    String issuanceKey
     String documentType
     String series
     String number
     DateTime issueDate
     String currency
     Decimal taxableBase
+    Decimal discountAmount
     Decimal taxAmount
+    Decimal withholdingAmount
     Decimal total
     String status
-    Int schemaVersion
-    Json sourceSnapshot
-    DateTime issuedAt
-    DateTime voidedAt
+    String mode
   }
   FiscalRecord {
     String id
     String companyId
     String fiscalDocumentId
     BigInt sequence
+    String chainScope
     String eventType
     Int schemaVersion
     Json payload
+    String canonicalInput
     String previousHash
     String recordHash
+    String algorithm
+    String softwareVersion
+    String releaseSha
+    String configurationHash
     DateTime occurredAt
-    DateTime createdAt
   }
   FiscalTransmission {
     String id
@@ -1418,12 +1423,12 @@ erDiagram
     String status
     Json requestPayload
     Json responsePayload
+    String requestHash
+    String responseHash
     String providerReference
     Int attempts
     DateTime availableAt
     DateTime transmittedAt
-    String lastError
-    DateTime createdAt
   }
   FiscalEvent {
     String id
@@ -1432,6 +1437,10 @@ erDiagram
     String eventType
     Int schemaVersion
     Json payload
+    BigInt sequence
+    String previousHash
+    String eventHash
+    String releaseSha
     String source
     DateTime occurredAt
     DateTime createdAt
@@ -1444,10 +1453,15 @@ erDiagram
     String provider
     String mode
     String declarationHash
+    String releaseSha
+    String configurationHash
+    Json capabilities
+    String approvalStatus
+    String approvalReference
+    DateTime signedAt
     Json payload
     DateTime validFrom
     DateTime validUntil
-    DateTime createdAt
   }
   ElectronicInvoiceArtifact {
     String id
@@ -1455,8 +1469,15 @@ erDiagram
     String fiscalDocumentId
     String format
     String schemaVersion
+    String semanticVersion
+    String validatorVersion
     String contentHash
+    String semanticHash
     String storageKey
+    String mimeType
+    String signatureProfile
+    DateTime signedAt
+    DateTime retentionUntil
     String status
     DateTime generatedAt
   }
@@ -1466,13 +1487,17 @@ erDiagram
     String artifactId
     String channel
     String recipient
+    String recipientHash
+    String idempotencyKey
     String status
     Int attempts
     DateTime availableAt
     DateTime deliveredAt
+    DateTime acknowledgedAt
+    String providerReference
+    String responseHash
     String lastError
     DateTime createdAt
-    DateTime updatedAt
   }
   ElectronicInvoiceStatusEvent {
     String id
@@ -1481,6 +1506,9 @@ erDiagram
     String eventType
     Int schemaVersion
     Json payload
+    Int sequence
+    String previousHash
+    String eventHash
     DateTime occurredAt
     DateTime createdAt
   }

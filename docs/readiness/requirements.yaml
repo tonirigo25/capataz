@@ -359,243 +359,243 @@ requirements:
   - id: "FISC-001"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Completar gap assessment técnico-jurídico RRSIF/VERI*FACTU antes de afirmar conformidad."
     acceptance: "Checklist firmada por especialista y trazada a pruebas."
-    evidence: []
-    notes: []
+    evidence: ["docs/compliance/FISCAL_GAP_ASSESSMENT.md", "contracts/fiscal/v1/manifest.json", "scripts/readiness/validate-f3-fiscal.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Technical checklist and executable evidence are complete; independent fiscal-specialist review and signature are still required before any conformity claim or live activation."]
   - id: "FISC-002"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Separar factura operativa editable de documento fiscal inmutable."
     acceptance: "La emisión crea snapshot; ediciones posteriores son imposibles."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Issuance creates an immutable canonical snapshot; PostgreSQL rejected identity and content mutation."]
   - id: "FISC-003"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Usar Decimal para bases, cuotas, descuentos, retenciones y total."
     acceptance: "Golden tests de redondeo por línea/documento."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/canonical.ts", "scripts/readiness/validate-f3-fiscal.ts"]
+    notes: ["Decimal HALF_UP golden tests passed at line and document level for bases, discounts, taxes, withholding and payable total."]
   - id: "FISC-004"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Reservar numeración en transacción y por empresa/serie/tipo."
     acceptance: "Prueba concurrente sin duplicados ni huecos por carrera."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["A tenant transaction lock and company/type/series sequence produced eight unique consecutive numbers under concurrent issuance."]
   - id: "FISC-005"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear registro de alta/anulación append-only y hash de contenido canónico."
     acceptance: "Recalcular cadena produce mismo hash; manipulación se detecta."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/aeat.ts", "lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Registration and cancellation records are append-only; hashes recompute and tampering is detected."]
   - id: "FISC-006"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Encadenar registros según modalidad y conservar huella anterior."
     acceptance: "Cada alta/anulación referencia correctamente su precedente."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["All ten isolated records referenced the exact prior company hash in sequence."]
   - id: "FISC-007"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Modelar rectificativas por sustitución/diferencias y motivo."
     acceptance: "Documento rectificativo enlaza originales y no los sobrescribe."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/canonical.ts", "lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Difference and substitution correction semantics include reason and original link; the tested original remained unchanged."]
   - id: "FISC-008"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Modelar anulación sin borrar evidencia."
     acceptance: "Anulación crea nuevo registro y conserva documento/artefactos."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Cancellation appended a record/event and changed lifecycle status without deleting the document or its artifact."]
   - id: "FISC-009"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Generar QR y leyenda conforme al modo activo."
     acceptance: "Contenido QR validado con fixtures oficiales/especialista."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/aeat.ts", "contracts/fiscal/v1/manifest.json", "scripts/readiness/validate-f3-fiscal.ts"]
+    notes: ["QR parameters, encoding, order, mode URL, legend and correction level follow AEAT 0.5.0; deterministic sandbox fixture passed."]
   - id: "FISC-010"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear adaptador de certificado/firma y almacenamiento seguro de material criptográfico."
     acceptance: "Certificado nunca aparece en repo/log; rotación ensayada."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/signatures.ts", "lib/platform/credentials.ts", "scripts/readiness/validate-f3-fiscal.ts"]
+    notes: ["Signing uses injected key objects or credential references; rotation changed signatures and no private material is persisted or logged."]
   - id: "FISC-011"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear adaptador VERI*FACTU y modo no verificable desacoplado."
     acceptance: "Fake/sandbox y proveedor real comparten contrato."
-    evidence: []
-    notes: []
+    evidence: ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/fiscal/transmission.ts"]
+    notes: ["Fake and HTTPS fiscal providers implement the same idempotent contract; live is independently gated."]
   - id: "FISC-012"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Registrar estado, reintentos, acuse y error de cada transmisión."
     acceptance: "Reintento idempotente no duplica registro remoto."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/transmission.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["A transient failure retried with the same key: two calls, one accepted provider effect and subsequent local replay."]
   - id: "FISC-013"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Implementar libro de eventos exigible para modalidad no verificable."
     acceptance: "Eventos críticos son append-only y exportables."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql"]
+    notes: ["Critical fiscal events are hash-chained, database-append-only and included in the verifiable export."]
   - id: "FISC-014"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Generar declaración responsable por producto y versión desplegada."
     acceptance: "Documento incluye versión, hash de release y capacidades reales."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "docs/compliance/FISCAL_GAP_ASSESSMENT.md", "scripts/readiness/validate-f3-fiscal.ts"]
+    notes: ["A versioned draft includes product, provider, mode, release, configuration, capabilities, implementation, date/place and content hash, while explicitly requiring external signature."]
   - id: "FISC-015"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Conservar evidencia de versión de software que emitió cada registro."
     acceptance: "Consulta fiscal recupera release, configuración y hash."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts"]
+    notes: ["Document and record evidence retains software version, release SHA and configuration hash."]
   - id: "FISC-016"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear exportación para inspección, conservación y portabilidad."
     acceptance: "Paquete verificable incluye registros, hashes, artefactos y manifiesto."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Export includes records, events, artifacts, deliveries, declarations and a canonical manifest hash; tampering failed verification."]
   - id: "FISC-017"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Clasificar facturas legacy sin retrocertificarlas."
     acceptance: "No se etiqueta como conforme ninguna factura histórica no emitida por el motor."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Legacy records are classified LEGACY_NOT_RETRO_CERTIFIED and cannot be transmitted by the native engine."]
   - id: "FISC-018"
     area: "FISC"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Bloquear emisión cuando falten datos fiscales o configuración legal."
     acceptance: "No se consume número ni se crea alta ante validación fallida."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/canonical.ts", "lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Invalid tax identity was rejected before the transaction reserved a number: zero sequence and zero document writes."]
   - id: "EINV-001"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear modelo semántico canónico independiente del formato."
     acceptance: "Mismo documento produce representaciones equivalentes."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/canonical.ts", "lib/fiscal/electronic-invoice.ts", "scripts/readiness/validate-f3-fiscal.ts"]
+    notes: ["UBL, CII, Facturae and EDIFACT share one canonical model and identical semantic hash."]
   - id: "EINV-002"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Generar UBL 2.1/EN16931 cuando sea aplicable."
     acceptance: "XML valida contra esquema y reglas de negocio seleccionadas."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"]
+    notes: ["UBL 2.1 EN16931 serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."]
   - id: "EINV-003"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Generar UN/CEFACT CII."
     acceptance: "XML valida contra esquema y fixtures."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"]
+    notes: ["CII serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."]
   - id: "EINV-004"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Generar Facturae y firma cuando proceda."
     acceptance: "Esquema/firma pasan validador configurado."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/electronic-invoice.ts", "lib/fiscal/signatures.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"]
+    notes: ["Facturae 3.2.2 serialization and the credential-reference signing boundary are ready; official XSD and XAdES validation with the authorized certificate are external activation gates."]
   - id: "EINV-005"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Diseñar adaptador EDIFACT para escenarios requeridos."
     acceptance: "Contrato y validación documentados; activación por capacidad."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"]
+    notes: ["The D16B INVOIC adapter is versioned, locally validated and capability-gated; partner-profile validation remains part of EINV-012."]
   - id: "EINV-006"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Versionar esquemas, codelists y validadores."
     acceptance: "Artefacto registra la versión exacta utilizada."
-    evidence: []
-    notes: []
+    evidence: ["contracts/einvoice/v1/manifest.json", "lib/fiscal/electronic-invoice.ts", "prisma/schema.prisma"]
+    notes: ["Every artifact records semantic, schema and validator versions plus content and semantic hashes."]
   - id: "EINV-007"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear adaptadores de entrega: descarga, email seguro, plataforma privada y solución pública futura."
     acceptance: "Cada entrega registra destino, acuse y hash sin duplicados."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/artifacts.ts", "lib/fiscal/transmission.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Download, secure-email, private-exchange and future-public adapter channels share an idempotent receipt contract; private replay persisted one delivery and public remained blocked."]
   - id: "EINV-008"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Modelar aceptación, rechazo, pago y fechas de estado."
     acceptance: "Timeline de factura B2B completo y auditable."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/artifacts.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Acceptance, rejection, full/partial payment and payment-date events form an append-only per-artifact timeline with required dates and fields."]
   - id: "EINV-009"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Conservar artefactos y acuses bajo política de retención."
     acceptance: "Restore reproduce documento y evidencia."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/artifacts.ts", "lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"]
+    notes: ["Artifact and document retention dates persist; isolated storage restore reproduced exact bytes and the export includes artifacts and receipts."]
   - id: "EINV-010"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener transmisión pública bloqueada hasta la orden ministerial y validación legal."
     acceptance: "Flag off por defecto; readiness explica motivo."
-    evidence: []
-    notes: []
+    evidence: ["lib/fiscal/transmission.ts", "contracts/einvoice/v1/manifest.json", "docs/runbooks/FISCAL_ENGINE_ACTIVATION.md"]
+    notes: ["Public delivery defaults off and independently requires effective ministerial order, external schema approval and approved live credentials."]
   - id: "EINV-011"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "PASS"
     requirement: "No mezclar factura B2B con billing SaaS de Stripe."
     acceptance: "Dominios, numeración y datos separados."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "docs/adr/0007-fiscal-engine-and-electronic-invoice.md"]
+    notes: ["ElectronicInvoice and Billing aggregates, identifiers, statuses and provider flows remain separate."]
   - id: "EINV-012"
     area: "EINV"
     phase: "F3"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Añadir pruebas de interoperabilidad con fixtures externos."
     acceptance: "Suite golden detecta cambios de XML/hashes."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/validate-f3-fiscal.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"]
+    notes: ["Deterministic four-format golden hashes detect local drift; independent official/partner fixtures must be run before interoperability is asserted."]
   - id: "PRIV-001"
     area: "PRIV"
     phase: "F5"

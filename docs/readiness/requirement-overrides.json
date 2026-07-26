@@ -143,5 +143,155 @@
     "status": "PASS",
     "evidence": ["lib/observability/release.ts", "app/api/internal/status/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
     "notes": ["Protected diagnosis reported exact local release, deployment and migration head without returning the secret or database URL."]
+  },
+  "FISC-001": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["docs/compliance/FISCAL_GAP_ASSESSMENT.md", "contracts/fiscal/v1/manifest.json", "scripts/readiness/validate-f3-fiscal.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Technical checklist and executable evidence are complete; independent fiscal-specialist review and signature are still required before any conformity claim or live activation."]
+  },
+  "FISC-002": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Issuance creates an immutable canonical snapshot; PostgreSQL rejected identity and content mutation."]
+  },
+  "FISC-003": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/canonical.ts", "scripts/readiness/validate-f3-fiscal.ts"],
+    "notes": ["Decimal HALF_UP golden tests passed at line and document level for bases, discounts, taxes, withholding and payable total."]
+  },
+  "FISC-004": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["A tenant transaction lock and company/type/series sequence produced eight unique consecutive numbers under concurrent issuance."]
+  },
+  "FISC-005": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/aeat.ts", "lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Registration and cancellation records are append-only; hashes recompute and tampering is detected."]
+  },
+  "FISC-006": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["All ten isolated records referenced the exact prior company hash in sequence."]
+  },
+  "FISC-007": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/canonical.ts", "lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Difference and substitution correction semantics include reason and original link; the tested original remained unchanged."]
+  },
+  "FISC-008": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Cancellation appended a record/event and changed lifecycle status without deleting the document or its artifact."]
+  },
+  "FISC-009": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/aeat.ts", "contracts/fiscal/v1/manifest.json", "scripts/readiness/validate-f3-fiscal.ts"],
+    "notes": ["QR parameters, encoding, order, mode URL, legend and correction level follow AEAT 0.5.0; deterministic sandbox fixture passed."]
+  },
+  "FISC-010": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/signatures.ts", "lib/platform/credentials.ts", "scripts/readiness/validate-f3-fiscal.ts"],
+    "notes": ["Signing uses injected key objects or credential references; rotation changed signatures and no private material is persisted or logged."]
+  },
+  "FISC-011": {
+    "status": "PASS",
+    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/fiscal/transmission.ts"],
+    "notes": ["Fake and HTTPS fiscal providers implement the same idempotent contract; live is independently gated."]
+  },
+  "FISC-012": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/transmission.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["A transient failure retried with the same key: two calls, one accepted provider effect and subsequent local replay."]
+  },
+  "FISC-013": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql"],
+    "notes": ["Critical fiscal events are hash-chained, database-append-only and included in the verifiable export."]
+  },
+  "FISC-014": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "docs/compliance/FISCAL_GAP_ASSESSMENT.md", "scripts/readiness/validate-f3-fiscal.ts"],
+    "notes": ["A versioned draft includes product, provider, mode, release, configuration, capabilities, implementation, date/place and content hash, while explicitly requiring external signature."]
+  },
+  "FISC-015": {
+    "status": "PASS",
+    "evidence": ["prisma/schema.prisma", "lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts"],
+    "notes": ["Document and record evidence retains software version, release SHA and configuration hash."]
+  },
+  "FISC-016": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Export includes records, events, artifacts, deliveries, declarations and a canonical manifest hash; tampering failed verification."]
+  },
+  "FISC-017": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Legacy records are classified LEGACY_NOT_RETRO_CERTIFIED and cannot be transmitted by the native engine."]
+  },
+  "FISC-018": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/canonical.ts", "lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Invalid tax identity was rejected before the transaction reserved a number: zero sequence and zero document writes."]
+  },
+  "EINV-001": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/canonical.ts", "lib/fiscal/electronic-invoice.ts", "scripts/readiness/validate-f3-fiscal.ts"],
+    "notes": ["UBL, CII, Facturae and EDIFACT share one canonical model and identical semantic hash."]
+  },
+  "EINV-002": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
+    "notes": ["UBL 2.1 EN16931 serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."]
+  },
+  "EINV-003": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
+    "notes": ["CII serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."]
+  },
+  "EINV-004": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/fiscal/electronic-invoice.ts", "lib/fiscal/signatures.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
+    "notes": ["Facturae 3.2.2 serialization and the credential-reference signing boundary are ready; official XSD and XAdES validation with the authorized certificate are external activation gates."]
+  },
+  "EINV-005": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
+    "notes": ["The D16B INVOIC adapter is versioned, locally validated and capability-gated; partner-profile validation remains part of EINV-012."]
+  },
+  "EINV-006": {
+    "status": "PASS",
+    "evidence": ["contracts/einvoice/v1/manifest.json", "lib/fiscal/electronic-invoice.ts", "prisma/schema.prisma"],
+    "notes": ["Every artifact records semantic, schema and validator versions plus content and semantic hashes."]
+  },
+  "EINV-007": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/artifacts.ts", "lib/fiscal/transmission.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Download, secure-email, private-exchange and future-public adapter channels share an idempotent receipt contract; private replay persisted one delivery and public remained blocked."]
+  },
+  "EINV-008": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/artifacts.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Acceptance, rejection, full/partial payment and payment-date events form an append-only per-artifact timeline with required dates and fields."]
+  },
+  "EINV-009": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/artifacts.ts", "lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"],
+    "notes": ["Artifact and document retention dates persist; isolated storage restore reproduced exact bytes and the export includes artifacts and receipts."]
+  },
+  "EINV-010": {
+    "status": "PASS",
+    "evidence": ["lib/fiscal/transmission.ts", "contracts/einvoice/v1/manifest.json", "docs/runbooks/FISCAL_ENGINE_ACTIVATION.md"],
+    "notes": ["Public delivery defaults off and independently requires effective ministerial order, external schema approval and approved live credentials."]
+  },
+  "EINV-011": {
+    "status": "PASS",
+    "evidence": ["prisma/schema.prisma", "docs/adr/0007-fiscal-engine-and-electronic-invoice.md"],
+    "notes": ["ElectronicInvoice and Billing aggregates, identifiers, statuses and provider flows remain separate."]
+  },
+  "EINV-012": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["scripts/readiness/validate-f3-fiscal.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
+    "notes": ["Deterministic four-format golden hashes detect local drift; independent official/partner fixtures must be run before interoperability is asserted."]
   }
 }

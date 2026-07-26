@@ -3244,54 +3244,81 @@ model EncryptedCredential {
 
 // Fiscal ledger (M02). FiscalRecord is append-only by application contract.
 model FiscalDocument {
-  id                  String                      @id @default(cuid())
-  companyId           String
-  invoiceId           String?
-  documentType        String
-  series              String
-  number              String
-  issueDate           DateTime
-  currency            String                      @default("EUR")
-  taxableBase         Decimal                     @db.Decimal(18, 2)
-  taxAmount           Decimal                     @db.Decimal(18, 2)
-  total               Decimal                     @db.Decimal(18, 2)
-  status              String                      @default("DRAFT")
-  schemaVersion       Int                         @default(1)
-  sourceSnapshot      Json
-  issuedAt            DateTime?
-  voidedAt            DateTime?
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
-  company             Company                     @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  invoice             Invoice?                    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  records             FiscalRecord[]
-  transmissions       FiscalTransmission[]
-  events              FiscalEvent[]
-  electronicArtifacts ElectronicInvoiceArtifact[]
+  id                       String                      @id @default(cuid())
+  companyId                String
+  invoiceId                String?
+  issuanceKey              String?
+  documentType             String
+  series                   String
+  number                   String
+  issueDate                DateTime
+  currency                 String                      @default("EUR")
+  taxableBase              Decimal                     @db.Decimal(18, 2)
+  discountAmount           Decimal                     @default(0) @db.Decimal(18, 2)
+  taxAmount                Decimal                     @db.Decimal(18, 2)
+  withholdingAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  total                    Decimal                     @db.Decimal(18, 2)
+  status                   String                      @default("DRAFT")
+  mode                     String                      @default("off")
+  schemaVersion            Int                         @default(1)
+  sourceSnapshot           Json
+  snapshotHash             String?
+  qrPayload                String?
+  qrVersion                String?
+  correctionKind           String?
+  correctionReason         String?
+  originalFiscalDocumentId String?
+  softwareVersion          String?
+  releaseSha               String?
+  configurationHash        String?
+  legacySource             Boolean                     @default(false)
+  retentionUntil           DateTime?
+  issuedAt                 DateTime?
+  voidedAt                 DateTime?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  company                  Company                     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  invoice                  Invoice?                    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  originalFiscalDocument   FiscalDocument?             @relation("FiscalCorrections", fields: [originalFiscalDocumentId], references: [id], onDelete: Restrict)
+  corrections              FiscalDocument[]            @relation("FiscalCorrections")
+  records                  FiscalRecord[]
+  transmissions            FiscalTransmission[]
+  events                   FiscalEvent[]
+  electronicArtifacts      ElectronicInvoiceArtifact[]
 
   @@unique([companyId, series, number])
+  @@unique([companyId, issuanceKey])
   @@index([companyId, status, issueDate])
+  @@index([companyId, documentType, series, issueDate])
+  @@index([originalFiscalDocumentId])
   @@index([invoiceId])
 }
 
 model FiscalRecord {
-  id               String         @id @default(cuid())
-  companyId        String
-  fiscalDocumentId String
-  sequence         BigInt
-  eventType        String
-  schemaVersion    Int            @default(1)
-  payload          Json
-  previousHash     String?
-  recordHash       String
-  occurredAt       DateTime
-  createdAt        DateTime       @default(now())
-  company          Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  fiscalDocument   FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
+  id                String         @id @default(cuid())
+  companyId         String
+  fiscalDocumentId  String
+  sequence          BigInt
+  chainScope        String         @default("legacy")
+  eventType         String
+  schemaVersion     Int            @default(1)
+  payload           Json
+  canonicalInput    String         @default("")
+  previousHash      String?
+  recordHash        String
+  algorithm         String         @default("SHA-256")
+  softwareVersion   String?
+  releaseSha        String?
+  configurationHash String?
+  occurredAt        DateTime
+  createdAt         DateTime       @default(now())
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalDocument    FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, sequence])
   @@unique([fiscalDocumentId, recordHash])
   @@index([companyId, occurredAt])
+  @@index([companyId, chainScope, sequence])
 }
 
 model FiscalTransmission {
@@ -3305,10 +3332,13 @@ model FiscalTransmission {
   status            String         @default("PENDING")
   requestPayload    Json?
   responsePayload   Json?
+  requestHash       String?
+  responseHash      String?
   providerReference String?
   attempts          Int            @default(0)
   availableAt       DateTime       @default(now())
   transmittedAt     DateTime?
+  acknowledgedAt    DateTime?
   lastError         String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -3326,29 +3356,40 @@ model FiscalEvent {
   eventType        String
   schemaVersion    Int            @default(1)
   payload          Json
+  sequence         BigInt?
+  previousHash     String?
+  eventHash        String?
+  releaseSha       String?
   source           String
   occurredAt       DateTime
   createdAt        DateTime       @default(now())
   company          Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
   fiscalDocument   FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, sequence])
   @@index([companyId, eventType, occurredAt])
   @@index([fiscalDocumentId, occurredAt])
 }
 
 model FiscalSoftwareDeclaration {
-  id              String    @id @default(cuid())
-  companyId       String
-  softwareName    String
-  softwareVersion String
-  provider        String
-  mode            String
-  declarationHash String
-  payload         Json
-  validFrom       DateTime
-  validUntil      DateTime?
-  createdAt       DateTime  @default(now())
-  company         Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                String    @id @default(cuid())
+  companyId         String
+  softwareName      String
+  softwareVersion   String
+  provider          String
+  mode              String
+  declarationHash   String
+  releaseSha        String?
+  configurationHash String?
+  capabilities      Json?
+  approvalStatus    String    @default("DRAFT")
+  approvalReference String?
+  signedAt          DateTime?
+  payload           Json
+  validFrom         DateTime
+  validUntil        DateTime?
+  createdAt         DateTime  @default(now())
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, softwareVersion, declarationHash])
   @@index([companyId, validFrom, validUntil])
@@ -3361,8 +3402,15 @@ model ElectronicInvoiceArtifact {
   fiscalDocumentId String
   format           String
   schemaVersion    String
+  semanticVersion  String                         @default("legacy")
+  validatorVersion String                         @default("legacy")
   contentHash      String
+  semanticHash     String?
   storageKey       String
+  mimeType         String                         @default("application/xml")
+  signatureProfile String?
+  signedAt         DateTime?
+  retentionUntil   DateTime?
   status           String                         @default("GENERATED")
   generatedAt      DateTime                       @default(now())
   company          Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -3375,21 +3423,27 @@ model ElectronicInvoiceArtifact {
 }
 
 model ElectronicInvoiceDelivery {
-  id          String                    @id @default(cuid())
-  companyId   String
-  artifactId  String
-  channel     String
-  recipient   String
-  status      String                    @default("PENDING")
-  attempts    Int                       @default(0)
-  availableAt DateTime                  @default(now())
-  deliveredAt DateTime?
-  lastError   String?
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-  company     Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  artifact    ElectronicInvoiceArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
+  id                String                    @id @default(cuid())
+  companyId         String
+  artifactId        String
+  channel           String
+  recipient         String
+  recipientHash     String?
+  idempotencyKey    String?
+  status            String                    @default("PENDING")
+  attempts          Int                       @default(0)
+  availableAt       DateTime                  @default(now())
+  deliveredAt       DateTime?
+  acknowledgedAt    DateTime?
+  providerReference String?
+  responseHash      String?
+  lastError         String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  company           Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  artifact          ElectronicInvoiceArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, channel, idempotencyKey])
   @@index([companyId, status, availableAt])
   @@index([artifactId, createdAt])
 }
@@ -3401,11 +3455,15 @@ model ElectronicInvoiceStatusEvent {
   eventType     String
   schemaVersion Int                       @default(1)
   payload       Json
+  sequence      Int?
+  previousHash  String?
+  eventHash     String?
   occurredAt    DateTime
   createdAt     DateTime                  @default(now())
   company       Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
   artifact      ElectronicInvoiceArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
 
+  @@unique([artifactId, sequence])
   @@index([companyId, eventType, occurredAt])
   @@index([artifactId, occurredAt])
 }

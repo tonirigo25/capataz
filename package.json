@@ -17,6 +17,8 @@
     "readiness:seed-temporary-railway": "tsx scripts/readiness/seed-temporary-railway.ts",
     "readiness:validate-f2-postgres": "node scripts/readiness/run-f2-postgres-isolated.mjs",
     "readiness:validate-f2-health": "node scripts/readiness/validate-f2-health-isolated.mjs",
+    "readiness:validate-f3": "tsx scripts/readiness/validate-f3-fiscal.ts",
+    "readiness:validate-f3-postgres": "node scripts/readiness/run-f3-postgres-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",
     "readiness:validate-providers": "tsx scripts/readiness/validate-provider-contracts.ts",
     "test:ai": "node scripts/validate-capataz-ai.mjs",
