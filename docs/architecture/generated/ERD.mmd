@@ -1268,7 +1268,25 @@ erDiagram
     DateTime revokedAt
     String userAgent
     String ipHash
+    DateTime secondFactorVerifiedAt
     DateTime createdAt
+  }
+  MfaFactor {
+    String id
+    String userId
+    String type
+    String label
+    String keyVersion
+    String algorithm
+    String ciphertext
+    String initializationVector
+    String authenticationTag
+    String status
+    DateTime confirmedAt
+    DateTime lastUsedAt
+    DateTime disabledAt
+    DateTime createdAt
+    DateTime updatedAt
   }
   EmailVerificationToken {
     String id
@@ -1858,6 +1876,166 @@ erDiagram
     DateTime scannedAt
     DateTime createdAt
   }
+  Subprocessor {
+    String id
+    String key
+    String name
+    String purpose
+    Json dataCategories
+    Json processingLocations
+    Json safeguards
+    String privacyUrl
+    String status
+    DateTime effectiveAt
+    DateTime lastReviewedAt
+    String versionHash
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  SubprocessorChange {
+    String id
+    String subprocessorId
+    String changeType
+    String summary
+    Boolean noticeRequired
+    DateTime noticeDueAt
+    DateTime notifiedAt
+    String contentHash
+    DateTime createdAt
+  }
+  LegalHold {
+    String id
+    String companyId
+    String resourceType
+    String resourceId
+    String subjectReference
+    String reason
+    String status
+    DateTime startsAt
+    DateTime expiresAt
+    DateTime releasedAt
+    String createdById
+    DateTime createdAt
+  }
+  DataGovernanceExecution {
+    String id
+    String companyId
+    String executionType
+    String mode
+    String status
+    String policyKey
+    Int candidateCount
+    Int affectedCount
+    Int blockedCount
+    Json manifest
+    String manifestHash
+    DateTime startedAt
+    DateTime completedAt
+  }
+  CompanyDataExport {
+    String id
+    String companyId
+    String privacyRequestId
+    String exportType
+    String subjectReference
+    String status
+    Json manifest
+    String manifestHash
+    String packageHash
+    Int recordCount
+    Int objectCount
+    DateTime expiresAt
+    DateTime completedAt
+    DateTime createdAt
+  }
+  PrivacyRequestEvent {
+    String id
+    String companyId
+    String privacyRequestId
+    String eventType
+    String actorReference
+    String communicationRef
+    Json metadata
+    DateTime occurredAt
+  }
+  PrivacyRiskAssessment {
+    String id
+    String companyId
+    String processingActivityId
+    String assessmentType
+    String version
+    String status
+    Boolean highRisk
+    Json risks
+    Json safeguards
+    Json residualRisk
+    String owner
+    String approvedBy
+    DateTime approvedAt
+    DateTime nextReviewAt
+    String contentHash
+    DateTime createdAt
+  }
+  OperationalMetric {
+    String id
+    String companyId
+    String metricKey
+    Decimal value
+    String unit
+    Json dimensions
+    DateTime measuredAt
+  }
+  JobHeartbeat {
+    String id
+    String companyId
+    String jobKey
+    String environment
+    String release
+    String status
+    DateTime lastStartedAt
+    DateTime lastSucceededAt
+    DateTime lastFailedAt
+    Int expectedEverySeconds
+    Int deadLetterCount
+    Json metadata
+    DateTime updatedAt
+  }
+  SyntheticCheckRun {
+    String id
+    String companyId
+    String checkKey
+    String environment
+    String release
+    String status
+    Int durationMs
+    Int assertionCount
+    String failureCode
+    String evidenceHash
+    DateTime startedAt
+    DateTime completedAt
+  }
+  IncidentTimelineEvent {
+    String id
+    String companyId
+    String incidentId
+    String eventType
+    String actor
+    String summary
+    Json evidence
+    DateTime occurredAt
+  }
+  PostmortemAction {
+    String id
+    String companyId
+    String incidentId
+    String description
+    String owner
+    DateTime dueAt
+    String status
+    DateTime completedAt
+    String evidenceRef
+    DateTime createdAt
+  }
   Client }o--o{ Contact : relates
   Client }o--o{ Document : relates
   Client }o--o{ Expense : relates
@@ -2018,6 +2196,16 @@ erDiagram
   Company }o--o{ StoredObject : relates
   Company }o--o{ StoredObject : relates
   Company }o--o{ UploadScan : relates
+  Company }o--o{ LegalHold : relates
+  Company }o--o{ DataGovernanceExecution : relates
+  Company }o--o{ CompanyDataExport : relates
+  Company }o--o{ PrivacyRequestEvent : relates
+  Company }o--o{ PrivacyRiskAssessment : relates
+  Company }o--o{ OperationalMetric : relates
+  Company }o--o{ JobHeartbeat : relates
+  Company }o--o{ SyntheticCheckRun : relates
+  Company }o--o{ IncidentTimelineEvent : relates
+  Company }o--o{ PostmortemAction : relates
   BusinessMemory }o--o{ Company : relates
   BusinessMemory }o--o{ User : relates
   BusinessMemory }o--o{ User : relates
@@ -2059,6 +2247,7 @@ erDiagram
   AuditLog }o--o{ PlatformAccount : relates
   AuditLog }o--o{ User : relates
   Session }o--o{ User : relates
+  MfaFactor }o--o{ User : relates
   EmailVerificationToken }o--o{ User : relates
   PasswordResetToken }o--o{ User : relates
   SecurityAuditEvent }o--o{ User : relates
@@ -2075,6 +2264,7 @@ erDiagram
   BillingEvent }o--o{ Subscription : relates
   BillingReconciliationRun }o--o{ Company : relates
   LegalAcceptance }o--o{ LegalDocumentVersion : relates
+  PrivacyRequest }o--o{ PrivacyRequestEvent : relates
   AiModelVersion }o--o{ AiUsageEvent : relates
   AiPromptVersion }o--o{ AiUsageEvent : relates
   AiUsageEvent }o--o{ Company : relates
@@ -2082,4 +2272,7 @@ erDiagram
   AiEvaluationRun }o--o{ AiModelVersion : relates
   AiEvaluationRun }o--o{ AiPromptVersion : relates
   PilotCohort }o--o{ PilotFeedback : relates
+  Incident }o--o{ IncidentTimelineEvent : relates
+  Incident }o--o{ PostmortemAction : relates
   StoredObject }o--o{ UploadScan : relates
+  Subprocessor }o--o{ SubprocessorChange : relates

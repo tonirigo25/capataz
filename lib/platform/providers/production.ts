@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import type { AiGatewayProvider, BillingProvider, EmailDeliveryProvider, FiscalTransmissionProvider, ObservabilityProvider, ProviderReceipt, StorageProvider } from "./contracts";
 
 type Clock = () => Date;
@@ -58,6 +58,11 @@ export class S3StorageProvider implements StorageProvider {
     if (body instanceof Uint8Array) return body;
     if (body?.transformToByteArray) return body.transformToByteArray();
     throw new Error("STORAGE_BODY_MISSING");
+  }
+  async delete(input: { companyId: string; objectKey: string; idempotencyKey: string }) {
+    const key = scopedKey(input.companyId, input.objectKey);
+    const response = await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    return receipt(this.name, String(response.VersionId ?? key), input.idempotencyKey, this.clock);
   }
 }
 

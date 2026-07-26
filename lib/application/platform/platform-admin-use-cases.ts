@@ -18,6 +18,7 @@ export async function createSupportGrant(formData: FormData) {
 export async function closeSupportGrant(formData: FormData) {
   const actor = await requirePlatformAccount("PLATFORM_SUPPORT");
   await endSupportAccess(actor, String(formData.get("grantId") ?? ""));
+  await rotateCurrentSession("privilege_elevation");
   revalidatePath("/plataforma");
 }
 

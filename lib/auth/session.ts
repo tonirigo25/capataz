@@ -15,6 +15,7 @@ export type AuthenticatedSession = {
   email: string;
   displayName: string;
   expiresAt: Date;
+  secondFactorVerifiedAt?: Date | null;
 };
 
 export type CompanyContext = AuthenticatedSession & {
@@ -70,7 +71,7 @@ export async function rotateCurrentSession(reason: "company_selection" | "privil
   const current = await prisma.session.findUnique({ where: { tokenHash: oldHash } });
   if (!current || current.revokedAt || current.expiresAt <= new Date()) throw new Error("SESSION_ROTATION_INVALID_SESSION");
   const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
-  const rotated = await rotateSessionRecord({ prisma, sessionId: current.id, userId: current.userId, expiresAt, userAgent: current.userAgent, ipHash: current.ipHash });
+  const rotated = await rotateSessionRecord({ prisma, sessionId: current.id, userId: current.userId, expiresAt, userAgent: current.userAgent, ipHash: current.ipHash, secondFactorVerifiedAt: current.secondFactorVerifiedAt });
   setSessionCookie(cookieStore, rotated.token, expiresAt);
   await recordSecurityEvent({ type: "session_rotated", outcome: "success", userId: current.userId, metadata: { reason } });
 }
@@ -88,7 +89,7 @@ function setSessionCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, toke
 export async function getOptionalSession(): Promise<AuthenticatedSession | null> {
   if (process.env.CAPATAZ_VISUAL_QA === "true" && process.env.NODE_ENV !== "production") {
     const qaUser = await prisma.user.findFirst({ where: { status: "active", emailVerifiedAt: { not: null } }, orderBy: { createdAt: "asc" } });
-    if (qaUser) return { sessionId: "visual-qa", userId: qaUser.id, email: qaUser.email, displayName: qaUser.displayName, expiresAt: new Date(Date.now() + 3_600_000) };
+    if (qaUser) return { sessionId: "visual-qa", userId: qaUser.id, email: qaUser.email, displayName: qaUser.displayName, expiresAt: new Date(Date.now() + 3_600_000), secondFactorVerifiedAt: null };
   }
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
@@ -101,7 +102,7 @@ export async function getOptionalSession(): Promise<AuthenticatedSession | null>
   if (now.getTime() - session.lastSeenAt.getTime() > 5 * 60_000) {
     await prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: now } });
   }
-  return { sessionId: session.id, userId: session.userId, email: session.user.email, displayName: session.user.displayName, expiresAt: session.expiresAt };
+  return { sessionId: session.id, userId: session.userId, email: session.user.email, displayName: session.user.displayName, expiresAt: session.expiresAt, secondFactorVerifiedAt: session.secondFactorVerifiedAt };
 }
 
 export async function requireAuthenticatedUser() {
@@ -174,6 +175,7 @@ async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContex
       email: "isolated@example.invalid",
       displayName: "Isolated test",
       expiresAt: new Date(Date.now() + 60_000),
+      secondFactorVerifiedAt: null,
       companyId: company.id,
       membershipId: "isolated-test-membership",
       role: "OWNER",
@@ -190,6 +192,7 @@ async function isolatedTestCompanyContext(error: unknown): Promise<CompanyContex
     email: membership.user.email,
     displayName: membership.user.displayName,
     expiresAt: new Date(Date.now() + 60_000),
+    secondFactorVerifiedAt: null,
     companyId: membership.companyId,
     membershipId: membership.id,
     role: membership.role,

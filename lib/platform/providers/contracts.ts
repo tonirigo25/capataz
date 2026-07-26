@@ -27,6 +27,7 @@ export interface StorageProvider {
   readonly mode: ProviderMode;
   put(input: { companyId: string; objectKey: string; bytes: Uint8Array; contentType: string; idempotencyKey: string }): Promise<ProviderReceipt & { sha256: string }>;
   get(input: { companyId: string; objectKey: string }): Promise<Uint8Array>;
+  delete(input: { companyId: string; objectKey: string; idempotencyKey: string }): Promise<ProviderReceipt>;
 }
 
 export interface AiGatewayProvider {

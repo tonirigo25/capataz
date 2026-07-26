@@ -6,11 +6,12 @@ import type { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ProviderReceipt, StorageProvider } from "@/lib/platform/providers/contracts";
 import { S3StorageProvider } from "@/lib/platform/providers/production";
+import { FailClosedMalwareScanner, HttpMalwareScanner, LocalDeterministicMalwareScanner, type MalwareScanner, type MalwareScanVerdict } from "@/lib/security/malware-scanner";
 
 export const companyAssetMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 
 export class PrivateStorageService {
-  constructor(private readonly db: PrismaClient, private readonly provider: StorageProvider, private readonly bucket: string, private readonly signingSecret: string) {
+  constructor(private readonly db: PrismaClient, private readonly provider: StorageProvider, private readonly bucket: string, private readonly signingSecret: string, private readonly scanner: MalwareScanner = new LocalDeterministicMalwareScanner()) {
     if (signingSecret.length < 32) throw new Error("STORAGE_SIGNING_SECRET_REQUIRED");
   }
 
@@ -24,12 +25,21 @@ export class PrivateStorageService {
     const expectedHash = createHash("sha256").update(input.bytes).digest("hex");
     const receipt = await this.provider.put({ companyId: input.companyId, objectKey, bytes: input.bytes, contentType: input.mimeType, idempotencyKey: input.idempotencyKey });
     if (receipt.sha256 !== expectedHash) throw new Error("STORAGE_PROVIDER_HASH_MISMATCH");
-    return this.db.storedObject.create({ data: {
+    const object = await this.db.storedObject.create({ data: {
       companyId: input.companyId, provider: this.provider.name, bucket: this.bucket, objectKey, versionId: receipt.reference,
       providerVersion: receipt.reference, originalName: input.originalName.slice(0, 255), safeName, mimeType: input.mimeType,
       sizeBytes: BigInt(input.bytes.byteLength), sha256: expectedHash, classification: input.classification, encryption: "provider-managed",
-      contentDisposition: `attachment; filename=\"${safeName}\"`, status: "READY",
+      contentDisposition: `attachment; filename=\"${safeName}\"`, status: "QUARANTINED",
     } });
+    const scan = await this.db.uploadScan.create({ data: { companyId: input.companyId, storedObjectId: object.id, engine: "pending", status: "SCANNING" } });
+    const verdict: MalwareScanVerdict = await this.scanner.scan({ bytes: input.bytes, sha256: expectedHash, mimeType: input.mimeType, filename: safeName }).catch(() => ({ status: "ERROR", engine: "scanner-error", engineVersion: "unknown", reference: expectedHash.slice(0, 24) }));
+    const ready = verdict.status === "CLEAN";
+    const updated = await this.db.$transaction(async (transaction) => {
+      await transaction.uploadScan.update({ where: { id: scan.id }, data: { engine: verdict.engine, engineVersion: verdict.engineVersion, status: verdict.status, result: { reference: verdict.reference, signature: verdict.signature ?? null }, scannedAt: new Date() } });
+      return transaction.storedObject.update({ where: { id: object.id }, data: { status: ready ? "READY" : verdict.status === "INFECTED" ? "BLOCKED" : "QUARANTINED", quarantineReason: ready ? null : verdict.status } });
+    });
+    if (!ready) throw new Error(`STORAGE_OBJECT_QUARANTINED:${object.id}`);
+    return updated;
   }
 
   async readVerified(input: { companyId: string; objectId: string }) {
@@ -83,6 +93,10 @@ export class LocalPrivateStorageProvider implements StorageProvider {
     return { provider: this.name, mode: this.mode, reference: createHash("sha256").update(`${input.companyId}:${input.objectKey}:${input.idempotencyKey}`).digest("hex").slice(0, 32), idempotencyKey: input.idempotencyKey, acceptedAt: new Date().toISOString(), sha256: createHash("sha256").update(input.bytes).digest("hex") } satisfies ProviderReceipt & { sha256: string };
   }
   async get(input: { companyId: string; objectKey: string }) { return new Uint8Array(await readFile(this.target(input.companyId, input.objectKey))); }
+  async delete(input: { companyId: string; objectKey: string; idempotencyKey: string }) {
+    await rm(this.target(input.companyId, input.objectKey), { force: true });
+    return { provider: this.name, mode: this.mode, reference: createHash("sha256").update(`${input.companyId}:${input.objectKey}:deleted`).digest("hex").slice(0, 32), idempotencyKey: input.idempotencyKey, acceptedAt: new Date().toISOString() } satisfies ProviderReceipt;
+  }
   private target(companyId: string, objectKey: string) {
     if (!/^[A-Za-z0-9_-]+$/.test(companyId) || !objectKey || isAbsolute(objectKey) || objectKey.includes("\0")) throw new Error("STORAGE_KEY_INVALID");
     const target = resolve(this.root, companyId, objectKey);
@@ -98,7 +112,10 @@ export function getPrivateStorageService(db: PrismaClient = prisma) {
     const bucket = process.env.S3_BUCKET ?? "";
     if (!bucket || !process.env.S3_REGION || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) throw new Error("S3_CONFIGURATION_INCOMPLETE");
     const client = new S3Client({ region: process.env.S3_REGION, endpoint: process.env.S3_ENDPOINT || undefined, forcePathStyle: Boolean(process.env.S3_ENDPOINT), credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY } });
-    return new PrivateStorageService(db, new S3StorageProvider(client, bucket), bucket, secret);
+    const scanner = process.env.MALWARE_SCAN_ENDPOINT && process.env.MALWARE_SCAN_AUTHORIZATION
+      ? new HttpMalwareScanner(new URL(process.env.MALWARE_SCAN_ENDPOINT), process.env.MALWARE_SCAN_AUTHORIZATION)
+      : new FailClosedMalwareScanner();
+    return new PrivateStorageService(db, new S3StorageProvider(client, bucket), bucket, secret, scanner);
   }
   return new PrivateStorageService(db, new LocalPrivateStorageProvider(), "local-private", secret);
 }
@@ -108,7 +125,7 @@ export function sanitizeFilename(value: string) {
   return base || "asset";
 }
 
-function matchesImageSignature(bytes: Uint8Array, mimeType: string) {
+export function matchesImageSignature(bytes: Uint8Array, mimeType: string) {
   if (mimeType === "image/png") return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((value, index) => bytes[index] === value);
   if (mimeType === "image/jpeg") return bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
   if (mimeType === "image/webp") return bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";

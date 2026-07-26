@@ -200,7 +200,7 @@ export default async function SettingsPage() {
         <h2 className="text-lg font-black text-obra-ink">Administración empresarial</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">Cada área aplica permisos y capacidades comerciales en servidor. No se muestran precios sin aprobación comercial.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <a href="/equipo" className="secondary-button">Equipo y permisos</a><a href="/equipos" className="secondary-button">Equipos</a><a href="/plan-y-uso" className="secondary-button">Plan y uso</a><a href="/configuracion/memoria" className="secondary-button">Memoria de Orqena</a><a href="/auditoria" className="secondary-button">Auditoría</a><a href="#empresa" className="secondary-button">Zona sensible</a>
+          <a href="/equipo" className="secondary-button">Equipo y permisos</a><a href="/equipos" className="secondary-button">Equipos</a><a href="/plan-y-uso" className="secondary-button">Plan y uso</a><a href="/configuracion/memoria" className="secondary-button">Memoria de Orqena</a><a href="/configuracion/seguridad" className="secondary-button">Seguridad de acceso</a><a href="/configuracion/privacidad" className="secondary-button">Centro de privacidad</a><a href="/auditoria" className="secondary-button">Auditoría</a><a href="#empresa" className="secondary-button">Zona sensible</a>
         </div>
       </section> : null}
     </main>
