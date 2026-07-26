@@ -1,732 +1,2671 @@
 {
   "GOV-003": {
     "status": "PASS",
-    "evidence": ["lib/config/brand.ts", "lib/brand.ts", "scripts/readiness/validate-f1-contract.mjs"],
-    "notes": ["Commercial identity scan passed with no product, support, or legacy domain literals outside central configuration and compatibility keys."]
+    "evidence": [
+      "lib/config/brand.ts",
+      "lib/brand.ts",
+      "scripts/readiness/validate-f1-contract.mjs"
+    ],
+    "notes": [
+      "Commercial identity scan passed with no product, support, or legacy domain literals outside central configuration and compatibility keys."
+    ]
   },
   "ARCH-001": {
     "status": "PASS",
-    "evidence": ["docs/architecture/DOMAIN_MAP.md", "docs/adr/0001-modular-monolith.md"],
-    "notes": ["One Next.js modular monolith; web and workers share application modules and contracts."]
+    "evidence": [
+      "docs/architecture/DOMAIN_MAP.md",
+      "docs/adr/0001-modular-monolith.md"
+    ],
+    "notes": [
+      "One Next.js modular monolith; web and workers share application modules and contracts."
+    ]
   },
   "ARCH-002": {
     "status": "PASS",
-    "evidence": ["docs/architecture/DOMAIN_MAP.md"],
-    "notes": ["Eleven bounded contexts and dependency rules are documented."]
+    "evidence": [
+      "docs/architecture/DOMAIN_MAP.md"
+    ],
+    "notes": [
+      "Eleven bounded contexts and dependency rules are documented."
+    ]
   },
   "ARCH-003": {
     "status": "PASS",
-    "evidence": ["lib/config/server.ts", "scripts/readiness/validate-runtime-config.mjs", "scripts/start-standalone.mjs"],
-    "notes": ["Development validation passes; incomplete production configuration fails closed without printing values."]
+    "evidence": [
+      "lib/config/server.ts",
+      "scripts/readiness/validate-runtime-config.mjs",
+      "scripts/start-standalone.mjs"
+    ],
+    "notes": [
+      "Development validation passes; incomplete production configuration fails closed without printing values."
+    ]
   },
   "ARCH-004": {
     "status": "PASS",
-    "evidence": ["lib/feature-flags.ts", "prisma/migrations/20260725100000_readiness_m01_platform_contracts/migration.sql", ".env.example"],
-    "notes": ["Fiscal, billing, live email, AI, analytics, and indexing default off; company overrides are tenant-scoped."]
+    "evidence": [
+      "lib/feature-flags.ts",
+      "prisma/migrations/20260725100000_readiness_m01_platform_contracts/migration.sql",
+      ".env.example"
+    ],
+    "notes": [
+      "Fiscal, billing, live email, AI, analytics, and indexing default off; company overrides are tenant-scoped."
+    ]
   },
   "ARCH-005": {
     "status": "PASS",
-    "evidence": ["docs/architecture/generated/DATA_DICTIONARY.md", "docs/architecture/generated/ERD.mmd", "docs/architecture/generated/ERD.svg", "docs/architecture/generated/schema-manifest.json"],
-    "notes": ["Generated from the validated Prisma schema; 130 models and 222 relations."]
+    "evidence": [
+      "docs/architecture/generated/DATA_DICTIONARY.md",
+      "docs/architecture/generated/ERD.mmd",
+      "docs/architecture/generated/ERD.svg",
+      "docs/architecture/generated/schema-manifest.json"
+    ],
+    "notes": [
+      "Generated from the validated Prisma schema; 130 models and 222 relations."
+    ]
   },
   "ARCH-006": {
     "status": "PASS",
-    "evidence": [".github/CODEOWNERS", "docs/architecture/OWNERSHIP.md"],
-    "notes": ["Fallback ownership covers the repository; specialist approval gaps are explicit external-input gates."]
+    "evidence": [
+      ".github/CODEOWNERS",
+      "docs/architecture/OWNERSHIP.md"
+    ],
+    "notes": [
+      "Fallback ownership covers the repository; specialist approval gaps are explicit external-input gates."
+    ]
   },
   "ARCH-010": {
     "status": "PASS",
-    "evidence": ["prisma/migrations/20260725190000_readiness_m10_money_decimal_transition/migration.sql", "scripts/readiness/backfill-money-decimals.ts", "scripts/readiness/reconcile-money-decimals.ts", "docs/readiness/evidence/f1/audit-manifest.json"],
-    "notes": ["32 nullable mirrors; isolated dry-run/apply reconciled 32 pairs with aggregate absolute difference 0. Legacy Float fields remain for reversible cutover."]
+    "evidence": [
+      "prisma/migrations/20260725190000_readiness_m10_money_decimal_transition/migration.sql",
+      "scripts/readiness/backfill-money-decimals.ts",
+      "scripts/readiness/reconcile-money-decimals.ts",
+      "docs/readiness/evidence/f1/audit-manifest.json"
+    ],
+    "notes": [
+      "32 nullable mirrors; isolated dry-run/apply reconciled 32 pairs with aggregate absolute difference 0. Legacy Float fields remain for reversible cutover."
+    ]
   },
   "ARCH-012": {
     "status": "PASS",
-    "evidence": ["contracts/events/v1/envelope.schema.json", "contracts/prompts/v1/contract.json", "contracts/templates/v1/contract.json", "contracts/artifacts/v1/contract.json"],
-    "notes": ["Persisted contract families require explicit schema or content versions."]
+    "evidence": [
+      "contracts/events/v1/envelope.schema.json",
+      "contracts/prompts/v1/contract.json",
+      "contracts/templates/v1/contract.json",
+      "contracts/artifacts/v1/contract.json"
+    ],
+    "notes": [
+      "Persisted contract families require explicit schema or content versions."
+    ]
   },
   "ARCH-013": {
     "status": "PASS",
-    "evidence": ["docs/architecture/MIGRATION_STRATEGY.md", "scripts/readiness/validate-migrations-isolated.mjs", "docs/readiness/evidence/f1/generated-schema-diff.sql"],
-    "notes": ["M01-M10 applied from fresh PostgreSQL and a second deploy had no pending migrations; no destructive SQL found."]
+    "evidence": [
+      "docs/architecture/MIGRATION_STRATEGY.md",
+      "scripts/readiness/validate-migrations-isolated.mjs",
+      "docs/readiness/evidence/f1/generated-schema-diff.sql"
+    ],
+    "notes": [
+      "M01-M10 applied from fresh PostgreSQL and a second deploy had no pending migrations; no destructive SQL found."
+    ]
   },
   "ARCH-007": {
     "status": "PASS",
-    "evidence": ["lib/application", "lib/orqena/application/capataz", "lib/platform/next-action-boundary.ts", "docs/readiness/evidence/f2/action-boundary-classification.json", "docs/readiness/evidence/f2/action-boundary-audit.md", "scripts/readiness/validate-action-boundaries.mjs"],
-    "notes": ["All 30 Server Action files and 129 exports use the canonical boundary; direct Prisma action access is zero, Capataz is split by use case/query, the negative fixture is rejected, and isolated PostgreSQL proves cross-tenant rejection plus transactional rollback."]
+    "evidence": [
+      "lib/application",
+      "lib/orqena/application/capataz",
+      "lib/platform/next-action-boundary.ts",
+      "docs/readiness/evidence/f2/action-boundary-classification.json",
+      "docs/readiness/evidence/f2/action-boundary-audit.md",
+      "scripts/readiness/validate-action-boundaries.mjs"
+    ],
+    "notes": [
+      "All 30 Server Action files and 129 exports use the canonical boundary; direct Prisma action access is zero, Capataz is split by use case/query, the negative fixture is rejected, and isolated PostgreSQL proves cross-tenant rejection plus transactional rollback."
+    ]
   },
   "ARCH-008": {
     "status": "PASS",
-    "evidence": ["lib/platform/idempotency.ts", "scripts/readiness/validate-f2-postgres.ts"],
-    "notes": ["A PostgreSQL advisory transaction lock makes repeated keys execute once; isolated replay performed one operation."]
+    "evidence": [
+      "lib/platform/idempotency.ts",
+      "scripts/readiness/validate-f2-postgres.ts"
+    ],
+    "notes": [
+      "A PostgreSQL advisory transaction lock makes repeated keys execute once; isolated replay performed one operation."
+    ]
   },
   "ARCH-009": {
     "status": "PASS",
-    "evidence": ["lib/platform/outbox.ts", "prisma/migrations/20260725200000_readiness_f2_transactional_outbox/migration.sql", "scripts/readiness/validate-f2-postgres.ts", "docs/adr/0006-business-event-outbox.md"],
-    "notes": ["BusinessEvent is the additive transactional outbox; rollback removed both business transaction and event, and SKIP LOCKED claiming passed."]
+    "evidence": [
+      "lib/platform/outbox.ts",
+      "prisma/migrations/20260725200000_readiness_f2_transactional_outbox/migration.sql",
+      "scripts/readiness/validate-f2-postgres.ts",
+      "docs/adr/0006-business-event-outbox.md"
+    ],
+    "notes": [
+      "BusinessEvent is the additive transactional outbox; rollback removed both business transaction and event, and SKIP LOCKED claiming passed."
+    ]
   },
   "ARCH-011": {
     "status": "PASS",
-    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/platform/providers/contract-suite.ts", "scripts/readiness/validate-provider-contracts.ts"],
-    "notes": ["The identical six-provider suite passes fake and production adapters with injected transport doubles and zero external calls."]
+    "evidence": [
+      "lib/platform/providers/contracts.ts",
+      "lib/platform/providers/fake.ts",
+      "lib/platform/providers/production.ts",
+      "lib/platform/providers/contract-suite.ts",
+      "scripts/readiness/validate-provider-contracts.ts"
+    ],
+    "notes": [
+      "The identical six-provider suite passes fake and production adapters with injected transport doubles and zero external calls."
+    ]
   },
   "SEC-001": {
     "status": "PASS",
-    "evidence": ["lib/auth/session.ts", "scripts/validate-auth-crypto.ts", "scripts/validate-auth-postgres.ts"],
-    "notes": ["Opaque hashes, HttpOnly Secure SameSite cookies, expiry, revocation and token regression passed on isolated PostgreSQL."]
+    "evidence": [
+      "lib/auth/session.ts",
+      "scripts/validate-auth-crypto.ts",
+      "scripts/validate-auth-postgres.ts"
+    ],
+    "notes": [
+      "Opaque hashes, HttpOnly Secure SameSite cookies, expiry, revocation and token regression passed on isolated PostgreSQL."
+    ]
   },
   "SEC-002": {
     "status": "PASS",
-    "evidence": ["lib/auth/session-store.ts", "lib/auth/session.ts", "app/seleccionar-empresa/actions.ts", "app/(app)/plataforma/actions.ts", "scripts/readiness/validate-f2-postgres.ts"],
-    "notes": ["Login revokes a prior cookie session; company selection and support privilege elevation rotate; password reset revokes all sessions. The old token row was proven revoked."]
+    "evidence": [
+      "lib/auth/session-store.ts",
+      "lib/auth/session.ts",
+      "app/seleccionar-empresa/actions.ts",
+      "app/(app)/plataforma/actions.ts",
+      "scripts/readiness/validate-f2-postgres.ts"
+    ],
+    "notes": [
+      "Login revokes a prior cookie session; company selection and support privilege elevation rotate; password reset revokes all sessions. The old token row was proven revoked."
+    ]
   },
   "SEC-004": {
     "status": "PASS",
-    "evidence": ["lib/platform/action-operation.ts", "lib/platform/next-action-boundary.ts", "lib/platform/request-boundary.ts", "lib/platform/persistence-context.ts", "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql", "scripts/readiness/validate-context-boundaries.mjs", "docs/readiness/evidence/f2/context-correlation-audit.md"],
-    "notes": ["All 30 action files, 16 route handlers and 2 internal job routes install canonical context; webhook/outbox/platform wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."]
+    "evidence": [
+      "lib/platform/action-operation.ts",
+      "lib/platform/next-action-boundary.ts",
+      "lib/platform/request-boundary.ts",
+      "lib/platform/persistence-context.ts",
+      "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql",
+      "scripts/readiness/validate-context-boundaries.mjs",
+      "docs/readiness/evidence/f2/context-correlation-audit.md"
+    ],
+    "notes": [
+      "All 30 action files, 16 route handlers and 2 internal job routes install canonical context; webhook/outbox/platform wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."
+    ]
   },
   "SEC-005": {
     "status": "PASS",
-    "evidence": ["middleware.ts", "app/layout.tsx", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"],
-    "notes": ["An isolated temporary Railway environment served the exact branch SHA first in report-only and then enforce mode with per-request nonces. Twelve representative routes, interactive menu/theme/form flows, a PDF preview and CDP/log collection produced zero CSP violations; the environment was deleted after validation."]
+    "evidence": [
+      "middleware.ts",
+      "app/layout.tsx",
+      "app/api/security/csp-report/route.ts",
+      "scripts/readiness/validate-f2-health-isolated.mjs",
+      "docs/readiness/evidence/f2/railway-security-validation.md",
+      "docs/readiness/evidence/f2/railway-security-validation.json"
+    ],
+    "notes": [
+      "An isolated temporary Railway environment served the exact branch SHA first in report-only and then enforce mode with per-request nonces. Twelve representative routes, interactive menu/theme/form flows, a PDF preview and CDP/log collection produced zero CSP violations; the environment was deleted after validation."
+    ]
   },
   "SEC-006": {
     "status": "PASS",
-    "evidence": ["middleware.ts", "next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"],
-    "notes": ["The isolated Railway scan passed 12/12 report-only and 11/11 enforce probes, including HSTS, frame-ancestors, Referrer, Permissions, MIME, COOP/CORP, noindex, API no-store and removal of X-Powered-By; cross-site POST was rejected with 403."]
+    "evidence": [
+      "middleware.ts",
+      "next.config.ts",
+      "scripts/readiness/validate-f2-health-isolated.mjs",
+      "docs/readiness/evidence/f2/railway-security-validation.md",
+      "docs/readiness/evidence/f2/railway-security-validation.json"
+    ],
+    "notes": [
+      "The isolated Railway scan passed 12/12 report-only and 11/11 enforce probes, including HSTS, frame-ancestors, Referrer, Permissions, MIME, COOP/CORP, noindex, API no-store and removal of X-Powered-By; cross-site POST was rejected with 403."
+    ]
   },
   "SEC-007": {
     "status": "PASS",
-    "evidence": ["lib/security/browser-request.ts", "middleware.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
-    "notes": ["Same-origin validation passed; a cross-site POST returned 403 with zero DemoRequest writes."]
+    "evidence": [
+      "lib/security/browser-request.ts",
+      "middleware.ts",
+      "scripts/readiness/validate-f2-platform-core.ts",
+      "scripts/readiness/validate-f2-health-isolated.mjs"
+    ],
+    "notes": [
+      "Same-origin validation passed; a cross-site POST returned 403 with zero DemoRequest writes."
+    ]
   },
   "SEC-008": {
     "status": "PASS",
-    "evidence": ["lib/platform/rate-limit.ts", "app/(auth)/actions.ts", "lib/commercial/demo-service.ts", "lib/commercial/platform-service.ts", "app/api/capataz/transcribe/route.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts"],
-    "notes": ["Persistent limits cover login, register, demo, support, AI and webhook boundaries. Concurrent isolated tests admitted exactly 5 of 8 in tenant A and all 3 independent attempts in tenant B."]
+    "evidence": [
+      "lib/platform/rate-limit.ts",
+      "app/(auth)/actions.ts",
+      "lib/commercial/demo-service.ts",
+      "lib/commercial/platform-service.ts",
+      "app/api/capataz/transcribe/route.ts",
+      "lib/platform/webhooks.ts",
+      "scripts/readiness/validate-f2-postgres.ts"
+    ],
+    "notes": [
+      "Persistent limits cover login, register, demo, support, AI and webhook boundaries. Concurrent isolated tests admitted exactly 5 of 8 in tenant A and all 3 independent attempts in tenant B."
+    ]
   },
   "SEC-009": {
     "status": "PASS",
-    "evidence": ["lib/platform/webhooks.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-postgres.ts"],
-    "notes": ["Stripe timestamped HMAC, Resend Standard Webhooks and fiscal HMAC verification are implemented; tampering failed and duplicate event storage was replay-safe."]
+    "evidence": [
+      "lib/platform/webhooks.ts",
+      "scripts/readiness/validate-f2-platform-core.ts",
+      "scripts/readiness/validate-f2-postgres.ts"
+    ],
+    "notes": [
+      "Stripe timestamped HMAC, Resend Standard Webhooks and fiscal HMAC verification are implemented; tampering failed and duplicate event storage was replay-safe."
+    ]
   },
   "SEC-010": {
     "status": "PASS",
-    "evidence": ["lib/platform/encryption.ts", "lib/platform/credentials.ts", "scripts/readiness/validate-f2-platform-core.ts", "scripts/readiness/validate-f2-postgres.ts"],
-    "notes": ["AES-256-GCM envelopes use versioned keys and tenant-scoped associated data; persisted ciphertext round-tripped without plaintext storage."]
+    "evidence": [
+      "lib/platform/encryption.ts",
+      "lib/platform/credentials.ts",
+      "scripts/readiness/validate-f2-platform-core.ts",
+      "scripts/readiness/validate-f2-postgres.ts"
+    ],
+    "notes": [
+      "AES-256-GCM envelopes use versioned keys and tenant-scoped associated data; persisted ciphertext round-tripped without plaintext storage."
+    ]
   },
   "OBS-001": {
     "status": "PASS",
-    "evidence": ["lib/observability/logger.ts", "scripts/readiness/validate-f2-platform-core.ts"],
-    "notes": ["Structured JSON logger uses an explicit allowlist, hashes actor identifiers and redacts email/token-like values."]
+    "evidence": [
+      "lib/observability/logger.ts",
+      "scripts/readiness/validate-f2-platform-core.ts"
+    ],
+    "notes": [
+      "Structured JSON logger uses an explicit allowlist, hashes actor identifiers and redacts email/token-like values."
+    ]
   },
   "OBS-002": {
     "status": "PASS",
-    "evidence": ["lib/observability/otel-node.ts", "scripts/readiness/validate-otel-exporter.mjs"],
-    "notes": ["No endpoint starts a no-op path; a provider-neutral OTLP HTTP exporter sent one real span to an ephemeral local collector."]
+    "evidence": [
+      "lib/observability/otel-node.ts",
+      "scripts/readiness/validate-otel-exporter.mjs"
+    ],
+    "notes": [
+      "No endpoint starts a no-op path; a provider-neutral OTLP HTTP exporter sent one real span to an ephemeral local collector."
+    ]
   },
   "OBS-003": {
     "status": "PASS",
-    "evidence": ["instrumentation.ts", "instrumentation-client.ts", "lib/observability/otel-node.ts", "docs/readiness/evidence/f2/audit-manifest.json"],
-    "notes": ["Node-only server instrumentation and client release/environment bootstrap compile in the production build."]
+    "evidence": [
+      "instrumentation.ts",
+      "instrumentation-client.ts",
+      "lib/observability/otel-node.ts",
+      "docs/readiness/evidence/f2/audit-manifest.json"
+    ],
+    "notes": [
+      "Node-only server instrumentation and client release/environment bootstrap compile in the production build."
+    ]
   },
   "OBS-004": {
     "status": "PASS",
-    "evidence": ["lib/platform/request-context.ts", "lib/observability/logger.ts", "lib/platform/outbox.ts", "lib/auth/audit.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts", "docs/readiness/evidence/f2/context-correlation-audit.md"],
-    "notes": ["Request, correlation, causation, privacy-safe actor, company, membership, job, provider, operation, release and environment propagate through actions, services, audits, BusinessEvent, worker and fake provider; correlation search returned both audit rows and replay produced one effect."]
+    "evidence": [
+      "lib/platform/request-context.ts",
+      "lib/observability/logger.ts",
+      "lib/platform/outbox.ts",
+      "lib/auth/audit.ts",
+      "lib/platform/webhooks.ts",
+      "scripts/readiness/validate-f2-postgres.ts",
+      "docs/readiness/evidence/f2/context-correlation-audit.md"
+    ],
+    "notes": [
+      "Request, correlation, causation, privacy-safe actor, company, membership, job, provider, operation, release and environment propagate through actions, services, audits, BusinessEvent, worker and fake provider; correlation search returned both audit rows and replay produced one effect."
+    ]
   },
   "OBS-005": {
     "status": "PASS",
-    "evidence": ["app/api/health/live/route.ts", "app/api/health/ready/route.ts", "app/api/internal/status/route.ts", "railway.json", "scripts/readiness/validate-f2-health-isolated.mjs"],
-    "notes": ["Public health responses expose only ok; internal status returns 404 without authorization; Railway points to ready."]
+    "evidence": [
+      "app/api/health/live/route.ts",
+      "app/api/health/ready/route.ts",
+      "app/api/internal/status/route.ts",
+      "railway.json",
+      "scripts/readiness/validate-f2-health-isolated.mjs"
+    ],
+    "notes": [
+      "Public health responses expose only ok; internal status returns 404 without authorization; Railway points to ready."
+    ]
   },
   "OBS-006": {
     "status": "PASS",
-    "evidence": ["lib/observability/release.ts", "app/api/internal/status/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
-    "notes": ["Protected diagnosis reported exact local release, deployment and migration head without returning the secret or database URL."]
+    "evidence": [
+      "lib/observability/release.ts",
+      "app/api/internal/status/route.ts",
+      "scripts/readiness/validate-f2-health-isolated.mjs"
+    ],
+    "notes": [
+      "Protected diagnosis reported exact local release, deployment and migration head without returning the secret or database URL."
+    ]
   },
   "FISC-001": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["docs/compliance/FISCAL_GAP_ASSESSMENT.md", "contracts/fiscal/v1/manifest.json", "scripts/readiness/validate-f3-fiscal.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Technical checklist and executable evidence are complete; independent fiscal-specialist review and signature are still required before any conformity claim or live activation."]
+    "evidence": [
+      "docs/compliance/FISCAL_GAP_ASSESSMENT.md",
+      "contracts/fiscal/v1/manifest.json",
+      "scripts/readiness/validate-f3-fiscal.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Technical checklist and executable evidence are complete; independent fiscal-specialist review and signature are still required before any conformity claim or live activation."
+    ]
   },
   "FISC-002": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Issuance creates an immutable canonical snapshot; PostgreSQL rejected identity and content mutation."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Issuance creates an immutable canonical snapshot; PostgreSQL rejected identity and content mutation."
+    ]
   },
   "FISC-003": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/canonical.ts", "scripts/readiness/validate-f3-fiscal.ts"],
-    "notes": ["Decimal HALF_UP golden tests passed at line and document level for bases, discounts, taxes, withholding and payable total."]
+    "evidence": [
+      "lib/fiscal/canonical.ts",
+      "scripts/readiness/validate-f3-fiscal.ts"
+    ],
+    "notes": [
+      "Decimal HALF_UP golden tests passed at line and document level for bases, discounts, taxes, withholding and payable total."
+    ]
   },
   "FISC-004": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["A tenant transaction lock and company/type/series sequence produced eight unique consecutive numbers under concurrent issuance."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "A tenant transaction lock and company/type/series sequence produced eight unique consecutive numbers under concurrent issuance."
+    ]
   },
   "FISC-005": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/aeat.ts", "lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Registration and cancellation records are append-only; hashes recompute and tampering is detected."]
+    "evidence": [
+      "lib/fiscal/aeat.ts",
+      "lib/fiscal/engine.ts",
+      "lib/fiscal/evidence-export.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Registration and cancellation records are append-only; hashes recompute and tampering is detected."
+    ]
   },
   "FISC-006": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["All ten isolated records referenced the exact prior company hash in sequence."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "All ten isolated records referenced the exact prior company hash in sequence."
+    ]
   },
   "FISC-007": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/canonical.ts", "lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Difference and substitution correction semantics include reason and original link; the tested original remained unchanged."]
+    "evidence": [
+      "lib/fiscal/canonical.ts",
+      "lib/fiscal/engine.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Difference and substitution correction semantics include reason and original link; the tested original remained unchanged."
+    ]
   },
   "FISC-008": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Cancellation appended a record/event and changed lifecycle status without deleting the document or its artifact."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Cancellation appended a record/event and changed lifecycle status without deleting the document or its artifact."
+    ]
   },
   "FISC-009": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/aeat.ts", "contracts/fiscal/v1/manifest.json", "scripts/readiness/validate-f3-fiscal.ts"],
-    "notes": ["QR parameters, encoding, order, mode URL, legend and correction level follow AEAT 0.5.0; deterministic sandbox fixture passed."]
+    "evidence": [
+      "lib/fiscal/aeat.ts",
+      "contracts/fiscal/v1/manifest.json",
+      "scripts/readiness/validate-f3-fiscal.ts"
+    ],
+    "notes": [
+      "QR parameters, encoding, order, mode URL, legend and correction level follow AEAT 0.5.0; deterministic sandbox fixture passed."
+    ]
   },
   "FISC-010": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/signatures.ts", "lib/platform/credentials.ts", "scripts/readiness/validate-f3-fiscal.ts"],
-    "notes": ["Signing uses injected key objects or credential references; rotation changed signatures and no private material is persisted or logged."]
+    "evidence": [
+      "lib/fiscal/signatures.ts",
+      "lib/platform/credentials.ts",
+      "scripts/readiness/validate-f3-fiscal.ts"
+    ],
+    "notes": [
+      "Signing uses injected key objects or credential references; rotation changed signatures and no private material is persisted or logged."
+    ]
   },
   "FISC-011": {
     "status": "PASS",
-    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "lib/fiscal/transmission.ts"],
-    "notes": ["Fake and HTTPS fiscal providers implement the same idempotent contract; live is independently gated."]
+    "evidence": [
+      "lib/platform/providers/contracts.ts",
+      "lib/platform/providers/fake.ts",
+      "lib/platform/providers/production.ts",
+      "lib/fiscal/transmission.ts"
+    ],
+    "notes": [
+      "Fake and HTTPS fiscal providers implement the same idempotent contract; live is independently gated."
+    ]
   },
   "FISC-012": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/transmission.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["A transient failure retried with the same key: two calls, one accepted provider effect and subsequent local replay."]
+    "evidence": [
+      "lib/fiscal/transmission.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "A transient failure retried with the same key: two calls, one accepted provider effect and subsequent local replay."
+    ]
   },
   "FISC-013": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql"],
-    "notes": ["Critical fiscal events are hash-chained, database-append-only and included in the verifiable export."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "lib/fiscal/evidence-export.ts",
+      "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql"
+    ],
+    "notes": [
+      "Critical fiscal events are hash-chained, database-append-only and included in the verifiable export."
+    ]
   },
   "FISC-014": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "docs/compliance/FISCAL_GAP_ASSESSMENT.md", "scripts/readiness/validate-f3-fiscal.ts"],
-    "notes": ["A versioned draft includes product, provider, mode, release, configuration, capabilities, implementation, date/place and content hash, while explicitly requiring external signature."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "docs/compliance/FISCAL_GAP_ASSESSMENT.md",
+      "scripts/readiness/validate-f3-fiscal.ts"
+    ],
+    "notes": [
+      "A versioned draft includes product, provider, mode, release, configuration, capabilities, implementation, date/place and content hash, while explicitly requiring external signature."
+    ]
   },
   "FISC-015": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/fiscal/engine.ts", "lib/fiscal/evidence-export.ts"],
-    "notes": ["Document and record evidence retains software version, release SHA and configuration hash."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/fiscal/engine.ts",
+      "lib/fiscal/evidence-export.ts"
+    ],
+    "notes": [
+      "Document and record evidence retains software version, release SHA and configuration hash."
+    ]
   },
   "FISC-016": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Export includes records, events, artifacts, deliveries, declarations and a canonical manifest hash; tampering failed verification."]
+    "evidence": [
+      "lib/fiscal/evidence-export.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Export includes records, events, artifacts, deliveries, declarations and a canonical manifest hash; tampering failed verification."
+    ]
   },
   "FISC-017": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Legacy records are classified LEGACY_NOT_RETRO_CERTIFIED and cannot be transmitted by the native engine."]
+    "evidence": [
+      "lib/fiscal/engine.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Legacy records are classified LEGACY_NOT_RETRO_CERTIFIED and cannot be transmitted by the native engine."
+    ]
   },
   "FISC-018": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/canonical.ts", "lib/fiscal/engine.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Invalid tax identity was rejected before the transaction reserved a number: zero sequence and zero document writes."]
+    "evidence": [
+      "lib/fiscal/canonical.ts",
+      "lib/fiscal/engine.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Invalid tax identity was rejected before the transaction reserved a number: zero sequence and zero document writes."
+    ]
   },
   "EINV-001": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/canonical.ts", "lib/fiscal/electronic-invoice.ts", "scripts/readiness/validate-f3-fiscal.ts"],
-    "notes": ["UBL, CII, Facturae and EDIFACT share one canonical model and identical semantic hash."]
+    "evidence": [
+      "lib/fiscal/canonical.ts",
+      "lib/fiscal/electronic-invoice.ts",
+      "scripts/readiness/validate-f3-fiscal.ts"
+    ],
+    "notes": [
+      "UBL, CII, Facturae and EDIFACT share one canonical model and identical semantic hash."
+    ]
   },
   "EINV-002": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
-    "notes": ["UBL 2.1 EN16931 serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."]
+    "evidence": [
+      "lib/fiscal/electronic-invoice.ts",
+      "contracts/einvoice/v1/manifest.json",
+      "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"
+    ],
+    "notes": [
+      "UBL 2.1 EN16931 serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."
+    ]
   },
   "EINV-003": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
-    "notes": ["CII serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."]
+    "evidence": [
+      "lib/fiscal/electronic-invoice.ts",
+      "contracts/einvoice/v1/manifest.json",
+      "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"
+    ],
+    "notes": [
+      "CII serialization and local semantic validation are ready; official XSD/business-rule validation is required before live interoperability is claimed."
+    ]
   },
   "EINV-004": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/fiscal/electronic-invoice.ts", "lib/fiscal/signatures.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
-    "notes": ["Facturae 3.2.2 serialization and the credential-reference signing boundary are ready; official XSD and XAdES validation with the authorized certificate are external activation gates."]
+    "evidence": [
+      "lib/fiscal/electronic-invoice.ts",
+      "lib/fiscal/signatures.ts",
+      "contracts/einvoice/v1/manifest.json",
+      "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"
+    ],
+    "notes": [
+      "Facturae 3.2.2 serialization and the credential-reference signing boundary are ready; official XSD and XAdES validation with the authorized certificate are external activation gates."
+    ]
   },
   "EINV-005": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/electronic-invoice.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
-    "notes": ["The D16B INVOIC adapter is versioned, locally validated and capability-gated; partner-profile validation remains part of EINV-012."]
+    "evidence": [
+      "lib/fiscal/electronic-invoice.ts",
+      "contracts/einvoice/v1/manifest.json",
+      "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"
+    ],
+    "notes": [
+      "The D16B INVOIC adapter is versioned, locally validated and capability-gated; partner-profile validation remains part of EINV-012."
+    ]
   },
   "EINV-006": {
     "status": "PASS",
-    "evidence": ["contracts/einvoice/v1/manifest.json", "lib/fiscal/electronic-invoice.ts", "prisma/schema.prisma"],
-    "notes": ["Every artifact records semantic, schema and validator versions plus content and semantic hashes."]
+    "evidence": [
+      "contracts/einvoice/v1/manifest.json",
+      "lib/fiscal/electronic-invoice.ts",
+      "prisma/schema.prisma"
+    ],
+    "notes": [
+      "Every artifact records semantic, schema and validator versions plus content and semantic hashes."
+    ]
   },
   "EINV-007": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/artifacts.ts", "lib/fiscal/transmission.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Download, secure-email, private-exchange and future-public adapter channels share an idempotent receipt contract; private replay persisted one delivery and public remained blocked."]
+    "evidence": [
+      "lib/fiscal/artifacts.ts",
+      "lib/fiscal/transmission.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Download, secure-email, private-exchange and future-public adapter channels share an idempotent receipt contract; private replay persisted one delivery and public remained blocked."
+    ]
   },
   "EINV-008": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/artifacts.ts", "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Acceptance, rejection, full/partial payment and payment-date events form an append-only per-artifact timeline with required dates and fields."]
+    "evidence": [
+      "lib/fiscal/artifacts.ts",
+      "prisma/migrations/20260726120000_readiness_f3_fiscal_einvoice_engine/migration.sql",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Acceptance, rejection, full/partial payment and payment-date events form an append-only per-artifact timeline with required dates and fields."
+    ]
   },
   "EINV-009": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/artifacts.ts", "lib/fiscal/evidence-export.ts", "scripts/readiness/validate-f3-postgres.ts"],
-    "notes": ["Artifact and document retention dates persist; isolated storage restore reproduced exact bytes and the export includes artifacts and receipts."]
+    "evidence": [
+      "lib/fiscal/artifacts.ts",
+      "lib/fiscal/evidence-export.ts",
+      "scripts/readiness/validate-f3-postgres.ts"
+    ],
+    "notes": [
+      "Artifact and document retention dates persist; isolated storage restore reproduced exact bytes and the export includes artifacts and receipts."
+    ]
   },
   "EINV-010": {
     "status": "PASS",
-    "evidence": ["lib/fiscal/transmission.ts", "contracts/einvoice/v1/manifest.json", "docs/runbooks/FISCAL_ENGINE_ACTIVATION.md"],
-    "notes": ["Public delivery defaults off and independently requires effective ministerial order, external schema approval and approved live credentials."]
+    "evidence": [
+      "lib/fiscal/transmission.ts",
+      "contracts/einvoice/v1/manifest.json",
+      "docs/runbooks/FISCAL_ENGINE_ACTIVATION.md"
+    ],
+    "notes": [
+      "Public delivery defaults off and independently requires effective ministerial order, external schema approval and approved live credentials."
+    ]
   },
   "EINV-011": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "docs/adr/0007-fiscal-engine-and-electronic-invoice.md"],
-    "notes": ["ElectronicInvoice and Billing aggregates, identifiers, statuses and provider flows remain separate."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "docs/adr/0007-fiscal-engine-and-electronic-invoice.md"
+    ],
+    "notes": [
+      "ElectronicInvoice and Billing aggregates, identifiers, statuses and provider flows remain separate."
+    ]
   },
   "EINV-012": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["scripts/readiness/validate-f3-fiscal.ts", "contracts/einvoice/v1/manifest.json", "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"],
-    "notes": ["Deterministic four-format golden hashes detect local drift; independent official/partner fixtures must be run before interoperability is asserted."]
+    "evidence": [
+      "scripts/readiness/validate-f3-fiscal.ts",
+      "contracts/einvoice/v1/manifest.json",
+      "docs/compliance/ELECTRONIC_INVOICE_PROFILE.md"
+    ],
+    "notes": [
+      "Deterministic four-format golden hashes detect local drift; independent official/partner fixtures must be run before interoperability is asserted."
+    ]
   },
   "COMM-001": {
     "status": "PASS",
-    "evidence": ["lib/platform/providers/contracts.ts", "lib/platform/providers/fake.ts", "lib/platform/providers/production.ts", "scripts/readiness/validate-provider-contracts.ts"],
-    "notes": ["Fake and Stripe adapters pass the shared contract with injected transports and no external call."]
+    "evidence": [
+      "lib/platform/providers/contracts.ts",
+      "lib/platform/providers/fake.ts",
+      "lib/platform/providers/production.ts",
+      "scripts/readiness/validate-provider-contracts.ts"
+    ],
+    "notes": [
+      "Fake and Stripe adapters pass the shared contract with injected transports and no external call."
+    ]
   },
   "COMM-002": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/commercial/subscription-service.ts", "app/(app)/plan-y-uso/page.tsx"],
-    "notes": ["External Price IDs are database mappings; UI selects internal plan and interval only."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/commercial/subscription-service.ts",
+      "app/(app)/plan-y-uso/page.tsx"
+    ],
+    "notes": [
+      "External Price IDs are database mappings; UI selects internal plan and interval only."
+    ]
   },
   "COMM-003": {
     "status": "PASS",
-    "evidence": ["lib/commercial/subscription-service.ts", "lib/application/billing/stripe-use-cases.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["OWNER checkout replay performed one provider call and changed input with the same key was rejected."]
+    "evidence": [
+      "lib/commercial/subscription-service.ts",
+      "lib/application/billing/stripe-use-cases.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "OWNER checkout replay performed one provider call and changed input with the same key was rejected."
+    ]
   },
   "COMM-004": {
     "status": "PASS",
-    "evidence": ["lib/commercial/subscription-service.ts", "app/(app)/plan-y-uso/page.tsx", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Customer portal is visible to and created for the authorized OWNER tenant only."]
+    "evidence": [
+      "lib/commercial/subscription-service.ts",
+      "app/(app)/plan-y-uso/page.tsx",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Customer portal is visible to and created for the authorized OWNER tenant only."
+    ]
   },
   "COMM-005": {
     "status": "PASS",
-    "evidence": ["app/api/webhooks/stripe/route.ts", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Raw-body signature, event uniqueness, tenant checks, replay and stale-event handling passed."]
+    "evidence": [
+      "app/api/webhooks/stripe/route.ts",
+      "lib/commercial/subscription-service.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Raw-body signature, event uniqueness, tenant checks, replay and stale-event handling passed."
+    ]
   },
   "COMM-006": {
     "status": "PASS",
-    "evidence": ["lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["TRIALING, ACTIVE, PAST_DUE, PAUSED, CANCELED and EXPIRED projections passed."]
+    "evidence": [
+      "lib/commercial/subscription-service.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "TRIALING, ACTIVE, PAST_DUE, PAUSED, CANCELED and EXPIRED projections passed."
+    ]
   },
   "COMM-007": {
     "status": "PASS",
-    "evidence": ["lib/commercial/access-policy.ts", "lib/commercial/authorization.ts", "scripts/readiness/validate-f4-commercial.ts"],
-    "notes": ["Past-due access is full only during configured grace and server mutations become read-only afterward."]
+    "evidence": [
+      "lib/commercial/access-policy.ts",
+      "lib/commercial/authorization.ts",
+      "scripts/readiness/validate-f4-commercial.ts"
+    ],
+    "notes": [
+      "Past-due access is full only during configured grace and server mutations become read-only afterward."
+    ]
   },
   "COMM-008": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Trial, period dates, cancellation scheduling and provider ordering persist and reconcile."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/commercial/subscription-service.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Trial, period dates, cancellation scheduling and provider ordering persist and reconcile."
+    ]
   },
   "COMM-009": {
     "status": "PASS",
-    "evidence": ["lib/commercial/subscription-service.ts", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["A replayed failed-payment event produced exactly one email and one task."]
+    "evidence": [
+      "lib/commercial/subscription-service.ts",
+      "lib/email/outbox.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "A replayed failed-payment event produced exactly one email and one task."
+    ]
   },
   "COMM-010": {
     "status": "PASS",
-    "evidence": ["lib/commercial/authorization.ts", "lib/commercial/usage.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Server-side negative limit tests passed for members, documents and AI actions."]
+    "evidence": [
+      "lib/commercial/authorization.ts",
+      "lib/commercial/usage.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Server-side negative limit tests passed for members, documents and AI actions."
+    ]
   },
   "COMM-011": {
     "status": "PASS",
-    "evidence": ["lib/commercial/usage.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Advisory locking and tenant/metric/idempotency uniqueness kept usage replay at one record."]
+    "evidence": [
+      "lib/commercial/usage.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Advisory locking and tenant/metric/idempotency uniqueness kept usage replay at one record."
+    ]
   },
   "COMM-012": {
     "status": "PASS",
-    "evidence": ["lib/commercial/access-policy.ts", "app/(app)/plan-y-uso/page.tsx", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Default overuse decision is BLOCK; UI states that no automatic overuse charge occurs."]
+    "evidence": [
+      "lib/commercial/access-policy.ts",
+      "app/(app)/plan-y-uso/page.tsx",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Default overuse decision is BLOCK; UI states that no automatic overuse charge occurs."
+    ]
   },
   "COMM-013": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "prisma/migrations/20260726140000_readiness_f4_commercial_email_storage/migration.sql", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["BillingCustomer carries subscription fiscal identity independently from operational clients and invoices."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "prisma/migrations/20260726140000_readiness_f4_commercial_email_storage/migration.sql",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "BillingCustomer carries subscription fiscal identity independently from operational clients and invoices."
+    ]
   },
   "COMM-014": {
     "status": "PASS",
-    "evidence": ["lib/commercial/subscription-service.ts", "docs/runbooks/BILLING_EMAIL_STORAGE_OPERATIONS.md", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Daily runbook and audit-only reconciliation record divergences without silently correcting state."]
+    "evidence": [
+      "lib/commercial/subscription-service.ts",
+      "docs/runbooks/BILLING_EMAIL_STORAGE_OPERATIONS.md",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Daily runbook and audit-only reconciliation record divergences without silently correcting state."
+    ]
   },
   "COMM-015": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/commercial/subscription-service.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Cancellation reason and month cohort are exportable as structured metrics."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/commercial/subscription-service.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Cancellation reason and month cohort are exportable as structured metrics."
+    ]
   },
   "EMAIL-001": {
     "status": "PASS",
-    "evidence": ["lib/email/index.ts", "lib/email/outbox.ts", "lib/application/auth/auth-use-cases.ts"],
-    "notes": ["Auth, invitations, billing, support and alerts use the shared provider/outbox facade."]
+    "evidence": [
+      "lib/email/index.ts",
+      "lib/email/outbox.ts",
+      "lib/application/auth/auth-use-cases.ts"
+    ],
+    "notes": [
+      "Auth, invitations, billing, support and alerts use the shared provider/outbox facade."
+    ]
   },
   "EMAIL-002": {
     "status": "PASS",
-    "evidence": ["lib/email/outbox.ts", "lib/application/auth/auth-use-cases.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Forced business rollback removed the queued email; committed flows enqueue in their transaction."]
+    "evidence": [
+      "lib/email/outbox.ts",
+      "lib/application/auth/auth-use-cases.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Forced business rollback removed the queued email; committed flows enqueue in their transaction."
+    ]
   },
   "EMAIL-003": {
     "status": "PASS",
-    "evidence": ["lib/email/outbox.ts", "app/api/jobs/email-outbox/route.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Two concurrent SKIP LOCKED claimers returned no duplicate ID."]
+    "evidence": [
+      "lib/email/outbox.ts",
+      "app/api/jobs/email-outbox/route.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Two concurrent SKIP LOCKED claimers returned no duplicate ID."
+    ]
   },
   "EMAIL-004": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Versioned templates persist content hashes and allowlists; a missing variable failed before provider invocation."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/email/outbox.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Versioned templates persist content hashes and allowlists; a missing variable failed before provider invocation."
+    ]
   },
   "EMAIL-005": {
     "status": "PASS",
-    "evidence": ["lib/email/index.ts", "lib/platform/providers/production.ts", "lib/platform/providers/fake.ts", "scripts/readiness/validate-provider-contracts.ts"],
-    "notes": ["Resend and non-delivering fake/local adapters share one contract."]
+    "evidence": [
+      "lib/email/index.ts",
+      "lib/platform/providers/production.ts",
+      "lib/platform/providers/fake.ts",
+      "scripts/readiness/validate-provider-contracts.ts"
+    ],
+    "notes": [
+      "Resend and non-delivering fake/local adapters share one contract."
+    ]
   },
   "EMAIL-006": {
     "status": "PASS",
-    "evidence": ["app/api/webhooks/resend/route.ts", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Standard Webhooks verification uses raw body; invalid signature failed and signed replay deduplicated."]
+    "evidence": [
+      "app/api/webhooks/resend/route.ts",
+      "lib/email/outbox.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Standard Webhooks verification uses raw body; invalid signature failed and signed replay deduplicated."
+    ]
   },
   "EMAIL-007": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Delivery attempts and webhook event types persist delivered, delay, bounce, complaint, failure and suppression state."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/email/outbox.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Delivery attempts and webhook event types persist delivered, delay, bounce, complaint, failure and suppression state."
+    ]
   },
   "EMAIL-008": {
     "status": "PASS",
-    "evidence": ["lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Active tenant/global suppression cancels a claimed item before any provider call."]
+    "evidence": [
+      "lib/email/outbox.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Active tenant/global suppression cancels a claimed item before any provider call."
+    ]
   },
   "EMAIL-009": {
     "status": "PASS",
-    "evidence": ["lib/email/outbox.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Exponential retry recovered a transient failure; dead letter and audited admin replay passed."]
+    "evidence": [
+      "lib/email/outbox.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Exponential retry recovered a transient failure; dead letter and audited admin replay passed."
+    ]
   },
   "EMAIL-010": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": [".env.example", "lib/email/outbox.ts", "lib/config/server.ts", "docs/compliance/EMAIL_DOMAIN_ACTIVATION.md"],
-    "notes": ["Fail-closed configuration and checklist are complete; owner-approved domain, From/Reply-To, SPF, DKIM, DMARC and live credentials remain external."]
+    "evidence": [
+      ".env.example",
+      "lib/email/outbox.ts",
+      "lib/config/server.ts",
+      "docs/compliance/EMAIL_DOMAIN_ACTIVATION.md"
+    ],
+    "notes": [
+      "Fail-closed configuration and checklist are complete; owner-approved domain, From/Reply-To, SPF, DKIM, DMARC and live credentials remain external."
+    ]
   },
   "EMAIL-011": {
     "status": "PASS",
-    "evidence": ["lib/email/outbox.ts", "lib/application/auth/auth-use-cases.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Action URLs render in memory from a derivation secret; database scan found no plaintext token or rendered URL/body."]
+    "evidence": [
+      "lib/email/outbox.ts",
+      "lib/application/auth/auth-use-cases.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Action URLs render in memory from a derivation secret; database scan found no plaintext token or rendered URL/body."
+    ]
   },
   "EMAIL-012": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/email/outbox.ts", "lib/config/server.ts"],
-    "notes": ["Delivery metadata is retained while open/click tracking defaults off and live config rejects tracking enabled."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/email/outbox.ts",
+      "lib/config/server.ts"
+    ],
+    "notes": [
+      "Delivery metadata is retained while open/click tracking defaults off and live config rejects tracking enabled."
+    ]
   },
   "STOR-001": {
     "status": "PASS",
-    "evidence": ["lib/document-storage.ts", "lib/private-storage.ts", "lib/platform/providers/production.ts", "scripts/readiness/validate-provider-contracts.ts"],
-    "notes": ["Legacy DocumentStorage remains; local private and S3 adapters are environment-selected and contract-tested."]
+    "evidence": [
+      "lib/document-storage.ts",
+      "lib/private-storage.ts",
+      "lib/platform/providers/production.ts",
+      "scripts/readiness/validate-provider-contracts.ts"
+    ],
+    "notes": [
+      "Legacy DocumentStorage remains; local private and S3 adapters are environment-selected and contract-tested."
+    ]
   },
   "STOR-002": {
     "status": "PASS",
-    "evidence": ["lib/private-storage.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Objects use private provider storage and company-prefixed access; cross-tenant authorization failed."]
+    "evidence": [
+      "lib/private-storage.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Objects use private provider storage and company-prefixed access; cross-tenant authorization failed."
+    ]
   },
   "STOR-003": {
     "status": "PASS",
-    "evidence": ["lib/private-storage.ts", "app/api/storage/[id]/route.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Authorized HMAC grants are capped at 15 minutes; wrong object, tamper, expiry and cross-tenant issue failed."]
+    "evidence": [
+      "lib/private-storage.ts",
+      "app/api/storage/[id]/route.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Authorized HMAC grants are capped at 15 minutes; wrong object, tamper, expiry and cross-tenant issue failed."
+    ]
   },
   "STOR-004": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/private-storage.ts", "scripts/readiness/validate-f4-postgres.ts"],
-    "notes": ["Safe name, MIME, byte size, SHA-256, provider, bucket and version persist; modified bytes failed download."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/private-storage.ts",
+      "scripts/readiness/validate-f4-postgres.ts"
+    ],
+    "notes": [
+      "Safe name, MIME, byte size, SHA-256, provider, bucket and version persist; modified bytes failed download."
+    ]
   },
   "STOR-011": {
     "status": "PASS",
-    "evidence": ["lib/application/company/settings-use-cases.ts", "app/(app)/configuracion/page.tsx", "app/(app)/dinero/[id]/pdf/route.ts", "app/(app)/presupuestos/[id]/pdf/route.ts"],
-    "notes": ["OWNER-only private uploads replace editable URLs; PDF inputs no longer accept remote asset URLs, removing SSRF."]
+    "evidence": [
+      "lib/application/company/settings-use-cases.ts",
+      "app/(app)/configuracion/page.tsx",
+      "app/(app)/dinero/[id]/pdf/route.ts",
+      "app/(app)/presupuestos/[id]/pdf/route.ts"
+    ],
+    "notes": [
+      "OWNER-only private uploads replace editable URLs; PDF inputs no longer accept remote asset URLs, removing SSRF."
+    ]
   },
   "SEC-003": {
     "status": "PASS",
-    "evidence": ["lib/security/mfa.ts", "lib/commercial/platform.ts", "app/(app)/configuracion/seguridad/page.tsx", "prisma/migrations/20260726160000_readiness_f5_privacy_security/migration.sql", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["TOTP secrets are AES-GCM encrypted; PLATFORM_OWNER/PLATFORM_ADMIN operations redirect until an active factor and fresh session challenge exist. Isolated enrollment and challenge passed."]
+    "evidence": [
+      "lib/security/mfa.ts",
+      "lib/commercial/platform.ts",
+      "app/(app)/configuracion/seguridad/page.tsx",
+      "prisma/migrations/20260726160000_readiness_f5_privacy_security/migration.sql",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "TOTP secrets are AES-GCM encrypted; PLATFORM_OWNER/PLATFORM_ADMIN operations redirect until an active factor and fresh session challenge exist. Isolated enrollment and challenge passed."
+    ]
   },
   "SEC-011": {
     "status": "PASS",
-    "evidence": ["scripts/readiness/validate-f5-postgres.ts", "lib/tenant/core.ts", "lib/search.ts", "lib/orqena/conversation-repository.ts", "lib/email/outbox.ts", "lib/commercial/subscription-service.ts", "lib/private-storage.ts", "lib/privacy/governance.ts"],
-    "notes": ["A two-company/two-user negative suite rejected cross-tenant PDF, export, search, chat, job, billing and storage access."]
+    "evidence": [
+      "scripts/readiness/validate-f5-postgres.ts",
+      "lib/tenant/core.ts",
+      "lib/search.ts",
+      "lib/orqena/conversation-repository.ts",
+      "lib/email/outbox.ts",
+      "lib/commercial/subscription-service.ts",
+      "lib/private-storage.ts",
+      "lib/privacy/governance.ts"
+    ],
+    "notes": [
+      "A two-company/two-user negative suite rejected cross-tenant PDF, export, search, chat, job, billing and storage access."
+    ]
   },
   "SEC-012": {
     "status": "PASS",
-    "evidence": ["lib/security/audit-chain.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Sensitive audit rows form a locked SHA-256 chain; changing a historical row produced ENTRY_HASH_INVALID."]
+    "evidence": [
+      "lib/security/audit-chain.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Sensitive audit rows form a locked SHA-256 chain; changing a historical row produced ENTRY_HASH_INVALID."
+    ]
   },
   "SEC-013": {
     "status": "PASS",
-    "evidence": ["lib/commercial/platform.ts", "lib/commercial/platform-service.ts", "lib/application/platform/platform-admin-use-cases.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Support grants carry only two read capabilities, expire in at most 120 minutes, are explicitly closable with session rotation, and each use is chained in audit."]
+    "evidence": [
+      "lib/commercial/platform.ts",
+      "lib/commercial/platform-service.ts",
+      "lib/application/platform/platform-admin-use-cases.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Support grants carry only two read capabilities, expire in at most 120 minutes, are explicitly closable with session rotation, and each use is chained in audit."
+    ]
   },
   "SEC-014": {
     "status": "PASS",
-    "evidence": ["lib/private-storage.ts", "lib/security/malware-scanner.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Size, declared MIME, signature, extension, SHA-256 and scanner verdict are enforced; EICAR-compatible content remained BLOCKED and unservable."]
+    "evidence": [
+      "lib/private-storage.ts",
+      "lib/security/malware-scanner.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Size, declared MIME, signature, extension, SHA-256 and scanner verdict are enforced; EICAR-compatible content remained BLOCKED and unservable."
+    ]
   },
   "SEC-017": {
     "status": "PASS",
-    "evidence": ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/privacy/breaches.ts", "lib/observability/operations.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["The isolated drill recorded detection, notification decisions, communications, containment resolution and a closed postmortem with an owned action; no message was sent."]
+    "evidence": [
+      "docs/runbooks/INCIDENT_RESPONSE.md",
+      "lib/privacy/breaches.ts",
+      "lib/observability/operations.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "The isolated drill recorded detection, notification decisions, communications, containment resolution and a closed postmortem with an owned action; no message was sent."
+    ]
   },
   "SEC-018": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"],
-    "notes": ["Runtime fails closed on credential/resource scope mismatch and non-production reuse; real development/preview/staging/production IDs and permission boundaries must be supplied and read-only audited before this can pass."]
+    "evidence": [
+      "scripts/readiness/environment-isolation.mjs",
+      "scripts/readiness/validate-runtime-config.mjs",
+      ".env.example",
+      "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"
+    ],
+    "notes": [
+      "Runtime fails closed on credential/resource scope mismatch and non-production reuse; real development/preview/staging/production IDs and permission boundaries must be supplied and read-only audited before this can pass."
+    ]
   },
   "PRIV-001": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "lib/privacy/catalog.ts", "contracts/privacy/v1/catalog.json", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["The tenant RAT stores and exports purposes, bases, categories, subjects, recipients, transfers, retention and owner with a deterministic hash."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "lib/privacy/catalog.ts",
+      "contracts/privacy/v1/catalog.json",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "The tenant RAT stores and exports purposes, bases, categories, subjects, recipients, transfers, retention and owner with a deterministic hash."
+    ]
   },
   "PRIV-002": {
     "status": "PASS",
-    "evidence": ["contracts/legal/v1/manifest.json", "docs/legal/templates/DPA.v1.md", "docs/legal/templates/TERMS.v1.md", "docs/legal/templates/PRIVACY.v1.md", "docs/legal/templates/COOKIES.v1.md", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["DPA, terms, privacy and cookies have draft versions; LegalDocumentVersion persists SHA-256 and each acceptance references that exact row. Publication remains blocked to legal review under PRIV-016/F9."]
+    "evidence": [
+      "contracts/legal/v1/manifest.json",
+      "docs/legal/templates/DPA.v1.md",
+      "docs/legal/templates/TERMS.v1.md",
+      "docs/legal/templates/PRIVACY.v1.md",
+      "docs/legal/templates/COOKIES.v1.md",
+      "lib/privacy/governance.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "DPA, terms, privacy and cookies have draft versions; LegalDocumentVersion persists SHA-256 and each acceptance references that exact row. Publication remains blocked to legal review under PRIV-016/F9."
+    ]
   },
   "PRIV-003": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["contracts/privacy/v1/catalog.json", "lib/privacy/governance.ts", "lib/privacy/catalog.ts", "docs/runbooks/SUBPROCESSOR_CHANGE.md"],
-    "notes": ["A dated versioned inventory and change history are implemented; contractual processing locations, safeguards and active-provider facts require authorized confirmation before publication."]
+    "evidence": [
+      "contracts/privacy/v1/catalog.json",
+      "lib/privacy/governance.ts",
+      "lib/privacy/catalog.ts",
+      "docs/runbooks/SUBPROCESSOR_CHANGE.md"
+    ],
+    "notes": [
+      "A dated versioned inventory and change history are implemented; contractual processing locations, safeguards and active-provider facts require authorized confirmation before publication."
+    ]
   },
   "PRIV-004": {
     "status": "PASS",
-    "evidence": ["contracts/privacy/v1/catalog.json", "lib/privacy/governance.ts", "app/(app)/configuracion/privacidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Five tenant policies seed disabled; dry-run persists candidates, blocks and hash before any confirmed application."]
+    "evidence": [
+      "contracts/privacy/v1/catalog.json",
+      "lib/privacy/governance.ts",
+      "app/(app)/configuracion/privacidad/page.tsx",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Five tenant policies seed disabled; dry-run persists candidates, blocks and hash before any confirmed application."
+    ]
   },
   "PRIV-005": {
     "status": "PASS",
-    "evidence": ["app/(app)/configuracion/privacidad/page.tsx", "app/(app)/configuracion/privacidad/actions.ts", "lib/application/privacy/governance-use-cases.ts", "lib/privacy/governance.ts"],
-    "notes": ["OWNER/ADMIN privacy center covers access, rectification, erasure, objection, restriction and portability with status, SLA, evidence and closure."]
+    "evidence": [
+      "app/(app)/configuracion/privacidad/page.tsx",
+      "app/(app)/configuracion/privacidad/actions.ts",
+      "lib/application/privacy/governance-use-cases.ts",
+      "lib/privacy/governance.ts"
+    ],
+    "notes": [
+      "OWNER/ADMIN privacy center covers access, rectification, erasure, objection, restriction and portability with status, SLA, evidence and closure."
+    ]
   },
   "PRIV-006": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["One calendar-month deadlines, documented one/two-month extensions, seven-day alerts and communication timeline passed in isolation."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "docs/compliance/PRIVACY_GOVERNANCE.md",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "One calendar-month deadlines, documented one/two-month extensions, seven-day alerts and communication timeline passed in isolation."
+    ]
   },
   "PRIV-007": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "lib/application/privacy/governance-use-cases.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Subject export is tenant-scoped and allowlisted; password/token/cipher/provider/storage keys are excluded and hashes detect tampering."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "lib/application/privacy/governance-use-cases.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Subject export is tenant-scoped and allowlisted; password/token/cipher/provider/storage keys are excluded and hashes detect tampering."
+    ]
   },
   "PRIV-008": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Erasure is dry-run-first, hold-aware and human-confirmed; shared identities are not globally changed and accounting/fiscal records remain preserved."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Erasure is dry-run-first, hold-aware and human-confirmed; shared identities are not globally changed and accounting/fiscal records remain preserved."
+    ]
   },
   "PRIV-009": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Consent and withdrawal are append-only events carrying purpose, policy version, channel, timestamp and evidence."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Consent and withdrawal are append-only events carrying purpose, policy version, channel, timestamp and evidence."
+    ]
   },
   "PRIV-011": {
     "status": "PASS",
-    "evidence": ["lib/privacy/breaches.ts", "docs/runbooks/INCIDENT_RESPONSE.md", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Breach register keeps risk decision, 72-hour decision clock, authority/subject communication references and linked incident timeline."]
+    "evidence": [
+      "lib/privacy/breaches.ts",
+      "docs/runbooks/INCIDENT_RESPONSE.md",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Breach register keeps risk decision, 72-hour decision clock, authority/subject communication references and linked incident timeline."
+    ]
   },
   "PRIV-012": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["prisma/schema.prisma", "lib/privacy/governance.ts", "docs/compliance/PRIVACY_RISK_DPIA_TEMPLATE.md", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Versioned risk/DPIA records, safeguards and residual-risk gates pass technically; the authorized risk determination and any required DPIA approval/consultation remain external."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/privacy/governance.ts",
+      "docs/compliance/PRIVACY_RISK_DPIA_TEMPLATE.md",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Versioned risk/DPIA records, safeguards and residual-risk gates pass technically; the authorized risk determination and any required DPIA approval/consultation remain external."
+    ]
   },
   "PRIV-013": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "lib/private-storage.ts", "lib/observability/error-tracking.ts"],
-    "notes": ["PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED classification is shared by storage, exports, telemetry and support governance."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "docs/compliance/PRIVACY_GOVERNANCE.md",
+      "lib/private-storage.ts",
+      "lib/observability/error-tracking.ts"
+    ],
+    "notes": [
+      "PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED classification is shared by storage, exports, telemetry and support governance."
+    ]
   },
   "PRIV-014": {
     "status": "PASS",
-    "evidence": ["prisma/seed.js", "scripts/provision-staging.ts", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-privacy-security.ts"],
-    "notes": ["Tracked demo/staging fixtures use reserved domains and invalid 000 phones; the scanner rejects real-looking email, phone and NIF patterns."]
+    "evidence": [
+      "prisma/seed.js",
+      "scripts/provision-staging.ts",
+      "lib/privacy/governance.ts",
+      "scripts/readiness/validate-f5-privacy-security.ts"
+    ],
+    "notes": [
+      "Tracked demo/staging fixtures use reserved domains and invalid 000 phones; the scanner rejects real-looking email, phone and NIF patterns."
+    ]
   },
   "PRIV-015": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "lib/observability/error-tracking.ts", "lib/observability/operations.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "scripts/readiness/validate-f5-privacy-security.ts"],
-    "notes": ["Telemetry and error tracking use explicit allowlists/redaction; live error tracking is disabled without a DSN and no payload field is accepted."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "lib/observability/error-tracking.ts",
+      "lib/observability/operations.ts",
+      "docs/compliance/PRIVACY_GOVERNANCE.md",
+      "scripts/readiness/validate-f5-privacy-security.ts"
+    ],
+    "notes": [
+      "Telemetry and error tracking use explicit allowlists/redaction; live error tracking is disabled without a DSN and no payload field is accepted."
+    ]
   },
   "PRIV-017": {
     "status": "PASS",
-    "evidence": ["contracts/privacy/v1/catalog.json", "lib/privacy/catalog.ts", "lib/privacy/governance.ts"],
-    "notes": ["Every sensitive integration entry carries purpose, lawful basis, data categories, recipients, transfer gate and retention key."]
+    "evidence": [
+      "contracts/privacy/v1/catalog.json",
+      "lib/privacy/catalog.ts",
+      "lib/privacy/governance.ts"
+    ],
+    "notes": [
+      "Every sensitive integration entry carries purpose, lawful basis, data categories, recipients, transfer gate and retention key."
+    ]
   },
   "PRIV-018": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "docs/runbooks/SUBPROCESSOR_CHANGE.md"],
-    "notes": ["Versioned change record, notice deadline/evidence process, rollback steps and communication template are available."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "prisma/schema.prisma",
+      "docs/runbooks/SUBPROCESSOR_CHANGE.md"
+    ],
+    "notes": [
+      "Versioned change record, notice deadline/evidence process, rollback steps and communication template are available."
+    ]
   },
   "STOR-005": {
     "status": "PASS",
-    "evidence": ["lib/security/malware-scanner.ts", "lib/private-storage.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Uploads persist QUARANTINED before scan; only CLEAN becomes READY. INFECTED/ERROR never serves or attaches."]
+    "evidence": [
+      "lib/security/malware-scanner.ts",
+      "lib/private-storage.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Uploads persist QUARANTINED before scan; only CLEAN becomes READY. INFECTED/ERROR never serves or attaches."
+    ]
   },
   "STOR-006": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "lib/platform/providers/contracts.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Dry-run, active-hold recheck, exact human confirmation, provider delete and tombstone evidence hash passed."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "lib/platform/providers/contracts.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Dry-run, active-hold recheck, exact human confirmation, provider delete and tombstone evidence hash passed."
+    ]
   },
   "STOR-007": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"],
-    "notes": ["Distinct-resource gate is automated; actual preview/staging/production buckets, namespaces and credential scopes require current infrastructure evidence."]
+    "evidence": [
+      "scripts/readiness/environment-isolation.mjs",
+      "scripts/readiness/validate-runtime-config.mjs",
+      ".env.example",
+      "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"
+    ],
+    "notes": [
+      "Distinct-resource gate is automated; actual preview/staging/production buckets, namespaces and credential scopes require current infrastructure evidence."
+    ]
   },
   "STOR-008": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "lib/observability/operations.ts"],
-    "notes": ["Backup/PITR policy and failure monitoring contract are ready; activation and visible successful policies would mutate persistent infrastructure and were not authorized."]
+    "evidence": [
+      "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md",
+      "lib/observability/operations.ts"
+    ],
+    "notes": [
+      "Backup/PITR policy and failure monitoring contract are ready; activation and visible successful policies would mutate persistent infrastructure and were not authorized."
+    ]
   },
   "STOR-009": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["New-target reference restore and checksum pass locally; a real Railway sibling-service PITR drill with measured RPO/RTO requires explicit infrastructure authorization."]
+    "evidence": [
+      "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md",
+      "lib/privacy/governance.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "New-target reference restore and checksum pass locally; a real Railway sibling-service PITR drill with measured RPO/RTO requires explicit infrastructure authorization."
+    ]
   },
   "STOR-010": {
     "status": "PASS",
-    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Complete tenant-scoped export walks company models, strips external/secret keys, hashes every model/object manifest and remaps internal references for a new target."]
+    "evidence": [
+      "lib/privacy/governance.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Complete tenant-scoped export walks company models, strips external/secret keys, hashes every model/object manifest and remaps internal references for a new target."
+    ]
   },
   "STOR-012": {
     "status": "PASS",
-    "evidence": ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "scripts/readiness/validate-f5-privacy-security.ts"],
-    "notes": ["Preview runtime rejects production/staging database SHA-256 or resource-ID equality and shared storage IDs without printing values."]
+    "evidence": [
+      "scripts/readiness/environment-isolation.mjs",
+      "scripts/readiness/validate-runtime-config.mjs",
+      ".env.example",
+      "scripts/readiness/validate-f5-privacy-security.ts"
+    ],
+    "notes": [
+      "Preview runtime rejects production/staging database SHA-256 or resource-ID equality and shared storage IDs without printing values."
+    ]
   },
   "OBS-007": {
     "status": "PASS",
-    "evidence": ["lib/observability/operations.ts", "contracts/observability/v1/dashboard.json", "app/(app)/plataforma/observabilidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Errors, p95 latency, jobs, queues, DB, provider and dead-letter metrics have versioned thresholds, protected dashboard and incident-producing alerts."]
+    "evidence": [
+      "lib/observability/operations.ts",
+      "contracts/observability/v1/dashboard.json",
+      "app/(app)/plataforma/observabilidad/page.tsx",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Errors, p95 latency, jobs, queues, DB, provider and dead-letter metrics have versioned thresholds, protected dashboard and incident-producing alerts."
+    ]
   },
   "OBS-008": {
     "status": "PASS",
-    "evidence": ["lib/observability/operations.ts", "app/api/jobs/operational-monitor/route.ts", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Expired heartbeat or dead letters changes worker status and creates a severity-classified Incident with timeline."]
+    "evidence": [
+      "lib/observability/operations.ts",
+      "app/api/jobs/operational-monitor/route.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Expired heartbeat or dead letters changes worker status and creates a severity-classified Incident with timeline."
+    ]
   },
   "OBS-009": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/observability/operations.ts", "app/api/jobs/synthetic-smoke/route.ts", "docs/runbooks/OPERATIONAL_OBSERVABILITY.md", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Read-only public/auth/critical synthetic and persisted history pass with injected HTTP; actual recurring scheduler and remote history must be activated in an authorized environment."]
+    "evidence": [
+      "lib/observability/operations.ts",
+      "app/api/jobs/synthetic-smoke/route.ts",
+      "docs/runbooks/OPERATIONAL_OBSERVABILITY.md",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Read-only public/auth/critical synthetic and persisted history pass with injected HTTP; actual recurring scheduler and remote history must be activated in an authorized environment."
+    ]
   },
   "OBS-010": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/observability/error-tracking.ts", ".env.example", "scripts/readiness/validate-f5-privacy-security.ts"],
-    "notes": ["Configurable redacted adapter passed with an injected reporter; a live test event must be observed in the approved provider project/environment."]
+    "evidence": [
+      "lib/observability/error-tracking.ts",
+      ".env.example",
+      "scripts/readiness/validate-f5-privacy-security.ts"
+    ],
+    "notes": [
+      "Configurable redacted adapter passed with an injected reporter; a live test event must be observed in the approved provider project/environment."
+    ]
   },
   "OBS-011": {
     "status": "PASS",
-    "evidence": ["lib/observability/operations.ts", "contracts/observability/v1/dashboard.json", "docs/runbooks/OPERATIONAL_OBSERVABILITY.md", "docs/runbooks/INCIDENT_RESPONSE.md"],
-    "notes": ["Internal SLOs and Sev1-Sev4 connect thresholds to acknowledgement, restore target, owner and communication; they are not advertised as contractual SLA."]
+    "evidence": [
+      "lib/observability/operations.ts",
+      "contracts/observability/v1/dashboard.json",
+      "docs/runbooks/OPERATIONAL_OBSERVABILITY.md",
+      "docs/runbooks/INCIDENT_RESPONSE.md"
+    ],
+    "notes": [
+      "Internal SLOs and Sev1-Sev4 connect thresholds to acknowledgement, restore target, owner and communication; they are not advertised as contractual SLA."
+    ]
   },
   "OBS-012": {
     "status": "PASS",
-    "evidence": ["lib/observability/operations.ts", "prisma/schema.prisma", "app/(app)/plataforma/observabilidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"],
-    "notes": ["Simulated incident closed with timeline, root cause, resolution and owned dated postmortem action."]
+    "evidence": [
+      "lib/observability/operations.ts",
+      "prisma/schema.prisma",
+      "app/(app)/plataforma/observabilidad/page.tsx",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Simulated incident closed with timeline, root cause, resolution and owned dated postmortem action."
+    ]
   },
   "SUP-009": {
     "status": "PASS",
-    "evidence": ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/observability/operations.ts", "app/(app)/plataforma/observabilidad/page.tsx"],
-    "notes": ["Sev1-Sev4 response/communication targets, audiences and reusable internal/customer templates are ready."]
+    "evidence": [
+      "docs/runbooks/INCIDENT_RESPONSE.md",
+      "lib/observability/operations.ts",
+      "app/(app)/plataforma/observabilidad/page.tsx"
+    ],
+    "notes": [
+      "Sev1-Sev4 response/communication targets, audiences and reusable internal/customer templates are ready."
+    ]
   },
   "AI-001": {
     "status": "PASS",
-    "evidence": ["lib/ai/governed-gateway.ts", "lib/ai/openai-transport.ts", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["All OpenAI endpoint construction is confined to one server transport boundary; product adapters use that boundary and no browser CSP route permits direct OpenAI calls."]
+    "evidence": [
+      "lib/ai/governed-gateway.ts",
+      "lib/ai/openai-transport.ts",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "All OpenAI endpoint construction is confined to one server transport boundary; product adapters use that boundary and no browser CSP route permits direct OpenAI calls."
+    ]
   },
   "AI-002": {
     "status": "PASS",
-    "evidence": ["lib/ai/redaction.ts", "scripts/readiness/validate-f6-ai.ts", "scripts/readiness/validate-f6-postgres.ts"],
-    "notes": ["Allowlisted context removes secrets and redacts synthetic email, tax ID, IBAN, phone and address before the injected transport receives it; cross-tenant company IDs fail closed."]
+    "evidence": [
+      "lib/ai/redaction.ts",
+      "scripts/readiness/validate-f6-ai.ts",
+      "scripts/readiness/validate-f6-postgres.ts"
+    ],
+    "notes": [
+      "Allowlisted context removes secrets and redacts synthetic email, tax ID, IBAN, phone and address before the injected transport receives it; cross-tenant company IDs fail closed."
+    ]
   },
   "AI-003": {
     "status": "PASS",
-    "evidence": ["lib/ai/openai-transport.ts", "contracts/ai/v1/gateway.json", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["The governed transport type and runtime require literal store=false. Real provider observation remains separately gated as AI-LIVE-004."]
+    "evidence": [
+      "lib/ai/openai-transport.ts",
+      "contracts/ai/v1/gateway.json",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "The governed transport type and runtime require literal store=false. Real provider observation remains separately gated as AI-LIVE-004."
+    ]
   },
   "AI-004": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/ai/openai-transport.ts", "lib/config/server.ts", "docs/compliance/AI_PROVIDER_AND_TRANSFER_ASSESSMENT.md", "docs/readiness/external-gates.json"],
-    "notes": ["HTTPS endpoint and data-profile configuration fail closed; actual region, ZDR/MAM eligibility and project settings require authorized provider evidence."]
+    "evidence": [
+      "lib/ai/openai-transport.ts",
+      "lib/config/server.ts",
+      "docs/compliance/AI_PROVIDER_AND_TRANSFER_ASSESSMENT.md",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "HTTPS endpoint and data-profile configuration fail closed; actual region, ZDR/MAM eligibility and project settings require authorized provider evidence."
+    ]
   },
   "AI-005": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/ai/prisma-store.ts", "contracts/ai/v1/model-registry.json", "scripts/readiness/validate-f6-postgres.ts"],
-    "notes": ["Synthetic runs persist provider, logical model, snapshot, purpose, prompt/schema version and request/output hashes without raw content."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/ai/prisma-store.ts",
+      "contracts/ai/v1/model-registry.json",
+      "scripts/readiness/validate-f6-postgres.ts"
+    ],
+    "notes": [
+      "Synthetic runs persist provider, logical model, snapshot, purpose, prompt/schema version and request/output hashes without raw content."
+    ]
   },
   "AI-006": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["lib/ai/governance-service.ts", "app/(app)/configuracion/ia/page.tsx", "scripts/readiness/validate-f6-postgres.ts", "docs/readiness/external-gates.json"],
-    "notes": ["Tenant/user token, estimated cost, latency, error and escalation accounting plus UI are complete for fake/injected runs; real provider reconciliation is AI-LIVE-005."]
+    "evidence": [
+      "lib/ai/governance-service.ts",
+      "app/(app)/configuracion/ia/page.tsx",
+      "scripts/readiness/validate-f6-postgres.ts",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "Tenant/user token, estimated cost, latency, error and escalation accounting plus UI are complete for fake/injected runs; real provider reconciliation is AI-LIVE-005."
+    ]
   },
   "AI-007": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/ai/governed-gateway.ts", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["Operation, user and company monthly ceilings block before transport; token, byte, concurrency and output limits are independently enforced."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/ai/governed-gateway.ts",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "Operation, user and company monthly ceilings block before transport; token, byte, concurrency and output limits are independently enforced."
+    ]
   },
   "AI-008": {
     "status": "PASS",
-    "evidence": ["lib/ai/model-policy.ts", "contracts/ai/v1/model-registry.json", "contracts/ai/v1/synthetic-pricing.json", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["Fast and reasoning lanes have centralized models, attempt caps and explicit ambiguity escalation; synthetic rates are labelled test-only and never presented as live price."]
+    "evidence": [
+      "lib/ai/model-policy.ts",
+      "contracts/ai/v1/model-registry.json",
+      "contracts/ai/v1/synthetic-pricing.json",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "Fast and reasoning lanes have centralized models, attempt caps and explicit ambiguity escalation; synthetic rates are labelled test-only and never presented as live price."
+    ]
   },
   "AI-009": {
     "status": "PASS",
-    "evidence": ["lib/ai/governed-gateway.ts", "lib/document-extraction.ts", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["Timeout, provider failure and open circuit return a deterministic manual-mode response; existing manual document and product flows remain available."]
+    "evidence": [
+      "lib/ai/governed-gateway.ts",
+      "lib/document-extraction.ts",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "Timeout, provider failure and open circuit return a deterministic manual-mode response; existing manual document and product flows remain available."
+    ]
   },
   "AI-010": {
     "status": "PASS",
-    "evidence": ["contracts/ai/v1/gateway.json", "contracts/ai/v1/eval-dataset.json", "lib/ai/evaluations.ts", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["Prompt/schema/model contracts and the synthetic dataset are versioned; deterministic regression reproduces the same dataset hash and outcomes."]
+    "evidence": [
+      "contracts/ai/v1/gateway.json",
+      "contracts/ai/v1/eval-dataset.json",
+      "lib/ai/evaluations.ts",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "Prompt/schema/model contracts and the synthetic dataset are versioned; deterministic regression reproduces the same dataset hash and outcomes."
+    ]
   },
   "AI-011": {
     "status": "PASS",
-    "evidence": ["contracts/ai/v1/eval-dataset.json", "lib/ai/evaluations.ts", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["The synthetic corpus covers 17h/date, amount/tax, VAT inconsistency, contact/company, payment confirmation, rectification, injection and exfiltration."]
+    "evidence": [
+      "contracts/ai/v1/eval-dataset.json",
+      "lib/ai/evaluations.ts",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "The synthetic corpus covers 17h/date, amount/tax, VAT inconsistency, contact/company, payment confirmation, rectification, injection and exfiltration."
+    ]
   },
   "AI-012": {
     "status": "PASS",
-    "evidence": ["app/(app)/configuracion/ia/page.tsx", "app/(app)/configuracion/ia/actions.ts", "lib/ai/governance-service.ts"],
-    "notes": ["OWNER/ADMIN UI shows purpose, lane, outcome, aggregate usage/cost and human-review state without prompt or output content."]
+    "evidence": [
+      "app/(app)/configuracion/ia/page.tsx",
+      "app/(app)/configuracion/ia/actions.ts",
+      "lib/ai/governance-service.ts"
+    ],
+    "notes": [
+      "OWNER/ADMIN UI shows purpose, lane, outcome, aggregate usage/cost and human-review state without prompt or output content."
+    ]
   },
   "AI-013": {
     "status": "PASS",
-    "evidence": ["lib/ai/governed-gateway.ts", "lib/ai/prisma-store.ts", "scripts/readiness/validate-f6-postgres.ts"],
-    "notes": ["Sensitive effects remain REQUIRES_CONFIRMATION until the exact confirmation is supplied; confirmed proposals enter a sanitized transactional outbox and are not directly executed."]
+    "evidence": [
+      "lib/ai/governed-gateway.ts",
+      "lib/ai/prisma-store.ts",
+      "scripts/readiness/validate-f6-postgres.ts"
+    ],
+    "notes": [
+      "Sensitive effects remain REQUIRES_CONFIRMATION until the exact confirmation is supplied; confirmed proposals enter a sanitized transactional outbox and are not directly executed."
+    ]
   },
   "AI-014": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/ai/governed-gateway.ts", "lib/ai/redaction.ts", "scripts/readiness/validate-f6-ai.ts"],
-    "notes": ["Company policy enforces role, scope, purpose, top-level field allowlist, classification and prohibited fields before any transport call."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/ai/governed-gateway.ts",
+      "lib/ai/redaction.ts",
+      "scripts/readiness/validate-f6-ai.ts"
+    ],
+    "notes": [
+      "Company policy enforces role, scope, purpose, top-level field allowlist, classification and prohibited fields before any transport call."
+    ]
   },
   "AI-015": {
     "status": "PASS",
-    "evidence": ["lib/ai/governance-service.ts", "app/api/jobs/ai-retention/route.ts", "prisma/schema.prisma", "scripts/readiness/validate-f6-postgres.ts"],
-    "notes": ["Expired response envelopes are purged while hashes/accounting remain; authenticated job and tests prove content removal and logs exclude raw content."]
+    "evidence": [
+      "lib/ai/governance-service.ts",
+      "app/api/jobs/ai-retention/route.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f6-postgres.ts"
+    ],
+    "notes": [
+      "Expired response envelopes are purged while hashes/accounting remain; authenticated job and tests prove content removal and logs exclude raw content."
+    ]
   },
   "AI-016": {
     "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["docs/compliance/AI_PROVIDER_AND_TRANSFER_ASSESSMENT.md", "docs/runbooks/AI_GOVERNANCE_ACTIVATION.md", "docs/readiness/EXTERNAL_RISK_REGISTER.md"],
-    "notes": ["Technical control mapping and approval template are complete; provider entity, DPA, subprocessors, location and transfer safeguards require authorized legal/provider confirmation."]
+    "evidence": [
+      "docs/compliance/AI_PROVIDER_AND_TRANSFER_ASSESSMENT.md",
+      "docs/runbooks/AI_GOVERNANCE_ACTIVATION.md",
+      "docs/readiness/EXTERNAL_RISK_REGISTER.md"
+    ],
+    "notes": [
+      "Technical control mapping and approval template are complete; provider entity, DPA, subprocessors, location and transfer safeguards require authorized legal/provider confirmation."
+    ]
   },
   "AI-017": {
     "status": "PASS",
-    "evidence": ["lib/config/server.ts", "prisma/schema.prisma", "lib/ai/governed-gateway.ts", "app/(app)/configuracion/ia/page.tsx"],
-    "notes": ["Global AI defaults off and each company defaults disabled with kill switch on; fake/manual flows remain independent and production live activation requires explicit approval."]
+    "evidence": [
+      "lib/config/server.ts",
+      "prisma/schema.prisma",
+      "lib/ai/governed-gateway.ts",
+      "app/(app)/configuracion/ia/page.tsx"
+    ],
+    "notes": [
+      "Global AI defaults off and each company defaults disabled with kill switch on; fake/manual flows remain independent and production live activation requires explicit approval."
+    ]
   },
   "AI-018": {
     "status": "PASS",
-    "evidence": ["prisma/schema.prisma", "lib/ai/governance-service.ts", "app/(app)/configuracion/ia/page.tsx", "scripts/readiness/validate-f6-postgres.ts"],
-    "notes": ["Accepted, corrected and rejected review events are tenant-scoped and visible as aggregate quality/risk metrics."]
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/ai/governance-service.ts",
+      "app/(app)/configuracion/ia/page.tsx",
+      "scripts/readiness/validate-f6-postgres.ts"
+    ],
+    "notes": [
+      "Accepted, corrected and rejected review events are tenant-scoped and visible as aggregate quality/risk metrics."
+    ]
+  },
+  "GOV-005": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "docs/governance/KNOWN_ISSUES.md",
+      "docs/readiness/external-gates.json",
+      ".env.example"
+    ],
+    "notes": [
+      "BRAND-LEGAL-001 requires legal clearance and current domain-control evidence; public indexing remains false."
+    ]
+  },
+  "GOV-006": {
+    "status": "PASS",
+    "evidence": [
+      "LICENSE",
+      "NOTICE",
+      "CONTRIBUTING.md",
+      ".github/CODEOWNERS"
+    ],
+    "notes": [
+      "The repository is unambiguously proprietary, external contribution acceptance is controlled and third-party rights remain separate."
+    ]
+  },
+  "GOV-007": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "docs/governance/IP_CHAIN_REGISTER.md",
+      "CONTRIBUTING.md",
+      "docs/data-room/README.md",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "Human/AI contribution inventory fields and private boundary are defined; signed assignments remain IP-CHAIN-001."
+    ]
+  },
+  "GOV-008": {
+    "status": "PASS",
+    "evidence": [
+      "THIRD_PARTY_NOTICES.md",
+      "scripts/readiness/generate-license-report.mjs",
+      ".github/workflows/security.yml"
+    ],
+    "notes": [
+      "Locked production dependencies, license expressions, critical policy and CycloneDX generation are automated; the report is explicitly not a legal opinion."
+    ]
+  },
+  "GOV-010": {
+    "status": "PASS",
+    "evidence": [
+      "docs/governance/KNOWN_ISSUES.md",
+      "docs/governance/TECHNICAL_DEBT.md",
+      "docs/adr"
+    ],
+    "notes": [
+      "Launch limitations, revisit triggers, owners and irreversible decisions are versioned without false live claims."
+    ]
+  },
+  "GOV-011": {
+    "status": "PASS",
+    "evidence": [
+      "docs/governance/ASSET_TRANSFER_REGISTER.md",
+      "docs/data-room/public/INDEX.md"
+    ],
+    "notes": [
+      "Transferable and excluded asset classes are explicit; final title evidence is separately gated under DATA-007/ASSET-TITLE-001."
+    ]
+  },
+  "ARCH-014": {
+    "status": "PASS",
+    "evidence": [
+      "docs/adr/0001-modular-monolith.md",
+      "docs/adr/0002-decimal-money.md",
+      "docs/adr/0003-transactional-outbox.md",
+      "docs/adr/0005-private-object-storage.md",
+      "docs/adr/0007-fiscal-engine-and-electronic-invoice.md",
+      "docs/adr/0009-privacy-governance.md",
+      "docs/adr/0010-release-and-supply-chain-governance.md"
+    ],
+    "notes": [
+      "Architecture, Decimal money, outbox, storage, fiscal, privacy and release/supply-chain decisions are recorded as ADRs."
+    ]
+  },
+  "SEC-015": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/security.yml",
+      "scripts/readiness/scan-secrets.mjs",
+      "scripts/readiness/generate-license-report.mjs"
+    ],
+    "notes": [
+      "Pinned CI blocks high audit findings, repository secret patterns and gitleaks, runs CodeQL, and emits CycloneDX/license artifacts."
+    ]
+  },
+  "SEC-016": {
+    "status": "PASS",
+    "evidence": [
+      "scripts/readiness/run-f11-tenant-pentest.mjs",
+      "scripts/readiness/validate-f5-postgres.ts",
+      "docs/readiness/evidence/f11/tenant-pentest.json"
+    ],
+    "notes": [
+      "Fresh isolated PostgreSQL horizontal/tenant-negative probes completed with zero high or critical findings and no external calls."
+    ]
+  },
+  "OBS-014": {
+    "status": "PASS",
+    "evidence": [
+      "scripts/readiness/generate-readiness-report.mjs",
+      "docs/readiness/evidence/f11/readiness-report.json"
+    ],
+    "notes": [
+      "One command emits source SHA, requirement counts, migration inventory hash and explicit environment mutation flags."
+    ]
+  },
+  "CI-001": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/security.yml"
+    ],
+    "notes": [
+      "Pull requests and protected program/main pushes run application, database, browser and supply-chain jobs."
+    ]
+  },
+  "CI-002": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      "package-lock.json"
+    ],
+    "notes": [
+      "Node 22.18, npm ci, lockfile and controlled npm cache are explicit."
+    ]
+  },
+  "CI-003": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      "scripts/readiness/validate-migrations-isolated.mjs"
+    ],
+    "notes": [
+      "CI provisions a dedicated capataz_test database, deploys all migrations and checks status; local migration idempotency remains reproducible."
+    ]
+  },
+  "CI-004": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      "package.json"
+    ],
+    "notes": [
+      "Prisma validate/generate, typecheck and production build are blocking steps."
+    ]
+  },
+  "CI-005": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      "scripts/readiness/validate-f3-fiscal.ts",
+      "scripts/readiness/validate-f4-commercial.ts",
+      "scripts/readiness/validate-f5-postgres.ts"
+    ],
+    "notes": [
+      "Named gates cover auth, tenant/horizontal authorization, numbering, fiscal, billing, email, private storage and PDF evidence."
+    ]
+  },
+  "CI-006": {
+    "status": "PASS",
+    "evidence": [
+      "vitest.config.ts",
+      "playwright.config.ts",
+      "tests/unit/f11-governance.test.ts",
+      "tests/e2e/public-readiness.spec.ts"
+    ],
+    "notes": [
+      "Vitest and Playwright Test add JUnit/failure artifacts without removing existing validators."
+    ]
+  },
+  "CI-007": {
+    "status": "PASS",
+    "evidence": [
+      "tests/e2e/public-readiness.spec.ts",
+      "scripts/readiness/validate-f9-public.ts",
+      "scripts/validate-public-indexing.ts"
+    ],
+    "notes": [
+      "Browser and static gates cover a11y, routes, noindex/robots/sitemap and CSP coherence."
+    ]
+  },
+  "CI-008": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/security.yml",
+      "scripts/readiness/generate-license-report.mjs",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "notes": [
+      "High-severity audit policy, CycloneDX SBOM and license classification are blocking and artifacted."
+    ]
+  },
+  "CI-009": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/security.yml",
+      "scripts/readiness/scan-secrets.mjs"
+    ],
+    "notes": [
+      "Local secret patterns, full-history gitleaks and CodeQL are pinned blocking jobs."
+    ]
+  },
+  "CI-010": {
+    "status": "PASS",
+    "evidence": [
+      "scripts/readiness/validate-f3-fiscal.ts",
+      "scripts/validate-document-pdf.mjs",
+      "tests/unit/f11-governance.test.ts"
+    ],
+    "notes": [
+      "Official AEAT vectors, deterministic multi-format XML semantics and deterministic PDF output are golden regression gates."
+    ]
+  },
+  "CI-011": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      ".github/workflows/railway-preview.yml",
+      "scripts/readiness/validate-railway-preview-dispatch.mjs",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "The immutable/isolation dispatch contract is fail closed and non-mutating; actual isolated provision/verify/teardown remains RAILWAY-PREVIEW-001."
+    ]
+  },
+  "CI-012": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      ".github/workflows/release-candidate.yml",
+      "scripts/readiness/validate-release-dispatch.mjs",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "Exact-SHA evidence workflow is non-deploying; repository-admin protected-environment reviewers remain RELEASE-APPROVAL-001."
+    ]
+  },
+  "CI-013": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/security.yml",
+      ".github/workflows/railway-preview.yml",
+      ".github/workflows/release-candidate.yml",
+      "scripts/readiness/validate-f11-governance.mjs"
+    ],
+    "notes": [
+      "Every action use is pinned to a resolved 40-character SHA and workflows avoid write-all; CodeQL alone receives security-events write."
+    ]
+  },
+  "CI-014": {
+    "status": "PASS",
+    "evidence": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/security.yml",
+      ".github/workflows/release-candidate.yml",
+      "scripts/readiness/generate-release-manifest.mjs"
+    ],
+    "notes": [
+      "JUnit/failure evidence, SBOM, license report and exact-SHA release manifest use bounded artifact retention and no content logs."
+    ]
+  },
+  "DATA-001": {
+    "status": "PASS",
+    "evidence": [
+      "docs/data-room/README.md",
+      "docs/data-room/public/INDEX.md"
+    ],
+    "notes": [
+      "Product, technology, security, tests, IP, legal, commercial and transition areas are indexed with authoritative sources."
+    ]
+  },
+  "DATA-002": {
+    "status": "PASS",
+    "evidence": [
+      "docs/data-room/public/ARCHITECTURE_AND_FLOWS.md",
+      "docs/architecture/generated/ERD.svg",
+      "docs/architecture/generated/DATA_DICTIONARY.md",
+      "docs/architecture/DOMAIN_MAP.md"
+    ],
+    "notes": [
+      "Architecture, ERD, data dictionary, domains and critical security/effect flows are linked for a receiving team."
+    ]
+  },
+  "DATA-003": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "docs/data-room/public/OPERATIONS_AND_RECOVERY.md",
+      "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "Deploy/rollback/backup/restore/DR procedures and local reference restore are complete; provider PITR drill remains DR-RESTORE-001."
+    ]
+  },
+  "DATA-004": {
+    "status": "PASS",
+    "evidence": [
+      "docs/data-room/public/COMMAND_CATALOG.md",
+      "package.json"
+    ],
+    "notes": [
+      "Clean-clone prerequisites and commands cover install, build, DB, tenant, browser, security, SBOM and release evidence."
+    ]
+  },
+  "DATA-005": {
+    "status": "PASS",
+    "evidence": [
+      "docs/governance/KNOWN_ISSUES.md",
+      "docs/governance/TECHNICAL_DEBT.md"
+    ],
+    "notes": [
+      "Limitations and debt align with fail-closed code and external gates; no inactive provider is represented as live."
+    ]
+  },
+  "DATA-006": {
+    "status": "PASS",
+    "evidence": [
+      "THIRD_PARTY_NOTICES.md",
+      "scripts/readiness/generate-license-report.mjs",
+      ".github/workflows/security.yml",
+      "docs/data-room/public/SUPPORT_MATRIX.md"
+    ],
+    "notes": [
+      "Locked dependency/license matrix and CycloneDX SBOM are reproducible; technical policy does not claim to replace legal advice."
+    ]
+  },
+  "DATA-007": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "docs/governance/IP_CHAIN_REGISTER.md",
+      "docs/governance/ASSET_TRANSFER_REGISTER.md",
+      "docs/data-room/README.md",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "Code/design/demo/asset provenance process is ready; private signed title schedule remains ASSET-TITLE-001/IP-CHAIN-001."
+    ]
+  },
+  "DATA-008": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "docs/data-room/public/TRANSITION_PACKAGE.md",
+      "docs/readiness/external-gates.json"
+    ],
+    "notes": [
+      "Technical package and acceptance are defined; hours, people, price and response windows remain HANDOVER-COMMERCIAL-001."
+    ]
+  },
+  "DATA-009": {
+    "status": "PASS",
+    "evidence": [
+      "docs/adr",
+      "docs/governance/TECHNICAL_DEBT.md"
+    ],
+    "notes": [
+      "Ten numbered ADRs and the debt register preserve technical history outside individual memory."
+    ]
+  },
+  "DATA-010": {
+    "status": "PASS",
+    "evidence": [
+      "docs/data-room/public/SUPPORT_MATRIX.md",
+      "package-lock.json"
+    ],
+    "notes": [
+      "Runtime, database, framework, browser, mobile and provider support/EOL policy is explicit."
+    ]
+  },
+  "DATA-011": {
+    "status": "PASS",
+    "evidence": [
+      "scripts/readiness/generate-release-manifest.mjs",
+      ".github/workflows/release-candidate.yml"
+    ],
+    "notes": [
+      "A full-SHA generator records migrations, source contracts, checksums and expected artifact classes without claiming deployment."
+    ]
+  },
+  "DATA-012": {
+    "status": "PASS",
+    "evidence": [
+      "docs/data-room/README.md",
+      ".gitignore",
+      "scripts/readiness/scan-secrets.mjs"
+    ],
+    "notes": [
+      "Only sanitized public technical material is versioned; private legal/commercial/identity material is ignored and secrets are never data-room content."
+    ]
+  },
+  "GOV-001": {
+    "status": "PASS",
+    "evidence": [
+      "app/page.tsx",
+      "app/marketing-v2/_components/hero-demo.tsx",
+      "scripts/readiness/validate-f9-public.ts",
+      "scripts/readiness/validate-f9-browser.mjs"
+    ],
+    "notes": [
+      "Canonical public copy is vertical-first for construction, renovations and installations; 390x844 and 1440x900 browser gates passed without external requests."
+    ]
+  },
+  "GOV-002": {
+    "status": "PASS",
+    "evidence": [
+      "app/marketing-v2/_components/landing-data.ts",
+      "lib/marketing/catalog.ts",
+      "lib/business-profile/sectors.ts",
+      "scripts/readiness/validate-f9-public.ts"
+    ],
+    "notes": [
+      "The public home exposes one construction-first story while the internal sector catalog remains configurable and is not used as the primary message."
+    ]
+  },
+  "GOV-004": {
+    "status": "PASS",
+    "evidence": [
+      "lib/config/brand.ts",
+      "lib/brand.ts",
+      "app/layout.tsx",
+      "lib/email/index.ts",
+      "lib/document-pdf.ts",
+      "scripts/readiness/validate-f9-public.ts"
+    ],
+    "notes": [
+      "Product/assistant names, tagline, theme, assets, metadata, PWA and sender identity are configurable; email subjects use brand configuration and PDFs accept verified tenant logo/color without a code fork."
+    ]
+  },
+  "GOV-009": {
+    "status": "PASS",
+    "evidence": [
+      "lib/commercial/unit-economics.ts",
+      "lib/commercial/plans.ts",
+      "app/planes/page.tsx",
+      ".env.example",
+      "scripts/readiness/validate-f9-public.ts"
+    ],
+    "notes": [
+      "Public pricing remains false by default and requires the flag, an approval reference, a catalog version and external Stripe mappings together; no subscription amount is hardcoded in the public plan UI."
+    ]
+  },
+  "GOV-012": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/metrics.ts",
+      "app/(app)/plataforma/salud/page.tsx",
+      "docs/product/METRICS_AND_PILOT_METHOD.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "The aggregate PLATFORM_OWNER dashboard measures time saved, overdue debt recovered and budget conversion from allowlisted operational sources without exposing tenant content."
+    ]
+  },
+  "PRIV-010": {
+    "status": "PASS",
+    "evidence": [
+      "components/consent-manager.tsx",
+      "components/web-vitals-reporter.tsx",
+      "app/layout.tsx",
+      "app/cookies/page.tsx",
+      "scripts/readiness/validate-f9-browser.mjs"
+    ],
+    "notes": [
+      "No CMP renders while no nonessential category is available. When first-party analytics is enabled, the reporter mounts only after explicit acceptance; reject and withdrawal controls were exercised with zero pre-consent/rejected traffic."
+    ]
+  },
+  "PRIV-016": {
+    "status": "PASS",
+    "evidence": [
+      "lib/config/legal.ts",
+      "app/privacidad/page.tsx",
+      "app/terminos/page.tsx",
+      "app/cookies/page.tsx",
+      "app/politicas/page.tsx",
+      "scripts/readiness/validate-f9-public.ts"
+    ],
+    "notes": [
+      "Legal drafts are versioned, parameterized and explicitly REVIEW_REQUIRED. Provider, sending, billing and contractual statements describe fail-closed behavior and do not claim an inactive live service; final legal approval remains GOV-005/F11."
+    ]
+  },
+  "OBS-013": {
+    "status": "PASS",
+    "evidence": [
+      "contracts/observability/v1/web-performance-budget.json",
+      "components/web-vitals-reporter.tsx",
+      "scripts/readiness/validate-f8-browser.mjs"
+    ],
+    "notes": [
+      "Six local loopback public, auth and authenticated-app routes passed versioned LCP/CLS/INP/FCP/TTFB budgets, axe blocking-impact checks, keyboard focus and reduced-motion validation; no remote latency is claimed."
+    ]
+  },
+  "UX-001": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/onboarding/page.tsx",
+      "lib/application/company/onboarding-use-case.ts",
+      "components/activation-checklist.tsx",
+      "scripts/readiness/validate-f7-product.ts"
+    ],
+    "notes": [
+      "OWNER and ADMIN can complete a guided company, trade, objective and first-action flow; the home checklist links directly to first value without support dependency."
+    ]
+  },
+  "UX-002": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/activation.ts",
+      "components/activation-checklist.tsx",
+      "scripts/readiness/validate-f7-postgres.ts"
+    ],
+    "notes": [
+      "Company, client, budget, document and aggregate activation events are pseudonymous, seven-day classified and idempotent per tenant."
+    ]
+  },
+  "UX-003": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/import-service.ts",
+      "app/(app)/configuracion/importar/page.tsx",
+      "scripts/readiness/validate-f7-postgres.ts"
+    ],
+    "notes": [
+      "CSV preview reports row errors and duplicates; advisory-locked apply and exact-confirmation rollback affect only batch-created tenant records."
+    ]
+  },
+  "UX-004": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/plan-y-uso/page.tsx",
+      "lib/commercial/usage.ts",
+      "scripts/readiness/validate-f7-product.ts"
+    ],
+    "notes": [
+      "Panel reads members, documents, storage, AI aggregates and usage records; checkout and portal remain mapped and confirmed, while local plan simulation cannot render in production."
+    ]
+  },
+  "UX-005": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/configuracion/privacidad/page.tsx",
+      "app/(app)/configuracion/preferencias/page.tsx",
+      "lib/product/experience-preferences.ts"
+    ],
+    "notes": [
+      "Privacy rights and versioned AI/operational/marketing preferences are tenant scoped and audited; AI opt-out enables the kill switch and opt-in never clears it implicitly."
+    ]
+  },
+  "UX-006": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/configuracion/soporte/page.tsx",
+      "lib/product/support-service.ts",
+      "scripts/readiness/validate-f7-postgres.ts"
+    ],
+    "notes": [
+      "Authenticated tickets retain sanitized route, release and correlation context; secret, email, phone and tax identifiers are redacted and attachments use verified private storage."
+    ]
+  },
+  "UX-007": {
+    "status": "PASS",
+    "evidence": [
+      "docs/readiness/evidence/f2/action-boundary-classification.json",
+      "scripts/readiness/validate-action-boundaries.mjs",
+      "scripts/readiness/validate-f7-product.ts"
+    ],
+    "notes": [
+      "All 147 Server Action exports are classified and UI action files remain thin request boundaries without direct Prisma writes; money and document flows delegate to application services."
+    ]
+  },
+  "UX-008": {
+    "status": "PASS",
+    "evidence": [
+      "lib/document-pdf.ts",
+      "lib/document-pdf-assets.ts",
+      "contracts/documents/v1/rendering.json",
+      "scripts/validate-document-pdf.mjs"
+    ],
+    "notes": [
+      "Versioned deterministic PDFs preserve Spanish WinAnsi characters, support verified tenant JPEG logos with safe fallback, emit content hashes and pass multipage golden validation."
+    ]
+  },
+  "UX-009": {
+    "status": "PASS",
+    "evidence": [
+      "docs/readiness/evidence/f0/audit-manifest.json",
+      "app/marketing-v2/page.tsx",
+      "app/demo-v2/page.tsx",
+      "lib/route-experience-manifest.ts",
+      "scripts/readiness/validate-f9-public.ts"
+    ],
+    "notes": [
+      "Accepted PR #24 source SHA ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4 was integrated as an explicit merge parent after the isolated preview and teardown; each V2 route occurs once in the manifest."
+    ]
+  },
+  "UX-010": {
+    "status": "PASS",
+    "evidence": [
+      "app/marketing-v2/_components/landing-data.ts",
+      "app/marketing-v2/_components/journey-selector.tsx",
+      "app/demo-v2/_components/guided-demo.tsx",
+      "scripts/readiness/validate-f9-browser.mjs"
+    ],
+    "notes": [
+      "The canonical 15-minute synthetic story exposes exactly lead, visit, quote, work, expense, invoice and collection in order, with human confirmation and no external calls."
+    ]
+  },
+  "UX-011": {
+    "status": "PASS",
+    "evidence": [
+      "components/app-chrome.tsx",
+      "app/globals.css",
+      "scripts/readiness/validate-f8-browser.mjs",
+      "contracts/observability/v1/web-performance-budget.json"
+    ],
+    "notes": [
+      "Public central routes plus authenticated /hoy and support have zero critical/serious axe findings; skip link, focus trap, visible focus, forced-colors and reduced-motion foundations are exercised in the app shell."
+    ]
+  },
+  "UX-012": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/gestion/page.tsx",
+      "app/(app)/clientes/page.tsx",
+      "app/(app)/documentos/page.tsx",
+      "scripts/readiness/validate-f7-product.ts"
+    ],
+    "notes": [
+      "Clients, budgets, documents and money remain available through manual domain actions with AI and provider flags disabled."
+    ]
+  },
+  "MET-001": {
+    "status": "PASS",
+    "evidence": [
+      "contracts/analytics/v1/events.json",
+      "lib/product/analytics.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Versioned event and property allowlists reject unknown, non-finite and sensitive values; actor IDs are pseudonymized and event replay is idempotent."
+    ]
+  },
+  "MET-002": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/activation.ts",
+      "lib/product/metrics.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Seven-day activation uses the versioned aggregate event and reports an aggregate cohort rate."
+    ]
+  },
+  "MET-003": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/metrics.ts",
+      "docs/product/METRICS_AND_PILOT_METHOD.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "WAU is defined as distinct pseudonymous actors and companies with allowlisted activity in a rolling seven-day window."
+    ]
+  },
+  "MET-004": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/metrics.ts",
+      "lib/commercial/subscription-service.ts",
+      "docs/product/METRICS_AND_PILOT_METHOD.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "M1/M2/M3 eligible cohorts and structured churn taxonomy are implemented; free-text cancellation context is redacted."
+    ]
+  },
+  "MET-005": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/metrics.ts",
+      "lib/commercial/subscription-service.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "MRR and ARPA accept only the latest MATCHED Stripe reconciliation with zero divergence; diverged and local simulated subscriptions contribute zero."
+    ]
+  },
+  "MET-006": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/product/pilot-governance.ts",
+      "lib/product/metrics.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "The verified cost ledger covers infrastructure, AI, storage, email and support by company/plan/period and rejects unverified values from aggregates; current real provider invoices, measured usage and time evidence remain external."
+    ]
+  },
+  "MET-007": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/metrics.ts",
+      "app/(app)/plataforma/salud/page.tsx",
+      "docs/product/METRICS_AND_PILOT_METHOD.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Dated f8-v1 gross-margin and cost-to-serve computation uses reconciled revenue and verified costs and displays no-base states instead of invented values."
+    ]
+  },
+  "MET-008": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/metrics.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Budget conversion, invoice-to-payment duration and overdue recovered amount are derived from operational records and tested with synthetic fixtures."
+    ]
+  },
+  "MET-009": {
+    "status": "PASS",
+    "evidence": [
+      "contracts/analytics/v1/events.json",
+      "lib/product/metrics.ts",
+      "docs/product/METRICS_AND_PILOT_METHOD.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Time-saving events require an approved methodology and AI outcome events distinguish accepted, corrected and rejected results without content."
+    ]
+  },
+  "MET-010": {
+    "status": "PASS",
+    "evidence": [
+      "contracts/pilots/v1/program.json",
+      "lib/product/pilot-governance.ts",
+      "prisma/schema.prisma",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Pilot cohorts persist goals, criteria, cadence, onboarding timing, result and consented structured feedback; fixtures are not counted as live pilots."
+    ]
+  },
+  "MET-011": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/plataforma/salud/page.tsx",
+      "lib/product/metrics.ts",
+      "scripts/readiness/validate-f8-product.ts"
+    ],
+    "notes": [
+      "The PLATFORM_OWNER-only health surface returns aggregate commercial, value, AI, support and pilot figures and never selects ticket or tenant content."
+    ]
+  },
+  "MET-012": {
+    "status": "PASS",
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/product/pilot-governance.ts",
+      "app/(app)/plataforma/salud/page.tsx",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Onboarding, pricing and product experiments require a hypothesis, primary metric, guardrails, status and optional dated decision."
+    ]
+  },
+  "SUP-001": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "contracts/pilots/v1/program.json",
+      "lib/product/pilot-governance.ts",
+      "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "The 5-10 company program, minimum five paid, contract/consent and success-criteria controls are implemented; actual companies, signed contracts, consents and payments require external commercial input."
+    ]
+  },
+  "SUP-002": {
+    "status": "PASS",
+    "evidence": [
+      "lib/application/company/onboarding-use-case.ts",
+      "lib/product/pilot-governance.ts",
+      "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Product checklist and pilot onboarding start/completion times are persisted with chronology validation."
+    ]
+  },
+  "SUP-003": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/support-service.ts",
+      "lib/product/pilot-governance.ts",
+      "app/(app)/plataforma/salud/page.tsx",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Authenticated tickets carry priority, internal response/resolution deadlines, states, time and resolution codes under tenant-scoped operations."
+    ]
+  },
+  "SUP-004": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/configuracion/soporte/ayuda/page.tsx",
+      "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md",
+      "scripts/readiness/validate-f8-product.ts"
+    ],
+    "notes": [
+      "The authenticated knowledge base covers common access, documents, billing, privacy and operational troubleshooting without unsafe workarounds."
+    ]
+  },
+  "SUP-005": {
+    "status": "PASS",
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/product/pilot-governance.ts",
+      "lib/product/metrics.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Support minutes accumulate per tenant ticket and aggregate to support hours for cost-to-serve analysis."
+    ]
+  },
+  "SUP-006": {
+    "status": "PASS",
+    "evidence": [
+      "app/(app)/configuracion/soporte/page.tsx",
+      "lib/product/pilot-governance.ts",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Optional NPS/CSAT requires explicit measurement consent; contact permission is separate and comments are redacted before persistence."
+    ]
+  },
+  "SUP-007": {
+    "status": "PASS",
+    "evidence": [
+      "lib/commercial/subscription-service.ts",
+      "scripts/readiness/validate-f8-product.ts"
+    ],
+    "notes": [
+      "Cancellation reasons use a bounded taxonomy and unknown values map to other; free-text comments redact secrets and direct identifiers."
+    ]
+  },
+  "SUP-008": {
+    "status": "PASS",
+    "evidence": [
+      "prisma/schema.prisma",
+      "lib/product/pilot-governance.ts",
+      "app/(app)/configuracion/soporte/page.tsx",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "Testimonial consent records explicit scopes, grant and withdrawal with a pseudonymous subject and hashed artifact reference."
+    ]
+  },
+  "SUP-010": {
+    "status": "PASS",
+    "evidence": [
+      "lib/product/pilot-governance.ts",
+      "docs/runbooks/PILOT_SUPPORT_OPERATIONS.md",
+      "scripts/readiness/validate-f8-postgres.ts"
+    ],
+    "notes": [
+      "The handoff is limited to sanitized commercial summary, support needs and product focus, preserving continuity without copying tenant content."
+    ]
+  },
+  "MOB-001": {
+    "status": "PASS",
+    "evidence": [
+      "capacitor.config.ts",
+      "lib/mobile-config.ts",
+      "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md",
+      "contracts/mobile/v1/distribution.json",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "The Capacitor wrapper is explicitly a network client of the configured web backend; the server remains the sole source of truth and no native credential or business database is embedded."
+    ]
+  },
+  "MOB-002": {
+    "status": "PASS",
+    "evidence": [
+      "lib/mobile-config.ts",
+      "capacitor.config.ts",
+      "scripts/readiness/validate-f10-mobile.ts",
+      "scripts/validate-mobile-config.ts"
+    ],
+    "notes": [
+      "Development accepts explicit loopback/private HTTP only; staging and release require HTTPS, and release rejects local, private, credential-bearing, mismatched and staging hosts."
+    ]
+  },
+  "MOB-003": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "lib/mobile-config.ts",
+      "lib/mobile/association.ts",
+      "android/app/src/main/AndroidManifest.xml",
+      "ios/App/App/App.entitlements",
+      "ios/App/App/Info.plist",
+      "app/.well-known/assetlinks.json/route.ts",
+      "app/.well-known/apple-app-site-association/route.ts",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "Allowlisted link parsing, Android/iOS declarations and fail-closed association payloads pass with synthetic configuration. Real domain hosting, certificate/team identifiers and on-device Android/iOS verification remain MOBILE-LINK-001."
+    ]
+  },
+  "MOB-004": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md",
+      "lib/auth/session.ts",
+      "scripts/validate-auth-postgres.ts",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "The wrapper stores no native credential and reuses opaque HttpOnly/Secure/SameSite server sessions; web session rotation/revocation regressions pass. Login/logout/rotation on real target WebViews remains MOBILE-SESSION-001."
+    ]
+  },
+  "MOB-005": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "android/app/src/main/AndroidManifest.xml",
+      "android/app/src/main/res/xml/file_paths.xml",
+      "ios/App/App/Info.plist",
+      "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "Android declares only INTERNET, sharing is app-cache scoped, iOS declares no unnecessary native permission and files use system selection. Real PDF/download/upload flows on target devices remain MOBILE-FILES-001."
+    ]
+  },
+  "MOB-006": {
+    "status": "PASS",
+    "evidence": [
+      "lib/mobile/crash-reporting.ts",
+      "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "One synthetic crash reached an injected fake transport with exact release mapping and no external call. The contract rejects message, stack, URL, user, company, contact, payload, token, prompt and secret fields; no live native provider is claimed."
+    ]
+  },
+  "MOB-007": {
+    "status": "PASS",
+    "evidence": [
+      "contracts/mobile/v1/store-privacy.json",
+      "contracts/privacy/v1/catalog.json",
+      "docs/mobile/STORE_LISTING_DRAFT.md",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "Versioned store metadata covers actual account, business, financial, user-content, identifier and optional diagnostics categories; it declares no tracking, advertising or sale and is marked PREPARED_NOT_SUBMITTED."
+    ]
+  },
+  "MOB-008": {
+    "status": "PASS",
+    "evidence": [
+      "android/app/build.gradle",
+      "ios/App/App.xcodeproj/project.pbxproj",
+      "docs/runbooks/MOBILE_SIGNING_AND_DISTRIBUTION.md",
+      "scripts/mobile/guard-release-build.mjs"
+    ],
+    "notes": [
+      "Android release tasks fail without complete external signing inputs; iOS Release uses manual signing. The runbook covers separated vault backup, recovery verification, rotation and revocation without storing material in the repository."
+    ]
+  },
+  "MOB-009": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": [
+      "scripts/mobile/guard-release-build.mjs",
+      "scripts/mobile/artifact-manifest.mjs",
+      "package.json",
+      "docs/runbooks/MOBILE_SIGNING_AND_DISTRIBUTION.md",
+      "scripts/readiness/validate-f10-mobile.ts"
+    ],
+    "notes": [
+      "Fail-closed Android/iOS build guards and a checksum manifest are automated. No signed AAB or XCArchive was built: external keystore/provisioning inputs, Android JDK and a macOS/Xcode runner are required under MOBILE-BUILD-001."
+    ]
+  },
+  "MOB-010": {
+    "status": "PASS",
+    "evidence": [
+      "contracts/mobile/v1/distribution.json",
+      "contracts/mobile/v1/store-privacy.json",
+      "docs/mobile/STORE_LISTING_DRAFT.md",
+      "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md"
+    ],
+    "notes": [
+      "Distribution and privacy contracts explicitly say NOT_SUBMITTED/PREPARED_NOT_SUBMITTED; no store approval, publication date, certification or real-device result is claimed."
+    ]
   }
 }

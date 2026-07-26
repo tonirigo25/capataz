@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, program/orqena-production-readiness]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/capataz_test_schema?schema=public
+      - run: npx prisma generate
+      - run: npm run readiness:validate-f11
+      - run: npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=artifacts/vitest.xml
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          APP_ENV: test
+          NEXT_PUBLIC_APP_ENV: test
+          NEXT_PUBLIC_APP_MODE: test
+          PUBLIC_INDEXING_ENABLED: "false"
+          PUBLIC_PRICING_ENABLED: "false"
+          AI_ENABLED: "false"
+          AI_PROVIDER_MODE: off
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: application-test-results-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+  critical-database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: capataz_test_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capataz_test_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/capataz_test_ci?schema=public
+      CAPATAZ_TEST_DATABASE_ISOLATED: "true"
+      APP_ENV: test
+      NEXT_PUBLIC_APP_ENV: test
+      NODE_ENV: test
+      STORAGE_SIGNING_SECRET: synthetic-ci-storage-signing-secret-32
+      JOB_RUNNER_SECRET: synthetic-ci-job-runner-secret
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx prisma migrate status
+      - name: Auth, tenant and horizontal authorization
+        run: npx tsx scripts/readiness/validate-f5-postgres.ts
+      - name: Fiscal, numbering and golden files
+        run: npm run readiness:validate-f3 && npm run test:numbering-contract && npm run test:document-pdf
+      - name: Billing, email and storage contracts
+        run: npm run readiness:validate-f4 && npm run readiness:validate-f5
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+        env:
+          APP_ENV: development
+          NEXT_PUBLIC_APP_ENV: development
+          NEXT_PUBLIC_APP_MODE: test
+          PUBLIC_INDEXING_ENABLED: "false"
+          PUBLIC_PRICING_ENABLED: "false"
+          AI_ENABLED: "false"
+          AI_PROVIDER_MODE: off
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: browser-test-results-${{ github.sha }}
+          path: |
+            artifacts/
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 14

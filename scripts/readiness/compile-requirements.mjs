@@ -68,7 +68,7 @@ for (const item of requirements) {
 
 lines.push("external_gates:");
 for (const gate of externalGates.gates ?? []) {
-  if (!/^AI-LIVE-\d{3}$/.test(gate.id) || !validStatuses.has(gate.status)) throw new Error(`Invalid external gate: ${gate.id ?? "unknown"}`);
+  if (!/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+-\d{3}$/.test(gate.id) || !validStatuses.has(gate.status)) throw new Error(`Invalid external gate: ${gate.id ?? "unknown"}`);
   lines.push(
     `  - id: ${quote(gate.id)}`,
     `    phase: ${quote(gate.phase)}`,
