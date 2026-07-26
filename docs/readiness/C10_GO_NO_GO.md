@@ -12,14 +12,16 @@ despliegue y la matriz de revisión se mantienen en `LATEST_REVIEW.md`.
 | --- | --- | --- |
 | Review persistente aislado | PASS | `CONTINUOUS_REVIEW_TOPOLOGY.md` |
 | Web pública remota | PASS | `LATEST_REVIEW.md` y matriz Playwright |
-| Perfiles, permisos, estados y accesibilidad autenticada | IN_PROGRESS | `C5_AUDIT_MATRIX.md`; repetición final del único estado pendiente |
+| Perfiles, permisos y estados autenticados automatizados | PASS | 11 perfiles, 66 viewports, 21 permisos, 46 familias, 89 axe y 6/6 estados; resumen C5 |
+| Dispositivos, AT, zoom y baseline humanos | READY_FOR_EXTERNAL_INPUT | iOS/Android físicos, NVDA/VoiceOver, zoom real y aprobación visual |
+| Presupuesto público C3 | IN_PROGRESS | LCP local 2623 ms frente a 2500 ms; la capacidad remota sí pasa |
 | 43 migraciones y segundo arranque sin pendientes | PASS | pre-deploy y health de Railway |
 | Aislamiento tenant y recursos | PASS | fingerprints separados y pentest sintético |
 | Secretos, PII y providers live | PASS técnico | escaneo sin hallazgos; todos los providers siguen apagados |
 | Release notes y rollback | PASS técnico | matriz D2 y kill switches; canary real pendiente |
 
-No se promueve a staging mientras la matriz autenticada final no sea verde.
-Staging permanece intacto.
+No se promueve a staging mientras C3 y las entradas manuales obligatorias no
+sean verdes y exista autorización de promoción. Staging permanece intacto.
 
 ## Staging → producción
 
@@ -29,7 +31,7 @@ Staging permanece intacto.
 | Snapshot/backup previo verificable | READY_FOR_EXTERNAL_INPUT | requiere política, retención y ejecución en el recurso autorizado |
 | Restore hermano | PASS lógico en review / READY_FOR_EXTERNAL_INPUT nativo | el restore lógico remoto pasó; Railway Backup/PITR requiere cobertura Pro |
 | Gate completo de staging en el SHA exacto | READY_FOR_EXTERNAL_INPUT | no autorizado ni ejecutado para este candidato |
-| E2E pública y autenticada del SHA candidato | IN_PROGRESS | pública verde; autenticada en repetición final |
+| E2E pública y autenticada automatizada | PASS en review | pública y autenticada verdes; hardware/AT/manual siguen externos |
 | SHA/tag inmutable y artefacto trazable | IN_PROGRESS | existe RC de origen; el candidato final aún no se ha promovido desde `main` |
 | Propietario único de migraciones y rollback | PASS técnico | deploy path único y rollback forward-compatible documentado |
 | Aprobación humana y go/no-go firmado | READY_FOR_EXTERNAL_INPUT | no existe aún una aprobación de producción |
@@ -43,6 +45,16 @@ anteriores sean PASS y el go/no-go humano quede registrado. Hasta entonces:
   otro provider live permanecen desactivados;
 - el resultado del restore lógico no se usa como sustituto del ensayo con datos
   representativos ni del backup/PITR de producción.
+
+## Decisión registrada
+
+- Decisión: `NO-GO`.
+- Alcance autorizado y ejecutado: `review` aislado únicamente.
+- Staging: sin cambios.
+- Producción: sin cambios.
+- Motivos decisivos: C3 LCP abierto; snapshot representativo, backup/PITR
+  nativo, gate completo de staging y aprobación humana aún
+  `READY_FOR_EXTERNAL_INPUT`.
 
 ## C11 posterior al lanzamiento
 

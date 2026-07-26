@@ -1,7 +1,8 @@
 # D2 release compatibility matrix
 
-Status: `IN_PROGRESS` until the automated contract and browser/PWA checks pass
-on the exact candidate SHA.
+Status: `READY_FOR_EXTERNAL_INPUT`. The automated flag, alias, schema,
+browser/PWA and review-recovery checks pass on the audited application SHA;
+staging canary and operational rollback still require promotion authorization.
 
 | Surface | Old state accepted during rollout | New state | Rollback expectation |
 | --- | --- | --- | --- |

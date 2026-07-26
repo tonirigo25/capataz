@@ -89,7 +89,7 @@ async function main() {
     assert(secret);
     const factor = await prisma.mfaFactor.findUniqueOrThrow({ where: { id: enrollment.factorId } });
     assert.doesNotMatch(`${factor.ciphertext}${factor.authenticationTag}`, new RegExp(secret, "u"));
-    const token = await generate({ secret, epoch: now.getTime() });
+    const token = await generate({ secret, epoch: Math.floor(now.getTime() / 1_000) });
     await confirmTotpEnrollment({ prisma, userId: userA.id, factorId: factor.id, token, keyring, now });
     await verifySessionSecondFactor({ prisma, userId: userA.id, sessionId: session.id, token, keyring, now });
     const verified = await prisma.session.findUniqueOrThrow({ where: { id: session.id } });

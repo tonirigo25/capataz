@@ -139,12 +139,15 @@ async function main() {
 
   await prisma.platformAccount.upsert({ where: { userId: owner.id }, update: { role: "PLATFORM_OWNER", status: "ACTIVE" }, create: { userId: owner.id, role: "PLATFORM_OWNER", status: "ACTIVE" } });
   let ownerMfaToken: string | null = null;
+  let ownerMfaSecret: string | null = null;
   if (process.env.ORQENA_REVIEW_PROVISION_MFA === "true") {
     const enrollment = await startTotpEnrollment({ prisma, userId: owner.id, email: owner.email });
     const secret = new URL(enrollment.uri).searchParams.get("secret");
     if (!secret) throw new Error("REVIEW_MFA_SECRET_MISSING");
-    ownerMfaToken = await generate({ secret });
-    await confirmTotpEnrollment({ prisma, userId: owner.id, factorId: enrollment.factorId, token: ownerMfaToken });
+    ownerMfaSecret = secret;
+    const mfaIssuedAt = new Date();
+    ownerMfaToken = await generate({ secret, epoch: Math.floor(mfaIssuedAt.getTime() / 1_000) });
+    await confirmTotpEnrollment({ prisma, userId: owner.id, factorId: enrollment.factorId, token: ownerMfaToken, now: mfaIssuedAt });
   }
   const rotateOwnerAccess = process.env.ORQENA_REVIEW_ROTATE_OWNER_ACCESS !== "false";
   const token = rotateOwnerAccess ? createOpaqueToken() : null;
@@ -165,7 +168,7 @@ async function main() {
     resetExpiresAt: token ? new Date(Date.now() + 60 * 60_000).toISOString() : null,
     ownerAccessRotated: Boolean(token),
     ownerMfaProvisioned: Boolean(ownerMfaToken),
-    ownerMfaToken,
+    ownerMfaSecret,
   })}\n`);
 }
 

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const source = readFileSync(join(process.cwd(), "lib/prisma.ts"), "utf8");
+const evidence = JSON.parse(readFileSync(join(process.cwd(), "docs/readiness/evidence/c3/review-runtime-pool.json"), "utf8"));
 
 assert.equal(
   (source.match(/new PrismaClient\(/gu) ?? []).length,
@@ -24,10 +25,17 @@ assert.doesNotMatch(
   /if\s*\(\s*process\.env\.NODE_ENV\s*!==\s*["']production["']\s*\)\s*\{[\s\S]*globalForPrisma\.prisma\s*=\s*prisma/u,
   "Standalone production route bundles must share the same process-global pool",
 );
+assert.equal(evidence.verdict, "PASS_REVIEW_RUNTIME_AND_SYNTHETIC_CAPACITY");
+assert.equal(evidence.productionCapacityClaim, false);
+assert.equal(evidence.availabilityClaim, false);
+assert.equal(evidence.phaseC3, "IN_PROGRESS");
+assert.ok(evidence.measurements.some(({ name, idleInTransaction }) => name === "after-authenticated-audit" && idleInTransaction === 0));
 
 process.stdout.write(`${JSON.stringify({
   ok: true,
   control: "C3",
   runtimePool: "PROCESS_GLOBAL_SINGLETON",
+  reviewEvidence: evidence.verdict,
+  phaseC3: evidence.phaseC3,
   regression: "standalone route bundles cannot allocate one pool per bundle",
 })}\n`);

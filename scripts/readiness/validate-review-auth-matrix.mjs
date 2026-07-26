@@ -1,12 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { generate } from "otplib";
 import { chromium, request as playwrightRequest } from "playwright";
 
 const EXPECTED_ORIGIN = "https://orqena-review-web-review.up.railway.app";
 const baseUrl = (process.env.ORQENA_REVIEW_BASE_URL ?? EXPECTED_ORIGIN).replace(/\/$/u, "");
 const password = process.env.ORQENA_REVIEW_QA_PASSWORD;
-const ownerMfaToken = process.env.ORQENA_REVIEW_OWNER_TOTP;
+let ownerMfaSecret = process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 const deployedSha = process.env.ORQENA_REVIEW_SHA ?? "unknown";
 const outputRoot = process.env.ORQENA_REVIEW_AUDIT_DIR ?? join(process.cwd(), "artifacts", "review-auth");
 const screenshotRoot = join(outputRoot, "screenshots");
@@ -14,7 +15,8 @@ const reportPath = join(outputRoot, "authenticated-matrix.json");
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
-if (!ownerMfaToken || !/^\d{6}$/u.test(ownerMfaToken)) throw new Error("ORQENA_REVIEW_OWNER_TOTP_REQUIRED");
+if (!ownerMfaSecret) throw new Error("ORQENA_REVIEW_OWNER_TOTP_SECRET_REQUIRED");
+delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 
 mkdirSync(screenshotRoot, { recursive: true });
 
@@ -192,7 +194,12 @@ async function login(browser, profile) {
     await waitForSettled(page, "/configuracion/seguridad:owner");
     const code = page.getByLabel("Código de seis cifras");
     if (await code.count() !== 1) throw new Error("OWNER_MFA_CHALLENGE_MISSING");
-    await code.fill(ownerMfaToken);
+    const totpStepMs = 30_000;
+    const remainingInStepMs = totpStepMs - (Date.now() % totpStepMs);
+    if (remainingInStepMs < 5_000) await page.waitForTimeout(remainingInStepMs + 250);
+    const currentOwnerMfaToken = await generate({ secret: ownerMfaSecret, epoch: Math.floor(Date.now() / 1_000) });
+    ownerMfaSecret = undefined;
+    await code.fill(currentOwnerMfaToken);
     await page.getByRole("button", { name: "Verificar", exact: true }).click();
     await page.getByText("Segundo factor verificado durante las últimas 12 horas.").waitFor({ state: "visible", timeout: 30_000 });
   }

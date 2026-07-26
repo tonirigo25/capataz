@@ -31,7 +31,7 @@ export async function readPendingTotpEnrollment(input: { prisma: PrismaClient; u
 export async function confirmTotpEnrollment(input: { prisma: PrismaClient; userId: string; factorId: string; token: string; keyring?: EncryptionKeyring; now?: Date }) {
   const factor = await input.prisma.mfaFactor.findFirstOrThrow({ where: { id: input.factorId, userId: input.userId, status: "PENDING" } });
   const secret = decryptFactor(factor, input.keyring ?? loadEncryptionKeyring());
-  const result = await verify({ secret, token: normalizeToken(input.token), epoch: input.now?.getTime() });
+  const result = await verify({ secret, token: normalizeToken(input.token), epoch: epochSeconds(input.now) });
   if (!result.valid) throw new Error("MFA_TOKEN_INVALID");
   const now = input.now ?? new Date();
   await input.prisma.$transaction(async (transaction) => {
@@ -44,7 +44,7 @@ export async function confirmTotpEnrollment(input: { prisma: PrismaClient; userI
 export async function verifySessionSecondFactor(input: { prisma: PrismaClient; userId: string; sessionId: string; token: string; keyring?: EncryptionKeyring; now?: Date }) {
   const factor = await input.prisma.mfaFactor.findFirstOrThrow({ where: { userId: input.userId, status: "ACTIVE", disabledAt: null }, orderBy: { confirmedAt: "desc" } });
   const secret = decryptFactor(factor, input.keyring ?? loadEncryptionKeyring());
-  const result = await verify({ secret, token: normalizeToken(input.token), epoch: input.now?.getTime() });
+  const result = await verify({ secret, token: normalizeToken(input.token), epoch: epochSeconds(input.now) });
   if (!result.valid) throw new Error("MFA_TOKEN_INVALID");
   const now = input.now ?? new Date();
   await input.prisma.$transaction(async (transaction) => {
@@ -71,4 +71,9 @@ function normalizeToken(value: string) {
   const token = value.replace(/\s+/g, "");
   if (!/^\d{6}$/.test(token)) throw new Error("MFA_TOKEN_INVALID");
   return token;
+}
+
+function epochSeconds(value: Date | undefined) {
+  // otplib v13 expects a Unix epoch in seconds when a deterministic clock is injected.
+  return value ? Math.floor(value.getTime() / 1_000) : undefined;
 }

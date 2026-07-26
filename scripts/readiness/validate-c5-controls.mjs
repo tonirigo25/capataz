@@ -28,6 +28,16 @@ for (const family of matrix.authenticatedFamilies) {
 const baseline = JSON.parse(read("contracts/visual/v1/baseline-approval.json"));
 assert.equal(baseline.approved, false);
 assert.equal(baseline.status, "READY_FOR_EXTERNAL_INPUT");
+const authenticatedEvidence = JSON.parse(read("docs/readiness/evidence/c5/remote-authenticated-summary.json"));
+assert.equal(authenticatedEvidence.automatedVerdict, "PASS");
+assert.equal(authenticatedEvidence.phaseC5, "READY_FOR_EXTERNAL_INPUT");
+assert.equal(authenticatedEvidence.summary.profiles, 11);
+assert.equal(authenticatedEvidence.summary.profileViewportCases, 66);
+assert.equal(authenticatedEvidence.summary.ownerSurfaceFamilies, 46);
+assert.equal(authenticatedEvidence.summary.stateCasesPassed, 6);
+assert.equal(authenticatedEvidence.summary.blockingFindings, 0);
+assert.ok(authenticatedEvidence.externalInputStillRequired.includes("NVDA"));
+assert.ok(authenticatedEvidence.externalInputStillRequired.includes("VoiceOver"));
 const today = read("app/(app)/hoy/page.tsx");
 assert.ok(today.includes("__orqena_review_state"));
 assert.ok(today.includes('process.env.NEXT_PUBLIC_APP_ENV === "preview"'));
@@ -39,4 +49,4 @@ for (const file of [
   "scripts/readiness/run-review-auth-audit.ps1",
   "lighthouserc.cjs",
 ]) assert.ok(read(file).length > 500, file);
-process.stdout.write(`${JSON.stringify({ ok: true, control: "C5-static", browsers: 3, viewports: matrix.viewports.length, publicRoutes: matrix.publicRoutes.length, authenticatedFamilies: matrix.authenticatedFamilies.length, visualBaseline: baseline.status })}\n`);
+process.stdout.write(`${JSON.stringify({ ok: true, control: "C5-static", browsers: 3, viewports: matrix.viewports.length, publicRoutes: matrix.publicRoutes.length, authenticatedFamilies: matrix.authenticatedFamilies.length, automatedAuthenticated: authenticatedEvidence.automatedVerdict, manualEvidence: authenticatedEvidence.phaseC5, visualBaseline: baseline.status })}\n`);

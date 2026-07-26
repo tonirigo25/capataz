@@ -90,6 +90,30 @@ No organization, project, selector or other sensitive identifier is recorded in 
 - Missing external evidence: repository-admin configuration of required reviewers on the staging and production GitHub environments.
 - Containment: the workflow cannot deploy and requires an explicit `confirm_no_deploy` input.
 
+## REVIEW-PERFORMANCE-001
+
+- Phase/control: C3 / public experience budget
+- Status: `IN_PROGRESS`
+- Observation: la ráfaga pública y la recuperación del `review` pasan sin errores, 429 ni HTTP 5xx, pero el Lighthouse local reproducible de `/` registró LCP `2623 ms` frente al máximo `2500 ms`.
+- Containment: no se declara PASS de C3, disponibilidad ni capacidad de producción; el entorno sigue con noindex y providers live apagados.
+- Required resolution: reducir y volver a medir el LCP con el mismo presupuesto versionado, sin rebajar el umbral.
+
+## AUTHENTICATED-MANUAL-001
+
+- Phase/control: C5 / V5
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: la automatización cubre perfiles sintéticos, permisos, viewports, estados, teclado y axe; no sustituye lectores de pantalla, zoom real ni dispositivos físicos.
+- Missing external evidence: NVDA y VoiceOver, Safari/iOS y Chrome/Android físicos, zoom 200%/400% real y aprobación humana de baselines.
+- Containment: los resultados automatizados se publican como subcontroles separados y ninguna prueba manual se representa como PASS.
+
+## REPRESENTATIVE-MIGRATION-001
+
+- Phase/control: C7 / C10
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: el restore lógico de datos sintéticos aislados pasó, pero no existe un snapshot representativo autorizado para el ensayo de migración previo a producción.
+- Missing external evidence: copia protegida y preferiblemente anonimizada, autorización de uso, criterios de reconciliación y propietario del go/no-go.
+- Containment: el restore sintético no desbloquea staging ni producción y no se usa como sustituto del backup/PITR nativo.
+
 ## DR-RESTORE-001
 
 - Phase/control: F11 / DATA-003

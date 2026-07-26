@@ -71,13 +71,14 @@ try {
   } else {
     Write-Output "REVIEW_ACCESS_PRESERVED=true"
   }
-  if (-not $seed.ownerMfaProvisioned -or $seed.ownerMfaToken -notmatch '^\d{6}$') {
+  if (-not $seed.ownerMfaProvisioned -or [string]::IsNullOrWhiteSpace([string]$seed.ownerMfaSecret)) {
     throw "REVIEW_MFA_HANDOFF_MISSING"
   }
 
   $env:ORQENA_REVIEW_BASE_URL = $reviewOrigin
   $env:ORQENA_REVIEW_SHA = $Sha
-  $env:ORQENA_REVIEW_OWNER_TOTP = [string]$seed.ownerMfaToken
+  $env:ORQENA_REVIEW_OWNER_TOTP_SECRET = [string]$seed.ownerMfaSecret
+  $seed.ownerMfaSecret = $null
   & npm run readiness:validate-review-auth
   if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
@@ -88,5 +89,5 @@ try {
   Remove-Item Env:ORQENA_REVIEW_ROTATE_OWNER_ACCESS -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_PROVISION_MFA -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_PUBLIC_DATABASE_URL -ErrorAction SilentlyContinue
-  Remove-Item Env:ORQENA_REVIEW_OWNER_TOTP -ErrorAction SilentlyContinue
+  Remove-Item Env:ORQENA_REVIEW_OWNER_TOTP_SECRET -ErrorAction SilentlyContinue
 }

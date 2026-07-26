@@ -364,5 +364,48 @@ workflows and did not call an external provider.
   in-line with no data. The auditor now requires that protected state and a
   real heading instead of incorrectly requiring a redirect.
 - Nine serious/critical axe cases, twelve multiple-primary-action observations
-  and one non-reproduced React hydration diagnostic remain open for the next
-  selector-level remote batch. V5 is `IN_PROGRESS`, not PASS.
+and one non-reproduced React hydration diagnostic remain open for the next
+selector-level remote batch. V5 is `IN_PROGRESS`, not PASS.
+
+## External closure continuation - pool, continuity and authenticated audit
+
+Continued on `codex/orqena-external-closure` without restarting the program or
+reopening F1-F11 except for demonstrated regressions. Staging and production
+remained unchanged.
+
+- Deployment `19ec8c69-9401-4c78-acae-9ae09842514c` served application SHA
+  `d22b42454d10baff0873e5a1afccf85db9bf49a5`, applied 43 migrations once and
+  passed live/ready/status/noindex checks.
+- A pre-audit Prisma error led to a direct database measurement of 107
+  connections, including 98 idle, against 100 maximum. The production-only
+  singleton omission in `lib/prisma.ts` was repaired and guarded; the review
+  database URL now uses `connection_limit=10` and `pool_timeout=10` without
+  changing staging or production.
+- Public synthetic bursts passed 30 requests per path at concurrency 10 with
+  zero failures/429, p95 302–524 ms and recovery 203–217 ms. Authenticated
+  bursts passed `/hoy`, `/dashboard` and `/clientes` with p95 724/534/502 ms.
+  After the full audit, the database reported 19 total, one active, ten idle
+  and zero idle-in-transaction connections.
+- The authenticated matrix passed 11 profiles, 66 profile/viewport cases, 21
+  authorization cases, 46 OWNER families, 89 axe cases and six of six state
+  cases, with zero blocking findings and zero HTTP 5xx during the successful
+  interval. Thirteen multiple-primary-action observations remain documented.
+- The MFA rerun demonstrated that deterministic F5 clock injection used
+  milliseconds where `otplib` v13 requires epoch seconds. The runtime/test
+  conversion and focal validator were corrected; the isolated F5 suite passed
+  12/12 after 43/43 migrations, with zero external calls or production writes.
+- A remote logical backup/restore into a sibling review PostgreSQL service
+  passed checksum, schema, migration, row and tenant-integrity checks. The
+  temporary service, volume, dump and client binaries were removed. Native
+  Railway backup/PITR and representative production data remain external.
+- GitHub checks for the audited application SHA passed application, browser,
+  critical-database, CodeQL, supply-chain, Prisma Compute and Railway review.
+- C3 remains `IN_PROGRESS` solely because the strict home Lighthouse LCP is
+  2623 ms versus 2500 ms. Manual devices/AT/zoom, legal/brand, representative
+  migration data, native backup/PITR, staging and human go/no-go remain
+  `READY_FOR_EXTERNAL_INPUT`. The production decision remains `NO-GO`.
+
+Evidence: `docs/readiness/evidence/c3/review-runtime-pool.json`,
+`docs/readiness/evidence/c5/remote-authenticated-summary.json`,
+`docs/readiness/evidence/c7/remote-restore-drill.json`,
+`docs/readiness/C10_GO_NO_GO.md` and `docs/readiness/LATEST_REVIEW.md`.
