@@ -35,5 +35,10 @@ assert.equal([
   "../public/brand/icon-maskable-512.png",
 ].every((path) => existsSync(new URL(path, import.meta.url))), true);
 assert.match(register, /service-worker\.js/);
+assert.match(sw, /event\.data\?\.type === "SKIP_WAITING"/);
+assert.doesNotMatch(sw, /addEventListener\("install"[\s\S]{0,180}self\.skipWaiting/u);
+assert.match(register, /Hay una versión nueva de Orqena preparada/);
+assert.match(register, /Sin conexión/);
+assert.match(register, /controllerchange/);
 
-console.log(JSON.stringify({ ok: true, tests: 24, elapsedMs: Date.now() - startedAt }));
+console.log(JSON.stringify({ ok: true, tests: 29, elapsedMs: Date.now() - startedAt }));

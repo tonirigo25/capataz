@@ -57,7 +57,7 @@ export async function getAndMeasureActivationStatus(
       ? new Date(Math.max(...completedDates.map((date) => date.getTime())))
       : null;
     const actorHash = createHash("sha256").update(input.actorId).digest("hex").slice(0, 24);
-    const measured: Array<{ name: string; occurredAt: Date; properties: { milestone: string; withinSevenDays: boolean; measurementVersion: string } }> = milestones
+    const measured: Array<{ name: string; occurredAt: Date; properties: Record<string, string | boolean | number> }> = milestones
       .filter((milestone) => milestone.completedAt)
       .map((milestone) => ({
         name: `activation.${milestone.key}.completed`,
@@ -65,6 +65,21 @@ export async function getAndMeasureActivationStatus(
         properties: { milestone: milestone.key, withinSevenDays: (milestone.completedAt as Date) <= deadlineAt, measurementVersion: "f7-v1" },
       }));
     if (completedAt) measured.push({ name: "activation.completed", occurredAt: completedAt, properties: { milestone: "all", withinSevenDays: completedAt <= deadlineAt, measurementVersion: "f7-v1" } });
+    const firstValue = milestones
+      .filter((milestone) => milestone.key !== "company" && milestone.completedAt)
+      .sort((left, right) => (left.completedAt as Date).getTime() - (right.completedAt as Date).getTime())[0];
+    if (firstValue?.completedAt) {
+      measured.push({
+        name: "activation.time_to_first_value",
+        occurredAt: firstValue.completedAt,
+        properties: {
+          milestone: firstValue.key,
+          minutes: Math.max(0, Math.round((firstValue.completedAt.getTime() - startedAt.getTime()) / 60_000)),
+          withinSevenDays: firstValue.completedAt <= deadlineAt,
+          measurementVersion: "addendum-a1-v1",
+        },
+      });
+    }
     const existing = measured.length ? await transaction.productEvent.findMany({
       where: { companyId: input.companyId, eventName: { in: measured.map((event) => event.name) } },
       select: { eventName: true },

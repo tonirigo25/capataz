@@ -9,14 +9,14 @@ def mobileUrlScheme = System.getenv("CAPATAZ_MOBILE_URL_SCHEME") ?: project.find
 def releaseSigningComplete = releaseKeystorePath && releaseKeystorePassword && releaseKeyAlias && releaseKeyPassword
 
 android {
-    namespace = "com.capataz.app"
+    namespace = "com.orqena.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.capataz.app"
+        applicationId "com.orqena.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0.0"
+        versionName "1.0.0-rc.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [mobileAppLinkHost: mobileAppLinkHost, mobileUrlScheme: mobileUrlScheme]
         aaptOptions {

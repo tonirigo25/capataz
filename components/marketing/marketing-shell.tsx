@@ -28,7 +28,7 @@ export function MarketingHeader() {
         <div className="flex items-center gap-1 sm:gap-2">
           <ThemeSwitcher compact />
           <Link href="/login" className="marketing-link-button marketing-login-link">Entrar</Link>
-          <Link href="/demo" className="marketing-button marketing-button--small">
+          <Link href="/contacto" className="marketing-button marketing-button--small">
             <span className="marketing-demo-long">Solicitar </span>demo <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
           <details className="relative xl:hidden">
@@ -53,9 +53,9 @@ export function MarketingFooter() {
           <BrandLockup />
           <p className="mt-4 max-w-sm text-sm leading-6 text-content-secondary">Un sistema de trabajo conectado para que cada persona encuentre contexto, avance y control.</p>
         </div>
-        <FooterLinks title="Producto" links={[["Producto", "/producto"], ["Sectores", "/sectores"], ["Planes", "/planes"], ["Seguridad", "/seguridad"]]} />
-        <FooterLinks title="Empezar" links={[["Solicitar demo", "/demo"], ["Contacto", "/contacto"], ["Beta privada", "/demo"], ["Entrar", "/login"]]} />
-        <FooterLinks title="Información" links={[["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Soporte", "/soporte"]]} />
+        <FooterLinks title="Producto" links={[["Producto", "/producto"], ["Sectores", "/sectores"], ["Calculadora de margen", "/recursos/calculadora-margen-obra"], ["Checklist de factura", "/recursos/checklist-factura-recibida"]]} />
+        <FooterLinks title="Empezar" links={[["Solicitar demo", "/contacto"], ["Demo rápida", "/demo"], ["Beta privada", "/contacto"], ["Entrar", "/login"]]} />
+        <FooterLinks title="Información" links={[["Estado", "/estado"], ["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Soporte", "/soporte"]]} />
       </div>
       <div className="marketing-container border-t border-border py-5 text-xs text-content-secondary">© {new Date().getFullYear()} {brand.productName}. {brand.tagline}</div>
     </footer>

@@ -2,6 +2,13 @@
 
 Status: `PREPARED_NOT_SUBMITTED`. This repository does not claim an App Store or Play Store publication.
 
+The public promise is versioned in
+`contracts/mobile/v1/capability-matrix.json`: responsive web and an installable
+PWA are RC capabilities; native wrappers are prepared but not submitted;
+signed builds, universal links on a controlled domain and store publication
+need external evidence. Offline mutations and native push notifications are
+not supported.
+
 ## Official architecture
 
 The Capacitor wrapper is a native client of the configured Orqena web backend. The backend remains the only source of truth for authentication, authorization, tenant context, business data, files and side effects. The wrapper contains no embedded production database, provider credential, customer data or offline mutation queue.

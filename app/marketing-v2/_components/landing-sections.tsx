@@ -24,10 +24,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { FaqAccordion } from "./faq-accordion";
 import { HumanControlDemo } from "./human-control-demo";
-import { JourneySelector } from "./journey-selector";
 import { entryFlows, type EntryId } from "./landing-data";
-import { LocalAccessForm } from "./local-access-form";
+import { ImmersiveJourney } from "./immersive-journey";
 import { ResponsibilityViews } from "./responsibility-views";
+import { DemoRequestForm } from "@/components/marketing/demo-request-form";
+import { RoiCalculator } from "./roi-calculator";
 import styles from "../page.module.css";
 import { brand } from "@/lib/brand";
 
@@ -137,17 +138,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section
-        id="como-funciona"
-        className={`${styles.section} ${styles.anchorTarget} ${styles.journeySection}`}
-      >
-        <SectionHeading
-          eyebrow="Recorrido conectado"
-          title="Del primer mensaje al cobro, sin volver a empezar."
-          text="Cada etapa recibe información, la relaciona con un registro y propone un siguiente paso. Nada avanza solo."
-        />
-        <JourneySelector />
-      </section>
+      <ImmersiveJourney />
 
       <section
         id="control"
@@ -262,6 +253,24 @@ export function LandingSections() {
         </div>
       </section>
 
+      <section className={`${styles.section} ${styles.proofSection}`} aria-labelledby="proof-title">
+        <div>
+          <span>Prueba pendiente</span>
+          <h2 id="proof-title">Casos, logos y testimonios sólo cuando exista permiso.</h2>
+          <p>
+            Este espacio queda reservado para evidencia de pilotos reales. No se
+            publican marcas, citas, ahorros ni resultados sintéticos como si fueran clientes.
+          </p>
+        </div>
+        <div className={styles.proofPlaceholders} aria-label="Evidencias todavía no publicadas">
+          <span>Caso medido · pendiente</span>
+          <span>Logo autorizado · pendiente</span>
+          <span>Testimonio consentido · pendiente</span>
+        </div>
+      </section>
+
+      <RoiCalculator />
+
       <section
         id="beta"
         className={`${styles.section} ${styles.anchorTarget} ${styles.betaSection}`}
@@ -308,7 +317,7 @@ export function LandingSections() {
           <BetaDetail
             icon={LockKeyhole}
             title="Acceso"
-            text="El formulario local no registra, envía ni concede acceso por sí mismo."
+            text="El formulario registra la solicitud; el acceso sólo se concede después de una revisión humana."
           />
         </div>
       </section>
@@ -327,14 +336,14 @@ export function LandingSections() {
         className={`${styles.section} ${styles.anchorTarget} ${styles.formSection}`}
       >
         <div className={styles.formIntro}>
-          <span>Solicitud local</span>
+          <span>Solicitud persistente</span>
           <h2>Cuéntanos qué necesitas ordenar.</h2>
           <p>
-            Completa el ejemplo para comprobar cómo sería la primera conversación.
-            En este sprint el contenido permanece únicamente en tu navegador.
+            La solicitud se guarda con consentimiento, deduplicación, rate limit y
+            atribución de campaña. No activa email live ni concede acceso.
           </p>
         </div>
-        <LocalAccessForm />
+        <DemoRequestForm kind="home" />
       </section>
 
       <section className={styles.finalCta}>
@@ -343,8 +352,8 @@ export function LandingSections() {
           <h2>Manda el primer audio. {brand.productName} hace el papeleo contigo.</h2>
         </div>
         <div>
-          <Link className={styles.finalPrimary} href="/demo">Probar {brand.productName}</Link>
-          <a className={styles.finalSecondary} href="#solicitar-acceso">Solicitar acceso</a>
+          <Link className={styles.finalPrimary} href="/contacto">Solicitar demo</Link>
+          <Link className={styles.finalSecondary} href="/demo">Ver demo rápida</Link>
         </div>
       </section>
     </>
@@ -363,16 +372,18 @@ export function MarketingFooter() {
         <nav aria-label={`Secciones de ${brand.productName}`}>
           <strong>Portada</strong>
           <a href="#producto">Producto</a>
-          <a href="#como-funciona">Cómo funciona</a>
-          <a href="#para-quien">Para quién</a>
-          <a href="#control">Seguridad</a>
-          <a href="#beta">Beta</a>
+          <Link href="/producto">Producto</Link>
+          <Link href="/soluciones">Soluciones</Link>
+          <Link href="/sectores">Sectores</Link>
+          <Link href="/seguridad">Seguridad</Link>
+          <Link href="/demo">Demo rápida</Link>
         </nav>
         <nav aria-label="Acceso y ayuda">
           <strong>Acceso</strong>
           <Link href="/login">Entrar</Link>
           <Link href="/soporte">Soporte</Link>
-          <a href="#solicitar-acceso">Solicitar acceso</a>
+          <Link href="/estado">Estado</Link>
+          <Link href="/contacto">Solicitar demo</Link>
         </nav>
         <nav aria-label="Información legal">
           <strong>Legal</strong>

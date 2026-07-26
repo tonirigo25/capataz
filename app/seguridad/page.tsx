@@ -46,7 +46,7 @@ export default function SecurityPage() {
 
       <section className="marketing-container security-close">
         <CheckCircle2 />
-        <div><h2>Sin certificaciones inventadas.</h2><p>El alcance actual describe controles reales del producto. Cualquier certificación futura se comunicará solo después de obtenerla.</p></div>
+        <div><h2>Sin certificaciones ni canales inventados.</h2><p>El alcance actual describe controles reales del producto. No se publica todavía un canal responsable de vulnerabilidades: necesita propietario, monitorización y prueba de extremo a extremo. Cualquier certificación futura se comunicará solo después de obtenerla.</p></div>
         <Link href="/contacto">Hablar con el equipo <ArrowRight size={16} /></Link>
       </section>
     </MarketingPage>

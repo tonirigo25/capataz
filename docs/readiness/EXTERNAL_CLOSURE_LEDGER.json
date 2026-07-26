@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "orqena-external-closure-ledger-v1",
+  "sourceSha": "a68a025ddc9589e6e915780156c6191df590fe60",
+  "verdict": "IN_PROGRESS",
+  "phases": [
+    { "id": "C0", "status": "IN_PROGRESS", "evidence": "docs/readiness/evidence/c0/audit-manifest.json" },
+    { "id": "C1", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
+    { "id": "C2", "status": "IN_PROGRESS", "evidence": "scripts/readiness/validate-c2-postgres.ts" },
+    { "id": "C3", "status": "IN_PROGRESS", "evidence": "artifacts/lighthouse" },
+    { "id": "C4", "status": "IN_PROGRESS", "evidence": "docs/readiness/C4_SEO_AND_TRUST.md" },
+    { "id": "C5", "status": "IN_PROGRESS", "evidence": "docs/readiness/C5_AUDIT_MATRIX.md" },
+    { "id": "C6", "status": "READY_FOR_EXTERNAL_INPUT" },
+    { "id": "C7", "status": "READY_FOR_EXTERNAL_INPUT" },
+    { "id": "C8", "status": "READY_FOR_EXTERNAL_INPUT" },
+    { "id": "C9", "status": "READY_FOR_EXTERNAL_INPUT" },
+    { "id": "C10", "status": "READY_FOR_EXTERNAL_INPUT" },
+    { "id": "C11", "status": "READY_FOR_EXTERNAL_INPUT" }
+  ],
+  "addendumControls": [
+    { "id": "A1", "status": "PASS", "evidence": "scripts/readiness/validate-addendum-product.mjs" },
+    { "id": "A2", "status": "PASS", "evidence": "contracts/product/terminology.v1.json" },
+    { "id": "A3", "status": "PASS", "evidence": "contracts/product/economic-status-copy.v1.json" },
+    { "id": "A4", "status": "PASS", "evidence": "contracts/mobile/v1/capability-matrix.json" },
+    { "id": "B1", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Requires moderated comprehension sessions with real target users" },
+    { "id": "B2", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Requires 30 real interviews and externally approved partner outreach" },
+    { "id": "B3", "status": "PASS", "evidence": "scripts/readiness/validate-addendum-acquisition.mjs" },
+    { "id": "C1", "status": "PASS", "evidence": "tests/e2e/public-matrix.spec.ts" },
+    { "id": "C2", "status": "READY_FOR_EXTERNAL_INPUT", "evidence": "scripts/readiness/run-c5-low-end-isolated.mjs", "reason": "Synthetic low-end CPU/network gate passed; real Safari/iOS and Chrome/Android require external hardware" },
+    { "id": "C3", "status": "IN_PROGRESS", "reason": "Capacity contract exists; isolated remote load and recovery evidence is pending a green review deployment" },
+    { "id": "C4", "status": "PASS", "evidence": "scripts/validate-pwa-safety.mjs" },
+    { "id": "C5", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "NVDA and VoiceOver manual evidence requires assisted-device execution" },
+    { "id": "D1", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Requires an authorized sanitized representative production snapshot" },
+    { "id": "D2", "status": "PASS", "evidence": "docs/readiness/RELEASE_COMPATIBILITY_MATRIX.md" },
+    { "id": "E", "status": "PASS", "evidence": "scripts/readiness/validate-c2-funnel.mjs" },
+    { "id": "F", "status": "READY_FOR_EXTERNAL_INPUT", "evidence": "docs/runbooks/RESPONSIBLE_DISCLOSURE.md", "reason": "Disclosure, degradation and honest status controls are prepared; operational channel and rotation/certificate drills need external authorization and infrastructure" },
+    { "id": "G", "status": "PASS", "evidence": "docs/readiness/TECHNICAL_DEBT_REGISTER.md" }
+  ],
+  "visibleReviewControls": [
+    { "id": "V0", "status": "PASS", "evidence": "docs/readiness/CONTINUOUS_REVIEW_TOPOLOGY.md" },
+    { "id": "V1", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
+    { "id": "V2", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
+    { "id": "V3", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Release waves depend on the representative-data, staging, restore and human go/no-go gates" },
+    { "id": "V4", "status": "IN_PROGRESS", "evidence": "docs/readiness/C5_AUDIT_MATRIX.md" },
+    { "id": "V5", "status": "PENDING", "reason": "Authenticated route/profile/state audit has not yet run on the persistent review environment" },
+    { "id": "V6", "status": "PENDING", "reason": "Historical regression will be executed after the remote review candidate is green" },
+    { "id": "V7", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Staging and production promotion require the authorized representative-data and human go/no-go inputs" },
+    { "id": "V8", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" }
+  ]
+}

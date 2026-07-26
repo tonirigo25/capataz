@@ -8,14 +8,19 @@ export default defineConfig({
   outputDir: "test-results/playwright",
   reporter: [["list"], ["junit", { outputFile: "artifacts/playwright.xml" }]],
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 2,
   use: {
     baseURL,
+    serviceWorkers: "block",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     command: "npm run start",
     url: baseURL,

@@ -11,6 +11,7 @@ export const firstPartyEventCatalog: Record<string, EventRule> = {
   "activation.budget.completed": { milestone: ["budget"], withinSevenDays: "boolean", measurementVersion: ["f7-v1"] },
   "activation.document.completed": { milestone: ["document"], withinSevenDays: "boolean", measurementVersion: ["f7-v1"] },
   "activation.completed": { milestone: ["all"], withinSevenDays: "boolean", measurementVersion: ["f7-v1"] },
+  "activation.time_to_first_value": { milestone: ["client", "budget", "document"], minutes: "number", withinSevenDays: "boolean", measurementVersion: ["addendum-a1-v1"] },
   "onboarding.session": { durationMinutes: "number", completed: "boolean", version: ["v1"] },
   "outcome.time_saved": { minutes: "number", methodology: ["self_reported", "workflow_baseline_v1"] },
   "outcome.debt_recovered": { amountEur: "number", methodology: ["overdue_payment_v1"] },
@@ -19,6 +20,16 @@ export const firstPartyEventCatalog: Record<string, EventRule> = {
   "feedback.csat": { score: "number", consent: ["explicit"] },
   "support.session": { minutes: "number", category: ["ACCESS", "BILLING", "DOCUMENTS", "OPERATIONS", "PRIVACY", "OTHER"] },
   "web.vital": { metric: ["LCP", "CLS", "INP", "FCP", "TTFB"], value: "number", rating: ["good", "needs-improvement", "poor"], routeGroup: ["public", "auth", "app", "platform"] },
+  "funnel.hero_cta": { target: ["quick_demo", "deep_demo", "contact"] },
+  "funnel.quick_demo_started": { mode: ["60-90s"] },
+  "funnel.quick_demo_completed": { mode: ["60-90s"] },
+  "funnel.contact_form_started": { form: ["home", "contact", "demo"] },
+  "funnel.contact_form_error": { form: ["home", "contact", "demo"], error: ["validation", "rate_limited", "network", "server"] },
+  "funnel.contact_form_success": { form: ["home", "contact", "demo"] },
+  "funnel.booked_demo": { source: ["approved_calendar", "platform"] },
+  "funnel.resource_used": { resource: ["work_margin_calculator", "received_invoice_checklist"] },
+  "funnel.resource_cta": { resource: ["work_margin_calculator", "received_invoice_checklist"], target: ["contact"] },
+  "invitation.accepted": { source: ["invitation"] },
 };
 
 const SENSITIVE_VALUE = /sk-(?:proj-)?|Bearer\s+|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:\+34[ .-]?)?[6789](?:[ .-]?\d){8}\b|\b(?:[XYZ]\d{7,8}[A-Z]|\d{8}[A-Z])\b/i;

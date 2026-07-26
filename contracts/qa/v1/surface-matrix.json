@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "orqena-surface-audit-v1",
+  "viewports": [320, 390, 768, 1024, 1440, 1920],
+  "themes": ["light", "dark", "system"],
+  "motion": ["normal", "reduced"],
+  "states": ["default", "empty", "loading", "error", "read-only", "restricted"],
+  "publicRoutes": [
+    "/", "/demo", "/marketing-v2", "/demo-v2", "/producto", "/soluciones",
+    "/sectores", "/planes", "/seguridad", "/estado", "/contacto", "/soporte",
+    "/privacidad", "/terminos", "/cookies", "/politicas", "/login", "/registro",
+    "/recuperar-contrasena", "/verificar-email", "/offline.html", "/route-that-does-not-exist",
+    "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida"
+  ],
+  "authenticatedFamilies": [
+    { "id": "onboarding-company", "routes": ["/onboarding", "/seleccionar-empresa", "/configuracion/empresa"] },
+    { "id": "home-dashboard", "routes": ["/hoy", "/dashboard"] },
+    { "id": "crm", "routes": ["/clientes", "/clientes/:id", "/contactos"] },
+    { "id": "work", "routes": ["/obras", "/obras/:id"] },
+    { "id": "sales", "routes": ["/presupuestos", "/presupuestos/:id"] },
+    { "id": "receivables", "routes": ["/dinero", "/dinero/:id", "/tesoreria"] },
+    { "id": "procurement", "routes": ["/proveedores", "/gastos-materiales", "/facturas-recibidas"] },
+    { "id": "operations", "routes": ["/agenda", "/actividad", "/tareas", "/recordatorios", "/alertas"] },
+    { "id": "documents", "routes": ["/documentos", "/documentos/plantillas"] },
+    { "id": "automation-intelligence", "routes": ["/automatizaciones", "/recomendaciones", "/inteligencia"] },
+    { "id": "orqena", "routes": ["/capataz", "/capataz/historial", "/configuracion/ia"] },
+    { "id": "team-access", "routes": ["/equipo", "/configuracion/accesos", "/configuracion/seguridad"] },
+    { "id": "account-governance", "routes": ["/configuracion", "/plan-y-uso", "/privacidad", "/soporte"] },
+    { "id": "platform", "routes": ["/plataforma", "/plataforma/salud", "/plataforma/observabilidad"] }
+  ],
+  "profiles": [
+    "OWNER", "GENERAL_MANAGER", "SALES", "ADMINISTRATIVE", "FINANCE",
+    "PROCUREMENT_MANAGER", "PROJECT_MANAGER", "TEAM_SUPERVISOR", "WORKER",
+    "EXTERNAL_COLLABORATOR", "ADVISOR_AUDITOR", "PLATFORM_OWNER"
+  ],
+  "manualExternal": [
+    "Safari on physical iOS",
+    "Chrome on physical Android",
+    "NVDA on Windows",
+    "VoiceOver on macOS and iOS",
+    "200 and 400 percent zoom review"
+  ]
+}

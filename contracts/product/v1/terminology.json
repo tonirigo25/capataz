@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "orqena-terminology-v1",
+  "scope": "visible-product-language",
+  "profiles": {
+    "construction": {
+      "workSingular": "Obra",
+      "workPlural": "Obras",
+      "owner": "Jefe de obra",
+      "progress": "Avance",
+      "allowedPublicAliases": ["reforma", "proyecto de obra"],
+      "forbiddenInterchangeableTerms": ["caso", "orden de trabajo"]
+    },
+    "installations": {
+      "workSingular": "Instalación",
+      "workPlural": "Instalaciones",
+      "owner": "Técnico responsable",
+      "progress": "Ejecución",
+      "allowedPublicAliases": ["servicio", "mantenimiento"],
+      "forbiddenInterchangeableTerms": ["obra nueva", "caso"]
+    }
+  },
+  "surfacePolicy": {
+    "publicWeb": "Use the selected public ICP term explicitly; do not imply a second generic sector.",
+    "authenticatedProduct": "Resolve labels from the company business profile and explicit overrides.",
+    "emailAndPdf": "Use stored business nouns and document type; never infer a different sector.",
+    "technicalCode": "Legacy Spanish and CAPATAZ identifiers are compatibility aliases, not visible copy."
+  }
+}

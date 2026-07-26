@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T14:04:32.426Z",
+  "generatedAt": "2026-07-26T19:12:09.714Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -2029,6 +2029,27 @@
       ],
       "operation": "COMMAND",
       "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#updateDemoRequest",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "updateDemoRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/demo-request-use-cases.ts",
       "postEffects": {
         "revalidate": true,
         "redirect": false,

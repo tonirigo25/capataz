@@ -8,7 +8,7 @@ import { marketingSectorCatalog } from "@/lib/marketing/catalog";
 
 export const metadata: Metadata = {
   title: "Sectores",
-  description: `Trece perfiles sectoriales que adaptan lenguaje, prioridades y recorridos de ${brand.productName}.`,
+  description: `${brand.productName} para empresas de construcción, reformas e instalaciones de 1 a 20 personas.`,
   alternates: { canonical: "/sectores" },
   openGraph: { title: `Sectores ${brand.productName}`, description: "Una base común con un lenguaje que encaja en cada actividad.", images: [brand.socialImage] },
 };
@@ -18,7 +18,7 @@ export default function SectorsPage() {
     <MarketingPage>
       <section className="sectors-hub">
         <div className="marketing-container">
-          <div><p className="marketing-eyebrow">Trece perfiles sectoriales</p><h1>Una base común. Una operación que habla tu idioma.</h1><p>El sector adapta terminología, prioridades y ejemplos. El aislamiento, los permisos y la confirmación humana permanecen.</p></div>
+          <div><p className="marketing-eyebrow">Un único ICP público</p><h1>Construcción, reformas e instalaciones. De 1 a 20 personas.</h1><p>Los ejemplos públicos se concentran en este tipo de empresa. El aislamiento, los permisos y la confirmación humana permanecen.</p></div>
           <div className="sectors-hub__legend"><span>Relación</span><span>Trabajo</span><span>Responsable</span><span>Resultado</span></div>
         </div>
       </section>
@@ -33,7 +33,7 @@ export default function SectorsPage() {
         ))}
       </section>
       <section className="sector-neutral">
-        <div className="marketing-container"><p className="marketing-eyebrow">Sin encasillarte</p><h2 className="marketing-title">“Otros” conserva un lenguaje neutral para actividades con un flujo propio.</h2><p>La configuración visible cambia; la base de seguridad no.</p><Link href="/sectores/otros" className="marketing-button">Explorar un perfil neutral <ArrowRight size={17} /></Link></div>
+        <div className="marketing-container"><p className="marketing-eyebrow">Alcance deliberado</p><h2 className="marketing-title">No prometemos encaje universal.</h2><p>El producto conserva perfiles internos, pero la propuesta pública y los pilotos se validan primero en obra, reformas e instalaciones.</p><Link href="/contacto" className="marketing-button">Contar mi caso <ArrowRight size={17} /></Link></div>
       </section>
     </MarketingPage>
   );

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "orqena-public-";
-const CACHE_NAME = `${CACHE_PREFIX}v2`;
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 const LEGACY_CACHE_NAMES = new Set(["capataz-v1", "capataz-public-v2"]);
 const OFFLINE_URL = "/offline.html";
 const INSTALL_RESOURCES = [OFFLINE_URL, "/brand/mark.svg"];
@@ -22,7 +22,10 @@ function isCacheableResponse(response) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(INSTALL_RESOURCES)));
-  self.skipWaiting();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {

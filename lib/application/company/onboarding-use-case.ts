@@ -9,12 +9,19 @@ export async function saveBusinessOnboarding(formData: FormData) {
   const sectorKey = String(formData.get("sectorKey") ?? "");
   if (!organizationTypes.includes(organizationType as never) || !sectorKeys.includes(sectorKey as never)) throw new Error("Selecciona un perfil válido.");
   const workSingular = clean(formData, "workSingular"); const workPlural = clean(formData, "workPlural");
-  const completed = formData.get("complete") === "true";
+  const completion = String(formData.get("complete") ?? "false");
+  const completed = completion === "true" || completion === "skip";
+  const skippedOptional = completion === "skip";
   await prisma.company.update({ where: { id: auth.companyId }, data: {
     organizationType: organizationType as "SELF_EMPLOYED" | "COMPANY", sectorKey,
     nombreComercial: clean(formData, "displayName") || auth.companyName,
-    terminologyOverrides: workSingular || workPlural ? { ...(workSingular ? { workSingular } : {}), ...(workPlural ? { workPlural } : {}) } : undefined,
-    businessProfileVersion: "1", onboardingState: { step: completed ? 7 : Number(formData.get("step") ?? 1), mainGoal: clean(formData, "mainGoal"), firstAction: clean(formData, "firstAction") },
+    terminologyOverrides: !skippedOptional && (workSingular || workPlural) ? { ...(workSingular ? { workSingular } : {}), ...(workPlural ? { workPlural } : {}) } : undefined,
+    businessProfileVersion: "1", onboardingState: {
+      step: completed ? 2 : Number(formData.get("step") ?? 1),
+      mainGoal: skippedOptional ? "" : clean(formData, "mainGoal"),
+      firstAction: skippedOptional ? "" : clean(formData, "firstAction"),
+      optionalSkipped: skippedOptional,
+    },
     onboardingCompletedAt: completed ? new Date() : undefined,
   } });
   revalidatePath("/onboarding"); revalidatePath("/hoy"); revalidatePath("/configuracion");

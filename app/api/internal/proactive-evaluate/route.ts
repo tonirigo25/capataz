@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { runProactiveEvaluation, type ProactiveEvaluationType } from "@/lib/proactive-evaluation";
 import { processAutomationMaintenance } from "@/lib/automations/automation-scheduler";
+import { pruneExpiredDemoRequests } from "@/lib/commercial/demo-retention";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,10 +23,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [result,automations] = await Promise.all([runProactiveEvaluation({
+    const retentionEnabled = process.env.DEMO_LEAD_RETENTION_ENABLED === "true";
+    const retentionDays = parseRetentionDays(process.env.DEMO_LEAD_RETENTION_DAYS);
+    const [result,automations,leadRetention] = await Promise.all([runProactiveEvaluation({
       type: "scheduled" satisfies ProactiveEvaluationType,
       triggeredBy: "railway_cron"
-    }),processAutomationMaintenance()]);
+    }),processAutomationMaintenance(), retentionEnabled
+      ? pruneExpiredDemoRequests(prisma, { retentionDays, dryRun: false })
+      : Promise.resolve({ dryRun: true, candidates: 0, deleted: 0, disabled: true })]);
     return NextResponse.json({
       ok: result.ok,
       locked: result.locked,
@@ -33,13 +39,20 @@ export async function POST(request: Request) {
       message: result.message,
       summary: result.summary,
       proactive: result.summary,
-      automations
+      automations,
+      leadRetention
     }, { status: result.locked ? 423 : 200 });
   } catch {
     return NextResponse.json({ ok: false, error: "La reevaluación proactiva falló. Revisa el centro de control interno." }, { status: 500 });
   }
 
   });
+}
+
+function parseRetentionDays(value: string | undefined) {
+  const parsed = Number(value ?? "90");
+  if (!Number.isSafeInteger(parsed) || parsed < 30 || parsed > 3_650) throw new Error("DEMO_RETENTION_DAYS_INVALID");
+  return parsed;
 }
 
 function authorizeInternalRequest(request: Request) {

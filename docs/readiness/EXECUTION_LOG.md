@@ -1,5 +1,49 @@
 # Orqena production readiness execution log
 
+## Continuous review and C0-C5 integrated block — 2026-07-26
+
+- Created persistent Railway project `orqena-review-continuous`
+  (`c54a5065-df2c-46b9-a82b-cfac3be07315`) with dedicated review environment,
+  web service, PostgreSQL service/instance, volume and stable review domain.
+- Proved review/staging/production database references have distinct
+  fingerprints without printing their values. All public indexing, email,
+  billing, fiscal, AI and other live-provider flags remain off in review.
+- Baseline deployment `ad630afc-5c66-4616-95c3-eb591b06a287` at immutable SHA
+  `a68a025ddc9589e6e915780156c6191df590fe60` applied all 43 migrations but
+  failed the web health check. Runtime evidence isolated the cause to Railway's
+  injected `HOSTNAME`; the standalone launcher now binds `0.0.0.0` on Railway.
+- The failed baseline is not called green. Synthetic personas and one-time
+  owner access remain unprovisioned until the corrected deployment passes.
+- Integrated product/addendum controls A1-A4, B3, D2, E and G with executable
+  evidence. B1, B2, physical-device/manual accessibility, representative-data
+  migration and operational external approvals remain
+  `READY_FOR_EXTERNAL_INPUT`.
+- Public browser evidence passed 26 effective matrix cases across Chromium,
+  Firefox and WebKit plus six responsive widths; 28 browser-inapplicable cases
+  were explicitly skipped. F9 separately passed 18/18.
+- Synthetic low-end evidence passed four routes with 4x CPU throttling and
+  bounded 4G: LCP `312-1084 ms`, CLS `0`. Lighthouse accepted all three routes
+  with accessibility and best-practices `1.00`; home LCP `2623 ms` keeps the
+  stricter C3 `2500 ms` target `IN_PROGRESS`.
+- Staging and production were not modified.
+
+## C0 external product/marketing closure — 2026-07-26
+
+- Froze `main` at `64cf8bbbca8ed99aabce4fbc50ebfb163fc05367`
+  and the immutable program source at
+  `a68a025ddc9589e6e915780156c6191df590fe60`.
+- Verified the production Railway web deployment still serves the `main` SHA;
+  no production or persistent-staging mutation was performed.
+- Closed superseded PR #24 without merge and preserved its source branch.
+- Created and published annotated candidate tag `orqena-rc-2026.07.1` on the
+  immutable program source.
+- Aligned package, native identifiers, examples and store drafts to Orqena,
+  preserving `CAPATAZ_*` and `/capataz` only as compatibility aliases.
+- Replaced unapproved public-domain examples with `.invalid` placeholders and
+  removed the invented store-review credential.
+- Recorded repository visibility as an external legal/commercial decision:
+  current state public + proprietary, recommendation private before diligence.
+
 ## Program baseline
 
 - Program branch: `program/orqena-production-readiness`

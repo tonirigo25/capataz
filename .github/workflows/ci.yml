@@ -107,7 +107,7 @@ jobs:
           node-version: 22.18.0
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run build
         env:
           APP_ENV: development
@@ -118,6 +118,7 @@ jobs:
           AI_ENABLED: "false"
           AI_PROVIDER_MODE: off
       - run: npm run test:e2e
+      - run: npm run readiness:lighthouse
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
