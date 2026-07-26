@@ -77,7 +77,7 @@ const files = await Promise.all([
 ].map(async (path) => [path, await readFile(path, "utf8")] as const));
 const content = new Map(files);
 check("request-id-middleware", content.get("middleware.ts")?.includes("x-request-id"));
-check("csp-report-only", content.get("next.config.ts")?.includes("Content-Security-Policy-Report-Only"));
+check("csp-report-only", content.get("middleware.ts")?.includes('CSP_ENFORCE === "true" ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only"') && content.get("middleware.ts")?.includes("'nonce-${nonce}'") && !content.get("middleware.ts")?.includes("unsafe-eval"));
 check("railway-ready-path", content.get("railway.json")?.includes('"healthcheckPath": "/api/health/ready"'));
 check("server-client-instrumentation", content.get("instrumentation.ts")?.includes("registerOpenTelemetry") && content.get("instrumentation-client.ts")?.includes("client_observability_started"));
 check("transactional-outbox", content.get("lib/platform/outbox.ts")?.includes("FOR UPDATE SKIP LOCKED"));
