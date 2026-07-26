@@ -16,6 +16,7 @@
     "readiness:validate-context-boundaries": "node scripts/readiness/validate-context-boundaries.mjs && node scripts/readiness/validate-context-boundaries-negative.mjs",
     "readiness:seed-temporary-railway": "tsx scripts/readiness/seed-temporary-railway.ts",
     "readiness:provision-continuous-review": "tsx scripts/readiness/provision-continuous-review.ts",
+    "readiness:validate-review-auth": "node scripts/readiness/validate-review-auth-matrix.mjs",
     "readiness:validate-f2-postgres": "node scripts/readiness/run-f2-postgres-isolated.mjs",
     "readiness:validate-f2-health": "node scripts/readiness/validate-f2-health-isolated.mjs",
     "readiness:validate-f3": "tsx scripts/readiness/validate-f3-fiscal.ts",

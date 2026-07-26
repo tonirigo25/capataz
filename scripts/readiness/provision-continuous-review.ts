@@ -1,8 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { generate } from "otplib";
 import { prisma } from "../../lib/prisma";
 import { createOpaqueToken, hashPassword, hashToken } from "../../lib/auth/crypto";
 import { ensureBasePlans, provisionCompany } from "../../lib/commercial/provisioning";
 import { profileDefaultPackages } from "../../lib/commercial/functional-profiles";
+import { confirmTotpEnrollment, startTotpEnrollment } from "../../lib/security/mfa";
 
 const EXPECTED_PROJECT_ID = "c54a5065-df2c-46b9-a82b-cfac3be07315";
 const EXPECTED_ENVIRONMENT_ID = "e41b5add-511c-4697-b2b5-48164506f49a";
@@ -136,9 +138,20 @@ async function main() {
   await prisma.taskAssignment.createMany({ data: ["project-manager", "supervisor", "worker", "external"].map((key) => ({ taskId: task.id, userId: users.get(key)!.id, role: "responsible" })) });
 
   await prisma.platformAccount.upsert({ where: { userId: owner.id }, update: { role: "PLATFORM_OWNER", status: "ACTIVE" }, create: { userId: owner.id, role: "PLATFORM_OWNER", status: "ACTIVE" } });
-  const token = createOpaqueToken();
-  await prisma.passwordResetToken.updateMany({ where: { userId: owner.id, usedAt: null }, data: { usedAt: new Date() } });
-  await prisma.passwordResetToken.create({ data: { userId: owner.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 60 * 60_000) } });
+  let ownerMfaToken: string | null = null;
+  if (process.env.ORQENA_REVIEW_PROVISION_MFA === "true") {
+    const enrollment = await startTotpEnrollment({ prisma, userId: owner.id, email: owner.email });
+    const secret = new URL(enrollment.uri).searchParams.get("secret");
+    if (!secret) throw new Error("REVIEW_MFA_SECRET_MISSING");
+    ownerMfaToken = await generate({ secret });
+    await confirmTotpEnrollment({ prisma, userId: owner.id, factorId: enrollment.factorId, token: ownerMfaToken });
+  }
+  const rotateOwnerAccess = process.env.ORQENA_REVIEW_ROTATE_OWNER_ACCESS !== "false";
+  const token = rotateOwnerAccess ? createOpaqueToken() : null;
+  if (token) {
+    await prisma.passwordResetToken.updateMany({ where: { userId: owner.id, usedAt: null }, data: { usedAt: new Date() } });
+    await prisma.passwordResetToken.create({ data: { userId: owner.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 60 * 60_000) } });
+  }
   await prisma.auditLog.create({ data: { companyId: primary.id, userActorId: owner.id, action: "continuous_review.provisioned", targetType: "Company", targetId: primary.id, metadata: { synthetic: true, version: 1, profiles: profiles.length, negativeTenantId: negativeTenant.id } } });
 
   process.stdout.write(`${JSON.stringify({
@@ -148,8 +161,11 @@ async function main() {
     profiles: profiles.map(({ key, profile, readOnly }) => ({ key, profile, readOnly: Boolean(readOnly) })),
     platformOwner: true,
     passwordPrinted: false,
-    resetUrl: `${REVIEW_ORIGIN}/restablecer-contrasena?token=${encodeURIComponent(token)}`,
-    resetExpiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+    resetUrl: token ? `${REVIEW_ORIGIN}/restablecer-contrasena?token=${encodeURIComponent(token)}` : null,
+    resetExpiresAt: token ? new Date(Date.now() + 60 * 60_000).toISOString() : null,
+    ownerAccessRotated: Boolean(token),
+    ownerMfaProvisioned: Boolean(ownerMfaToken),
+    ownerMfaToken,
   })}\n`);
 }
 

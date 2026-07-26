@@ -12,19 +12,19 @@
     "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida"
   ],
   "authenticatedFamilies": [
-    { "id": "onboarding-company", "routes": ["/onboarding", "/seleccionar-empresa", "/configuracion/empresa"] },
+    { "id": "onboarding-company", "routes": ["/onboarding", "/crear-empresa", "/seleccionar-empresa", "/demo-guiada"] },
     { "id": "home-dashboard", "routes": ["/hoy", "/dashboard"] },
-    { "id": "crm", "routes": ["/clientes", "/clientes/:id", "/contactos"] },
+    { "id": "crm", "routes": ["/clientes", "/clientes/:id"] },
     { "id": "work", "routes": ["/obras", "/obras/:id"] },
-    { "id": "sales", "routes": ["/presupuestos", "/presupuestos/:id"] },
+    { "id": "sales", "routes": ["/presupuestos", "/presupuestos/:id", "/presupuestos/plantillas"] },
     { "id": "receivables", "routes": ["/dinero", "/dinero/:id", "/tesoreria"] },
-    { "id": "procurement", "routes": ["/proveedores", "/gastos-materiales", "/facturas-recibidas"] },
-    { "id": "operations", "routes": ["/agenda", "/actividad", "/tareas", "/recordatorios", "/alertas"] },
-    { "id": "documents", "routes": ["/documentos", "/documentos/plantillas"] },
+    { "id": "procurement", "routes": ["/proveedores", "/subcontratas", "/gastos-materiales", "/gastos-materiales/lector", "/facturas-proveedor", "/facturas-subcontratas"] },
+    { "id": "operations", "routes": ["/agenda", "/actividad", "/tareas", "/tareas/:id", "/seguimientos", "/recordatorios", "/alertas"] },
+    { "id": "documents", "routes": ["/documentos"] },
     { "id": "automation-intelligence", "routes": ["/automatizaciones", "/recomendaciones", "/inteligencia"] },
-    { "id": "orqena", "routes": ["/capataz", "/capataz/historial", "/configuracion/ia"] },
-    { "id": "team-access", "routes": ["/equipo", "/configuracion/accesos", "/configuracion/seguridad"] },
-    { "id": "account-governance", "routes": ["/configuracion", "/plan-y-uso", "/privacidad", "/soporte"] },
+    { "id": "orqena", "routes": ["/capataz", "/configuracion/memoria"] },
+    { "id": "team-access", "routes": ["/equipo", "/equipos", "/configuracion/seguridad"] },
+    { "id": "account-governance", "routes": ["/configuracion", "/plan-y-uso", "/configuracion/privacidad", "/configuracion/soporte", "/auditoria"] },
     { "id": "platform", "routes": ["/plataforma", "/plataforma/salud", "/plataforma/observabilidad"] }
   ],
   "profiles": [

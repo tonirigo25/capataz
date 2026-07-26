@@ -287,3 +287,82 @@ Executed on `codex/readiness-completion-audit` from integrated program SHA `94c3
 - Production, persistent staging, Railway and provider projects were not modified. No deployment, real OpenAI call, live provider call, customer fixture, credential creation or secret exposure occurred.
 
 Evidence: `docs/readiness/evidence/f11/completion-audit.json` and the updated F11 audit manifest.
+
+## External closure C0-C5 and continuous review - IN PROGRESS
+
+Work continued on `codex/orqena-external-closure` without reopening F1-F11.
+The immutable source frontier was
+`a68a025ddc9589e6e915780156c6191df590fe60`; production and staging remained
+unchanged.
+
+- Created the isolated persistent Railway project
+  `c54a5065-df2c-46b9-a82b-cfac3be07315`, review environment
+  `e41b5add-511c-4697-b2b5-48164506f49a`, dedicated PostgreSQL service/volume,
+  dedicated web service/volume and stable domain
+  `https://orqena-review-web-review.up.railway.app`.
+- Verified by fingerprints, without printing connection strings, that review,
+  staging and production use distinct database URLs.
+- Baseline deployment `ad630afc-5c66-4616-95c3-eb591b06a287` on the immutable
+  source correctly failed its health check after all migrations because the
+  standalone launcher inherited Railway's container hostname. The repair binds
+  `0.0.0.0` only on Railway and its focal migration-owner regression passed.
+- Candidate deployment `61cb2e88-a34e-4e7d-9a3d-b8f881e9e91e` correctly
+  failed its npm 10 clean install. Regenerating the lockfile with npm 10.9.8
+  produced a reproducible clean install and zero dependency vulnerabilities.
+- Deployment `86b72560-b4fb-40c3-a0b7-638ccf320260` of
+  `766bbfeb17d399883113e83a959ce73326689d31` is `SUCCESS`. Its sole pre-deploy
+  migration owner applied all 43 tracked migrations with none pending;
+  live/ready/status health is HTTP 200.
+- Remote public smoke returned HTTP 200 for twelve routes/endpoints. The
+  Playwright public matrix passed 32 cases and explicitly skipped 28
+  inapplicable cases across Chromium, Firefox and WebKit, widths 320-1920,
+  reduced motion, axe, images, overflow and noindex.
+- Two identical synthetic demo submissions persisted one lead, one audit event
+  and one email outbox row; live email remained disabled. A cross-site request
+  returned 403 and persisted zero rows.
+- Provisioned two synthetic companies and eleven role-specific profiles. The
+  owner is PLATFORM_OWNER; passwords and cookies are never printed or
+  persisted. Each intentional access rotation creates a separately delivered
+  one-hour reset URL, while audit retries preserve the existing unused URL.
+- C0 release identity/provenance, the consented demo funnel, public story,
+  solution/trust/resource surfaces, PWA safety, exact Lighthouse assertions,
+  low-end checks and multi-browser public coverage are integrated. The home
+  Lighthouse LCP remains 2623 ms against the 2500 ms C3 target, so C3 is not
+  PASS.
+- Public indexing, live billing, live email, live fiscal transmission and all
+  other live providers remain disabled. Representative migration/restore,
+  staging, production go/no-go, real devices, assisted screen-reader review and
+  legal/commercial signatures remain open or `READY_FOR_EXTERNAL_INPUT`.
+
+Evidence: `docs/readiness/LATEST_REVIEW.md`,
+`docs/readiness/CONTINUOUS_REVIEW_TOPOLOGY.md`, the C0-C5 validators, remote
+Railway deployment records and ignored local browser artifacts under
+`artifacts/review-auth`.
+
+### First authenticated remote batch - FAILED with actionable evidence
+
+The first populated-role batch ran against review SHA
+`766bbfeb17d399883113e83a959ce73326689d31`; it did not mutate business
+workflows and did not call an external provider.
+
+- Covered eleven synthetic profiles at 320, 390, 768, 1024, 1440 and 1920 px,
+  22 allow/deny cases, 46 owner surface families and 90 axe cases.
+- Produced 112 ignored screenshots, ten distinct portal signatures, 63
+  blocking findings and 12 product observations.
+- No HTTP 5xx, overflow, broken image, external network request or
+  owner/worker portal-signature collision was found.
+- Demonstrated a shared nested-main regression: AppChrome rendered a `main`
+  around routes that already rendered `main`, `ListWorkspace` or
+  `RecordWorkspace`. The candidate now gives the screen component sole landmark
+  ownership and retains the skip target on a focusable neutral container.
+- Demonstrated eight pages whose reusable top `SectionHeader` was an `h2`.
+  The component now defaults to a page-level `h1`; the three known nested
+  section uses explicitly remain `h2`.
+- Added explicit labels to both private asset uploads and the privacy-request
+  type/reference controls.
+- The external collaborator's `/capataz` denial is intentionally rendered
+  in-line with no data. The auditor now requires that protected state and a
+  real heading instead of incorrectly requiring a redirect.
+- Nine serious/critical axe cases, twelve multiple-primary-action observations
+  and one non-reproduced React hydration diagnostic remain open for the next
+  selector-level remote batch. V5 is `IN_PROGRESS`, not PASS.

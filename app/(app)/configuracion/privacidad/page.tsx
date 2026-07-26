@@ -26,8 +26,8 @@ export default async function PrivacyCenterPage() {
     <section className="card mt-6 p-5">
       <h2 className="type-section-title">Nueva solicitud</h2>
       <form action={createPrivacyRequest} className="mt-4 grid gap-3 md:grid-cols-[1fr_1.4fr_auto]">
-        <select className="field" name="requestType" required>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        <input className="field" name="subjectReference" placeholder="Referencia verificada del interesado" required />
+        <select aria-label="Tipo de solicitud" className="field" name="requestType" required>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <input aria-label="Referencia verificada del interesado" className="field" name="subjectReference" placeholder="Referencia verificada del interesado" required />
         <button className="primary-button">Registrar</button>
       </form>
     </section>

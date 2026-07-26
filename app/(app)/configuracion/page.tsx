@@ -293,7 +293,7 @@ function AssetUpload({ kind, label, configured }: { kind: "logo" | "seal"; label
       <input type="hidden" name="assetKind" value={kind} />
       <p className="text-sm font-black text-obra-ink">{label}</p>
       <p className="mt-1 text-xs text-slate-600">{configured ? "Archivo privado configurado." : "Sin archivo configurado."} PNG, JPEG o WebP; máximo 5 MB.</p>
-      <input className="field mt-3" type="file" name="asset" accept="image/png,image/jpeg,image/webp" required />
+      <input aria-label={`Seleccionar ${label.toLowerCase()}`} className="field mt-3" type="file" name="asset" accept="image/png,image/jpeg,image/webp" required />
       <button type="submit" className="secondary-button mt-3 w-full">Subir archivo privado</button>
     </form>
   );

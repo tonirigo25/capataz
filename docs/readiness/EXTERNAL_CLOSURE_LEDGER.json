@@ -3,9 +3,9 @@
   "sourceSha": "a68a025ddc9589e6e915780156c6191df590fe60",
   "verdict": "IN_PROGRESS",
   "phases": [
-    { "id": "C0", "status": "IN_PROGRESS", "evidence": "docs/readiness/evidence/c0/audit-manifest.json" },
-    { "id": "C1", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
-    { "id": "C2", "status": "IN_PROGRESS", "evidence": "scripts/readiness/validate-c2-postgres.ts" },
+    { "id": "C0", "status": "PASS", "evidence": "docs/readiness/evidence/c0/audit-manifest.json" },
+    { "id": "C1", "status": "PASS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
+    { "id": "C2", "status": "PASS", "evidence": "scripts/readiness/validate-c2-postgres.ts" },
     { "id": "C3", "status": "IN_PROGRESS", "evidence": "artifacts/lighthouse" },
     { "id": "C4", "status": "IN_PROGRESS", "evidence": "docs/readiness/C4_SEO_AND_TRUST.md" },
     { "id": "C5", "status": "IN_PROGRESS", "evidence": "docs/readiness/C5_AUDIT_MATRIX.md" },
@@ -26,7 +26,7 @@
     { "id": "B3", "status": "PASS", "evidence": "scripts/readiness/validate-addendum-acquisition.mjs" },
     { "id": "C1", "status": "PASS", "evidence": "tests/e2e/public-matrix.spec.ts" },
     { "id": "C2", "status": "READY_FOR_EXTERNAL_INPUT", "evidence": "scripts/readiness/run-c5-low-end-isolated.mjs", "reason": "Synthetic low-end CPU/network gate passed; real Safari/iOS and Chrome/Android require external hardware" },
-    { "id": "C3", "status": "IN_PROGRESS", "reason": "Capacity contract exists; isolated remote load and recovery evidence is pending a green review deployment" },
+    { "id": "C3", "status": "IN_PROGRESS", "reason": "Review is green; isolated remote load, recovery and second-deploy capacity evidence is pending" },
     { "id": "C4", "status": "PASS", "evidence": "scripts/validate-pwa-safety.mjs" },
     { "id": "C5", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "NVDA and VoiceOver manual evidence requires assisted-device execution" },
     { "id": "D1", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Requires an authorized sanitized representative production snapshot" },
@@ -37,13 +37,13 @@
   ],
   "visibleReviewControls": [
     { "id": "V0", "status": "PASS", "evidence": "docs/readiness/CONTINUOUS_REVIEW_TOPOLOGY.md" },
-    { "id": "V1", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
-    { "id": "V2", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
+    { "id": "V1", "status": "PASS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
+    { "id": "V2", "status": "PASS", "evidence": "docs/readiness/LATEST_REVIEW.md" },
     { "id": "V3", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Release waves depend on the representative-data, staging, restore and human go/no-go gates" },
     { "id": "V4", "status": "IN_PROGRESS", "evidence": "docs/readiness/C5_AUDIT_MATRIX.md" },
-    { "id": "V5", "status": "PENDING", "reason": "Authenticated route/profile/state audit has not yet run on the persistent review environment" },
+    { "id": "V5", "status": "IN_PROGRESS", "evidence": "docs/readiness/C5_AUDIT_MATRIX.md", "reason": "First remote authenticated matrix ran and failed with explicit findings; repaired candidate and remaining state/manual batches are pending" },
     { "id": "V6", "status": "PENDING", "reason": "Historical regression will be executed after the remote review candidate is green" },
     { "id": "V7", "status": "READY_FOR_EXTERNAL_INPUT", "reason": "Staging and production promotion require the authorized representative-data and human go/no-go inputs" },
-    { "id": "V8", "status": "IN_PROGRESS", "evidence": "docs/readiness/LATEST_REVIEW.md" }
+    { "id": "V8", "status": "PASS", "evidence": "docs/readiness/LATEST_REVIEW.md" }
   ]
 }
