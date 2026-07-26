@@ -30,6 +30,7 @@ export const prisma =
   globalForPrisma.prisma ??
   createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+// Next standalone may evaluate the shared module from more than one route
+// bundle in the same process. Keep one pool for the whole process in every
+// environment; serverless isolates still receive their own global scope.
+globalForPrisma.prisma = prisma;

@@ -94,9 +94,10 @@ No organization, project, selector or other sensitive identifier is recorded in 
 
 - Phase/control: F11 / DATA-003
 - Status: `READY_FOR_EXTERNAL_INPUT`
-- Observation: local fresh-schema, export/restore reference and checksum controls pass; remote policy activation was not attempted.
-- Missing external evidence: provider backup/PITR policy plus an authorized sibling-resource restore with measured RPO/RTO.
-- Containment: the procedure forbids restoring over the source; any real drill requires separate infrastructure authorization.
+- Observation: el 2026-07-26 pasó un backup/restore lógico remoto, transaccional y con checksum, en un servicio PostgreSQL hermano del `review` persistente. Se verificaron 43 migraciones, huella de 780 objetos de esquema, conteos de 155 tablas y cero relaciones tenant huérfanas; el origen no se sustituyó ni repuntó.
+- Cleanup evidence: el servicio y volumen temporales ya no aparecen en el entorno; sólo permanecen el web y PostgreSQL dedicados de review. El dump y los clientes PostgreSQL temporales se eliminaron después de la verificación.
+- Missing external evidence: política nativa de backup/PITR y restore nativo del proveedor. Railway mostró que esta capacidad requiere Pro mientras el entorno observado está en Hobby.
+- Containment: el resultado lógico no se presenta como prueba de PITR ni como ensayo de migración con datos representativos de producción; producción y staging no se tocaron.
 
 ## ASSET-TITLE-001
 

@@ -196,11 +196,16 @@ async function login(browser, profile) {
     await page.getByRole("button", { name: "Verificar", exact: true }).click();
     await page.getByText("Segundo factor verificado durante las últimas 12 horas.").waitFor({ state: "visible", timeout: 30_000 });
   }
-  if (diagnostics.events.length) throw new Error(`LOGIN_DIAGNOSTICS:${profile.key}:${JSON.stringify(diagnostics.events)}`);
+  const hydrationDiagnostics = diagnostics.events.filter((event) => event.includes("Minified React error #418"));
+  const unexpectedDiagnostics = diagnostics.events.filter((event) => !event.includes("Minified React error #418"));
+  if (hydrationDiagnostics.length) {
+    report.blockingFindings.push(`LOGIN_HYDRATION:${profile.key}:REACT_418`);
+  }
+  if (unexpectedDiagnostics.length) throw new Error(`LOGIN_DIAGNOSTICS:${profile.key}:${JSON.stringify(unexpectedDiagnostics)}`);
   if (diagnostics.externalHosts.size) throw new Error(`LOGIN_EXTERNAL_NETWORK:${profile.key}:${[...diagnostics.externalHosts].join(",")}`);
   const storageState = await context.storageState();
   await context.close();
-  return { storageState, durationMs: Date.now() - startedAt };
+  return { storageState, durationMs: Date.now() - startedAt, hydrationDiagnostics: hydrationDiagnostics.length };
 }
 
 async function auditCurrentPage(page, route, { axe = false } = {}) {
@@ -539,7 +544,12 @@ async function auditRepresentativeStates(browser, storageState) {
     const mainCount = await page.locator("main").count();
     const screenshot = join(screenshotRoot, "owner-state-error-1440.png");
     await page.screenshot({ path: screenshot, fullPage: true });
-    const expectedDiagnostics = diagnostics.events.filter((event) => event.includes("CONTINUOUS_REVIEW_SYNTHETIC_RENDER_ERROR") || event.includes("No se pudo preparar tu día") || event.includes("Error controlado"));
+    const expectedDiagnostics = diagnostics.events.filter((event) =>
+      event.includes("CONTINUOUS_REVIEW_SYNTHETIC_RENDER_ERROR")
+      || event.includes("No se pudo preparar tu día")
+      || event.includes("Error controlado")
+      || event === "console:Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
+    );
     const unexpectedDiagnostics = diagnostics.events.filter((event) => !expectedDiagnostics.includes(event));
     const findings = [];
     if (!errorVisible) findings.push("owner-state:error:ERROR_STATE_NOT_OBSERVED");
@@ -680,7 +690,12 @@ try {
   for (const profile of profiles) {
     const loginResult = await login(browser, profile);
     storageStates.set(profile.key, loginResult.storageState);
-    report.loginCases.push({ profile: profile.key, durationMs: loginResult.durationMs, mfa: profile.key === "owner" });
+    report.loginCases.push({
+      profile: profile.key,
+      durationMs: loginResult.durationMs,
+      mfa: profile.key === "owner",
+      hydrationDiagnostics: loginResult.hydrationDiagnostics,
+    });
   }
 
   for (const profile of profiles) {
