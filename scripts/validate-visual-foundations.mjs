@@ -65,7 +65,7 @@ const cases = [
   ["botones cubren variantes y carga", ["primary", "secondary", "ghost", "danger", "row", "aria-busy", "loadingLabel"].every((token) => primitives.includes(token))],
   ["navegación secundaria usa URL y overflow accesible", primitives.includes("<nav aria-label={label}") && primitives.includes("overflow-x-auto") && primitives.includes("aria-current=page")],
   ["estados semánticos no dependen de color heredado", ["active", "completed", "attention", "risk", "archived"].every((tone) => primitives.includes(tone)) && status.includes("bg-content/[0.08]")],
-  ["shell usa sidebar de 240 px y objetivos táctiles", chrome.includes("lg:pl-60") && chrome.includes("w-60") && styles.includes("--cap-control: 2.75rem")],
+  ["shell usa sidebar Field OS de 248 px y objetivos táctiles", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 248px") && styles.includes("--cap-control: 2.75rem")],
   ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
   ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Orqena") && !today.includes("¿Qué ha pasado hoy?")],
   ["Hoy limita la primera zona a tres señales", today.includes("portal.homeWidgets.slice(0, 3).map") && today.includes("Tus prioridades")],

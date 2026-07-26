@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, ArrowLeft, ChevronDown, Info, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Info, LockKeyhole, MoreHorizontal } from "lucide-react";
 import { clsx } from "clsx";
 import { ResponsiveFilterPanel } from "@/components/compact-filters";
 
@@ -118,8 +118,8 @@ export function EmptyState({
   secondaryAction?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-subtle p-5 text-center sm:p-6">
-      <Icon size={24} className="mx-auto text-content-tertiary" aria-hidden="true" />
+    <div className="field-os-state p-5 text-center sm:p-6" data-state="empty">
+      <span className="field-os-state__icon mx-auto" aria-hidden="true"><Icon size={22} /></span>
       <h2 className="type-object-title mt-3 text-content">{title}</h2>
       {description ? <p className="type-secondary mx-auto mt-2 max-w-xl">{description}</p> : null}
       {(action || secondaryAction) ? (
@@ -145,7 +145,7 @@ export function ErrorState({
 }) {
   const Heading = `h${headingLevel}` as "h1" | "h2";
   return (
-    <div role="alert" className="rounded-xl border border-danger/25 bg-danger/5 p-4 text-danger">
+    <div role="alert" className="field-os-state border-danger/25 bg-danger/5 p-4 text-danger" data-state="error">
       <div className="flex gap-3">
         <AlertTriangle size={21} className="mt-0.5 shrink-0" aria-hidden="true" />
         <div>
@@ -158,9 +158,36 @@ export function ErrorState({
   );
 }
 
+export function RestrictedState({
+  title,
+  description,
+  returnHref,
+  returnLabel = "Volver a mi portal",
+  secondaryAction,
+}: {
+  title: string;
+  description: string;
+  returnHref: string;
+  returnLabel?: string;
+  secondaryAction?: ReactNode;
+}) {
+  return (
+    <section className="field-os-state p-6 text-center" data-state="restricted" aria-labelledby="restricted-state-title">
+      <span className="field-os-state__icon mx-auto" aria-hidden="true"><LockKeyhole size={22} /></span>
+      <p className="type-label mt-4">Acceso restringido</p>
+      <h1 id="restricted-state-title" className="type-page-title mt-2 text-content">{title}</h1>
+      <p className="type-secondary mx-auto mt-3 max-w-xl">{description}</p>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <Link href={returnHref} className="primary-button">{returnLabel}</Link>
+        {secondaryAction}
+      </div>
+    </section>
+  );
+}
+
 export function LoadingState({ label = "Cargando datos..." }: { label?: string }) {
   return (
-    <div className="rounded-xl bg-subtle p-5" role="status" aria-label={label}>
+    <div className="field-os-state p-5" data-state="loading" role="status" aria-label={label}>
       <span className="sr-only">{label}</span>
       <div className="grid gap-3" aria-hidden="true">
         <Skeleton className="h-5 w-2/5" />
@@ -172,7 +199,7 @@ export function LoadingState({ label = "Cargando datos..." }: { label?: string }
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={clsx("animate-pulse rounded-lg bg-slate-200", className)} aria-hidden="true" />;
+  return <div className={clsx("field-os-skeleton", className)} aria-hidden="true" />;
 }
 
 export function Notice({

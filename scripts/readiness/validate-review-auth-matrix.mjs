@@ -395,7 +395,7 @@ async function auditPermissionRoute(browser, profile, storageState, route, expec
   };
 }
 
-async function auditOwnerSurface(browser, storageState, surface) {
+async function openOwnerSurface(browser, storageState, route) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     storageState,
@@ -403,7 +403,29 @@ async function auditOwnerSurface(browser, storageState, surface) {
   });
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
-  const result = await navigateAndAudit(page, surface.route, { axe: true });
+  const result = await navigateAndAudit(page, route, { axe: true });
+  return { context, page, diagnostics, result };
+}
+
+async function auditOwnerSurface(browser, storageState, surface) {
+  let attempt = await openOwnerSurface(browser, storageState, surface.route);
+  let transientDiagnostics = [];
+  const hydrationOnly = attempt.diagnostics.events.length > 0
+    && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
+  if (hydrationOnly) {
+    transientDiagnostics = [...attempt.diagnostics.events];
+    await attempt.context.close();
+    attempt = await openOwnerSurface(browser, storageState, surface.route);
+    report.productObservations.push({
+      severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+      context: `owner:1440:${surface.route}`,
+      code: "HYDRATION_REPLAY",
+      firstAttempt: transientDiagnostics,
+      replayDiagnostics: attempt.diagnostics.events,
+    });
+  }
+
+  const { context, page, diagnostics, result } = attempt;
   const screenshot = join(screenshotRoot, `owner-${surface.family}-1440.png`);
   await page.screenshot({ path: screenshot, fullPage: true });
   const expectation = "allowed";
@@ -429,6 +451,7 @@ async function auditOwnerSurface(browser, storageState, surface) {
     ...result,
     expectation,
     screenshot: relative(process.cwd(), screenshot),
+    transientDiagnostics,
     diagnostics: diagnostics.events,
     externalHosts: [...diagnostics.externalHosts],
     findings,

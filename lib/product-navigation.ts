@@ -81,6 +81,19 @@ export const createActions: Array<ProductDestination & { description: string }> 
   { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda", label: "Visita", description: "Programar una cita", icon: "agenda", capability:"agenda.manage" }
 ];
 
+export const captureActions: Array<ProductDestination & {
+  description: string;
+  devicePermission?: "camera" | "microphone";
+}> = [
+  { href: "/capataz?captura=audio", label: "Audio", description: "Contárselo a Orqena", icon: "bot", capability: "orqena.use", devicePermission: "microphone" },
+  { href: "/gastos-materiales/lector", label: "Foto o ticket", description: "Preparar una lectura", icon: "receipt", capability: "purchases.received_invoices.manage", devicePermission: "camera" },
+  { href: "/capataz?captura=avance", label: "Avance", description: "Registrar progreso de trabajo", icon: "activity", capability: "work.update" },
+  { href: "/capataz?captura=incidencia", label: "Incidencia", description: "Dejar constancia de un bloqueo", icon: "notification", capability: "work.update" },
+  { href: "/gestion?tipo=material&returnTo=/hoy", label: "Material", description: "Añadir una compra o consumo", icon: "expense", capability: "purchases.received_invoices.manage" },
+  { href: "/tareas", label: "Parte", description: "Actualizar el trabajo asignado", icon: "briefcase", capability: "tasks.manage" },
+  { href: "/gestion?tipo=documento&returnTo=/documentos", label: "Documento", description: "Adjuntar documentación", icon: "document", capability: "documents.upload" },
+];
+
 export type RouteContext = {
   label: string;
   parentHref?: string;

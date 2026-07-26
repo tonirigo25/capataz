@@ -24,3 +24,10 @@ Una pantalla no queda terminada por semejanza. Debe conservar rutas y capacidade
 
 Safari real, Chrome Android real, dispositivos físicos, NVDA, VoiceOver, firma y autorización comercial se registran como `READY_FOR_EXTERNAL_INPUT`; no detienen los bloques automatizables.
 
+## D-007 - Captura y permisos
+
+La navegación móvil muestra `Capturar` sólo si existe al menos una acción autorizada. La sheet filtra cada acción por capacidad y nunca invoca cámara o micrófono al abrirse; esos permisos sólo pueden solicitarse después de que la persona elija una acción compatible.
+
+## D-008 - Diagnósticos transitorios
+
+Un error de hidratación aislado no se descarta ni se convierte automáticamente en PASS. La misma superficie se repite en un contexto nuevo; sólo un replay limpio permite conservar el primer evento como observación, y una repetición mantiene el bloqueo.

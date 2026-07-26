@@ -30,6 +30,18 @@ const shared = {
   error: "recoverable",
 } as const;
 
+export const fieldOsShellContract = {
+  desktop: {
+    sidebarWidth: "var(--fos-layout-sidebar)",
+    actions: ["Buscar", "Crear", brand.productName, "Notificaciones"],
+  },
+  mobile: {
+    destinations: ["Hoy", "Clientes", "Capturar", "Trabajos", "Más"],
+    capturePermissions: "on-selection",
+  },
+  states: ["loading", "empty", "error", "restricted"],
+} as const;
+
 export const routeExperienceManifest: RouteExperienceRule[] = [
   rule("public-home", /^\/$/, { ...shared, family: "marketing", shell: "marketing", access: "public", title: brand.productName, primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-marketing-preview", /^\/marketing-v2$/, { ...shared, family: "marketing", shell: "standalone", access: "public", title: `${brand.productName} — Vista previa preservada`, primaryAction: "Ver la base visual", empty: "not-applicable", screenshotGroup: "public" }),

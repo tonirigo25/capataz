@@ -41,7 +41,7 @@ Las maquetas se usan como contrato de jerarquía, densidad, responsive y microco
 
 ## D0 - Baseline, review y contrato visual
 
-Estado: `IN_PROGRESS`.
+Estado: `IN_PROGRESS` — baseline público y despliegue reproducibles; la matriz autenticada completa conserva un único replay pendiente.
 
 ### Evidencia reutilizable del SHA base
 
@@ -61,12 +61,20 @@ Estado: `IN_PROGRESS`.
 - `scripts/design/capture-baseline.mjs`: captura pública reproducible y no destructiva.
 - `docs/design/BASELINE.md`: comandos, métricas y fronteras de evidencia.
 
+### Evidencia remota D0
+
+- Commit base: `6485044c9e931e0068f4bc96ad5ac58078a6575e`; deployment `4411a34c-5375-4129-9c7b-b5ffa3979641`, `SUCCESS`.
+- Commit con reintento de transporte acotado: `82841ff04d7e52e4935e6a0cd1081b6310ad7767`; deployment `fccc3020-5350-4fa3-998d-52a685174f6d`, `SUCCESS`, imagen `sha256:7037b591e94d3cad837c59f94016282f574ece4eb11040611c7c3e11bb1942fd`.
+- Predeploy: 43 migraciones encontradas, ninguna pendiente.
+- `/api/health/live`, `/api/health/ready`, `/api/status`, `/`, `/demo` y `/login`: 200 con `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`.
+- Captura pública exacta: 12/12 casos en 390, 768, 1024 y 1440 px, cero hallazgos.
+- Matriz autenticada exacta `82841ff...`: 11 perfiles, 66 combinaciones, 21 permisos, 10 firmas de portal, 46 familias OWNER, 6/6 estados, 3 casos de capacidad y 89 casos axe. Resultado aún no PASS: un `React #418` no reproducido fuera de `/dinero` requiere replay explícito.
+- Staging y producción no se modificaron.
+
 ### Pendiente para cerrar D0
 
-- Commit y push del bloque.
-- Desplegar el SHA exacto en Railway Review.
-- Rotar acceso sintético de un solo uso sin persistir credenciales.
-- Confirmar `noindex`, salud, migraciones y ausencia de cambios en staging/producción.
+- Repetir de forma aislada y registrada la superficie `/dinero`; si el fallo reaparece, corregirlo, y si no, conservarlo como observación transitoria.
+- Rotar y entregar un acceso sintético de un solo uso después del último replay verde.
 
 ### Gates locales D0
 
@@ -80,3 +88,33 @@ Estado: `IN_PROGRESS`.
 - `npm run readiness:validate-all-static`: PASS completo F1-F11, addenda, C3, C5, C6, C7, PWA, móvil e identidad.
 - `npm run test:orqena-experience-v4`: 123/129; las seis aserciones restantes inspeccionan literales de la home V4.1 retirada (`home-v41`) y no se declaran PASS. D2 las reemplazará por un contrato Field OS sin debilitar indexación, pricing, seguridad o persistencia.
 - `RouteExperienceManifest`: las 13 rutas reales que el contrato V4.1 no reconocía quedaron cubiertas sin cambiar autorización ni comportamiento.
+
+## D1 - Fundaciones visuales y shell
+
+Estado: `IN_PROGRESS`.
+
+### Implementado localmente
+
+- Los aliases runtime `--cap-*` consumen los tokens Field OS sin introducir colores, radios o sombras arbitrarios.
+- Sidebar oscura de 248 px, empresa activa visible, búsqueda global central/compacta y acciones Crear, Orqena y notificaciones.
+- Navegación móvil perfilada con `Hoy`, destinos autorizados, `Capturar` y `Más`.
+- La sheet `Capturar` filtra siete acciones por capacidad y no solicita cámara o micrófono antes de la selección.
+- Estados compartidos de loading, empty, error y restricted; rail de registro de 320 px y split pane de 440 px.
+- Repetición documentada de un único error de hidratación antes de clasificarlo como bloqueo.
+
+### Gates locales D1
+
+- `npm run design:validate`: PASS.
+- `npm run typecheck`: PASS.
+- `npm run test:visual-foundations`: PASS.
+- `npm run test:product-shell-navigation`: PASS.
+- `npm run test:route-access`: PASS, 52 casos.
+- `npm run test:public-indexing`: PASS.
+- `npm run readiness:validate-all-static`: PASS completo.
+- `npm run build`: PASS, 76/76.
+
+### Pendiente D1
+
+- Commit/push y despliegue exacto en Review.
+- Capturas públicas y autenticadas por perfil/viewport.
+- Confirmar cero overflow, permisos correctos, foco/teclado y cero bloqueantes axe.

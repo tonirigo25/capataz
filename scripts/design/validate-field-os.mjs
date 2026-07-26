@@ -8,6 +8,8 @@ const manifest = JSON.parse(read("design/field-os-manifest.json"));
 const styles = read("app/globals.css");
 const routeMatrix = read("docs/design/ROUTE_MATRIX.csv").trim().split(/\r?\n/u);
 const runtimeRoutes = read("lib/route-experience-manifest.ts");
+const productNavigation = read("lib/product-navigation.ts");
+const appChrome = read("components/app-chrome.tsx");
 
 const failures = [];
 const pass = (label, condition, detail = "") => {
@@ -78,6 +80,9 @@ pass("manifest includes edge states", ["loading", "empty", "error", "restricted"
 pass("manifest includes 18 archetypes", manifest.archetypes.length === 18);
 pass("source route matrix contains 43 routes", routeMatrix.length === 44, `received ${routeMatrix.length - 1}`);
 pass("runtime route manifest remains capability-aware", runtimeRoutes.includes('access: "capability"') && runtimeRoutes.includes('access: "platform"'));
+pass("runtime shell contract uses Field OS sidebar", runtimeRoutes.includes('sidebarWidth: "var(--fos-layout-sidebar)"'));
+pass("mobile shell exposes Capturar without eager permissions", runtimeRoutes.includes('capturePermissions: "on-selection"') && appChrome.includes('title="Capturar"'));
+pass("capture sheet contains seven capability-aware actions", (productNavigation.match(/devicePermission:|label: "(?:Audio|Foto o ticket|Avance|Incidencia|Material|Parte|Documento)"/gu) ?? []).filter((item) => item.startsWith("label:")).length === 7);
 
 const diff = execFileSync(
   "git",
@@ -119,4 +124,3 @@ console.log(JSON.stringify({
   states: manifest.states.length,
   archetypes: manifest.archetypes.length,
 }, null, 2));
-
