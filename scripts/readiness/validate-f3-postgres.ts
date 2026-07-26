@@ -49,7 +49,7 @@ async function rejected(operation: () => Promise<unknown>, expected: RegExp) {
 
 async function main() {
   const migrations = await prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  assert.equal(migrations[0]?.count, 41);
+  assert.equal(migrations[0]?.count, 42);
   await prisma.company.createMany({ data: [
     { id: companyA, slug: companyA, nombreComercial: "F3 A", razonSocial: "Orqena Test SL", taxId: "B12345678" },
     { id: companyB, slug: companyB, nombreComercial: "F3 B", razonSocial: "Other Test SL", taxId: "B87654321" },

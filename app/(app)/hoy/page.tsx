@@ -7,6 +7,8 @@ import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 import { greetingForDate } from "@/lib/dashboard-hoy";
 import { userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
+import { ActivationChecklist } from "@/components/activation-checklist";
+import { getAndMeasureActivationStatus } from "@/lib/product/activation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +17,10 @@ export default async function TodayPage() {
   const auth = await requireCapability("company.view");
   const portal = await buildPortalManifest(auth);
   const agendaVisible = portal.navigation.some((item) => item.href === "/agenda") || portal.navigationGroups.some((group) => group.items.some((item) => item.href === "/agenda"));
-  const [profile, agendaItems] = await Promise.all([
+  const [profile, agendaItems, activation] = await Promise.all([
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
-    agendaVisible ? getAgendaItems() : Promise.resolve([])
+    agendaVisible ? getAgendaItems() : Promise.resolve([]),
+    auth.role === "OWNER" || auth.role === "ADMIN" ? getAndMeasureActivationStatus(prisma, { companyId: auth.companyId, actorId: auth.userId }) : Promise.resolve(null),
   ]);
   const displayName = userDisplayName(profile);
   const todayStart = startOfDay(now);
@@ -35,6 +38,8 @@ export default async function TodayPage() {
         description={`Tu portal de ${portal.profileLabel.toLocaleLowerCase("es-ES")} muestra únicamente el trabajo que te corresponde.`}
         action={portal.orqenaTools.length ? <Link href="/capataz" className="primary-button"><Bot size={18} aria-hidden="true" />Hablar con Orqena</Link> : undefined}
       />
+
+      {activation ? <ActivationChecklist status={activation}/> : null}
 
       <section className={`portal-focus portal-focus--${experience.tone}`} data-portal-home={portal.profile}>
         <div><p className="type-label">{experience.label}</p><h2>{experience.title}</h2><p>{experience.description}</p></div>

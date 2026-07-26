@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { organizationTypes, sectorKeys } from "@/lib/business-profile/types";
 
 export async function saveBusinessOnboarding(formData: FormData) {
-  const auth = await requireCompanyRole(["ADMIN"]);
+  const auth = await requireCompanyRole(["OWNER", "ADMIN"]);
   const organizationType = String(formData.get("organizationType") ?? "");
   const sectorKey = String(formData.get("sectorKey") ?? "");
   if (!organizationTypes.includes(organizationType as never) || !sectorKeys.includes(sectorKey as never)) throw new Error("Selecciona un perfil válido.");

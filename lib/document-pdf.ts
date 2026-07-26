@@ -29,6 +29,7 @@ export type ProfessionalDocumentPdf = {
     iban?: string | null;
     brandColor?: string | null;
     legalText?: string | null;
+    logo?: { bytes: Uint8Array; mimeType: "image/jpeg" } | null;
   };
   client: {
     name: string;
@@ -63,9 +64,11 @@ type PdfPage = {
 const pageWidth = 595;
 const pageHeight = 842;
 const margin = 42;
+export const professionalDocumentTemplateVersion = "orqena-professional-v1";
 
 export function createProfessionalDocumentPdf(input: ProfessionalDocumentPdf) {
   const brandColor = parseColor(input.company.brandColor || "#f6c945");
+  const logo = input.company.logo ? validJpeg(input.company.logo.bytes) : null;
   const pages: PdfPage[] = [];
   let current = newPage();
   let y = drawHeader(current, input, brandColor);
@@ -108,7 +111,7 @@ export function createProfessionalDocumentPdf(input: ProfessionalDocumentPdf) {
   }
 
   pages.forEach((page, index) => drawFooter(page, index + 1, pages.length, input));
-  return buildPdf(pages);
+  return buildPdf(pages, logo);
 }
 
 export function documentDate(value: Date | null | undefined) {
@@ -122,8 +125,11 @@ export function documentMoney(value: number) {
 
 function drawHeader(page: PdfPage, input: ProfessionalDocumentPdf, brandColor: number[]) {
   rect(page, 0, pageHeight - 122, pageWidth, 122, lighten(brandColor, 0.78));
-  rect(page, margin, pageHeight - 90, 54, 54, brandColor);
-  text(page, margin + 18, pageHeight - 68, "C", 21, true, [0.12, 0.14, 0.16]);
+  if (input.company.logo && validJpeg(input.company.logo.bytes)) drawLogo(page, margin, pageHeight - 90, 54, 54, validJpeg(input.company.logo.bytes)!);
+  else {
+    rect(page, margin, pageHeight - 90, 54, 54, brandColor);
+    text(page, margin + 18, pageHeight - 68, "O", 21, true, [0.12, 0.14, 0.16]);
+  }
   text(page, margin + 70, pageHeight - 54, input.kind === "budget" ? "PRESUPUESTO" : "FACTURA", 25, true, [0.12, 0.14, 0.16]);
   text(page, margin + 70, pageHeight - 75, `N. ${input.documentNumber}`, 11, true, [0.24, 0.27, 0.31]);
   text(page, margin + 70, pageHeight - 92, `Fecha: ${documentDate(input.issueDate)}`, 9, false, [0.32, 0.36, 0.4]);
@@ -332,11 +338,12 @@ function line(page: PdfPage, x1: number, y1: number, x2: number, y2: number, col
   page.content.push(`q ${rgb(color, "RG")} ${num(x1)} ${num(y1)} m ${num(x2)} ${num(y2)} l S Q`);
 }
 
-function buildPdf(pages: PdfPage[]) {
+function buildPdf(pages: PdfPage[], logo: JpegAsset | null) {
   const pageIds = pages.map((_, index) => 3 + index);
   const fontRegularId = 3 + pages.length;
   const fontBoldId = fontRegularId + 1;
   const contentIds = pages.map((_, index) => fontBoldId + 1 + index);
+  const logoId = logo ? fontBoldId + 1 + pages.length : null;
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`
@@ -344,7 +351,7 @@ function buildPdf(pages: PdfPage[]) {
 
   pages.forEach((_, index) => {
     objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >>${logoId ? ` /XObject << /Logo ${logoId} 0 R >>` : ""} >> /Contents ${contentIds[index]} 0 R >>`
     );
   });
 
@@ -355,6 +362,11 @@ function buildPdf(pages: PdfPage[]) {
     const stream = page.content.join("\n");
     objects.push(`<< /Length ${byteLength(stream)} >>\nstream\n${stream}\nendstream`);
   });
+
+  if (logo) {
+    const bytes = Buffer.from(logo.bytes).toString("latin1");
+    objects.push(`<< /Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logo.bytes.byteLength} >>\nstream\n${bytes}\nendstream`);
+  }
 
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
@@ -372,14 +384,17 @@ function buildPdf(pages: PdfPage[]) {
 }
 
 function escapeText(value: string) {
-  return ascii(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  return winAnsi(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
 
-function ascii(value: string) {
-  return String(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, "-");
+function winAnsi(value: string) {
+  const mapped: Record<string, number> = { "€": 0x80, "‚": 0x82, "ƒ": 0x83, "„": 0x84, "…": 0x85, "†": 0x86, "‡": 0x87, "ˆ": 0x88, "‰": 0x89, "Š": 0x8a, "‹": 0x8b, "Œ": 0x8c, "Ž": 0x8e, "‘": 0x91, "’": 0x92, "“": 0x93, "”": 0x94, "•": 0x95, "–": 0x96, "—": 0x97, "˜": 0x98, "™": 0x99, "š": 0x9a, "›": 0x9b, "œ": 0x9c, "ž": 0x9e, "Ÿ": 0x9f };
+  return Array.from(String(value)).map((character) => {
+    const code = character.codePointAt(0) ?? 0x3f;
+    if (code >= 0x20 && code <= 0x7e || code >= 0xa0 && code <= 0xff) return character;
+    if (mapped[character] !== undefined) return String.fromCharCode(mapped[character]);
+    return "?";
+  }).join("");
 }
 
 function clientVisibleText(value: string | null | undefined) {
@@ -438,7 +453,7 @@ function normalizeForFilter(value: string) {
 }
 
 function wrap(value: string, max: number) {
-  const words = ascii(value)
+  const words = String(value)
     .split(/\s+/)
     .filter(Boolean)
     .flatMap((word) => breakLongWord(word, Math.max(8, max)));
@@ -490,4 +505,35 @@ function num(value: number) {
 
 function formatPercent(value: number) {
   return `${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value)}%`;
+}
+
+type JpegAsset = { bytes: Uint8Array; width: number; height: number };
+
+function validJpeg(bytes: Uint8Array): JpegAsset | null {
+  if (bytes.byteLength < 12 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.byteLength - 2] !== 0xff || bytes[bytes.byteLength - 1] !== 0xd9) return null;
+  let offset = 2;
+  while (offset + 9 < bytes.byteLength) {
+    if (bytes[offset] !== 0xff) { offset += 1; continue; }
+    const marker = bytes[offset + 1];
+    if (marker === 0xd8 || marker === 0xd9) { offset += 2; continue; }
+    const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
+    if (length < 2 || offset + 2 + length > bytes.byteLength) return null;
+    if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
+      const height = (bytes[offset + 5] << 8) | bytes[offset + 6];
+      const width = (bytes[offset + 7] << 8) | bytes[offset + 8];
+      const components = bytes[offset + 9];
+      return width > 0 && height > 0 && components === 3 ? { bytes, width, height } : null;
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+function drawLogo(page: PdfPage, x: number, y: number, width: number, height: number, logo: JpegAsset) {
+  const scale = Math.min(width / logo.width, height / logo.height);
+  const targetWidth = logo.width * scale;
+  const targetHeight = logo.height * scale;
+  const targetX = x + (width - targetWidth) / 2;
+  const targetY = y + (height - targetHeight) / 2;
+  page.content.push(`q ${num(targetWidth)} 0 0 ${num(targetHeight)} ${num(targetX)} ${num(targetY)} cm /Logo Do Q`);
 }

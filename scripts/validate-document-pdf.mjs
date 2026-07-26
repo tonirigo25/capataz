@@ -46,7 +46,7 @@ const pdf = createProfessionalDocumentPdf({
   lines: [
     {
       codigo: "MAT-001",
-      descripcion: "Suministro e instalación de mobiliario de cocina con descripción larga para validar multilínea",
+      descripcion: "Suministro e instalación de mobiliario de cocina con descripción larga, cañerías y € para validar multilínea",
       cantidad: 1,
       unidad: "lote",
       precioUnitario: 1000,
@@ -74,6 +74,15 @@ const forbidden = ["borrador interno", "plantilla", "creado desde chat", "revisa
 
 const missing = required.filter((item) => !text.includes(item));
 const foundForbidden = forbidden.filter((item) => text.toLowerCase().includes(item.toLowerCase()));
+const spanishEncodingPreserved = text.includes(String.fromCharCode(0xf3)) && text.includes(String.fromCharCode(0xf1)) && text.includes(String.fromCharCode(0x80));
+const deterministicPdf = createProfessionalDocumentPdf({
+  kind: "budget", documentNumber: "P-TEST-001", title: "Reforma integral de cocina", status: "borrador", issueDate: new Date("2026-07-11T10:00:00Z"), validUntil: new Date("2026-07-31T10:00:00Z"),
+  company: { name: "Empresa Demo", legalName: "Empresa Demo SL", taxId: "B00000000", address: "Calle Fiscal 1, Palma", contact: "600000000 · demo@example.com · example.com", brandColor: "#f6c945", legalText: "Garantía según condiciones particulares." },
+  client: { name: "Cliente Demo", taxId: "00000000T", address: "Calle Cliente 2", contact: "cliente@example.com" }, work: { title: "Obra cocina", address: "Calle Obra 3" },
+  lines: [{ codigo: "MAT-001", descripcion: "Suministro e instalación de mobiliario de cocina con descripción larga, cañerías y € para validar multilínea", cantidad: 1, unidad: "lote", precioUnitario: 1000, descuento: 50, ivaPercent: 21, total: 950, categoria: "Materiales" }],
+  totals: { base: 950, discount: 50, ivaPercent: 21, ivaTotal: 199.5, total: 1149.5 }, conditions: "Forma de pago por transferencia.", paymentMethod: "50% inicio, 50% final.", observations: "Observación comercial visible."
+});
+const deterministicOutput = pdf.equals(deterministicPdf);
 
 const longPdf = createProfessionalDocumentPdf({
   kind: "invoice",
@@ -129,8 +138,8 @@ const longText = longPdf.toString("latin1");
 const pageCount = (longText.match(/\/Type \/Page\b/g) ?? []).length;
 const longFoundForbidden = forbidden.filter((item) => longText.toLowerCase().includes(item.toLowerCase()));
 
-if (missing.length || foundForbidden.length || pageCount < 2 || longFoundForbidden.length) {
-  console.error("[document-pdf] FAIL", { missing, foundForbidden, pageCount, longFoundForbidden });
+if (missing.length || foundForbidden.length || pageCount < 2 || longFoundForbidden.length || !spanishEncodingPreserved || !deterministicOutput) {
+  console.error("[document-pdf] FAIL", { missing, foundForbidden, pageCount, longFoundForbidden, spanishEncodingPreserved, deterministicOutput });
   process.exit(1);
 }
 

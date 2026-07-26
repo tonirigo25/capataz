@@ -25,6 +25,8 @@
     "readiness:validate-f6": "tsx scripts/readiness/validate-f6-ai.ts",
     "readiness:validate-f6-postgres": "node scripts/readiness/run-f6-postgres-isolated.mjs",
     "readiness:validate-f6-static": "node scripts/readiness/validate-f6-static.mjs",
+    "readiness:validate-f7": "tsx scripts/readiness/validate-f7-product.ts && node scripts/validate-document-pdf.mjs",
+    "readiness:validate-f7-postgres": "node scripts/readiness/run-f7-postgres-isolated.mjs",
     "readiness:scan-secrets": "node scripts/readiness/scan-secrets.mjs",
     "readiness:validate-f4-postgres": "node scripts/readiness/run-f4-postgres-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",
