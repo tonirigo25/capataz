@@ -23,6 +23,7 @@ import {
   SceneProgress,
   type ProductSceneStage,
 } from "@/components/marketing/motion-system";
+import { brand } from "@/lib/brand";
 
 const heroStages = [
   stage("cliente", "Cliente", "Relación abierta", "El contexto empieza unido", "Contacto, responsable y siguiente paso quedan en la misma vista.", "1 siguiente paso", "Relación"),
@@ -61,12 +62,12 @@ const workStages = [
 ] as const;
 
 const actionStages = [
-  stage("request", "Petición", "Conversación", "Expresa el resultado que buscas", "Orqena parte de la empresa y la página activas.", "Recibida", "Orqena"),
-  stage("analysis", "Análisis", "Contexto", "Reúne solo lo necesario", "Relaciona permisos, fuentes y datos de la empresa activa.", "En contexto", "Orqena"),
-  stage("sources", "Fuentes", "Trazabilidad", "Muestra de dónde sale la respuesta", "Cada referencia útil puede revisarse antes de actuar.", "3 fuentes", "Orqena"),
-  stage("proposal", "Propuesta", "Borrador", "Prepara un siguiente paso", "La propuesta no cambia ningún registro por sí sola.", "Editable", "Orqena"),
-  stage("edit", "Editar", "Control", "Ajusta antes de decidir", "El usuario conserva el criterio y puede cancelar.", "Sin ejecutar", "Orqena"),
-  stage("confirm", "Confirmar o cancelar", "Decisión humana", "Nada sensible ocurre sin confirmación", "La decisión final queda clara, explícita y trazable.", "Esperando", "Orqena"),
+  stage("request", "Petición", "Conversación", "Expresa el resultado que buscas", `${brand.productName} parte de la empresa y la página activas.`, "Recibida", brand.productName),
+  stage("analysis", "Análisis", "Contexto", "Reúne solo lo necesario", "Relaciona permisos, fuentes y datos de la empresa activa.", "En contexto", brand.productName),
+  stage("sources", "Fuentes", "Trazabilidad", "Muestra de dónde sale la respuesta", "Cada referencia útil puede revisarse antes de actuar.", "3 fuentes", brand.productName),
+  stage("proposal", "Propuesta", "Borrador", "Prepara un siguiente paso", "La propuesta no cambia ningún registro por sí sola.", "Editable", brand.productName),
+  stage("edit", "Editar", "Control", "Ajusta antes de decidir", "El usuario conserva el criterio y puede cancelar.", "Sin ejecutar", brand.productName),
+  stage("confirm", "Confirmar o cancelar", "Decisión humana", "Nada sensible ocurre sin confirmación", "La decisión final queda clara, explícita y trazable.", "Esperando", brand.productName),
 ] as const;
 
 const mobileStages = [

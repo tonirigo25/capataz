@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
     title: item.name,
     description: item.lead,
     alternates: { canonical: `/sectores/${item.slug}` },
-    openGraph: { title: `${item.name} con Orqena`, description: item.lead, images: [brand.socialImage] },
+    openGraph: { title: `${item.name} con ${brand.productName}`, description: item.lead, images: [brand.socialImage] },
   };
 }
 
@@ -31,7 +31,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
   if (!item) notFound();
   const index = marketingSectorCatalog.findIndex((entry) => entry.slug === item.slug);
   const flow = [item.terminology.clientSingular, "Propuesta", item.terminology.workSingular, "Documento", "Resultado"];
-  const modules = ["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", "Orqena"];
+  const modules = ["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", brand.productName];
 
   return (
     <MarketingPage>

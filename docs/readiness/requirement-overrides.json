@@ -1,0 +1,52 @@
+{
+  "GOV-003": {
+    "status": "PASS",
+    "evidence": ["lib/config/brand.ts", "lib/brand.ts", "scripts/readiness/validate-f1-contract.mjs"],
+    "notes": ["Commercial identity scan passed with no product, support, or legacy domain literals outside central configuration and compatibility keys."]
+  },
+  "ARCH-001": {
+    "status": "PASS",
+    "evidence": ["docs/architecture/DOMAIN_MAP.md", "docs/adr/0001-modular-monolith.md"],
+    "notes": ["One Next.js modular monolith; web and workers share application modules and contracts."]
+  },
+  "ARCH-002": {
+    "status": "PASS",
+    "evidence": ["docs/architecture/DOMAIN_MAP.md"],
+    "notes": ["Eleven bounded contexts and dependency rules are documented."]
+  },
+  "ARCH-003": {
+    "status": "PASS",
+    "evidence": ["lib/config/server.ts", "scripts/readiness/validate-runtime-config.mjs", "scripts/start-standalone.mjs"],
+    "notes": ["Development validation passes; incomplete production configuration fails closed without printing values."]
+  },
+  "ARCH-004": {
+    "status": "PASS",
+    "evidence": ["lib/feature-flags.ts", "prisma/migrations/20260725100000_readiness_m01_platform_contracts/migration.sql", ".env.example"],
+    "notes": ["Fiscal, billing, live email, AI, analytics, and indexing default off; company overrides are tenant-scoped."]
+  },
+  "ARCH-005": {
+    "status": "PASS",
+    "evidence": ["docs/architecture/generated/DATA_DICTIONARY.md", "docs/architecture/generated/ERD.mmd", "docs/architecture/generated/ERD.svg", "docs/architecture/generated/schema-manifest.json"],
+    "notes": ["Generated from the validated Prisma schema; 130 models and 222 relations."]
+  },
+  "ARCH-006": {
+    "status": "PASS",
+    "evidence": [".github/CODEOWNERS", "docs/architecture/OWNERSHIP.md"],
+    "notes": ["Fallback ownership covers the repository; specialist approval gaps are explicit external-input gates."]
+  },
+  "ARCH-010": {
+    "status": "PASS",
+    "evidence": ["prisma/migrations/20260725190000_readiness_m10_money_decimal_transition/migration.sql", "scripts/readiness/backfill-money-decimals.ts", "scripts/readiness/reconcile-money-decimals.ts", "docs/readiness/evidence/f1/audit-manifest.json"],
+    "notes": ["32 nullable mirrors; isolated dry-run/apply reconciled 32 pairs with aggregate absolute difference 0. Legacy Float fields remain for reversible cutover."]
+  },
+  "ARCH-012": {
+    "status": "PASS",
+    "evidence": ["contracts/events/v1/envelope.schema.json", "contracts/prompts/v1/contract.json", "contracts/templates/v1/contract.json", "contracts/artifacts/v1/contract.json"],
+    "notes": ["Persisted contract families require explicit schema or content versions."]
+  },
+  "ARCH-013": {
+    "status": "PASS",
+    "evidence": ["docs/architecture/MIGRATION_STRATEGY.md", "scripts/readiness/validate-migrations-isolated.mjs", "docs/readiness/evidence/f1/generated-schema-diff.sql"],
+    "notes": ["M01-M10 applied from fresh PostgreSQL and a second deploy had no pending migrations; no destructive SQL found."]
+  }
+}

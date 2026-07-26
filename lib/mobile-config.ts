@@ -21,7 +21,7 @@ export function resolveMobileConfig(env: MobileEnvironment) {
     throw new Error("CAPATAZ_MOBILE_MODE must be development, staging or release");
   }
   const mode = rawMode as MobileMode;
-  const rawUrl = env.CAPATAZ_MOBILE_SERVER_URL || env.NEXT_PUBLIC_WEB_BASE_URL || (mode === "release" ? "https://capataz.app" : "");
+  const rawUrl = env.CAPATAZ_MOBILE_SERVER_URL || env.NEXT_PUBLIC_WEB_BASE_URL || "";
   if (!rawUrl) throw new Error(`CAPATAZ_MOBILE_SERVER_URL is required in ${mode} mode`);
 
   let url: URL;

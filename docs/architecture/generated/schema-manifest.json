@@ -1,0 +1,6 @@
+{
+  "schemaSha256": "0f2bfa8d80a34f3c3821cc0800eaeb4f72ff19fd86a17c5ae1a870dcbadedbec",
+  "models": 130,
+  "relations": 222,
+  "generatedFrom": "prisma/schema.prisma"
+}
