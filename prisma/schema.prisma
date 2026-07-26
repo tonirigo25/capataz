@@ -2381,6 +2381,8 @@ model Company {
   pilotCohorts            PilotCohort[]
   pilotFeedback           PilotFeedback[]
   supportTickets          SupportTicket[]
+  importBatches           CompanyImportBatch[]
+  experiencePreference    CompanyExperiencePreference?
   incidents               Incident[]
   storedObjects           StoredObject[]
   logoStoredObject        StoredObject?                     @relation("CompanyLogo", fields: [logoStoredObjectId], references: [id], onDelete: SetNull)
@@ -4022,22 +4024,95 @@ model PilotFeedback {
 }
 
 model SupportTicket {
-  id                String    @id @default(cuid())
+  id                String                    @id @default(cuid())
   companyId         String
+  actorIdHash       String
   externalReference String?
   category          String
   priority          String
-  status            String    @default("OPEN")
+  status            String                    @default("OPEN")
   subject           String
   description       String
+  route             String?
+  release           String?
+  requestId         String?
+  correlationId     String?
+  context           Json?
   assignedTo        String?
   firstResponseAt   DateTime?
   resolvedAt        DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  company           Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  attachments       SupportTicketAttachment[]
 
   @@index([companyId, status, priority, createdAt])
+  @@index([correlationId])
+}
+
+model SupportTicketAttachment {
+  id             String        @id @default(cuid())
+  ticketId       String
+  storedObjectId String
+  createdAt      DateTime      @default(now())
+  ticket         SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  storedObject   StoredObject  @relation(fields: [storedObjectId], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, storedObjectId])
+  @@index([storedObjectId])
+}
+
+model CompanyExperiencePreference {
+  id                      String   @id @default(cuid())
+  companyId               String   @unique
+  aiSuggestionsEnabled    Boolean  @default(false)
+  operationalEmailEnabled Boolean  @default(true)
+  marketingEmailEnabled   Boolean  @default(false)
+  policyVersion           String   @default("v1")
+  updatedByHash           String
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+}
+
+model CompanyImportBatch {
+  id              String             @id @default(cuid())
+  companyId       String
+  actorIdHash     String
+  kind            String
+  sourceHash      String
+  schemaVersion   Int                @default(1)
+  status          String             @default("PREVIEWED")
+  totalRows       Int
+  validRows       Int
+  invalidRows     Int
+  duplicateRows   Int
+  appliedRows     Int                @default(0)
+  confirmationKey String
+  appliedAt       DateTime?
+  rolledBackAt    DateTime?
+  createdAt       DateTime           @default(now())
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  rows            CompanyImportRow[]
+
+  @@unique([companyId, sourceHash, kind])
+  @@index([companyId, status, createdAt])
+}
+
+model CompanyImportRow {
+  id              String             @id @default(cuid())
+  batchId         String
+  rowNumber       Int
+  dedupeKey       String?
+  status          String
+  errorCodes      Json               @default("[]")
+  normalizedData  Json?
+  createdEntityId String?
+  createdAt       DateTime           @default(now())
+  batch           CompanyImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
 }
 
 model Incident {
@@ -4065,7 +4140,7 @@ model Incident {
 
 // Private storage integrity (M09).
 model StoredObject {
-  id                   String       @id @default(cuid())
+  id                   String                    @id @default(cuid())
   companyId            String
   provider             String
   bucket               String
@@ -4079,19 +4154,20 @@ model StoredObject {
   classification       String
   encryption           String?
   providerVersion      String?
-  contentDisposition   String?      @default("attachment")
-  status               String       @default("PENDING_SCAN")
-  createdAt            DateTime     @default(now())
+  contentDisposition   String?                   @default("attachment")
+  status               String                    @default("PENDING_SCAN")
+  createdAt            DateTime                  @default(now())
   deletedAt            DateTime?
   retentionKey         String?
   retainUntil          DateTime?
   legalHoldUntil       DateTime?
   quarantineReason     String?
   deletionEvidenceHash String?
-  company              Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  logoForCompany       Company?     @relation("CompanyLogo")
-  sealForCompany       Company?     @relation("CompanySeal")
+  company              Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  logoForCompany       Company?                  @relation("CompanyLogo")
+  sealForCompany       Company?                  @relation("CompanySeal")
   documents            Document[]
+  supportAttachments   SupportTicketAttachment[]
   scans                UploadScan[]
 
   @@unique([provider, bucket, objectKey, versionId])

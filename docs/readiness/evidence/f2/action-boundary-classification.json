@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T11:50:32.310Z",
+  "generatedAt": "2026-07-26T13:30:36.118Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -745,6 +745,111 @@
       }
     },
     {
+      "id": "app/(app)/configuracion/ia/actions.ts#reviewAiResult",
+      "actionFile": "app/(app)/configuracion/ia/actions.ts",
+      "exportName": "reviewAiResult",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/ai/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/ia/actions.ts#changeAiKillSwitch",
+      "actionFile": "app/(app)/configuracion/ia/actions.ts",
+      "exportName": "changeAiKillSwitch",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/ai/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/importar/actions.ts#previewImport",
+      "actionFile": "app/(app)/configuracion/importar/actions.ts",
+      "exportName": "previewImport",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/import-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/importar/actions.ts#applyImport",
+      "actionFile": "app/(app)/configuracion/importar/actions.ts",
+      "exportName": "applyImport",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/import-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/importar/actions.ts#rollbackImport",
+      "actionFile": "app/(app)/configuracion/importar/actions.ts",
+      "exportName": "rollbackImport",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/import-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
       "id": "app/(app)/configuracion/memoria/actions.ts#changeMemory",
       "actionFile": "app/(app)/configuracion/memoria/actions.ts",
       "exportName": "changeMemory",
@@ -766,43 +871,22 @@
       }
     },
     {
-      "id": "app/(app)/configuracion/ia/actions.ts#reviewAiResult",
-      "actionFile": "app/(app)/configuracion/ia/actions.ts",
-      "exportName": "reviewAiResult",
+      "id": "app/(app)/configuracion/preferencias/actions.ts#savePreferences",
+      "actionFile": "app/(app)/configuracion/preferencias/actions.ts",
+      "exportName": "savePreferences",
       "inputShape": [
         "formData: FormData"
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
-        "requireCompanyRole"
+        "delegated domain authorization"
       ],
       "operation": "COMMAND",
-      "service": "lib/application/ai/governance-use-cases.ts",
+      "service": "app/(app)/configuracion/preferencias/actions.ts",
       "postEffects": {
-        "revalidate": true,
+        "revalidate": false,
         "redirect": false,
-        "audit": true,
-        "outbox": false,
-        "businessEvent": false
-      }
-    },
-    {
-      "id": "app/(app)/configuracion/ia/actions.ts#changeAiKillSwitch",
-      "actionFile": "app/(app)/configuracion/ia/actions.ts",
-      "exportName": "changeAiKillSwitch",
-      "inputShape": [
-        "formData: FormData"
-      ],
-      "authentication": "trusted request/session boundary",
-      "authorization": [
-        "requireCompanyRole"
-      ],
-      "operation": "COMMAND",
-      "service": "lib/application/ai/governance-use-cases.ts",
-      "postEffects": {
-        "revalidate": true,
-        "redirect": false,
-        "audit": true,
+        "audit": false,
         "outbox": false,
         "businessEvent": false
       }
@@ -965,6 +1049,27 @@
       ],
       "operation": "COMMAND",
       "service": "lib/application/security/mfa-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/soporte/actions.ts#createSupportTicket",
+      "actionFile": "app/(app)/configuracion/soporte/actions.ts",
+      "exportName": "createSupportTicket",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/support/ticket-use-case.ts",
       "postEffects": {
         "revalidate": true,
         "redirect": false,

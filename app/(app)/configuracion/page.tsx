@@ -159,8 +159,11 @@ export default async function SettingsPage() {
         <h2 className="text-lg font-black text-obra-ink">Privacidad e inteligencia artificial</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">Consulta límites, coste agregado y revisa propuestas sin exponer prompts ni contenido.</p>
         <div className="mt-3 flex flex-wrap gap-2">
+          <a href="/configuracion/preferencias" className="secondary-button">Preferencias y opt-ins</a>
           <a href="/configuracion/ia" className="secondary-button">IA, revisión y consumo</a>
           <a href="/configuracion/privacidad" className="secondary-button">Centro de privacidad</a>
+          <a href="/configuracion/importar" className="secondary-button">Importar con vista previa</a>
+          <a href="/configuracion/soporte" className="secondary-button">Soporte autenticado</a>
         </div>
       </section>
 

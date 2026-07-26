@@ -46,7 +46,7 @@ if (fixture) {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
   if (routes.length !== 23) failures.push(`expected 23 routes, found ${routes.length}`);
   const actions = walk(path.join(root, "app"), "actions.ts");
-  if (actions.length !== 33) failures.push(`expected 33 action files, found ${actions.length}`);
+  if (actions.length !== 36) failures.push(`expected 36 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
   const requestContext = fs.readFileSync(path.join(root, "lib/platform/request-context.ts"), "utf8");
   for (const field of ["requestId", "correlationId", "causationId", "companyId", "membershipId", "actor", "jobId", "provider", "operation", "release", "environment"]) if (!requestContext.includes(`${field}`)) failures.push(`request context field missing: ${field}`);
@@ -66,4 +66,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (33 actions, 23 routes, 6 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (36 actions, 23 routes, 6 jobs)\n");

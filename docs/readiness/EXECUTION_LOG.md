@@ -146,3 +146,20 @@ Implemented on `feat/readiness-f6-ai` from program commit `7a58a7a213dff4e2ca748
 - Requirement ledger: 15 F6 requirements are `PASS`; `AI-004`, `AI-006` and `AI-016` are `READY_FOR_EXTERNAL_INPUT`. No F6 requirement is pending, blocked or waived. F6 is not represented as a total live PASS.
 
 Evidence: `docs/readiness/evidence/f6/audit-manifest.json`, `synthetic-usage-summary.json`, `openai-key-setup-ui.md`, F6 validators, AI contracts, runbook and migration `20260726180000_readiness_f6_ai_governance`.
+
+## F7 - Product integration - PASS
+
+Implemented on `feat/readiness-f7-product-integration` from program commit `70fcff07ee45d61f020367db3a3cdaa5fc9e2756`. Production, persistent staging, PR #24 and the OpenAI key workflow were not modified; validation used only local code, synthetic fixtures and disposable loopback PostgreSQL.
+
+- Guided onboarding now permits OWNER/ADMIN completion by organization, trade, objective and first action. `/hoy` shows a company/client/budget/document activation checklist and writes only pseudonymous, idempotent milestone events classified against a seven-day window.
+- Safe CSV import supports clients and document metadata with strict headers, 500-row/512-KB limits, row-level validation, formula-injection rejection, tenant deduplication, preview, exact apply confirmation, advisory locking and rollback restricted to batch-created entities.
+- Plan/usage reads real membership, document, storage, AI and usage aggregates. Stripe checkout/portal remain owner-confirmed and price-mapped; local simulation cannot render in production and incomplete live billing remains fail-closed.
+- The existing privacy-rights center is joined by versioned AI and email preferences. AI opt-out enables the company kill switch; preference opt-in cannot activate or clear live AI gates.
+- Authenticated support stores a sanitized route without query parameters, release and correlation references, pseudonymous actor and minimal context. Key-shaped text, email, phone and tax identifiers are redacted; optional images pass private-storage checks.
+- PDFs use a versioned rendering contract, preserve Spanish WinAnsi characters and euro, support a verified tenant-scoped JPEG logo with deterministic fallback, emit template/hash headers without PII and pass deterministic multipage golden tests.
+- Manual client, budget, document and money workflows remain available with AI/integrations off. All 147 action exports are classified and no UI action writes through Prisma directly.
+- Fresh isolated PostgreSQL applied 42/42 migrations and passed 8/8 two-tenant cases. The pure suite passed 43/43, PDF golden passed, action/context positive and negative suites passed, typecheck passed and the production build generated 73 static pages.
+- F1–F6 regressions passed; provider contracts made zero external calls, dependency audit reported zero known vulnerabilities and the secret scan covered 855 files with zero findings.
+- Requirement ledger: all nine F7 requirements are `PASS`; no F7 requirement is pending, blocked, waived or waiting for external input.
+
+Evidence: `docs/readiness/evidence/f7/audit-manifest.json`, the F7 validators, document rendering contract and migration `20260726190000_readiness_f7_product_integration`.

@@ -1864,17 +1864,66 @@ erDiagram
   SupportTicket {
     String id
     String companyId
+    String actorIdHash
     String externalReference
     String category
     String priority
     String status
     String subject
     String description
+    String route
+    String release
+    String requestId
+    String correlationId
+    Json context
     String assignedTo
     DateTime firstResponseAt
-    DateTime resolvedAt
+  }
+  SupportTicketAttachment {
+    String id
+    String ticketId
+    String storedObjectId
     DateTime createdAt
+  }
+  CompanyExperiencePreference {
+    String id
+    String companyId
+    Boolean aiSuggestionsEnabled
+    Boolean operationalEmailEnabled
+    Boolean marketingEmailEnabled
+    String policyVersion
+    String updatedByHash
     DateTime updatedAt
+    DateTime createdAt
+  }
+  CompanyImportBatch {
+    String id
+    String companyId
+    String actorIdHash
+    String kind
+    String sourceHash
+    Int schemaVersion
+    String status
+    Int totalRows
+    Int validRows
+    Int invalidRows
+    Int duplicateRows
+    Int appliedRows
+    String confirmationKey
+    DateTime appliedAt
+    DateTime rolledBackAt
+    DateTime createdAt
+  }
+  CompanyImportRow {
+    String id
+    String batchId
+    Int rowNumber
+    String dedupeKey
+    String status
+    Json errorCodes
+    Json normalizedData
+    String createdEntityId
+    DateTime createdAt
   }
   Incident {
     String id
@@ -2237,6 +2286,8 @@ erDiagram
   Company }o--o{ PilotCohort : relates
   Company }o--o{ PilotFeedback : relates
   Company }o--o{ SupportTicket : relates
+  Company }o--o{ CompanyImportBatch : relates
+  Company }o--o{ CompanyExperiencePreference : relates
   Company }o--o{ Incident : relates
   Company }o--o{ StoredObject : relates
   Company }o--o{ StoredObject : relates
@@ -2321,7 +2372,10 @@ erDiagram
   AiReviewEvent }o--o{ Company : relates
   AiReviewEvent }o--o{ AiUsageEvent : relates
   PilotCohort }o--o{ PilotFeedback : relates
+  SupportTicket }o--o{ SupportTicketAttachment : relates
+  CompanyImportBatch }o--o{ CompanyImportRow : relates
   Incident }o--o{ IncidentTimelineEvent : relates
   Incident }o--o{ PostmortemAction : relates
+  StoredObject }o--o{ SupportTicketAttachment : relates
   StoredObject }o--o{ UploadScan : relates
   Subprocessor }o--o{ SubprocessorChange : relates

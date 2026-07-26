@@ -1423,67 +1423,67 @@ requirements:
   - id: "UX-001"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear onboarding guiado por objetivo, empresa y oficio."
     acceptance: "Usuario llega a primer valor sin depender de soporte."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/onboarding/page.tsx", "lib/application/company/onboarding-use-case.ts", "components/activation-checklist.tsx", "scripts/readiness/validate-f7-product.ts"]
+    notes: ["OWNER and ADMIN can complete a guided company, trade, objective and first-action flow; the home checklist links directly to first value without support dependency."]
   - id: "UX-002"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mostrar checklist de activación: empresa, cliente, presupuesto y documento."
     acceptance: "Evento de activación medido en siete días."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/activation.ts", "components/activation-checklist.tsx", "scripts/readiness/validate-f7-postgres.ts"]
+    notes: ["Company, client, budget, document and aggregate activation events are pseudonymous, seven-day classified and idempotent per tenant."]
   - id: "UX-003"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Ofrecer importación segura de clientes/documentos con preview y rollback."
     acceptance: "Errores por fila y sin duplicados."
-    evidence: []
-    notes: []
+    evidence: ["lib/product/import-service.ts", "app/(app)/configuracion/importar/page.tsx", "scripts/readiness/validate-f7-postgres.ts"]
+    notes: ["CSV preview reports row errors and duplicates; advisory-locked apply and exact-confirmation rollback affect only batch-created tenant records."]
   - id: "UX-004"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Convertir plan/uso en panel real de consumo, límites, checkout y portal."
     acceptance: "No queda botón de simulación en producción."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/plan-y-uso/page.tsx", "lib/commercial/usage.ts", "scripts/readiness/validate-f7-product.ts"]
+    notes: ["Panel reads members, documents, storage, AI aggregates and usage records; checkout and portal remain mapped and confirmed, while local plan simulation cannot render in production."]
   - id: "UX-005"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear centro de privacidad y preferencias IA/email."
     acceptance: "Usuario gestiona derechos y opt-ins."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/configuracion/privacidad/page.tsx", "app/(app)/configuracion/preferencias/page.tsx", "lib/product/experience-preferences.ts"]
+    notes: ["Privacy rights and versioned AI/operational/marketing preferences are tenant scoped and audited; AI opt-out enables the kill switch and opt-in never clears it implicitly."]
   - id: "UX-006"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear soporte autenticado con contexto mínimo y adjuntos seguros."
     acceptance: "Ticket incluye ruta/release sin secretos."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/configuracion/soporte/page.tsx", "lib/product/support-service.ts", "scripts/readiness/validate-f7-postgres.ts"]
+    notes: ["Authenticated tickets retain sanitized route, release and correlation context; secret, email, phone and tax identifiers are redacted and attachments use verified private storage."]
   - id: "UX-007"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Refactorizar acciones de dinero y documentos para usar servicios de dominio."
     acceptance: "No quedan writes fiscales directos en UI."
-    evidence: []
-    notes: []
+    evidence: ["docs/readiness/evidence/f2/action-boundary-classification.json", "scripts/readiness/validate-action-boundaries.mjs", "scripts/readiness/validate-f7-product.ts"]
+    notes: ["All 147 Server Action exports are classified and UI action files remain thin request boundaries without direct Prisma writes; money and document flows delegate to application services."]
   - id: "UX-008"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mejorar PDFs con assets reales, Unicode, plantillas versionadas y snapshot."
     acceptance: "PDF multipágina y branding pasan golden test."
-    evidence: []
-    notes: []
+    evidence: ["lib/document-pdf.ts", "lib/document-pdf-assets.ts", "contracts/documents/v1/rendering.json", "scripts/validate-document-pdf.mjs"]
+    notes: ["Versioned deterministic PDFs preserve Spanish WinAnsi characters, support verified tenant JPEG logos with safe fallback, emit content hashes and pass multipage golden validation."]
   - id: "UX-009"
     area: "UX"
     phase: "F9"
@@ -1511,11 +1511,11 @@ requirements:
   - id: "UX-012"
     area: "UX"
     phase: "F7"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener modo manual completo cuando IA/integraciones están desactivadas."
     acceptance: "Todas las entidades críticas son editables sin IA."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/gestion/page.tsx", "app/(app)/clientes/page.tsx", "app/(app)/documentos/page.tsx", "scripts/readiness/validate-f7-product.ts"]
+    notes: ["Clients, budgets, documents and money remain available through manual domain actions with AI and provider flags disabled."]
   - id: "MET-001"
     area: "MET"
     phase: "F8"
