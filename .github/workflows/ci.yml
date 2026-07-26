@@ -71,6 +71,7 @@ jobs:
       APP_ENV: test
       NEXT_PUBLIC_APP_ENV: test
       NODE_ENV: test
+      CAPATAZ_USE_EXISTING_TEST_DATABASE: "true"
       STORAGE_SIGNING_SECRET: synthetic-ci-storage-signing-secret-32
       JOB_RUNNER_SECRET: synthetic-ci-job-runner-secret
     steps:
