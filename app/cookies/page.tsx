@@ -2,28 +2,29 @@ import Link from "next/link";
 import { LegalBackButton } from "@/components/legal-back-button";
 import type { Metadata } from "next";
 import { brand } from "@/lib/brand";
+import { legalConfig } from "@/lib/config/legal";
 
-export const metadata: Metadata = { title: "Cookies", description: "Uso de cookies y almacenamiento técnico en Orqena.", alternates: { canonical: "/cookies" }, openGraph: { title: "Cookies en Orqena", description: "Información sobre almacenamiento técnico.", images: [brand.socialImage] } };
+export const metadata: Metadata = { title: "Cookies", description: `Uso de cookies y almacenamiento técnico en ${brand.productName}.`, alternates: { canonical: "/cookies" }, openGraph: { title: `Cookies en ${brand.productName}`, description: "Información sobre almacenamiento técnico.", images: [brand.socialImage] } };
 
 export default function CookiesPage() {
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
       <LegalBackButton />
-      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">Orqena</Link>
+      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">{brand.productName}</Link>
       <h1 className="mt-4 text-3xl font-black text-obra-ink">Política de cookies</h1>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Esta página resume el uso previsto de cookies y almacenamiento local en Orqena.
+        Borrador parametrizado {legalConfig.documentVersion}. Describe el comportamiento técnico actual de {brand.productName}.
       </p>
 
       <section className="card mt-6 grid gap-4 p-5 text-sm leading-6 text-slate-600">
         <Block title="Uso actual">
-          Orqena puede usar almacenamiento técnico del navegador para mantener sesión, preferencias y funcionamiento básico de la app.
+          La sesión, seguridad, preferencias y funcionamiento básico usan almacenamiento estrictamente necesario y no dependen del consentimiento de analítica.
         </Block>
         <Block title="Analítica y marketing">
-          No hay cookies publicitarias activadas en esta fase. Si se añaden herramientas de analítica o marketing, se documentarán antes de activarlas.
+          No hay publicidad ni marketing activados. La analítica propia solo está disponible si el entorno la habilita y no empieza hasta que la persona pulsa “Aceptar analítica”. “Solo esenciales” mantiene el reporter sin montar y no envía métricas.
         </Block>
         <Block title="Gestión">
-          Puedes borrar cookies y datos del sitio desde los ajustes del navegador. Algunas funciones pueden requerir volver a iniciar sesión o recargar la PWA.
+          El botón “Privacidad” permite retirar o conceder la analítica. También puedes borrar cookies y datos del sitio desde el navegador; algunas funciones esenciales requerirán volver a iniciar sesión.
         </Block>
       </section>
     </main>

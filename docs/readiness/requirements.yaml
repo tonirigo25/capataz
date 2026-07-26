@@ -7,19 +7,19 @@ requirements:
   - id: "GOV-001"
     area: "GOV"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Posicionar el producto públicamente para empresas de obra, reformas e instalaciones, no como ERP horizontal genérico."
     acceptance: "Copy y navegación pública verificadas contra un único ICP."
-    evidence: []
-    notes: []
+    evidence: ["app/page.tsx", "app/marketing-v2/_components/hero-demo.tsx", "scripts/readiness/validate-f9-public.ts", "scripts/readiness/validate-f9-browser.mjs"]
+    notes: ["Canonical public copy is vertical-first for construction, renovations and installations; 390x844 and 1440x900 browser gates passed without external requests."]
   - id: "GOV-002"
     area: "GOV"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Conservar la arquitectura multisector como capacidad configurable y no como mensaje principal."
     acceptance: "Catálogo sectorial interno configurable; home vertical-first."
-    evidence: []
-    notes: []
+    evidence: ["app/marketing-v2/_components/landing-data.ts", "lib/marketing/catalog.ts", "lib/business-profile/sectors.ts", "scripts/readiness/validate-f9-public.ts"]
+    notes: ["The public home exposes one construction-first story while the internal sector catalog remains configurable and is not used as the primary message."]
   - id: "GOV-003"
     area: "GOV"
     phase: "F1"
@@ -31,11 +31,11 @@ requirements:
   - id: "GOV-004"
     area: "GOV"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Dejar la aplicación preparada para rebranding/white-label sin fork de código."
     acceptance: "Tema, assets, metadata, emails y PDFs resueltos desde configuración."
-    evidence: []
-    notes: []
+    evidence: ["lib/config/brand.ts", "lib/brand.ts", "app/layout.tsx", "lib/email/index.ts", "lib/document-pdf.ts", "scripts/readiness/validate-f9-public.ts"]
+    notes: ["Product/assistant names, tagline, theme, assets, metadata, PWA and sender identity are configurable; email subjects use brand configuration and PDFs accept verified tenant logo/color without a code fork."]
   - id: "GOV-005"
     area: "GOV"
     phase: "F11"
@@ -71,11 +71,11 @@ requirements:
   - id: "GOV-009"
     area: "GOV"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener precios públicos bajo aprobación comercial y mapping externo, nunca hardcodeados en UI."
     acceptance: "Feature flag y catálogo de Price IDs validados."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/unit-economics.ts", "lib/commercial/plans.ts", "app/planes/page.tsx", ".env.example", "scripts/readiness/validate-f9-public.ts"]
+    notes: ["Public pricing remains false by default and requires the flag, an approval reference, a catalog version and external Stripe mappings together; no subscription amount is hardcoded in the public plan UI."]
   - id: "GOV-010"
     area: "GOV"
     phase: "F11"
@@ -671,11 +671,11 @@ requirements:
   - id: "PRIV-010"
     area: "PRIV"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Implantar CMP solo para categorías no esenciales realmente usadas."
     acceptance: "Sin consentimiento no cargan analítica/marketing."
-    evidence: []
-    notes: []
+    evidence: ["components/consent-manager.tsx", "components/web-vitals-reporter.tsx", "app/layout.tsx", "app/cookies/page.tsx", "scripts/readiness/validate-f9-browser.mjs"]
+    notes: ["No CMP renders while no nonessential category is available. When first-party analytics is enabled, the reporter mounts only after explicit acceptance; reject and withdrawal controls were exercised with zero pre-consent/rejected traffic."]
   - id: "PRIV-011"
     area: "PRIV"
     phase: "F5"
@@ -719,11 +719,11 @@ requirements:
   - id: "PRIV-016"
     area: "PRIV"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Sustituir textos legales genéricos por contenido parametrizado y revisable."
     acceptance: "No quedan afirmaciones falsas sobre envíos, facturación o proveedores."
-    evidence: []
-    notes: []
+    evidence: ["lib/config/legal.ts", "app/privacidad/page.tsx", "app/terminos/page.tsx", "app/cookies/page.tsx", "app/politicas/page.tsx", "scripts/readiness/validate-f9-public.ts"]
+    notes: ["Legal drafts are versioned, parameterized and explicitly REVIEW_REQUIRED. Provider, sending, billing and contractual statements describe fail-closed behavior and do not claim an inactive live service; final legal approval remains GOV-005/F11."]
   - id: "PRIV-017"
     area: "PRIV"
     phase: "F5"
@@ -1487,19 +1487,19 @@ requirements:
   - id: "UX-009"
     area: "UX"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Integrar Marketing V2 solo después de preview aislada y revisión."
     acceptance: "PR #24 validada; route manifest actualizado una vez."
-    evidence: []
-    notes: []
+    evidence: ["docs/readiness/evidence/f0/audit-manifest.json", "app/marketing-v2/page.tsx", "app/demo-v2/page.tsx", "lib/route-experience-manifest.ts", "scripts/readiness/validate-f9-public.ts"]
+    notes: ["Accepted PR #24 source SHA ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4 was integrated as an explicit merge parent after the isolated preview and teardown; each V2 route occurs once in the manifest."]
   - id: "UX-010"
     area: "UX"
     phase: "F9"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Reducir mensaje público a flujo lead-visita-presupuesto-trabajo-gasto-factura-cobro."
     acceptance: "Demo de 15 minutos cubre historia completa."
-    evidence: []
-    notes: []
+    evidence: ["app/marketing-v2/_components/landing-data.ts", "app/marketing-v2/_components/journey-selector.tsx", "app/demo-v2/_components/guided-demo.tsx", "scripts/readiness/validate-f9-browser.mjs"]
+    notes: ["The canonical 15-minute synthetic story exposes exactly lead, visit, quote, work, expense, invoice and collection in order, with human confirmation and no external calls."]
   - id: "UX-011"
     area: "UX"
     phase: "F8"

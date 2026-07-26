@@ -27,3 +27,11 @@ No organization, project, selector or other sensitive identifier is recorded in 
 - Observation: the verified cost ledger and aggregate cost-to-serve calculation cover infrastructure, AI, storage, email and support by tenant, plan and period.
 - Missing external evidence: current provider invoices, measured resource usage and approved support time records for the target environment.
 - Containment: unverified costs are excluded; absence of a real baseline is displayed as missing evidence and is never replaced with an invented value.
+
+## BRAND-DOMAIN-CLEARANCE-001
+
+- Phase/control: F11 / GOV-005
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: public identity, metadata, legal fields and white-label configuration are technically parameterized, but trademark clearance, definitive legal identity and proof of domain control require authorized legal/commercial evidence.
+- Containment: `PUBLIC_INDEXING_ENABLED=false`; canonical public routes remain noindex and V2 aliases remain preserved for rollback. No domain, DNS, staging or production setting was changed.
+- Required resolution: archive the authorized clearance decision and domain-control evidence before any indexing release gate can pass.
