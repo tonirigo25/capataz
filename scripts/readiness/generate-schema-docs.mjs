@@ -6,7 +6,7 @@ const root = process.cwd();
 const schemaPath = path.join(root, "prisma", "schema.prisma");
 const outputDirectory = path.join(root, "docs", "architecture", "generated");
 const schema = await readFile(schemaPath, "utf8");
-const schemaHash = createHash("sha256").update(schema).digest("hex");
+const schemaHash = createHash("sha256").update(schema.replace(/\r\n/gu, "\n")).digest("hex");
 
 const modelMatches = [...schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)];
 const models = modelMatches.map((match) => {

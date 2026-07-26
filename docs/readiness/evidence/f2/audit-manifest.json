@@ -42,6 +42,7 @@
     "publicIndexing": "PASS",
     "singleMigrationOwner": "PASS",
     "freshMigrationDeploy": "37/37 PASS; second deploy no pending migrations",
+    "crossPlatformSchemaHash": "PASS; CRLF normalized to LF in generator and validator",
     "databaseSafety": "PASS",
     "railwayCspReportOnly": "12/12 HTTP checks, 12 browser routes, 0 CSP findings and 0 violation logs PASS",
     "railwayCspEnforce": "11/11 HTTP checks, 12 browser routes, interactions and PDF preview, 0 CSP findings and 0 violation logs PASS",
