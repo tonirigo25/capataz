@@ -60,7 +60,7 @@ try {
     "FiscalDocument", "FiscalRecord", "FiscalTransmission", "FiscalEvent", "FiscalSoftwareDeclaration",
     "ElectronicInvoiceArtifact", "ElectronicInvoiceDelivery", "ElectronicInvoiceStatusEvent", "BillingCustomer", "BillingPriceMapping", "BillingEvent",
     "EmailSuppression", "EmailWebhookEvent", "LegalDocumentVersion", "LegalAcceptance", "ProcessingActivity", "RetentionPolicy", "PrivacyRequest", "ConsentRecord", "DataBreachIncident",
-    "CompanyAiPolicy", "AiUsageEvent", "AiModelVersion", "AiPromptVersion", "AiEvaluationRun", "ProductEvent", "CompanyDailyMetric", "PilotCohort", "PilotFeedback", "SupportTicket", "Incident", "StoredObject", "UploadScan",
+    "CompanyAiPolicy", "AiUsageEvent", "AiModelVersion", "AiPromptVersion", "AiEvaluationRun", "AiGatewayOperation", "AiReviewEvent", "AiCircuitState", "ProductEvent", "CompanyDailyMetric", "PilotCohort", "PilotFeedback", "SupportTicket", "Incident", "StoredObject", "UploadScan",
   ]]);
   const now = new Date();
   await client.query('INSERT INTO "Company" (id,slug,"nombreComercial","updatedAt") VALUES ($1,$2,$3,$4)', ["f1-company", "f1-company", "F1 isolated", now]);

@@ -5,8 +5,10 @@ const root = process.cwd();
 const sourcePath = path.join(root, "docs", "readiness", "MASTER_PROGRAM_PROMPT.md");
 const outputPath = path.join(root, "docs", "readiness", "requirements.yaml");
 const overridesPath = path.join(root, "docs", "readiness", "requirement-overrides.json");
+const externalGatesPath = path.join(root, "docs", "readiness", "external-gates.json");
 const source = (await readFile(sourcePath, "utf8")).replace(/\r\n/g, "\n");
 const overrides = JSON.parse(await readFile(overridesPath, "utf8").catch(() => "{}"));
+const externalGates = JSON.parse(await readFile(externalGatesPath, "utf8").catch(() => '{"version":1,"gates":[]}'));
 const validStatuses = new Set(["PENDING", "PASS", "BLOCKED", "READY_FOR_EXTERNAL_INPUT", "WAIVED"]);
 
 const requirementPattern =
@@ -61,6 +63,18 @@ for (const item of requirements) {
     `    acceptance: ${quote(item.acceptance)}`,
     `    evidence: [${evidence.map(quote).join(", ")}]`,
     `    notes: [${notes.map(quote).join(", ")}]`,
+  );
+}
+
+lines.push("external_gates:");
+for (const gate of externalGates.gates ?? []) {
+  if (!/^AI-LIVE-\d{3}$/.test(gate.id) || !validStatuses.has(gate.status)) throw new Error(`Invalid external gate: ${gate.id ?? "unknown"}`);
+  lines.push(
+    `  - id: ${quote(gate.id)}`,
+    `    phase: ${quote(gate.phase)}`,
+    `    status: ${quote(gate.status)}`,
+    `    control: ${quote(gate.control)}`,
+    `    reason: ${quote(gate.reason)}`,
   );
 }
 

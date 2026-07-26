@@ -129,3 +129,20 @@ Implemented on `feat/readiness-f5-continuity` from program commit `097021d594700
 - No F5 requirement is pending, blocked or waived.
 
 Evidence: `docs/readiness/evidence/f5/audit-manifest.json`, the F5 validators, privacy/legal/observability contracts, runbooks and migration `20260726160000_readiness_f5_privacy_security`.
+
+## F6 - Governed AI gateway - PASS NON-LIVE WITH EXTERNAL INPUT GATES
+
+Implemented on `feat/readiness-f6-ai` from program commit `7a58a7a213dff4e2ca74824aee0a421c874d8fca`. Production and persistent staging were not modified. No OpenAI key was created or written, no secret was exposed, and no real provider call was made.
+
+- The secure Platform/local-save UI returned `not_approved` in three attempts. `OPENAI-KEY-SETUP-UI` and `AI-LIVE-001` through `AI-LIVE-006` are recorded as `READY_FOR_EXTERNAL_INPUT`; the flow was not repeated or replaced with a manual method.
+- Added one governed server gateway and one OpenAI endpoint owner. The browser CSP no longer permits direct OpenAI connections. Contracts version request/response, model lanes, synthetic pricing and the evaluation dataset.
+- Company policy fails closed by global flag, company enable/kill switch, purpose, role, scope, field allowlist and classification. Company/user/month/operation budgets plus token, byte, time and concurrency limits block before transport.
+- Context minimization and deterministic redaction removed synthetic email, NIF, IBAN, phone, address and key-shaped content. A different company ID and exfiltration request failed before transport. Provider metadata uses pseudonymous references.
+- Strict schema validation, `store=false`, AbortController timeouts, retryable-status allowlist, bounded exponential backoff/jitter, circuit breaker and deterministic manual fallback passed with injected transports.
+- Idempotency persisted one effect and replayed the stored envelope without a second provider call. Sensitive actions required exact human confirmation and then entered a sanitized transactional outbox; model output never executed the effect.
+- Usage evidence stores hashes, model/snapshot, purpose, prompt/schema version, correlation IDs, tokens, synthetic estimated cost, latency, errors/retries and review outcome without prompts or output content. The OWNER/ADMIN panel exposes aggregate usage and accepted/corrected/rejected reviews.
+- The retention job purged expired response envelopes and kept request/output/evidence hashes. The compliance template and runbook cover minimum permissions, budgets/alerts, local/staging/production activation, rotation and emergency revocation without claiming provider settings as active.
+- Pure fake suite passed 44/44, static safety suite 36/36 and isolated PostgreSQL suite 8/8 after 41/41 fresh migrations. Typecheck and a 73-page production build passed. F1-F5 regressions passed, provider contracts used zero external calls, dependency audit reported zero known vulnerabilities, and the secret scan covered 835 files with zero findings.
+- Requirement ledger: 15 F6 requirements are `PASS`; `AI-004`, `AI-006` and `AI-016` are `READY_FOR_EXTERNAL_INPUT`. No F6 requirement is pending, blocked or waived. F6 is not represented as a total live PASS.
+
+Evidence: `docs/readiness/evidence/f6/audit-manifest.json`, `synthetic-usage-summary.json`, `openai-key-setup-ui.md`, F6 validators, AI contracts, runbook and migration `20260726180000_readiness_f6_ai_governance`.

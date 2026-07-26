@@ -64,7 +64,7 @@ function buildContentSecurityPolicy(nonce: string) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.openai.com https://api.resend.com https://api.stripe.com",
+    "connect-src 'self' https://api.resend.com https://api.stripe.com",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

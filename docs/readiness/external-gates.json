@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "gates": [
+    { "id": "AI-LIVE-001", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Create and save a new scoped OPENAI_API_KEY through the secure Platform workflow", "reason": "Reproducible local approval UI failure; no key created or file written" },
+    { "id": "AI-LIVE-002", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Real Responses endpoint smoke with synthetic fixture", "reason": "Requires AI-LIVE-001" },
+    { "id": "AI-LIVE-003", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Real strict Structured Output validation", "reason": "Requires AI-LIVE-001" },
+    { "id": "AI-LIVE-004", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Real store=false and provider metadata verification", "reason": "Requires AI-LIVE-001 and approved provider data profile" },
+    { "id": "AI-LIVE-005", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Measure real aggregate tokens, cost and latency", "reason": "Requires AI-LIVE-001; no live metrics are inferred from fake results" },
+    { "id": "AI-LIVE-006", "phase": "F6", "status": "READY_FOR_EXTERNAL_INPUT", "control": "Minimal live evaluation using only versioned synthetic fixtures", "reason": "Requires AI-LIVE-001 and project budget alerts" }
+  ]
+}

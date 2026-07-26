@@ -1714,13 +1714,19 @@ erDiagram
     String id
     String companyId
     Boolean enabled
+    Boolean killSwitch
     Json allowedPurposes
     Json prohibitedData
     Json approvedModels
+    Json allowedRoles
+    Json allowedScopes
+    Json allowedFields
+    Json approvedClassifications
     String dataProfile
-    Boolean humanReviewRequired
-    DateTime createdAt
-    DateTime updatedAt
+    Decimal companyMonthlyBudget
+    Decimal userMonthlyBudget
+    Decimal operationBudget
+    Int maxInputTokens
   }
   AiModelVersion {
     String id
@@ -1747,17 +1753,17 @@ erDiagram
     String modelVersionId
     String promptVersionId
     String purpose
+    String actorIdHash
+    String requestId
+    String correlationId
+    String causationId
+    String operationKey
+    String idempotencyKey
+    String lane
+    String modelSnapshot
     Int schemaVersion
     String requestHash
-    Int inputTokens
-    Int outputTokens
-    Decimal costAmount
-    String currency
-    Boolean storeRequested
-    Boolean humanReviewed
-    String outcome
-    Json metadata
-    DateTime createdAt
+    String outputHash
   }
   AiEvaluationRun {
     String id
@@ -1771,6 +1777,46 @@ erDiagram
     DateTime startedAt
     DateTime completedAt
     DateTime createdAt
+  }
+  AiGatewayOperation {
+    String id
+    String companyId
+    String actorIdHash
+    String purpose
+    String idempotencyKey
+    String requestHash
+    String status
+    Json responseEnvelope
+    String responseHash
+    String errorCode
+    Int attemptCount
+    DateTime lockedUntil
+    DateTime contentExpiresAt
+    DateTime contentPurgedAt
+    DateTime createdAt
+    DateTime completedAt
+  }
+  AiReviewEvent {
+    String id
+    String companyId
+    String usageEventId
+    String actorIdHash
+    String outcome
+    Json correctionKinds
+    String reasonCode
+    DateTime createdAt
+  }
+  AiCircuitState {
+    String id
+    String environment
+    String provider
+    String state
+    Int consecutiveFailure
+    DateTime openedUntil
+    DateTime halfOpenLeaseUntil
+    String lastFailureCode
+    DateTime lastFailureAt
+    DateTime updatedAt
   }
   ProductEvent {
     String id
@@ -2271,6 +2317,9 @@ erDiagram
   AiEvaluationRun }o--o{ Company : relates
   AiEvaluationRun }o--o{ AiModelVersion : relates
   AiEvaluationRun }o--o{ AiPromptVersion : relates
+  AiGatewayOperation }o--o{ Company : relates
+  AiReviewEvent }o--o{ Company : relates
+  AiReviewEvent }o--o{ AiUsageEvent : relates
   PilotCohort }o--o{ PilotFeedback : relates
   Incident }o--o{ IncidentTimelineEvent : relates
   Incident }o--o{ PostmortemAction : relates

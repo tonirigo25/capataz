@@ -71,7 +71,7 @@ const groups = [
   ["Fiscal", ["FiscalDocument", "FiscalRecord", "FiscalTransmission", "FiscalEvent", "FiscalSoftwareDeclaration"]],
   ["E-invoice and billing", ["ElectronicInvoiceArtifact", "ElectronicInvoiceDelivery", "ElectronicInvoiceStatusEvent", "BillingCustomer", "BillingPriceMapping", "BillingEvent"]],
   ["Delivery and privacy", ["EmailSuppression", "EmailWebhookEvent", "LegalDocumentVersion", "LegalAcceptance", "ProcessingActivity", "RetentionPolicy", "PrivacyRequest", "ConsentRecord", "DataBreachIncident"]],
-  ["AI and product", ["CompanyAiPolicy", "AiModelVersion", "AiPromptVersion", "AiUsageEvent", "AiEvaluationRun", "ProductEvent", "CompanyDailyMetric", "PilotCohort", "PilotFeedback", "SupportTicket", "Incident"]],
+  ["AI and product", ["CompanyAiPolicy", "AiModelVersion", "AiPromptVersion", "AiUsageEvent", "AiEvaluationRun", "AiGatewayOperation", "AiReviewEvent", "AiCircuitState", "ProductEvent", "CompanyDailyMetric", "PilotCohort", "PilotFeedback", "SupportTicket", "Incident"]],
   ["Private storage", ["StoredObject", "UploadScan", "Document"]],
 ];
 const svgWidth = 1440;
