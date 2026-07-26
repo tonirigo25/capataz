@@ -28,7 +28,7 @@ No organization, project, selector or other sensitive identifier is recorded in 
 - Missing external evidence: current provider invoices, measured resource usage and approved support time records for the target environment.
 - Containment: unverified costs are excluded; absence of a real baseline is displayed as missing evidence and is never replaced with an invented value.
 
-## BRAND-DOMAIN-CLEARANCE-001
+## BRAND-LEGAL-001
 
 - Phase/control: F11 / GOV-005
 - Status: `READY_FOR_EXTERNAL_INPUT`
@@ -65,3 +65,51 @@ No organization, project, selector or other sensitive identifier is recorded in 
 - Observation: build/signing guards and checksum manifest generation are implemented, but no signed AAB or XCArchive was built.
 - Missing external capability: approved signing material, Android JDK/toolchain and protected macOS/Xcode runner.
 - Containment: release tasks fail when signing inputs are incomplete; store state remains NOT_SUBMITTED and no artifact/publication is claimed.
+
+## IP-CHAIN-001
+
+- Phase/control: F11 / GOV-007
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: contribution and AI-assistance fields, review rules and the ignored private evidence boundary are complete.
+- Missing external evidence: signed employment, contractor or contributor assignments for the exact release scope.
+- Containment: the repository makes no ownership warranty and accepts no external contribution solely because it was merged.
+
+## RAILWAY-PREVIEW-001
+
+- Phase/control: F11 / CI-011
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: the manual dispatch validates PR number, immutable SHA and explicit isolation approval, then performs no provider mutation.
+- Missing external evidence: provision, isolation proof and teardown of an actual Railway PR environment using resources distinct from staging and production.
+- Containment: no Railway credential is present in the workflow and no staging/production resource was queried or modified.
+
+## RELEASE-APPROVAL-001
+
+- Phase/control: F11 / CI-012
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: the release-candidate workflow checks a full SHA and approval reference and only builds evidence.
+- Missing external evidence: repository-admin configuration of required reviewers on the staging and production GitHub environments.
+- Containment: the workflow cannot deploy and requires an explicit `confirm_no_deploy` input.
+
+## DR-RESTORE-001
+
+- Phase/control: F11 / DATA-003
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: local fresh-schema, export/restore reference and checksum controls pass; remote policy activation was not attempted.
+- Missing external evidence: provider backup/PITR policy plus an authorized sibling-resource restore with measured RPO/RTO.
+- Containment: the procedure forbids restoring over the source; any real drill requires separate infrastructure authorization.
+
+## ASSET-TITLE-001
+
+- Phase/control: F11 / DATA-007
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: transferable and non-transferable asset classes and the private title schedule fields are defined.
+- Missing external evidence: signed title/assignment schedule for code, designs, demo data and authored assets.
+- Containment: accounts, credentials, provider contracts, customer data and third-party rights are explicitly excluded absent written transfer.
+
+## HANDOVER-COMMERCIAL-001
+
+- Phase/control: F11 / DATA-008
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: technical handover contents and acceptance gates are defined.
+- Missing external decision: included hours, personnel, response windows, dates and commercial terms.
+- Containment: no hours, price, staffing or SLA is invented in repository evidence.

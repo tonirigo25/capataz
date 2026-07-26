@@ -213,3 +213,20 @@ Implemented on `feat/readiness-f10-mobile-distribution` from program commit `5f4
 - Requirement ledger: six F10 requirements are `PASS`; `MOB-003`, `MOB-004`, `MOB-005` and `MOB-009` are `READY_FOR_EXTERNAL_INPUT` for approved-domain/device E2E and signed artifacts. No F10 requirement is pending, blocked or waived.
 
 Evidence: `docs/readiness/evidence/f10/audit-manifest.json`, mobile contracts, architecture/listing docs, signing runbook and F10 validator.
+
+## F11 - Governance, CI, supply chain and transfer readiness - PASS WITH EXTERNAL INPUT GATES
+
+Implemented on `feat/readiness-f11-governance` from program commit `736e9e47b44486abc426265b3cf8c453bfeef791`. Production, persistent staging, Railway, provider projects, stores and live credentials were not modified.
+
+- Added four least-privilege GitHub workflows with every action pinned to a resolved 40-character SHA: application/database/browser CI, security/supply-chain, fail-closed Railway preview dispatch and non-deploying release-candidate evidence.
+- Adopted Vitest and Playwright Test alongside all legacy validators. Vitest passed 3/3 with JUnit output; Playwright passed 2/2 for public reachability, noindex/robots, CSP enforcement and zero serious/critical axe findings.
+- Fresh isolated PostgreSQL applied 43/43 migrations and the tenant/horizontal pentest passed 12/12 with zero high/critical findings, zero external calls and zero production/staging writes.
+- Fiscal/XML goldens passed 12/12, commercial contracts 11/11 and privacy/security 18/18. Workflow YAML parsed 4/4 and dispatch simulations reported no provider mutation or deployment.
+- Dependency audit reported zero vulnerabilities. The production license inventory found 485 locked packages, 22 direct, zero critical expressions and 14 review expressions. The reproducible CycloneDX 1.6 SBOM contains 779 components and 925 dependency rows; 145 unresolved nested references emitted by lockfile-only generation are recorded, not hidden.
+- Typecheck passed, the production build generated 77/77 static pages and prepared standalone output, and the final secret scan covered 953 files with zero findings.
+- Added proprietary LICENSE/NOTICE/contribution controls, third-party notices, ten ADRs, IP/asset/debt/known-issues registers and a strictly ignored private data-room boundary.
+- The public technical data room links architecture, ERD, data dictionary, critical flows, operations/recovery, command catalog, support matrix and transition package. Readiness/release generators record full SHA, requirement/migration hashes and checksums without secrets or tenant content.
+- The corrected requirement compiler accepts generic versioned external gates and persists all F7-F10 statuses in overrides. The ledger compiles 233 requirements: F11 has 29 `PASS` and seven `READY_FOR_EXTERNAL_INPUT`, with no pending/blocked/waived entry.
+- External F11 gates are brand clearance, signed IP chain, real Railway preview, protected GitHub environment reviewers, real provider restore, private asset title and commercial handover terms. None is represented as technically completed.
+
+Evidence: `docs/readiness/evidence/f11/audit-manifest.json`, tenant/license/readiness/release reports, F11 validators, pinned workflows and the public data-room index.

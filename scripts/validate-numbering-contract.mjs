@@ -13,8 +13,11 @@ import { assertIsolatedTestDatabase } from "./test-database-safety.mjs";
 const { reserveDocumentNumber, reserveDocumentNumberInTransaction } = await import("../lib/numbering.ts");
 
 const root = process.env.CAPATAZ_EMBEDDED_POSTGRES_ROOT;
-if (!root) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required");
-const { default: EmbeddedPostgres } = await import(pathToFileURL(join(root, "node_modules", "embedded-postgres", "dist", "index.js")).href);
+const useExistingTestDatabase = process.env.CAPATAZ_USE_EXISTING_TEST_DATABASE === "true";
+if (!root && !useExistingTestDatabase) throw new Error("CAPATAZ_EMBEDDED_POSTGRES_ROOT is required unless CAPATAZ_USE_EXISTING_TEST_DATABASE=true");
+const EmbeddedPostgres = root
+  ? (await import(pathToFileURL(join(root, "node_modules", "embedded-postgres", "dist", "index.js")).href)).default
+  : undefined;
 const password = randomBytes(24).toString("hex");
 const databaseName = "capataz_test_numbering";
 const transactionOptions = { maxWait: 30_000, timeout: 30_000 };
@@ -42,18 +45,24 @@ async function reserve(companyId, type) {
 }
 
 try {
-  runtime = await startIsolatedPostgres({
-    EmbeddedPostgres,
-    root,
-    suite: "numbering-contract",
-    password,
-    preferredPort: process.env.CAPATAZ_NUMBERING_POSTGRES_PORT,
-  });
-  await runtime.pg.createDatabase(databaseName);
-  const url = `postgresql://postgres:${password}@127.0.0.1:${runtime.port}/${databaseName}?schema=public`;
+  let url;
+  if (useExistingTestDatabase) {
+    url = process.env.DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL is required with CAPATAZ_USE_EXISTING_TEST_DATABASE=true");
+  } else {
+    runtime = await startIsolatedPostgres({
+      EmbeddedPostgres,
+      root,
+      suite: "numbering-contract",
+      password,
+      preferredPort: process.env.CAPATAZ_NUMBERING_POSTGRES_PORT,
+    });
+    await runtime.pg.createDatabase(databaseName);
+    url = `postgresql://postgres:${password}@127.0.0.1:${runtime.port}/${databaseName}?schema=public`;
+  }
   const env = { ...process.env, DATABASE_URL: url, CAPATAZ_TEST_DATABASE_ISOLATED: "true", APP_ENV: "test", NEXT_PUBLIC_APP_ENV: "test" };
   assertIsolatedTestDatabase(env);
-  execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
+  if (!useExistingTestDatabase) execFileSync("npx.cmd", ["prisma", "migrate", "deploy"], { cwd: process.cwd(), env, stdio: "pipe", shell: true });
   db = new PrismaClient({ datasources: { db: { url } }, transactionOptions });
 
   console.error("case basic");
@@ -110,7 +119,7 @@ try {
   console.error("case missing"); const missing = await company("contract-missing");
   await assert.rejects(() => reserve("missing-company-id", "budget"));
   assert.equal(await db.companyDocumentSequence.count({ where: { companyId: missing.id } }), 0);
-  console.log(JSON.stringify({ ok: true, isolated: true, host: "127.0.0.1", database: databaseName, calls, transactionOptions, cases: { companyAFirstSecond: true, companyBIndependent: true, invoiceIndependent: true, seriesIndependent: true, yearsIndependent: true, legacyMaxPlusOne: true, sequenceAboveMax: true, sequenceBelowMax: true, concurrency20: true, crossCompanyIsolation: true, rollbackNoAdvance: true, missingCompanyNoSequence: true } }));
+  console.log(JSON.stringify({ ok: true, isolated: true, databaseMode: useExistingTestDatabase ? "existing-ci-test-database" : "embedded-ephemeral", host: "127.0.0.1", database: useExistingTestDatabase ? new URL(url).pathname.slice(1) : databaseName, calls, transactionOptions, cases: { companyAFirstSecond: true, companyBIndependent: true, invoiceIndependent: true, seriesIndependent: true, yearsIndependent: true, legacyMaxPlusOne: true, sequenceAboveMax: true, sequenceBelowMax: true, concurrency20: true, crossCompanyIsolation: true, rollbackNoAdvance: true, missingCompanyNoSequence: true } }));
 } finally {
   removeSignalHandlers();
   await db?.$disconnect();

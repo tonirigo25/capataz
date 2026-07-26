@@ -39,35 +39,35 @@ requirements:
   - id: "GOV-005"
     area: "GOV"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Realizar clearance de marca y documentar control de dominios antes de indexación."
     acceptance: "Informe/decisión legal archivada; PUBLIC_INDEXING_ENABLED sigue false hasta cierre."
-    evidence: []
-    notes: []
+    evidence: ["docs/governance/KNOWN_ISSUES.md", "docs/readiness/external-gates.json", ".env.example"]
+    notes: ["BRAND-LEGAL-001 requires legal clearance and current domain-control evidence; public indexing remains false."]
   - id: "GOV-006"
     area: "GOV"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir aviso de software propietario, NOTICE y reglas de contribución."
     acceptance: "LICENSE/NOTICE/CONTRIBUTING revisados; repositorio sin licencia ambigua."
-    evidence: []
-    notes: []
+    evidence: ["LICENSE", "NOTICE", "CONTRIBUTING.md", ".github/CODEOWNERS"]
+    notes: ["The repository is unambiguously proprietary, external contribution acceptance is controlled and third-party rights remain separate."]
   - id: "GOV-007"
     area: "GOV"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Inventariar autores, contribuciones asistidas y cesiones de derechos."
     acceptance: "Matriz de cadena IP incluida en data room privado."
-    evidence: []
-    notes: []
+    evidence: ["docs/governance/IP_CHAIN_REGISTER.md", "CONTRIBUTING.md", "docs/data-room/README.md", "docs/readiness/external-gates.json"]
+    notes: ["Human/AI contribution inventory fields and private boundary are defined; signed assignments remain IP-CHAIN-001."]
   - id: "GOV-008"
     area: "GOV"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Generar inventario de terceros y obligaciones de sus licencias."
     acceptance: "THIRD_PARTY_NOTICES y reporte automatizado sin incompatibilidades críticas."
-    evidence: []
-    notes: []
+    evidence: ["THIRD_PARTY_NOTICES.md", "scripts/readiness/generate-license-report.mjs", ".github/workflows/security.yml"]
+    notes: ["Locked production dependencies, license expressions, critical policy and CycloneDX generation are automated; the report is explicitly not a legal opinion."]
   - id: "GOV-009"
     area: "GOV"
     phase: "F9"
@@ -79,19 +79,19 @@ requirements:
   - id: "GOV-010"
     area: "GOV"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener registro de deuda técnica, limitaciones y decisiones arquitectónicas."
     acceptance: "KNOWN_ISSUES, debt register y ADRs actualizados."
-    evidence: []
-    notes: []
+    evidence: ["docs/governance/KNOWN_ISSUES.md", "docs/governance/TECHNICAL_DEBT.md", "docs/adr"]
+    notes: ["Launch limitations, revisit triggers, owners and irreversible decisions are versioned without false live claims."]
   - id: "GOV-011"
     area: "GOV"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir lista exacta de activos transferibles y no transferibles."
     acceptance: "Data room contiene manifest de repositorios, ramas, diseños, cuentas y documentación."
-    evidence: []
-    notes: []
+    evidence: ["docs/governance/ASSET_TRANSFER_REGISTER.md", "docs/data-room/public/INDEX.md"]
+    notes: ["Transferable and excluded asset classes are explicit; final title evidence is separately gated under DATA-007/ASSET-TITLE-001."]
   - id: "GOV-012"
     area: "GOV"
     phase: "F8"
@@ -207,11 +207,11 @@ requirements:
   - id: "ARCH-014"
     area: "ARCH"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Publicar ADRs de decisiones irreversibles."
     acceptance: "Al menos arquitectura, fiscal, Decimal, outbox, storage y privacidad documentados."
-    evidence: []
-    notes: []
+    evidence: ["docs/adr/0001-modular-monolith.md", "docs/adr/0002-decimal-money.md", "docs/adr/0003-transactional-outbox.md", "docs/adr/0005-private-object-storage.md", "docs/adr/0007-fiscal-engine-and-electronic-invoice.md", "docs/adr/0009-privacy-governance.md", "docs/adr/0010-release-and-supply-chain-governance.md"]
+    notes: ["Architecture, Decimal money, outbox, storage, fiscal, privacy and release/supply-chain decisions are recorded as ADRs."]
   - id: "SEC-001"
     area: "SEC"
     phase: "F2"
@@ -327,19 +327,19 @@ requirements:
   - id: "SEC-015"
     area: "SEC"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Automatizar secret scanning, dependency audit, CodeQL, SBOM y licencias."
     acceptance: "CI bloquea secretos y vulnerabilidades por política."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/security.yml", "scripts/readiness/scan-secrets.mjs", "scripts/readiness/generate-license-report.mjs"]
+    notes: ["Pinned CI blocks high audit findings, repository secret patterns and gitleaks, runs CodeQL, and emits CycloneDX/license artifacts."]
   - id: "SEC-016"
     area: "SEC"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Realizar pentest específico de multitenencia y autorización horizontal."
     acceptance: "Hallazgos altos/críticos cerrados antes de launch."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/run-f11-tenant-pentest.mjs", "scripts/readiness/validate-f5-postgres.ts", "docs/readiness/evidence/f11/tenant-pentest.json"]
+    notes: ["Fresh isolated PostgreSQL horizontal/tenant-negative probes completed with zero high or critical findings and no external calls."]
   - id: "SEC-017"
     area: "SEC"
     phase: "F5"
@@ -1303,123 +1303,123 @@ requirements:
   - id: "OBS-014"
     area: "OBS"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Generar informe de readiness reproducible."
     acceptance: "Un comando produce evidencia versionada."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/generate-readiness-report.mjs", "docs/readiness/evidence/f11/readiness-report.json"]
+    notes: ["One command emits source SHA, requirement counts, migration inventory hash and explicit environment mutation flags."]
   - id: "CI-001"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir GitHub Actions para pull_request y push protegido."
     acceptance: "Workflow verde desde clon limpio."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", ".github/workflows/security.yml"]
+    notes: ["Pull requests and protected program/main pushes run application, database, browser and supply-chain jobs."]
   - id: "CI-002"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Usar Node compatible, npm ci y caché controlada."
     acceptance: "Lockfile obligatorio y reproducible."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", "package-lock.json"]
+    notes: ["Node 22.18, npm ci, lockfile and controlled npm cache are explicit."]
   - id: "CI-003"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Levantar PostgreSQL aislado y aplicar todas las migraciones."
     acceptance: "Schema desde cero y upgrade fixture pasan."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", "scripts/readiness/validate-migrations-isolated.mjs"]
+    notes: ["CI provisions a dedicated capataz_test database, deploys all migrations and checks status; local migration idempotency remains reproducible."]
   - id: "CI-004"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Ejecutar prisma validate/generate, typecheck y build."
     acceptance: "Cualquier fallo bloquea PR."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", "package.json"]
+    notes: ["Prisma validate/generate, typecheck and production build are blocking steps."]
   - id: "CI-005"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Ejecutar suites críticas de auth, tenant, permisos, numeración, fiscal, billing, email y storage."
     acceptance: "Resumen por gate, no solo total global."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", "scripts/readiness/validate-f3-fiscal.ts", "scripts/readiness/validate-f4-commercial.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Named gates cover auth, tenant/horizontal authorization, numbering, fiscal, billing, email, private storage and PDF evidence."]
   - id: "CI-006"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Adoptar Vitest para unidad y Playwright Test para E2E sin eliminar suites existentes."
     acceptance: "Tests nuevos reportan JUnit/artefactos."
-    evidence: []
-    notes: []
+    evidence: ["vitest.config.ts", "playwright.config.ts", "tests/unit/f11-governance.test.ts", "tests/e2e/public-readiness.spec.ts"]
+    notes: ["Vitest and Playwright Test add JUnit/failure artifacts without removing existing validators."]
   - id: "CI-007"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir a11y, rutas, noindex/sitemap y CSP checks."
     acceptance: "Cero critical/serious y políticas coherentes."
-    evidence: []
-    notes: []
+    evidence: ["tests/e2e/public-readiness.spec.ts", "scripts/readiness/validate-f9-public.ts", "scripts/validate-public-indexing.ts"]
+    notes: ["Browser and static gates cover a11y, routes, noindex/robots/sitemap and CSP coherence."]
   - id: "CI-008"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir npm audit/audit-ci, SBOM CycloneDX y licencias."
     acceptance: "Umbral y excepciones documentadas."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/security.yml", "scripts/readiness/generate-license-report.mjs", "THIRD_PARTY_NOTICES.md"]
+    notes: ["High-severity audit policy, CycloneDX SBOM and license classification are blocking and artifacted."]
   - id: "CI-009"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir gitleaks/secret scan y CodeQL."
     acceptance: "Hallazgo bloqueante falla workflow."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/security.yml", "scripts/readiness/scan-secrets.mjs"]
+    notes: ["Local secret patterns, full-history gitleaks and CodeQL are pinned blocking jobs."]
   - id: "CI-010"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear golden tests fiscales/XML/PDF y hashes."
     acceptance: "Cambio intencional requiere actualización revisada."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/validate-f3-fiscal.ts", "scripts/validate-document-pdf.mjs", "tests/unit/f11-governance.test.ts"]
+    notes: ["Official AEAT vectors, deterministic multi-format XML semantics and deterministic PDF output are golden regression gates."]
   - id: "CI-011"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Crear workflow de preview/fallback Railway sin secretos productivos."
     acceptance: "PR env se crea y elimina de forma verificable."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/railway-preview.yml", "scripts/readiness/validate-railway-preview-dispatch.mjs", "docs/readiness/external-gates.json"]
+    notes: ["The immutable/isolation dispatch contract is fail closed and non-mutating; actual isolated provision/verify/teardown remains RAILWAY-PREVIEW-001."]
   - id: "CI-012"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Crear workflow de release con gates manuales por entorno."
     acceptance: "Production requiere aprobación y SHA inmutable."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/release-candidate.yml", "scripts/readiness/validate-release-dispatch.mjs", "docs/readiness/external-gates.json"]
+    notes: ["Exact-SHA evidence workflow is non-deploying; repository-admin protected-environment reviewers remain RELEASE-APPROVAL-001."]
   - id: "CI-013"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Pinnear acciones por SHA y permisos mínimos."
     acceptance: "Workflow no usa write-all."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", ".github/workflows/security.yml", ".github/workflows/railway-preview.yml", ".github/workflows/release-candidate.yml", "scripts/readiness/validate-f11-governance.mjs"]
+    notes: ["Every action use is pinned to a resolved 40-character SHA and workflows avoid write-all; CodeQL alone receives security-events write."]
   - id: "CI-014"
     area: "CI"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Subir artefactos de pruebas, logs sanitizados, SBOM y manifest de release."
     acceptance: "Data room puede reproducir una RC."
-    evidence: []
-    notes: []
+    evidence: [".github/workflows/ci.yml", ".github/workflows/security.yml", ".github/workflows/release-candidate.yml", "scripts/readiness/generate-release-manifest.mjs"]
+    notes: ["JUnit/failure evidence, SBOM, license report and exact-SHA release manifest use bounded artifact retention and no content logs."]
   - id: "UX-001"
     area: "UX"
     phase: "F7"
@@ -1775,99 +1775,99 @@ requirements:
   - id: "DATA-001"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear data room con estructura de producto, tecnología, seguridad, pruebas, IP, legal, comercial y transición."
     acceptance: "Índice y manifest con fechas/hashes."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/README.md", "docs/data-room/public/INDEX.md"]
+    notes: ["Product, technology, security, tests, IP, legal, commercial and transition areas are indexed with authoritative sources."]
   - id: "DATA-002"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Documentar arquitectura, ERD, data dictionary y flujos críticos."
     acceptance: "Un nuevo equipo puede orientarse sin fundador."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/public/ARCHITECTURE_AND_FLOWS.md", "docs/architecture/generated/ERD.svg", "docs/architecture/generated/DATA_DICTIONARY.md", "docs/architecture/DOMAIN_MAP.md"]
+    notes: ["Architecture, ERD, data dictionary, domains and critical security/effect flows are linked for a receiving team."]
   - id: "DATA-003"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Documentar despliegue, rollback, backups, restore y disaster recovery."
     acceptance: "Simulacro y capturas/evidencia."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/public/OPERATIONS_AND_RECOVERY.md", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "docs/readiness/external-gates.json"]
+    notes: ["Deploy/rollback/backup/restore/DR procedures and local reference restore are complete; provider PITR drill remains DR-RESTORE-001."]
   - id: "DATA-004"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Publicar catálogo de comandos y suites reproducibles."
     acceptance: "Clon limpio alcanza resultado documentado."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/public/COMMAND_CATALOG.md", "package.json"]
+    notes: ["Clean-clone prerequisites and commands cover install, build, DB, tenant, browser, security, SBOM and release evidence."]
   - id: "DATA-005"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener known issues, deuda técnica y limitaciones honestas."
     acceptance: "No quedan promesas contradictorias con código."
-    evidence: []
-    notes: []
+    evidence: ["docs/governance/KNOWN_ISSUES.md", "docs/governance/TECHNICAL_DEBT.md"]
+    notes: ["Limitations and debt align with fail-closed code and external gates; no inactive provider is represented as live."]
   - id: "DATA-006"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Documentar matriz de dependencias/licencias/SBOM."
     acceptance: "Revisión legal técnica completada."
-    evidence: []
-    notes: []
+    evidence: ["THIRD_PARTY_NOTICES.md", "scripts/readiness/generate-license-report.mjs", ".github/workflows/security.yml", "docs/data-room/public/SUPPORT_MATRIX.md"]
+    notes: ["Locked dependency/license matrix and CycloneDX SBOM are reproducible; technical policy does not claim to replace legal advice."]
   - id: "DATA-007"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Acreditar titularidad de código, diseños, datos demo y assets."
     acceptance: "Cesiones/manifest en carpeta privada."
-    evidence: []
-    notes: []
+    evidence: ["docs/governance/IP_CHAIN_REGISTER.md", "docs/governance/ASSET_TRANSFER_REGISTER.md", "docs/data-room/README.md", "docs/readiness/external-gates.json"]
+    notes: ["Code/design/demo/asset provenance process is ready; private signed title schedule remains ASSET-TITLE-001/IP-CHAIN-001."]
   - id: "DATA-008"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Definir paquete de transición y horas incluidas."
     acceptance: "Runbook de handover y criterios de aceptación."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/public/TRANSITION_PACKAGE.md", "docs/readiness/external-gates.json"]
+    notes: ["Technical package and acceptance are defined; hours, people, price and response windows remain HANDOVER-COMMERCIAL-001."]
   - id: "DATA-009"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear ADRs y registro de decisiones."
     acceptance: "Historia técnica no depende de memoria."
-    evidence: []
-    notes: []
+    evidence: ["docs/adr", "docs/governance/TECHNICAL_DEBT.md"]
+    notes: ["Ten numbered ADRs and the debt register preserve technical history outside individual memory."]
   - id: "DATA-010"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir support matrix de versiones y proveedores."
     acceptance: "Compatibilidad y EOL conocidas."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/public/SUPPORT_MATRIX.md", "package-lock.json"]
+    notes: ["Runtime, database, framework, browser, mobile and provider support/EOL policy is explicit."]
   - id: "DATA-011"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener manifest de release con SHA, migraciones, artefactos y checksums."
     acceptance: "Cada RC es auditable."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/generate-release-manifest.mjs", ".github/workflows/release-candidate.yml"]
+    notes: ["A full-SHA generator records migrations, source contracts, checksums and expected artifact classes without claiming deployment."]
   - id: "DATA-012"
     area: "DATA"
     phase: "F11"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Separar data room privado de documentación pública del repo."
     acceptance: "No se exponen secretos, contratos o datos personales."
-    evidence: []
-    notes: []
+    evidence: ["docs/data-room/README.md", ".gitignore", "scripts/readiness/scan-secrets.mjs"]
+    notes: ["Only sanitized public technical material is versioned; private legal/commercial/identity material is ignored and secrets are never data-room content."]
 external_gates:
   - id: "AI-LIVE-001"
     phase: "F6"
@@ -1899,3 +1899,68 @@ external_gates:
     status: "READY_FOR_EXTERNAL_INPUT"
     control: "Minimal live evaluation using only versioned synthetic fixtures"
     reason: "Requires AI-LIVE-001 and project budget alerts"
+  - id: "PILOT-LIVE-001"
+    phase: "F8"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Enroll 5-10 actual pilot companies with at least five paid, signed and consented engagements"
+    reason: "Technical cohort controls are complete; actual companies, contracts, consents and payments are external commercial inputs"
+  - id: "COST-BASELINE-001"
+    phase: "F8"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Load current verified infrastructure, AI, storage, email and support cost evidence"
+    reason: "The ledger excludes unverified inputs; current provider invoices, measured usage and approved time evidence are external"
+  - id: "MOBILE-LINK-001"
+    phase: "F10"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Verify Android App Links, iOS Universal Links and auth return on real target devices and the approved domain"
+    reason: "Requires final domain, public certificate/team association values and Android/iOS device execution"
+  - id: "MOBILE-SESSION-001"
+    phase: "F10"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Run login, logout and session rotation E2E in Android and iOS WebViews"
+    reason: "Server session controls pass; target WebView/device execution is external to this Windows workspace"
+  - id: "MOBILE-FILES-001"
+    phase: "F10"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Run authorized PDF, download and upload flows on Android and iOS target devices"
+    reason: "Permission and storage configuration pass; physical target file-picker/share behavior needs device evidence"
+  - id: "MOBILE-BUILD-001"
+    phase: "F10"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Produce signed AAB and XCArchive with versioned checksum manifests"
+    reason: "Requires external signing material, an Android JDK/toolchain and a protected macOS/Xcode runner; no credentials or signed artifacts were fabricated"
+  - id: "BRAND-LEGAL-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Archive brand clearance and approved domain-control evidence before public indexing"
+    reason: "Requires a legal decision and current domain ownership evidence; PUBLIC_INDEXING_ENABLED remains false"
+  - id: "IP-CHAIN-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Archive signed contributor, employment or contractor assignments for the release scope"
+    reason: "The technical inventory and private-data boundary are complete; signed identity and title evidence cannot be inferred from Git"
+  - id: "RAILWAY-PREVIEW-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Provision, verify and tear down an isolated Railway PR environment"
+    reason: "The fail-closed dispatch contract is ready; no Railway mutation or production/staging resource reuse is authorized in this phase"
+  - id: "RELEASE-APPROVAL-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Configure protected GitHub staging/production environments with required reviewers"
+    reason: "The immutable evidence workflow references protected environments but repository-admin approval settings require external configuration"
+  - id: "DR-RESTORE-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Run a real isolated provider backup/PITR restore and measure RPO/RTO"
+    reason: "Local restore logic passes; a real sibling resource and provider policy activation mutate persistent infrastructure"
+  - id: "ASSET-TITLE-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Approve the private asset-title and transfer schedule"
+    reason: "The transferable/non-transferable inventory is complete; legal title and private records require authorized evidence"
+  - id: "HANDOVER-COMMERCIAL-001"
+    phase: "F11"
+    status: "READY_FOR_EXTERNAL_INPUT"
+    control: "Approve transition hours, personnel, response windows and commercial acceptance"
+    reason: "The technical handover package is complete; commercial terms cannot be selected technically"
