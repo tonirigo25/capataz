@@ -247,19 +247,19 @@ requirements:
   - id: "SEC-005"
     area: "SEC"
     phase: "F2"
-    status: "READY_FOR_EXTERNAL_INPUT"
+    status: "PASS"
     requirement: "Implantar CSP en modo report-only y después enforce con nonce o hashes compatibles con Next."
     acceptance: "Cero violaciones necesarias en E2E antes de activar enforce."
-    evidence: ["next.config.ts", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"]
-    notes: ["Report-only policy and collector pass locally. Enforce requires an authorized staging deployment and a zero-required-violation E2E observation window."]
+    evidence: ["middleware.ts", "app/layout.tsx", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"]
+    notes: ["An isolated temporary Railway environment served the exact branch SHA first in report-only and then enforce mode with per-request nonces. Twelve representative routes, interactive menu/theme/form flows, a PDF preview and CDP/log collection produced zero CSP violations; the environment was deleted after validation."]
   - id: "SEC-006"
     area: "SEC"
     phase: "F2"
-    status: "READY_FOR_EXTERNAL_INPUT"
+    status: "PASS"
     requirement: "Completar headers: HSTS, frame-ancestors, Referrer, Permissions, MIME y política de recursos."
     acceptance: "Escaneo automatizado de headers pasa en staging."
-    evidence: ["next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs"]
-    notes: ["Local standalone responses contain the full header set. Acceptance explicitly requires an authorized staging scan."]
+    evidence: ["middleware.ts", "next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"]
+    notes: ["The isolated Railway scan passed 12/12 report-only and 11/11 enforce probes, including HSTS, frame-ancestors, Referrer, Permissions, MIME, COOP/CORP, noindex, API no-store and removal of X-Powered-By; cross-site POST was rejected with 403."]
   - id: "SEC-007"
     area: "SEC"
     phase: "F2"

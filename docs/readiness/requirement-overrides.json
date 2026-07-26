@@ -85,14 +85,14 @@
     "notes": ["All 30 action files, 16 route handlers and 2 internal job routes install canonical context; webhook/outbox/platform wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."]
   },
   "SEC-005": {
-    "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["next.config.ts", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
-    "notes": ["Report-only policy and collector pass locally. Enforce requires an authorized staging deployment and a zero-required-violation E2E observation window."]
+    "status": "PASS",
+    "evidence": ["middleware.ts", "app/layout.tsx", "app/api/security/csp-report/route.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"],
+    "notes": ["An isolated temporary Railway environment served the exact branch SHA first in report-only and then enforce mode with per-request nonces. Twelve representative routes, interactive menu/theme/form flows, a PDF preview and CDP/log collection produced zero CSP violations; the environment was deleted after validation."]
   },
   "SEC-006": {
-    "status": "READY_FOR_EXTERNAL_INPUT",
-    "evidence": ["next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs"],
-    "notes": ["Local standalone responses contain the full header set. Acceptance explicitly requires an authorized staging scan."]
+    "status": "PASS",
+    "evidence": ["middleware.ts", "next.config.ts", "scripts/readiness/validate-f2-health-isolated.mjs", "docs/readiness/evidence/f2/railway-security-validation.md", "docs/readiness/evidence/f2/railway-security-validation.json"],
+    "notes": ["The isolated Railway scan passed 12/12 report-only and 11/11 enforce probes, including HSTS, frame-ancestors, Referrer, Permissions, MIME, COOP/CORP, noindex, API no-store and removal of X-Powered-By; cross-site POST was rejected with 403."]
   },
   "SEC-007": {
     "status": "PASS",
