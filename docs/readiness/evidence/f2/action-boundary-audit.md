@@ -4,11 +4,11 @@ Date: 2026-07-26
 
 ## Result
 
-ARCH-007 is enforced across all 30 Server Action files and all 129 exported actions.
+ARCH-007 is enforced across all 32 Server Action files and all 140 exported actions after the F5 additions.
 
 - Direct Prisma imports or references in `app/**/actions.ts`: **0**.
-- Exported actions classified by input, authentication, authorization, query/command mode, application service, and post-effects: **129/129**.
-- Server Action files using the canonical `executeNextAction` boundary: **30/30**.
+- Exported actions classified by input, authentication, authorization, query/command mode, application service, and post-effects: **140/140**.
+- Server Action files using the canonical `executeNextAction` boundary: **32/32**.
 - Application services importing `next/cache` or `next/navigation`: **0**.
 - Unsafe direct-Prisma negative fixture: **rejected**.
 - Capataz application surface: split into ten use-case/query modules; largest module is 1,026 lines and the validator rejects modules over 1,200 lines.
@@ -29,7 +29,7 @@ The extracted team service is the executable transactional reference:
 ## Validation evidence
 
 ```text
-classified=129
+classified=140
 action boundaries: PASS
 action boundary negative fixture: PASS
 direct_action_files=0

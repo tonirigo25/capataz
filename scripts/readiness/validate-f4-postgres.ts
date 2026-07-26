@@ -38,6 +38,7 @@ class MutableStorageProvider implements StorageProvider {
   readonly values = new Map<string, Uint8Array>();
   async put(input: { companyId: string; objectKey: string; bytes: Uint8Array; contentType: string; idempotencyKey: string }) { this.values.set(`${input.companyId}/${input.objectKey}`, input.bytes.slice()); return { ...receipt(this.name, `version-${input.idempotencyKey}`, input.idempotencyKey), sha256: createHash("sha256").update(input.bytes).digest("hex") }; }
   async get(input: { companyId: string; objectKey: string }) { const value = this.values.get(`${input.companyId}/${input.objectKey}`); if (!value) throw new Error("OBJECT_NOT_FOUND"); return value.slice(); }
+  async delete(input: { companyId: string; objectKey: string; idempotencyKey: string }) { this.values.delete(`${input.companyId}/${input.objectKey}`); return receipt(this.name, `deleted-${input.objectKey}`, input.idempotencyKey); }
 }
 
 function receipt(provider: string, reference: string, idempotencyKey: string): ProviderReceipt { return { provider, mode: "fake", reference, idempotencyKey, acceptedAt: now.toISOString() }; }
@@ -53,7 +54,7 @@ async function rejected(operation: () => Promise<unknown>, expected: RegExp) { t
 
 async function main() {
   const migrations = await prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  assert.equal(migrations[0]?.count, 39);
+  assert.equal(migrations[0]?.count, 40);
   const plan = await prisma.plan.create({ data: { key: "PROFESSIONAL", name: "Professional", description: "F4", audience: "F4", commercialState: "active" } });
   await prisma.company.createMany({ data: [
     { id: companyA, slug: companyA, nombreComercial: "F4 A", email: "billing-a@example.invalid" },

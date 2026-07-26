@@ -20,6 +20,8 @@
     "readiness:validate-f3": "tsx scripts/readiness/validate-f3-fiscal.ts",
     "readiness:validate-f3-postgres": "node scripts/readiness/run-f3-postgres-isolated.mjs",
     "readiness:validate-f4": "tsx scripts/readiness/validate-f4-commercial.ts",
+    "readiness:validate-f5": "tsx scripts/readiness/validate-f5-privacy-security.ts",
+    "readiness:validate-f5-postgres": "node scripts/readiness/run-f5-postgres-isolated.mjs",
     "readiness:validate-f4-postgres": "node scripts/readiness/run-f4-postgres-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",
     "readiness:validate-providers": "tsx scripts/readiness/validate-provider-contracts.ts",

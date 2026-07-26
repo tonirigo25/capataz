@@ -3,6 +3,8 @@ import type { PlatformRole } from "@prisma/client";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { enrichRequestContext, getRequestContext } from "@/lib/platform/request-context";
+import { appendSensitiveAuditLog } from "@/lib/security/audit-chain";
+import { isSecondFactorFresh } from "@/lib/security/mfa";
 
 const rank: Record<PlatformRole, number> = { PLATFORM_OWNER: 4, PLATFORM_ADMIN: 3, PLATFORM_SUPPORT: 2, PLATFORM_ANALYST: 1 };
 
@@ -10,6 +12,10 @@ export async function requirePlatformAccount(minimum: PlatformRole = "PLATFORM_A
   const session = await requireAuthenticatedUser();
   const account = await prisma.platformAccount.findUnique({ where: { userId: session.userId } });
   if (!account || account.status !== "ACTIVE" || rank[account.role] < rank[minimum]) redirect("/hoy?error=platform-forbidden");
+  if (["PLATFORM_OWNER", "PLATFORM_ADMIN"].includes(account.role)) {
+    const factor = await prisma.mfaFactor.findFirst({ where: { userId: session.userId, status: "ACTIVE", disabledAt: null }, select: { id: true } });
+    if (!factor || !isSecondFactorFresh(session.secondFactorVerifiedAt)) redirect("/configuracion/seguridad?required=platform");
+  }
   if (getRequestContext()) enrichRequestContext({ actor: { type: "platform", id: account.id } });
   return { ...session, platformAccountId: account.id, platformRole: account.role };
 }
@@ -24,6 +30,7 @@ export async function requireSupportAccess(companyId: string, capability: string
   const grant = await resolveSupportAccess(platform.platformAccountId, companyId);
   const keys = Array.isArray(grant?.capabilityKeys) ? grant.capabilityKeys : [];
   if (!grant || !keys.includes(capability)) throw new Error("TEMPORARY_SUPPORT_ACCESS_REQUIRED");
+  await prisma.$transaction((transaction) => appendSensitiveAuditLog(transaction, { companyId, platformActorId: platform.platformAccountId, action: "support.resource_accessed", targetType: "SupportAccessGrant", targetId: grant.id, metadata: { capability }, actorType: "platform" }));
   if (getRequestContext()) enrichRequestContext({ companyId });
   return { ...platform, grant };
 }

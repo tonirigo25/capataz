@@ -1,3 +1,5 @@
+import { validateEnvironmentIsolation } from "./environment-isolation.mjs";
+
 const TRUE = "true";
 
 function enabled(name) {
@@ -50,7 +52,12 @@ export function validateRuntimeConfig(phase = "runtime") {
     requireNames(errors, "AI gate is incomplete", ["OPENAI_API_KEY", "OPENAI_DATA_PROFILE"]);
   }
   if (process.env.STORAGE_PROVIDER?.trim().toLowerCase() === "s3") {
-    requireNames(errors, "S3 storage configuration is incomplete", ["S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]);
+    requireNames(errors, "S3 storage configuration is incomplete", ["S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "MALWARE_SCAN_ENDPOINT", "MALWARE_SCAN_AUTHORIZATION"]);
+  }
+
+  if (phase !== "build") {
+    const isolation = validateEnvironmentIsolation(process.env);
+    if (!isolation.ok) errors.push(...isolation.errors.map((error) => `environment isolation: ${error}`));
   }
 
   if (errors.length) {

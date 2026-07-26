@@ -111,3 +111,21 @@ Implemented on `feat/readiness-f4-commercial` from program commit `f8be0e682236b
 - Requirement ledger: 31 F4 requirements are `PASS`; EMAIL-010 is `READY_FOR_EXTERNAL_INPUT` for owner-approved DNS/domain/provider values. No F4 requirement remains pending, blocked or waived.
 
 Evidence: `docs/readiness/evidence/f4/audit-manifest.json`, F4 validators, ADR 0008, operational/domain runbooks and migration `20260726140000_readiness_f4_commercial_email_storage`.
+
+## F5 - Privacy, security and operational resilience - PASS WITH EXTERNAL INPUT GATES
+
+Implemented on `feat/readiness-f5-continuity` from program commit `097021d594700454ac2e7da0d991f071d5549372`. Production, persistent staging and PR #24 were not modified; database validation used disposable loopback PostgreSQL, provider behavior used injected local doubles, and no external message or provider request was sent.
+
+- PLATFORM_OWNER and PLATFORM_ADMIN operations now require an active TOTP factor and a fresh second-factor session challenge. Secrets use AES-GCM keyring encryption; session rotation preserves the verified factor only through the authorized flow.
+- Sensitive audit events form a tenant-scoped SHA-256 chain under a PostgreSQL transaction lock. The isolated negative test modified a prior row and the verifier detected the broken chain.
+- Support access retains minimum privilege, expiration, explicit closure, session rotation and chained read/start/end audit evidence.
+- Uploads enter `QUARANTINED`; real signature/MIME/size/hash checks and an injected malware scanner decide whether an object becomes `READY`, remains quarantined or becomes `BLOCKED`. The EICAR fixture never became readable.
+- Privacy governance now covers a maintainable RAT, versioned legal-document hashes, consent history, rights requests and calendar-month deadlines, safe erasure with legal hold, retention dry-run/apply, breach records, risk/DPIA records, data classification and subprocessor-change records.
+- Company export walks tenant-scoped records, removes provider/secret references, includes verified storage bytes plus model/object hashes, detects tampering and produces deterministic remapped references for a new restore target. Subject export is intentionally minimized and excludes company object payloads.
+- Operational monitoring persists metrics, thresholds, worker heartbeats, dead letters, synthetic results, incidents, timelines and postmortem actions. Error tracking is optional, environment-scoped and allow-list redacted.
+- A fresh isolated database applied 40/40 migrations. The pure F5 suite passed 18/18 and the isolated PostgreSQL suite passed 12/12, including tenant-negative PDF/export/search/chat/job/billing/storage probes and zero external calls.
+- Architectural regression classifies all 140 Server Action exports and preserves canonical context across 32 action files, 22 routes and 5 internal jobs.
+- Requirement ledger: 29 F5 requirements are `PASS`; `SEC-018`, `PRIV-003`, `PRIV-012`, `STOR-007`, `STOR-008`, `STOR-009`, `OBS-009` and `OBS-010` are `READY_FOR_EXTERNAL_INPUT`. These require current environment/resource evidence, authorized provider/legal input, or a real isolated restore/scheduler observation; none is represented as activated or approved.
+- No F5 requirement is pending, blocked or waived.
+
+Evidence: `docs/readiness/evidence/f5/audit-manifest.json`, the F5 validators, privacy/legal/observability contracts, runbooks and migration `20260726160000_readiness_f5_privacy_security`.

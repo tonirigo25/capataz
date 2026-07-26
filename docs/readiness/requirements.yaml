@@ -231,11 +231,11 @@ requirements:
   - id: "SEC-003"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir MFA para PLATFORM_OWNER/ADMIN y opción para OWNER."
     acceptance: "Operaciones de plataforma bloqueadas sin segundo factor configurado."
-    evidence: []
-    notes: []
+    evidence: ["lib/security/mfa.ts", "lib/commercial/platform.ts", "app/(app)/configuracion/seguridad/page.tsx", "prisma/migrations/20260726160000_readiness_f5_privacy_security/migration.sql", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["TOTP secrets are AES-GCM encrypted; PLATFORM_OWNER/PLATFORM_ADMIN operations redirect until an active factor and fresh session challenge exist. Isolated enrollment and challenge passed."]
   - id: "SEC-004"
     area: "SEC"
     phase: "F2"
@@ -295,35 +295,35 @@ requirements:
   - id: "SEC-011"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Ampliar tests de aislamiento tenant a PDFs, exportaciones, búsquedas, chat, jobs, billing y storage."
     acceptance: "Suite negativa de dos empresas y dos usuarios completa."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/validate-f5-postgres.ts", "lib/tenant/core.ts", "lib/search.ts", "lib/orqena/conversation-repository.ts", "lib/email/outbox.ts", "lib/commercial/subscription-service.ts", "lib/private-storage.ts", "lib/privacy/governance.ts"]
+    notes: ["A two-company/two-user negative suite rejected cross-tenant PDF, export, search, chat, job, billing and storage access."]
   - id: "SEC-012"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Encadenar o proteger registros de auditoría sensibles contra edición silenciosa."
     acceptance: "Verificador detecta alteración de una fila histórica."
-    evidence: []
-    notes: []
+    evidence: ["lib/security/audit-chain.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Sensitive audit rows form a locked SHA-256 chain; changing a historical row produced ENTRY_HASH_INVALID."]
   - id: "SEC-013"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener soporte temporal, mínimo privilegio, caducidad y cierre de sesión."
     acceptance: "Grant expirado no permite lectura; acceso queda auditado."
-    evidence: []
-    notes: []
+    evidence: ["lib/commercial/platform.ts", "lib/commercial/platform-service.ts", "lib/application/platform/platform-admin-use-cases.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Support grants carry only two read capabilities, expire in at most 120 minutes, are explicitly closable with session rotation, and each use is chained in audit."]
   - id: "SEC-014"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Validar MIME real, extensión, tamaño, hash y escaneo de archivos."
     acceptance: "Archivos incompatibles/maliciosos quedan en cuarentena."
-    evidence: []
-    notes: []
+    evidence: ["lib/private-storage.ts", "lib/security/malware-scanner.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Size, declared MIME, signature, extension, SHA-256 and scanner verdict are enforced; EICAR-compatible content remained BLOCKED and unservable."]
   - id: "SEC-015"
     area: "SEC"
     phase: "F11"
@@ -343,19 +343,19 @@ requirements:
   - id: "SEC-017"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear plan de respuesta a incidentes y brechas."
     acceptance: "Simulacro registra detección, contención, comunicación y postmortem."
-    evidence: []
-    notes: []
+    evidence: ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/privacy/breaches.ts", "lib/observability/operations.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["The isolated drill recorded detection, notification decisions, communications, containment resolution and a closed postmortem with an owned action; no message was sent."]
   - id: "SEC-018"
     area: "SEC"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Separar credenciales y permisos de development, preview, staging y production."
     acceptance: "Ningún entorno no productivo puede alcanzar recursos productivos."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"]
+    notes: ["Runtime fails closed on credential/resource scope mismatch and non-production reuse; real development/preview/staging/production IDs and permission boundaries must be supplied and read-only audited before this can pass."]
   - id: "FISC-001"
     area: "FISC"
     phase: "F3"
@@ -599,75 +599,75 @@ requirements:
   - id: "PRIV-001"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear Registro de Actividades de Tratamiento mantenible y exportable."
     acceptance: "RAT incluye finalidades, bases, datos, destinatarios, transferencias y plazos."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "lib/privacy/catalog.ts", "contracts/privacy/v1/catalog.json", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["The tenant RAT stores and exports purposes, bases, categories, subjects, recipients, transfers, retention and owner with a deterministic hash."]
   - id: "PRIV-002"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Versionar DPA, términos, privacidad y cookies."
     acceptance: "Cada aceptación referencia hash y versión."
-    evidence: []
-    notes: []
+    evidence: ["contracts/legal/v1/manifest.json", "docs/legal/templates/DPA.v1.md", "docs/legal/templates/TERMS.v1.md", "docs/legal/templates/PRIVACY.v1.md", "docs/legal/templates/COOKIES.v1.md", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["DPA, terms, privacy and cookies have draft versions; LegalDocumentVersion persists SHA-256 and each acceptance references that exact row. Publication remains blocked to legal review under PRIV-016/F9."]
   - id: "PRIV-003"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Mantener inventario de subencargados y cambios."
     acceptance: "Listado público/contractual actualizado con fecha."
-    evidence: []
-    notes: []
+    evidence: ["contracts/privacy/v1/catalog.json", "lib/privacy/governance.ts", "lib/privacy/catalog.ts", "docs/runbooks/SUBPROCESSOR_CHANGE.md"]
+    notes: ["A dated versioned inventory and change history are implemented; contractual processing locations, safeguards and active-provider facts require authorized confirmation before publication."]
   - id: "PRIV-004"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir políticas de retención por categoría y empresa."
     acceptance: "Job dry-run muestra candidatos antes de borrar/anonimizar."
-    evidence: []
-    notes: []
+    evidence: ["contracts/privacy/v1/catalog.json", "lib/privacy/governance.ts", "app/(app)/configuracion/privacidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Five tenant policies seed disabled; dry-run persists candidates, blocks and hash before any confirmed application."]
   - id: "PRIV-005"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear centro de privacidad para acceso, rectificación, supresión, oposición, limitación y portabilidad."
     acceptance: "Solicitud recibe SLA, estado, evidencias y cierre."
-    evidence: []
-    notes: []
+    evidence: ["app/(app)/configuracion/privacidad/page.tsx", "app/(app)/configuracion/privacidad/actions.ts", "lib/application/privacy/governance-use-cases.ts", "lib/privacy/governance.ts"]
+    notes: ["OWNER/ADMIN privacy center covers access, rectification, erasure, objection, restriction and portability with status, SLA, evidence and closure."]
   - id: "PRIV-006"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Responder derechos dentro del plazo legal y controlar prórrogas."
     acceptance: "Alertas antes de vencimiento; auditoría de comunicación."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["One calendar-month deadlines, documented one/two-month extensions, seven-day alerts and communication timeline passed in isolation."]
   - id: "PRIV-007"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear exportación portable y minimizada por interesado/empresa."
     acceptance: "Paquete no cruza tenants y excluye secretos."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "lib/application/privacy/governance-use-cases.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Subject export is tenant-scoped and allowlisted; password/token/cipher/provider/storage keys are excluded and hashes detect tampering."]
   - id: "PRIV-008"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear borrado/anominización seguro con legal hold."
     acceptance: "Dependencias se resuelven sin romper contabilidad/fiscalidad."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Erasure is dry-run-first, hold-aware and human-confirmed; shared identities are not globally changed and accounting/fiscal records remain preserved."]
   - id: "PRIV-009"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Registrar consentimientos y retiradas cuando sean la base aplicable."
     acceptance: "Historial demuestra momento, versión y canal."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Consent and withdrawal are append-only events carrying purpose, policy version, channel, timestamp and evidence."]
   - id: "PRIV-010"
     area: "PRIV"
     phase: "F9"
@@ -679,43 +679,43 @@ requirements:
   - id: "PRIV-011"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Mantener registro de brechas, decisiones y notificaciones."
     acceptance: "Simulacro produce timeline y responsables."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/breaches.ts", "docs/runbooks/INCIDENT_RESPONSE.md", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Breach register keeps risk decision, 72-hour decision clock, authority/subject communication references and linked incident timeline."]
   - id: "PRIV-012"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Realizar análisis de riesgos y EIPD cuando proceda."
     acceptance: "Documento de riesgo vincula medidas técnicas y residuales."
-    evidence: []
-    notes: []
+    evidence: ["prisma/schema.prisma", "lib/privacy/governance.ts", "docs/compliance/PRIVACY_RISK_DPIA_TEMPLATE.md", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Versioned risk/DPIA records, safeguards and residual-risk gates pass technically; the authorized risk determination and any required DPIA approval/consultation remain external."]
   - id: "PRIV-013"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Clasificar datos y documentos por sensibilidad."
     acceptance: "Gateway IA, logs, soporte y exportaciones aplican la clasificación."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "lib/private-storage.ts", "lib/observability/error-tracking.ts"]
+    notes: ["PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED classification is shared by storage, exports, telemetry and support governance."]
   - id: "PRIV-014"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Anonimizar datos demo y evitar datos personales en fixtures."
     acceptance: "Scanner de fixtures no encuentra emails/teléfonos reales."
-    evidence: []
-    notes: []
+    evidence: ["prisma/seed.js", "scripts/provision-staging.ts", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-privacy-security.ts"]
+    notes: ["Tracked demo/staging fixtures use reserved domains and invalid 000 phones; the scanner rejects real-looking email, phone and NIF patterns."]
   - id: "PRIV-015"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Aplicar privacidad por defecto al producto y a la telemetría."
     acceptance: "Eventos/logs pasan revisión de campos permitidos."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "lib/observability/error-tracking.ts", "lib/observability/operations.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "scripts/readiness/validate-f5-privacy-security.ts"]
+    notes: ["Telemetry and error tracking use explicit allowlists/redaction; live error tracking is disabled without a DSN and no payload field is accepted."]
   - id: "PRIV-016"
     area: "PRIV"
     phase: "F9"
@@ -727,19 +727,19 @@ requirements:
   - id: "PRIV-017"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Registrar base jurídica y finalidad en cada integración sensible."
     acceptance: "Catálogo de tratamientos enlaza proveedor y datos enviados."
-    evidence: []
-    notes: []
+    evidence: ["contracts/privacy/v1/catalog.json", "lib/privacy/catalog.ts", "lib/privacy/governance.ts"]
+    notes: ["Every sensitive integration entry carries purpose, lawful basis, data categories, recipients, transfer gate and retention key."]
   - id: "PRIV-018"
     area: "PRIV"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir proceso de cambio de subencargado y aviso."
     acceptance: "Runbook y plantilla de comunicación disponibles."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "prisma/schema.prisma", "docs/runbooks/SUBPROCESSOR_CHANGE.md"]
+    notes: ["Versioned change record, notice deadline/evidence process, rollback steps and communication template are available."]
   - id: "AI-001"
     area: "AI"
     phase: "F6"
@@ -1135,51 +1135,51 @@ requirements:
   - id: "STOR-005"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir cuarentena y adaptador de escaneo antivirus."
     acceptance: "Archivo bloqueado no se procesa ni sirve."
-    evidence: []
-    notes: []
+    evidence: ["lib/security/malware-scanner.ts", "lib/private-storage.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Uploads persist QUARANTINED before scan; only CLEAN becomes READY. INFECTED/ERROR never serves or attaches."]
   - id: "STOR-006"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Aplicar retención, legal hold y borrado verificable."
     acceptance: "Job dry-run y evidencia de eliminación."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "lib/platform/providers/contracts.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Dry-run, active-hold recheck, exact human confirmation, provider delete and tombstone evidence hash passed."]
   - id: "STOR-007"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Separar storage de previews, staging y producción."
     acceptance: "Bucket/credenciales/namespace distintos."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"]
+    notes: ["Distinct-resource gate is automated; actual preview/staging/production buckets, namespaces and credential scopes require current infrastructure evidence."]
   - id: "STOR-008"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Activar backups de volúmenes y PITR de PostgreSQL."
     acceptance: "Políticas visibles y alertas por fallo."
-    evidence: []
-    notes: []
+    evidence: ["docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "lib/observability/operations.ts"]
+    notes: ["Backup/PITR policy and failure monitoring contract are ready; activation and visible successful policies would mutate persistent infrastructure and were not authorized."]
   - id: "STOR-009"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Automatizar restore drill a servicio nuevo sin tocar origen."
     acceptance: "RPO/RTO medidos y checksum verificado."
-    evidence: []
-    notes: []
+    evidence: ["docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["New-target reference restore and checksum pass locally; a real Railway sibling-service PITR drill with measured RPO/RTO requires explicit infrastructure authorization."]
   - id: "STOR-010"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear export completo de empresa con manifest y hashes."
     acceptance: "Paquete restaura referencias sin claves externas."
-    evidence: []
-    notes: []
+    evidence: ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Complete tenant-scoped export walks company models, strips external/secret keys, hashes every model/object manifest and remaps internal references for a new target."]
   - id: "STOR-011"
     area: "STOR"
     phase: "F4"
@@ -1191,11 +1191,11 @@ requirements:
   - id: "STOR-012"
     area: "STOR"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Impedir que previews compartan volumen o referencia DATABASE_URL."
     acceptance: "Puerta de infraestructura documentada y automatizada."
-    evidence: []
-    notes: []
+    evidence: ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "scripts/readiness/validate-f5-privacy-security.ts"]
+    notes: ["Preview runtime rejects production/staging database SHA-256 or resource-ID equality and shared storage IDs without printing values."]
   - id: "OBS-001"
     area: "OBS"
     phase: "F2"
@@ -1247,51 +1247,51 @@ requirements:
   - id: "OBS-007"
     area: "OBS"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Medir errores, latencia, tasa de jobs, colas, DB y proveedores."
     acceptance: "Dashboard y alertas con umbrales."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/operations.ts", "contracts/observability/v1/dashboard.json", "app/(app)/plataforma/observabilidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Errors, p95 latency, jobs, queues, DB, provider and dead-letter metrics have versioned thresholds, protected dashboard and incident-producing alerts."]
   - id: "OBS-008"
     area: "OBS"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Monitorizar cron/worker y dead letters."
     acceptance: "Heartbeat vencido genera incidente."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/operations.ts", "app/api/jobs/operational-monitor/route.ts", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Expired heartbeat or dead letters changes worker status and creates a severity-classified Incident with timeline."]
   - id: "OBS-009"
     area: "OBS"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Crear synthetic smoke contra rutas públicas/auth y acciones críticas no destructivas."
     acceptance: "Ejecución programada con historial."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/operations.ts", "app/api/jobs/synthetic-smoke/route.ts", "docs/runbooks/OPERATIONAL_OBSERVABILITY.md", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Read-only public/auth/critical synthetic and persisted history pass with injected HTTP; actual recurring scheduler and remote history must be activated in an authorized environment."]
   - id: "OBS-010"
     area: "OBS"
     phase: "F5"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Añadir error tracking configurable sin enviar PII."
     acceptance: "Evento de prueba aparece con datos redacted."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/error-tracking.ts", ".env.example", "scripts/readiness/validate-f5-privacy-security.ts"]
+    notes: ["Configurable redacted adapter passed with an injected reporter; a live test event must be observed in the approved provider project/environment."]
   - id: "OBS-011"
     area: "OBS"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir SLO/SLA internos y severidades."
     acceptance: "Runbook vincula alerta, responsable y comunicación."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/operations.ts", "contracts/observability/v1/dashboard.json", "docs/runbooks/OPERATIONAL_OBSERVABILITY.md", "docs/runbooks/INCIDENT_RESPONSE.md"]
+    notes: ["Internal SLOs and Sev1-Sev4 connect thresholds to acknowledgement, restore target, owner and communication; they are not advertised as contractual SLA."]
   - id: "OBS-012"
     area: "OBS"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Crear registro de incidentes y postmortems."
     acceptance: "Incidente de simulación cerrado con acciones."
-    evidence: []
-    notes: []
+    evidence: ["lib/observability/operations.ts", "prisma/schema.prisma", "app/(app)/plataforma/observabilidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"]
+    notes: ["Simulated incident closed with timeline, root cause, resolution and owned dated postmortem action."]
   - id: "OBS-013"
     area: "OBS"
     phase: "F8"
@@ -1679,11 +1679,11 @@ requirements:
   - id: "SUP-009"
     area: "SUP"
     phase: "F5"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir incidentes Sev1-Sev4 y comunicación."
     acceptance: "Plantillas y responsables listos."
-    evidence: []
-    notes: []
+    evidence: ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/observability/operations.ts", "app/(app)/plataforma/observabilidad/page.tsx"]
+    notes: ["Sev1-Sev4 response/communication targets, audiences and reusable internal/customer templates are ready."]
   - id: "SUP-010"
     area: "SUP"
     phase: "F8"

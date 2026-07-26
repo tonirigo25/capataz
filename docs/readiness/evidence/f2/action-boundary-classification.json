@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T11:06:56.086Z",
+  "generatedAt": "2026-07-26T11:50:32.310Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -757,6 +757,172 @@
       ],
       "operation": "COMMAND",
       "service": "lib/application/company/memory-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#preparePrivacyCatalog",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "preparePrivacyCatalog",
+      "inputShape": [],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#createPrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "createPrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#verifyPrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "verifyPrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#exportPrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "exportPrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#completePrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "completePrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/seguridad/actions.ts#startMfaEnrollment",
+      "actionFile": "app/(app)/configuracion/seguridad/actions.ts",
+      "exportName": "startMfaEnrollment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/security/mfa-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/seguridad/actions.ts#confirmMfaEnrollment",
+      "actionFile": "app/(app)/configuracion/seguridad/actions.ts",
+      "exportName": "confirmMfaEnrollment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/security/mfa-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/seguridad/actions.ts#verifyMfaChallenge",
+      "actionFile": "app/(app)/configuracion/seguridad/actions.ts",
+      "exportName": "verifyMfaChallenge",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/security/mfa-use-cases.ts",
       "postEffects": {
         "revalidate": true,
         "redirect": false,

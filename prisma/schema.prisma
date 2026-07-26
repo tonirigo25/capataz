@@ -2239,6 +2239,7 @@ model User {
   auditLogs           AuditLog[]               @relation("AuditUserActor")
   chatConversations   ChatConversation[]       @relation("ChatConversationOwner")
   chatActionLogs      ChatActionLog[]          @relation("ChatActionActor")
+  mfaFactors          MfaFactor[]
 
   @@index([status])
 }
@@ -2383,6 +2384,16 @@ model Company {
   logoStoredObject        StoredObject?                     @relation("CompanyLogo", fields: [logoStoredObjectId], references: [id], onDelete: SetNull)
   sealStoredObject        StoredObject?                     @relation("CompanySeal", fields: [sealStoredObjectId], references: [id], onDelete: SetNull)
   uploadScans             UploadScan[]
+  legalHolds              LegalHold[]
+  governanceExecutions    DataGovernanceExecution[]
+  dataExports             CompanyDataExport[]
+  privacyRequestEvents    PrivacyRequestEvent[]
+  riskAssessments         PrivacyRiskAssessment[]
+  operationalMetrics      OperationalMetric[]
+  jobHeartbeats           JobHeartbeat[]
+  syntheticCheckRuns      SyntheticCheckRun[]
+  incidentTimelineEvents  IncidentTimelineEvent[]
+  postmortemActions       PostmortemAction[]
 
   @@index([status])
   @@index([isDemo])
@@ -3053,6 +3064,10 @@ model AuditLog {
   operation       String?
   release         String?
   environment     String?
+  chainScope      String?
+  previousHash    String?
+  entryHash       String?
+  chainVersion    Int?
   createdAt       DateTime         @default(now())
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   platformActor   PlatformAccount? @relation("AuditPlatformActor", fields: [platformActorId], references: [id], onDelete: SetNull)
@@ -3063,6 +3078,7 @@ model AuditLog {
   @@index([correlationId, createdAt])
   @@index([requestId, createdAt])
   @@index([jobId, createdAt])
+  @@index([chainScope, createdAt, id])
 }
 
 model SupportAccessGrant {
@@ -3085,19 +3101,41 @@ model SupportAccessGrant {
 }
 
 model Session {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  lastSeenAt DateTime  @default(now())
-  revokedAt  DateTime?
-  userAgent  String?
-  ipHash     String?
-  createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(cuid())
+  userId                 String
+  tokenHash              String    @unique
+  expiresAt              DateTime
+  lastSeenAt             DateTime  @default(now())
+  revokedAt              DateTime?
+  userAgent              String?
+  ipHash                 String?
+  secondFactorVerifiedAt DateTime?
+  createdAt              DateTime  @default(now())
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt, expiresAt])
   @@index([expiresAt])
+}
+
+model MfaFactor {
+  id                   String    @id @default(cuid())
+  userId               String
+  type                 String    @default("TOTP")
+  label                String
+  keyVersion           String
+  algorithm            String    @default("aes-256-gcm")
+  ciphertext           String
+  initializationVector String
+  authenticationTag    String
+  status               String    @default("PENDING")
+  confirmedAt          DateTime?
+  lastUsedAt           DateTime?
+  disabledAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
 }
 
 model EmailVerificationToken {
@@ -3681,19 +3719,20 @@ model RetentionPolicy {
 }
 
 model PrivacyRequest {
-  id                 String    @id @default(cuid())
+  id                 String                @id @default(cuid())
   companyId          String
   requestType        String
   subjectReference   String
-  status             String    @default("RECEIVED")
+  status             String                @default("RECEIVED")
   dueAt              DateTime
   assignedTo         String?
   identityVerifiedAt DateTime?
   completedAt        DateTime?
   resolution         Json?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  company            Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  company            Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  events             PrivacyRequestEvent[]
 
   @@index([companyId, status, dueAt])
 }
@@ -3908,11 +3947,11 @@ model SupportTicket {
 }
 
 model Incident {
-  id            String    @id @default(cuid())
+  id            String                  @id @default(cuid())
   companyId     String?
-  incidentKey   String    @unique
+  incidentKey   String                  @unique
   severity      String
-  status        String    @default("OPEN")
+  status        String                  @default("OPEN")
   title         String
   summary       String
   startedAt     DateTime
@@ -3921,38 +3960,45 @@ model Incident {
   resolvedAt    DateTime?
   rootCause     String?
   postmortemUrl String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  company       Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  company       Company?                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  timeline      IncidentTimelineEvent[]
+  actions       PostmortemAction[]
 
   @@index([status, severity, startedAt])
 }
 
 // Private storage integrity (M09).
 model StoredObject {
-  id                 String       @id @default(cuid())
-  companyId          String
-  provider           String
-  bucket             String
-  objectKey          String
-  versionId          String?
-  originalName       String?
-  safeName           String?
-  mimeType           String
-  sizeBytes          BigInt
-  sha256             String
-  classification     String
-  encryption         String?
-  providerVersion    String?
-  contentDisposition String?      @default("attachment")
-  status             String       @default("PENDING_SCAN")
-  createdAt          DateTime     @default(now())
-  deletedAt          DateTime?
-  company            Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  logoForCompany     Company?     @relation("CompanyLogo")
-  sealForCompany     Company?     @relation("CompanySeal")
-  documents          Document[]
-  scans              UploadScan[]
+  id                   String       @id @default(cuid())
+  companyId            String
+  provider             String
+  bucket               String
+  objectKey            String
+  versionId            String?
+  originalName         String?
+  safeName             String?
+  mimeType             String
+  sizeBytes            BigInt
+  sha256               String
+  classification       String
+  encryption           String?
+  providerVersion      String?
+  contentDisposition   String?      @default("attachment")
+  status               String       @default("PENDING_SCAN")
+  createdAt            DateTime     @default(now())
+  deletedAt            DateTime?
+  retentionKey         String?
+  retainUntil          DateTime?
+  legalHoldUntil       DateTime?
+  quarantineReason     String?
+  deletionEvidenceHash String?
+  company              Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  logoForCompany       Company?     @relation("CompanyLogo")
+  sealForCompany       Company?     @relation("CompanySeal")
+  documents            Document[]
+  scans                UploadScan[]
 
   @@unique([provider, bucket, objectKey, versionId])
   @@index([companyId, status, createdAt])
@@ -3974,4 +4020,224 @@ model UploadScan {
 
   @@unique([storedObjectId, engine])
   @@index([companyId, status, createdAt])
+}
+
+model Subprocessor {
+  id                  String               @id @default(cuid())
+  key                 String               @unique
+  name                String
+  purpose             String
+  dataCategories      Json
+  processingLocations Json
+  safeguards          Json?
+  privacyUrl          String?
+  status              String               @default("ACTIVE")
+  effectiveAt         DateTime
+  lastReviewedAt      DateTime
+  versionHash         String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  changes             SubprocessorChange[]
+
+  @@index([status, effectiveAt])
+}
+
+model SubprocessorChange {
+  id             String       @id @default(cuid())
+  subprocessorId String
+  changeType     String
+  summary        String
+  noticeRequired Boolean      @default(true)
+  noticeDueAt    DateTime?
+  notifiedAt     DateTime?
+  contentHash    String
+  createdAt      DateTime     @default(now())
+  subprocessor   Subprocessor @relation(fields: [subprocessorId], references: [id], onDelete: Restrict)
+
+  @@index([noticeRequired, noticeDueAt])
+}
+
+model LegalHold {
+  id               String    @id @default(cuid())
+  companyId        String
+  resourceType     String
+  resourceId       String?
+  subjectReference String?
+  reason           String
+  status           String    @default("ACTIVE")
+  startsAt         DateTime  @default(now())
+  expiresAt        DateTime?
+  releasedAt       DateTime?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, resourceType, resourceId])
+  @@index([companyId, subjectReference, status])
+}
+
+model DataGovernanceExecution {
+  id             String    @id @default(cuid())
+  companyId      String
+  executionType  String
+  mode           String
+  status         String
+  policyKey      String?
+  candidateCount Int       @default(0)
+  affectedCount  Int       @default(0)
+  blockedCount   Int       @default(0)
+  manifest       Json
+  manifestHash   String
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, executionType, startedAt])
+  @@index([status, startedAt])
+}
+
+model CompanyDataExport {
+  id               String    @id @default(cuid())
+  companyId        String
+  privacyRequestId String?
+  exportType       String
+  subjectReference String?
+  status           String    @default("PENDING")
+  manifest         Json
+  manifestHash     String
+  packageHash      String?
+  recordCount      Int       @default(0)
+  objectCount      Int       @default(0)
+  expiresAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, exportType, createdAt])
+  @@index([privacyRequestId])
+}
+
+model PrivacyRequestEvent {
+  id               String         @id @default(cuid())
+  companyId        String
+  privacyRequestId String
+  eventType        String
+  actorReference   String?
+  communicationRef String?
+  metadata         Json?
+  occurredAt       DateTime       @default(now())
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  privacyRequest   PrivacyRequest @relation(fields: [privacyRequestId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, privacyRequestId, occurredAt])
+}
+
+model PrivacyRiskAssessment {
+  id                   String    @id @default(cuid())
+  companyId            String
+  processingActivityId String?
+  assessmentType       String
+  version              String
+  status               String    @default("DRAFT")
+  highRisk             Boolean   @default(false)
+  risks                Json
+  safeguards           Json
+  residualRisk         Json
+  owner                String
+  approvedBy           String?
+  approvedAt           DateTime?
+  nextReviewAt         DateTime?
+  contentHash          String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, assessmentType, version])
+  @@index([companyId, status, highRisk])
+}
+
+model OperationalMetric {
+  id         String   @id @default(cuid())
+  companyId  String?
+  metricKey  String
+  value      Decimal  @db.Decimal(20, 6)
+  unit       String
+  dimensions Json?
+  measuredAt DateTime @default(now())
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([metricKey, measuredAt])
+  @@index([companyId, metricKey, measuredAt])
+}
+
+model JobHeartbeat {
+  id                   String    @id @default(cuid())
+  companyId            String?
+  jobKey               String
+  environment          String
+  release              String?
+  status               String    @default("HEALTHY")
+  lastStartedAt        DateTime?
+  lastSucceededAt      DateTime?
+  lastFailedAt         DateTime?
+  expectedEverySeconds Int
+  deadLetterCount      Int       @default(0)
+  metadata             Json?
+  updatedAt            DateTime  @updatedAt
+  company              Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([environment, jobKey, companyId])
+  @@index([status, updatedAt])
+}
+
+model SyntheticCheckRun {
+  id             String   @id @default(cuid())
+  companyId      String?
+  checkKey       String
+  environment    String
+  release        String?
+  status         String
+  durationMs     Int
+  assertionCount Int
+  failureCode    String?
+  evidenceHash   String
+  startedAt      DateTime
+  completedAt    DateTime @default(now())
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([environment, checkKey, startedAt])
+  @@index([status, startedAt])
+}
+
+model IncidentTimelineEvent {
+  id         String   @id @default(cuid())
+  companyId  String?
+  incidentId String
+  eventType  String
+  actor      String
+  summary    String
+  evidence   Json?
+  occurredAt DateTime @default(now())
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+
+  @@index([incidentId, occurredAt])
+  @@index([companyId, occurredAt])
+}
+
+model PostmortemAction {
+  id          String    @id @default(cuid())
+  companyId   String?
+  incidentId  String
+  description String
+  owner       String
+  dueAt       DateTime
+  status      String    @default("OPEN")
+  completedAt DateTime?
+  evidenceRef String?
+  createdAt   DateTime  @default(now())
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+
+  @@index([incidentId, status, dueAt])
 }

@@ -453,5 +453,190 @@
     "status": "PASS",
     "evidence": ["lib/application/company/settings-use-cases.ts", "app/(app)/configuracion/page.tsx", "app/(app)/dinero/[id]/pdf/route.ts", "app/(app)/presupuestos/[id]/pdf/route.ts"],
     "notes": ["OWNER-only private uploads replace editable URLs; PDF inputs no longer accept remote asset URLs, removing SSRF."]
+  },
+  "SEC-003": {
+    "status": "PASS",
+    "evidence": ["lib/security/mfa.ts", "lib/commercial/platform.ts", "app/(app)/configuracion/seguridad/page.tsx", "prisma/migrations/20260726160000_readiness_f5_privacy_security/migration.sql", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["TOTP secrets are AES-GCM encrypted; PLATFORM_OWNER/PLATFORM_ADMIN operations redirect until an active factor and fresh session challenge exist. Isolated enrollment and challenge passed."]
+  },
+  "SEC-011": {
+    "status": "PASS",
+    "evidence": ["scripts/readiness/validate-f5-postgres.ts", "lib/tenant/core.ts", "lib/search.ts", "lib/orqena/conversation-repository.ts", "lib/email/outbox.ts", "lib/commercial/subscription-service.ts", "lib/private-storage.ts", "lib/privacy/governance.ts"],
+    "notes": ["A two-company/two-user negative suite rejected cross-tenant PDF, export, search, chat, job, billing and storage access."]
+  },
+  "SEC-012": {
+    "status": "PASS",
+    "evidence": ["lib/security/audit-chain.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Sensitive audit rows form a locked SHA-256 chain; changing a historical row produced ENTRY_HASH_INVALID."]
+  },
+  "SEC-013": {
+    "status": "PASS",
+    "evidence": ["lib/commercial/platform.ts", "lib/commercial/platform-service.ts", "lib/application/platform/platform-admin-use-cases.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Support grants carry only two read capabilities, expire in at most 120 minutes, are explicitly closable with session rotation, and each use is chained in audit."]
+  },
+  "SEC-014": {
+    "status": "PASS",
+    "evidence": ["lib/private-storage.ts", "lib/security/malware-scanner.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Size, declared MIME, signature, extension, SHA-256 and scanner verdict are enforced; EICAR-compatible content remained BLOCKED and unservable."]
+  },
+  "SEC-017": {
+    "status": "PASS",
+    "evidence": ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/privacy/breaches.ts", "lib/observability/operations.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["The isolated drill recorded detection, notification decisions, communications, containment resolution and a closed postmortem with an owned action; no message was sent."]
+  },
+  "SEC-018": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"],
+    "notes": ["Runtime fails closed on credential/resource scope mismatch and non-production reuse; real development/preview/staging/production IDs and permission boundaries must be supplied and read-only audited before this can pass."]
+  },
+  "PRIV-001": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "lib/privacy/catalog.ts", "contracts/privacy/v1/catalog.json", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["The tenant RAT stores and exports purposes, bases, categories, subjects, recipients, transfers, retention and owner with a deterministic hash."]
+  },
+  "PRIV-002": {
+    "status": "PASS",
+    "evidence": ["contracts/legal/v1/manifest.json", "docs/legal/templates/DPA.v1.md", "docs/legal/templates/TERMS.v1.md", "docs/legal/templates/PRIVACY.v1.md", "docs/legal/templates/COOKIES.v1.md", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["DPA, terms, privacy and cookies have draft versions; LegalDocumentVersion persists SHA-256 and each acceptance references that exact row. Publication remains blocked to legal review under PRIV-016/F9."]
+  },
+  "PRIV-003": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["contracts/privacy/v1/catalog.json", "lib/privacy/governance.ts", "lib/privacy/catalog.ts", "docs/runbooks/SUBPROCESSOR_CHANGE.md"],
+    "notes": ["A dated versioned inventory and change history are implemented; contractual processing locations, safeguards and active-provider facts require authorized confirmation before publication."]
+  },
+  "PRIV-004": {
+    "status": "PASS",
+    "evidence": ["contracts/privacy/v1/catalog.json", "lib/privacy/governance.ts", "app/(app)/configuracion/privacidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Five tenant policies seed disabled; dry-run persists candidates, blocks and hash before any confirmed application."]
+  },
+  "PRIV-005": {
+    "status": "PASS",
+    "evidence": ["app/(app)/configuracion/privacidad/page.tsx", "app/(app)/configuracion/privacidad/actions.ts", "lib/application/privacy/governance-use-cases.ts", "lib/privacy/governance.ts"],
+    "notes": ["OWNER/ADMIN privacy center covers access, rectification, erasure, objection, restriction and portability with status, SLA, evidence and closure."]
+  },
+  "PRIV-006": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["One calendar-month deadlines, documented one/two-month extensions, seven-day alerts and communication timeline passed in isolation."]
+  },
+  "PRIV-007": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "lib/application/privacy/governance-use-cases.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Subject export is tenant-scoped and allowlisted; password/token/cipher/provider/storage keys are excluded and hashes detect tampering."]
+  },
+  "PRIV-008": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Erasure is dry-run-first, hold-aware and human-confirmed; shared identities are not globally changed and accounting/fiscal records remain preserved."]
+  },
+  "PRIV-009": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Consent and withdrawal are append-only events carrying purpose, policy version, channel, timestamp and evidence."]
+  },
+  "PRIV-011": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/breaches.ts", "docs/runbooks/INCIDENT_RESPONSE.md", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Breach register keeps risk decision, 72-hour decision clock, authority/subject communication references and linked incident timeline."]
+  },
+  "PRIV-012": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["prisma/schema.prisma", "lib/privacy/governance.ts", "docs/compliance/PRIVACY_RISK_DPIA_TEMPLATE.md", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Versioned risk/DPIA records, safeguards and residual-risk gates pass technically; the authorized risk determination and any required DPIA approval/consultation remain external."]
+  },
+  "PRIV-013": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "lib/private-storage.ts", "lib/observability/error-tracking.ts"],
+    "notes": ["PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED classification is shared by storage, exports, telemetry and support governance."]
+  },
+  "PRIV-014": {
+    "status": "PASS",
+    "evidence": ["prisma/seed.js", "scripts/provision-staging.ts", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-privacy-security.ts"],
+    "notes": ["Tracked demo/staging fixtures use reserved domains and invalid 000 phones; the scanner rejects real-looking email, phone and NIF patterns."]
+  },
+  "PRIV-015": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "lib/observability/error-tracking.ts", "lib/observability/operations.ts", "docs/compliance/PRIVACY_GOVERNANCE.md", "scripts/readiness/validate-f5-privacy-security.ts"],
+    "notes": ["Telemetry and error tracking use explicit allowlists/redaction; live error tracking is disabled without a DSN and no payload field is accepted."]
+  },
+  "PRIV-017": {
+    "status": "PASS",
+    "evidence": ["contracts/privacy/v1/catalog.json", "lib/privacy/catalog.ts", "lib/privacy/governance.ts"],
+    "notes": ["Every sensitive integration entry carries purpose, lawful basis, data categories, recipients, transfer gate and retention key."]
+  },
+  "PRIV-018": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "docs/runbooks/SUBPROCESSOR_CHANGE.md"],
+    "notes": ["Versioned change record, notice deadline/evidence process, rollback steps and communication template are available."]
+  },
+  "STOR-005": {
+    "status": "PASS",
+    "evidence": ["lib/security/malware-scanner.ts", "lib/private-storage.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Uploads persist QUARANTINED before scan; only CLEAN becomes READY. INFECTED/ERROR never serves or attaches."]
+  },
+  "STOR-006": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "lib/platform/providers/contracts.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Dry-run, active-hold recheck, exact human confirmation, provider delete and tombstone evidence hash passed."]
+  },
+  "STOR-007": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md"],
+    "notes": ["Distinct-resource gate is automated; actual preview/staging/production buckets, namespaces and credential scopes require current infrastructure evidence."]
+  },
+  "STOR-008": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "lib/observability/operations.ts"],
+    "notes": ["Backup/PITR policy and failure monitoring contract are ready; activation and visible successful policies would mutate persistent infrastructure and were not authorized."]
+  },
+  "STOR-009": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["docs/runbooks/BACKUP_RESTORE_AND_ENVIRONMENT_ISOLATION.md", "lib/privacy/governance.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["New-target reference restore and checksum pass locally; a real Railway sibling-service PITR drill with measured RPO/RTO requires explicit infrastructure authorization."]
+  },
+  "STOR-010": {
+    "status": "PASS",
+    "evidence": ["lib/privacy/governance.ts", "prisma/schema.prisma", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Complete tenant-scoped export walks company models, strips external/secret keys, hashes every model/object manifest and remaps internal references for a new target."]
+  },
+  "STOR-012": {
+    "status": "PASS",
+    "evidence": ["scripts/readiness/environment-isolation.mjs", "scripts/readiness/validate-runtime-config.mjs", ".env.example", "scripts/readiness/validate-f5-privacy-security.ts"],
+    "notes": ["Preview runtime rejects production/staging database SHA-256 or resource-ID equality and shared storage IDs without printing values."]
+  },
+  "OBS-007": {
+    "status": "PASS",
+    "evidence": ["lib/observability/operations.ts", "contracts/observability/v1/dashboard.json", "app/(app)/plataforma/observabilidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Errors, p95 latency, jobs, queues, DB, provider and dead-letter metrics have versioned thresholds, protected dashboard and incident-producing alerts."]
+  },
+  "OBS-008": {
+    "status": "PASS",
+    "evidence": ["lib/observability/operations.ts", "app/api/jobs/operational-monitor/route.ts", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Expired heartbeat or dead letters changes worker status and creates a severity-classified Incident with timeline."]
+  },
+  "OBS-009": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/observability/operations.ts", "app/api/jobs/synthetic-smoke/route.ts", "docs/runbooks/OPERATIONAL_OBSERVABILITY.md", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Read-only public/auth/critical synthetic and persisted history pass with injected HTTP; actual recurring scheduler and remote history must be activated in an authorized environment."]
+  },
+  "OBS-010": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/observability/error-tracking.ts", ".env.example", "scripts/readiness/validate-f5-privacy-security.ts"],
+    "notes": ["Configurable redacted adapter passed with an injected reporter; a live test event must be observed in the approved provider project/environment."]
+  },
+  "OBS-011": {
+    "status": "PASS",
+    "evidence": ["lib/observability/operations.ts", "contracts/observability/v1/dashboard.json", "docs/runbooks/OPERATIONAL_OBSERVABILITY.md", "docs/runbooks/INCIDENT_RESPONSE.md"],
+    "notes": ["Internal SLOs and Sev1-Sev4 connect thresholds to acknowledgement, restore target, owner and communication; they are not advertised as contractual SLA."]
+  },
+  "OBS-012": {
+    "status": "PASS",
+    "evidence": ["lib/observability/operations.ts", "prisma/schema.prisma", "app/(app)/plataforma/observabilidad/page.tsx", "scripts/readiness/validate-f5-postgres.ts"],
+    "notes": ["Simulated incident closed with timeline, root cause, resolution and owned dated postmortem action."]
+  },
+  "SUP-009": {
+    "status": "PASS",
+    "evidence": ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/observability/operations.ts", "app/(app)/plataforma/observabilidad/page.tsx"],
+    "notes": ["Sev1-Sev4 response/communication targets, audiences and reusable internal/customer templates are ready."]
   }
 }

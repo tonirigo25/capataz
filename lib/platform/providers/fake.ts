@@ -51,6 +51,10 @@ export class FakeStorageProvider implements StorageProvider {
     if (!value) throw new Error("FAKE_OBJECT_NOT_FOUND");
     return value.slice();
   }
+  async delete(input: { companyId: string; objectKey: string; idempotencyKey: string }) {
+    this.objects.delete(`${input.companyId}/${input.objectKey}`);
+    return receipt(this.name, input.idempotencyKey);
+  }
 }
 
 export class FakeAiProvider implements AiGatewayProvider {

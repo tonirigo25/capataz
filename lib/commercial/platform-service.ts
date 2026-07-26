@@ -1,6 +1,7 @@
 import type { PlatformRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/platform/rate-limit";
+import { appendSensitiveAuditLog } from "@/lib/security/audit-chain";
 
 export type PlatformActor = { platformAccountId: string; platformRole: PlatformRole };
 
@@ -24,7 +25,7 @@ export async function startSupportAccess(actor: PlatformActor, input: { companyI
         expiresAt: new Date(Date.now() + minutes * 60_000),
       },
     });
-    await transaction.auditLog.create({ data: { companyId, platformActorId: actor.platformAccountId, action: "support.access_started", targetType: "SupportAccessGrant", targetId: grant.id, reason, metadata: { expiresAt: grant.expiresAt.toISOString() } } });
+    await appendSensitiveAuditLog(transaction, { companyId, platformActorId: actor.platformAccountId, action: "support.access_started", targetType: "SupportAccessGrant", targetId: grant.id, reason, metadata: { expiresAt: grant.expiresAt.toISOString(), capabilityKeys: ["company.view", "company.configuration.view"] } });
     return grant;
   });
 }
@@ -33,15 +34,16 @@ export async function endSupportAccess(actor: PlatformActor, grantId: string) {
   return prisma.$transaction(async (transaction) => {
     const grant = await transaction.supportAccessGrant.findFirstOrThrow({ where: { id: grantId, platformAccountId: actor.platformAccountId, status: "ACTIVE" } });
     await transaction.supportAccessGrant.update({ where: { id: grant.id }, data: { status: "CLOSED", endedAt: new Date() } });
-    await transaction.auditLog.create({ data: { companyId: grant.companyId, platformActorId: actor.platformAccountId, action: "support.access_ended", targetType: "SupportAccessGrant", targetId: grant.id } });
+    await appendSensitiveAuditLog(transaction, { companyId: grant.companyId, platformActorId: actor.platformAccountId, action: "support.access_ended", targetType: "SupportAccessGrant", targetId: grant.id });
   });
 }
 
 export async function setCompanySuspension(actor: PlatformActor, input: { companyId: string; suspended: boolean; reason: string }) {
   const reason = input.reason.trim().slice(0, 300);
   if (!input.companyId || !reason) throw new Error("SUSPENSION_INPUT_REQUIRED");
-  return prisma.$transaction([
-    prisma.company.update({ where: { id: input.companyId }, data: { commercialStatus: input.suspended ? "SUSPENDED" : "ACTIVE" } }),
-    prisma.auditLog.create({ data: { companyId: input.companyId, platformActorId: actor.platformAccountId, action: input.suspended ? "company.suspended" : "company.reactivated", targetType: "Company", targetId: input.companyId, reason } }),
-  ]);
+  return prisma.$transaction(async (transaction) => {
+    const company = await transaction.company.update({ where: { id: input.companyId }, data: { commercialStatus: input.suspended ? "SUSPENDED" : "ACTIVE" } });
+    await appendSensitiveAuditLog(transaction, { companyId: input.companyId, platformActorId: actor.platformAccountId, action: input.suspended ? "company.suspended" : "company.reactivated", targetType: "Company", targetId: input.companyId, reason });
+    return company;
+  });
 }
