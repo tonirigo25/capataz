@@ -196,3 +196,20 @@ Implemented on `feat/readiness-f9-public-brand` from program commit `9be9838afec
 - Requirement ledger: all eight F9 requirements are `PASS`; no F9 requirement is pending, blocked, waived or waiting for external input. Brand/domain clearance and final legal approval remain explicit F11 release gates; `PUBLIC_INDEXING_ENABLED=false` is unchanged.
 
 Evidence: `docs/readiness/evidence/f9/audit-manifest.json`, `browser-validation.json` and the F9 public/browser validators.
+
+## F10 - Mobile wrapper and distribution readiness - PASS WITH EXTERNAL INPUT GATES
+
+Implemented on `feat/readiness-f10-mobile-distribution` from program commit `5f4dbcf5b77169f8ade7190daef1b3611a622de1`. Production, persistent staging, stores and signing systems were not modified. No keystore, certificate, provisioning profile or secret was created, loaded or printed.
+
+- Defined the Capacitor wrapper as a network client of the configured web backend; the backend remains the source of truth for session, tenant context, data, files and effects. No native credential or business database is embedded.
+- Development, staging and release are explicit. Release rejects HTTP, loopback/private, credential-bearing, mismatched and staging hosts; no URL is assumed when configuration is absent.
+- Added allowlisted auth/open deep-link resolution, Android App Links, iOS Universal Links/custom scheme and fail-closed `.well-known` payloads. They return no association until the approved host and public certificate/team facts are configured.
+- Preserved server-owned opaque HttpOnly/Secure/SameSite sessions and documented that the native layer stores no auth token. Device login/logout/rotation evidence remains external.
+- Reduced Android to the `INTERNET` permission and app-scoped cache sharing; iOS declares no camera, microphone, photo, location or contacts prompt. System picker/share behavior still requires real-device evidence.
+- Added a provider-neutral crash contract. One synthetic crash reached an injected fake transport with release SHA/code/fingerprint only; PII, content, route, stack, token, prompt and secret fields are rejected. No live crash provider was called.
+- Added versioned store privacy/distribution contracts and a listing draft marked `PREPARED_NOT_SUBMITTED`/`NOT_SUBMITTED`, derived from the RAT without claiming tracking, advertising, sale, approval or publication.
+- Android release tasks fail without all external signing inputs; iOS Release uses manual signing. The signing/rotation/backup runbook and artifact checksum tool never print or persist secret values.
+- F10 pure validation passed 49/49 and the pre-existing mobile-config suite passed 22/22. Android Capacitor sync/doctor passed with an explicit loopback development URL whose generated config is ignored. iOS doctor stopped at the expected Windows/Xcode boundary; Gradle stopped because no JDK is installed. No signed AAB/XCArchive was fabricated.
+- Requirement ledger: six F10 requirements are `PASS`; `MOB-003`, `MOB-004`, `MOB-005` and `MOB-009` are `READY_FOR_EXTERNAL_INPUT` for approved-domain/device E2E and signed artifacts. No F10 requirement is pending, blocked or waived.
+
+Evidence: `docs/readiness/evidence/f10/audit-manifest.json`, mobile contracts, architecture/listing docs, signing runbook and F10 validator.

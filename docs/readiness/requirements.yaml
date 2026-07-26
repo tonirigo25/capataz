@@ -1695,83 +1695,83 @@ requirements:
   - id: "MOB-001"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Definir oficialmente el wrapper móvil como cliente del backend web."
     acceptance: "Documentación/store listing coherentes."
-    evidence: []
-    notes: []
+    evidence: ["capacitor.config.ts", "lib/mobile-config.ts", "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md", "contracts/mobile/v1/distribution.json", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["The Capacitor wrapper is explicitly a network client of the configured web backend; the server remains the sole source of truth and no native credential or business database is embedded."]
   - id: "MOB-002"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Separar configuraciones development/staging/release."
     acceptance: "Build no puede apuntar a localhost en release."
-    evidence: []
-    notes: []
+    evidence: ["lib/mobile-config.ts", "capacitor.config.ts", "scripts/readiness/validate-f10-mobile.ts", "scripts/validate-mobile-config.ts"]
+    notes: ["Development accepts explicit loopback/private HTTP only; staging and release require HTTPS, and release rejects local, private, credential-bearing, mismatched and staging hosts."]
   - id: "MOB-003"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Configurar universal/app links y retorno de auth."
     acceptance: "Deep link validado en Android/iOS."
-    evidence: []
-    notes: []
+    evidence: ["lib/mobile-config.ts", "lib/mobile/association.ts", "android/app/src/main/AndroidManifest.xml", "ios/App/App/App.entitlements", "ios/App/App/Info.plist", "app/.well-known/assetlinks.json/route.ts", "app/.well-known/apple-app-site-association/route.ts", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["Allowlisted link parsing, Android/iOS declarations and fail-closed association payloads pass with synthetic configuration. Real domain hosting, certificate/team identifiers and on-device Android/iOS verification remain MOBILE-LINK-001."]
   - id: "MOB-004"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Revisar cookies, sesiones y almacenamiento seguro en WebView."
     acceptance: "Login/logout/rotación pasan E2E dispositivo."
-    evidence: []
-    notes: []
+    evidence: ["docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md", "lib/auth/session.ts", "scripts/validate-auth-postgres.ts", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["The wrapper stores no native credential and reuses opaque HttpOnly/Secure/SameSite server sessions; web session rotation/revocation regressions pass. Login/logout/rotation on real target WebViews remains MOBILE-SESSION-001."]
   - id: "MOB-005"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Gestionar PDFs, descargas, uploads y permisos mínimos."
     acceptance: "Flujos funcionan sin permisos innecesarios."
-    evidence: []
-    notes: []
+    evidence: ["android/app/src/main/AndroidManifest.xml", "android/app/src/main/res/xml/file_paths.xml", "ios/App/App/Info.plist", "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["Android declares only INTERNET, sharing is app-cache scoped, iOS declares no unnecessary native permission and files use system selection. Real PDF/download/upload flows on target devices remain MOBILE-FILES-001."]
   - id: "MOB-006"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Añadir crash reporting y release mapping configurable."
     acceptance: "Crash sintético llega sin PII."
-    evidence: []
-    notes: []
+    evidence: ["lib/mobile/crash-reporting.ts", "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["One synthetic crash reached an injected fake transport with exact release mapping and no external call. The contract rejects message, stack, URL, user, company, contact, payload, token, prompt and secret fields; no live native provider is claimed."]
   - id: "MOB-007"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Completar privacy labels/data safety desde el RAT real."
     acceptance: "Metadatos de tienda coinciden con producto."
-    evidence: []
-    notes: []
+    evidence: ["contracts/mobile/v1/store-privacy.json", "contracts/privacy/v1/catalog.json", "docs/mobile/STORE_LISTING_DRAFT.md", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["Versioned store metadata covers actual account, business, financial, user-content, identifier and optional diagnostics categories; it declares no tracking, advertising or sale and is marked PREPARED_NOT_SUBMITTED."]
   - id: "MOB-008"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "PASS"
     requirement: "Preparar firma y rotación de keystore/certificados fuera del repo."
     acceptance: "Runbook y backup seguro."
-    evidence: []
-    notes: []
+    evidence: ["android/app/build.gradle", "ios/App/App.xcodeproj/project.pbxproj", "docs/runbooks/MOBILE_SIGNING_AND_DISTRIBUTION.md", "scripts/mobile/guard-release-build.mjs"]
+    notes: ["Android release tasks fail without complete external signing inputs; iOS Release uses manual signing. The runbook covers separated vault backup, recovery verification, rotation and revocation without storing material in the repository."]
   - id: "MOB-009"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "READY_FOR_EXTERNAL_INPUT"
     requirement: "Automatizar build AAB/Archive con gates."
     acceptance: "Artefactos versionados y reproducibles."
-    evidence: []
-    notes: []
+    evidence: ["scripts/mobile/guard-release-build.mjs", "scripts/mobile/artifact-manifest.mjs", "package.json", "docs/runbooks/MOBILE_SIGNING_AND_DISTRIBUTION.md", "scripts/readiness/validate-f10-mobile.ts"]
+    notes: ["Fail-closed Android/iOS build guards and a checksum manifest are automated. No signed AAB or XCArchive was built: external keystore/provisioning inputs, Android JDK and a macOS/Xcode runner are required under MOBILE-BUILD-001."]
   - id: "MOB-010"
     area: "MOB"
     phase: "F10"
-    status: "PENDING"
+    status: "PASS"
     requirement: "No afirmar publicación hasta revisión efectiva de tiendas."
     acceptance: "Estado y limitaciones visibles."
-    evidence: []
-    notes: []
+    evidence: ["contracts/mobile/v1/distribution.json", "contracts/mobile/v1/store-privacy.json", "docs/mobile/STORE_LISTING_DRAFT.md", "docs/mobile/ARCHITECTURE_AND_STORE_READINESS.md"]
+    notes: ["Distribution and privacy contracts explicitly say NOT_SUBMITTED/PREPARED_NOT_SUBMITTED; no store approval, publication date, certification or real-device result is claimed."]
   - id: "DATA-001"
     area: "DATA"
     phase: "F11"
