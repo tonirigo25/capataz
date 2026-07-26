@@ -24,7 +24,7 @@ Referencia oficial Railway para backups de volúmenes: https://docs.railway.com/
 ## Restore drill
 
 1. Congelar `source service ID`, timestamp objetivo, release y checksum lógico sin imprimir secretos.
-2. Crear un servicio PostgreSQL hermano nuevo. Para PITR nativo, usar la acción
+2. Crear un servicio PostgreSQL nuevo y hermano. Para PITR nativo, usar la acción
    oficial “Restore to this moment”; para el simulacro lógico autorizado se
    admite `pg_dump`/`pg_restore` con checksum y transacción única. Nunca restaurar
    sobre el origen.
