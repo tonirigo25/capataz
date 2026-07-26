@@ -1,0 +1,136 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "meta": {
+    "name": "Orqena Field OS",
+    "version": "1.0.0",
+    "date": "2026-07-26",
+    "intent": "Editorial-industrial public brand + calm operational SaaS"
+  },
+  "color": {
+    "ink": {
+      "value": "#111A16",
+      "role": "Primary text, dark surfaces"
+    },
+    "inkMuted": {
+      "value": "#66736C"
+    },
+    "stone": {
+      "value": "#F3F0E7",
+      "role": "Public background"
+    },
+    "paper": {
+      "value": "#FBFAF7"
+    },
+    "surface": {
+      "value": "#FFFFFF"
+    },
+    "line": {
+      "value": "#D8DED7"
+    },
+    "lime": {
+      "value": "#C9F36B",
+      "role": "Confirmation and primary field accent"
+    },
+    "blue": {
+      "value": "#2D5DE0",
+      "role": "Information and commercial flow"
+    },
+    "orange": {
+      "value": "#E96B3D",
+      "role": "Attention"
+    },
+    "red": {
+      "value": "#C8453B",
+      "role": "Risk"
+    },
+    "green": {
+      "value": "#157B59",
+      "role": "Success"
+    }
+  },
+  "typography": {
+    "family": {
+      "sans": "Inter, ui-sans-serif, system-ui, sans-serif",
+      "mono": "ui-monospace, SFMono-Regular, monospace"
+    },
+    "size": {
+      "xs": "11px",
+      "sm": "13px",
+      "base": "15px",
+      "lg": "18px",
+      "xl": "24px",
+      "display": "clamp(48px, 6.2vw, 84px)"
+    },
+    "weight": {
+      "regular": 450,
+      "medium": 650,
+      "bold": 800,
+      "black": 950
+    },
+    "lineHeight": {
+      "tight": 0.96,
+      "heading": 1.1,
+      "body": 1.55
+    }
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "20px",
+    "6": "24px",
+    "8": "32px",
+    "10": "40px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "radius": {
+    "sm": "9px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "24px",
+    "pill": "999px"
+  },
+  "shadow": {
+    "small": "0 8px 24px rgba(17,26,22,.08)",
+    "card": "0 18px 55px rgba(17,26,22,.11)",
+    "hero": "0 34px 90px rgba(17,26,22,.24)"
+  },
+  "layout": {
+    "sidebar": "248px",
+    "contentMax": "1280px",
+    "recordRail": "320px",
+    "clientSplitPane": "440px",
+    "desktopBreakpoint": "900px",
+    "mobileWidth": "390px"
+  },
+  "motion": {
+    "fast": "120ms",
+    "base": "180ms",
+    "slow": "320ms",
+    "easing": "cubic-bezier(.2,.8,.2,1)",
+    "principles": [
+      "Native scroll",
+      "Only transform/opacity for decorative motion",
+      "Pause offscreen/autoplay after two cycles",
+      "prefers-reduced-motion renders final state",
+      "No global scroll snap or wheel hijacking"
+    ]
+  },
+  "density": {
+    "public": "editorial spacious",
+    "app": "compact but breathable",
+    "touchTarget": "44px minimum"
+  },
+  "archetypes": [
+    "Work queue",
+    "List + preview",
+    "Record + action rail",
+    "Editor + live preview",
+    "Inbox + review",
+    "Calendar",
+    "Analytical dashboard",
+    "Guided setup"
+  ]
+}

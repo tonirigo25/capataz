@@ -111,7 +111,15 @@ check(sectorScenes.includes("SectorMiniScene") && text("app/sectores/page.tsx").
 check(sectorScenes.includes("data-sector-scene") && text("app/sectores/[sector]/page.tsx").includes("SectorHeroScene"), "Cada sector necesita escena identificable");
 
 const unitEconomics = text("lib/commercial/unit-economics.ts");
-check(unitEconomics.includes("PUBLIC_PRICING_ENABLED = false") && text("app/planes/page.tsx").includes("data-public-pricing"), "El precio público debe permanecer desactivado");
+check(
+  [
+    "publicPricingRequested && publicPricingApproval && publicPricingCatalogVersion",
+    "mappedPriceKeys.length > 0",
+    "PUBLIC_PRICING_ENABLED = publicPricingPolicy.enabled",
+  ].every((token) => unitEconomics.includes(token))
+  && text("app/planes/page.tsx").includes("data-public-pricing"),
+  "El precio público debe permanecer cerrado sin solicitud, aprobación, catálogo y mapeo completos",
+);
 check(["infrastructureBase", "costPerUser", "storageGb", "documents", "inputTokens", "outputTokens", "transcriptionMinutes", "supportHours", "targetMargin", "contingency", "overagePrice"].every((field) => unitEconomics.includes(field)), "El modelo de unit economics está incompleto");
 check(text("app/(app)/plataforma/page.tsx").includes('actor.platformRole === "PLATFORM_OWNER" ? <UnitEconomicsCalculator'), "El calculador de costes debe ser exclusivo de PLATFORM_OWNER");
 check(text("app/seguridad/page.tsx").includes("security-diagram") && text("app/seguridad/page.tsx").includes("security-mosaic"), "Seguridad debe usar diagrama y ejemplos visuales");

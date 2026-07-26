@@ -7,6 +7,8 @@
     "build": "prisma generate && node scripts/readiness/validate-runtime-config.mjs build && next build && node scripts/prepare-standalone.mjs",
     "start": "node scripts/start-standalone.mjs",
     "typecheck": "prisma generate && tsc --noEmit",
+    "design:validate": "node scripts/design/validate-field-os.mjs",
+    "design:capture-baseline": "node scripts/design/capture-baseline.mjs",
     "readiness:validate-config": "node scripts/readiness/validate-runtime-config.mjs ready",
     "readiness:generate-schema-docs": "node scripts/readiness/generate-schema-docs.mjs",
     "readiness:validate-f1": "node scripts/readiness/validate-f1-contract.mjs",

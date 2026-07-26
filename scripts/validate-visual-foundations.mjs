@@ -12,22 +12,17 @@ const manual = read("docs/CAPATAZ_PRODUCT_DESIGN_MANUAL.md");
 const roadmap = read("docs/CAPATAZ_MASTER_ROADMAP.md");
 
 const exactTokens = [
-  "--cap-bg: #f8f5ed",
-  "--cap-bg-subtle: #f0ede4",
-  "--cap-surface: #fffdf8",
-  "--cap-border: #d9e1dc",
-  "--cap-border-strong: #afbeb7",
-  "--cap-text: #13231f",
-  "--cap-text-muted: #52635e",
-  "--cap-text-soft: #74817d",
-  "--cap-brand: #087a68",
-  "--cap-brand-strong: #07594e",
-  "--cap-brand-soft: #dff3ec",
-  "--cap-accent: #0755c9",
-  "--cap-success: #18794e",
-  "--cap-warning: #9a6700",
-  "--cap-danger: #b42318",
-  "--cap-info: #245ea8"
+  "--fos-color-ink: #111a16",
+  "--fos-color-ink-muted: #66736c",
+  "--fos-color-stone: #f3f0e7",
+  "--fos-color-paper: #fbfaf7",
+  "--fos-color-surface: #ffffff",
+  "--fos-color-line: #d8ded7",
+  "--fos-color-lime: #c9f36b",
+  "--fos-color-blue: #2d5de0",
+  "--fos-color-orange: #e96b3d",
+  "--fos-color-red: #c8453b",
+  "--fos-color-green: #157b59"
 ];
 
 const primitiveNames = [
@@ -60,7 +55,7 @@ const primitiveNames = [
 
 const cases = [
   ["manual maestro incorporado y referenciado", manual.includes("# CAPATAZ — MANUAL MAESTRO DE DISEÑO DE PRODUCTO 2026") && roadmap.includes("CAPATAZ_PRODUCT_DESIGN_MANUAL.md")],
-  ["tokens cromáticos coinciden con el manual", exactTokens.every((token) => styles.includes(token))],
+  ["tokens cromáticos Field OS coinciden con el contrato recibido", exactTokens.every((token) => styles.includes(token))],
   ["tokens de radio, ancho, control y movimiento disponibles", ["--cap-radius-control", "--cap-radius-object", "--cap-radius-feature", "--cap-radius-overlay", "--cap-content-max", "--cap-reading-max", "--cap-form-max", "--cap-control-field", "--cap-motion-control", "--cap-motion-menu", "--cap-motion-panel"].every((token) => styles.includes(token))],
   ["aliases obra quedan marcados como compatibilidad transitoria", tailwind.includes("Compatibilidad transitoria") && tailwind.includes("obra:")],
   ["tipografía normalizada y números tabulares", ["type-page-title", "type-section-title", "type-object-title", "type-body", "type-meta", "type-amount-primary", "font-variant-numeric: tabular-nums"].every((token) => styles.includes(token))],
