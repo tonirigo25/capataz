@@ -1,3 +1,5 @@
+import { brandConfig } from "./config/brand";
+
 export type MobileMode = "development" | "staging" | "release";
 
 type MobileEnvironment = Record<string, string | undefined>;
@@ -24,7 +26,7 @@ function requiredIdentifier(value: string | undefined, fallback: string, name: s
 }
 
 function requiredScheme(value: string | undefined) {
-  const resolved = value?.trim() || "orqena";
+  const resolved = value?.trim() || brandConfig.mobile.urlScheme;
   if (!/^[a-z][a-z0-9+.-]{1,30}$/.test(resolved)) throw new Error("CAPATAZ_MOBILE_URL_SCHEME is invalid");
   return resolved;
 }
@@ -55,8 +57,8 @@ export function resolveMobileConfig(env: MobileEnvironment) {
     if (mode === "release" && /(^|\.)staging\./i.test(url.hostname)) throw new Error("Release mobile URL must not point to staging");
   }
 
-  const appId = requiredIdentifier(env.CAPATAZ_MOBILE_APP_ID, "com.orqena.app", "CAPATAZ_MOBILE_APP_ID");
-  const appName = env.CAPATAZ_MOBILE_APP_NAME?.trim() || "Orqena";
+  const appId = requiredIdentifier(env.CAPATAZ_MOBILE_APP_ID, brandConfig.mobile.appId, "CAPATAZ_MOBILE_APP_ID");
+  const appName = env.CAPATAZ_MOBILE_APP_NAME?.trim() || brandConfig.mobile.appName;
   if (appName.length < 2 || appName.length > 30) throw new Error("CAPATAZ_MOBILE_APP_NAME is invalid");
   const urlScheme = requiredScheme(env.CAPATAZ_MOBILE_URL_SCHEME);
   const appLinkHost = (env.CAPATAZ_MOBILE_APP_LINK_HOST?.trim() || url.hostname).toLowerCase();

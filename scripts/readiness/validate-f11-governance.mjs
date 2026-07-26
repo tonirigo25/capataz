@@ -54,6 +54,19 @@ check("external-gate-ids-generic-and-unique", () => {
 });
 check("railway-workflow-does-not-mutate", () => assert.doesNotMatch(read(".github/workflows/railway-preview.yml"), /railway\s+(?:up|delete|environment\s+delete)/iu));
 check("release-workflow-evidence-only", () => assert.ok(read(".github/workflows/release-candidate.yml").includes("confirm_no_deploy")));
+check("ci-compiles-canonical-ledger", () => assert.ok(read(".github/workflows/ci.yml").includes("readiness:compile-requirements && git diff --exit-code -- docs/readiness/requirements.yaml")));
+check("ci-runs-cross-phase-static-regression", () => {
+  const ci = read(".github/workflows/ci.yml");
+  assert.ok(ci.includes("readiness:validate-all-static"));
+  const scripts = JSON.parse(read("package.json")).scripts;
+  for (const gate of ["readiness:validate-f1", "readiness:validate-f2", "readiness:validate-f3", "readiness:validate-f4", "readiness:validate-f5", "readiness:validate-f6", "readiness:validate-f7", "readiness:validate-f8", "readiness:validate-f9", "mobile:validate", "readiness:validate-f11"]) {
+    assert.ok(scripts["readiness:validate-all-static"].includes(`npm run ${gate}`), gate);
+  }
+});
+check("ci-cross-phase-regression-has-full-history", () => {
+  const applicationJob = read(".github/workflows/ci.yml").split("\n  critical-database:", 1)[0];
+  assert.ok(applicationJob.includes("fetch-depth: 0"));
+});
 check("codeql-and-gitleaks", () => {
   const security = read(".github/workflows/security.yml");
   assert.ok(security.includes("github/codeql-action"));

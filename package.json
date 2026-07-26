@@ -36,6 +36,8 @@
     "readiness:validate-f4-postgres": "node scripts/readiness/run-f4-postgres-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",
     "readiness:validate-providers": "tsx scripts/readiness/validate-provider-contracts.ts",
+    "readiness:compile-requirements": "node scripts/readiness/compile-requirements.mjs",
+    "readiness:validate-all-static": "npm run readiness:validate-f1 && npm run readiness:validate-f2 && npm run readiness:validate-action-boundaries && npm run readiness:validate-context-boundaries && npm run readiness:validate-otel && npm run readiness:validate-providers && npm run readiness:validate-f3 && npm run readiness:validate-f4 && npm run readiness:validate-f5 && npm run readiness:validate-f6-static && npm run readiness:validate-f6 && npm run readiness:validate-f7 && npm run readiness:validate-f8 && npm run readiness:validate-f9 && npm run mobile:validate && npm run readiness:validate-f11",
     "readiness:validate-f11": "node scripts/readiness/validate-f11-governance.mjs",
     "readiness:validate-f11-tenant": "node scripts/readiness/run-f11-tenant-pentest.mjs",
     "readiness:report": "node scripts/readiness/generate-readiness-report.mjs",

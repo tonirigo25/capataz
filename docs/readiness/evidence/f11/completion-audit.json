@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "orqena-readiness-completion-audit-v1",
+  "date": "2026-07-26",
+  "branch": "codex/readiness-completion-audit",
+  "baseBranch": "program/orqena-production-readiness",
+  "baseProgramSha": "94c395c73529cbfad1ac6be99e1b059c9bfcae07",
+  "verdict": "PASS_WITH_EXTERNAL_INPUT_GATES",
+  "findings": [
+    {
+      "id": "COMPLETION-AUDIT-001",
+      "severity": "regression",
+      "originalFailure": "readiness:validate-f1 rejected a mobile product-name literal outside central brand configuration",
+      "resolution": "Mobile app name, application ID and URL scheme now resolve through lib/config/brand.ts"
+    },
+    {
+      "id": "COMPLETION-AUDIT-002",
+      "severity": "regression",
+      "originalFailure": "readiness:validate-context-boundaries found two mobile association routes without canonical public request context",
+      "resolution": "Both .well-known routes use publicRequestContext and the route inventory enforces 26 handlers"
+    },
+    {
+      "id": "COMPLETION-AUDIT-003",
+      "severity": "coverage-gap",
+      "originalFailure": "F11 CI executed only the F11 static validator and did not detect cross-phase regressions",
+      "resolution": "CI recompiles the canonical 233-item ledger and executes readiness:validate-all-static across F1-F11"
+    },
+    {
+      "id": "COMPLETION-AUDIT-004",
+      "severity": "ci-portability",
+      "originalFailure": "The first cross-phase CI run used a shallow checkout, so F9 could not prove the accepted Marketing V2 merge parent",
+      "resolution": "The application job fetches full Git history and F11 enforces that prerequisite"
+    }
+  ],
+  "requirements": {
+    "total": 233,
+    "pass": 203,
+    "readyForExternalInput": 30,
+    "pending": 0,
+    "blocked": 0,
+    "waived": 0,
+    "missingEvidencePaths": 0
+  },
+  "validation": {
+    "canonicalLedger": "PASS; 233 unique requirements; recompile produced no diff",
+    "crossPhaseStatic": "PASS; F1-F11 static/fake validators",
+    "f1": "56/56 PASS",
+    "f2": "26/26 PASS; action and context positive/negative gates PASS",
+    "routeContexts": "36 action files; 26 route handlers; 6 job routes PASS",
+    "f3": "12/12 PASS",
+    "f4": "11/11 PASS",
+    "f5": "18/18 PASS",
+    "f6": "36/36 static and 44/44 fake PASS; zero live calls",
+    "f7": "43/43 and deterministic PDF PASS",
+    "f8": "55/55 PASS",
+    "f9": "61/61 and public-indexing gate PASS",
+    "f10": "49/49 and legacy mobile-config 22/22 PASS",
+    "f11": "45/45 PASS",
+    "vitest": "3/3 PASS",
+    "playwright": "2/2 PASS; Chromium loopback only",
+    "tenantPentest": "12/12 PASS after 43/43 fresh migrations; zero high or critical findings",
+    "typecheck": "PASS",
+    "productionBuild": "PASS; 77/77 static pages and standalone output",
+    "dependencyAudit": "PASS; zero vulnerabilities at high threshold",
+    "secretScan": "PASS; 954 files and zero findings"
+  },
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "railwayModified": false,
+    "deploymentPerformed": false,
+    "externalProviderCalls": 0,
+    "realOpenAiCalls": 0,
+    "secretsCreated": false,
+    "secretsExposed": false,
+    "realCustomerDataUsed": false
+  }
+}

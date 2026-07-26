@@ -44,7 +44,7 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 24) failures.push(`expected 24 routes, found ${routes.length}`);
+  if (routes.length !== 26) failures.push(`expected 26 routes, found ${routes.length}`);
   const actions = walk(path.join(root, "app"), "actions.ts");
   if (actions.length !== 36) failures.push(`expected 36 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
@@ -66,4 +66,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (36 actions, 24 routes, 6 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (36 actions, 26 routes, 6 jobs)\n");

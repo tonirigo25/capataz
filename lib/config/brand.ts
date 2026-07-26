@@ -1,9 +1,10 @@
 import { publicConfig } from "./public";
 
 const configuredSupportEmail = publicConfig.supportEmail;
+const configuredProductName = process.env.NEXT_PUBLIC_PRODUCT_NAME?.trim() || "Orqena";
 
 export const brandConfig = Object.freeze({
-  productName: process.env.NEXT_PUBLIC_PRODUCT_NAME?.trim() || "Orqena",
+  productName: configuredProductName,
   legalProductName: process.env.NEXT_PUBLIC_LEGAL_PRODUCT_NAME?.trim() || "Orqena",
   legalEntityName: process.env.NEXT_PUBLIC_LEGAL_COMPANY_NAME?.trim() || "Orqena",
   supportEmail:
@@ -28,6 +29,11 @@ export const brandConfig = Object.freeze({
     shortName: process.env.NEXT_PUBLIC_PWA_SHORT_NAME?.trim() || "Orqena",
     icon: process.env.NEXT_PUBLIC_PWA_ICON?.trim() || "/brand/app-icon.svg",
     maskableIcon: process.env.NEXT_PUBLIC_PWA_MASKABLE_ICON?.trim() || "/brand/icon-maskable-512.png",
+  },
+  mobile: {
+    appId: process.env.CAPATAZ_MOBILE_APP_ID?.trim() || "com.orqena.app",
+    appName: process.env.CAPATAZ_MOBILE_APP_NAME?.trim() || configuredProductName,
+    urlScheme: process.env.CAPATAZ_MOBILE_URL_SCHEME?.trim() || "orqena",
   },
   legacyAliases: ["Capataz", "Capataz IA", "/capataz", "CAPATAZ_*"] as const,
 });

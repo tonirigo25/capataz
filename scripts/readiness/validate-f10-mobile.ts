@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { brandConfig } from "../../lib/config/brand";
 import { resolveMobileConfig, resolveMobileDeepLink } from "../../lib/mobile-config";
 import { androidAssetLinks, appleAppSiteAssociation, resolveMobileAssociationConfig } from "../../lib/mobile/association";
 import { createMobileCrashEvent, sendSyntheticMobileCrash, type MobileCrashEvent } from "../../lib/mobile/crash-reporting";
@@ -12,7 +13,7 @@ const check = (name: string, condition: unknown) => { assert.ok(condition, name)
 async function main() {
 const release = resolveMobileConfig({ CAPATAZ_MOBILE_MODE: "release", CAPATAZ_MOBILE_SERVER_URL: "https://app.example.com", CAPATAZ_MOBILE_APP_LINK_HOST: "app.example.com" });
 check("release-https", release.serverUrl === "https://app.example.com" && !release.cleartext && !release.allowMixedContent);
-check("release-client-identity", release.appId === "com.orqena.app" && release.appName === "Orqena" && release.nativeCredentialsStored === false);
+check("release-client-identity", release.appId === brandConfig.mobile.appId && release.appName === brandConfig.mobile.appName && release.nativeCredentialsStored === false);
 check("release-link-host", release.appLinkHost === "app.example.com" && release.authReturnUrl === "orqena://auth/callback");
 const staging = resolveMobileConfig({ CAPATAZ_MOBILE_MODE: "staging", CAPATAZ_MOBILE_SERVER_URL: "https://mobile-preview.example.com" });
 check("staging-separated", staging.mode === "staging" && !staging.cleartext);

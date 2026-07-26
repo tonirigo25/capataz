@@ -26,8 +26,8 @@ requirements:
     status: "PASS"
     requirement: "Centralizar nombre, identidad legal, URLs, soporte, remitentes y aliases en configuración tipada."
     acceptance: "No quedan literales comerciales dispersos fuera de tests/compatibilidad."
-    evidence: ["lib/config/brand.ts", "lib/brand.ts", "scripts/readiness/validate-f1-contract.mjs"]
-    notes: ["Commercial identity scan passed with no product, support, or legacy domain literals outside central configuration and compatibility keys."]
+    evidence: ["lib/config/brand.ts", "lib/brand.ts", "lib/mobile-config.ts", "scripts/readiness/validate-f1-contract.mjs"]
+    notes: ["Commercial identity scan passes across app, components and lib; mobile app name, ID and URL scheme now resolve through the same central brand configuration."]
   - id: "GOV-004"
     area: "GOV"
     phase: "F9"
@@ -242,8 +242,8 @@ requirements:
     status: "PASS"
     requirement: "Aplicar request ID y actor context a toda ruta, action, job y webhook."
     acceptance: "Logs/auditoría permiten correlación extremo a extremo."
-    evidence: ["lib/platform/action-operation.ts", "lib/platform/next-action-boundary.ts", "lib/platform/request-boundary.ts", "lib/platform/persistence-context.ts", "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql", "scripts/readiness/validate-context-boundaries.mjs", "docs/readiness/evidence/f2/context-correlation-audit.md"]
-    notes: ["All 30 action files, 16 route handlers and 2 internal job routes install canonical context; webhook/outbox/platform wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."]
+    evidence: ["lib/platform/action-operation.ts", "lib/platform/next-action-boundary.ts", "lib/platform/request-boundary.ts", "lib/platform/persistence-context.ts", "app/.well-known/apple-app-site-association/route.ts", "app/.well-known/assetlinks.json/route.ts", "prisma/migrations/20260726100000_readiness_f2_observability_context/migration.sql", "scripts/readiness/validate-context-boundaries.mjs", "docs/readiness/evidence/f2/context-correlation-audit.md"]
+    notes: ["All 36 action files and 26 route handlers install canonical context, including both mobile association routes; webhook/outbox/platform/job wrappers exist, and the isolated action-to-provider probe preserves correlation with one replay-safe effect."]
   - id: "SEC-005"
     area: "SEC"
     phase: "F2"
@@ -1226,8 +1226,8 @@ requirements:
     status: "PASS"
     requirement: "Propagar request ID, tenant, actor y job ID con límites de privacidad."
     acceptance: "Búsqueda correlaciona una operación completa."
-    evidence: ["lib/platform/request-context.ts", "lib/observability/logger.ts", "lib/platform/outbox.ts", "lib/auth/audit.ts", "lib/platform/webhooks.ts", "scripts/readiness/validate-f2-postgres.ts", "docs/readiness/evidence/f2/context-correlation-audit.md"]
-    notes: ["Request, correlation, causation, privacy-safe actor, company, membership, job, provider, operation, release and environment propagate through actions, services, audits, BusinessEvent, worker and fake provider; correlation search returned both audit rows and replay produced one effect."]
+    evidence: ["lib/platform/request-context.ts", "lib/observability/logger.ts", "lib/platform/outbox.ts", "lib/auth/audit.ts", "lib/platform/webhooks.ts", "app/.well-known/apple-app-site-association/route.ts", "app/.well-known/assetlinks.json/route.ts", "scripts/readiness/validate-f2-postgres.ts", "docs/readiness/evidence/f2/context-correlation-audit.md"]
+    notes: ["Request, correlation, causation, privacy-safe actor, company, membership, job, provider, operation, release and environment propagate through all 26 routes, actions, services, audits, BusinessEvent, worker and fake provider; correlation search returned both audit rows and replay produced one effect."]
   - id: "OBS-005"
     area: "OBS"
     phase: "F2"
@@ -1346,8 +1346,8 @@ requirements:
     status: "PASS"
     requirement: "Ejecutar suites críticas de auth, tenant, permisos, numeración, fiscal, billing, email y storage."
     acceptance: "Resumen por gate, no solo total global."
-    evidence: [".github/workflows/ci.yml", "scripts/readiness/validate-f3-fiscal.ts", "scripts/readiness/validate-f4-commercial.ts", "scripts/readiness/validate-f5-postgres.ts"]
-    notes: ["Named gates cover auth, tenant/horizontal authorization, numbering, fiscal, billing, email, private storage and PDF evidence."]
+    evidence: [".github/workflows/ci.yml", "package.json", "scripts/readiness/validate-f3-fiscal.ts", "scripts/readiness/validate-f4-commercial.ts", "scripts/readiness/validate-f5-postgres.ts", "docs/readiness/evidence/f11/completion-audit.json"]
+    notes: ["Named database gates cover auth, tenant/horizontal authorization, numbering, fiscal, billing, email and storage; the application job also compiles the 233-item ledger and runs the cross-phase F1-F11 static regression before typecheck and build."]
   - id: "CI-006"
     area: "CI"
     phase: "F11"
