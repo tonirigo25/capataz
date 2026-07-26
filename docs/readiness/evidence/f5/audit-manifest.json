@@ -48,6 +48,7 @@
     "productionBuild": "PASS",
     "staticPagesGenerated": 72,
     "cleanInstall": "npm ci PASS",
+    "lockfileCompatibility": "npm 10.9.8 and npm 11.6.2 ci dry-run PASS",
     "productionDependencyAudit": "0 known vulnerabilities",
     "f1Regression": "56/56 PASS",
     "f2Regression": "26/26 PASS",
