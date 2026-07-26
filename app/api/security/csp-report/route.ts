@@ -11,11 +11,16 @@ export async function POST(request: NextRequest) {
   if (!limit.allowed) return NextResponse.json({ ok: false }, { status: 429, headers: rateLimitHeaders(limit) });
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("json")) return NextResponse.json({ ok: false }, { status: 415 });
-  const report = await request.json().catch(() => null) as Record<string, unknown> | null;
-  const body = report && typeof report["csp-report"] === "object" ? report["csp-report"] as Record<string, unknown> : report;
+  const report = await request.json().catch(() => null) as Record<string, unknown> | Array<Record<string, unknown>> | null;
+  const envelope = Array.isArray(report) ? report[0] : report;
+  const legacyBody = envelope && typeof envelope["csp-report"] === "object" ? envelope["csp-report"] : null;
+  const modernBody = envelope && typeof envelope.body === "object" ? envelope.body : null;
+  const body = (legacyBody ?? modernBody ?? envelope) as Record<string, unknown> | null;
   log("warn", "csp_violation", {
     status: typeof body?.["disposition"] === "string" ? body["disposition"] : "report",
-    resourceType: typeof body?.["effective-directive"] === "string" ? body["effective-directive"] : "unknown",
+    resourceType: typeof body?.["effective-directive"] === "string"
+      ? body["effective-directive"]
+      : typeof body?.effectiveDirective === "string" ? body.effectiveDirective : "unknown",
   });
   return NextResponse.json({ ok: true }, { status: 202, headers: rateLimitHeaders(limit) });
 
