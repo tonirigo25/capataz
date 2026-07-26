@@ -28,6 +28,11 @@ const rawSchema = z.object({
   OPENAI_BASE_URL: optionalUrl,
   OPENAI_PROJECT_ID: optionalSecret,
   OPENAI_DATA_PROFILE: z.string().trim().min(1).optional(),
+  OPENAI_MODEL_FAST_SNAPSHOT: z.string().trim().min(1).optional(),
+  OPENAI_MODEL_REASONING_SNAPSHOT: z.string().trim().min(1).optional(),
+  OPENAI_STORE: z.enum(["false"]).default("false"),
+  AI_PROVIDER_MODE: z.enum(["off", "fake", "openai"]).default("off"),
+  AI_LIVE_APPROVAL: z.enum(["approved-local", "approved-staging", "approved-production"]).optional(),
   STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
   S3_ENDPOINT: optionalUrl,
   S3_REGION: z.string().trim().min(1).optional(),
@@ -101,8 +106,17 @@ export function parseServerConfig(
   if (config.flags.fiscal && config.FISCAL_MODE === "live" && (!config.FISCAL_PROVIDER || !config.FISCAL_CERTIFICATE_REF || !config.FISCAL_SOFTWARE_VERSION)) {
     issues.push(safeIssue("FISCAL_ENGINE_ENABLED", "requires provider, certificate reference, and software version"));
   }
-  if (config.flags.ai && (!config.OPENAI_API_KEY || !config.OPENAI_DATA_PROFILE)) {
-    issues.push(safeIssue("AI_ENABLED", "requires provider key and approved data profile"));
+  if (config.flags.ai && config.AI_PROVIDER_MODE !== "openai") {
+    issues.push(safeIssue("AI_PROVIDER_MODE", "must be openai when live AI is enabled"));
+  }
+  if (config.flags.ai && (!config.OPENAI_API_KEY || !config.OPENAI_PROJECT_ID || !config.OPENAI_DATA_PROFILE || !config.OPENAI_MODEL_FAST_SNAPSHOT || !config.OPENAI_MODEL_REASONING_SNAPSHOT || config.OPENAI_STORE !== "false" || !config.AI_LIVE_APPROVAL)) {
+    issues.push(safeIssue("AI_ENABLED", "requires a scoped project key, approved data profile, pinned model snapshots, store=false and explicit environment approval"));
+  }
+  if (environment === "production" && config.flags.ai && config.AI_LIVE_APPROVAL !== "approved-production") {
+    issues.push(safeIssue("AI_LIVE_APPROVAL", "must explicitly approve production"));
+  }
+  if (environment === "production" && config.AI_PROVIDER_MODE === "fake") {
+    issues.push(safeIssue("AI_PROVIDER_MODE", "fake mode is forbidden in production runtime"));
   }
   if (config.STORAGE_PROVIDER === "s3" && (!config.S3_REGION || !config.S3_BUCKET || !config.S3_ACCESS_KEY_ID || !config.S3_SECRET_ACCESS_KEY || !config.STORAGE_SIGNING_SECRET)) {
     issues.push(safeIssue("STORAGE_PROVIDER", "requires complete S3 configuration"));

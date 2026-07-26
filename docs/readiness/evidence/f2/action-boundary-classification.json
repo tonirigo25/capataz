@@ -766,6 +766,48 @@
       }
     },
     {
+      "id": "app/(app)/configuracion/ia/actions.ts#reviewAiResult",
+      "actionFile": "app/(app)/configuracion/ia/actions.ts",
+      "exportName": "reviewAiResult",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/ai/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/ia/actions.ts#changeAiKillSwitch",
+      "actionFile": "app/(app)/configuracion/ia/actions.ts",
+      "exportName": "changeAiKillSwitch",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/ai/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
       "id": "app/(app)/configuracion/privacidad/actions.ts#preparePrivacyCatalog",
       "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
       "exportName": "preparePrivacyCatalog",

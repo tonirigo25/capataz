@@ -638,5 +638,95 @@
     "status": "PASS",
     "evidence": ["docs/runbooks/INCIDENT_RESPONSE.md", "lib/observability/operations.ts", "app/(app)/plataforma/observabilidad/page.tsx"],
     "notes": ["Sev1-Sev4 response/communication targets, audiences and reusable internal/customer templates are ready."]
+  },
+  "AI-001": {
+    "status": "PASS",
+    "evidence": ["lib/ai/governed-gateway.ts", "lib/ai/openai-transport.ts", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["All OpenAI endpoint construction is confined to one server transport boundary; product adapters use that boundary and no browser CSP route permits direct OpenAI calls."]
+  },
+  "AI-002": {
+    "status": "PASS",
+    "evidence": ["lib/ai/redaction.ts", "scripts/readiness/validate-f6-ai.ts", "scripts/readiness/validate-f6-postgres.ts"],
+    "notes": ["Allowlisted context removes secrets and redacts synthetic email, tax ID, IBAN, phone and address before the injected transport receives it; cross-tenant company IDs fail closed."]
+  },
+  "AI-003": {
+    "status": "PASS",
+    "evidence": ["lib/ai/openai-transport.ts", "contracts/ai/v1/gateway.json", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["The governed transport type and runtime require literal store=false. Real provider observation remains separately gated as AI-LIVE-004."]
+  },
+  "AI-004": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/ai/openai-transport.ts", "lib/config/server.ts", "docs/compliance/AI_PROVIDER_AND_TRANSFER_ASSESSMENT.md", "docs/readiness/external-gates.json"],
+    "notes": ["HTTPS endpoint and data-profile configuration fail closed; actual region, ZDR/MAM eligibility and project settings require authorized provider evidence."]
+  },
+  "AI-005": {
+    "status": "PASS",
+    "evidence": ["prisma/schema.prisma", "lib/ai/prisma-store.ts", "contracts/ai/v1/model-registry.json", "scripts/readiness/validate-f6-postgres.ts"],
+    "notes": ["Synthetic runs persist provider, logical model, snapshot, purpose, prompt/schema version and request/output hashes without raw content."]
+  },
+  "AI-006": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["lib/ai/governance-service.ts", "app/(app)/configuracion/ia/page.tsx", "scripts/readiness/validate-f6-postgres.ts", "docs/readiness/external-gates.json"],
+    "notes": ["Tenant/user token, estimated cost, latency, error and escalation accounting plus UI are complete for fake/injected runs; real provider reconciliation is AI-LIVE-005."]
+  },
+  "AI-007": {
+    "status": "PASS",
+    "evidence": ["prisma/schema.prisma", "lib/ai/governed-gateway.ts", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["Operation, user and company monthly ceilings block before transport; token, byte, concurrency and output limits are independently enforced."]
+  },
+  "AI-008": {
+    "status": "PASS",
+    "evidence": ["lib/ai/model-policy.ts", "contracts/ai/v1/model-registry.json", "contracts/ai/v1/synthetic-pricing.json", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["Fast and reasoning lanes have centralized models, attempt caps and explicit ambiguity escalation; synthetic rates are labelled test-only and never presented as live price."]
+  },
+  "AI-009": {
+    "status": "PASS",
+    "evidence": ["lib/ai/governed-gateway.ts", "lib/document-extraction.ts", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["Timeout, provider failure and open circuit return a deterministic manual-mode response; existing manual document and product flows remain available."]
+  },
+  "AI-010": {
+    "status": "PASS",
+    "evidence": ["contracts/ai/v1/gateway.json", "contracts/ai/v1/eval-dataset.json", "lib/ai/evaluations.ts", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["Prompt/schema/model contracts and the synthetic dataset are versioned; deterministic regression reproduces the same dataset hash and outcomes."]
+  },
+  "AI-011": {
+    "status": "PASS",
+    "evidence": ["contracts/ai/v1/eval-dataset.json", "lib/ai/evaluations.ts", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["The synthetic corpus covers 17h/date, amount/tax, VAT inconsistency, contact/company, payment confirmation, rectification, injection and exfiltration."]
+  },
+  "AI-012": {
+    "status": "PASS",
+    "evidence": ["app/(app)/configuracion/ia/page.tsx", "app/(app)/configuracion/ia/actions.ts", "lib/ai/governance-service.ts"],
+    "notes": ["OWNER/ADMIN UI shows purpose, lane, outcome, aggregate usage/cost and human-review state without prompt or output content."]
+  },
+  "AI-013": {
+    "status": "PASS",
+    "evidence": ["lib/ai/governed-gateway.ts", "lib/ai/prisma-store.ts", "scripts/readiness/validate-f6-postgres.ts"],
+    "notes": ["Sensitive effects remain REQUIRES_CONFIRMATION until the exact confirmation is supplied; confirmed proposals enter a sanitized transactional outbox and are not directly executed."]
+  },
+  "AI-014": {
+    "status": "PASS",
+    "evidence": ["prisma/schema.prisma", "lib/ai/governed-gateway.ts", "lib/ai/redaction.ts", "scripts/readiness/validate-f6-ai.ts"],
+    "notes": ["Company policy enforces role, scope, purpose, top-level field allowlist, classification and prohibited fields before any transport call."]
+  },
+  "AI-015": {
+    "status": "PASS",
+    "evidence": ["lib/ai/governance-service.ts", "app/api/jobs/ai-retention/route.ts", "prisma/schema.prisma", "scripts/readiness/validate-f6-postgres.ts"],
+    "notes": ["Expired response envelopes are purged while hashes/accounting remain; authenticated job and tests prove content removal and logs exclude raw content."]
+  },
+  "AI-016": {
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "evidence": ["docs/compliance/AI_PROVIDER_AND_TRANSFER_ASSESSMENT.md", "docs/runbooks/AI_GOVERNANCE_ACTIVATION.md", "docs/readiness/EXTERNAL_RISK_REGISTER.md"],
+    "notes": ["Technical control mapping and approval template are complete; provider entity, DPA, subprocessors, location and transfer safeguards require authorized legal/provider confirmation."]
+  },
+  "AI-017": {
+    "status": "PASS",
+    "evidence": ["lib/config/server.ts", "prisma/schema.prisma", "lib/ai/governed-gateway.ts", "app/(app)/configuracion/ia/page.tsx"],
+    "notes": ["Global AI defaults off and each company defaults disabled with kill switch on; fake/manual flows remain independent and production live activation requires explicit approval."]
+  },
+  "AI-018": {
+    "status": "PASS",
+    "evidence": ["prisma/schema.prisma", "lib/ai/governance-service.ts", "app/(app)/configuracion/ia/page.tsx", "scripts/readiness/validate-f6-postgres.ts"],
+    "notes": ["Accepted, corrected and rejected review events are tenant-scoped and visible as aggregate quality/risk metrics."]
   }
 }

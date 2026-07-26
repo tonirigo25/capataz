@@ -16,7 +16,7 @@ async function main() {
  const prisma = new PrismaClient();
  try {
   const migrations = await prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  if (migrations[0]?.count !== 40) throw new Error(`EXPECTED_40_MIGRATIONS_FOUND_${migrations[0]?.count}`);
+  if (migrations[0]?.count !== 41) throw new Error(`EXPECTED_41_MIGRATIONS_FOUND_${migrations[0]?.count}`);
   const companyA = await prisma.company.create({ data: { id: "f2-company-a", slug: "f2-company-a", nombreComercial: "F2 A" } });
   const companyB = await prisma.company.create({ data: { id: "f2-company-b", slug: "f2-company-b", nombreComercial: "F2 B" } });
   const keyring = { activeVersion: "f2", keys: new Map([["f2", randomBytes(32)]]) };

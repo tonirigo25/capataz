@@ -1,5 +1,7 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import type { AiGatewayProvider, BillingProvider, EmailDeliveryProvider, FiscalTransmissionProvider, ObservabilityProvider, ProviderReceipt, StorageProvider } from "./contracts";
+import { openAiHttpRequest } from "@/lib/ai/openai-transport";
+import { stableReference } from "@/lib/ai/redaction";
 
 type Clock = () => Date;
 
@@ -72,7 +74,7 @@ export class OpenAiGatewayProvider implements AiGatewayProvider {
   constructor(private readonly apiKey: string, private readonly model: string, private readonly fetcher: typeof fetch = fetch, private readonly clock: Clock = () => new Date()) {}
   async complete(input: { companyId: string; purpose: string; promptVersion: string; input: string; idempotencyKey: string; store: false }) {
     if (input.store !== false) throw new Error("AI_STORE_MUST_BE_FALSE");
-    const response = await this.fetcher("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json", "idempotency-key": input.idempotencyKey }, body: JSON.stringify({ model: this.model, input: input.input, store: false, metadata: { company_id: input.companyId, purpose: input.purpose, prompt_version: input.promptVersion } }) });
+    const response = await openAiHttpRequest({ path: "responses", apiKey: this.apiKey, fetcher: this.fetcher, init: { method: "POST", headers: { "content-type": "application/json", "idempotency-key": input.idempotencyKey }, body: JSON.stringify({ model: this.model, input: input.input, store: false, metadata: { company_ref: stableReference(input.companyId), purpose: input.purpose, prompt_version: input.promptVersion } }) } });
     const body = await response.json() as { id?: string; output_text?: string; error?: unknown };
     if (!response.ok || body.error) throw new Error("AI_PROVIDER_REJECTED");
     return { ...receipt(this.name, body.id ?? "", input.idempotencyKey, this.clock), output: body.output_text ?? "" };

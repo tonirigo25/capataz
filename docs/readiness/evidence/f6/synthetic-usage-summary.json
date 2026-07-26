@@ -1,0 +1,12 @@
+{
+  "classification": "SYNTHETIC_INJECTED_ONLY",
+  "datasetVersion": "1.0.0",
+  "liveCalls": 0,
+  "injectedProviderCalls": 4,
+  "persistedUsageEvents": 4,
+  "inputTokensSynthetic": 96,
+  "outputTokensSynthetic": 36,
+  "costEurSynthetic": 0.00012,
+  "latencyMsLive": null,
+  "warning": "Token and cost values are deterministic test fixtures. They are not OpenAI usage, price, latency or reconciliation evidence."
+}

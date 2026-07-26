@@ -4,6 +4,7 @@ import { resolveAuthorization } from "@/lib/commercial/authorization";
 import { getOptionalSession, resolveActiveCompany, type CompanyContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/platform/rate-limit";
+import { openAiHttpRequest } from "@/lib/ai/openai-transport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,10 +41,12 @@ export async function POST(request: Request) {
   payload.append("language", "es");
   payload.append("file", audio, audio.name || "dictado.webm");
 
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: payload
+  const response = await openAiHttpRequest({
+    path: "audio/transcriptions",
+    apiKey,
+    projectId: process.env.OPENAI_PROJECT_ID,
+    baseUrl: process.env.OPENAI_BASE_URL,
+    init: { method: "POST", body: payload },
   }).catch((error) => {
     throw new Error(error instanceof Error ? error.message : "Error conectando con OpenAI");
   });

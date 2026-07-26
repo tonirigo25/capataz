@@ -49,7 +49,13 @@ export function validateRuntimeConfig(phase = "runtime") {
     requireNames(errors, "live fiscal gate is incomplete", ["FISCAL_PROVIDER", "FISCAL_CERTIFICATE_REF", "FISCAL_SOFTWARE_VERSION"]);
   }
   if (enabled("AI_ENABLED")) {
-    requireNames(errors, "AI gate is incomplete", ["OPENAI_API_KEY", "OPENAI_DATA_PROFILE"]);
+    requireNames(errors, "AI gate is incomplete", ["OPENAI_API_KEY", "OPENAI_PROJECT_ID", "OPENAI_DATA_PROFILE", "OPENAI_MODEL_FAST_SNAPSHOT", "OPENAI_MODEL_REASONING_SNAPSHOT", "AI_LIVE_APPROVAL"]);
+    if (process.env.AI_PROVIDER_MODE?.trim().toLowerCase() !== "openai") errors.push("AI_PROVIDER_MODE must be openai when AI_ENABLED=true");
+    if ((process.env.OPENAI_STORE || "false").trim().toLowerCase() !== "false") errors.push("OPENAI_STORE must remain false");
+    if (environment === "production" && process.env.AI_LIVE_APPROVAL !== "approved-production") errors.push("production live AI requires approved-production");
+  }
+  if (environment === "production" && process.env.AI_PROVIDER_MODE?.trim().toLowerCase() === "fake") {
+    errors.push("fake AI provider is forbidden in production runtime");
   }
   if (process.env.STORAGE_PROVIDER?.trim().toLowerCase() === "s3") {
     requireNames(errors, "S3 storage configuration is incomplete", ["S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "MALWARE_SCAN_ENDPOINT", "MALWARE_SCAN_AUTHORIZATION"]);
