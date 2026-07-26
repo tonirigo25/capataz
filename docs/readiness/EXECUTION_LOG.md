@@ -230,3 +230,16 @@ Implemented on `feat/readiness-f11-governance` from program commit `736e9e47b444
 - External F11 gates are brand clearance, signed IP chain, real Railway preview, protected GitHub environment reviewers, real provider restore, private asset title and commercial handover terms. None is represented as technically completed.
 
 Evidence: `docs/readiness/evidence/f11/audit-manifest.json`, tenant/license/readiness/release reports, F11 validators, pinned workflows and the public data-room index.
+
+## Completion audit - cross-phase regression closure - PASS WITH EXTERNAL INPUT GATES
+
+Executed on `codex/readiness-completion-audit` from integrated program SHA `94c395c73529cbfad1ac6be99e1b059c9bfcae07`. The audit compared the 233 canonical requirements with the supplied master prompt, required every evidence path to exist and then ran phase validators from F1 through F11 instead of trusting the F11-only green check.
+
+- The first cross-phase run correctly failed F1 because F10 had introduced the mobile product name outside central brand configuration. Mobile app name, application ID and URL scheme now resolve through `lib/config/brand.ts`; F1 passes 56/56.
+- The next run correctly failed context enforcement because the two F10 `.well-known` association routes lacked canonical request context. Both now use `publicRequestContext`; the positive/negative gate covers 36 action files, 26 route handlers and six job routes.
+- CI now recompiles `requirements.yaml`, fails on a generated diff and runs `readiness:validate-all-static` across F1-F11 before typecheck/build. F11 statics pass 44/44.
+- The completed cross-phase run passed F1-F11; Vitest 3/3; Playwright 2/2 on loopback Chromium; typecheck; the 77-page production build; isolated tenant pentest 12/12 after 43/43 migrations; dependency audit with zero vulnerabilities; and secret scan over 954 files with zero findings.
+- Requirement totals remain 203 `PASS`, 30 `READY_FOR_EXTERNAL_INPUT`, zero `PENDING`, zero `BLOCKED` and zero `WAIVED`. No external gate was reclassified or represented as completed.
+- Production, persistent staging, Railway and provider projects were not modified. No deployment, real OpenAI call, live provider call, customer fixture, credential creation or secret exposure occurred.
+
+Evidence: `docs/readiness/evidence/f11/completion-audit.json` and the updated F11 audit manifest.

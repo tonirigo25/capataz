@@ -25,7 +25,8 @@
   },
   "validation": {
     "requirementsCompiler": "PASS; 233 requirements and 19 generic external gates",
-    "f11Static": "42/42 PASS",
+    "f11Static": "44/44 PASS",
+    "crossPhaseStatic": "PASS; canonical ledger recompiles without diff and all F1-F11 static/fake validators pass",
     "vitest": "3/3 PASS; JUnit output produced",
     "playwright": "2/2 PASS; Chromium loopback only; noindex, CSP and axe serious/critical gate",
     "tenantPentest": "12/12 PASS after 43/43 fresh migrations; 0 high, 0 critical, 0 external calls",
@@ -37,7 +38,8 @@
     "dependencyAudit": "PASS; 0 vulnerabilities",
     "typecheck": "PASS",
     "productionBuild": "PASS; Next.js compiled, typechecked, generated 77/77 static pages and prepared standalone output",
-    "secretScan": "PASS; 953 files scanned with 0 findings across configured credential and private-key rules"
+    "secretScan": "PASS; 954 files scanned with 0 findings across configured credential and private-key rules",
+    "completionAudit": "PASS; mobile identity centralized, 26/26 route contexts enforced and CI regression gap closed"
   },
   "externalGates": [
     { "id": "BRAND-LEGAL-001", "status": "READY_FOR_EXTERNAL_INPUT" },
