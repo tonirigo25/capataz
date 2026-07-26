@@ -270,9 +270,27 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
   return { route, ...state, accessibility };
 }
 
+async function navigateWithTransportRetry(page, route) {
+  const url = `${baseUrl}${route}`;
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    } catch (error) {
+      lastError = error;
+      const message = String(error);
+      const retryable = /Timeout|net::ERR_|Target page, context or browser has been closed/u.test(message);
+      if (!retryable || attempt === 3) throw error;
+      process.stdout.write(`AUDIT_NAVIGATION_RETRY=${route};ATTEMPT=${attempt};REASON=transport\n`);
+      await page.waitForTimeout(attempt * 750);
+    }
+  }
+  throw lastError;
+}
+
 async function navigateAndAudit(page, route, options = {}) {
   const startedAt = Date.now();
-  const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const response = await navigateWithTransportRetry(page, route);
   await waitForSettled(page, route);
   return {
     status: response?.status() ?? 0,
