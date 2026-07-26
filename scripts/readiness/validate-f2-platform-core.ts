@@ -74,6 +74,7 @@ try {
 const files = await Promise.all([
   "middleware.ts", "next.config.ts", "railway.json", "instrumentation.ts", "instrumentation-client.ts",
   "lib/platform/idempotency.ts", "lib/platform/outbox.ts", "lib/commercial/platform-service.ts", "app/(app)/plataforma/actions.ts",
+  "scripts/readiness/seed-temporary-railway.ts",
 ].map(async (path) => [path, await readFile(path, "utf8")] as const));
 const content = new Map(files);
 check("request-id-middleware", content.get("middleware.ts")?.includes("x-request-id"));
@@ -83,6 +84,7 @@ check("server-client-instrumentation", content.get("instrumentation.ts")?.includ
 check("transactional-outbox", content.get("lib/platform/outbox.ts")?.includes("FOR UPDATE SKIP LOCKED"));
 check("reusable-idempotency", content.get("lib/platform/idempotency.ts")?.includes("pg_advisory_xact_lock"));
 check("thin-platform-actions", !content.get("app/(app)/plataforma/actions.ts")?.includes("prisma.") && content.get("lib/commercial/platform-service.ts")?.includes("prisma.$transaction"));
+check("temporary-seed-proxy-guard", content.get("scripts/readiness/seed-temporary-railway.ts")?.includes("TEMPORARY_RAILWAY_PROXY_ISOLATION_FAILED") && content.get("scripts/readiness/seed-temporary-railway.ts")?.includes("sameCredentialsAndDatabase") && content.get("scripts/readiness/seed-temporary-railway.ts")?.includes("isTemporaryPostgresHost(internalUrl.hostname)"));
 
 console.log(JSON.stringify({ ok: true, checks: checks.length }, null, 2));
 }
