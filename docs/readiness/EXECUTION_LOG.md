@@ -76,3 +76,22 @@ Implemented on `feat/readiness-f2-platform-core` from F1 commit `dbabd19e6a89104
 - Requirement ledger: all 19 F2 requirements are `PASS`; no F2 requirement remains pending, blocked, waived or waiting for external input.
 
 Evidence: `docs/readiness/evidence/f2/audit-manifest.json`, `action-boundary-audit.md`, `context-correlation-audit.md`, `railway-security-validation.md`, the isolated validators, and migrations `20260725200000_readiness_f2_transactional_outbox` and `20260726100000_readiness_f2_observability_context`.
+
+## F3 - Fiscal engine and electronic invoice - PASS WITH EXTERNAL INPUT GATES
+
+Implemented on `feat/readiness-f3-fiscal` from program commit `d5e1af3a26bac103e7ff403b7eec414c6c1da597`. Production, persistent staging and PR #24 were not modified; every database test used disposable loopback PostgreSQL and no external provider was called.
+
+- Added a canonical Decimal invoice model, immutable fiscal snapshot, tenant/series transaction numbering, AEAT registration/cancellation hash chain, corrections, cancellation, QR payload, event ledger, outbox and release/configuration traceability.
+- The three official AEAT 0.1.2 vectors matched exactly. QR parameter order, encoding, environment URL and legend match specification 0.5.0.
+- A fresh isolated database applied 38/38 migrations. Eight concurrent issues produced exactly `F26-000001` through `F26-000008`; invalid input created neither sequence nor document.
+- PostgreSQL triggers rejected fiscal-record mutation, fiscal-document deletion and artifact-content mutation. Ten records recomputed as one chain; a modified canonical input failed verification.
+- Correction preserved its original. Cancellation appended evidence and retained the electronic artifact.
+- Fake and HTTP fiscal adapters share one contract. A transient failure used two calls for one accepted effect; repeating the completed key was a local replay.
+- UBL, CII, Facturae and EDIFACT adapters share one semantic hash and persist exact schema/validator/content versions. Local golden hashes are deterministic.
+- Delivery adapters cover download, secure email, private exchange and the future public solution. Private replay produced one persisted delivery; the public solution failed closed.
+- Acceptance, rejection and payment status form an append-only timeline. Isolated object restore reproduced exact bytes and the evidence manifest covered documents, records, events, artifacts, delivery and declaration.
+- Legacy data is `LEGACY_NOT_RETRO_CERTIFIED`; it is not silently transmitted or represented as compliant.
+- The declaration responsible generator emits a versioned technical draft explicitly requiring independent signature. Live issuance, live QR, transmission and public B2B stay off.
+- Requirement ledger: 25 F3 requirements are `PASS`; `FISC-001`, `EINV-002`, `EINV-003`, `EINV-004` and `EINV-012` are `READY_FOR_EXTERNAL_INPUT`. No F3 requirement is pending, blocked or waived.
+
+Evidence: `docs/readiness/evidence/f3/audit-manifest.json`, the two F3 validators, the fiscal/e-invoice contracts, compliance profiles, activation runbook, ADR 0007 and migration `20260726120000_readiness_f3_fiscal_einvoice_engine`.

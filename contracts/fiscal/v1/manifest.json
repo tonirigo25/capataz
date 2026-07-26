@@ -1,0 +1,21 @@
+{
+  "contractVersion": "1.0.0",
+  "semanticVersion": "orqena-fiscal-1.0.0",
+  "hashAlgorithm": "SHA-256",
+  "registrationHashSpecification": "AEAT-VERI-FACTU-0.1.2",
+  "qrSpecification": "AEAT-VERI-FACTU-0.5.0",
+  "recordTypes": ["REGISTRATION", "CANCELLATION"],
+  "correctionKinds": ["substitution", "differences"],
+  "modes": ["shadow", "sandbox", "live"],
+  "sources": [
+    "https://www.boe.es/eli/es/rd/2023/12/05/1007/con",
+    "https://www.boe.es/eli/es/o/2024/10/17/hac1177/con",
+    "https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/Veri-Factu_especificaciones_huella_hash_registros.pdf",
+    "https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/DetalleEspecificacTecnCodigoQRfactura.pdf"
+  ],
+  "activation": {
+    "default": "off",
+    "liveIssuanceRequiresExplicitApproval": true,
+    "liveTransmissionRequiresExplicitApproval": true
+  }
+}
