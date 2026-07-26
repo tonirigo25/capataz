@@ -237,7 +237,7 @@ Executed on `codex/readiness-completion-audit` from integrated program SHA `94c3
 
 - The first cross-phase run correctly failed F1 because F10 had introduced the mobile product name outside central brand configuration. Mobile app name, application ID and URL scheme now resolve through `lib/config/brand.ts`; F1 passes 56/56.
 - The next run correctly failed context enforcement because the two F10 `.well-known` association routes lacked canonical request context. Both now use `publicRequestContext`; the positive/negative gate covers 36 action files, 26 route handlers and six job routes.
-- CI now recompiles `requirements.yaml`, fails on a generated diff and runs `readiness:validate-all-static` across F1-F11 before typecheck/build. F11 statics pass 44/44.
+- CI now fetches full Git history, recompiles `requirements.yaml`, fails on a generated diff and runs `readiness:validate-all-static` across F1-F11 before typecheck/build. The full history is required for the F9 accepted-merge ancestry proof; F11 statics pass 45/45.
 - The completed cross-phase run passed F1-F11; Vitest 3/3; Playwright 2/2 on loopback Chromium; typecheck; the 77-page production build; isolated tenant pentest 12/12 after 43/43 migrations; dependency audit with zero vulnerabilities; and secret scan over 954 files with zero findings.
 - Requirement totals remain 203 `PASS`, 30 `READY_FOR_EXTERNAL_INPUT`, zero `PENDING`, zero `BLOCKED` and zero `WAIVED`. No external gate was reclassified or represented as completed.
 - Production, persistent staging, Railway and provider projects were not modified. No deployment, real OpenAI call, live provider call, customer fixture, credential creation or secret exposure occurred.

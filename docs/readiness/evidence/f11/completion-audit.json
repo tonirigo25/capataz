@@ -23,6 +23,12 @@
       "severity": "coverage-gap",
       "originalFailure": "F11 CI executed only the F11 static validator and did not detect cross-phase regressions",
       "resolution": "CI recompiles the canonical 233-item ledger and executes readiness:validate-all-static across F1-F11"
+    },
+    {
+      "id": "COMPLETION-AUDIT-004",
+      "severity": "ci-portability",
+      "originalFailure": "The first cross-phase CI run used a shallow checkout, so F9 could not prove the accepted Marketing V2 merge parent",
+      "resolution": "The application job fetches full Git history and F11 enforces that prerequisite"
     }
   ],
   "requirements": {
@@ -48,7 +54,7 @@
     "f8": "55/55 PASS",
     "f9": "61/61 and public-indexing gate PASS",
     "f10": "49/49 and legacy mobile-config 22/22 PASS",
-    "f11": "44/44 PASS",
+    "f11": "45/45 PASS",
     "vitest": "3/3 PASS",
     "playwright": "2/2 PASS; Chromium loopback only",
     "tenantPentest": "12/12 PASS after 43/43 fresh migrations; zero high or critical findings",
