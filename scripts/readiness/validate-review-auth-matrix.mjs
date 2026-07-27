@@ -93,8 +93,10 @@ const allOwnerSurfaceFamilies = [
   { family: "platform", route: "/plataforma" },
   { family: "platform-observability", route: "/plataforma/observabilidad" },
   { family: "platform-health", route: "/plataforma/salud" },
+  { family: "dashboard-mobile", route: "/dashboard", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
-const ownerSurfaceFamilies = selectConfigured(allOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
+const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3);
+const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
 if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
 const report = {
@@ -419,7 +421,7 @@ async function auditProfileHome(browser, profile, storageState, viewport) {
   };
 }
 
-async function auditPermissionRoute(browser, profile, storageState, route, expectation) {
+async function openPermissionRoute(browser, storageState, route) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     storageState,
@@ -428,6 +430,27 @@ async function auditPermissionRoute(browser, profile, storageState, route, expec
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
   const result = await navigateAndAudit(page, route, { axe: true });
+  return { context, diagnostics, result };
+}
+
+async function auditPermissionRoute(browser, profile, storageState, route, expectation) {
+  let attempt = await openPermissionRoute(browser, storageState, route);
+  let transientDiagnostics = [];
+  const hydrationOnly = attempt.diagnostics.events.length > 0
+    && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
+  if (hydrationOnly) {
+    transientDiagnostics = [...attempt.diagnostics.events];
+    await attempt.context.close();
+    attempt = await openPermissionRoute(browser, storageState, route);
+    report.productObservations.push({
+      severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+      context: `${profile.key}:1440:${route}`,
+      code: "HYDRATION_REPLAY",
+      firstAttempt: transientDiagnostics,
+      replayDiagnostics: attempt.diagnostics.events,
+    });
+  }
+  const { context, diagnostics, result } = attempt;
   const findings = caseFindings({
     result,
     diagnostics,
@@ -439,57 +462,60 @@ async function auditPermissionRoute(browser, profile, storageState, route, expec
   return {
     ...result,
     expectation,
+    transientDiagnostics,
     diagnostics: diagnostics.events,
     externalHosts: [...diagnostics.externalHosts],
     findings,
   };
 }
 
-async function openOwnerSurface(browser, storageState, route) {
+async function openOwnerSurface(browser, storageState, surface) {
+  const viewport = surface.viewport ?? { key: "1440", width: 1440, height: 1000 };
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 1000 },
+    viewport: { width: viewport.width, height: viewport.height },
     storageState,
     serviceWorkers: "block",
+    reducedMotion: viewport.key === "390" ? "reduce" : "no-preference",
   });
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
-  const result = await navigateAndAudit(page, route, { axe: true });
-  return { context, page, diagnostics, result };
+  const result = await navigateAndAudit(page, surface.route, { axe: true });
+  return { context, page, diagnostics, result, viewport };
 }
 
 async function auditOwnerSurface(browser, storageState, surface) {
-  let attempt = await openOwnerSurface(browser, storageState, surface.route);
+  let attempt = await openOwnerSurface(browser, storageState, surface);
   let transientDiagnostics = [];
   const hydrationOnly = attempt.diagnostics.events.length > 0
     && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
   if (hydrationOnly) {
     transientDiagnostics = [...attempt.diagnostics.events];
     await attempt.context.close();
-    attempt = await openOwnerSurface(browser, storageState, surface.route);
+    attempt = await openOwnerSurface(browser, storageState, surface);
     report.productObservations.push({
       severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
-      context: `owner:1440:${surface.route}`,
+      context: `owner:${attempt.viewport.key}:${surface.route}`,
       code: "HYDRATION_REPLAY",
       firstAttempt: transientDiagnostics,
       replayDiagnostics: attempt.diagnostics.events,
     });
   }
 
-  const { context, page, diagnostics, result } = attempt;
-  const screenshot = join(screenshotRoot, `owner-${surface.family}-1440.png`);
+  const { context, page, diagnostics, result, viewport } = attempt;
+  const screenshot = join(screenshotRoot, `owner-${surface.family}-${viewport.key}.png`);
   await page.screenshot({ path: screenshot, fullPage: true });
   const expectation = "allowed";
   const findings = caseFindings({
     result,
     diagnostics,
     profile: "owner",
-    viewport: "1440",
+    viewport: viewport.key,
     expectation,
   });
   if (result.primaryActionCount > 1) {
     report.productObservations.push({
       severity: "REVIEW",
-      context: `owner:1440:${surface.route}`,
+      context: `owner:${viewport.key}:${surface.route}`,
       code: "MULTIPLE_PRIMARY_ACTIONS",
       count: result.primaryActionCount,
       labels: result.primaryActions,
@@ -499,6 +525,7 @@ async function auditOwnerSurface(browser, storageState, surface) {
   return {
     family: surface.family,
     ...result,
+    viewport: viewport.key,
     expectation,
     screenshot: relative(process.cwd(), screenshot),
     transientDiagnostics,

@@ -166,7 +166,7 @@ Estado: `PASS`.
 
 ## D3 - Hoy y Dashboard
 
-Estado: `LOCAL_PASS / REMOTE_PENDING`.
+Estado: `PASS`.
 
 ### Implementado
 
@@ -192,8 +192,16 @@ Estado: `LOCAL_PASS / REMOTE_PENDING`.
 - `npm run build`: PASS, 76/76; `/hoy` y `/dashboard` conservan 108 kB de First Load JS.
 - `npm run readiness:validate-all-static`: PASS completo e ininterrumpido hasta F11 e identidad; stderr vacío y ninguna línea de fallo.
 
-### Pendiente remoto D3
+### Evidencia remota D3
 
-- Commit, push y despliegue del SHA exacto a Railway Review.
-- Verificar OWNER, FINANCE, SALES, PROCUREMENT y WORKER en 390 y 1440 px.
-- Probar navegación al origen, ausencia de datos restringidos, Axe, overflow, consola y estados representativos.
+- SHA funcional exacto: `a5e07de6ab521709143e0c52cafdebb0f5de7e42`.
+- Railway Review: deployment `54180680-b64f-47fb-8895-b19b9f07dacb`, `SUCCESS`, imagen `sha256:736380d6f9e59750119d1bd157bf5dee27a8faff5125c8785bf71ae7729e1785`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente.
+- `/api/health/live`, `/api/health/ready` y `/api/status`: 200 con `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`.
+- Matriz focal final: OWNER, FINANCE, SALES, PROCUREMENT_MANAGER y WORKER; 10 combinaciones perfil/viewport, 14 permisos, 5 firmas de portal, Hoy y Dashboard OWNER, 6/6 estados, 3 casos de capacidad y 26 casos Axe; 0 observaciones y 0 bloqueadores.
+- Dashboard móvil OWNER a 390 px: 200, 0 overflow, una acción primaria, cuatro KPI iniciales, contrato D3 correcto y 0 violaciones Axe serias/críticas.
+- Una primera ejecución móvil aislada observó `React #418` en la visita de permisos a Dashboard. El validador incorporó replay obligatorio; la repetición final no lo reprodujo y terminó con 0 observaciones y 0 bloqueadores.
+- Acceso OWNER de un solo uso rotado y entregado fuera de Git; MFA activa sin cambios, contraseña QA no mostrada y 0 llaves SSH restantes.
+- Safari, Chrome Android, NVDA, VoiceOver y zoom real 200–400 % permanecen `READY_FOR_EXTERNAL_INPUT`; no detienen D4.
+- Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D3_REVIEW_EVIDENCE.json`.

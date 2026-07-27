@@ -10,4 +10,6 @@
 - Las matrices autenticadas han observado hidrataciones `React #418` aisladas en rutas distintas. D1 exige un replay en contexto nuevo tanto para las homes por perfil como para las superficies OWNER; un replay limpio queda en observación y uno repetido bloquea.
 - D1 cerró con replay limpio de las hidrataciones aisladas en OWNER `/dinero` y `/tesoreria`; si reaparecen en el mismo contexto se convertirán en regresión demostrable.
 - D2 repitió la matriz autenticada completa sin bloqueadores ni nuevas regresiones de hidratación. Conserva 13 observaciones de múltiples acciones primarias, asignadas a las superficies que se rediseñarán en D3-D10.
+- D3 observó una hidratación `React #418` en la primera visita móvil aislada de permisos a `/dashboard`. El replay obligatorio en contexto nuevo y la repetición final completa no la reprodujeron; queda como incidencia no reproducida, no como regresión demostrable.
+- D3 cerró Hoy y Dashboard con 0 observaciones de acción primaria en las superficies focales. Las observaciones restantes pertenecen a bloques D4-D10 aún no ejecutados.
 - Safari real, Chrome Android real, NVDA, VoiceOver y zoom humano siguen `READY_FOR_EXTERNAL_INPUT`.
