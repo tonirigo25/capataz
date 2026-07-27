@@ -48,6 +48,7 @@ test("Agenda conserva cliente, contacto, trabajo y origen autorizados", () => {
 });
 test("Tareas ofrece Mías, Equipo, Bloqueadas y Completadas", () => {
   for (const label of ["Mías", "Equipo", "Bloqueadas", "Completadas"]) assert.match(tasks, new RegExp(`"${label}"`));
+  assert.match(tasks, /aria-label="Vistas de tareas"/);
 });
 test("Tareas combina alcance y propiedad sin sobrescribir el OR de tenant scope", () => {
   assert.match(tasks, /AND: \[taskScope, stateScope, ownershipScope\]/);
@@ -68,7 +69,7 @@ test("Tareas evita una CTA primaria por fila", () => {
 });
 test("Alertas muestra nivel, origen, entidad, impacto, regla y acción sin puntuación artificial", () => {
   for (const token of ["Nivel", "sourceLabel", "Entidad:", "relatedAmount", "Regla aplicada", "suggestedActions"]) assert.match(alerts, new RegExp(token));
-  assert.doesNotMatch(alerts, /\/100|>Puntuación</);
+  assert.doesNotMatch(alerts, /\/100|>Puntuación|group\.maxScore/);
 });
 test("Alertas conserva posponer, descartar y resolver en el ciclo de vida", () => {
   for (const token of ["snoozeSignalAction", "dismissSignalAction", "resolveSignalAction"]) assert.match(alerts, new RegExp(token));
@@ -77,6 +78,7 @@ test("Alertas conserva posponer, descartar y resolver en el ciclo de vida", () =
 test("Recomendaciones deja una sola acción preferida primaria y el resto secundarias", () => {
   assert.match(recommendations, /<PrimaryAction recommendation=\{result\.summary\.top\} compact/);
   assert.match(recommendations, /compact \? "primary-button" : "secondary-button"/);
+  assert.match(recommendations, /withoutOpaquePriority\(group\.explanation\)/);
   assert.doesNotMatch(recommendations, /\/100|>Puntuación</);
 });
 test("Recomendaciones exige confirmación explícita antes del efecto", () => {

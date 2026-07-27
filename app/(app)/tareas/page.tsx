@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
+import { PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { createTaskAction, completeTaskAction } from "./actions";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
@@ -56,9 +56,9 @@ export default async function TasksPage({
           </Link>
         ) : undefined}
       />
-      <CompactFilterBar><nav
+      <nav
         className="flex gap-2 overflow-x-auto pb-2"
-        aria-label="Filtros de tareas"
+        aria-label="Vistas de tareas"
       >
         {[
           ["mine", "Mías"],
@@ -79,7 +79,7 @@ export default async function TasksPage({
             {label}
           </Link>
         ))}
-      </nav></CompactFilterBar>
+      </nav>
       <ResultCount shown={tasks.length} total={tasks.length} noun="tareas" />
       {canManage && query.nuevo === "1" ? <form
         action={createTaskAction}

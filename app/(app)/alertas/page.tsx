@@ -179,7 +179,7 @@ function SignalGroupCard({ group }: { group: BusinessSignalGroup }) {
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)} · prioridad {group.maxScore}</p>
+          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)}</p>
           <h3 className="mt-1 text-lg font-black text-obra-ink">{group.title}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">{group.explanation}</p>
         </div>

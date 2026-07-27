@@ -56,7 +56,7 @@ async function main() {
     const email = `${fixture.key}@review.orqena.invalid`;
     const user = await prisma.user.upsert({
       where: { emailNormalized: email },
-      update: { displayName: fixture.label, passwordHash, status: "active", emailVerifiedAt: new Date() },
+      update: { displayName: fixture.label, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null },
       create: { email, emailNormalized: email, displayName: fixture.label, passwordHash, status: "active", emailVerifiedAt: new Date() },
     });
     return [fixture.key, user] as const;

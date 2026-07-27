@@ -178,11 +178,11 @@ function WeekDayColumn({ day, items }: { day: Date; items: AgendaItem[] }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className="font-black capitalize text-obra-ink">{weekdayLabel(day)}</h2>
-          <p className="text-xs font-semibold text-slate-500">{formatDay(day)}</p>
+          <p className="text-xs font-semibold text-slate-600">{formatDay(day)}</p>
         </div>
         <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-600">{items.length}</span>
       </div>
-      <p className="mt-2 text-xs font-semibold text-slate-500">
+      <p className="mt-2 text-xs font-semibold text-slate-600">
         {summary.visits} visitas · {summary.followUps} seguimientos · {summary.tasks} tareas
       </p>
       <div className="mt-3 grid gap-2">

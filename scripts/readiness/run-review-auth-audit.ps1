@@ -17,19 +17,31 @@ if (-not $Sha) {
   }
 }
 
-$randomBytes = New-Object byte[] 32
-[System.Security.Cryptography.RandomNumberGenerator]::Fill($randomBytes)
-$qaPassword = ([Convert]::ToBase64String($randomBytes).TrimEnd("=").Replace("+", "A").Replace("/", "B")) + "Aa1!"
-
 $env:ORQENA_REVIEW_SEED_APPROVED = "true"
 $env:ORQENA_REVIEW_DATABASE_SERVICE_ID = $databaseServiceId
 $env:NEXT_PUBLIC_APP_ENV = "preview"
 $env:CREDENTIAL_SCOPE = "preview"
-$env:ORQENA_REVIEW_QA_PASSWORD = $qaPassword
 $env:ORQENA_REVIEW_ROTATE_OWNER_ACCESS = if ($PreserveOwnerAccess) { "false" } else { "true" }
 $env:ORQENA_REVIEW_PROVISION_MFA = "true"
 
 try {
+  $qaPasswordLines = @(
+    & railway run `
+      --project $projectId `
+      --environment $reviewEnvironmentId `
+      --service $webServiceId `
+      --no-local `
+      -- node -e 'process.stdout.write(process.env.ORQENA_REVIEW_QA_PASSWORD || "")'
+  )
+  if ($LASTEXITCODE -ne 0) {
+    throw "REVIEW_QA_PASSWORD_LOOKUP_FAILED:$LASTEXITCODE"
+  }
+  $qaPassword = ($qaPasswordLines -join "").Trim()
+  if ($qaPassword.Length -lt 24) {
+    throw "REVIEW_QA_PASSWORD_INVALID"
+  }
+  $env:ORQENA_REVIEW_QA_PASSWORD = $qaPassword
+
   $publicDatabaseUrlLines = @(
     & railway run `
       --project $projectId `

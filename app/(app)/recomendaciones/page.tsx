@@ -199,7 +199,7 @@ function RecommendationGroupCard({ group, historyByFingerprint }: { group: Busin
         <div>
           <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)}</p>
           <h3 className="mt-1 text-lg font-black text-obra-ink">{group.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{group.explanation}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{withoutOpaquePriority(group.explanation)}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm sm:min-w-60">
           <Mini label="Recomendaciones" value={group.count} />
@@ -364,6 +364,12 @@ function PrimaryAction({ recommendation, compact = false }: { recommendation: Bu
       <button className={`${compact ? "primary-button" : "secondary-button"} min-h-10 px-3 py-1 text-xs`} type="submit">{action.label}</button>
     </form>
   );
+}
+
+function withoutOpaquePriority(explanation: string) {
+  return explanation
+    .replace(/\s*Las \d+ principales concentran prioridad [0-9,\s]+\.?/iu, "")
+    .trim();
 }
 
 function Metric({ label, value, icon: Icon, tone }: { label: string; value: string | number; icon: typeof Lightbulb; tone: "neutral" | "success" | "warning" | "danger" | "info" }) {

@@ -81,10 +81,12 @@ const allOwnerSurfaceFamilies = [
   { family: "tasks", route: "/tareas" },
   { family: "task-detail", route: "/tareas/review-task-1" },
   { family: "followups", route: "/seguimientos" },
+  { family: "followup-detail", route: "/seguimientos/review-followup-1" },
   { family: "reminders", route: "/recordatorios" },
   { family: "alerts", route: "/alertas" },
   { family: "documents", route: "/documentos" },
   { family: "automations", route: "/automatizaciones" },
+  { family: "automation-detail", route: "/automatizaciones/review-automation-1" },
   { family: "recommendations", route: "/recomendaciones" },
   { family: "recommendation-control", route: "/recomendaciones/control" },
   { family: "orqena", route: "/capataz" },
@@ -269,8 +271,13 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
     const visible = (element) => {
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
-      return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+      const closedDetails = element.closest("details:not([open])");
+      const visibleInsideClosedDetails = !closedDetails || closedDetails.querySelector("summary")?.contains(element);
+      return visibleInsideClosedDetails && style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
     };
+    const visibleText = document.body.innerText.toLocaleLowerCase("es");
+    const availableText = (document.body.textContent ?? "").toLocaleLowerCase("es");
+    const containsAll = (source, labels) => labels.every((label) => source.includes(label.toLocaleLowerCase("es")));
     const headings = [...document.querySelectorAll("h1")].filter(visible);
     const primaryActions = [...document.querySelectorAll("a.primary-button, button.primary-button")].filter(visible);
     const brokenImages = [...document.images].filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.src);
@@ -312,19 +319,19 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       d6ReceivedInvoicesContract: ["Facturas recibidas", "Pendiente revisar", "Pendiente pagar", "Vencido", "Imputado a trabajos"].every((label) => document.body.innerText.includes(label)),
       d6ReceivedInvoiceDetailContract: ["Datos fiscales y económicos", "Base imponible", "IVA", "IRPF", "Pagos parciales", "Gasto enlazado", "Historial"].every((label) => document.body.innerText.includes(label))
         && document.body.innerText.includes("No se registra una segunda salida"),
-      d7AgendaContract: ["Semana", "Mes", "Lista", "Vencimientos", "Nueva visita"].every((label) => document.body.innerText.includes(label))
+      d7AgendaContract: containsAll(visibleText, ["Semana", "Mes", "Lista", "Vencimientos", "Nueva visita"])
         && Boolean(document.querySelector("[data-agenda-week]")),
-      d7TasksContract: ["Mías", "Equipo", "Bloqueadas", "Completadas", "Nueva tarea"].every((label) => document.body.innerText.includes(label))
+      d7TasksContract: containsAll(visibleText, ["Mías", "Equipo", "Bloqueadas", "Completadas", "Nueva tarea"])
         && Boolean(document.querySelector("[data-task-view]")),
-      d7FollowUpsContract: ["Fecha", "Promesa", "Último intento", "Canal", "Resultado", "Siguiente acción"].every((label) => document.body.innerText.includes(label))
+      d7FollowUpsContract: containsAll(visibleText, ["Fecha", "Promesa", "Último intento", "Canal", "Resultado", "Siguiente acción"])
         && Boolean(document.querySelector("[data-follow-up-queue-item]")),
-      d7RemindersContract: ["Preparado", "Programado", "Enviado"].every((label) => document.body.innerText.includes(label))
+      d7RemindersContract: containsAll(visibleText, ["Preparado", "Programado", "Enviado"])
         && Boolean(document.querySelector("[data-reminder-state]")),
-      d7AlertsContract: ["Alertas y recomendaciones", "Nivel", "Origen", "Regla"].every((label) => document.body.innerText.includes(label))
-        && !/Prioridad\s+\d+\/100|Puntuación/iu.test(document.body.innerText),
-      d7RecommendationsContract: ["Centro de recomendaciones", "Siguiente mejor acción", "Regla", "evidencia"].every((label) => document.body.innerText.includes(label))
-        && !/Prioridad\s+\d+\/100|Puntuación/iu.test(document.body.innerText),
-      d7AutomationsContract: ["Automatizaciones", "Trigger:", "Próxima:", "fallos", "retries"].every((label) => document.body.innerText.includes(label))
+      d7AlertsContract: containsAll(availableText, ["Alertas y recomendaciones", "Nivel", "Origen", "Regla"])
+        && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(availableText),
+      d7RecommendationsContract: containsAll(availableText, ["Centro de recomendaciones", "Siguiente mejor acción", "Regla", "evidencia"])
+        && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(availableText),
+      d7AutomationsContract: containsAll(visibleText, ["Automatizaciones", "Trigger:", "Próxima:", "fallos", "retries"])
         && Boolean(document.querySelector("[data-automation-state]")),
     };
   });
@@ -1162,6 +1169,8 @@ async function auditD7Interactions(browser, storageState) {
   const findings = [];
   try {
     const agendaResult = await navigateAndAudit(page, "/agenda");
+    await page.getByRole("button", { name: /Filtros/iu }).first().click();
+    await page.getByRole("dialog", { name: "Filtros" }).waitFor({ state: "visible" });
     const filterDrawer = page.locator("details[data-agenda-filters]");
     if (await filterDrawer.count() && !(await filterDrawer.evaluate((element) => element.open))) await filterDrawer.locator("summary").click();
     const agendaDays = await page.locator("[data-agenda-day]").count();
@@ -1192,6 +1201,8 @@ async function auditD7Interactions(browser, storageState) {
     if (!remindersOk) findings.push("D7_REMINDER_STATES_FAILED");
 
     const alertsResult = await navigateAndAudit(page, "/alertas");
+    const alertDetails = page.locator("main details").first();
+    if (await alertDetails.count()) await alertDetails.locator("summary").click();
     const alertsText = await page.locator("main").innerText();
     const alertsOk = alertsResult.d7AlertsContract
       && ["Mañana", "Esta semana no", "Resolver", "Descartar"].every((label) => alertsText.includes(label));
@@ -1199,6 +1210,8 @@ async function auditD7Interactions(browser, storageState) {
     if (!alertsOk) findings.push("D7_ALERT_LIFECYCLE_FAILED");
 
     const recommendationsResult = await navigateAndAudit(page, "/recomendaciones");
+    const recommendationDetails = page.locator("main details").first();
+    if (await recommendationDetails.count()) await recommendationDetails.locator("summary").click();
     const recommendationPrimaryCount = recommendationsResult.primaryActionCount;
     const recommendationsText = await page.locator("main").innerText();
     const recommendationsOk = recommendationsResult.d7RecommendationsContract
@@ -1231,6 +1244,7 @@ const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
   for (const profile of profiles) {
+    process.stdout.write(`AUDIT_LOGIN_START=${profile.key}\n`);
     const loginResult = await login(browser, profile);
     storageStates.set(profile.key, loginResult.storageState);
     report.loginCases.push({
