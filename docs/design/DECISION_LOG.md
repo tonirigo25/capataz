@@ -39,3 +39,7 @@ Review no fabrica archivos para aparentar una carga real. Un fixture documental 
 ## D-010 - Origen de una salida prevista
 
 Una factura recibida vinculada a una obra conserva ambos contextos, pero la línea de Tesorería enlaza el documento económico que origina la cifra. La obra sigue visible como relación; el cambio es de navegación y no altera el cálculo ni duplica el gasto.
+
+## D-011 - Prioridad explicable
+
+Las alertas y recomendaciones no muestran una puntuación desnuda como jerarquía de decisión. El nivel, la regla y la evidencia son legibles; si existe un desglose numérico derivado, sólo aparece dentro de la explicación trazable y nunca sustituye a la confirmación humana.

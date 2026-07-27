@@ -335,3 +335,42 @@ Estado: `PASS`.
 - Acceso OWNER de un solo uso rotado y entregado fuera de Git; MFA no cambió y no se mostró contraseña ni secreto TOTP.
 - Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D6_REVIEW_EVIDENCE.json`.
+
+## D7 — Operación transversal
+
+Estado: `PASS`.
+
+### Implementado
+
+- Agenda abre en semana y conserva Mes, Lista y Vencimientos como vistas secundarias; muestra resumen de hoy, navegación temporal, leyenda y un cajón de filtros accesible.
+- Tareas ofrece `Mías`, `Equipo`, `Bloqueadas` y `Completadas`; usa tablero con volumen alto, lista con volumen bajo y estados vacíos válidos por perfil.
+- El detalle de tarea conserva checklist, subtareas, dependencias, recurrencia, bloqueos e historial sin calcular progreso cuando faltan datos.
+- Seguimientos funciona como cola con fecha, promesa, último intento, canal, resultado y siguiente acción; su detalle separa edición, intento manual y resultado estructurado.
+- Recordatorios distingue preparado, programado y enviado en simulación, y declara que los providers live siguen desactivados.
+- Alertas y recomendaciones muestran nivel, origen, entidad, impacto, regla, evidencia, acciones y ciclo de vida sin puntuación opaca visible; cualquier desglose vive dentro de la explicación.
+- Automatizaciones expone estado, trigger, próxima ejecución, fallos, retries, cooldown y confirmación humana; Review no ejecuta providers live.
+- Estados, prioridades, orígenes, tipos y canales aparecen en español. El detalle de tarea usa nombres de miembros activos y no expone identificadores internos.
+- No se añade Prisma, migración, provider, efecto autónomo, cambio de autorización, cálculo económico ni regla de negocio.
+
+### Evidencia local D7
+
+- `npm run test:design-d7`: PASS, 21/21.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76.
+- `npm run readiness:validate-all-static`: PASS completo hasta F11 e identidad; providers live 0 y 0 escrituras en staging/producción.
+- `git diff --check`: PASS.
+
+### Evidencia remota D7
+
+- SHA exacto: `407b3f16273a01a0cd5cf0af60178222de6f7d39`.
+- Railway Review: deployment `0cd2e76a-6db6-432b-a850-1712be1deab1`, `SUCCESS`, imagen `sha256:18363db3afc0e2e66c90d9d417e533597502f48da22c081bd705d19487a0b945`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente; `/api/health/ready` y `/api/status`: 200.
+- Matriz focal final: 4 perfiles, 8 combinaciones perfil/viewport, 30 permisos, 4 firmas de portal, 17 superficies OWNER, 6/6 estados, 3 casos de capacidad y 55 casos Axe.
+- Interacciones D7: 7/7 — Agenda/filtros, tablero de tareas, cola de seguimientos, estados de recordatorio, ciclo de alertas, jerarquía de recomendaciones y observabilidad de automatizaciones.
+- Revisión visual directa de Agenda, tareas, seguimientos, alertas y recomendaciones en 390 y 1440 px: PASS; 0 overflow y 0 bloqueadores.
+- El gate inicial detectó 24 bloqueos y 2 observaciones; la primera remediación redujo a 6/0 y distinguió estados vacíos y evidencia transparente; el SHA final cerró en 0 bloqueos.
+- Una primera visita de Agenda a 390 px emitió `React #418`; el replay obligatorio quedó limpio. Permanece como observación no reproducida.
+- Acceso OWNER de un solo uso rotado fuera de Git; no se mostró contraseña QA ni secreto TOTP.
+- Safari, Chrome Android, NVDA, VoiceOver, zoom real 200–400 % y validación con datos/dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
+- Staging y producción no se modificaron. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D7_REVIEW_EVIDENCE.json`.
