@@ -1,5 +1,6 @@
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import AxeBuilder from "@axe-core/playwright";
 import { chromium } from "playwright";
 
 const EXPECTED_ORIGIN = "https://orqena-review-web-review.up.railway.app";
@@ -21,7 +22,7 @@ const viewports = [
 mkdirSync(output, { recursive: true });
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   origin,
   sha,
@@ -71,6 +72,10 @@ try {
         overflowPx: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
         brokenImages: [...document.images].filter((image) => image.complete && image.naturalWidth === 0).length,
       }));
+      const axe = await new AxeBuilder({ page }).analyze();
+      const axeBlocking = axe.violations
+        .filter(({ impact }) => impact === "critical" || impact === "serious")
+        .map(({ id, impact, nodes }) => ({ id, impact, nodes: nodes.length }));
       const slug = route === "/" ? "home" : route.slice(1).replaceAll("/", "-");
       const screenshot = join(output, `${slug}-${viewport.key}.png`);
       await page.screenshot({ path: screenshot, fullPage: true });
@@ -83,6 +88,7 @@ try {
         reducedMotion: viewport.key === "390",
         externalHosts: [...externalHosts],
         diagnostics,
+        axeBlocking,
         bytes: statSync(screenshot).size,
         ...state,
       };
@@ -94,6 +100,7 @@ try {
       if (result.brokenImages) report.findings.push(`${findingPrefix}:BROKEN_IMAGES_${result.brokenImages}`);
       if (result.externalHosts.length) report.findings.push(`${findingPrefix}:EXTERNAL_${result.externalHosts.join(",")}`);
       if (result.diagnostics.length) report.findings.push(`${findingPrefix}:DIAGNOSTICS_${result.diagnostics.length}`);
+      if (result.axeBlocking.length) report.findings.push(`${findingPrefix}:AXE_BLOCKING_${result.axeBlocking.map(({ id }) => id).join(",")}`);
       if (!result.xRobotsTag?.includes("noindex")) report.findings.push(`${findingPrefix}:NOINDEX_MISSING`);
       report.cases.push(result);
       await context.close();
@@ -107,4 +114,3 @@ report.ok = report.findings.length === 0;
 writeFileSync(join(output, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 console.log(JSON.stringify({ ok: report.ok, sha, cases: report.cases.length, findings: report.findings, output }, null, 2));
 if (!report.ok) process.exit(1);
-

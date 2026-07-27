@@ -127,7 +127,7 @@ Estado: `PASS`.
 
 ## D2 - Home y demo guiada
 
-Estado: `LOCAL_PASS / REMOTE_PENDING`.
+Estado: `PASS`.
 
 ### Implementado
 
@@ -149,9 +149,17 @@ Estado: `LOCAL_PASS / REMOTE_PENDING`.
 - `npm run build`: PASS, 76/76; `/` 126 kB y `/demo` 116 kB de First Load JS.
 - `npm run readiness:validate-all-static`: PASS completo e ininterrumpido hasta F11 e identidad; stderr vacío y ninguna coincidencia de fallo.
 
-### Pendiente remoto D2
+### Evidencia remota D2
 
-- Commit, push y despliegue del SHA exacto a Railway Review.
-- Repetir salud, `noindex`, consola, Axe y viewport sobre la URL estable.
-- Enviar y verificar una solicitud sintética en el formulario persistente de Review, sin email live.
-- Rotar un acceso sintético seguro de un solo uso para la revisión autenticada.
+- SHA exacto: `4e3974061d6d283104ffb485952b3b1636fd997a`.
+- Railway Review: deployment `2e28891d-0e56-4a1e-b5e3-1b1f14347701`, `SUCCESS`, imagen `sha256:a7b40ea199a8b6004221de6879783618621156d5399945b597e113e7785a24da`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente.
+- Salud y política pública: `/api/health/live`, `/api/health/ready`, `/api/status`, `/`, `/demo` y `/login` respondieron 200 con `noindex`.
+- Matriz pública: 12/12 combinaciones en `/`, `/demo` y `/login`, a 390, 768, 1024 y 1440 px; 0 hallazgos, 0 errores de consola/página, 0 HTTP 5xx, 0 hosts externos inesperados y 0 violaciones Axe serias/críticas.
+- Formulario persistente: HTTP 202, una fila sintética `PENDING`, un evento de auditoría, origen `home`, consentimiento registrado y ningún envío de correo live.
+- Matriz autenticada: 11 perfiles, 66 combinaciones perfil/viewport, 21 permisos, 10 firmas de portal, 46 familias OWNER, 6/6 estados, 3 casos de capacidad y 89 casos Axe; 0 bloqueadores y 13 observaciones de múltiples acciones primarias ya asignadas a sus bloques.
+- Acceso OWNER de un solo uso entregado fuera de Git, válido hasta `2026-07-27T01:50:50.100Z`; las credenciales QA y MFA activas permanecen en variables secretas de Review.
+- Incidente resuelto: un secreto TOTP intermedio apareció en una salida técnica, se invalidó inmediatamente mediante re-enrolamiento y el secreto activo se guardó por `stdin` sin mostrarse.
+- La llave SSH efímera fue revocada y borrada; Railway no conserva llaves SSH registradas.
+- Staging y producción no se modificaron. Los providers live, correo live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D2_REVIEW_EVIDENCE.json`.
