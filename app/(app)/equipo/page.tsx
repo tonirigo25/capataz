@@ -30,7 +30,12 @@ import {
   updatePendingInvitation,
 } from "./actions";
 
-export default async function TeamPage() {
+export default async function TeamPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ persona?: string; invitar?: string }>;
+}) {
+  const query = await searchParams;
   const auth = await requireCapability("company.members.view");
   const owner = auth.role === "OWNER";
   const [members, invitations, pendingOutbox, works, clients, teams] =
@@ -38,7 +43,14 @@ export default async function TeamPage() {
       prisma.companyMembership.findMany({
         where: { companyId: auth.companyId },
         include: {
-          user: true,
+          user: {
+            include: {
+              mfaFactors: {
+                where: { status: "ACTIVE", disabledAt: null },
+                select: { id: true },
+              },
+            },
+          },
           teamMemberships: { include: { team: true } },
           permissionOverrides: true,
           accessPackages: true,
@@ -94,6 +106,14 @@ export default async function TeamPage() {
           })
         : Promise.resolve([]),
     ]);
+  const selectedMember =
+    members.find((member) => member.id === query.persona) ?? members[0] ?? null;
+  const selectedProfile = selectedMember
+    ? resolveFunctionalProfile(
+        selectedMember.functionalProfileKey,
+        selectedMember.role,
+      )
+    : null;
 
   return (
     <main className="screen">
@@ -106,19 +126,23 @@ export default async function TeamPage() {
             {auth.companyName}.
           </p>
         </div>
-        {owner ? (
+        {owner ? <div className="flex flex-wrap gap-2">
+          <Link href="/equipo?invitar=1#invitar" className="primary-button">
+            Invitar
+          </Link>
           <Link href="/equipo/outbox" className="secondary-button">
             Bandeja interna · {pendingOutbox}
           </Link>
-        ) : null}
+        </div> : null}
       </header>
 
       {owner ? (
-        <section className="card mt-6 p-4">
-          <h2 className="type-section-title">Invitar a una persona</h2>
-          <p className="type-secondary mt-1">
-            La persona deberá aceptar y después esperar tu aprobación.
-          </p>
+        <details id="invitar" className="card mt-6 scroll-mt-24 p-4" open={query.invitar === "1"}>
+          <summary className="cursor-pointer type-section-title">Invitar a una persona</summary>
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <p className="type-secondary">
+              La persona deberá aceptar y después esperar tu aprobación. Revisa perfil, alcance y campos antes de crear la invitación.
+            </p>
           <form
             action={inviteMember}
             className="mt-4 grid gap-3 lg:grid-cols-4"
@@ -268,7 +292,8 @@ export default async function TeamPage() {
               </div>
             </fieldset>
           </form>
-        </section>
+          </div>
+        </details>
       ) : (
         <section className="card mt-6 p-4">
           <h2 className="type-section-title">Equipo</h2>
@@ -279,10 +304,85 @@ export default async function TeamPage() {
         </section>
       )}
 
-      <section className="mt-6">
-        <h2 className="type-section-title">Miembros</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {members.map((member) => {
+      <section className="mt-6 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]" data-d8-team-workspace>
+        <aside className="card h-fit p-3" aria-label="Lista de personas">
+          <div className="mb-3 flex items-center justify-between gap-2 px-1">
+            <h2 className="type-section-title">Personas</h2>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">{members.length}</span>
+          </div>
+          <div className="grid gap-2">
+            {members.map((member) => {
+              const profile = resolveFunctionalProfile(member.functionalProfileKey, member.role);
+              return (
+                <Link
+                  key={member.id}
+                  href={`/equipo?persona=${member.id}`}
+                  aria-current={member.id === selectedMember?.id ? "page" : undefined}
+                  className={`rounded-xl border p-3 ${member.id === selectedMember?.id ? "border-obra-ink bg-slate-50" : "border-slate-200 bg-white"}`}
+                >
+                  <strong className="block text-sm text-obra-ink">{member.user.displayName}</strong>
+                  <span className="mt-1 block text-xs text-slate-500">{functionalProfileLabels[profile]} · {membershipStatusLabel(member.status)}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </aside>
+        <article className="card p-4" data-d8-resulting-portal>
+          <p className="type-label">Portal resultante</p>
+          {selectedMember && selectedProfile ? (
+            <>
+              <div className="mt-2 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="type-section-title">{selectedMember.user.displayName}</h2>
+                  <p className="type-secondary mt-1">{functionalProfileLabels[selectedProfile]} · {accessModeLabel(selectedMember.accessMode)}</p>
+                </div>
+                {owner ? <Link className="secondary-button" href={`/equipo/${selectedMember.id}/portal`}>Previsualizar antes de aplicar</Link> : null}
+              </div>
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <PortalFact label="Perfil" value={functionalProfileLabels[selectedProfile]} />
+                <PortalFact label="Modo" value={accessModeLabel(selectedMember.accessMode)} />
+                <PortalFact label="MFA" value={selectedMember.user.mfaFactors.length ? "Activa" : "Pendiente"} />
+                <PortalFact
+                  label="Alcance"
+                  value={selectedMember.scopeAssignments.length
+                    ? [...new Set(selectedMember.scopeAssignments.map((item) => scopeLabel(item.scope)))].join(", ")
+                    : "Según perfil"}
+                />
+                <PortalFact
+                  label="Paquetes"
+                  value={selectedMember.accessPackages.length
+                    ? selectedMember.accessPackages.map((item) => accessPackageLabels[item.packageKey as keyof typeof accessPackageLabels] ?? item.packageKey).join(", ")
+                    : "Sin paquetes adicionales"}
+                />
+                <PortalFact
+                  label="Campos económicos"
+                  value={selectedMember.fieldVisibilityPolicies.filter((item) => item.visible).length
+                    ? `${selectedMember.fieldVisibilityPolicies.filter((item) => item.visible).length} explícitos`
+                    : "No concedidos explícitamente"}
+                />
+                <PortalFact
+                  label="Aprobación"
+                  value={selectedMember.approvalAuthorities.length
+                    ? `${selectedMember.approvalAuthorities.length} autoridades`
+                    : "Sin autoridad adicional"}
+                />
+                <PortalFact
+                  label="Equipos"
+                  value={selectedMember.teamMemberships.map((item) => item.team.name).join(", ") || "Sin equipo"}
+                />
+              </dl>
+              <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+                La vista previa calcula el portal con perfil, paquetes, excepciones y alcance efectivos. Ningún ajuste se aplica desde este resumen.
+              </p>
+            </>
+          ) : <p className="type-secondary mt-3">Todavía no hay miembros en esta empresa.</p>}
+        </article>
+      </section>
+
+      <section className="mt-6" id="ajustes-persona">
+        <h2 className="type-section-title">Ajustes de la persona seleccionada</h2>
+        <div className="mt-3 grid gap-3">
+          {members.filter((member) => !selectedMember || member.id === selectedMember.id).map((member) => {
             const profile = resolveFunctionalProfile(
               member.functionalProfileKey,
               member.role,
@@ -300,7 +400,7 @@ export default async function TeamPage() {
                         ? member.teamMemberships
                             .map((item) => item.team.name)
                             .join(", ") || "Sin equipo"
-                        : `Estado: ${member.status}`}
+                        : `Estado: ${membershipStatusLabel(member.status)}`}
                     </p>
                   </div>
                   {member.role === "OWNER" ? (
@@ -722,7 +822,7 @@ export default async function TeamPage() {
                   <div>
                     <strong>{item.emailNormalized}</strong>
                     <p className="type-secondary">
-                      {item.functionalProfileKey ?? item.role} · {item.status} ·
+                      {item.functionalProfileKey ?? item.role} · {invitationStatusLabel(item.status)} ·
                       caduca {item.expiresAt.toLocaleDateString("es-ES")}
                     </p>
                   </div>
@@ -912,4 +1012,50 @@ export default async function TeamPage() {
       ) : null}
     </main>
   );
+}
+
+function PortalFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <dt className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold text-obra-ink">{value}</dd>
+    </div>
+  );
+}
+
+function accessModeLabel(mode: string) {
+  return mode === "READ_ONLY" ? "Solo lectura" : "Trabajo normal";
+}
+
+function scopeLabel(scope: string) {
+  const labels: Record<string, string> = {
+    ASSIGNED: "Solo asignados",
+    SELECTED_WORKS: "Trabajos seleccionados",
+    SELECTED_CLIENTS: "Clientes seleccionados",
+    TEAM: "Su equipo",
+    OWN: "Solo propio",
+    COMPANY: "Toda la empresa",
+  };
+  return labels[scope] ?? "Según perfil";
+}
+
+function membershipStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    invited: "Invitación pendiente",
+    pending_approval: "Pendiente de aprobación",
+    active: "Acceso activo",
+    suspended: "Suspendido",
+    revoked: "Revocado",
+  };
+  return labels[status] ?? status.replaceAll("_", " ");
+}
+
+function invitationStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    PENDING: "Pendiente de aceptación",
+    PENDING_EMPLOYEE: "Pendiente de la persona",
+    EMPLOYEE_ACCEPTED: "Aceptada por la persona",
+    PENDING_OWNER_APPROVAL: "Pendiente de aprobación del propietario",
+  };
+  return labels[status] ?? status.replaceAll("_", " ");
 }

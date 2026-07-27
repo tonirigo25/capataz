@@ -17,6 +17,7 @@ const focusD4 = process.env.ORQENA_REVIEW_FOCUS_D4 === "true";
 const focusD5 = process.env.ORQENA_REVIEW_FOCUS_D5 === "true";
 const focusD6 = process.env.ORQENA_REVIEW_FOCUS_D6 === "true";
 const focusD7 = process.env.ORQENA_REVIEW_FOCUS_D7 === "true";
+const focusD8 = process.env.ORQENA_REVIEW_FOCUS_D8 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -26,15 +27,15 @@ delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 mkdirSync(screenshotRoot, { recursive: true });
 
 const allProfiles = [
-  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }], d6: [{ route: "/documentos", expectation: "allowed" }, { route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/recordatorios", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "allowed" }] },
+  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }], d6: [{ route: "/documentos", expectation: "allowed" }, { route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/recordatorios", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "allowed" }], d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/equipo", expectation: "allowed" }, { route: "/onboarding", expectation: "allowed" }, { route: "/configuracion", expectation: "allowed" }] },
   { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
-  { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "denied" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }] },
+  { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/onboarding", expectation: "allowed" }, { route: "/configuracion", expectation: "allowed" }] },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "denied" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }], d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/onboarding", expectation: "restricted-inline" }, { route: "/configuracion", expectation: "allowed" }] },
   { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d5: [{ route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
   { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d6: [{ route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }] },
   { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }] },
   { key: "supervisor", profile: "TEAM_SUPERVISOR", allowed: "/obras", denied: "/clientes" },
-  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "denied" }, { route: "/automatizaciones", expectation: "denied" }] },
+  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "denied" }, { route: "/automatizaciones", expectation: "denied" }], d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/onboarding", expectation: "restricted-inline" }, { route: "/configuracion", expectation: "allowed" }] },
   { key: "external", profile: "EXTERNAL_COLLABORATOR", allowed: "/obras", restrictedInline: "/capataz" },
   { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true, d5: [{ route: "/presupuestos/review-budget-1", expectation: "denied" }, { route: "/dinero/review-invoice-1", expectation: "denied" }] },
 ];
@@ -124,8 +125,12 @@ const allOwnerSurfaceFamilies = [
   { family: "alerts-mobile", route: "/alertas", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "recommendations-mobile", route: "/recomendaciones", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "automations-mobile", route: "/automatizaciones", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "orqena-mobile", route: "/capataz", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "team-access-mobile", route: "/equipo", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "onboarding-mobile", route: "/onboarding", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "settings-mobile", route: "/configuracion", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
-const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6 || focusD7);
+const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6 || focusD7 || focusD8);
 const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
 if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
@@ -136,7 +141,7 @@ const report = {
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
-  focus: focusD7 ? "D7" : focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
+  focus: focusD8 ? "D8" : focusD7 ? "D7" : focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
@@ -144,6 +149,7 @@ const report = {
   d5Interactions: null,
   d6Interactions: null,
   d7Interactions: null,
+  d8Interactions: null,
   loginCases: [],
   stateCases: [],
   authenticatedCapacity: null,
@@ -334,6 +340,20 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
         && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(visibleText),
       d7AutomationsContract: containsAll(visibleText, ["Automatizaciones", "Trigger:", "Próxima:", "fallos", "retries"])
         && Boolean(document.querySelector("[data-automation-state]")),
+      d8AssistantContract: containsAll(visibleText, ["Historial", "Propuesta estructurada", "Revisar antes de guardar", "Memoria de Orqena"])
+        && Boolean([...document.querySelectorAll("[data-d8-assistant-workspace]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-d8-proposal-panel]")].find(visible))
+        && Boolean([...document.querySelectorAll('button[aria-label="Dictar por voz"]')].find(visible)),
+      d8TeamContract: containsAll(visibleText, ["Personas", "Portal resultante", "Perfil", "Alcance", "Modo", "MFA", "Paquetes", "Campos económicos", "Aprobación"])
+        && Boolean([...document.querySelectorAll("[data-d8-team-workspace]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-d8-resulting-portal]")].find(visible)),
+      d8OnboardingContract: containsAll(visibleText, ["Empresa", "Perfil", "Primer cliente", "Primer presupuesto", "Primer documento", "menos de 15 minutos", "modo manual", "Configurar más tarde"])
+        && Boolean([...document.querySelectorAll("[data-onboarding-milestones]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-onboarding-import]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-onboarding-later]")].find(visible)),
+      d8SettingsContract: containsAll(visibleText, ["Datos personales", "Empresa", "Fiscal y documentos", "Equipo", "Integraciones", "Seguridad", "Plan y uso", "App móvil", "Legal y soporte", "Zona sensible", "Checklist de configuración"])
+        && Boolean([...document.querySelectorAll("[data-d8-settings-workspace]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-settings-readiness]")].find(visible)),
     };
   });
   let accessibility = { criticalOrSerious: 0, violations: [] };
@@ -449,6 +469,12 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
     if (result.route === "/alertas" && !result.d7AlertsContract) findings.push(`${context}:D7_ALERTS_CONTRACT_MISSING`);
     if (result.route === "/recomendaciones" && !result.d7RecommendationsContract) findings.push(`${context}:D7_RECOMMENDATIONS_CONTRACT_MISSING`);
     if (result.route === "/automatizaciones" && !result.d7AutomationsContract) findings.push(`${context}:D7_AUTOMATIONS_CONTRACT_MISSING`);
+  }
+  if (focusD8 && expectation === "allowed" && profile === "owner") {
+    if (result.route === "/capataz" && !result.d8AssistantContract) findings.push(`${context}:D8_ASSISTANT_CONTRACT_MISSING`);
+    if (result.route === "/equipo" && !result.d8TeamContract) findings.push(`${context}:D8_TEAM_CONTRACT_MISSING`);
+    if (result.route === "/onboarding" && !result.d8OnboardingContract) findings.push(`${context}:D8_ONBOARDING_CONTRACT_MISSING`);
+    if (result.route === "/configuracion" && !result.d8SettingsContract) findings.push(`${context}:D8_SETTINGS_CONTRACT_MISSING`);
   }
   return findings;
 }
@@ -1241,6 +1267,117 @@ async function auditD7Interactions(browser, storageState) {
   };
 }
 
+async function auditD8Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const assistantResult = await navigateAndAudit(page, "/capataz");
+    const assistantPaneCount = await page.locator("[data-d8-assistant-workspace] > *").count();
+    const assistantOk = assistantResult.d8AssistantContract && assistantPaneCount >= 3;
+    cases.push({ key: "assistant-three-pane-workspace", ok: assistantOk, assistantPaneCount });
+    if (!assistantOk) findings.push("D8_ASSISTANT_THREE_PANE_FAILED");
+
+    await page.getByLabel("Mensaje para Orqena").fill("Ha entrado un nuevo cliente Dalia Ensayo para reforma");
+    await page.getByRole("button", { name: "Enviar mensaje" }).click();
+    await page.locator("[data-d8-proposal-effects]").waitFor({ state: "visible", timeout: 30_000 });
+    const proposalButtons = {
+      save: page.getByRole("button", { name: "Guardar y aplicar", exact: true }),
+      review: page.getByRole("button", { name: "Revisar campos", exact: true }),
+      discard: page.getByRole("button", { name: "Descartar", exact: true }),
+    };
+    await proposalButtons.save.waitFor({ state: "visible" });
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "Guardar y aplicar" && !button.disabled)
+    , undefined, { timeout: 20_000 });
+    await proposalButtons.review.click();
+    const focusedProposalField = await page.evaluate(() => {
+      const active = document.activeElement;
+      return Boolean(active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName));
+    });
+    const proposalActionCount = await page.locator('[aria-label="Acciones de la propuesta"] button').count();
+    const proposalOk = focusedProposalField && proposalActionCount === 3;
+    cases.push({ key: "assistant-review-before-apply", ok: proposalOk, proposalActionCount, focusedProposalField });
+    if (!proposalOk) findings.push("D8_ASSISTANT_PROPOSAL_REVIEW_FAILED");
+    await proposalButtons.discard.click();
+    await page.getByText("Propuesta cancelada", { exact: true }).waitFor({ state: "visible" });
+    cases.push({ key: "assistant-discard-without-apply", ok: true });
+
+    const teamResult = await navigateAndAudit(page, "/equipo");
+    const peopleCount = await page.locator('a[href^="/equipo?persona="]').count();
+    const portalFactCount = await page.locator("[data-d8-resulting-portal] dt").count();
+    const focusedEditors = await page.locator("#ajustes-persona article").count();
+    const previewLinks = await page.getByRole("link", { name: /Previsualizar/iu }).count();
+    const teamOk = teamResult.d8TeamContract && peopleCount >= 2 && portalFactCount >= 7 && focusedEditors === 1 && previewLinks >= 1;
+    cases.push({ key: "team-person-and-resulting-portal", ok: teamOk, peopleCount, portalFactCount, focusedEditors, previewLinks });
+    if (!teamOk) findings.push("D8_TEAM_RESULTING_PORTAL_FAILED");
+
+    const pendingInvitation = await page.getByText("Pendiente de aprobación del propietario", { exact: false }).count();
+    const invitationActions = await page.getByRole("button", { name: /Aprobar|Rechazar|Revocar/iu }).count();
+    const invitationPreview = await page.getByRole("link", { name: "Previsualizar portal", exact: true }).count();
+    const invitationOk = pendingInvitation >= 1 && invitationActions >= 3 && invitationPreview >= 1;
+    cases.push({ key: "invitation-approval-lifecycle", ok: invitationOk, pendingInvitation, invitationActions, invitationPreview });
+    if (!invitationOk) findings.push("D8_INVITATION_LIFECYCLE_FAILED");
+
+    await navigateAndAudit(page, "/equipo?invitar=1#invitar");
+    const invitationFormVisible = await page.getByRole("button", { name: "Crear invitación", exact: true }).isVisible();
+    const invitationFields = await page.locator('#invitar input[name="email"], #invitar select[name="functionalProfileKey"], #invitar select[name="accessMode"], #invitar select[name="workIds"], #invitar select[name="clientIds"]').count();
+    const inviteOk = invitationFormVisible && invitationFields === 5;
+    cases.push({ key: "invitation-scoped-form", ok: inviteOk, invitationFields });
+    if (!inviteOk) findings.push("D8_INVITATION_FORM_FAILED");
+
+    const onboardingResult = await navigateAndAudit(page, "/onboarding");
+    const milestoneCount = await page.locator("[data-onboarding-milestones] li").count();
+    const onboardingOk = onboardingResult.d8OnboardingContract && milestoneCount === 5 && onboardingResult.primaryActionCount === 1;
+    cases.push({ key: "onboarding-five-first-value-milestones", ok: onboardingOk, milestoneCount, primaryActionCount: onboardingResult.primaryActionCount });
+    if (!onboardingOk) findings.push("D8_ONBOARDING_MILESTONES_FAILED");
+
+    const importResult = await navigateAndAudit(page, "/configuracion/importar");
+    const importText = await page.locator("main").innerText();
+    const importOk = importResult.finalPath === "/configuracion/importar"
+      && ["vista previa", "filas inválidas", "revertir", "Crear vista previa"].every((label) => importText.includes(label));
+    cases.push({ key: "import-preview-apply-rollback-surface", ok: importOk });
+    if (!importOk) findings.push("D8_IMPORT_SAFE_LIFECYCLE_FAILED");
+
+    const settingsResult = await navigateAndAudit(page, "/configuracion");
+    const defaultSettingsForms = await page.locator("main form").count();
+    const settingsOk = settingsResult.d8SettingsContract && defaultSettingsForms === 1;
+    cases.push({ key: "settings-sidebar-and-personal-separation", ok: settingsOk, defaultSettingsForms });
+    if (!settingsOk) findings.push("D8_SETTINGS_SEPARATION_FAILED");
+
+    await navigateAndAudit(page, "/configuracion?area=fiscal-documentos#fiscal-documentos");
+    const fiscalDetailsOpen = await page.locator("details#fiscal-documentos").evaluate((element) => element.open);
+    const fiscalFieldVisible = await page.getByLabel("NIF/CIF").isVisible();
+    const fiscalDeepLinkOk = new URL(page.url()).searchParams.get("area") === "fiscal-documentos" && fiscalDetailsOpen && fiscalFieldVisible;
+    cases.push({ key: "settings-fiscal-deep-link", ok: fiscalDeepLinkOk, fiscalDetailsOpen, fiscalFieldVisible });
+    if (!fiscalDeepLinkOk) findings.push("D8_SETTINGS_FISCAL_DEEP_LINK_FAILED");
+
+    const securityResult = await navigateAndAudit(page, "/configuracion/seguridad");
+    const securityText = await page.locator("main").innerText();
+    const securityOk = securityResult.finalPath === "/configuracion/seguridad"
+      && securityText.includes("Seguridad de acceso")
+      && securityText.includes("segundo factor");
+    cases.push({ key: "settings-mfa-surface", ok: securityOk });
+    if (!securityOk) findings.push("D8_SETTINGS_MFA_FAILED");
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D8_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D8_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
@@ -1292,6 +1429,11 @@ try {
     if (focusD7 && profile.d7) {
       for (const d7Case of profile.d7) {
         profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d7Case.route, d7Case.expectation));
+      }
+    }
+    if (focusD8 && profile.d8) {
+      for (const d8Case of profile.d8) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d8Case.route, d8Case.expectation));
       }
     }
     for (const permissionCase of profileResult.permissionCases) report.blockingFindings.push(...permissionCase.findings);
@@ -1347,6 +1489,13 @@ try {
       `AUDIT_D7_INTERACTIONS=CASES_${report.d7Interactions.cases.length};OK=${report.d7Interactions.findings.length === 0}\n`,
     );
   }
+  if (focusD8) {
+    report.d8Interactions = await auditD8Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d8Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D8_INTERACTIONS=CASES_${report.d8Interactions.cases.length};OK=${report.d8Interactions.findings.length === 0}\n`,
+    );
+  }
 
   report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
   report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
@@ -1377,6 +1526,7 @@ report.summary = {
   d5InteractionCases: report.d5Interactions?.cases.length ?? 0,
   d6InteractionCases: report.d6Interactions?.cases.length ?? 0,
   d7InteractionCases: report.d7Interactions?.cases.length ?? 0,
+  d8InteractionCases: report.d8Interactions?.cases.length ?? 0,
   stateCases: report.stateCases.length,
   stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
   loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),

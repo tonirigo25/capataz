@@ -101,6 +101,43 @@ async function main() {
     await prisma.user.update({ where: { id: user.id }, data: { activeCompanyId: primary.id } });
     memberships.set(fixture.key, membership);
   }
+  const invitationTokenHash = hashToken("continuous-review-invitation-d8");
+  await prisma.invitation.upsert({
+    where: { id: "review-invitation-1" },
+    update: {
+      companyId: primary.id,
+      emailNormalized: "persona.pendiente@review.orqena.invalid",
+      role: "MEMBER",
+      functionalProfileKey: "WORKER",
+      accessMode: "READ_ONLY",
+      status: "PENDING_OWNER_APPROVAL",
+      tokenHash: invitationTokenHash,
+      inviterId: owner.id,
+      accessPackageKeys: ["WORK_EXECUTION"],
+      scopeTemplate: { scope: "ASSIGNED" },
+      fieldVisibilityTemplate: [],
+      expiresAt: new Date(Date.now() + 7 * 86_400_000),
+      employeeAcceptedAt: new Date(),
+      revokedAt: null,
+      rejectedAt: null,
+    },
+    create: {
+      id: "review-invitation-1",
+      companyId: primary.id,
+      emailNormalized: "persona.pendiente@review.orqena.invalid",
+      role: "MEMBER",
+      functionalProfileKey: "WORKER",
+      accessMode: "READ_ONLY",
+      status: "PENDING_OWNER_APPROVAL",
+      tokenHash: invitationTokenHash,
+      inviterId: owner.id,
+      accessPackageKeys: ["WORK_EXECUTION"],
+      scopeTemplate: { scope: "ASSIGNED" },
+      fieldVisibilityTemplate: [],
+      expiresAt: new Date(Date.now() + 7 * 86_400_000),
+      employeeAcceptedAt: new Date(),
+    },
+  });
 
   const client = await prisma.client.upsert({
     where: { id: "review-client-1" },

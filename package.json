@@ -87,6 +87,7 @@
     "test:design-d5": "node scripts/design/validate-d5-commercial.mjs",
     "test:design-d6": "node scripts/design/validate-d6-procurement.mjs",
     "test:design-d7": "node scripts/design/validate-d7-operations.mjs",
+    "test:design-d8": "node scripts/design/validate-d8-administration.mjs",
     "test:orqena-product-transformation": "node scripts/validate-orqena-product-transformation.mjs",
     "test:orqena-commercial-platform": "node scripts/validate-orqena-commercial-platform.mjs",
     "validate:orqena-visual": "node scripts/validate-orqena-visual.mjs",

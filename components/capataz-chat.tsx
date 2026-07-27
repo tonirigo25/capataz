@@ -649,8 +649,14 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
     return <div className="min-h-[calc(100dvh-150px)]" aria-busy="true" aria-label="Cargando conversaciones de la empresa activa" />;
   }
 
+  const activeProposalMessage = [...messages].reverse().find((message) => message.card);
+  const activeProposal = activeProposalMessage?.card ?? null;
+
   return (
-    <div className="grid min-h-[calc(100dvh-150px)] gap-4 lg:grid-cols-[280px_1fr]">
+    <div
+      className="grid min-h-[calc(100dvh-150px)] gap-4 lg:grid-cols-[240px_minmax(0,1fr)_340px]"
+      data-d8-assistant-workspace
+    >
       <ChatHistoryPanel
         conversations={conversations}
         activeId={conversationId}
@@ -776,7 +782,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
                 <MessageText text={message.text} />
                 {pdfPreviewPathFromText(message.text) ? <PdfInlinePreview path={pdfPreviewPathFromText(message.text)!} /> : null}
                 {message.result ? <ActionResultCard result={message.result} /> : null}
-                {message.card ? <ActionCardView card={message.card} data={data} conversationId={conversationId} /> : null}
+                {message.card && message.id !== activeProposalMessage?.id ? <ActionCardView card={message.card} data={data} conversationId={conversationId} /> : null}
                 {message.retryText ? (
                   <button type="button" className="secondary-button mt-2 text-xs" onClick={() => submit(undefined, message.retryText)} disabled={isSending}>
                     Reintentar
@@ -841,6 +847,31 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
         </form>
       </div>
       </div>
+      <aside className="card order-3 h-fit p-4 lg:sticky lg:top-24" data-d8-proposal-panel>
+        <p className="type-label">Propuesta estructurada</p>
+        <h2 className="type-section-title mt-2">Revisar antes de guardar</h2>
+        <p className="type-secondary mt-2">
+          Comprueba los campos pendientes y el efecto previsto. Nada se aplica sin tu confirmación.
+        </p>
+        {activeProposal ? (
+          <>
+            <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600" data-d8-proposal-effects>
+              <p className="font-black text-obra-ink">Efecto que ocurriría</p>
+              <p className="mt-1">{proposalEffectLabel(activeProposal)}</p>
+            </div>
+            <ActionCardView card={activeProposal} data={data} conversationId={conversationId} />
+          </>
+        ) : (
+          <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-4 text-sm leading-6 text-slate-600">
+            <p className="font-black text-obra-ink">Sin propuesta pendiente</p>
+            <p className="mt-1">Cuando pidas preparar una acción, sus campos y efectos aparecerán aquí para revisión.</p>
+          </div>
+        )}
+        <div className="mt-4 grid gap-2 border-t border-slate-100 pt-4">
+          <Link className="secondary-button justify-center" href="/configuracion/memoria">Memoria de Orqena</Link>
+          <p className="text-xs leading-5 text-slate-500">Historial aislado por empresa y persona. No se muestran instrucciones internas.</p>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -1606,12 +1637,25 @@ function ProposalLifecycle({ card, proposalType, operation, conversationId, chil
       {children}
       {error ? <p role="alert" className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Acciones de la propuesta">
-        <button type="button" className="primary-button min-h-11" disabled={status !== "ready"} aria-busy={status === "preparing"} onClick={confirmProposal}>Confirmar</button>
-        <button type="button" className="secondary-button min-h-11" disabled={status !== "ready"} onClick={editProposal}>Editar</button>
-        <button type="button" className="secondary-button min-h-11" disabled={!receipt || status === "preparing" || status === "cancelling"} aria-busy={status === "cancelling"} onClick={cancelProposal}>{status === "cancelling" ? "Cancelando…" : "Cancelar"}</button>
+        <button type="button" className="primary-button min-h-11" disabled={status !== "ready"} aria-busy={status === "preparing"} onClick={confirmProposal}>Guardar y aplicar</button>
+        <button type="button" className="secondary-button min-h-11" disabled={status !== "ready"} onClick={editProposal}>Revisar campos</button>
+        <button type="button" className="secondary-button min-h-11" disabled={!receipt || status === "preparing" || status === "cancelling"} aria-busy={status === "cancelling"} onClick={cancelProposal}>{status === "cancelling" ? "Descartando…" : "Descartar"}</button>
       </div>
     </div>
   );
+}
+
+function proposalEffectLabel(card: ActionCard) {
+  if (card.type === "payment") return "Registrar un cobro con los datos revisados; no concilia ni transmite nada fuera de Orqena.";
+  if (card.type === "accept-budget") return "Registrar la aceptación indicada; no envía comunicaciones ni emite una factura.";
+  if (card.type === "close-work") return "Cambiar el estado del trabajo conservando pendientes e historial.";
+  if (card.type === "invoice") return "Guardar el documento en el estado seleccionado; no lo envía ni transmite fiscalmente.";
+  if (card.type === "budget") return "Guardar un presupuesto revisable; el envío seguirá requiriendo una acción separada.";
+  if (card.type === "expense") return "Registrar un gasto interno con trazabilidad; no ejecuta un pago.";
+  if (["follow-up", "visit", "agenda-event", "agenda-reprogram", "agenda-status"].includes(card.type)) {
+    return "Actualizar la planificación interna indicada; no contacta con terceros automáticamente.";
+  }
+  return "Guardar los campos revisados dentro de la empresa activa.";
 }
 
 function UserProfileCard({ card }: { card: Extract<ActionCard, { type: "user-profile" }> }) {
