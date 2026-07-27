@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import {
   changeTaskStatusAction,
@@ -170,7 +171,12 @@ export default async function TaskDetailPage({
           ))}
           <form action={archiveTaskAction}>
             <input type="hidden" name="id" value={task.id} />
-            <button className="danger-button">Archivar</button>
+            <ConfirmSubmitButton
+              className="danger-button"
+              message="La tarea dejará de aparecer entre las activas, pero conservará su historial, comentarios y relaciones."
+            >
+              Archivar
+            </ConfirmSubmitButton>
           </form>
         </div>
         <form action={changeTaskStatusAction} className="mt-3 flex flex-col gap-2 sm:flex-row">

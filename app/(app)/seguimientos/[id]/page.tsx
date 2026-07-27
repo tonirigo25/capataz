@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { assertScopedEntityAccess, requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import {
   editFollowUpAction,
@@ -206,7 +207,12 @@ export default async function FollowUpDetailPage({
           ))}
           <form action={archiveFollowUpAction}>
             <input type="hidden" name="id" value={item.id} />
-            <button className="danger-button">Archivar</button>
+            <ConfirmSubmitButton
+              className="danger-button"
+              message="El seguimiento dejará de aparecer entre los activos, pero conservará todos sus intentos y resultados."
+            >
+              Archivar
+            </ConfirmSubmitButton>
           </form>
         </div>
       </section>

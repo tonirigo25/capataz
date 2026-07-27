@@ -29,6 +29,7 @@ import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { RecordWorkspace } from "@/components/workspaces";
 import { EmptyState, EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { OperationalContextSummary } from "@/components/operational-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -627,11 +628,22 @@ function TimelineList({ items }: { items: Array<{ key: string; date: Date; title
 }
 
 function WorkStatusButton({ id, estado, label }: { id: string; estado: string; label: string }) {
+  const button = estado === "archivada" ? (
+    <ConfirmSubmitButton
+      className="danger-button"
+      message="El trabajo se marcará como archivado. Su historial, documentos e importes se conservarán."
+    >
+      {label}
+    </ConfirmSubmitButton>
+  ) : (
+    <button className="secondary-button" type="submit">{label}</button>
+  );
+
   return (
     <form action={updateWorkStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="estado" value={estado} />
-      <button className="secondary-button" type="submit">{label}</button>
+      {button}
     </form>
   );
 }
