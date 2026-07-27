@@ -84,7 +84,7 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
 
     <ResultCount shown={result.items.length} total={result.total} noun={title.toLowerCase()} />
     {result.items.length ? <>
-      <div className="hidden lg:block">
+      <div className="hidden lg:block" data-d6-supplier-directory="desktop" data-d6-supplier-fields="specialty documentation works balance next-action">
         <TableShell label={title}>
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500"><tr><th className="px-4 py-3">Entidad</th><th className="px-4 py-3">Especialidad y documentación</th><th className="px-4 py-3">Trabajos</th><th className="px-4 py-3">Saldo</th><th className="px-4 py-3">Situación</th><th className="px-4 py-3">Próxima acción</th><th className="px-4 py-3"></th></tr></thead>
@@ -96,9 +96,9 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
               <td className="px-4 py-4"><PartnerStatus status={partner.status} /></td>
               <td className="px-4 py-4"><Link href={`${base}/${partner.id}`} className="font-bold text-obra-ink underline decoration-slate-300 underline-offset-4">{partnerNextAction(partner)}</Link></td>
               <td className="px-4 py-4 text-right">
-                <details className="relative">
-                  <summary className="secondary-button cursor-pointer list-none"><PanelRightOpen size={17} />Contexto</summary>
-                  <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl">
+                <details className="relative" data-d6-supplier-context>
+                  <summary className="secondary-button cursor-pointer list-none" data-d6-supplier-context-trigger><PanelRightOpen size={17} />Contexto</summary>
+                  <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl" data-d6-supplier-context-panel>
                     <p className="font-black text-obra-ink">{partner.commercialName}</p>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                       <Mini label="Especialidad" value={partnerSpecialty(partner, subcontractor)} />
@@ -116,7 +116,7 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
           </table>
         </TableShell>
       </div>
-      <div className="card divide-y divide-slate-100 p-3 lg:hidden">{result.items.map((partner) => <Link key={partner.id} href={`${base}/${partner.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-2 py-4"><div className="min-w-0"><p className="truncate font-black text-obra-ink">{partner.commercialName}</p><p className="mt-1 truncate text-xs text-slate-500">{partnerSpecialty(partner, subcontractor)} · {partner.taxId || "NIF pendiente"}</p><p className="mt-2 text-xs font-bold text-slate-600">{partnerDocumentation(partner, subcontractor)} · {formatCurrency(partner.pending)}</p></div><span className="self-center text-right text-sm font-bold text-obra-ink">{partnerNextAction(partner)} →</span></Link>)}</div>
+      <div className="card divide-y divide-slate-100 p-3 lg:hidden" data-d6-supplier-directory="mobile" data-d6-supplier-fields="specialty documentation works balance next-action">{result.items.map((partner) => <Link key={partner.id} href={`${base}/${partner.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-2 py-4"><div className="min-w-0"><p className="truncate font-black text-obra-ink">{partner.commercialName}</p><p className="mt-1 truncate text-xs text-slate-500">{partnerSpecialty(partner, subcontractor)} · {partner.taxId || "NIF pendiente"}</p><p className="mt-2 text-xs font-bold text-slate-600">{partnerDocumentation(partner, subcontractor)} · {formatCurrency(partner.pending)}</p></div><span className="self-center text-right text-sm font-bold text-obra-ink">{partnerNextAction(partner)} →</span></Link>)}</div>
     </> : <EmptyState icon={Search} title={`No hay ${title.toLowerCase()} con estos criterios`} description="Cambia los filtros o crea una ficha profesional nueva." action={<Link href={`${base}?nuevo=1#ficha`} className="primary-button"><Plus size={18} />Crear ficha</Link>} />}
   </ListWorkspace>;
 }
@@ -130,7 +130,7 @@ export async function PartnerProfile({ companyId, kind, id, searchParams }: { co
   const invoiced = sum(partner.invoices.filter((invoice) => invoice.status !== "VOID").map((invoice) => invoice.total));
   const pending = sum(partner.invoices.filter((invoice) => invoice.status !== "VOID").map((invoice) => invoice.pendingAmount));
   return <main className="screen">
-    <PageHeader eyebrow={subcontractor ? "Ficha de subcontrata" : "Ficha de proveedor"} title={partner.commercialName} description={`${partner.legalName} · ${partner.taxId || "NIF/CIF pendiente"}`} badge={<PartnerStatus status={partner.status} />} action={<Link className="secondary-button" href={base}>Volver</Link>} secondaryActions={<Link className="primary-button" href={`${invoiceBase}?nuevo=1&partner=${partner.id}#factura`}><Plus size={18} />Nueva factura</Link>} />
+    <PageHeader eyebrow={subcontractor ? "Ficha de subcontrata" : "Ficha de proveedor"} title={partner.commercialName} description={`${partner.legalName} · ${partner.taxId || "NIF/CIF pendiente"}`} badge={<PartnerStatus status={partner.status} />} action={<Link className="secondary-button" href={base}>Volver</Link>} secondaryActions={<Link className="secondary-button" href={`${invoiceBase}?nuevo=1&partner=${partner.id}#factura`}><Plus size={18} />Nueva factura</Link>} />
     {first(query.saved) ? <Notice tone="success" title="Ficha guardada" description="Los cambios y el historial están actualizados." /> : null}
     {first(query.error) ? <Notice tone="danger" description={errorMessage(first(query.error))} /> : null}
     <section className="my-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Facturado" value={formatCurrency(invoiced)} icon={CircleDollarSign} /><Metric label="Pendiente" value={formatCurrency(pending)} icon={AlertTriangle} tone={pending ? "warning" : "neutral"} /><Metric label="Obras relacionadas" value={String(partner.workLinks.length)} icon={BriefcaseBusiness} /><Metric label="Documentos" value={String(partner.documents.length)} icon={FileArchive} /></section>

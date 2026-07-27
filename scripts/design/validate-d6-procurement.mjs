@@ -60,7 +60,7 @@ test("La tabla de compras muestra especialidad, documentación, trabajos, saldo 
   for (const term of ["Especialidad y documentación", "Trabajos", "Saldo", "Próxima acción", "partnerNextAction"]) assert.match(partners, new RegExp(term));
 });
 test("Proveedores incluye preview contextual sin convertir cada fila en CTA primaria", () => {
-  assert.match(partners, /<details className="relative">/);
+  assert.match(partners, /data-d6-supplier-context/);
   assert.match(partners, /Contexto/);
   assert.doesNotMatch(partners, /className="primary-button mt-3 w-full">Abrir ficha/);
 });
@@ -77,6 +77,13 @@ test("Factura recibida enlaza un gasto único y lo declara sin doble salida", ()
   assert.match(invoices, /Gasto enlazado/);
   assert.match(invoices, /No se registra una segunda salida/);
   assert.match(expenseUseCases, /purchaseInvoiceId,[\s\S]*tx\.expense\.create/);
+});
+test("Las fichas sintéticas sin binario no generan enlaces de descarga rotos", () => {
+  assert.match(reader, /document\.storageKey \?/);
+  assert.match(invoices, /document\.storageKey \?/);
+});
+test("La previsión enlaza la factura recibida que origina cada salida", () => {
+  assert.match(read("lib/economic-control/metrics.ts"), /href: `\/facturas-proveedor\/\$\{invoice\.id\}`/);
 });
 test("Tesorería excluye la duplicación de salidas ya enlazadas", () => {
   assert.match(treasury, /purchaseInvoice\?\.pendingAmount \?\? expense\.importe/);

@@ -67,9 +67,13 @@ const allOwnerSurfaceFamilies = [
   { family: "treasury", route: "/tesoreria" },
   { family: "expenses-materials", route: "/gastos-materiales" },
   { family: "document-reader", route: "/gastos-materiales/lector" },
+  { family: "document-review", route: "/gastos-materiales/lector/review-expense-document-1" },
   { family: "suppliers", route: "/proveedores" },
+  { family: "supplier-detail", route: "/proveedores/review-partner-1" },
   { family: "subcontractors", route: "/subcontratas" },
+  { family: "subcontractor-detail", route: "/subcontratas/review-subcontractor-1" },
   { family: "supplier-invoices", route: "/facturas-proveedor" },
+  { family: "supplier-invoice-detail", route: "/facturas-proveedor/review-purchase-invoice-1" },
   { family: "subcontractor-invoices", route: "/facturas-subcontratas" },
   { family: "agenda", route: "/agenda" },
   { family: "activity", route: "/actividad" },
@@ -104,7 +108,10 @@ const allOwnerSurfaceFamilies = [
   { family: "invoice-detail-mobile", route: "/dinero/review-invoice-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "treasury-mobile", route: "/tesoreria", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "documents-mobile", route: "/documentos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "document-review-mobile", route: "/gastos-materiales/lector/review-expense-document-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "suppliers-mobile", route: "/proveedores", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "supplier-detail-mobile", route: "/proveedores/review-partner-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "subcontractor-detail-mobile", route: "/subcontratas/review-subcontractor-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "supplier-invoices-mobile", route: "/facturas-proveedor", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "supplier-invoice-detail-mobile", route: "/facturas-proveedor/review-purchase-invoice-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
@@ -186,7 +193,7 @@ function attachDiagnostics(page) {
     if (!detail.includes("ERR_ABORTED")) events.push(`network:${request.method()}:${sanitize(request.url())}:${sanitize(detail)}`);
   });
   page.on("response", (response) => {
-    if (response.status() >= 500) events.push(`http:${response.status()}:${sanitize(response.url())}`);
+    if (response.status() >= 400) events.push(`http:${response.status()}:${sanitize(response.url())}`);
   });
   return { events, externalHosts };
 }
@@ -290,7 +297,9 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       d5TreasuryContract: ["Caja registrada", "Por cobrar", "Por pagar", "Flujo previsto", "Previsión"].every((label) => document.body.innerText.includes(label))
         && Boolean(document.querySelector('a[href="#treasury-registration"]')),
       d6DocumentsContract: ["Bandeja documental", "Documento original", "Datos extraídos", "Comprobaciones"].every((label) => document.body.innerText.includes(label)),
-      d6SupplierContract: ["Proveedores y subcontratas", "Especialidad y documentación", "Saldo", "Próxima acción", "Contexto"].every((label) => document.body.innerText.includes(label)),
+      d6SupplierContract: document.body.innerText.includes("Proveedores y subcontratas")
+        && Boolean([...document.querySelectorAll("[data-d6-supplier-directory]")].find(visible))
+        && [...document.querySelectorAll("[data-d6-supplier-directory]")].filter(visible).every((element) => element.getAttribute("data-d6-supplier-fields") === "specialty documentation works balance next-action"),
       d6ReceivedInvoicesContract: ["Facturas recibidas", "Pendiente revisar", "Pendiente pagar", "Vencido", "Imputado a trabajos"].every((label) => document.body.innerText.includes(label)),
       d6ReceivedInvoiceDetailContract: ["Datos fiscales y económicos", "Base imponible", "IVA", "IRPF", "Pagos parciales", "Gasto enlazado", "Historial"].every((label) => document.body.innerText.includes(label))
         && document.body.innerText.includes("No se registra una segunda salida"),
@@ -1068,10 +1077,11 @@ async function auditD6Interactions(browser, storageState) {
     if (!documentsOk) findings.push("D6_DOCUMENT_INBOX_REVIEW_FAILED");
 
     const suppliersResult = await navigateAndAudit(page, "/proveedores");
-    const contextTrigger = page.getByText("Contexto", { exact: true }).first();
+    const contextTrigger = page.locator("[data-d6-supplier-context-trigger]").first();
     const triggerCount = await contextTrigger.count();
     if (triggerCount) await contextTrigger.click();
-    const contextVisible = triggerCount > 0 && await page.getByText("Próxima acción", { exact: true }).last().isVisible();
+    const contextVisible = triggerCount > 0
+      && await page.locator("details[data-d6-supplier-context][open] [data-d6-supplier-context-panel]").first().isVisible();
     const suppliersOk = suppliersResult.d6SupplierContract && contextVisible;
     cases.push({ key: "supplier-context-preview", ok: suppliersOk, triggerCount, contextVisible });
     if (!suppliersOk) findings.push("D6_SUPPLIER_CONTEXT_PREVIEW_FAILED");

@@ -125,7 +125,7 @@ export async function PurchaseInvoiceDirectory({
         }
         action={
           canCreate ? (
-            <Link href="/gastos-materiales/lector" className="primary-button">
+            <Link href="/gastos-materiales/lector" className={first(query.nuevo) === "1" ? "secondary-button" : "primary-button"}>
               <Plus size={18} />
               Subir factura
             </Link>
@@ -334,7 +334,7 @@ export async function PurchaseInvoiceDirectory({
           }
           action={
             canCreate ? (
-              <Link className="primary-button" href={`${base}?nuevo=1#factura`}>
+              <Link className="secondary-button" href={`${base}?nuevo=1#factura`}>
                 <Plus size={18} />
                 Registrar factura
               </Link>
@@ -535,7 +535,7 @@ export async function PurchaseInvoiceProfile({
             <h2 className="font-black">Documentos y adjuntos</h2>
             {invoice.documents.length ? (
               <div className="mt-3 grid gap-2">
-                {invoice.documents.map((document) => (
+                {invoice.documents.map((document) => document.storageKey ? (
                   <Link
                     key={document.id}
                     href={`/gastos-materiales/lector/${document.id}/archivo`}
@@ -543,6 +543,11 @@ export async function PurchaseInvoiceProfile({
                   >
                     {document.name}
                   </Link>
+                ) : (
+                  <div key={document.id} className="rounded-xl border border-slate-200 p-3">
+                    <p className="font-bold">{document.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">Ficha documental sin binario disponible.</p>
+                  </div>
                 ))}
               </div>
             ) : (
