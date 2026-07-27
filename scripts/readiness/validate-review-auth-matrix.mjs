@@ -998,7 +998,7 @@ async function auditD5Interactions(browser, storageState) {
 
     const invoiceResult = await navigateAndAudit(page, "/dinero/review-invoice-1");
     const invoiceText = await page.locator("main").innerText();
-    const invoiceOk = invoiceResult.d5InvoiceContract && invoiceText.includes("2000 €") && invoiceText.includes("4050 €");
+    const invoiceOk = invoiceResult.d5InvoiceContract && /2000\s*€/u.test(invoiceText) && /4050\s*€/u.test(invoiceText);
     cases.push({ key: "invoice-partial-balance", ok: invoiceOk });
     if (!invoiceOk) findings.push("D5_INVOICE_PARTIAL_BALANCE_FAILED");
 
