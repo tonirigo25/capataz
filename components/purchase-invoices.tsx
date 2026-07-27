@@ -183,7 +183,7 @@ export async function PurchaseInvoiceDirectory({
         />
         <Metric
           icon={WalletCards}
-          label="Pendiente"
+          label="Pendiente pagar"
           value={formatCurrency(pending)}
           tone={pending ? "warning" : "neutral"}
         />
