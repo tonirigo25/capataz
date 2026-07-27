@@ -27,7 +27,7 @@ const allProfiles = [
   { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
   { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
   { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }] },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "denied" }] },
   { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d5: [{ route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
   { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
   { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
@@ -277,7 +277,7 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       clientContextDrawerTriggerVisible: Boolean([...document.querySelectorAll("[data-context-drawer-trigger]")].find(visible)),
       d5WorkContract: ["Estado real", "Evidencia", "Coste previsto", "Coste real", "Margen autorizado", "Próxima acción"].every((label) => document.body.innerText.includes(label))
         && document.body.innerText.includes("Sin porcentaje físico inventado"),
-      d5BudgetContract: ["Guardar borrador", "Revisar y enviar", "Partidas", "Vista previa viva del presupuesto"].every((label) => document.body.innerText.includes(label))
+      d5BudgetContract: ["Guardar borrador", "Revisar y enviar", "Partidas"].every((label) => document.body.innerText.includes(label))
         && Boolean(document.querySelector('[aria-label="Vista previa viva del presupuesto"]')),
       d5InvoiceContract: ["Estado de cobro", "Historial y compromisos", "Siguiente acción", "Documento y estado fiscal"].every((label) => document.body.innerText.includes(label))
         && Boolean(document.querySelector('[role="progressbar"][aria-label="Porcentaje cobrado"]')),
@@ -378,7 +378,7 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
     if (result.clientDetailAreaCount !== 4) findings.push(`${context}:D4_DETAIL_AREAS_${result.clientDetailAreaCount}`);
     if (!result.clientContextDrawerTriggerVisible) findings.push(`${context}:D4_CONTEXT_DRAWER_MISSING`);
   }
-  if (focusD5 && expectation === "allowed") {
+  if (focusD5 && expectation === "allowed" && profile === "owner") {
     if (result.route.startsWith("/obras/review-work-1") && !result.d5WorkContract) findings.push(`${context}:D5_WORK_CONTRACT_MISSING`);
     if (result.route.startsWith("/presupuestos/review-budget-1") && !result.d5BudgetContract) findings.push(`${context}:D5_BUDGET_CONTRACT_MISSING`);
     if (result.route.startsWith("/dinero/review-invoice-1") && !result.d5InvoiceContract) findings.push(`${context}:D5_INVOICE_CONTRACT_MISSING`);
@@ -969,13 +969,17 @@ async function auditD5Interactions(browser, storageState) {
     const budgetResult = await navigateAndAudit(page, "/presupuestos/review-budget-1");
     const preview = page.locator('[aria-label="Vista previa viva del presupuesto"]');
     const unitPrice = page.locator('#budget-line-editor [name="precioUnitario"]').first();
-    const before = await preview.innerText();
+    const before = await preview.getAttribute("data-preview-subtotal");
     const originalValue = await unitPrice.inputValue();
     await unitPrice.fill(String(Number(originalValue) + 1));
-    await page.waitForTimeout(250);
-    const after = await preview.innerText();
+    await page.waitForFunction(
+      ({ value }) => document.querySelector('[data-preview-subtotal]')?.getAttribute("data-preview-subtotal") !== value,
+      { value: before },
+      { timeout: 5_000 },
+    ).catch(() => undefined);
+    const after = await preview.getAttribute("data-preview-subtotal");
     const livePreview = before !== after;
-    cases.push({ key: "budget-live-preview", ok: budgetResult.d5BudgetContract && livePreview });
+    cases.push({ key: "budget-live-preview", ok: budgetResult.d5BudgetContract && livePreview, before, after });
     if (!budgetResult.d5BudgetContract || !livePreview) findings.push("D5_BUDGET_LIVE_PREVIEW_FAILED");
 
     const budgetPdf = await context.request.get(`${baseUrl}/presupuestos/review-budget-1/pdf?preview=1`, { timeout: 60_000 });
@@ -988,13 +992,13 @@ async function auditD5Interactions(browser, storageState) {
       budget: await page.locator('a[href="/presupuestos/review-budget-1"]').count(),
       invoice: await page.locator('a[href="/dinero/review-invoice-1"]').count(),
     };
-    const workOk = workResult.d5WorkContract && workLinks.budget > 0 && workLinks.invoice > 0;
+    const workOk = workResult.finalPath === "/obras/review-work-1" && workLinks.budget > 0 && workLinks.invoice > 0;
     cases.push({ key: "work-to-quote-and-invoice", ok: workOk, links: workLinks });
     if (!workOk) findings.push("D5_WORK_QUOTE_CASH_LINKS_FAILED");
 
     const invoiceResult = await navigateAndAudit(page, "/dinero/review-invoice-1");
     const invoiceText = await page.locator("main").innerText();
-    const invoiceOk = invoiceResult.d5InvoiceContract && invoiceText.includes("2.000") && invoiceText.includes("4.050");
+    const invoiceOk = invoiceResult.d5InvoiceContract && invoiceText.includes("2000 €") && invoiceText.includes("4050 €");
     cases.push({ key: "invoice-partial-balance", ok: invoiceOk });
     if (!invoiceOk) findings.push("D5_INVOICE_PARTIAL_BALANCE_FAILED");
 

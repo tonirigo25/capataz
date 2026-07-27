@@ -163,6 +163,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               cliente={invoice.client.nombre}
               pendiente={invoice.pendiente}
               total={invoice.total}
+              triggerClassName="secondary-button"
             />
           </section>
           <form action={markInvoicePaid} className="card mt-4 grid gap-3 p-4">

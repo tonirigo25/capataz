@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/format";
 
 type PreviewLine = {
@@ -51,19 +51,23 @@ export function BudgetLivePreview({
   initialTax: number;
   initialDiscount: number;
 }) {
-  const fallback = useMemo(() => ({ lines: initialLines, subtotal: initialSubtotal }), [initialLines, initialSubtotal]);
+  const fallbackRef = useRef<PreviewSnapshot>({ lines: initialLines, subtotal: initialSubtotal });
+  const fallback = fallbackRef.current;
   const [snapshot, setSnapshot] = useState<PreviewSnapshot>(fallback);
 
   useEffect(() => {
     const editor = document.getElementById("budget-line-editor");
     if (!editor) return;
-    const refresh = () => setSnapshot(readEditorSnapshot(editor, fallback));
+    const refresh = (event?: Event) => {
+      if (event?.target instanceof Element && !event.target.closest("#budget-line-editor")) return;
+      setSnapshot(readEditorSnapshot(editor, fallback));
+    };
     refresh();
-    editor.addEventListener("input", refresh);
-    editor.addEventListener("change", refresh);
+    document.addEventListener("input", refresh, true);
+    document.addEventListener("change", refresh, true);
     return () => {
-      editor.removeEventListener("input", refresh);
-      editor.removeEventListener("change", refresh);
+      document.removeEventListener("input", refresh, true);
+      document.removeEventListener("change", refresh, true);
     };
   }, [fallback]);
 
@@ -72,7 +76,7 @@ export function BudgetLivePreview({
   const total = Math.max(0, snapshot.subtotal + tax - initialDiscount);
 
   return (
-    <aside className="budget-live-preview" aria-label="Vista previa viva del presupuesto">
+    <aside className="budget-live-preview" aria-label="Vista previa viva del presupuesto" data-preview-subtotal={snapshot.subtotal}>
       <div className="budget-live-preview__paper">
         <header className="flex items-start justify-between gap-4 border-b-2 border-content pb-5">
           <div>

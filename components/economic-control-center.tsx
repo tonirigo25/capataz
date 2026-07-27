@@ -68,7 +68,7 @@ function EconomicFilters({ data }: { data: EconomicControlData }) {
         <Field label="Estado">
           <select className="field" name="estado" defaultValue={data.filters.status ?? "todos"}><option value="todos">Todos</option><option value="pendiente">Con saldo</option><option value="vencido">Vencido</option><option value="parcial">Pago parcial</option><option value="liquidado">Liquidado</option></select>
         </Field>
-        <button className="primary-button self-end" type="submit">Aplicar</button>
+        <button className="secondary-button self-end" type="submit">Aplicar</button>
       </form>
       <p className="type-meta mt-3">Previsión calculada con los vencimientos registrados.</p>
     </Surface>

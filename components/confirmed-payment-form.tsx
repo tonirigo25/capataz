@@ -11,13 +11,15 @@ export function ConfirmedPaymentForm({
   numero,
   cliente,
   pendiente,
-  total
+  total,
+  triggerClassName = "primary-button"
 }: {
   facturaId: string;
   numero: string;
   cliente: string;
   pendiente: number;
   total: number;
+  triggerClassName?: string;
 }) {
   const [amount, setAmount] = useState(Math.min(200, pendiente).toString());
   const [method, setMethod] = useState("transferencia");
@@ -85,7 +87,7 @@ export function ConfirmedPaymentForm({
         <p><strong className="text-obra-ink">Tras confirmar:</strong> {formatCurrency(nextPending)} · estado {nextStatus}</p>
       </div>
 
-      <button type="button" className="primary-button mt-4 w-full" onClick={() => setConfirmOpen(true)}>
+      <button type="button" className={`${triggerClassName} mt-4 w-full`} onClick={() => setConfirmOpen(true)}>
         <ShieldCheck size={18} />
         Revisar y confirmar pago
       </button>

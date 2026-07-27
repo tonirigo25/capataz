@@ -125,7 +125,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
                 <input type="hidden" name="lineIndex" value={index} />
                 <BudgetLineFields line={line} />
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="submit" className="primary-button"><Pencil size={18} /> Guardar partida</button>
+                  <button type="submit" className="secondary-button"><Pencil size={18} /> Guardar partida</button>
                   <button formAction={deleteBudgetLine} className="secondary-button" type="submit">
                     <Trash2 size={18} />
                     Eliminar
@@ -141,7 +141,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
                 Añadir partida
               </div>
               <BudgetLineFields line={{ descripcion: "", cantidad: 1, unidad: "ud", precioUnitario: 0, total: 0, categoria: "General" }} />
-              <button type="submit" className="primary-button w-full"><Plus size={18} /> Añadir partida</button>
+              <button type="submit" className="secondary-button w-full"><Plus size={18} /> Añadir partida</button>
             </form>
           </div>
           <BudgetLivePreview

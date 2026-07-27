@@ -7,6 +7,8 @@ const budget = read("app/(app)/presupuestos/[id]/page.tsx");
 const preview = read("components/budget-live-preview.tsx");
 const invoice = read("app/(app)/dinero/[id]/page.tsx");
 const treasury = read("components/economic-control-center.tsx");
+const treasuryRegistration = read("components/treasury-registration.tsx");
+const paymentForm = read("components/confirmed-payment-form.tsx");
 const provisioner = read("scripts/readiness/provision-continuous-review.ts");
 const results = [];
 
@@ -34,6 +36,10 @@ test("Presupuesto ofrece Guardar borrador y Revisar y enviar con confirmación",
   assert.match(budget, /Guardar borrador/);
   assert.match(budget, /Revisar y enviar/);
   assert.match(budget, /ConfirmSubmitButton/);
+});
+test("Presupuesto reserva la jerarquía primaria para revisar y enviar", () => {
+  assert.equal((budget.match(/className="primary-button"/g) ?? []).length, 1);
+  assert.match(budget, /className="secondary-button"><Pencil size=\{18\} \/> Guardar partida/);
 });
 test("Editor muestra partidas semánticas y nunca el JSON interno", () => {
   assert.match(budget, /BudgetLineFields/);
@@ -67,6 +73,10 @@ test("Factura separa cobro, PDF y estado fiscal", () => {
 test("Factura conserva confirmación humana y permisos de cobro", () => {
   for (const term of ["ConfirmedPaymentForm", "confirmadoPorUsuario", "treasury.collections.register", "canCollect"]) assert.match(invoice, new RegExp(term));
 });
+test("Factura mantiene un único disparador primario visible", () => {
+  assert.match(invoice, /triggerClassName="secondary-button"/);
+  assert.match(paymentForm, /triggerClassName = "primary-button"/);
+});
 test("Tesorería muestra las cuatro cifras del contrato D5", () => {
   for (const term of ["Caja registrada", "Por cobrar", "Por pagar", "Flujo previsto"]) assert.match(treasury, new RegExp(term));
 });
@@ -75,6 +85,10 @@ test("Tesorería conserva calendario, movimientos y trazabilidad", () => {
 });
 test("Tesorería declara explícitamente que no inventa saldos ni previsiones", () => {
   for (const term of ["No se inventa posición bancaria", "Sólo vencimientos documentados", "no se inventan saldos bancarios"]) assert.match(treasury, new RegExp(term, "i"));
+});
+test("Tesorería reserva el primario para registrar movimiento desde cabecera", () => {
+  assert.match(treasury, /href="#treasury-registration" className="primary-button"/);
+  assert.doesNotMatch(treasuryRegistration, /className="primary-button"/);
 });
 test("Review contiene fixture parcial, recordatorio y compromiso sin provider real", () => {
   for (const id of ["review-payment-1", "review-invoice-reminder-1", "review-invoice-promise-1"]) assert.match(provisioner, new RegExp(id));
