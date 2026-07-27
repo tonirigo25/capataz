@@ -374,3 +374,41 @@ Estado: `PASS`.
 - Safari, Chrome Android, NVDA, VoiceOver, zoom real 200–400 % y validación con datos/dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
 - Staging y producción no se modificaron. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D7_REVIEW_EVIDENCE.json`.
+
+## D8 — Orqena, equipo, onboarding y configuración
+
+Estado: `PASS`.
+
+### Implementado
+
+- Orqena reúne historial, conversación y propuesta estructurada en tres paneles desktop y una secuencia móvil; los campos y efectos se revisan antes de guardar.
+- `Guardar y aplicar`, `Revisar campos` y `Descartar` conservan la confirmación humana. La auditoría preparó, revisó y descartó una propuesta sintética sin aplicar su efecto.
+- Voz, transcripción, historial y memoria siguen disponibles sin mostrar prompts, diagnósticos internos ni datos fuera de la empresa y persona activas.
+- Equipo separa lista de personas y portal resultante; resume perfil, modo, MFA, alcance, paquetes, campos económicos, autoridades y equipos.
+- Los cambios de acceso mantienen preview antes de aplicar, un solo editor focal y el ciclo completo de invitación, aceptación, aprobación, rechazo y revocación.
+- Onboarding muestra cinco hitos de primer valor, objetivo inferior a 15 minutos, continuidad manual, configuración posterior e importación segura con preview, apply y rollback.
+- Configuración usa sidebar por áreas, deep links y checklist; separa perfil personal, empresa, fiscal/documentos, equipo, integraciones, seguridad, plan, app, legal y zona sensible sin mega formulario inicial.
+- El encabezado móvil de Orqena es visible, Equipo conserva una sola acción primaria y las etiquetas pequeñas de historial cumplen contraste AA.
+- No se añade Prisma, migración, provider, regla de negocio, cambio fiscal, numeración, pago, autorización, scope, idempotencia, outbox ni efecto autónomo.
+
+### Evidencia local D8
+
+- `npm run test:design-d8`: PASS, 22/22.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76.
+- `npm run readiness:validate-all-static`: PASS completo hasta F11 e identidad; providers live 0 y 0 escrituras en staging/producción.
+- `git diff --check`: PASS.
+
+### Evidencia remota D8
+
+- SHA exacto: `6d23f28df2ff2926f7e6d5763279af85c928d2a7`.
+- Railway Review: deployment `af161e08-94fb-4f87-894d-14c2fea62286`, `SUCCESS`, imagen `sha256:87bde188e63c8fb2f109cd4d6d47c0f500534caceabef581443e8626af023372`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente; `/api/health/ready` y `/api/status`: 200; `robots.txt` mantiene `Disallow: /`.
+- Matriz focal final: 4 perfiles, 8 combinaciones perfil/viewport, 20 permisos, 4 firmas de portal, 8 superficies OWNER, 6/6 estados, 3 casos de capacidad y 36 casos Axe.
+- Interacciones D8: 11/11 — composición Orqena, revisión y descarte, portal de persona, invitaciones, cinco hitos, importación segura, separación de configuración, deep link fiscal y MFA.
+- Revisión visual directa de Orqena, Equipo, Onboarding y Configuración en 390 y 1440 px: PASS; 0 overflow, 0 observaciones y 0 bloqueadores.
+- El primer gate detectó 2 bloqueos y 2 observaciones; el segundo quedó en 1/0 por contraste; el replay final exacto cerró en 0/0 sin reducir cobertura.
+- Acceso OWNER de un solo uso rotado fuera de Git; no se mostró contraseña QA ni secreto TOTP.
+- Safari, Chrome Android, NVDA, VoiceOver, zoom real 200–400 % y validación con usuarios, datos y dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
+- Staging y producción no se modificaron. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D8_REVIEW_EVIDENCE.json`.

@@ -43,3 +43,7 @@ Una factura recibida vinculada a una obra conserva ambos contextos, pero la lín
 ## D-011 - Prioridad explicable
 
 Las alertas y recomendaciones no muestran una puntuación desnuda como jerarquía de decisión. El nivel, la regla y la evidencia son legibles; si existe un desglose numérico derivado, sólo aparece dentro de la explicación trazable y nunca sustituye a la confirmación humana.
+
+## D-012 - Propuesta de Orqena separada del efecto
+
+La conversación puede preparar una propuesta, pero el efecto vive en un panel estructurado y separado. Revisar solo enfoca sus campos; guardar exige confirmación explícita y descartar cancela el recibo pendiente. La auditoría remota nunca usa `Guardar y aplicar`.
