@@ -1,6 +1,7 @@
 param(
   [string]$Sha = "",
-  [switch]$PreserveOwnerAccess
+  [switch]$PreserveOwnerAccess,
+  [switch]$D10
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,6 +24,10 @@ $env:NEXT_PUBLIC_APP_ENV = "preview"
 $env:CREDENTIAL_SCOPE = "preview"
 $env:ORQENA_REVIEW_ROTATE_OWNER_ACCESS = if ($PreserveOwnerAccess) { "false" } else { "true" }
 $env:ORQENA_REVIEW_PROVISION_MFA = "true"
+if ($D10) {
+  $env:ORQENA_REVIEW_FOCUS_D10 = "true"
+  $env:ORQENA_REVIEW_VIEWPORT_KEYS = "390,430,768,1024,1280,1440,1920"
+}
 
 try {
   $qaPasswordLines = @(
@@ -95,6 +100,12 @@ try {
   if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
   }
+  if ($D10) {
+    & npm run test:design-d10-auth-engines
+    if ($LASTEXITCODE -ne 0) {
+      exit $LASTEXITCODE
+    }
+  }
 } finally {
   Remove-Item Env:ORQENA_REVIEW_QA_PASSWORD -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_SEED_APPROVED -ErrorAction SilentlyContinue
@@ -102,4 +113,6 @@ try {
   Remove-Item Env:ORQENA_REVIEW_PROVISION_MFA -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_PUBLIC_DATABASE_URL -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_OWNER_TOTP_SECRET -ErrorAction SilentlyContinue
+  Remove-Item Env:ORQENA_REVIEW_FOCUS_D10 -ErrorAction SilentlyContinue
+  Remove-Item Env:ORQENA_REVIEW_VIEWPORT_KEYS -ErrorAction SilentlyContinue
 }

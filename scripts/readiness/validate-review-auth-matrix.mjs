@@ -18,6 +18,7 @@ const focusD5 = process.env.ORQENA_REVIEW_FOCUS_D5 === "true";
 const focusD6 = process.env.ORQENA_REVIEW_FOCUS_D6 === "true";
 const focusD7 = process.env.ORQENA_REVIEW_FOCUS_D7 === "true";
 const focusD8 = process.env.ORQENA_REVIEW_FOCUS_D8 === "true";
+const focusD10 = process.env.ORQENA_REVIEW_FOCUS_D10 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -44,9 +45,11 @@ const profiles = selectConfigured(allProfiles, "ORQENA_REVIEW_PROFILE_KEYS", "ke
 const allViewports = [
   { key: "320", width: 320, height: 720 },
   { key: "390", width: 390, height: 844 },
+  { key: "430", width: 430, height: 932 },
   { key: "768", width: 768, height: 1024 },
-  { key: "1024", width: 1024, height: 900 },
-  { key: "1440", width: 1440, height: 1000 },
+  { key: "1024", width: 1024, height: 768 },
+  { key: "1280", width: 1280, height: 800 },
+  { key: "1440", width: 1440, height: 900 },
   { key: "1920", width: 1920, height: 1080 },
 ];
 const viewports = selectConfigured(allViewports, "ORQENA_REVIEW_VIEWPORT_KEYS", "key");
@@ -130,7 +133,16 @@ const allOwnerSurfaceFamilies = [
   { family: "onboarding-mobile", route: "/onboarding", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "settings-mobile", route: "/configuracion", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
-const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6 || focusD7 || focusD8);
+const availableOwnerSurfaceFamilies = focusD10
+  ? allOwnerSurfaceFamilies
+    .filter(({ focusedOnly }) => !focusedOnly)
+    .flatMap((surface) => viewports.map((viewport) => ({
+      ...surface,
+      baseFamily: surface.family,
+      family: `${surface.family}-${viewport.key}`,
+      viewport,
+    })))
+  : allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6 || focusD7 || focusD8);
 const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
 if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
@@ -141,7 +153,7 @@ const report = {
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
-  focus: focusD8 ? "D8" : focusD7 ? "D7" : focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
+  focus: focusD10 ? "D10" : focusD8 ? "D8" : focusD7 ? "D7" : focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
@@ -150,6 +162,8 @@ const report = {
   d6Interactions: null,
   d7Interactions: null,
   d8Interactions: null,
+  d10Journey: null,
+  d10Tenants: null,
   loginCases: [],
   stateCases: [],
   authenticatedCapacity: null,
@@ -432,36 +446,36 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
   if (expectation === "allowed" && ["/login", "/acceso-restringido"].includes(result.finalPath)) findings.push(`${context}:UNEXPECTED_DENIAL_${result.finalPath}`);
   if (expectation === "denied" && result.finalPath !== "/acceso-restringido") findings.push(`${context}:DENIAL_BYPASS_${result.finalPath}`);
   if (expectation === "restricted-inline" && (!result.restrictedText || result.finalPath !== result.route)) findings.push(`${context}:INLINE_RESTRICTION_MISSING_${result.finalPath}`);
-  if (focusD3 && result.route === "/hoy" && (result.priorityCount > 3 || !result.priorityContract)) {
+  if ((focusD3 || focusD10) && result.route === "/hoy" && (result.priorityCount > 3 || !result.priorityContract)) {
     findings.push(`${context}:D3_TODAY_CONTRACT_${result.priorityCount}`);
   }
-  if (focusD3 && result.route === "/dashboard" && expectation === "allowed" && (result.dashboardPrimaryKpiCount !== 4 || !result.dashboardContract)) {
+  if ((focusD3 || focusD10) && result.route === "/dashboard" && expectation === "allowed" && (result.dashboardPrimaryKpiCount !== 4 || !result.dashboardContract)) {
     findings.push(`${context}:D3_DASHBOARD_CONTRACT_${result.dashboardPrimaryKpiCount}`);
   }
-  if (focusD4 && result.route.startsWith("/clientes") && !result.route.includes("review-client-1") && expectation === "allowed") {
+  if ((focusD4 || focusD10) && result.route.startsWith("/clientes") && !result.route.includes("review-client-1") && expectation === "allowed") {
     if (result.clientSmartViewCount !== 3) findings.push(`${context}:D4_SMART_VIEWS_${result.clientSmartViewCount}`);
     if (viewport === "390" && !result.clientMobileCardsVisible) findings.push(`${context}:D4_MOBILE_CARDS_MISSING`);
     if (viewport === "1440" && !result.route.includes("__orqena_review_empty_state__") && !result.clientListSplitVisible) {
       findings.push(`${context}:D4_DESKTOP_SPLIT_MISSING`);
     }
   }
-  if (focusD4 && profile === "owner" && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
+  if ((focusD4 || focusD10) && profile === "owner" && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
     if (result.clientDetailAreaCount !== 4) findings.push(`${context}:D4_DETAIL_AREAS_${result.clientDetailAreaCount}`);
     if (!result.clientContextDrawerTriggerVisible) findings.push(`${context}:D4_CONTEXT_DRAWER_MISSING`);
   }
-  if (focusD5 && expectation === "allowed" && profile === "owner") {
+  if ((focusD5 || focusD10) && expectation === "allowed" && profile === "owner") {
     if (result.route.startsWith("/obras/review-work-1") && !result.d5WorkContract) findings.push(`${context}:D5_WORK_CONTRACT_MISSING`);
     if (result.route.startsWith("/presupuestos/review-budget-1") && !result.d5BudgetContract) findings.push(`${context}:D5_BUDGET_CONTRACT_MISSING`);
     if (result.route.startsWith("/dinero/review-invoice-1") && !result.d5InvoiceContract) findings.push(`${context}:D5_INVOICE_CONTRACT_MISSING`);
     if (result.route === "/tesoreria" && !result.d5TreasuryContract) findings.push(`${context}:D5_TREASURY_CONTRACT_MISSING`);
   }
-  if (focusD6 && expectation === "allowed") {
+  if ((focusD6 || focusD10) && expectation === "allowed") {
     if (result.route === "/documentos" && profile === "owner" && !result.d6DocumentsContract) findings.push(`${context}:D6_DOCUMENTS_CONTRACT_MISSING`);
     if (result.route === "/proveedores" && !result.d6SupplierContract) findings.push(`${context}:D6_SUPPLIER_CONTRACT_MISSING`);
     if (result.route === "/facturas-proveedor" && !result.d6ReceivedInvoicesContract) findings.push(`${context}:D6_RECEIVED_INVOICES_CONTRACT_MISSING`);
     if (result.route.startsWith("/facturas-proveedor/review-purchase-invoice-1") && !result.d6ReceivedInvoiceDetailContract) findings.push(`${context}:D6_RECEIVED_INVOICE_DETAIL_CONTRACT_MISSING`);
   }
-  if (focusD7 && expectation === "allowed") {
+  if ((focusD7 || focusD10) && expectation === "allowed") {
     if (result.route === "/agenda" && !result.d7AgendaContract) findings.push(`${context}:D7_AGENDA_CONTRACT_MISSING`);
     if (result.route === "/tareas" && !result.d7TasksContract) findings.push(`${context}:D7_TASKS_CONTRACT_MISSING`);
     if (result.route === "/seguimientos" && !result.d7FollowUpsContract) findings.push(`${context}:D7_FOLLOWUPS_CONTRACT_MISSING`);
@@ -470,7 +484,7 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
     if (result.route === "/recomendaciones" && !result.d7RecommendationsContract) findings.push(`${context}:D7_RECOMMENDATIONS_CONTRACT_MISSING`);
     if (result.route === "/automatizaciones" && !result.d7AutomationsContract) findings.push(`${context}:D7_AUTOMATIONS_CONTRACT_MISSING`);
   }
-  if (focusD8 && expectation === "allowed" && profile === "owner") {
+  if ((focusD8 || focusD10) && expectation === "allowed" && profile === "owner") {
     if (result.route === "/capataz" && !result.d8AssistantContract) findings.push(`${context}:D8_ASSISTANT_CONTRACT_MISSING`);
     if (result.route === "/equipo" && !result.d8TeamContract) findings.push(`${context}:D8_TEAM_CONTRACT_MISSING`);
     if (result.route === "/onboarding" && !result.d8OnboardingContract) findings.push(`${context}:D8_ONBOARDING_CONTRACT_MISSING`);
@@ -1378,6 +1392,128 @@ async function auditD8Interactions(browser, storageState) {
   };
 }
 
+async function auditD10Journey(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 900 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  const journey = [
+    { key: "cliente", route: "/clientes/review-client-1", expected: /Cliente Sintético Review/u },
+    { key: "visita", route: "/agenda", expected: /Visita sintética/u },
+    { key: "presupuesto", route: "/presupuestos/review-budget-1", expected: /P-REV-1|Presupuesto sintético/u },
+    { key: "trabajo", route: "/obras/review-work-1", expected: /Reforma sintética completa/u },
+    { key: "gasto-documento", route: "/gastos-materiales/lector/review-expense-document-1", expected: /Factura Ferretería Norte Review/u },
+    { key: "factura", route: "/dinero/review-invoice-1", expected: /F-REV-1|Factura sintética parcial/u },
+    { key: "pago-parcial", route: "/dinero/review-invoice-1", expected: /2000\s*€/u },
+    { key: "cobro", route: "/tesoreria", expected: /F-REV-1/u },
+    { key: "dashboard", route: "/dashboard", expected: /Evolución del periodo/u },
+  ];
+  try {
+    for (const step of journey) {
+      const result = await navigateAndAudit(page, step.route, { axe: true });
+      const text = await page.locator("main").innerText();
+      const ok = result.status === 200
+        && result.finalPath === step.route
+        && result.h1Count === 1
+        && result.overflowPx <= 1
+        && result.accessibility.criticalOrSerious === 0
+        && step.expected.test(text);
+      if (!ok) findings.push(`D10_JOURNEY_${step.key.toUpperCase().replaceAll("-", "_")}_FAILED`);
+      cases.push({
+        key: step.key,
+        route: step.route,
+        status: result.status,
+        finalPath: result.finalPath,
+        axeBlocking: result.accessibility.criticalOrSerious,
+        overflowPx: result.overflowPx,
+        ok,
+      });
+    }
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D10_JOURNEY_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D10_JOURNEY_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    sequence: journey.map(({ key }) => key),
+    syntheticOnly: true,
+    mutatesState: false,
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
+async function auditD10Tenants(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 900 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const findings = [];
+  let restoredPrimaryTenant = false;
+  const result = {
+    companiesVisible: 0,
+    primaryTenant: "Orqena Review · Construcción",
+    negativeTenant: "Orqena Review · Instalaciones",
+    negativeTenantClientStatus: 0,
+    primaryFixtureLeaked: false,
+    restoredPrimaryTenant: false,
+    findings,
+  };
+  try {
+    await page.goto(`${baseUrl}/seleccionar-empresa`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/seleccionar-empresa:d10-before-switch");
+    result.companiesVisible = await page.getByRole("button", { name: /Orqena Review ·/u }).count();
+    if (result.companiesVisible !== 2) findings.push(`D10_TENANTS_COMPANY_COUNT_${result.companiesVisible}`);
+
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/hoy", { timeout: 60_000 }),
+      page.getByRole("button", { name: /Orqena Review · Instalaciones/u }).click(),
+    ]);
+    await waitForSettled(page, "/hoy:d10-negative-tenant");
+    const activeNegative = await page.locator('[aria-label^="Cambiar empresa. Activa:"]').first().getAttribute("aria-label");
+    if (!activeNegative?.includes(result.negativeTenant)) findings.push("D10_TENANTS_NEGATIVE_NOT_ACTIVE");
+
+    const negativeClient = await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    result.negativeTenantClientStatus = negativeClient?.status() ?? 0;
+    if (result.negativeTenantClientStatus !== 404) findings.push(`D10_TENANTS_CROSS_TENANT_STATUS_${result.negativeTenantClientStatus}`);
+
+    await page.goto(`${baseUrl}/clientes`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/clientes:d10-negative-tenant");
+    result.primaryFixtureLeaked = (await page.locator("main").innerText()).includes("Cliente Sintético Review");
+    if (result.primaryFixtureLeaked) findings.push("D10_TENANTS_PRIMARY_FIXTURE_LEAKED");
+  } finally {
+    try {
+      await page.goto(`${baseUrl}/seleccionar-empresa`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await waitForSettled(page, "/seleccionar-empresa:d10-restore");
+      await Promise.all([
+        page.waitForURL((url) => url.pathname === "/hoy", { timeout: 60_000 }),
+        page.getByRole("button", { name: /Orqena Review · Construcción/u }).click(),
+      ]);
+      await waitForSettled(page, "/hoy:d10-restored");
+      const restoredClient = await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      restoredPrimaryTenant = restoredClient?.status() === 200;
+    } catch {
+      restoredPrimaryTenant = false;
+    }
+    result.restoredPrimaryTenant = restoredPrimaryTenant;
+    if (!restoredPrimaryTenant) findings.push("D10_TENANTS_PRIMARY_RESTORE_FAILED");
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D10_TENANTS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D10_TENANTS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return result;
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
@@ -1410,28 +1546,28 @@ try {
     profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.allowed, "allowed"));
     if (profile.restrictedInline) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.restrictedInline, "restricted-inline"));
     if (profile.denied) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.denied, "denied"));
-    if (focusD3 && profile.d3) {
+    if ((focusD3 || focusD10) && profile.d3) {
       profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d3.route, profile.d3.expectation));
     }
-    if (focusD4 && profile.d4) {
+    if ((focusD4 || focusD10) && profile.d4) {
       profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d4.route, profile.d4.expectation));
     }
-    if (focusD5 && profile.d5) {
+    if ((focusD5 || focusD10) && profile.d5) {
       for (const d5Case of profile.d5) {
         profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d5Case.route, d5Case.expectation));
       }
     }
-    if (focusD6 && profile.d6) {
+    if ((focusD6 || focusD10) && profile.d6) {
       for (const d6Case of profile.d6) {
         profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d6Case.route, d6Case.expectation));
       }
     }
-    if (focusD7 && profile.d7) {
+    if ((focusD7 || focusD10) && profile.d7) {
       for (const d7Case of profile.d7) {
         profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d7Case.route, d7Case.expectation));
       }
     }
-    if (focusD8 && profile.d8) {
+    if ((focusD8 || focusD10) && profile.d8) {
       for (const d8Case of profile.d8) {
         profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d8Case.route, d8Case.expectation));
       }
@@ -1461,39 +1597,51 @@ try {
     process.stdout.write(`AUDIT_SURFACE=${surface.family};ROUTE=${surface.route};FINAL=${result.finalPath}\n`);
   }
 
-  if (focusD4) {
+  if (focusD4 || focusD10) {
     report.d4Interactions = await auditD4Interactions(browser, ownerStorageState);
     report.blockingFindings.push(...report.d4Interactions.findings);
     process.stdout.write(
       `AUDIT_D4_INTERACTIONS=FILTERS_${report.d4Interactions.filterCases.length};DEEP_LINKS_${report.d4Interactions.deepLinkCases.length};OK=${report.d4Interactions.findings.length === 0}\n`,
     );
   }
-  if (focusD5) {
+  if (focusD5 || focusD10) {
     report.d5Interactions = await auditD5Interactions(browser, ownerStorageState);
     report.blockingFindings.push(...report.d5Interactions.findings);
     process.stdout.write(
       `AUDIT_D5_INTERACTIONS=CASES_${report.d5Interactions.cases.length};OK=${report.d5Interactions.findings.length === 0}\n`,
     );
   }
-  if (focusD6) {
+  if (focusD6 || focusD10) {
     report.d6Interactions = await auditD6Interactions(browser, ownerStorageState);
     report.blockingFindings.push(...report.d6Interactions.findings);
     process.stdout.write(
       `AUDIT_D6_INTERACTIONS=CASES_${report.d6Interactions.cases.length};OK=${report.d6Interactions.findings.length === 0}\n`,
     );
   }
-  if (focusD7) {
+  if (focusD7 || focusD10) {
     report.d7Interactions = await auditD7Interactions(browser, ownerStorageState);
     report.blockingFindings.push(...report.d7Interactions.findings);
     process.stdout.write(
       `AUDIT_D7_INTERACTIONS=CASES_${report.d7Interactions.cases.length};OK=${report.d7Interactions.findings.length === 0}\n`,
     );
   }
-  if (focusD8) {
+  if (focusD8 || focusD10) {
     report.d8Interactions = await auditD8Interactions(browser, ownerStorageState);
     report.blockingFindings.push(...report.d8Interactions.findings);
     process.stdout.write(
       `AUDIT_D8_INTERACTIONS=CASES_${report.d8Interactions.cases.length};OK=${report.d8Interactions.findings.length === 0}\n`,
+    );
+  }
+  if (focusD10) {
+    report.d10Journey = await auditD10Journey(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d10Journey.findings);
+    process.stdout.write(
+      `AUDIT_D10_JOURNEY=CASES_${report.d10Journey.cases.length};OK=${report.d10Journey.findings.length === 0}\n`,
+    );
+    report.d10Tenants = await auditD10Tenants(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d10Tenants.findings);
+    process.stdout.write(
+      `AUDIT_D10_TENANTS=COMPANIES_${report.d10Tenants.companiesVisible};OK=${report.d10Tenants.findings.length === 0}\n`,
     );
   }
 
@@ -1527,6 +1675,8 @@ report.summary = {
   d6InteractionCases: report.d6Interactions?.cases.length ?? 0,
   d7InteractionCases: report.d7Interactions?.cases.length ?? 0,
   d8InteractionCases: report.d8Interactions?.cases.length ?? 0,
+  d10JourneyCases: report.d10Journey?.cases.length ?? 0,
+  d10TenantCases: report.d10Tenants ? 1 : 0,
   stateCases: report.stateCases.length,
   stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
   loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),
