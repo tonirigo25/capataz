@@ -208,7 +208,7 @@ Estado: `PASS`.
 
 ## D4 - Clientes y Cliente 360
 
-Estado: `LOCAL_PASS / REMOTE_PENDING`.
+Estado: `PASS`.
 
 ### Implementado
 
@@ -237,8 +237,16 @@ Estado: `LOCAL_PASS / REMOTE_PENDING`.
 - `npm run build`: PASS, 76/76; `/clientes` 114 kB y `/clientes/[id]` 109 kB de First Load JS.
 - `npm run readiness:validate-all-static`: PASS completo hasta F11 e identidad; 0 escrituras en staging y producción.
 
-### Pendiente remoto D4
+### Evidencia remota D4
 
-- Desplegar el SHA exacto a Railway Review.
-- Verificar OWNER full, ADMINISTRATIVE/SALES scoped y perfiles denegados/read-only.
-- Auditar `/clientes` y `/clientes/review-client-1` en 390 y 1440 px, filtros, deep links, drawer, foco, overflow, Axe y estados.
+- SHA funcional exacto: `78fe7ffe8cad080db0339be498d1bd30ee6d7d94`.
+- Railway Review: deployment `e2bd4b0a-5198-438f-8f6e-fc3a48c31862`, `SUCCESS`, imagen `sha256:25536ca8cc1799f145f62462c73670a7b866ef035dececcc2d283e00882c64ac`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente.
+- `/api/health/live`, `/api/health/ready` y `/api/status`: 200 con `noindex`.
+- Matriz focal: OWNER, ADMINISTRATIVE, SALES, PROJECT_MANAGER y ADVISOR_AUDITOR; 10 combinaciones perfil/viewport, 12 permisos, 5 firmas de portal, 4 superficies OWNER, 6/6 estados, 3 casos de capacidad y 26 casos Axe.
+- Interacciones: 14/14 vistas/filtros, 4/4 deep links, ambos drawers abren, cierran con Escape y restauran foco; Contactos, Datos fiscales y Notas internas permanecen accesibles.
+- Revisión visual directa de listado y Cliente 360 en 390 y 1440 px: PASS; 0 overflow, 0 observaciones y 0 bloqueadores.
+- El primer gate sobre `a226f7c...` no fue aceptado: detectó dos jerarquías de acción primaria y un falso bloqueo del estado vacío. `78fe7ff...` corrige ambos y supera el replay completo.
+- Acceso OWNER de un solo uso rotado y entregado fuera de Git; MFA activa sin cambios y 0 llaves SSH restantes.
+- Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D4_REVIEW_EVIDENCE.json`.

@@ -113,6 +113,7 @@ const report = {
   viewports,
   profiles: [],
   ownerSurfaces: [],
+  d4Interactions: null,
   loginCases: [],
   stateCases: [],
   authenticatedCapacity: null,
@@ -828,6 +829,112 @@ async function auditRepresentativeStates(browser, storageState) {
   return cases;
 }
 
+async function auditD4Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    storageState,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const findings = [];
+  const filterRoutes = [
+    "/clientes?vista=accion",
+    "/clientes?vista=activos",
+    "/clientes?vista=todos",
+    "/clientes?vista=activos&estado=nuevo",
+    "/clientes?vista=activos&tipo=Empresa",
+    "/clientes?vista=activos&archivo=archivados",
+    "/clientes?vista=activos&ordenar=nombre_desc",
+    "/clientes?vista=activos&filtros=obras_activas",
+    "/clientes?vista=activos&filtros=facturas_pendientes",
+    "/clientes?vista=activos&filtros=facturas_vencidas",
+    "/clientes?vista=activos&filtros=presupuestos_pendientes",
+    "/clientes?vista=activos&filtros=datos_incompletos",
+    "/clientes?vista=activos&filtros=seguimiento_pendiente",
+    "/clientes?vista=activos&filtros=sin_actividad_reciente",
+  ];
+  const filterCases = [];
+  for (const route of filterRoutes) {
+    const result = await navigateAndAudit(page, route);
+    const ok = result.status === 200
+      && result.finalPath === "/clientes"
+      && result.clientSmartViewCount === 3;
+    if (!ok) findings.push(`D4_FILTER_ROUTE:${route}:FAILED`);
+    filterCases.push({ route, status: result.status, ok });
+  }
+
+  await page.goto(`${baseUrl}/clientes?vista=activos`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await waitForSettled(page, "/clientes:vista-activos:filter-drawer");
+  const filterTrigger = page.getByRole("button", { name: /Filtros/u }).first();
+  await filterTrigger.click();
+  const filterDialog = page.getByRole("dialog", { name: "Filtros de clientes" });
+  const filterDrawerOpened = await filterDialog.isVisible();
+  await page.keyboard.press("Escape");
+  const filterDrawerClosed = await filterDialog.isHidden();
+  const filterFocusRestored = await filterTrigger.evaluate((element) => element === document.activeElement);
+  if (!filterDrawerOpened || !filterDrawerClosed || !filterFocusRestored) {
+    findings.push("D4_FILTER_DRAWER_INTERACTION_FAILED");
+  }
+
+  const detailAreas = [
+    ["resumen", "Resumen"],
+    ["trabajos", "Trabajo/Obras"],
+    ["dinero", "Dinero"],
+    ["archivos", "Archivos"],
+  ];
+  const deepLinkCases = [];
+  for (const [view, label] of detailAreas) {
+    const route = `/clientes/review-client-1?vista=${view}`;
+    const result = await navigateAndAudit(page, route);
+    const active = page.getByRole("link", { name: label, exact: true });
+    const ok = result.status === 200
+      && result.finalPath === "/clientes/review-client-1"
+      && await active.getAttribute("aria-current") === "page";
+    if (!ok) findings.push(`D4_DEEP_LINK:${view}:FAILED`);
+    deepLinkCases.push({ view, route, status: result.status, active: ok });
+  }
+
+  await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await waitForSettled(page, "/clientes/review-client-1:context-drawer");
+  const contextTrigger = page.getByRole("button", { name: "Ver contexto", exact: true });
+  await contextTrigger.click();
+  const contextDialog = page.getByRole("dialog", { name: /Contexto de Cliente Sintético Review/u });
+  const contextDrawerOpened = await contextDialog.isVisible();
+  const preservedSections = await Promise.all(
+    ["Contactos", "Datos fiscales", "Notas internas"].map(async (label) =>
+      contextDialog.getByRole("heading", { name: label, exact: true }).count(),
+    ),
+  );
+  await page.keyboard.press("Escape");
+  const contextDrawerClosed = await contextDialog.isHidden();
+  const contextFocusRestored = await contextTrigger.evaluate((element) => element === document.activeElement);
+  if (
+    !contextDrawerOpened
+    || !contextDrawerClosed
+    || !contextFocusRestored
+    || preservedSections.some((count) => count !== 1)
+  ) {
+    findings.push("D4_CONTEXT_DRAWER_INTERACTION_FAILED");
+  }
+
+  if (diagnostics.events.length) findings.push(`D4_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D4_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  await context.close();
+  return {
+    filterCases,
+    deepLinkCases,
+    filterDrawerOpened,
+    filterDrawerClosed,
+    filterFocusRestored,
+    contextDrawerOpened,
+    contextDrawerClosed,
+    contextFocusRestored,
+    preservedContextSections: preservedSections.reduce((total, count) => total + count, 0),
+    findings,
+  };
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
@@ -890,6 +997,14 @@ try {
     process.stdout.write(`AUDIT_SURFACE=${surface.family};ROUTE=${surface.route};FINAL=${result.finalPath}\n`);
   }
 
+  if (focusD4) {
+    report.d4Interactions = await auditD4Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d4Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D4_INTERACTIONS=FILTERS_${report.d4Interactions.filterCases.length};DEEP_LINKS_${report.d4Interactions.deepLinkCases.length};OK=${report.d4Interactions.findings.length === 0}\n`,
+    );
+  }
+
   report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
   report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
   for (const stateCase of report.stateCases) process.stdout.write(`AUDIT_STATE=${stateCase.state};OK=${stateCase.ok}\n`);
@@ -913,6 +1028,9 @@ report.summary = {
   permissionCases: report.profiles.reduce((total, profile) => total + profile.permissionCases.length, 0),
   distinctPortalSignatures: new Set(report.profiles.map(({ portalSignature }) => portalSignature)).size,
   ownerSurfaceFamilies: report.ownerSurfaces.length,
+  d4InteractionCases: (report.d4Interactions?.filterCases.length ?? 0)
+    + (report.d4Interactions?.deepLinkCases.length ?? 0)
+    + (report.d4Interactions ? 2 : 0),
   stateCases: report.stateCases.length,
   stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
   loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),

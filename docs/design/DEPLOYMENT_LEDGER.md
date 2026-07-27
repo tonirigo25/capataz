@@ -10,5 +10,6 @@
 | D2 evidencia final | `30c936a29c4dcf7eaf34b38fd4eba86dc0c3125c` | `3336c5d8-36b0-4c1f-aa71-895e4c5b6a84` | `SUCCESS`; 43 migraciones, ninguna pendiente; salud, home, demo y login 200 con `noindex` | `https://orqena-review-web-review.up.railway.app` | Sin cambios | Sin cambios |
 | D3 Hoy y Dashboard final | `a5e07de6ab521709143e0c52cafdebb0f5de7e42` | `54180680-b64f-47fb-8895-b19b9f07dacb` | `SUCCESS`; 43 migraciones, ninguna pendiente; 5 perfiles, 10 combinaciones, Dashboard móvil y 0 bloqueadores | `https://orqena-review-web-review.up.railway.app` | Sin cambios | Sin cambios |
 | D3 evidencia final | `a33799de34974e87a211a9c1fe118a28fec6f6e4` | `16d7b9f4-4992-4175-889b-40c7c9217edf` | `SUCCESS`; 43 migraciones, ninguna pendiente; salud live, ready y status 200 con `noindex` | `https://orqena-review-web-review.up.railway.app` | Sin cambios | Sin cambios |
+| D4 Clientes y Cliente 360 | `78fe7ffe8cad080db0339be498d1bd30ee6d7d94` | `e2bd4b0a-5198-438f-8f6e-fc3a48c31862` | `SUCCESS`; 43 migraciones, ninguna pendiente; 5 perfiles, 20 interacciones D4 y 0 bloqueadores | `https://orqena-review-web-review.up.railway.app` | Sin cambios | Sin cambios |
 
 Cada fila posterior debe identificar el SHA exacto, los cambios visibles, las rutas revisables, el acceso sintético rotado y las incidencias conocidas.
