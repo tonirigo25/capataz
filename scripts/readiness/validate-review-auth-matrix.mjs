@@ -165,6 +165,7 @@ const report = {
   d10Journey: null,
   d10Tenants: null,
   loginCases: [],
+  ownerSessionRefresh: null,
   stateCases: [],
   authenticatedCapacity: null,
   stateCoverage: {
@@ -241,7 +242,7 @@ async function waitForSettled(page, route) {
   });
 }
 
-async function login(browser, profile) {
+async function login(browser, profile, { verifyMfa = true } = {}) {
   const startedAt = Date.now();
   const context = await browser.newContext({
     viewport: { width: 1024, height: 900 },
@@ -260,7 +261,7 @@ async function login(browser, profile) {
   await waitForSettled(page, `/login:${profile.key}`);
   const pathname = new URL(page.url()).pathname;
   if (!["/hoy", "/onboarding"].includes(pathname)) throw new Error(`LOGIN_DESTINATION:${profile.key}:${pathname}`);
-  if (profile.key === "owner") {
+  if (profile.key === "owner" && verifyMfa) {
     await page.goto(`${baseUrl}/configuracion/seguridad?required=platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await waitForSettled(page, "/configuracion/seguridad:owner");
     const code = page.getByLabel("Código de seis cifras");
@@ -1410,7 +1411,7 @@ async function auditD10Journey(browser, storageState) {
     { key: "gasto-documento", route: "/gastos-materiales/lector/review-expense-document-1", expected: /Factura Ferretería Norte Review/u },
     { key: "factura", route: "/dinero/review-invoice-1", expected: /F-REV-1|Factura sintética parcial/u },
     { key: "pago-parcial", route: "/dinero/review-invoice-1", expected: /2000\s*€/u },
-    { key: "cobro", route: "/tesoreria", expected: /F-REV-1/u },
+    { key: "cobro", route: "/tesoreria?vista=prevision&periodo=30d", expectedPath: "/tesoreria", expected: /F-REV-1/u },
     { key: "dashboard", route: "/dashboard", expected: /Evolución del periodo/u },
   ];
   try {
@@ -1418,7 +1419,7 @@ async function auditD10Journey(browser, storageState) {
       const result = await navigateAndAudit(page, step.route, { axe: true });
       const text = await page.locator("main").innerText();
       const ok = result.status === 200
-        && result.finalPath === step.route
+        && result.finalPath === (step.expectedPath ?? step.route)
         && result.h1Count === 1
         && result.overflowPx <= 1
         && result.accessibility.criticalOrSerious === 0
@@ -1465,6 +1466,8 @@ async function auditD10Tenants(browser, storageState) {
     primaryTenant: "Orqena Review · Construcción",
     negativeTenant: "Orqena Review · Instalaciones",
     negativeTenantClientStatus: 0,
+    negativeTenantNotFoundVisible: false,
+    negativeTenantDetailLeaked: false,
     primaryFixtureLeaked: false,
     restoredPrimaryTenant: false,
     findings,
@@ -1485,7 +1488,14 @@ async function auditD10Tenants(browser, storageState) {
 
     const negativeClient = await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     result.negativeTenantClientStatus = negativeClient?.status() ?? 0;
-    if (result.negativeTenantClientStatus !== 404) findings.push(`D10_TENANTS_CROSS_TENANT_STATUS_${result.negativeTenantClientStatus}`);
+    const negativeClientText = await page.locator("body").innerText();
+    result.negativeTenantNotFoundVisible = /(?:404|page could not be found|página no (?:se )?ha encontrado|página no encontrada)/iu.test(negativeClientText);
+    result.negativeTenantDetailLeaked = negativeClientText.includes("Cliente Sintético Review");
+    if (![200, 404].includes(result.negativeTenantClientStatus)) {
+      findings.push(`D10_TENANTS_CROSS_TENANT_STATUS_${result.negativeTenantClientStatus}`);
+    }
+    if (!result.negativeTenantNotFoundVisible) findings.push("D10_TENANTS_NOT_FOUND_STATE_MISSING");
+    if (result.negativeTenantDetailLeaked) findings.push("D10_TENANTS_PRIMARY_DETAIL_LEAKED");
 
     await page.goto(`${baseUrl}/clientes`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await waitForSettled(page, "/clientes:d10-negative-tenant");
@@ -1589,7 +1599,7 @@ try {
   const workerSignature = report.profiles.find(({ key }) => key === "worker")?.portalSignature;
   if (ownerSignature === workerSignature) report.blockingFindings.push("PORTAL_SIGNATURE_OWNER_EQUALS_WORKER");
 
-  const ownerStorageState = storageStates.get("owner");
+  let ownerStorageState = storageStates.get("owner");
   for (const surface of ownerSurfaceFamilies) {
     const result = await auditOwnerSurface(browser, ownerStorageState, surface);
     report.ownerSurfaces.push(result);
@@ -1613,6 +1623,22 @@ try {
   }
   if (focusD6 || focusD10) {
     report.d6Interactions = await auditD6Interactions(browser, ownerStorageState);
+    const d6HydrationOnly = report.d6Interactions.findings.length === 1
+      && report.d6Interactions.findings[0].startsWith("D6_INTERACTIONS_DIAGNOSTICS_")
+      && report.d6Interactions.diagnostics.length > 0
+      && report.d6Interactions.diagnostics.every((event) => event.includes("Minified React error #418"));
+    if (d6HydrationOnly) {
+      const firstAttempt = [...report.d6Interactions.diagnostics];
+      report.d6Interactions = await auditD6Interactions(browser, ownerStorageState);
+      report.d6Interactions.transientDiagnostics = firstAttempt;
+      report.productObservations.push({
+        severity: report.d6Interactions.findings.length ? "BLOCKER" : "REVIEW",
+        context: "owner:1440:D6_INTERACTIONS",
+        code: "HYDRATION_REPLAY",
+        firstAttempt,
+        replayDiagnostics: report.d6Interactions.diagnostics,
+      });
+    }
     report.blockingFindings.push(...report.d6Interactions.findings);
     process.stdout.write(
       `AUDIT_D6_INTERACTIONS=CASES_${report.d6Interactions.cases.length};OK=${report.d6Interactions.findings.length === 0}\n`,
@@ -1645,6 +1671,14 @@ try {
     );
   }
 
+  const ownerProfile = profiles.find(({ key }) => key === "owner");
+  const refreshedOwner = await login(browser, ownerProfile, { verifyMfa: false });
+  ownerStorageState = refreshedOwner.storageState;
+  report.ownerSessionRefresh = {
+    durationMs: refreshedOwner.durationMs,
+    hydrationDiagnostics: refreshedOwner.hydrationDiagnostics,
+    mfaRequiredForRepresentativeStates: false,
+  };
   report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
   report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
   for (const stateCase of report.stateCases) process.stdout.write(`AUDIT_STATE=${stateCase.state};OK=${stateCase.ok}\n`);

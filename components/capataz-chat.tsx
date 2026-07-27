@@ -757,7 +757,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
       ) : null}
 
       <div className="card relative flex-1 overflow-hidden">
-        <div ref={messagesRef} onScroll={trackMessageScroll} className="h-[42dvh] min-h-[280px] space-y-3 overflow-y-auto overscroll-contain p-4 md:h-auto md:max-h-[62dvh] md:min-h-[360px]" aria-live="polite">
+        <div ref={messagesRef} onScroll={trackMessageScroll} className="h-[42dvh] min-h-[280px] space-y-3 overflow-y-auto overscroll-contain p-4 md:h-auto md:max-h-[62dvh] md:min-h-[360px]" aria-live="polite" aria-label="Historial de conversación desplazable" tabIndex={0}>
           {chatState === "booting" ? (
             <div className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">Cargando conversación...</div>
           ) : null}
