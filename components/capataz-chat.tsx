@@ -1064,7 +1064,7 @@ function ChatHistoryPanel({
       <div className="space-y-4">
         {groups.map((group) => group.items.length ? (
           <div key={group.label}>
-            <p className="mb-1 px-1 text-[11px] font-black uppercase tracking-wide text-slate-400">{group.label}</p>
+            <p className="mb-1 px-1 text-[11px] font-black uppercase tracking-wide text-slate-500">{group.label}</p>
             <div className="space-y-1">
               {group.items.map((conversation) => (
                 <div key={conversation.id} className={`rounded-lg border p-2 ${conversation.id === activeId ? "border-obra-yellowDark bg-obra-yellow/15" : "border-slate-200 bg-white"}`}>
