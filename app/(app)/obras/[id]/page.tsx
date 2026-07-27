@@ -153,12 +153,12 @@ export default async function WorkDetailPage({
 
       <WorkLifecycleRail workId={work.id} status={work.estado} activeStep={work.photos.length ? 2 : work.agendaEvents.length ? 1 : 0} />
 
-      <section className="work-360-summary grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumen ejecutivo del trabajo">
-        <Kpi icon={Activity} label="Progreso" value={status.label} detail={nextAction.label} />
-        <Kpi icon={CalendarClock} label="Agenda" value={String(work.agendaEvents.length)} detail={work.agendaEvents[0] ? formatDate(work.agendaEvents[0].fechaInicio) : "Sin próximo evento"} />
-        <Kpi icon={Users} label="Equipo" value={work.responsable ?? "Sin asignar"} detail={work.jefeObra ?? "Responsable principal"} />
-        <Kpi icon={FileArchive} label="Documentos" value={String(documents.length)} detail="Relacionados con el trabajo" />
-        <Kpi icon={AlertTriangle} label="Riesgos" value={String(risks.length)} detail={nextAction.label} tone={risks.length ? "warning" : "success"} />
+      <section className="work-360-summary grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Estado real, coste y margen del trabajo">
+        <Kpi icon={Activity} label="Estado real" value={status.label} detail="Sin porcentaje físico inventado" />
+        <Kpi icon={Camera} label="Evidencia" value={String(work.photos.length)} detail={work.photos[0] ? `Última ${formatDate(work.photos[0].tomadaEn)}` : "Sin fotos registradas"} />
+        <Kpi icon={ClipboardList} label="Coste previsto" value={formatCurrency(financial.forecastCost)} detail="Dato registrado" />
+        <Kpi icon={WalletCards} label="Coste real" value={formatCurrency(financial.realCost)} detail={`${work.expenses.length} gastos vinculados`} tone={financial.deviation > 0 ? "warning" : "neutral"} />
+        <Kpi icon={BadgeEuro} label="Margen autorizado" value={`${financial.marginPercent.toFixed(1)} %`} detail={formatCurrency(financial.benefit)} tone={financial.benefit < 0 ? "danger" : "success"} />
       </section>
 
       <OperationalContextSummary context={operationalContext} entityType="obra" entityId={work.id} />

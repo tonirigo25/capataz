@@ -101,18 +101,38 @@ async function main() {
   });
   const work = await prisma.work.upsert({
     where: { id: "review-work-1" },
-    update: { companyId: primary.id, clienteId: client.id },
-    create: { id: "review-work-1", companyId: primary.id, clienteId: client.id, numeroInterno: "OB-REV-1", titulo: "Reforma sintética completa", direccion: "Calle Sintética 1", tipoTrabajo: "Reforma", presupuestoAprobado: 18_000 },
+    update: { companyId: primary.id, clienteId: client.id, estado: "en_curso", costePrevisto: 12_500, gastoReal: 850, margenEstimado: 5_500, responsable: "Responsable sintético" },
+    create: { id: "review-work-1", companyId: primary.id, clienteId: client.id, numeroInterno: "OB-REV-1", titulo: "Reforma sintética completa", direccion: "Calle Sintética 1", tipoTrabajo: "Reforma", estado: "en_curso", presupuestoAprobado: 18_000, costePrevisto: 12_500, gastoReal: 850, margenEstimado: 5_500, responsable: "Responsable sintético" },
   });
+  const reviewBudgetLines = JSON.stringify([
+    { descripcion: "Demolición y retirada", cantidad: 1, unidad: "servicio", precioUnitario: 2_200, total: 2_200, categoria: "Demolición" },
+    { descripcion: "Instalación principal", cantidad: 1, unidad: "servicio", precioUnitario: 4_800, total: 4_800, categoria: "Instalaciones" },
+    { descripcion: "Acabados", cantidad: 30, unidad: "m2", precioUnitario: 100, total: 3_000, categoria: "Acabados" },
+  ]);
   await prisma.budget.upsert({
     where: { id: "review-budget-1" },
-    update: { companyId: primary.id, clienteId: client.id, obraId: work.id },
-    create: { id: "review-budget-1", companyId: primary.id, clienteId: client.id, obraId: work.id, numero: "P-REV-1", titulo: "Presupuesto sintético", partidas: "Demolición, instalación y acabado", subtotal: 10_000, iva: 2_100, total: 12_100, margenEstimado: 2_400, estado: "enviado" },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, partidas: reviewBudgetLines, subtotal: 10_000, iva: 2_100, total: 12_100, margenEstimado: 2_400 },
+    create: { id: "review-budget-1", companyId: primary.id, clienteId: client.id, obraId: work.id, numero: "P-REV-1", titulo: "Presupuesto sintético", partidas: reviewBudgetLines, subtotal: 10_000, iva: 2_100, total: 12_100, margenEstimado: 2_400, estado: "enviado" },
   });
-  await prisma.invoice.upsert({
+  const invoice = await prisma.invoice.upsert({
     where: { id: "review-invoice-1" },
     update: { companyId: primary.id, clienteId: client.id, obraId: work.id },
     create: { id: "review-invoice-1", companyId: primary.id, clienteId: client.id, obraId: work.id, numero: "F-REV-1", concepto: "Factura sintética parcial", importeBase: 5_000, iva: 1_050, total: 6_050, pagado: 2_000, pendiente: 4_050, fechaEmision: new Date(), fechaVencimiento: new Date(Date.now() + 14 * 86_400_000), estado: "emitida" },
+  });
+  await prisma.payment.upsert({
+    where: { id: "review-payment-1" },
+    update: { companyId: primary.id, facturaId: invoice.id, clienteId: client.id, obraId: work.id },
+    create: { id: "review-payment-1", companyId: primary.id, facturaId: invoice.id, clienteId: client.id, obraId: work.id, importe: 2_000, metodo: "transferencia sintética", tipo: "pago_parcial", notas: "Dato sintético para validar saldo e historial en Review." },
+  });
+  await prisma.reminder.upsert({
+    where: { id: "review-invoice-reminder-1" },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id },
+    create: { id: "review-invoice-reminder-1", companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id, tipo: "recordatorio_factura", canal: "interno", mensaje: "Revisar el cobro sintético antes del vencimiento.", fechaProgramada: new Date(Date.now() + 7 * 86_400_000), estado: "programado", requiereConfirmacion: true },
+  });
+  await prisma.eventoAgenda.upsert({
+    where: { id: "review-invoice-promise-1" },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id },
+    create: { id: "review-invoice-promise-1", companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id, titulo: "Compromiso sintético de revisión", descripcion: "Compromiso de prueba, sin comunicación ni proveedor real.", tipo: "seguimiento_cobro", estado: "confirmado", fechaInicio: new Date(Date.now() + 8 * 86_400_000), requiereConfirmacion: false, confirmadoPorUsuario: true },
   });
   await prisma.expense.upsert({
     where: { id: "review-expense-1" },

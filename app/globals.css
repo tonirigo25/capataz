@@ -2010,10 +2010,28 @@ button:disabled,
 .record-peek__panel > p { margin-top: .5rem; color: var(--cap-text-muted); font-size: .78rem; line-height: 1.55; }
 .record-peek__meta { margin-top: 1rem; border-block: 1px solid var(--cap-border); padding-block: .8rem; color: var(--cap-text-muted); font-size: .72rem; }
 .record-peek__open { display: inline-flex; align-items: center; gap: .4rem; margin-top: 1rem; color: var(--cap-brand-strong); font-size: .72rem; font-weight: 800; }
+.budget-editor-layout { display: grid; gap: 1rem; }
+.budget-live-preview { min-width: 0; }
+.budget-live-preview__paper {
+  min-height: 34rem;
+  border: 1px solid var(--cap-border);
+  border-radius: var(--cap-radius-xl);
+  background: var(--cap-surface-raised);
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  box-shadow: var(--cap-shadow-soft);
+}
 @media (min-width: 900px) {
   .record-peek { display: block; }
 }
 @media (min-width: 1180px) {
+  .budget-editor-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(25rem, .95fr);
+    align-items: start;
+  }
+  .budget-live-preview {
+    position: sticky;
+    top: 5rem;
+  }
   .list-workspace__layout:has(.list-workspace__context),
   .record-workspace__layout:has(.record-workspace__context) {
     grid-template-columns: minmax(0, 1fr) var(--fos-layout-record-rail);

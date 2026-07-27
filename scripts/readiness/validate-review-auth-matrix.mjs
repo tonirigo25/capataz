@@ -14,6 +14,7 @@ const screenshotRoot = join(outputRoot, "screenshots");
 const reportPath = join(outputRoot, "authenticated-matrix.json");
 const focusD3 = process.env.ORQENA_REVIEW_FOCUS_D3 === "true";
 const focusD4 = process.env.ORQENA_REVIEW_FOCUS_D4 === "true";
+const focusD5 = process.env.ORQENA_REVIEW_FOCUS_D5 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -23,17 +24,17 @@ delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 mkdirSync(screenshotRoot, { recursive: true });
 
 const allProfiles = [
-  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
-  { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria" },
+  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
+  { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
   { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
-  { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }] },
+  { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d5: [{ route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
   { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
-  { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes" },
+  { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
   { key: "supervisor", profile: "TEAM_SUPERVISOR", allowed: "/obras", denied: "/clientes" },
   { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
   { key: "external", profile: "EXTERNAL_COLLABORATOR", allowed: "/obras", restrictedInline: "/capataz" },
-  { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true },
+  { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true, d5: [{ route: "/presupuestos/review-budget-1", expectation: "denied" }, { route: "/dinero/review-invoice-1", expectation: "denied" }] },
 ];
 const profiles = selectConfigured(allProfiles, "ORQENA_REVIEW_PROFILE_KEYS", "key");
 
@@ -97,8 +98,12 @@ const allOwnerSurfaceFamilies = [
   { family: "dashboard-mobile", route: "/dashboard", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "clients-mobile", route: "/clientes?vista=activos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "client-360-mobile", route: "/clientes/review-client-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "work-360-mobile", route: "/obras/review-work-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "budget-detail-mobile", route: "/presupuestos/review-budget-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "invoice-detail-mobile", route: "/dinero/review-invoice-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "treasury-mobile", route: "/tesoreria", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
-const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4);
+const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5);
 const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
 if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
@@ -109,11 +114,12 @@ const report = {
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
-  focus: focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
+  focus: focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
   d4Interactions: null,
+  d5Interactions: null,
   loginCases: [],
   stateCases: [],
   authenticatedCapacity: null,
@@ -269,6 +275,14 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       clientMobileCardsVisible: Boolean([...document.querySelectorAll("[data-client-mobile-cards]")].find(visible)),
       clientDetailAreaCount: Number(document.querySelector("[data-client-detail-areas]")?.getAttribute("data-client-detail-areas") ?? 0),
       clientContextDrawerTriggerVisible: Boolean([...document.querySelectorAll("[data-context-drawer-trigger]")].find(visible)),
+      d5WorkContract: ["Estado real", "Evidencia", "Coste previsto", "Coste real", "Margen autorizado", "Próxima acción"].every((label) => document.body.innerText.includes(label))
+        && document.body.innerText.includes("Sin porcentaje físico inventado"),
+      d5BudgetContract: ["Guardar borrador", "Revisar y enviar", "Partidas", "Vista previa viva del presupuesto"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector('[aria-label="Vista previa viva del presupuesto"]')),
+      d5InvoiceContract: ["Estado de cobro", "Historial y compromisos", "Siguiente acción", "Documento y estado fiscal"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector('[role="progressbar"][aria-label="Porcentaje cobrado"]')),
+      d5TreasuryContract: ["Caja registrada", "Por cobrar", "Por pagar", "Flujo previsto", "Previsión"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector('a[href="#treasury-registration"]')),
     };
   });
   let accessibility = { criticalOrSerious: 0, violations: [] };
@@ -363,6 +377,12 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
   if (focusD4 && profile === "owner" && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
     if (result.clientDetailAreaCount !== 4) findings.push(`${context}:D4_DETAIL_AREAS_${result.clientDetailAreaCount}`);
     if (!result.clientContextDrawerTriggerVisible) findings.push(`${context}:D4_CONTEXT_DRAWER_MISSING`);
+  }
+  if (focusD5 && expectation === "allowed") {
+    if (result.route.startsWith("/obras/review-work-1") && !result.d5WorkContract) findings.push(`${context}:D5_WORK_CONTRACT_MISSING`);
+    if (result.route.startsWith("/presupuestos/review-budget-1") && !result.d5BudgetContract) findings.push(`${context}:D5_BUDGET_CONTRACT_MISSING`);
+    if (result.route.startsWith("/dinero/review-invoice-1") && !result.d5InvoiceContract) findings.push(`${context}:D5_INVOICE_CONTRACT_MISSING`);
+    if (result.route === "/tesoreria" && !result.d5TreasuryContract) findings.push(`${context}:D5_TREASURY_CONTRACT_MISSING`);
   }
   return findings;
 }
@@ -935,6 +955,75 @@ async function auditD4Interactions(browser, storageState) {
   };
 }
 
+async function auditD5Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const budgetResult = await navigateAndAudit(page, "/presupuestos/review-budget-1");
+    const preview = page.locator('[aria-label="Vista previa viva del presupuesto"]');
+    const unitPrice = page.locator('#budget-line-editor [name="precioUnitario"]').first();
+    const before = await preview.innerText();
+    const originalValue = await unitPrice.inputValue();
+    await unitPrice.fill(String(Number(originalValue) + 1));
+    await page.waitForTimeout(250);
+    const after = await preview.innerText();
+    const livePreview = before !== after;
+    cases.push({ key: "budget-live-preview", ok: budgetResult.d5BudgetContract && livePreview });
+    if (!budgetResult.d5BudgetContract || !livePreview) findings.push("D5_BUDGET_LIVE_PREVIEW_FAILED");
+
+    const budgetPdf = await context.request.get(`${baseUrl}/presupuestos/review-budget-1/pdf?preview=1`, { timeout: 60_000 });
+    const budgetPdfOk = budgetPdf.status() === 200 && /application\/pdf/iu.test(budgetPdf.headers()["content-type"] ?? "");
+    cases.push({ key: "budget-pdf", ok: budgetPdfOk, status: budgetPdf.status(), contentType: budgetPdf.headers()["content-type"] ?? null });
+    if (!budgetPdfOk) findings.push(`D5_BUDGET_PDF_${budgetPdf.status()}`);
+
+    const workResult = await navigateAndAudit(page, "/obras/review-work-1?vista=economia");
+    const workLinks = {
+      budget: await page.locator('a[href="/presupuestos/review-budget-1"]').count(),
+      invoice: await page.locator('a[href="/dinero/review-invoice-1"]').count(),
+    };
+    const workOk = workResult.d5WorkContract && workLinks.budget > 0 && workLinks.invoice > 0;
+    cases.push({ key: "work-to-quote-and-invoice", ok: workOk, links: workLinks });
+    if (!workOk) findings.push("D5_WORK_QUOTE_CASH_LINKS_FAILED");
+
+    const invoiceResult = await navigateAndAudit(page, "/dinero/review-invoice-1");
+    const invoiceText = await page.locator("main").innerText();
+    const invoiceOk = invoiceResult.d5InvoiceContract && invoiceText.includes("2.000") && invoiceText.includes("4.050");
+    cases.push({ key: "invoice-partial-balance", ok: invoiceOk });
+    if (!invoiceOk) findings.push("D5_INVOICE_PARTIAL_BALANCE_FAILED");
+
+    const invoicePdf = await context.request.get(`${baseUrl}/dinero/review-invoice-1/pdf?preview=1`, { timeout: 60_000 });
+    const invoicePdfOk = invoicePdf.status() === 200 && /application\/pdf/iu.test(invoicePdf.headers()["content-type"] ?? "");
+    cases.push({ key: "invoice-pdf", ok: invoicePdfOk, status: invoicePdf.status(), contentType: invoicePdf.headers()["content-type"] ?? null });
+    if (!invoicePdfOk) findings.push(`D5_INVOICE_PDF_${invoicePdf.status()}`);
+
+    const treasuryResult = await navigateAndAudit(page, "/tesoreria?vista=prevision&periodo=30d");
+    const treasuryText = await page.locator("main").innerText();
+    const treasuryOk = treasuryResult.finalPath === "/tesoreria"
+      && treasuryText.includes("Calendario de caja")
+      && treasuryText.includes("F-REV-1")
+      && treasuryText.includes("Sólo vencimientos documentados");
+    cases.push({ key: "treasury-documented-forecast", ok: treasuryOk });
+    if (!treasuryOk) findings.push("D5_TREASURY_FORECAST_FAILED");
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D5_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D5_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
@@ -972,6 +1061,11 @@ try {
     if (focusD4 && profile.d4) {
       profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d4.route, profile.d4.expectation));
     }
+    if (focusD5 && profile.d5) {
+      for (const d5Case of profile.d5) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d5Case.route, d5Case.expectation));
+      }
+    }
     for (const permissionCase of profileResult.permissionCases) report.blockingFindings.push(...permissionCase.findings);
     const desktopHome = profileResult.homes.find(({ viewport }) => viewport === "1440") ?? profileResult.homes.at(-1);
     profileResult.portalSignature = desktopHome.navigation.map(({ href }) => href).sort().join("|");
@@ -1004,6 +1098,13 @@ try {
       `AUDIT_D4_INTERACTIONS=FILTERS_${report.d4Interactions.filterCases.length};DEEP_LINKS_${report.d4Interactions.deepLinkCases.length};OK=${report.d4Interactions.findings.length === 0}\n`,
     );
   }
+  if (focusD5) {
+    report.d5Interactions = await auditD5Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d5Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D5_INTERACTIONS=CASES_${report.d5Interactions.cases.length};OK=${report.d5Interactions.findings.length === 0}\n`,
+    );
+  }
 
   report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
   report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
@@ -1031,6 +1132,7 @@ report.summary = {
   d4InteractionCases: (report.d4Interactions?.filterCases.length ?? 0)
     + (report.d4Interactions?.deepLinkCases.length ?? 0)
     + (report.d4Interactions ? 2 : 0),
+  d5InteractionCases: report.d5Interactions?.cases.length ?? 0,
   stateCases: report.stateCases.length,
   stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
   loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),
