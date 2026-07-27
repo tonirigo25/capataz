@@ -47,3 +47,7 @@ Las alertas y recomendaciones no muestran una puntuación desnuda como jerarquí
 ## D-012 - Propuesta de Orqena separada del efecto
 
 La conversación puede preparar una propuesta, pero el efecto vive en un panel estructurado y separado. Revisar solo enfoca sus campos; guardar exige confirmación explícita y descartar cancela el recibo pendiente. La auditoría remota nunca usa `Guardar y aplicar`.
+
+## D-013 - Matriz de rutas compilada contra el repositorio
+
+La matriz CSV conserva el contenido entregado y añade toda página especializada presente en `app`. Sus dimensiones de estado y permiso viven en `lib/route-experience-manifest.ts` para que sean tipadas y verificables; el gate D9 recompila ambos inventarios y exige correspondencia uno a uno. Una ruta nueva sin fila o sin regla única rompe el gate.

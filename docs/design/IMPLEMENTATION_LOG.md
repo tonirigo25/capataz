@@ -412,3 +412,39 @@ Estado: `PASS`.
 - Safari, Chrome Android, NVDA, VoiceOver, zoom real 200–400 % y validación con usuarios, datos y dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
 - Staging y producción no se modificaron. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D8_REVIEW_EVIDENCE.json`.
+
+## D9 — Matriz completa de rutas y estados
+
+Estado: `PASS`.
+
+### Implementado
+
+- La matriz entregada se conserva y amplía de 43 a 93 filas, una por cada `page.tsx` del repositorio. Se incorporan las 50 rutas especializadas que faltaban sin eliminar ninguna fila original.
+- `lib/route-experience-manifest.ts` acredita para cada ruta un patrón único, acción primaria, adaptación móvil, loading, empty, error, restricted, read-only, demo, archive, confirmación destructiva y permiso/scope.
+- El manifiesto distingue rutas públicas, anónimas, de membership, de capability/scope y de plataforma; no presenta una ruta pública como protegida ni una ruta de plataforma como acceso ordinario.
+- `/demo` y `/demo-v2` quedan identificadas como demostraciones públicas sintéticas. Las superficies autenticadas sólo usan fixtures sintéticos seguros en Review.
+- Cliente, trabajo, tarea, seguimiento y conversaciones de Orqena acreditan archivo/borrado y confirmación. Trabajo, tarea y seguimiento reciben el mismo diálogo accesible ya usado por Cliente.
+- `scripts/design/validate-d9-route-matrix.ts` recompila el inventario directamente desde `app/**/page.tsx`, rechaza duplicados, celdas vacías, huérfanas, reglas ambiguas y dimensiones ausentes, y escribe evidencia estructurada ignorada por Git.
+- No se modifica Prisma, migraciones, reglas empresariales, fiscalidad, importes, numeración, autorización, scopes, tenant isolation, providers, pagos, IA, outbox ni idempotencia.
+
+### Evidencia local D9
+
+- `npm run test:design-d9`: PASS, 93/93 rutas, 0 huérfanas y 11/11 controles por ruta.
+- `npx tsx scripts/validate-route-experience-manifest.ts`: PASS, 93/93 y una regla exacta por ruta.
+- Regresión D5–D8: 19/19, 20/20, 21/21 y 22/22.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76.
+- `npm run readiness:validate-all-static`: PASS completo hasta F11, identidad y addenda; providers live 0 y 0 escrituras en staging/producción.
+- `git diff --check`: PASS.
+
+### Evidencia remota D9
+
+- SHA exacto: `d5a474fdd4402ef6212917314dfa97f56dcc034b`.
+- Railway Review: deployment `0fda8286-7924-4839-993a-1304aee64696`, `SUCCESS`, imagen `sha256:0be7ee73305124af22333868dfa65df34b3a487797a6bed1e4ab04807eb86d2c`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente; `/api/health/ready` y `/api/status`: 200; `robots.txt` mantiene `Disallow: /`; 0 HTTP 5xx observados.
+- Matriz focal: 4 perfiles, 8 combinaciones perfil/viewport, 19 permisos, 4 firmas de portal, 8 superficies, 7/7 interacciones, 6/6 estados, 3 casos de capacidad y 35 casos Axe.
+- La auditoría recorrió trabajo, tareas, seguimientos y Orqena en escritorio/móvil, y terminó con 0 observaciones y 0 bloqueadores.
+- Acceso OWNER de un solo uso rotado fuera de Git; no se persistió el token, la contraseña QA ni el secreto TOTP.
+- Safari, Chrome Android, NVDA, VoiceOver, zoom humano y validación con usuarios/datos/dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
+- Staging y producción no se modificaron. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D9_REVIEW_EVIDENCE.json`.
