@@ -291,3 +291,47 @@ Estado: `PASS`.
 - Acceso OWNER de un solo uso rotado y entregado fuera de Git; no se mostró contraseña ni secreto MFA.
 - Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D5_REVIEW_EVIDENCE.json`.
+
+## D6 — Documentos, proveedores y facturas recibidas
+
+Estado: `PASS`.
+
+### Implementado
+
+- Documentos integra bandeja, original y propuesta de extracción en una composición de tres paneles; en móvil conserva la secuencia Entrada → original → datos extraídos.
+- Los estados `UPLOADED`, `PROCESSING`, `REVIEW_REQUIRED`, `POSSIBLE_DUPLICATE`, `READY`, `REGISTERED` y `FAILED` permanecen explícitos y la extracción nunca crea gasto sin confirmación humana.
+- La carga conserva tamaño, extensión, MIME, firma binaria y SHA-256; el almacenamiento local pasa por cuarentena privada y promoción atómica dentro del tenant.
+- Proveedores y subcontratas reúnen especialidad/oficio, documentación y RC, trabajos, saldo, siguiente acción y preview contextual sin abrir la ficha.
+- Facturas recibidas separa revisión, vencimientos, base, IVA, retención, total, pagos parciales, gasto enlazado e historial.
+- Tesorería enlaza la factura recibida que origina la salida y mantiene un único gasto económico; no se crea ni muestra una segunda salida.
+- Las fichas sintéticas sin binario real dejan de emitir enlaces rotos y se identifican como metadatos de Review.
+- Las jerarquías focales conservan una sola acción primaria visible; las demás acciones permanecen disponibles como secundarias.
+- No se añade Prisma, migración, provider, regla fiscal, autorización, numeración, pago real ni cambio de aislamiento.
+
+### Evidencia local D6
+
+- `npm run test:design-d6`: PASS, 20/20.
+- `npm run test:expense-document-reader`: PASS, 26/26.
+- `npm run test:procurement`: PASS, 32/32.
+- `npm run test:documents`: PASS.
+- `npm run test:multitenancy-documents`: PASS aislado; listado, ID, mutación, relación y agregado por empresa, con concurrencia de numeración 20.
+- `npm run test:economic-control-treasury-experience`: PASS, 27/27.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76.
+- `npm run readiness:validate-all-static`: PASS completo hasta F11 e identidad; providers live 0 y 0 escrituras en staging/producción.
+- `git diff --check`: PASS.
+
+### Evidencia remota D6
+
+- SHA exacto: `b82be783adce2955b5b0922cc60cd5c9f935ae40`.
+- Railway Review: deployment `9cc5f1fa-a372-4f75-afa9-05efd6b06638`, `SUCCESS`, imagen `sha256:7246a005466f7d497ce2e3ba9e3a97553d1bb73b3e38e05ab9bc8bcbf29e5339`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente.
+- `/api/health/live`, `/api/health/ready` y `/api/status`: 200; raíz y endpoints con `noindex, nofollow, noarchive, nosnippet`.
+- Matriz focal: 4 perfiles, 8 combinaciones perfil/viewport, 14 permisos, 4 firmas de portal, 64 familias OWNER, 6/6 estados, 3 casos de capacidad y 86 casos Axe.
+- Flujo D6 no mutante: 5/5 — estados documentales/huella, contexto de proveedor, directorio de facturas, pago parcial/gasto único y una sola salida enlazada en Tesorería.
+- Revisión visual directa de Documentos, Proveedores y detalle de factura recibida en 390 y 1440 px: PASS; 0 overflow, 0 observaciones D6 y 0 bloqueadores.
+- El primer gate sobre `03dfaf4...` detectó 9 bloqueos y 5 observaciones D6. `b82be78...` supera el replay completo sin reducir rutas, perfiles ni estados.
+- El reporte global conserva 9 observaciones fuera de D6 para plantillas, tareas, recomendaciones, configuración/plataforma y dos replays de hidratación limpios.
+- Acceso OWNER de un solo uso rotado y entregado fuera de Git; MFA no cambió y no se mostró contraseña ni secreto TOTP.
+- Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D6_REVIEW_EVIDENCE.json`.

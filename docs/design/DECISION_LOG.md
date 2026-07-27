@@ -31,3 +31,11 @@ La navegación móvil muestra `Capturar` sólo si existe al menos una acción au
 ## D-008 - Diagnósticos transitorios
 
 Un error de hidratación aislado no se descarta ni se convierte automáticamente en PASS. La misma superficie se repite en un contexto nuevo; sólo un replay limpio permite conservar el primer evento como observación, y una repetición mantiene el bloqueo.
+
+## D-009 - Binarios sintéticos y trazabilidad
+
+Review no fabrica archivos para aparentar una carga real. Un fixture documental sin `storageKey` muestra metadatos, huella y estado, se identifica como sintético y no ofrece descarga. Las rutas de archivo sólo aparecen cuando existe un binario privado real.
+
+## D-010 - Origen de una salida prevista
+
+Una factura recibida vinculada a una obra conserva ambos contextos, pero la línea de Tesorería enlaza el documento económico que origina la cifra. La obra sigue visible como relación; el cambio es de navegación y no altera el cálculo ni duplica el gasto.
