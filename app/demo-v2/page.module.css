@@ -1,12 +1,12 @@
 .demoPage {
-  --capataz-ink: #14211b;
-  --capataz-paper: #f5f2e8;
-  --capataz-surface: #ffffff;
-  --capataz-accent: #c8f36a;
-  --capataz-warning: #d86b45;
-  --capataz-muted: #4a5b52;
-  --capataz-line: #d8ddd6;
-  --capataz-info: #3b6d8c;
+  --capataz-ink: var(--fos-color-ink);
+  --capataz-paper: var(--fos-color-stone);
+  --capataz-surface: var(--fos-color-surface);
+  --capataz-accent: var(--fos-color-lime);
+  --capataz-warning: var(--fos-color-warning-text-aa);
+  --capataz-muted: var(--fos-color-text-muted-aa);
+  --capataz-line: var(--fos-color-line);
+  --capataz-info: var(--fos-color-blue);
 
   min-height: 100svh;
   background:
@@ -197,6 +197,27 @@
   display: block;
   margin-bottom: 0.2rem;
   color: var(--capataz-ink);
+}
+
+.safetyColumn {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+}
+
+.realDemoCta,
+.resultCta {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--capataz-ink);
+  border-radius: var(--fos-radius-sm);
+  background: var(--capataz-accent);
+  color: var(--capataz-ink);
+  font-weight: 850;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
 }
 
 .scenarioSection {
@@ -830,6 +851,10 @@
 
 .result dl > div + div {
   border-left: 1px solid var(--capataz-line);
+}
+
+.resultCta {
+  margin-top: 1.25rem;
 }
 
 .controls {

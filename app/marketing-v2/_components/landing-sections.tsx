@@ -92,7 +92,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.resultsSection}`}>
+      <section id="resultados" className={`${styles.section} ${styles.anchorTarget} ${styles.resultsSection}`}>
         <SectionHeading
           eyebrow="Resultados conectados"
           title="Menos papeleo. Más control de cada obra."
@@ -152,7 +152,7 @@ export function LandingSections() {
         <HumanControlDemo />
       </section>
 
-      <section className={`${styles.section} ${styles.mobileSection}`}>
+      <section id="captura-movil" className={`${styles.section} ${styles.anchorTarget} ${styles.mobileSection}`}>
         <div className={styles.mobileIntro}>
           <SectionHeading
             eyebrow="Experiencia móvil"
@@ -207,7 +207,7 @@ export function LandingSections() {
         <ResponsibilityViews />
       </section>
 
-      <section className={`${styles.section} ${styles.trustSection}`}>
+      <section id="confianza" className={`${styles.section} ${styles.anchorTarget} ${styles.trustSection}`}>
         <SectionHeading
           eyebrow="Confianza y estado del producto"
           title="Una beta clara. Sin promesas ocultas."
@@ -322,7 +322,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.faqSection}`}>
+      <section id="preguntas" className={`${styles.section} ${styles.anchorTarget} ${styles.faqSection}`}>
         <SectionHeading
           eyebrow="Preguntas frecuentes"
           title="Antes de empezar, conviene dejar esto claro."
@@ -352,8 +352,8 @@ export function LandingSections() {
           <h2>Manda el primer audio. {brand.productName} hace el papeleo contigo.</h2>
         </div>
         <div>
-          <Link className={styles.finalPrimary} href="/contacto">Solicitar demo</Link>
-          <Link className={styles.finalSecondary} href="/demo">Ver demo rápida</Link>
+          <a className={styles.finalPrimary} href="#solicitar-acceso">Solicitar acceso</a>
+          <Link className={styles.finalSecondary} href="/demo#quick-demo">Ver demo</Link>
         </div>
       </section>
     </>

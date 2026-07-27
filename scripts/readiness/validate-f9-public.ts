@@ -38,8 +38,8 @@ const journey = ["lead", "visita", "presupuesto", "trabajo", "gasto", "factura",
 for (const stage of journey) check(`journey-${stage}`, landing.includes(`id: "${stage}"`));
 check("journey-seven-stages", (landing.match(/\n\s+id: "(?:lead|visita|presupuesto|trabajo|gasto|factura|cobro)"/g) ?? []).length === 7);
 const guided = source("app/demo-v2/_components/guided-demo.tsx");
-check("demo-fifteen-minute-story", guided.includes("recorrido de 15 minutos") && guided.includes("lead-visita-presupuesto-trabajo-gasto-factura-cobro"));
-check("public-vertical-first", source("app/marketing-v2/_components/hero-demo.tsx").includes("construcción y reformas"));
+check("demo-seven-minute-story", guided.includes("Demostración guiada · 7 minutos") && guided.includes("lead-visita-presupuesto-trabajo-gasto-factura-cobro"));
+check("public-vertical-first", source("app/marketing-v2/_components/hero-demo.tsx").includes("Sistema operativo para obra y reformas"));
 check("internal-multisector-catalog-preserved", source("lib/marketing/catalog.ts").includes("marketingSectorCatalog"));
 
 const brand = source("lib/config/brand.ts");

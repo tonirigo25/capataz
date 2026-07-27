@@ -41,7 +41,7 @@ Las maquetas se usan como contrato de jerarquía, densidad, responsive y microco
 
 ## D0 - Baseline, review y contrato visual
 
-Estado: `IN_PROGRESS` — baseline público y despliegue reproducibles; la matriz autenticada completa conserva un único replay pendiente.
+Estado: `PASS`.
 
 ### Evidencia reutilizable del SHA base
 
@@ -71,10 +71,12 @@ Estado: `IN_PROGRESS` — baseline público y despliegue reproducibles; la matri
 - Matriz autenticada exacta `82841ff...`: 11 perfiles, 66 combinaciones, 21 permisos, 10 firmas de portal, 46 familias OWNER, 6/6 estados, 3 casos de capacidad y 89 casos axe. Resultado aún no PASS: un `React #418` no reproducido fuera de `/dinero` requiere replay explícito.
 - Staging y producción no se modificaron.
 
-### Pendiente para cerrar D0
+### Cierre D0
 
-- Repetir de forma aislada y registrada la superficie `/dinero`; si el fallo reaparece, corregirlo, y si no, conservarlo como observación transitoria.
-- Rotar y entregar un acceso sintético de un solo uso después del último replay verde.
+- El replay aislado de `/dinero` no reprodujo el `React #418`; se conserva como observación transitoria, no como bloqueo.
+- El acceso sintético de un solo uso se rotó, se entregó y ya ha caducado.
+- La clave SSH temporal de auditoría se retiró de Railway y del equipo local; Railway no conserva claves registradas.
+- La validación autenticada final continuó en D1 sobre el SHA exacto `14932a762c2830d0199ffe32bda828dd02785fb8`.
 
 ### Gates locales D0
 
@@ -86,12 +88,12 @@ Estado: `IN_PROGRESS` — baseline público y despliegue reproducibles; la matri
 - `npm run test:public-indexing`: PASS.
 - `npm run build`: PASS, 76/76.
 - `npm run readiness:validate-all-static`: PASS completo F1-F11, addenda, C3, C5, C6, C7, PWA, móvil e identidad.
-- `npm run test:orqena-experience-v4`: 123/129; las seis aserciones restantes inspeccionan literales de la home V4.1 retirada (`home-v41`) y no se declaran PASS. D2 las reemplazará por un contrato Field OS sin debilitar indexación, pricing, seguridad o persistencia.
+- `npm run test:orqena-experience-v4`: en D0 quedó 123/129 porque seis aserciones inspeccionaban literales de la home V4.1 retirada (`home-v41`). D2 las sustituyó por el contrato Field OS sin debilitar indexación, pricing, seguridad o persistencia; el resultado actual es 131/131.
 - `RouteExperienceManifest`: las 13 rutas reales que el contrato V4.1 no reconocía quedaron cubiertas sin cambiar autorización ni comportamiento.
 
 ## D1 - Fundaciones visuales y shell
 
-Estado: `IN_PROGRESS`.
+Estado: `PASS`.
 
 ### Implementado localmente
 
@@ -113,8 +115,43 @@ Estado: `IN_PROGRESS`.
 - `npm run readiness:validate-all-static`: PASS completo.
 - `npm run build`: PASS, 76/76.
 
-### Pendiente D1
+### Evidencia remota D1
 
-- Commit/push y despliegue exacto en Review.
-- Capturas públicas y autenticadas por perfil/viewport.
-- Confirmar cero overflow, permisos correctos, foco/teclado y cero bloqueantes axe.
+- SHA exacto: `14932a762c2830d0199ffe32bda828dd02785fb8`.
+- Railway Review: deployment `514a7e60-732e-43b0-bd0a-f2e2f3583e1a`, `SUCCESS`, imagen `sha256:37cf44af1b81870e025a9492eba3a88de01957a7860fd523cab9ef9b92b8b6b3`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente.
+- Salud pública: `/api/health/live`, `/api/health/ready`, `/api/status`, `/`, `/demo` y `/login` respondieron 200 con `noindex`.
+- Auditoría autenticada: 11 perfiles, 66 combinaciones perfil/viewport, 21 permisos, 10 firmas de portal, 46 familias OWNER, 6/6 estados, 3 casos de capacidad y 89 casos Axe; 0 bloqueadores.
+- Dos hidrataciones transitorias, en OWNER `/dinero` y `/tesoreria`, pasaron replay limpio y permanecen como observación.
+- Staging y producción no se modificaron.
+
+## D2 - Home y demo guiada
+
+Estado: `LOCAL_PASS / REMOTE_PENDING`.
+
+### Implementado
+
+- Header exacto: Cómo funciona, Resultados, Para quién, Confianza, Entrar y Ver demo.
+- Hero “Del audio en la obra al cobro”, dos CTA, demo sintética Audio → Extracción → Presupuesto y franja de cuatro valores.
+- Historia oscura de cinco etapas: contacto y visita, presupuesto, trabajo y planificación, compras y costes, factura y cobro.
+- Resultados, selector por responsabilidad, captura móvil, confianza, FAQ y formulario persistente conservados.
+- `/demo` sin registro, con datos sintéticos editables, operación íntegra por teclado, confirmación simulada, resultado y CTA real.
+- Metadata y schema JSON-LD coherentes; indexación pública permanece cerrada.
+- Renderizado diferido nativo de contenido bajo el pliegue, sin ocultar contenido a navegación por ancla ni a tecnologías de asistencia.
+
+### Evidencia local D2
+
+- `npm run design:validate-d2`: PASS, 14/14.
+- `npm run design:validate`: PASS, contrato Field OS y contraste semántico AA.
+- `npm run design:validate-d2-browser`: PASS en `/` y `/demo`, 390×844 y 1440×900; 0 bloqueantes Axe, 0 overflow, reduced motion `0.00001 s`, CLS 0, 0 llamadas externas e INP de laboratorio entre 40 y 152 ms.
+- Lighthouse final: `/` LCP 2311 ms, CLS 0, performance 91; `/demo` LCP 2192 ms, CLS 0, performance 98; `/contacto` LCP 2190 ms, CLS 0, performance 89.
+- Lighthouse conserva un aviso no bloqueante de `target-size` en el CTA final de la home; el gate Axe serio/crítico es 0 en ambos viewports.
+- `npm run build`: PASS, 76/76; `/` 126 kB y `/demo` 116 kB de First Load JS.
+- `npm run readiness:validate-all-static`: PASS completo e ininterrumpido hasta F11 e identidad; stderr vacío y ninguna coincidencia de fallo.
+
+### Pendiente remoto D2
+
+- Commit, push y despliegue del SHA exacto a Railway Review.
+- Repetir salud, `noindex`, consola, Axe y viewport sobre la URL estable.
+- Enviar y verificar una solicitud sintética en el formulario persistente de Review, sin email live.
+- Rotar un acceso sintético seguro de un solo uso para la revisión autenticada.

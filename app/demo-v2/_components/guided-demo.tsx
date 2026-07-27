@@ -142,27 +142,30 @@ export function GuidedDemo() {
       </header>
 
       <main id="guided-demo" className={styles.main} tabIndex={-1}>
-        <section className={styles.intro} aria-labelledby="demo-v2-title">
+        <section id="quick-demo" className={styles.intro} aria-labelledby="demo-v2-title">
           <div>
-            <p className={styles.eyebrow}>Demostración guiada · recorrido de 15 minutos</p>
-            <h1 id="demo-v2-title">Prueba cómo trabaja {brand.productName}.</h1>
+            <p className={styles.eyebrow}>Demostración guiada · 7 minutos</p>
+            <h1 id="demo-v2-title">Prueba una historia completa.</h1>
             <p className={styles.introText}>
-              Elige una situación sintética. {brand.productName} interpretará la información,
-              preparará una acción y te enseñará qué ocurriría antes de confirmar.
+              Elige una entrada y recorre el flujo hasta el resultado. Todo es sintético,
+              editable y local; no necesitas registrarte.
             </p>
           </div>
-          <div className={styles.safetyNote}>
-            <ShieldCheck aria-hidden="true" />
-            <p>
-              <strong>Todo ocurre en esta pantalla.</strong>
-              No se guarda, no se envía y no conecta con ningún servicio.
-            </p>
+          <div className={styles.safetyColumn}>
+            <Link className={styles.realDemoCta} href="/contacto">Solicitar una demo real</Link>
+            <div className={styles.safetyNote}>
+              <ShieldCheck aria-hidden="true" />
+              <p>
+                <strong>Sin registro y con datos de ejemplo.</strong>
+                No se guarda, no se envía y no conecta con ningún servicio externo.
+              </p>
+            </div>
           </div>
         </section>
 
         <section className={styles.scenarioSection} aria-labelledby="journey-title">
           <div className={styles.sectionLead}>
-            <span>Historia completa · 15 minutos</span>
+            <span>Historia completa · 7 minutos</span>
             <h2 id="journey-title">Del primer contacto al cobro, sin saltos.</h2>
           </div>
           <ol className={styles.journeyTimeline} data-canonical-journey="lead-visita-presupuesto-trabajo-gasto-factura-cobro">
@@ -443,6 +446,7 @@ const StepPanel = forwardRef<HTMLElement, StepPanelProps>(function StepPanel(
               <dd>{values.amount}</dd>
             </div>
           </dl>
+          <Link className={styles.resultCta} href="/contacto">Solicitar una demo real</Link>
         </div>
       ) : null}
     </article>

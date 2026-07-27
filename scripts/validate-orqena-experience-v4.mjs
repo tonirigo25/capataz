@@ -78,16 +78,24 @@ for (const sector of ["general_services", "construction", "installations", "prof
   check(catalog.includes(`${sector}:`), `Falta sector público ${sector}`);
 }
 
-const homeV41 = text("app/page.tsx");
-check((homeV41.match(/<section\b/g) || []).length === 9, "V4.1 debe limitar la home a nueve bloques narrativos");
-check(["v41-hero", "value-band--v41", "BusinessWorkflow", "v41-stories", "v41-client", "v41-portals", "v41-mobile-sectors", "v41-control", "v41-close"].every((marker) => homeV41.includes(marker)), "La arquitectura editorial V4.1 está incompleta");
-check(homeV41.includes('className="v41-hero"') && homeV41.includes("Todo conectado."), "El hero V4.1 no está conectado");
-check(homeV41.includes("<small>{copy}</small>"), "La banda de valor debe incluir contexto, no solo etiquetas");
-check(homeV41.includes("<BusinessWorkflow />"), "Falta el workflow empresarial visual");
-check((homeV41.match(/className: "is-(?:agenda|opportunity|finance)"/g) || []).length === 3, "La home debe contener exactamente tres historias visuales");
-check(!homeV41.includes("Work360Demo") && !homeV41.includes("OrqenaActionDemo"), "La home no debe repetir escenas profundas ya derivadas");
-check(css.includes("font-size: clamp(2.55rem, 4.8vw, 4.25rem)") && css.includes("max-width: 14.5ch"), "La escala del hero V4.1 no está limitada");
-check(css.includes(".v41-section { padding-block: clamp(3.5rem, 6.8vw, 6.5rem); }"), "El espaciado editorial V4.1 no está normalizado");
+const publicHome = text("app/page.tsx");
+const publicHeader = text("app/marketing-v2/_components/marketing-header.tsx");
+const publicHero = text("app/marketing-v2/_components/hero-demo.tsx");
+const publicLanding = text("app/marketing-v2/_components/landing-sections.tsx");
+const publicStory = text("app/marketing-v2/_components/immersive-journey.tsx");
+const publicCss = text("app/marketing-v2/page.module.css");
+const guidedDemo = text("app/demo-v2/_components/guided-demo.tsx");
+check(publicHome.includes("<HeroDemo />") && publicHome.includes("<LandingSections />"), "La home canónica debe componer hero y relato Field OS");
+check(["Cómo funciona", "Resultados", "Para quién", "Confianza", "Entrar", "Ver demo"].every((label) => publicHeader.includes(label)), "El header D2 exacto está incompleto");
+check(publicHero.includes("Sistema operativo para obra y reformas") && publicHero.includes("Del audio en la obra al cobro."), "El hero D2 no coincide con el contrato recibido");
+check(publicHero.includes("Ver cómo funciona") && publicHero.includes("Solicitar acceso"), "Faltan las dos CTA exactas del hero D2");
+check(["Audio", "Extracción", "Presupuesto", "Una sola historia", "Control del margen", "Trabajo desde el móvil", "Confirmación humana"].every((label) => publicHero.includes(label)), "Hero y franja de valor D2 incompletos");
+check((publicStory.match(/^\s{4}id: "/gmu) || []).length === 5, "La sticky story debe contener exactamente cinco etapas");
+check(["Contacto y visita", "Presupuesto", "Trabajo y planificación", "Compras y costes", "Factura y cobro"].every((label) => publicStory.includes(label)), "La sticky story D2 no conserva el orden exacto");
+check(["id=\"resultados\"", "id=\"para-quien\"", "id=\"captura-movil\"", "id=\"confianza\"", "id=\"preguntas\"", '<DemoRequestForm kind="home" />'].every((marker) => publicLanding.includes(marker)), "Resultados, responsabilidad, móvil, confianza, FAQ o formulario persistente ausentes");
+check(guidedDemo.includes('id="quick-demo"') && guidedDemo.includes("no necesitas registrarte") && guidedDemo.includes("onKeyDown"), "La demo D2 debe ser pública, clara y operable con teclado");
+check(guidedDemo.includes("Confirmar simulación") && guidedDemo.includes("Resultado simulado") && guidedDemo.includes("Solicitar una demo real"), "La demo D2 necesita confirmación, resultado y CTA real");
+check(publicCss.includes(".heroValueBand") && publicCss.includes(".immersiveStoryIntro") && publicCss.includes("position: sticky"), "La composición responsive de D2 está incompleta");
 
 const compositionManifest = text("lib/marketing/composition-manifest.ts");
 check(existsSync(path.join(root, "lib/marketing/composition-manifest.ts")), "Falta el manifiesto de composiciones");

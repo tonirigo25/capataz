@@ -134,8 +134,10 @@ for (const line of diff.split(/\r?\n/u)) {
   if (isFieldOsDeclaration) continue;
   const hasHex = /#[0-9a-f]{3,8}\b/iu.test(value);
   const hasArbitraryTailwind = /\b(?:rounded|shadow)-\[[^\]]+\]/u.test(value);
-  const hasLiteralRadius = /border-radius\s*:\s*(?!var\()[^;]+/iu.test(value);
-  const hasLiteralShadow = /box-shadow\s*:\s*(?!var\(|none)[^;]+/iu.test(value);
+  const radiusValue = value.match(/border-radius\s*:\s*([^;]+)/iu)?.[1].trim();
+  const shadowValue = value.match(/box-shadow\s*:\s*([^;]+)/iu)?.[1].trim();
+  const hasLiteralRadius = Boolean(radiusValue && radiusValue !== "0" && !radiusValue.startsWith("var("));
+  const hasLiteralShadow = Boolean(shadowValue && shadowValue !== "none" && !shadowValue.startsWith("var("));
   if (hasHex || hasArbitraryTailwind || hasLiteralRadius || hasLiteralShadow) {
     arbitrary.push(`${currentFile}: ${value.trim()}`);
   }

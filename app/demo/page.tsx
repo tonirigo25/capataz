@@ -1,19 +1,34 @@
 import type { Metadata } from "next";
 import { GuidedDemo } from "@/app/demo-v2/_components/guided-demo";
-import { ImmersiveJourney } from "@/app/marketing-v2/_components/immersive-journey";
 import { brand } from "@/lib/brand";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: `Demostración guiada de ${brand.productName}`,
-  description: "Demo rápida de 60–90 segundos y recorrido sintético profundo de 15 minutos, sin ejecutar acciones reales.",
+  description: "Demostración guiada, editable y con datos sintéticos de Orqena, sin registro ni acciones reales.",
   alternates: { canonical: "/demo" },
   openGraph: { title: `Demostración de ${brand.productName}`, description: "Una historia completa y controlada con datos ficticios.", images: [brand.socialImage] },
 };
 
-export default function DemoPage() {
+const demoStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: `Demostración de ${brand.productName}`,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  isAccessibleForFree: true,
+  description: "Recorrido sintético y editable desde una entrada de obra hasta un resultado confirmado de forma simulada.",
+} as const;
+
+export default async function DemoPage() {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <>
-      <ImmersiveJourney />
+      <script
+        nonce={nonce}
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(demoStructuredData).replace(/</gu, "\\u003c") }}
+      />
       <GuidedDemo />
     </>
   );
