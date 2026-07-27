@@ -7,8 +7,8 @@ import { parsePurchaseAmounts, purchaseInvoiceStatus, validateSpanishTaxId } fro
 const root = process.cwd();
 const schema = read("prisma/schema.prisma");
 const migration = read("prisma/migrations/20260717120000_procurement_management/migration.sql");
-const actions = read("app/(app)/proveedores/actions.ts");
-const readerActions = read("app/(app)/gastos-materiales/actions.ts");
+const actions = read("lib/application/finance/procurement-use-cases.ts");
+const readerActions = read("lib/application/finance/expense-use-cases.ts");
 const treasury = read("lib/treasury.ts");
 const navigation = read("lib/product-navigation.ts");
 

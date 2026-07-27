@@ -139,10 +139,80 @@ async function main() {
     update: { companyId: primary.id, obraId: work.id },
     create: { id: "review-expense-1", companyId: primary.id, obraId: work.id, proveedor: "Proveedor Sintético Review", concepto: "Material de prueba", categoria: "materiales", importe: 850, fecha: new Date() },
   });
-  await prisma.businessPartner.upsert({
+  const supplier = await prisma.businessPartner.upsert({
     where: { id: "review-partner-1" },
+    update: { companyId: primary.id, kind: "SUPPLIER", commercialName: "Ferretería Norte Review", legalName: "Ferretería Norte Review Sintética", taxId: "B12345678", email: "proveedor@review.orqena.invalid", contactPerson: "Contacto sintético", tags: ["materiales", "habitual"], paymentTerms: "Transferencia a 30 días", preferredPaymentMethod: "Transferencia", status: "ACTIVE" },
+    create: { id: "review-partner-1", companyId: primary.id, kind: "SUPPLIER", commercialName: "Ferretería Norte Review", legalName: "Ferretería Norte Review Sintética", taxId: "B12345678", email: "proveedor@review.orqena.invalid", contactPerson: "Contacto sintético", tags: ["materiales", "habitual"], paymentTerms: "Transferencia a 30 días", preferredPaymentMethod: "Transferencia", status: "ACTIVE" },
+  });
+  await prisma.businessPartner.upsert({
+    where: { id: "review-partner-2" },
+    update: { companyId: primary.id, kind: "SUPPLIER", commercialName: "Pinturas Sol Review", legalName: "Pinturas Sol Review Sintética", taxId: "B87654321", contactPerson: "Compras sintéticas", tags: ["pintura"], status: "ACTIVE" },
+    create: { id: "review-partner-2", companyId: primary.id, kind: "SUPPLIER", commercialName: "Pinturas Sol Review", legalName: "Pinturas Sol Review Sintética", taxId: "B87654321", contactPerson: "Compras sintéticas", tags: ["pintura"], status: "ACTIVE" },
+  });
+  const subcontractor = await prisma.businessPartner.upsert({
+    where: { id: "review-subcontractor-1" },
+    update: { companyId: primary.id, kind: "SUBCONTRACTOR", commercialName: "Fontanería Serra Review", legalName: "Fontanería Serra Review Sintética", taxId: "B11223344", tradeType: "Fontanería", specialty: "Instalaciones de agua", liabilityInsurance: "RC sintética registrada", documentStatus: "EXPIRING", documentExpiresAt: new Date(Date.now() + 12 * 86_400_000), status: "ACTIVE" },
+    create: { id: "review-subcontractor-1", companyId: primary.id, kind: "SUBCONTRACTOR", commercialName: "Fontanería Serra Review", legalName: "Fontanería Serra Review Sintética", taxId: "B11223344", tradeType: "Fontanería", specialty: "Instalaciones de agua", liabilityInsurance: "RC sintética registrada", documentStatus: "EXPIRING", documentExpiresAt: new Date(Date.now() + 12 * 86_400_000), status: "ACTIVE" },
+  });
+  await prisma.businessPartnerWork.upsert({
+    where: { businessPartnerId_workId: { businessPartnerId: supplier.id, workId: work.id } },
     update: { companyId: primary.id },
-    create: { id: "review-partner-1", companyId: primary.id, kind: "SUPPLIER", commercialName: "Suministros Review", legalName: "Suministros Review Sintéticos", email: "proveedor@review.orqena.invalid" },
+    create: { id: "review-partner-work-1", companyId: primary.id, businessPartnerId: supplier.id, workId: work.id },
+  });
+  await prisma.businessPartnerWork.upsert({
+    where: { businessPartnerId_workId: { businessPartnerId: subcontractor.id, workId: work.id } },
+    update: { companyId: primary.id },
+    create: { id: "review-subcontractor-work-1", companyId: primary.id, businessPartnerId: subcontractor.id, workId: work.id },
+  });
+  const purchaseInvoice = await prisma.purchaseInvoice.upsert({
+    where: { id: "review-purchase-invoice-1" },
+    update: { companyId: primary.id, businessPartnerId: supplier.id, workId: work.id, kind: "SUPPLIER", status: "PARTIALLY_PAID", invoiceNumber: "FV-2841-REV", issueDate: new Date(), dueDate: new Date(Date.now() + 22 * 86_400_000), taxableBase: 1_045, vatRate: 21, vatAmount: 219.45, withholdingAmount: 0, total: 1_264.45, paidAmount: 400, pendingAmount: 864.45, paymentMethod: "Transferencia", description: "Materiales sintéticos para Review" },
+    create: { id: "review-purchase-invoice-1", companyId: primary.id, businessPartnerId: supplier.id, workId: work.id, kind: "SUPPLIER", status: "PARTIALLY_PAID", invoiceNumber: "FV-2841-REV", issueDate: new Date(), dueDate: new Date(Date.now() + 22 * 86_400_000), taxableBase: 1_045, vatRate: 21, vatAmount: 219.45, withholdingAmount: 0, total: 1_264.45, paidAmount: 400, pendingAmount: 864.45, paymentMethod: "Transferencia", description: "Materiales sintéticos para Review" },
+  });
+  await prisma.purchaseInvoicePayment.upsert({
+    where: { id: "review-purchase-payment-1" },
+    update: { companyId: primary.id, purchaseInvoiceId: purchaseInvoice.id, amount: 400, method: "Transferencia sintética", reference: "REV-PAGO-1" },
+    create: { id: "review-purchase-payment-1", companyId: primary.id, purchaseInvoiceId: purchaseInvoice.id, amount: 400, paidAt: new Date(), method: "Transferencia sintética", reference: "REV-PAGO-1" },
+  });
+  await prisma.purchaseInvoiceHistory.upsert({
+    where: { id: "review-purchase-history-1" },
+    update: { companyId: primary.id, purchaseInvoiceId: purchaseInvoice.id, action: "REVIEW_CONFIRMED", detail: "Factura sintética revisada con confirmación humana" },
+    create: { id: "review-purchase-history-1", companyId: primary.id, purchaseInvoiceId: purchaseInvoice.id, action: "REVIEW_CONFIRMED", detail: "Factura sintética revisada con confirmación humana", createdById: owner.id },
+  });
+  const purchaseExpense = await prisma.expense.upsert({
+    where: { id: "review-purchase-expense-1" },
+    update: { companyId: primary.id, obraId: work.id, clienteId: client.id, businessPartnerId: supplier.id, purchaseInvoiceId: purchaseInvoice.id, proveedor: supplier.commercialName, concepto: "Materiales sintéticos para Review", categoria: "materiales", importe: 1_264.45, paymentStatus: "pending", paymentDueDate: purchaseInvoice.dueDate },
+    create: { id: "review-purchase-expense-1", companyId: primary.id, obraId: work.id, clienteId: client.id, businessPartnerId: supplier.id, purchaseInvoiceId: purchaseInvoice.id, proveedor: supplier.commercialName, concepto: "Materiales sintéticos para Review", categoria: "materiales", importe: 1_264.45, fecha: new Date(), paymentStatus: "pending", paymentDueDate: purchaseInvoice.dueDate },
+  });
+  const extraction = {
+    documentType: "MATERIAL_INVOICE",
+    issuerName: supplier.commercialName,
+    issuerTaxId: supplier.taxId,
+    invoiceNumber: purchaseInvoice.invoiceNumber,
+    issueDate: purchaseInvoice.issueDate.toISOString().slice(0, 10),
+    dueDate: purchaseInvoice.dueDate.toISOString().slice(0, 10),
+    taxableBase: purchaseInvoice.taxableBase,
+    vatRate: purchaseInvoice.vatRate,
+    vatAmount: purchaseInvoice.vatAmount,
+    withholdingAmount: purchaseInvoice.withholdingAmount,
+    total: purchaseInvoice.total,
+    paymentMethod: purchaseInvoice.paymentMethod,
+    description: purchaseInvoice.description,
+    suggestedCategory: "materiales",
+    confidence: 0.92,
+    warnings: [],
+    lines: [{ description: "Materiales sintéticos", quantity: 1, unitPrice: 1_045, total: 1_045 }],
+    fieldConfidence: {},
+  };
+  await prisma.document.upsert({
+    where: { id: "review-expense-document-1" },
+    update: { companyId: primary.id, name: "Factura Ferretería Norte Review.pdf", originalName: "factura-ferreteria-norte-review.pdf", mimeType: "application/pdf", size: 2_048, sha256: "a".repeat(64), category: "factura", status: "REGISTERED", extractionStatus: "COMPLETED", extractionConfidence: 0.92, extractedData: extraction, extractedIssuer: supplier.commercialName, extractedIssuerTaxId: supplier.taxId, extractedInvoiceNo: purchaseInvoice.invoiceNumber, extractedIssueDate: purchaseInvoice.issueDate, extractedTotal: purchaseInvoice.total, clientId: client.id, workId: work.id, expenseId: purchaseExpense.id, businessPartnerId: supplier.id, purchaseInvoiceId: purchaseInvoice.id, uploadedById: owner.id, processedAt: new Date(), metadata: { source: "expense_document_reader", synthetic: true, review: { confirmed: true } } },
+    create: { id: "review-expense-document-1", companyId: primary.id, name: "Factura Ferretería Norte Review.pdf", originalName: "factura-ferreteria-norte-review.pdf", mimeType: "application/pdf", size: 2_048, sha256: "a".repeat(64), category: "factura", status: "REGISTERED", extractionStatus: "COMPLETED", extractionConfidence: 0.92, extractedData: extraction, extractedIssuer: supplier.commercialName, extractedIssuerTaxId: supplier.taxId, extractedInvoiceNo: purchaseInvoice.invoiceNumber, extractedIssueDate: purchaseInvoice.issueDate, extractedTotal: purchaseInvoice.total, clientId: client.id, workId: work.id, expenseId: purchaseExpense.id, businessPartnerId: supplier.id, purchaseInvoiceId: purchaseInvoice.id, uploadedById: owner.id, processedAt: new Date(), metadata: { source: "expense_document_reader", synthetic: true, review: { confirmed: true } }, createdAt: new Date() },
+  });
+  await prisma.document.upsert({
+    where: { id: "review-expense-document-duplicate-1" },
+    update: { companyId: primary.id, name: "Ticket duplicado Review.png", originalName: "ticket-duplicado-review.png", mimeType: "image/png", size: 1_024, sha256: "a".repeat(64), category: "ticket", status: "POSSIBLE_DUPLICATE", extractionStatus: "COMPLETED", extractionConfidence: 0.76, extractedIssuer: supplier.commercialName, extractedIssuerTaxId: supplier.taxId, extractedInvoiceNo: purchaseInvoice.invoiceNumber, extractedIssueDate: purchaseInvoice.issueDate, extractedTotal: purchaseInvoice.total, workId: work.id, businessPartnerId: supplier.id, uploadedById: owner.id, processedAt: new Date(), metadata: { source: "expense_document_reader", synthetic: true } },
+    create: { id: "review-expense-document-duplicate-1", companyId: primary.id, name: "Ticket duplicado Review.png", originalName: "ticket-duplicado-review.png", mimeType: "image/png", size: 1_024, sha256: "a".repeat(64), category: "ticket", status: "POSSIBLE_DUPLICATE", extractionStatus: "COMPLETED", extractionConfidence: 0.76, extractedIssuer: supplier.commercialName, extractedIssuerTaxId: supplier.taxId, extractedInvoiceNo: purchaseInvoice.invoiceNumber, extractedIssueDate: purchaseInvoice.issueDate, extractedTotal: purchaseInvoice.total, workId: work.id, businessPartnerId: supplier.id, uploadedById: owner.id, processedAt: new Date(), metadata: { source: "expense_document_reader", synthetic: true }, createdAt: new Date(Date.now() - 86_400_000) },
   });
   await prisma.eventoAgenda.upsert({
     where: { id: "review-event-1" },

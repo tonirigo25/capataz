@@ -2,7 +2,7 @@ import fs from "node:fs";
 
 const schema = fs.readFileSync("prisma/schema.prisma", "utf8");
 const documentsLib = fs.readFileSync("lib/documents.ts", "utf8");
-const actions = fs.readFileSync("app/(app)/gestion/actions.ts", "utf8");
+const actions = fs.readFileSync("lib/application/operations/management-use-cases.ts", "utf8");
 const gestionPage = fs.readFileSync("app/(app)/gestion/page.tsx", "utf8");
 const documentsPage = fs.readFileSync("app/(app)/documentos/page.tsx", "utf8");
 const workPage = fs.readFileSync("app/(app)/obras/[id]/page.tsx", "utf8");

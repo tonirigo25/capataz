@@ -22,13 +22,17 @@ export class LocalDocumentStorage implements DocumentStorage {
     const safeExtension = extension.toLowerCase().replace(/[^a-z0-9]/g, "");
     const storageKey = `${safeCompany}/${randomUUID()}.${safeExtension}`;
     const target = this.resolveKey(storageKey);
-    const temporary = `${target}.${randomUUID()}.tmp`;
-    await mkdir(dirname(target), { recursive: true });
+    const quarantineKey = `.quarantine/${safeCompany}-${randomUUID()}.upload`;
+    const quarantine = this.resolveKey(quarantineKey);
+    await Promise.all([
+      mkdir(dirname(target), { recursive: true }),
+      mkdir(dirname(quarantine), { recursive: true })
+    ]);
     try {
-      await writeFile(temporary, bytes, { flag: "wx", mode: 0o600 });
-      await rename(temporary, target);
+      await writeFile(quarantine, bytes, { flag: "wx", mode: 0o600 });
+      await rename(quarantine, target);
     } catch (error) {
-      await rm(temporary, { force: true }).catch(() => undefined);
+      await rm(quarantine, { force: true }).catch(() => undefined);
       throw error;
     }
     return { storageKey, sizeBytes: bytes.length };
