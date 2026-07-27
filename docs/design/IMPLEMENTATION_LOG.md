@@ -172,6 +172,7 @@ Estado: `LOCAL_PASS / REMOTE_PENDING`.
 
 - `/hoy` abre con un máximo de tres prioridades derivadas del `PortalManifest`; cada una explica motivo, origen, impacto y acción sin consultar módulos ausentes del portal.
 - Agenda, pulso compacto y captura rápida permanecen condicionados por perfil y permisos. El pulso cuenta únicamente áreas, citas y capturas visibles; no inventa saldos, progreso ni previsiones.
+- El checklist de activación se limita a OWNER y ADMINISTRATIVE por perfil funcional; FINANCE y otros perfiles basados técnicamente en ADMIN ya no reciben pasos comerciales ajenos a su portal.
 - El estado sin prioridades ofrece guidance explícita y no convierte Hoy en una rejilla de KPI.
 - `/dashboard` limita la primera lectura a cuatro KPI trazables: facturado, cobrado, beneficio facturado y vencido.
 - Tendencia y excepciones forman la siguiente lectura; posición económica, cobros, rentabilidad y pipeline permanecen en segundo nivel.
@@ -181,7 +182,7 @@ Estado: `LOCAL_PASS / REMOTE_PENDING`.
 
 ### Evidencia local D3
 
-- `npm run test:today-business-dashboard`: PASS, 29/29.
+- `npm run test:today-business-dashboard`: PASS, 30/30.
 - `npm run test:orqena-experience-v4`: PASS, 131/131.
 - `npm run test:core-operational-experience`: PASS, 18/18.
 - `npm run test:product-shell-navigation`: PASS, 26/26.

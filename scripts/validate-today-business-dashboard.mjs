@@ -24,6 +24,7 @@ check("Hoy elimina actividad company-wide", !today.includes("recentActivity") &&
 check("Hoy enlaza al Dashboard solo como destino autorizado", today.includes('business: ["/dashboard"]') && today.includes("destinationForWidget"));
 check("Hoy tiene una única acción primaria estable", (today.match(/className="primary-button"/g) ?? []).length === 1 && today.includes("firstQuickAction") && today.includes("Preguntar a Orqena"));
 check("Hoy deriva portal y datos desde autorización", today.includes('requireCapability("company.view")') && today.includes("buildPortalManifest(auth)") && today.includes("agendaVisible ? getAgendaItems()"));
+check("Hoy limita activación a perfiles funcionales responsables", today.includes('["OWNER", "ADMINISTRATIVE"].includes(portal.profile)') && !today.includes('auth.role === "OWNER" || auth.role === "ADMIN"'));
 check("Hoy tiene carga y error recuperable", fs.existsSync("app/(app)/hoy/loading.tsx") && fs.existsSync("app/(app)/hoy/error.tsx"));
 
 check("Dashboard es una ruta real", dashboard.includes("export default async function DashboardPage"));

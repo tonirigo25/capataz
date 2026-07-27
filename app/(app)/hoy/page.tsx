@@ -33,7 +33,9 @@ export default async function TodayPage({
   const [profile, agendaItems, activation] = await Promise.all([
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
     agendaVisible ? getAgendaItems() : Promise.resolve([]),
-    auth.role === "OWNER" || auth.role === "ADMIN" ? getAndMeasureActivationStatus(prisma, { companyId: auth.companyId, actorId: auth.userId }) : Promise.resolve(null),
+    ["OWNER", "ADMINISTRATIVE"].includes(portal.profile)
+      ? getAndMeasureActivationStatus(prisma, { companyId: auth.companyId, actorId: auth.userId })
+      : Promise.resolve(null),
   ]);
   const displayName = userDisplayName(profile);
   const todayStart = startOfDay(now);
