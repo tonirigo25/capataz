@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { createTaskAction, completeTaskAction } from "./actions";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { ListWorkspace } from "@/components/workspaces";
+import { statusLabel } from "@/lib/status";
 import type { Prisma } from "@prisma/client";
 export const dynamic = "force-dynamic";
 export default async function TasksPage({
@@ -160,8 +161,8 @@ function TaskCard({ canManage, task }: { canManage: boolean; task: TaskListItem 
             {task.title}
           </Link>
           <p className="mt-1 text-sm text-slate-500">
-            {task.status} · {task.priority} · {task.origin}
-            {task.dueAt ? ` · ${task.dueAt.toLocaleString("es-ES")}` : ""}
+            {statusLabel(task.status)} · {statusLabel(task.priority)} · {statusLabel(task.origin)}
+            {task.dueAt ? ` · ${formatDate(task.dueAt)}` : ""}
           </p>
           <p className="mt-1 text-sm">
             {task.checklist.length
@@ -189,3 +190,6 @@ const end = (d: Date) => {
   x.setHours(23, 59, 59, 999);
   return x;
 };
+
+const formatDate = (date: Date) =>
+  date.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });

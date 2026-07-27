@@ -229,9 +229,9 @@ export default async function FollowUpsPage({
                 </Link>
               </div>
               <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                <QueueField label="Fecha" value={item.nextActionAt?.toLocaleString("es-ES") ?? "Sin fecha"} />
+                <QueueField label="Fecha" value={item.nextActionAt ? formatDate(item.nextActionAt) : "Sin fecha"} />
                 <QueueField label="Promesa" value={item.expectedOutcome ?? (item.status === "promised" ? "Promesa registrada" : "Sin promesa")} />
-                <QueueField label="Último intento" value={item.attempts[0]?.attemptedAt.toLocaleString("es-ES") ?? "Sin intentos"} />
+                <QueueField label="Último intento" value={item.attempts[0]?.attemptedAt ? formatDate(item.attempts[0].attemptedAt) : "Sin intentos"} />
                 <QueueField label="Canal" value={item.attempts[0]?.channel ? statusLabel(item.attempts[0].channel) : "Pendiente de elegir"} />
                 <QueueField label="Resultado" value={item.outcomes[0]?.summary ?? item.attempts[0]?.response ?? (item.outcomes[0]?.type ? statusLabel(item.outcomes[0].type) : "Sin resultado")} />
                 <QueueField label="Siguiente acción" value={item.nextActionAt ? item.title : "Definir siguiente acción"} />
@@ -257,3 +257,6 @@ function QueueField({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+const formatDate = (date: Date) =>
+  date.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });

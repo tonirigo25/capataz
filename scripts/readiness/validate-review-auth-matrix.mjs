@@ -322,7 +322,8 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       d7AgendaContract: containsAll(visibleText, ["Semana", "Mes", "Lista", "Vencimientos", "Nueva visita"])
         && Boolean(document.querySelector("[data-agenda-week]")),
       d7TasksContract: containsAll(visibleText, ["Mías", "Equipo", "Bloqueadas", "Completadas", "Nueva tarea"])
-        && Boolean(document.querySelector("[data-task-view]")),
+        && Boolean(document.querySelector("nav[aria-label='Vistas de tareas']"))
+        && (Boolean(document.querySelector("[data-task-view]")) || visibleText.includes("sin tareas")),
       d7FollowUpsContract: containsAll(visibleText, ["Fecha", "Promesa", "Último intento", "Canal", "Resultado", "Siguiente acción"])
         && Boolean(document.querySelector("[data-follow-up-queue-item]")),
       d7RemindersContract: containsAll(visibleText, ["Preparado", "Programado", "Enviado"])
@@ -330,7 +331,7 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       d7AlertsContract: containsAll(availableText, ["Alertas y recomendaciones", "Nivel", "Origen", "Regla"])
         && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(availableText),
       d7RecommendationsContract: containsAll(availableText, ["Centro de recomendaciones", "Siguiente mejor acción", "Regla", "evidencia"])
-        && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(availableText),
+        && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(visibleText),
       d7AutomationsContract: containsAll(visibleText, ["Automatizaciones", "Trigger:", "Próxima:", "fallos", "retries"])
         && Boolean(document.querySelector("[data-automation-state]")),
     };

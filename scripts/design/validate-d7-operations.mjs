@@ -17,6 +17,7 @@ const automations = read("app/(app)/automatizaciones/page.tsx");
 const automationDetail = read("app/(app)/automatizaciones/[id]/page.tsx");
 const automationRunner = read("lib/automations/automation-runner.ts");
 const automationRetries = read("lib/automations/automation-retries.ts");
+const status = read("lib/status.ts");
 const provisioner = read("scripts/readiness/provision-continuous-review.ts");
 const results = [];
 
@@ -66,6 +67,14 @@ test("Tareas conserva dependencias, checklist, subtareas y recurrencia", () => {
 test("Tareas evita una CTA primaria por fila", () => {
   assert.match(tasks, /<button className="secondary-button">Completar<\/button>/);
   assert.match(tasks, /query\.nuevo === "1"/);
+});
+test("Tareas y seguimientos traducen estados y ocultan identificadores internos", () => {
+  for (const token of ["statusLabel(task.status)", "statusLabel(task.priority)", "statusLabel(task.origin)"]) assert.match(tasks, new RegExp(token.replace(/[().]/g, "\\$&")));
+  assert.match(taskDetail, /<select className="field mt-1" name="assigneeId"/);
+  assert.doesNotMatch(taskDetail, /<input[^>]+name="assigneeId"/);
+  for (const token of ["planned: \"Planificada\"", "budget_followup: \"Seguimiento de presupuesto\"", "telefono: \"Teléfono\""]) assert.match(status, new RegExp(token));
+  assert.match(followUpDetail, /statusLabel\(attempt\.channel\)/);
+  assert.match(followUpDetail, /statusLabel\(outcome\.type\)/);
 });
 test("Alertas muestra nivel, origen, entidad, impacto, regla y acción sin puntuación artificial", () => {
   for (const token of ["Nivel", "sourceLabel", "Entidad:", "relatedAmount", "Regla aplicada", "suggestedActions"]) assert.match(alerts, new RegExp(token));
