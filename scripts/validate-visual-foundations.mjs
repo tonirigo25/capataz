@@ -67,8 +67,8 @@ const cases = [
   ["estados semánticos no dependen de color heredado", ["active", "completed", "attention", "risk", "archived"].every((tone) => primitives.includes(tone)) && status.includes("bg-content/[0.08]")],
   ["shell usa sidebar Field OS de 248 px y objetivos táctiles", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 248px") && styles.includes("--cap-control: 2.75rem")],
   ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
-  ["Hoy muestra una acción primaria contextual", today.includes("Hablar con Orqena") && !today.includes("¿Qué ha pasado hoy?")],
-  ["Hoy limita la primera zona a tres señales", today.includes("portal.homeWidgets.slice(0, 3).map") && today.includes("Tus prioridades")],
+  ["Hoy muestra una acción primaria contextual", today.includes("firstQuickAction") && today.includes('className="primary-button"') && !today.includes("¿Qué ha pasado hoy?")],
+  ["Hoy limita la primera zona a tres prioridades", today.includes("portal.homeWidgets") && today.includes(".slice(0, 3)") && today.includes("Prioridades de hoy")],
   ["Hoy deriva consultas desde contexto autorizado", today.includes('requireCapability("company.view")') && today.includes("buildPortalManifest(auth)") && today.includes("getAgendaItems()")],
   ["foco, safe area y movimiento reducido", styles.includes(":focus-visible") && styles.includes("env(safe-area-inset-bottom)") && styles.includes("prefers-reduced-motion: reduce")],
   ["campos evitan zoom involuntario en iOS", styles.includes("font-size: 16px") && styles.includes("--cap-control-field: 3rem")]

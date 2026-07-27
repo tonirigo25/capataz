@@ -163,3 +163,36 @@ Estado: `PASS`.
 - La llave SSH efímera fue revocada y borrada; Railway no conserva llaves SSH registradas.
 - Staging y producción no se modificaron. Los providers live, correo live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D2_REVIEW_EVIDENCE.json`.
+
+## D3 - Hoy y Dashboard
+
+Estado: `LOCAL_PASS / REMOTE_PENDING`.
+
+### Implementado
+
+- `/hoy` abre con un máximo de tres prioridades derivadas del `PortalManifest`; cada una explica motivo, origen, impacto y acción sin consultar módulos ausentes del portal.
+- Agenda, pulso compacto y captura rápida permanecen condicionados por perfil y permisos. El pulso cuenta únicamente áreas, citas y capturas visibles; no inventa saldos, progreso ni previsiones.
+- El estado sin prioridades ofrece guidance explícita y no convierte Hoy en una rejilla de KPI.
+- `/dashboard` limita la primera lectura a cuatro KPI trazables: facturado, cobrado, beneficio facturado y vencido.
+- Tendencia y excepciones forman la siguiente lectura; posición económica, cobros, rentabilidad y pipeline permanecen en segundo nivel.
+- Cada cifra mantiene enlace a su origen; no se crea un score de salud artificial.
+- La autorización permanece intacta: `reports.view` y el conjunto de capacidades company-wide siguen protegiendo el Dashboard; el rediseño no concede acceso a FINANCE, SALES, PROCUREMENT ni WORKER cuando el contrato existente lo deniega.
+- La matriz autenticada admite ahora selecciones cerradas de perfiles, viewports y familias para auditar cada bloque sin debilitar la ejecución completa.
+
+### Evidencia local D3
+
+- `npm run test:today-business-dashboard`: PASS, 29/29.
+- `npm run test:orqena-experience-v4`: PASS, 131/131.
+- `npm run test:core-operational-experience`: PASS, 18/18.
+- `npm run test:product-shell-navigation`: PASS, 26/26.
+- `npm run test:visual-foundations`: PASS, 18/18.
+- `npm run design:validate`: PASS.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76; `/hoy` y `/dashboard` conservan 108 kB de First Load JS.
+- `npm run readiness:validate-all-static`: PASS completo e ininterrumpido hasta F11 e identidad; stderr vacío y ninguna línea de fallo.
+
+### Pendiente remoto D3
+
+- Commit, push y despliegue del SHA exacto a Railway Review.
+- Verificar OWNER, FINANCE, SALES, PROCUREMENT y WORKER en 390 y 1440 px.
+- Probar navegación al origen, ausencia de datos restringidos, Axe, overflow, consola y estados representativos.

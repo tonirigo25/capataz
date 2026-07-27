@@ -12,6 +12,7 @@ const deployedSha = process.env.ORQENA_REVIEW_SHA ?? "unknown";
 const outputRoot = process.env.ORQENA_REVIEW_AUDIT_DIR ?? join(process.cwd(), "artifacts", "review-auth");
 const screenshotRoot = join(outputRoot, "screenshots");
 const reportPath = join(outputRoot, "authenticated-matrix.json");
+const focusD3 = process.env.ORQENA_REVIEW_FOCUS_D3 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -20,21 +21,22 @@ delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 
 mkdirSync(screenshotRoot, { recursive: true });
 
-const profiles = [
-  { key: "owner", profile: "OWNER", allowed: "/plataforma" },
+const allProfiles = [
+  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" } },
   { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria" },
   { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero" },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria" },
-  { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes" },
-  { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes" },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" } },
+  { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
+  { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
   { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes" },
   { key: "supervisor", profile: "TEAM_SUPERVISOR", allowed: "/obras", denied: "/clientes" },
-  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes" },
+  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
   { key: "external", profile: "EXTERNAL_COLLABORATOR", allowed: "/obras", restrictedInline: "/capataz" },
   { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true },
 ];
+const profiles = selectConfigured(allProfiles, "ORQENA_REVIEW_PROFILE_KEYS", "key");
 
-const viewports = [
+const allViewports = [
   { key: "320", width: 320, height: 720 },
   { key: "390", width: 390, height: 844 },
   { key: "768", width: 768, height: 1024 },
@@ -42,8 +44,9 @@ const viewports = [
   { key: "1440", width: 1440, height: 1000 },
   { key: "1920", width: 1920, height: 1080 },
 ];
+const viewports = selectConfigured(allViewports, "ORQENA_REVIEW_VIEWPORT_KEYS", "key");
 
-const ownerSurfaceFamilies = [
+const allOwnerSurfaceFamilies = [
   { family: "onboarding", route: "/onboarding" },
   { family: "company-create", route: "/crear-empresa" },
   { family: "company-select", route: "/seleccionar-empresa" },
@@ -91,14 +94,17 @@ const ownerSurfaceFamilies = [
   { family: "platform-observability", route: "/plataforma/observabilidad" },
   { family: "platform-health", route: "/plataforma/salud" },
 ];
+const ownerSurfaceFamilies = selectConfigured(allOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
+if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   origin: baseUrl,
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
+  focus: focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
@@ -122,6 +128,15 @@ const report = {
   blockingFindings: [],
   productObservations: [],
 };
+
+function selectConfigured(items, environmentKey, itemKey) {
+  const requested = process.env[environmentKey]?.split(",").map((value) => value.trim()).filter(Boolean);
+  if (!requested?.length) return items;
+  const available = new Map(items.map((item) => [item[itemKey], item]));
+  const unknown = requested.filter((key) => !available.has(key));
+  if (unknown.length) throw new Error(`${environmentKey}_UNKNOWN:${unknown.join(",")}`);
+  return requested.map((key) => available.get(key));
+}
 
 function sanitize(value) {
   return String(value)
@@ -237,6 +252,12 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       objectiveAboveFold: headings.length === 1 && headings[0].getBoundingClientRect().top < window.innerHeight,
       readOnlyText: /solo lectura|modo lectura|lectura/i.test(document.body.innerText),
       restrictedText: /no tienes acceso|acceso restringido|tu portal no incluye/i.test(document.body.innerText),
+      priorityCount: Number(document.querySelector("[data-priority-count]")?.getAttribute("data-priority-count") ?? 0),
+      priorityContract: /Prioridades de hoy/iu.test(document.body.innerText)
+        && (/Origen:/iu.test(document.body.innerText) && /Impacto:/iu.test(document.body.innerText)
+          || /No hay prioridades disponibles en tu alcance/iu.test(document.body.innerText)),
+      dashboardPrimaryKpiCount: Number(document.querySelector("[data-dashboard-primary-kpis]")?.getAttribute("data-dashboard-primary-kpis") ?? 0),
+      dashboardContract: ["Evolución del periodo", "Excepciones", "Posición económica"].every((label) => document.body.innerText.includes(label)),
     };
   });
   let accessibility = { criticalOrSerious: 0, violations: [] };
@@ -315,6 +336,12 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
   if (expectation === "allowed" && ["/login", "/acceso-restringido"].includes(result.finalPath)) findings.push(`${context}:UNEXPECTED_DENIAL_${result.finalPath}`);
   if (expectation === "denied" && result.finalPath !== "/acceso-restringido") findings.push(`${context}:DENIAL_BYPASS_${result.finalPath}`);
   if (expectation === "restricted-inline" && (!result.restrictedText || result.finalPath !== result.route)) findings.push(`${context}:INLINE_RESTRICTION_MISSING_${result.finalPath}`);
+  if (focusD3 && result.route === "/hoy" && (result.priorityCount > 3 || !result.priorityContract)) {
+    findings.push(`${context}:D3_TODAY_CONTRACT_${result.priorityCount}`);
+  }
+  if (focusD3 && result.route === "/dashboard" && expectation === "allowed" && (result.dashboardPrimaryKpiCount !== 4 || !result.dashboardContract)) {
+    findings.push(`${context}:D3_DASHBOARD_CONTRACT_${result.dashboardPrimaryKpiCount}`);
+  }
   return findings;
 }
 
@@ -786,8 +813,11 @@ try {
     profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.allowed, "allowed"));
     if (profile.restrictedInline) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.restrictedInline, "restricted-inline"));
     if (profile.denied) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.denied, "denied"));
+    if (focusD3 && profile.d3) {
+      profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d3.route, profile.d3.expectation));
+    }
     for (const permissionCase of profileResult.permissionCases) report.blockingFindings.push(...permissionCase.findings);
-    const desktopHome = profileResult.homes.find(({ viewport }) => viewport === "1440");
+    const desktopHome = profileResult.homes.find(({ viewport }) => viewport === "1440") ?? profileResult.homes.at(-1);
     profileResult.portalSignature = desktopHome.navigation.map(({ href }) => href).sort().join("|");
     profileResult.navigationCount = desktopHome.navigation.length;
     profileResult.canCreate = desktopHome.canCreate;
@@ -797,7 +827,8 @@ try {
   }
 
   const signatures = new Set(report.profiles.map(({ portalSignature }) => portalSignature));
-  if (signatures.size < 6) report.blockingFindings.push(`PORTAL_SIGNATURE_DIVERSITY_LOW:${signatures.size}`);
+  const minimumSignatureDiversity = Math.min(6, profiles.length);
+  if (signatures.size < minimumSignatureDiversity) report.blockingFindings.push(`PORTAL_SIGNATURE_DIVERSITY_LOW:${signatures.size}`);
   const ownerSignature = report.profiles.find(({ key }) => key === "owner")?.portalSignature;
   const workerSignature = report.profiles.find(({ key }) => key === "worker")?.portalSignature;
   if (ownerSignature === workerSignature) report.blockingFindings.push("PORTAL_SIGNATURE_OWNER_EQUALS_WORKER");

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Bot, CalendarDays } from "lucide-react";
-import { PageHeader, ProductPage, Status } from "@/components/ui-primitives";
+import { ArrowUpRight, Bot, CalendarDays, Plus } from "lucide-react";
+import { EmptyState, Metric, MetricGroup, PageHeader, ProductPage, Status } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
@@ -42,40 +42,87 @@ export default async function TodayPage({
   const destinations = [...portal.navigation, ...portal.navigationGroups.flatMap((group) => group.items)];
   const fullDate = capitalize(new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now));
   const experience = portalExperience(portal.profile);
+  const seenPriorityDestinations = new Set<string>();
+  const priorities = portal.homeWidgets
+    .flatMap((widget) => {
+      const destination = destinationForWidget(widget, destinations);
+      if (!destination || seenPriorityDestinations.has(destination.href)) return [];
+      seenPriorityDestinations.add(destination.href);
+      return [{
+        id: widget,
+        title: homeWidgetLabel(widget),
+        reason: homeWidgetReason(widget, portal.profile),
+        origin: `${portal.profileLabel} · ${destination.label}`,
+        impact: homeWidgetImpact(widget),
+        href: destination.href,
+        action: `Abrir ${destination.label.toLocaleLowerCase("es-ES")}`,
+      }];
+    })
+    .slice(0, 3);
+  const firstQuickAction = portal.quickActions[0];
+  const dashboardDestination = destinations.find((item) => item.href === "/dashboard");
 
   return (
     <ProductPage layout="operational">
       <PageHeader
         eyebrow={fullDate}
         title={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}`}
-        description={`Tu portal de ${portal.profileLabel.toLocaleLowerCase("es-ES")} muestra únicamente el trabajo que te corresponde.`}
-        action={portal.orqenaTools.length ? <Link href="/capataz" className="primary-button"><Bot size={18} aria-hidden="true" />Hablar con Orqena</Link> : undefined}
+        description={`Hasta tres prioridades de tu portal de ${portal.profileLabel.toLocaleLowerCase("es-ES")}. El resto puede esperar.`}
+        secondaryActions={portal.orqenaTools.length ? <Link href="/capataz" className="secondary-button"><Bot size={18} aria-hidden="true" />Preguntar a Orqena</Link> : undefined}
+        action={firstQuickAction ? <Link href={firstQuickAction.href} className="primary-button"><Plus size={18} aria-hidden="true" />{firstQuickAction.label}</Link> : undefined}
       />
 
-      {activation ? <ActivationChecklist status={activation}/> : null}
+      <div className={`grid gap-5 ${agendaVisible ? "xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.85fr)]" : ""}`} data-portal-home={portal.profile}>
+        <section aria-labelledby="portal-priorities" className={`section-shell portal-priorities portal-priorities--${experience.tone}`}>
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div><p className="type-label">{experience.label}</p><h2 id="portal-priorities" className="type-section-title mt-1 text-content">Prioridades de hoy</h2></div>
+            <Status tone="neutral">Máximo 3</Status>
+          </div>
+          {priorities.length ? (
+            <ol className="divide-y divide-border" data-priority-count={priorities.length}>
+              {priorities.map((priority, index) => (
+                <li key={priority.id} className="grid gap-3 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft font-semibold text-brand-strong" aria-hidden="true">{index + 1}</span>
+                  <div className="min-w-0">
+                    <h3 className="type-object-title text-content">{priority.title}</h3>
+                    <p className="type-secondary mt-1">{priority.reason}</p>
+                    <p className="type-meta mt-1"><span className="font-semibold text-content-secondary">Origen:</span> {priority.origin}</p>
+                    <p className="type-meta mt-1"><span className="font-semibold text-content-secondary">Impacto:</span> {priority.impact}</p>
+                  </div>
+                  <Link href={priority.href} className="secondary-button shrink-0">{priority.action}<ArrowUpRight size={16} aria-hidden="true" /></Link>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <EmptyState
+              title="No hay prioridades disponibles en tu alcance"
+              description="Tu portal no muestra módulos operativos adicionales. Mantén la agenda al día o consulta a la persona responsable de los permisos."
+              icon={CalendarDays}
+            />
+          )}
+        </section>
 
-      <section className={`portal-focus portal-focus--${experience.tone}`} data-portal-home={portal.profile}>
-        <div><p className="type-label">{experience.label}</p><h2>{experience.title}</h2><p>{experience.description}</p></div>
-        <ol>{experience.flow.map((item, index) => <li key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong></li>)}</ol>
-      </section>
+        {agendaVisible ? <section aria-labelledby="today-agenda" className="section-shell">
+          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="type-label">Solo dentro de tu alcance</p><h2 id="today-agenda" className="type-section-title mt-1 text-content">Agenda de hoy</h2></div><Link href="/agenda?vista=hoy" className="ghost-button">Ver semana</Link></div>
+          {todayAgenda.length ? <div className="divide-y divide-border">{todayAgenda.map((item) => <Link key={`${item.source}-${item.id}`} href={item.href} className="flex min-h-16 items-center justify-between gap-3 py-3 hover:bg-subtle"><span className="min-w-0"><span className="type-object-title block truncate text-content">{timeLabel(item.fechaInicio)} · {item.titulo}</span><span className="type-meta mt-1 block">{item.clienteNombre ?? item.obraTitulo ?? "Agenda interna"}</span></span><span className="text-sm font-semibold text-brand-strong">Abrir</span></Link>)}</div> : <div className="rounded-xl bg-subtle p-4"><CalendarDays size={20} className="text-brand-strong" aria-hidden="true"/><p className="type-object-title mt-2 text-content">No tienes citas dentro de tu alcance para hoy.</p><p className="type-secondary mt-1">Usa la agenda para preparar una visita o mantén libre el día.</p>{portal.quickActions.some((item) => item.capability === "agenda.manage") ? <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy" className="secondary-button mt-3">Añadir visita</Link> : null}</div>}
+        </section> : null}
+      </div>
 
-      <section aria-labelledby="portal-priorities" className={`section-shell portal-priorities portal-priorities--${experience.tone}`}>
-        <div className="mb-4"><p className="type-label">Preparado para tu responsabilidad</p><h2 id="portal-priorities" className="type-section-title mt-1 text-content">{experience.priorityTitle}</h2></div>
-        <div className="portal-priorities__grid grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {portal.homeWidgets.slice(0, 3).map((widget) => {
-            const destination = destinationForWidget(widget, destinations);
-            const content = <><p className="type-object-title text-content">{homeWidgetLabel(widget)}</p><p className="type-secondary mt-1">{homeWidgetDescription(widget, portal.profile)}</p></>;
-            return destination ? <Link key={widget} href={destination.href} className="card block p-4 transition hover:border-brand hover:bg-brand-soft/40">{content}<span className="mt-3 inline-block text-sm font-semibold text-brand-strong">Abrir {destination.label.toLocaleLowerCase("es-ES")}</span></Link> : <article key={widget} className="card p-4">{content}<Status tone="neutral" className="mt-3">En tu portal</Status></article>;
-          })}
+      <section aria-labelledby="today-pulse" className="section-shell mt-5">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div><p className="type-label">Sin estimaciones inventadas</p><h2 id="today-pulse" className="type-section-title mt-1 text-content">Pulso compacto</h2></div>
+          {dashboardDestination ? <Link href={dashboardDestination.href} className="ghost-button">Abrir dashboard</Link> : null}
         </div>
+        <MetricGroup label="Pulso del portal" className="xl:grid-cols-3">
+          <Metric label="Áreas en foco" value={String(priorities.length)} detail="Máximo tres, según tus permisos" href={priorities[0]?.href} />
+          <Metric label="Agenda de hoy" value={String(todayAgenda.length)} detail={agendaVisible ? "Citas dentro de tu alcance" : "Agenda no disponible en tu portal"} href={agendaVisible ? "/agenda?vista=hoy" : undefined} />
+          <Metric label="Capturas disponibles" value={String(portal.quickActions.length)} detail="Acciones autorizadas para registrar" href={firstQuickAction?.href} />
+        </MetricGroup>
       </section>
 
-      {agendaVisible ? <section aria-labelledby="today-agenda" className="section-shell mt-8">
-        <div className="mb-4 flex items-start justify-between gap-3"><div><p className="type-label">Solo dentro de tu alcance</p><h2 id="today-agenda" className="type-section-title mt-1 text-content">Agenda de hoy</h2></div><Link href="/agenda?vista=hoy" className="ghost-button">Ver agenda</Link></div>
-        {todayAgenda.length ? <div className="divide-y divide-border">{todayAgenda.map((item) => <Link key={`${item.source}-${item.id}`} href={item.href} className="flex min-h-16 items-center justify-between gap-3 py-3 hover:bg-subtle"><span className="min-w-0"><span className="type-object-title block truncate text-content">{timeLabel(item.fechaInicio)} · {item.titulo}</span><span className="type-meta mt-1 block">{item.clienteNombre ?? item.obraTitulo ?? "Agenda interna"}</span></span><span className="text-sm font-semibold text-brand-strong">Abrir</span></Link>)}</div> : <div className="rounded-xl bg-subtle p-4"><CalendarDays size={20} className="text-brand-strong" aria-hidden="true"/><p className="type-object-title mt-2 text-content">No tienes citas dentro de tu alcance para hoy.</p>{portal.quickActions.some((item) => item.capability === "agenda.manage") ? <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy" className="secondary-button mt-3">Añadir visita</Link> : null}</div>}
-      </section> : null}
+      {activation ? <div className="mt-5"><ActivationChecklist status={activation}/></div> : null}
 
-      {portal.quickActions.length ? <section aria-labelledby="quick-actions" className="section-shell mt-8"><div className="mb-4"><p className="type-label">Con tus permisos actuales</p><h2 id="quick-actions" className="type-section-title mt-1 text-content">Acciones rápidas</h2></div><div className="flex flex-wrap gap-2">{portal.quickActions.map((item) => <Link key={item.href} href={item.href} className="secondary-button">{item.label}</Link>)}</div></section> : null}
+      {portal.quickActions.length ? <section aria-labelledby="quick-actions" className="section-shell mt-5"><div className="mb-4"><p className="type-label">Captura rápida según permisos</p><h2 id="quick-actions" className="type-section-title mt-1 text-content">Registrar sin perder contexto</h2></div><div className="flex flex-wrap gap-2">{portal.quickActions.map((item) => <Link key={item.href} href={item.href} className="secondary-button"><Plus size={17} aria-hidden="true" />{item.label}</Link>)}</div></section> : null}
     </ProductPage>
   );
 }
@@ -141,7 +188,26 @@ const homeWidgetLabels: Record<string, string> = {
 function homeWidgetLabel(value: string) {
   return homeWidgetLabels[value] ?? value.replaceAll("-", " ").replace(/^./, (letter) => letter.toLocaleUpperCase("es-ES"));
 }
-function homeWidgetDescription(value: string, profile: string) { return `${homeWidgetLabel(value)}: información preparada para ${profile === "WORKER" ? "tu jornada y trabajos asignados" : "las responsabilidades de tu perfil"}.`; }
+function homeWidgetReason(value: string, profile: string) {
+  if (profile === "WORKER") return `${homeWidgetLabel(value)} forma parte de tu jornada y de los trabajos que tienes asignados.`;
+  return `${homeWidgetLabel(value)} forma parte de las responsabilidades configuradas para tu perfil.`;
+}
+function homeWidgetImpact(value: string) {
+  const impacts: Record<string, string> = {
+    collections: "Conserva factura, vencimiento y cobro en su origen.",
+    payments: "Conserva obligación, proveedor y fecha en su origen.",
+    invoices: "Abre el documento y su saldo autorizado sin resumirlo fuera de contexto.",
+    treasury: "Mantiene caja, vencimientos y previsión trazables.",
+    quotes: "Mantiene cliente, propuesta y siguiente acción conectados.",
+    clients: "Mantiene relación, trabajo y siguiente acción conectados.",
+    work: "Mantiene planificación, ejecución y costes dentro del trabajo.",
+    "assigned-work": "Evita mezclar trabajos fuera de tu asignación.",
+    tasks: "Mantiene instrucciones, fecha y avance en la tarea original.",
+    suppliers: "Mantiene proveedor, documentación y compras relacionados.",
+    documents: "Mantiene archivo, entidad y estado documental relacionados.",
+  };
+  return impacts[value] ?? "Abre el dato original y mantiene la siguiente acción dentro de su contexto.";
+}
 function timeLabel(date: Date) { return date.getHours() === 0 && date.getMinutes() === 0 ? "Sin hora" : new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(date); }
 function startOfDay(date: Date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
 function addDays(date: Date, days: number) { const copy = new Date(date); copy.setDate(copy.getDate() + days); return copy; }
