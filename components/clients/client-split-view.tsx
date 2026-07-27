@@ -57,8 +57,8 @@ export function ClientSplitView({ items }: { items: ClientWorkspaceItem[] }) {
         aria-label="Clientes"
         data-client-mobile-cards
       >
-        {items.map((client) => (
-          <ClientMobileCard key={client.id} client={client} />
+        {items.map((client, index) => (
+          <ClientMobileCard key={client.id} client={client} primary={index === 0} />
         ))}
       </div>
     </>
@@ -94,7 +94,7 @@ function ClientRow({
         {client.pendingBalance ? <RowMeta label="Saldo" value={client.pendingBalance} /> : null}
         <RowMeta label="Último contacto" value={client.lastContact} />
       </dl>
-      <Link href={client.actionHref} className="primary-button mt-4 w-full">
+      <Link href={client.actionHref} className="secondary-button mt-4 w-full">
         {client.actionLabel}
       </Link>
     </article>
@@ -139,7 +139,13 @@ function ClientPreview({ client }: { client: ClientWorkspaceItem }) {
   );
 }
 
-function ClientMobileCard({ client }: { client: ClientWorkspaceItem }) {
+function ClientMobileCard({
+  client,
+  primary,
+}: {
+  client: ClientWorkspaceItem;
+  primary: boolean;
+}) {
   return (
     <article className="surface p-4">
       <div className="flex items-start justify-between gap-3">
@@ -161,7 +167,10 @@ function ClientMobileCard({ client }: { client: ClientWorkspaceItem }) {
         <RowMeta label="Contacto" value={client.lastContact} />
         {client.pendingBalance ? <RowMeta label="Saldo" value={client.pendingBalance} /> : null}
       </dl>
-      <Link href={client.actionHref} className="primary-button mt-4 w-full">
+      <Link
+        href={client.actionHref}
+        className={`${primary ? "primary-button" : "secondary-button"} mt-4 w-full`}
+      >
         {client.actionLabel}
       </Link>
       <QuickLinks client={client} compact />

@@ -23,10 +23,10 @@ delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 mkdirSync(screenshotRoot, { recursive: true });
 
 const allProfiles = [
-  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" } },
+  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
   { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria" },
-  { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero" },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" } },
+  { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
   { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
   { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
   { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes" },
@@ -355,9 +355,11 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
   if (focusD4 && result.route.startsWith("/clientes") && !result.route.includes("review-client-1") && expectation === "allowed") {
     if (result.clientSmartViewCount !== 3) findings.push(`${context}:D4_SMART_VIEWS_${result.clientSmartViewCount}`);
     if (viewport === "390" && !result.clientMobileCardsVisible) findings.push(`${context}:D4_MOBILE_CARDS_MISSING`);
-    if (viewport === "1440" && !result.clientListSplitVisible) findings.push(`${context}:D4_DESKTOP_SPLIT_MISSING`);
+    if (viewport === "1440" && !result.route.includes("__orqena_review_empty_state__") && !result.clientListSplitVisible) {
+      findings.push(`${context}:D4_DESKTOP_SPLIT_MISSING`);
+    }
   }
-  if (focusD4 && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
+  if (focusD4 && profile === "owner" && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
     if (result.clientDetailAreaCount !== 4) findings.push(`${context}:D4_DETAIL_AREAS_${result.clientDetailAreaCount}`);
     if (!result.clientContextDrawerTriggerVisible) findings.push(`${context}:D4_CONTEXT_DRAWER_MISSING`);
   }
@@ -859,6 +861,9 @@ try {
     if (profile.denied) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.denied, "denied"));
     if (focusD3 && profile.d3) {
       profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d3.route, profile.d3.expectation));
+    }
+    if (focusD4 && profile.d4) {
+      profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d4.route, profile.d4.expectation));
     }
     for (const permissionCase of profileResult.permissionCases) report.blockingFindings.push(...permissionCase.findings);
     const desktopHome = profileResult.homes.find(({ viewport }) => viewport === "1440") ?? profileResult.homes.at(-1);

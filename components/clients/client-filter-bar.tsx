@@ -61,7 +61,7 @@ export function ClientFilterBar({
             aria-current={selectedView === id ? "page" : undefined}
             className={
               selectedView === id
-                ? "primary-button min-h-10 shrink-0"
+                ? "inline-flex min-h-10 shrink-0 items-center rounded-xl bg-content px-4 text-sm font-semibold text-surface"
                 : "secondary-button min-h-10 shrink-0"
             }
           >
