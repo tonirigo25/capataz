@@ -1,7 +1,8 @@
 param(
   [string]$Sha = "",
   [switch]$PreserveOwnerAccess,
-  [switch]$D10
+  [switch]$D10,
+  [switch]$SkipD10AuthEngines
 )
 
 $ErrorActionPreference = "Stop"
@@ -100,7 +101,7 @@ try {
   if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
   }
-  if ($D10) {
+  if ($D10 -and -not $SkipD10AuthEngines) {
     & npm run test:design-d10-auth-engines
     if ($LASTEXITCODE -ne 0) {
       exit $LASTEXITCODE

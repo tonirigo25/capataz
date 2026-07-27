@@ -776,7 +776,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
               ) : null}
               <div
                 className={`max-w-[82%] rounded-lg px-3 py-2 text-sm leading-6 ${
-                  message.role === "user" ? "bg-obra-yellow text-obra-ink" : "bg-slate-100 text-slate-700"
+                  message.role === "user" ? "bg-obra-yellow text-white" : "bg-slate-100 text-slate-700"
                 }`}
               >
                 <MessageText text={message.text} />

@@ -1467,6 +1467,7 @@ async function auditD10Tenants(browser, storageState) {
     negativeTenant: "Orqena Review · Instalaciones",
     negativeTenantClientStatus: 0,
     negativeTenantNotFoundVisible: false,
+    negativeTenantHeadings: [],
     negativeTenantDetailLeaked: false,
     primaryFixtureLeaked: false,
     restoredPrimaryTenant: false,
@@ -1487,8 +1488,10 @@ async function auditD10Tenants(browser, storageState) {
     if (!activeNegative?.includes(result.negativeTenant)) findings.push("D10_TENANTS_NEGATIVE_NOT_ACTIVE");
 
     const negativeClient = await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/clientes/review-client-1:d10-negative-tenant");
     result.negativeTenantClientStatus = negativeClient?.status() ?? 0;
     const negativeClientText = await page.locator("body").innerText();
+    result.negativeTenantHeadings = await page.locator("h1, h2").allInnerTexts();
     result.negativeTenantNotFoundVisible = /(?:404|page could not be found|página no (?:se )?ha encontrado|página no encontrada)/iu.test(negativeClientText);
     result.negativeTenantDetailLeaked = negativeClientText.includes("Cliente Sintético Review");
     if (![200, 404].includes(result.negativeTenantClientStatus)) {
