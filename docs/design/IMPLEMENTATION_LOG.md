@@ -250,3 +250,44 @@ Estado: `PASS`.
 - Acceso OWNER de un solo uso rotado y entregado fuera de Git; MFA activa sin cambios y 0 llaves SSH restantes.
 - Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D4_REVIEW_EVIDENCE.json`.
+
+## D5 — Trabajo, presupuesto, factura y tesorería
+
+Estado: `PASS`.
+
+### Implementado
+
+- Trabajo 360 prioriza estado real, hitos, evidencia, coste previsto/real y margen sólo bajo permiso; declara explícitamente que no inventa porcentaje físico.
+- Presupuesto conserva las acciones y autorización existentes, añade editor semántico de partidas y preview viva sin mostrar el JSON interno.
+- `Guardar borrador` y `Revisar y enviar` quedan visibles; el envío mantiene confirmación humana y el PDF conserva generador, numeración y cálculos previos.
+- Factura y cobro reúne total, cobrado, pendiente, vencimiento, pagos parciales, recordatorios, compromisos y siguiente acción.
+- El documento/PDF y el estado fiscal se muestran en un bloque separado; registrar cobro no activa transmisión fiscal.
+- Tesorería abre con caja registrada, por cobrar, por pagar y flujo previsto documentado, además de calendario, movimientos y fuentes.
+- Cada superficie focal conserva una sola jerarquía primaria visible sin retirar acciones secundarias.
+- Los fixtures sintéticos de Review añaden un pago parcial, recordatorio y compromiso, sin provider o comunicación real.
+- No se añade Prisma, migración, numeración, cálculo fiscal, movimiento real ni cambio de reglas de negocio.
+
+### Evidencia local D5
+
+- `npm run test:design-d5`: PASS, 19/19.
+- `npm run test:client-work-operating-system`: PASS, 38/38.
+- `npm run test:economic-control-treasury-experience`: PASS, 27/27.
+- `npm run test:document-pdf`, `test:works`, `test:work-detail` y `test:work-profitability`: PASS.
+- `npm run test:numbering-contract`: PASS aislado, 32 llamadas y concurrencia 20.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76.
+- `npm run readiness:validate-all-static`: PASS completo hasta F11 e identidad; 0 escrituras en staging y producción.
+
+### Evidencia remota D5
+
+- SHA exacto: `cd92c3d24d8fb94772f459d3e059547095e17679`.
+- Railway Review: deployment `06408195-96b7-4f06-97d0-fd8f6c63de24`, `SUCCESS`, imagen `sha256:26c5a965ef5b71d15c8b2deeca488d8c946f4b48fd1f7cb3282f4c4b140c226b`.
+- Predeploy: 43 migraciones encontradas y ninguna pendiente.
+- `/api/health/live`, `/api/health/ready` y `/api/status`: 200 con `noindex`.
+- Matriz focal: 6 perfiles, 12 combinaciones perfil/viewport, 23 permisos, 6 firmas de portal, 8 superficies OWNER, 6/6 estados, 3 casos de capacidad y 43 casos Axe.
+- Quote-to-cash no mutante: 6/6 — preview viva, dos PDFs, enlaces obra→presupuesto/factura, saldo parcial y forecast documentado.
+- Revisión visual directa desktop/móvil de Trabajo, Presupuesto, Factura y Tesorería: PASS; 0 overflow, 0 observaciones y 0 bloqueadores.
+- El primer gate detectó 11 bloqueos y 6 observaciones; el segundo redujo a 1/0; el replay exacto final cerró en 0/0 sin reducir cobertura.
+- Acceso OWNER de un solo uso rotado y entregado fuera de Git; no se mostró contraseña ni secreto MFA.
+- Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
+- Evidencia estructurada: `docs/design/evidence/D5_REVIEW_EVIDENCE.json`.

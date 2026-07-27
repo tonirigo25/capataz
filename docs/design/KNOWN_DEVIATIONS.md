@@ -13,4 +13,5 @@
 - D3 observó una hidratación `React #418` en la primera visita móvil aislada de permisos a `/dashboard`. El replay obligatorio en contexto nuevo y la repetición final completa no la reprodujeron; queda como incidencia no reproducida, no como regresión demostrable.
 - D3 cerró Hoy y Dashboard con 0 observaciones de acción primaria en las superficies focales. Las observaciones restantes pertenecen a bloques D4-D10 aún no ejecutados.
 - El primer gate D4 de `a226f7c...` detectó múltiples acciones primarias en el listado y un falso bloqueo al exigir split pane en el estado vacío. `78fe7ff...` separa la vista activa de una CTA, deja una única acción primaria contextual y supera el replay completo con 0 observaciones.
+- El primer gate D5 de `174c2e9...` detectó seis jerarquías de acción primaria y cinco expectativas/aserciones incorrectas del auditor; `a77cb05...` dejó 0 observaciones y un único falso negativo por espacio tipográfico en moneda. `cd92c3d...` normaliza esa evidencia y supera exactamente la misma matriz con 0 observaciones y 0 bloqueadores.
 - Safari real, Chrome Android real, NVDA, VoiceOver y zoom humano siguen `READY_FOR_EXTERNAL_INPUT`.
