@@ -184,7 +184,7 @@ export default async function FollowUpDetailPage({
               defaultValue={item.expectedOutcome ?? ""}
             />
           </label>
-          <button className="primary-button md:col-span-2">
+          <button className="secondary-button md:col-span-2">
             Guardar cambios
           </button>
         </form>
@@ -304,7 +304,7 @@ export default async function FollowUpDetailPage({
             Registrar este resultado no marca facturas pagadas ni cambia
             presupuestos automáticamente.
           </p>
-          <button className="primary-button md:col-span-2">
+          <button className="secondary-button md:col-span-2">
             Guardar resultado
           </button>
         </form>

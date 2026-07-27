@@ -230,7 +230,7 @@ export default async function TaskDetailPage({
             Nuevo elemento
           </label>
           <input id="check-title" className="field" name="title" required />
-          <button className="primary-button">Añadir</button>
+          <button className="secondary-button">Añadir</button>
         </form>
         {task.checklist.length ? (
           <ul className="mt-3 space-y-2">
@@ -316,7 +316,7 @@ export default async function TaskDetailPage({
               Nueva subtarea
               <input className="field mt-1" name="title" required />
             </label>
-            <button className="primary-button">Crear subtarea</button>
+            <button className="secondary-button">Crear subtarea</button>
           </form>
           {task.subtasks.length ? (
             <ul className="mt-3 space-y-2">
@@ -354,7 +354,7 @@ export default async function TaskDetailPage({
               <option value="related">Relacionada</option>
               </select>
             </label>
-            <button className="primary-button">Añadir dependencia</button>
+            <button className="secondary-button">Añadir dependencia</button>
           </form>
           {task.dependencies.map((dep) => (
             <div
@@ -428,7 +428,7 @@ export default async function TaskDetailPage({
             Ejemplo: cada semana los lunes. COUNT y UNTIL limitan la serie; las
             filas se generan dentro de una ventana.
           </p>
-          <button className="primary-button md:col-span-2">
+          <button className="secondary-button md:col-span-2">
             Guardar recurrencia
           </button>
         </form>
@@ -469,7 +469,7 @@ export default async function TaskDetailPage({
               Comentario
             </label>
             <input id="comment" className="field" name="content" required />
-            <button className="primary-button">Añadir</button>
+            <button className="secondary-button">Añadir</button>
           </form>
           {task.comments.map((item) => (
             <article className="mt-3 border-t pt-3 text-sm" key={item.id}>

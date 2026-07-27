@@ -37,6 +37,14 @@ function guardReview() {
   if (!/(?:railway\.internal|proxy\.rlwy\.net)$/u.test(database.hostname)) throw new Error("REVIEW_DATABASE_HOST_INVALID");
 }
 
+function reviewWeekDate(dayOffset: number, hour: number) {
+  const value = new Date();
+  const weekday = value.getDay();
+  value.setDate(value.getDate() + (weekday === 0 ? -6 : 1 - weekday) + dayOffset);
+  value.setHours(hour, 0, 0, 0);
+  return value;
+}
+
 async function main() {
   guardReview();
   await ensureBasePlans(prisma);
@@ -99,6 +107,11 @@ async function main() {
     update: { companyId: primary.id },
     create: { id: "review-client-1", companyId: primary.id, nombre: "Cliente Sintético Review", telefono: "+34 000 000 201", email: "cliente@review.orqena.invalid", direccion: "Calle Sintética 1", tipo: "Empresa", origen: "continuous-review" },
   });
+  const contact = await prisma.contact.upsert({
+    where: { id: "review-contact-1" },
+    update: { companyId: primary.id, clientId: client.id, nombre: "Marta", apellidos: "Contacto Review", cargo: "Responsable de obra", telefono: "+34 000 000 202", email: "contacto@review.orqena.invalid", isPrimary: true, isSiteContact: true },
+    create: { id: "review-contact-1", companyId: primary.id, clientId: client.id, nombre: "Marta", apellidos: "Contacto Review", cargo: "Responsable de obra", telefono: "+34 000 000 202", email: "contacto@review.orqena.invalid", isPrimary: true, isSiteContact: true },
+  });
   const work = await prisma.work.upsert({
     where: { id: "review-work-1" },
     update: { companyId: primary.id, clienteId: client.id, estado: "en_curso", costePrevisto: 12_500, gastoReal: 850, margenEstimado: 5_500, responsable: "Responsable sintético" },
@@ -126,8 +139,18 @@ async function main() {
   });
   await prisma.reminder.upsert({
     where: { id: "review-invoice-reminder-1" },
-    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id },
-    create: { id: "review-invoice-reminder-1", companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id, tipo: "recordatorio_factura", canal: "interno", mensaje: "Revisar el cobro sintético antes del vencimiento.", fechaProgramada: new Date(Date.now() + 7 * 86_400_000), estado: "programado", requiereConfirmacion: true },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id, contactId: contact.id, fechaProgramada: new Date(Date.now() + 7 * 86_400_000), estado: "programado", requiereConfirmacion: true },
+    create: { id: "review-invoice-reminder-1", companyId: primary.id, clienteId: client.id, obraId: work.id, facturaId: invoice.id, contactId: contact.id, tipo: "recordatorio_factura", canal: "interno", mensaje: "Revisar el cobro sintético antes del vencimiento.", fechaProgramada: new Date(Date.now() + 7 * 86_400_000), estado: "programado", requiereConfirmacion: true },
+  });
+  await prisma.reminder.upsert({
+    where: { id: "review-reminder-prepared-1" },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, contactId: contact.id, fechaProgramada: new Date(Date.now() + 2 * 86_400_000), estado: "pendiente_confirmacion", requiereConfirmacion: true },
+    create: { id: "review-reminder-prepared-1", companyId: primary.id, clienteId: client.id, obraId: work.id, contactId: contact.id, tipo: "recordatorio_interno", canal: "interno", mensaje: "Mensaje sintético preparado; requiere confirmación humana antes de cualquier envío.", fechaProgramada: new Date(Date.now() + 2 * 86_400_000), estado: "pendiente_confirmacion", requiereConfirmacion: true },
+  });
+  await prisma.reminder.upsert({
+    where: { id: "review-reminder-sent-1" },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, contactId: contact.id, fechaProgramada: new Date(Date.now() - 2 * 86_400_000), estado: "enviado", requiereConfirmacion: true },
+    create: { id: "review-reminder-sent-1", companyId: primary.id, clienteId: client.id, obraId: work.id, contactId: contact.id, tipo: "recordatorio_interno", canal: "interno", mensaje: "Histórico sintético de envío interno; ningún proveedor live fue utilizado.", fechaProgramada: new Date(Date.now() - 2 * 86_400_000), estado: "enviado", requiereConfirmacion: true },
   });
   await prisma.eventoAgenda.upsert({
     where: { id: "review-invoice-promise-1" },
@@ -216,16 +239,101 @@ async function main() {
   });
   await prisma.eventoAgenda.upsert({
     where: { id: "review-event-1" },
-    update: { companyId: primary.id, clienteId: client.id, obraId: work.id },
-    create: { id: "review-event-1", companyId: primary.id, titulo: "Visita sintética", tipo: "visita", fechaInicio: new Date(Date.now() + 86_400_000), clienteId: client.id, obraId: work.id },
+    update: { companyId: primary.id, clienteId: client.id, obraId: work.id, contactId: contact.id, fechaInicio: reviewWeekDate(0, 9), estado: "confirmado" },
+    create: { id: "review-event-1", companyId: primary.id, titulo: "Visita sintética", descripcion: "Revisión de avance con el contacto de obra.", tipo: "visita", estado: "confirmado", fechaInicio: reviewWeekDate(0, 9), clienteId: client.id, obraId: work.id, contactId: contact.id },
   });
+  const reviewAgendaEvents = [
+    { id: "review-event-2", titulo: "Llamada de coordinación", descripcion: "Confirmar acceso y materiales.", tipo: "llamada", day: 1, hour: 10 },
+    { id: "review-event-3", titulo: "Seguimiento del presupuesto", descripcion: "Revisar la decisión pendiente.", tipo: "seguimiento_presupuesto", day: 2, hour: 12 },
+    { id: "review-event-4", titulo: "Entrega de materiales", descripcion: "Comprobar albarán y recepción.", tipo: "compra_material", day: 3, hour: 8 },
+    { id: "review-event-5", titulo: "Revisión de cierre semanal", descripcion: "Actualizar el siguiente paso con el equipo.", tipo: "recordatorio_interno", day: 4, hour: 16 },
+  ] as const;
+  for (const event of reviewAgendaEvents) {
+    await prisma.eventoAgenda.upsert({
+      where: { id: event.id },
+      update: { companyId: primary.id, titulo: event.titulo, descripcion: event.descripcion, tipo: event.tipo, estado: "confirmado", fechaInicio: reviewWeekDate(event.day, event.hour), clienteId: client.id, obraId: work.id, contactId: contact.id },
+      create: { id: event.id, companyId: primary.id, titulo: event.titulo, descripcion: event.descripcion, tipo: event.tipo, estado: "confirmado", fechaInicio: reviewWeekDate(event.day, event.hour), clienteId: client.id, obraId: work.id, contactId: contact.id },
+    });
+  }
   const task = await prisma.task.upsert({
     where: { id: "review-task-1" },
-    update: { companyId: primary.id, clientId: client.id, workId: work.id },
-    create: { id: "review-task-1", companyId: primary.id, clientId: client.id, workId: work.id, title: "Revisar avance sintético", description: "Tarea visible para los perfiles operativos", createdById: owner.id, assigneeId: users.get("worker")!.id, dueAt: new Date(Date.now() + 86_400_000) },
+    update: { companyId: primary.id, clientId: client.id, workId: work.id, status: "in_progress", priority: "high", createdById: owner.id, assigneeId: users.get("worker")!.id, dueAt: new Date(Date.now() + 86_400_000) },
+    create: { id: "review-task-1", companyId: primary.id, clientId: client.id, workId: work.id, title: "Revisar avance sintético", description: "Tarea visible para los perfiles operativos", status: "in_progress", priority: "high", createdById: owner.id, assigneeId: users.get("worker")!.id, dueAt: new Date(Date.now() + 86_400_000) },
   });
   await prisma.taskAssignment.deleteMany({ where: { taskId: task.id } });
   await prisma.taskAssignment.createMany({ data: ["project-manager", "supervisor", "worker", "external"].map((key) => ({ taskId: task.id, userId: users.get(key)!.id, role: "responsible" })) });
+  const reviewTasks = [
+    { id: "review-task-2", title: "Confirmar mediciones", status: "planned", priority: "urgent", dueAt: new Date() },
+    { id: "review-task-3", title: "Preparar pedido de pintura", status: "planned", priority: "medium", dueAt: new Date(Date.now() + 2 * 86_400_000) },
+    { id: "review-task-4", title: "Resolver acceso a cubierta", status: "blocked", priority: "high", dueAt: new Date() },
+    { id: "review-task-5", title: "Esperar validación del cliente", status: "waiting", priority: "medium", dueAt: new Date(Date.now() + 3 * 86_400_000) },
+    { id: "review-task-6", title: "Coordinar retirada de escombros", status: "inbox", priority: "low", dueAt: null },
+    { id: "review-task-7", title: "Revisar parte diario", status: "in_progress", priority: "medium", dueAt: new Date(Date.now() + 4 * 86_400_000) },
+    { id: "review-task-completed-1", title: "Validar replanteo inicial", status: "completed", priority: "medium", dueAt: new Date(Date.now() - 86_400_000) },
+  ] as const;
+  for (const fixture of reviewTasks) {
+    await prisma.task.upsert({
+      where: { id: fixture.id },
+      update: { companyId: primary.id, clientId: client.id, workId: work.id, title: fixture.title, status: fixture.status, priority: fixture.priority, createdById: owner.id, assigneeId: users.get("worker")!.id, dueAt: fixture.dueAt },
+      create: { id: fixture.id, companyId: primary.id, clientId: client.id, workId: work.id, title: fixture.title, description: "Dato sintético D7 para revisar volumen, estados y jerarquía.", status: fixture.status, priority: fixture.priority, createdById: owner.id, assigneeId: users.get("worker")!.id, dueAt: fixture.dueAt },
+    });
+  }
+
+  const reviewFollowUps = [
+    { id: "review-followup-1", title: "Confirmar decisión del presupuesto", type: "budget_followup", status: "promised", priority: "high", nextActionAt: new Date(Date.now() + 86_400_000), expectedOutcome: "Respuesta comprometida antes del viernes" },
+    { id: "review-followup-2", title: "Revisar cobro parcial", type: "collection_followup", status: "waiting_response", priority: "urgent", nextActionAt: new Date(Date.now() - 86_400_000), expectedOutcome: "Acordar fecha del siguiente pago" },
+    { id: "review-followup-3", title: "Coordinar visita final", type: "client_contact", status: "planned", priority: "medium", nextActionAt: new Date(Date.now() + 3 * 86_400_000), expectedOutcome: "Cerrar una fecha de visita" },
+    { id: "review-followup-completed-1", title: "Confirmar recepción de materiales", type: "general", status: "completed", priority: "low", nextActionAt: new Date(Date.now() - 2 * 86_400_000), expectedOutcome: "Recepción confirmada" },
+  ] as const;
+  for (const fixture of reviewFollowUps) {
+    await prisma.followUp.upsert({
+      where: { id: fixture.id },
+      update: { companyId: primary.id, title: fixture.title, type: fixture.type, status: fixture.status, priority: fixture.priority, createdById: owner.id, responsibleId: users.get("sales")!.id, clientId: client.id, contactId: contact.id, workId: work.id, budgetId: "review-budget-1", invoiceId: invoice.id, nextActionAt: fixture.nextActionAt, expectedOutcome: fixture.expectedOutcome },
+      create: { id: fixture.id, companyId: primary.id, title: fixture.title, type: fixture.type, status: fixture.status, priority: fixture.priority, createdById: owner.id, responsibleId: users.get("sales")!.id, clientId: client.id, contactId: contact.id, workId: work.id, budgetId: "review-budget-1", invoiceId: invoice.id, nextActionAt: fixture.nextActionAt, expectedOutcome: fixture.expectedOutcome },
+    });
+  }
+  await prisma.followUpAttempt.upsert({
+    where: { id: "review-followup-attempt-1" },
+    update: { followUpId: "review-followup-1", attemptedAt: new Date(Date.now() - 4 * 60 * 60_000), channel: "telefono", responsibleId: users.get("sales")!.id, summary: "Contacto sintético realizado", response: "Promete revisar la propuesta" },
+    create: { id: "review-followup-attempt-1", followUpId: "review-followup-1", attemptedAt: new Date(Date.now() - 4 * 60 * 60_000), channel: "telefono", responsibleId: users.get("sales")!.id, summary: "Contacto sintético realizado", response: "Promete revisar la propuesta" },
+  });
+  await prisma.followUpOutcome.upsert({
+    where: { id: "review-followup-outcome-1" },
+    update: { followUpId: "review-followup-1", type: "promise", summary: "Respuesta prometida para el viernes", recordedById: users.get("sales")!.id },
+    create: { id: "review-followup-outcome-1", followUpId: "review-followup-1", type: "promise", summary: "Respuesta prometida para el viernes", recordedById: users.get("sales")!.id },
+  });
+
+  const automation = await prisma.automationDefinition.upsert({
+    where: { id: "review-automation-1" },
+    update: { companyId: primary.id, name: "Recordatorio interno de revisión", description: "Automatización sintética con confirmación humana y proveedor live desactivado.", category: "followups", status: "active", priority: 10, source: "continuous-review", createdById: owner.id, active: true },
+    create: { id: "review-automation-1", companyId: primary.id, name: "Recordatorio interno de revisión", description: "Automatización sintética con confirmación humana y proveedor live desactivado.", category: "followups", status: "active", priority: 10, source: "continuous-review", createdById: owner.id, active: true },
+  });
+  const automationVersion = await prisma.automationVersion.upsert({
+    where: { id: "review-automation-version-1" },
+    update: { automationDefinitionId: automation.id, version: 1, status: "published", triggerMode: "schedule", cooldownSeconds: 86_400, timeoutSeconds: 60, retryPolicy: { maxAttempts: 3, backoff: "exponential" }, requiresConfirmation: true, confirmationMode: "per_action", deduplicationStrategy: "occurrence", definitionHash: "review-automation-d7-v1", publishedAt: new Date() },
+    create: { id: "review-automation-version-1", automationDefinitionId: automation.id, version: 1, status: "published", triggerMode: "schedule", cooldownSeconds: 86_400, timeoutSeconds: 60, retryPolicy: { maxAttempts: 3, backoff: "exponential" }, requiresConfirmation: true, confirmationMode: "per_action", deduplicationStrategy: "occurrence", definitionHash: "review-automation-d7-v1", publishedAt: new Date() },
+  });
+  await prisma.automationTrigger.upsert({
+    where: { id: "review-automation-trigger-1" },
+    update: { automationVersionId: automationVersion.id, type: "schedule", eventType: null, entityType: "FollowUp", configuration: { cadence: "daily" } },
+    create: { id: "review-automation-trigger-1", automationVersionId: automationVersion.id, type: "schedule", entityType: "FollowUp", configuration: { cadence: "daily" } },
+  });
+  await prisma.automationAction.upsert({
+    where: { id: "review-automation-action-1" },
+    update: { automationVersionId: automationVersion.id, actionType: "create_internal_reminder", order: 0, configuration: { channel: "internal" }, requiresConfirmation: true, confirmationMode: "per_action", onFailure: "retry" },
+    create: { id: "review-automation-action-1", automationVersionId: automationVersion.id, actionType: "create_internal_reminder", order: 0, configuration: { channel: "internal" }, requiresConfirmation: true, confirmationMode: "per_action", onFailure: "retry" },
+  });
+  await prisma.automationSchedule.upsert({
+    where: { automationDefinitionId: automation.id },
+    update: { timezone: "Europe/Madrid", cronExpression: "0 8 * * 1-5", nextRunAt: new Date(Date.now() + 86_400_000), active: true },
+    create: { id: "review-automation-schedule-1", automationDefinitionId: automation.id, timezone: "Europe/Madrid", cronExpression: "0 8 * * 1-5", nextRunAt: new Date(Date.now() + 86_400_000), active: true },
+  });
+  await prisma.automationDefinition.update({ where: { id: automation.id }, data: { currentVersionId: automationVersion.id } });
+  await prisma.automationRun.upsert({
+    where: { id: "review-automation-run-1" },
+    update: { companyId: primary.id, automationDefinitionId: automation.id, automationVersionId: automationVersion.id, status: "failed", triggerType: "schedule", triggeredBy: "continuous-review", correlationId: "review-automation-correlation-1", idempotencyKey: "review-automation-run-d7-v1", failedAt: new Date(Date.now() - 60 * 60_000), errorCode: "REVIEW_SYNTHETIC_FAILURE", errorSummary: "Fallo sintético visible; no se llamó a ningún proveedor.", nextRetryAt: new Date(Date.now() + 60 * 60_000), attemptCount: 1, lastAttemptAt: new Date(Date.now() - 60 * 60_000), lastErrorCode: "REVIEW_SYNTHETIC_FAILURE", lastErrorSummary: "Fallo sintético para auditar retries." },
+    create: { id: "review-automation-run-1", companyId: primary.id, automationDefinitionId: automation.id, automationVersionId: automationVersion.id, status: "failed", triggerType: "schedule", triggeredBy: "continuous-review", correlationId: "review-automation-correlation-1", idempotencyKey: "review-automation-run-d7-v1", failedAt: new Date(Date.now() - 60 * 60_000), errorCode: "REVIEW_SYNTHETIC_FAILURE", errorSummary: "Fallo sintético visible; no se llamó a ningún proveedor.", nextRetryAt: new Date(Date.now() + 60 * 60_000), attemptCount: 1, lastAttemptAt: new Date(Date.now() - 60 * 60_000), lastErrorCode: "REVIEW_SYNTHETIC_FAILURE", lastErrorSummary: "Fallo sintético para auditar retries." },
+  });
 
   await prisma.platformAccount.upsert({ where: { userId: owner.id }, update: { role: "PLATFORM_OWNER", status: "ACTIVE" }, create: { userId: owner.id, role: "PLATFORM_OWNER", status: "ACTIVE" } });
   let ownerMfaToken: string | null = null;

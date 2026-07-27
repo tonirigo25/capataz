@@ -11,7 +11,7 @@ import * as followUpModule from "../lib/followups/followup-engine.ts";
 import * as recurrenceModule from "../lib/tasks/task-recurrence.ts";
 import * as retryModule from "../lib/automations/automation-retries.ts";
 import * as eventModule from "../lib/business-events.ts";
-import * as chatModule from "../app/(app)/capataz/actions.ts";
+import * as chatModule from "../lib/orqena/application/capataz-use-cases.ts";
 import * as chatQueryModule from "../lib/capataz-chat-query.ts";
 import * as sessionModule from "../lib/auth/session.ts";
 const { prisma } = moduleValue(prismaModule),

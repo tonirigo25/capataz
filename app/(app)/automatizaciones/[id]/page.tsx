@@ -127,7 +127,7 @@ export default async function AutomationDetailPage({
           {item.active ? (
             <form action={runAutomationAction}>
               <input type="hidden" name="id" value={item.id} />
-              <button className="primary-button">Ejecutar ahora</button>
+              <button className="secondary-button">Ejecutar ahora</button>
             </form>
           ) : null}
           <form action={archiveAutomationAction}>
@@ -324,7 +324,7 @@ export default async function AutomationDetailPage({
                 value={policy.maxDelaySeconds}
               />
             </fieldset>
-            <button className="primary-button md:col-span-2">
+            <button className="secondary-button md:col-span-2">
               Guardar borrador
             </button>
           </form>
@@ -379,7 +379,7 @@ export default async function AutomationDetailPage({
               defaultValue={inputDate(item.schedule?.nextRunAt)}
             />
           </label>
-          <button className="primary-button self-end">
+          <button className="secondary-button self-end">
             Guardar programación
           </button>
         </form>

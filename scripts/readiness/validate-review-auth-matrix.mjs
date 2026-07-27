@@ -16,6 +16,7 @@ const focusD3 = process.env.ORQENA_REVIEW_FOCUS_D3 === "true";
 const focusD4 = process.env.ORQENA_REVIEW_FOCUS_D4 === "true";
 const focusD5 = process.env.ORQENA_REVIEW_FOCUS_D5 === "true";
 const focusD6 = process.env.ORQENA_REVIEW_FOCUS_D6 === "true";
+const focusD7 = process.env.ORQENA_REVIEW_FOCUS_D7 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -25,15 +26,15 @@ delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 mkdirSync(screenshotRoot, { recursive: true });
 
 const allProfiles = [
-  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }], d6: [{ route: "/documentos", expectation: "allowed" }, { route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }] },
+  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }], d6: [{ route: "/documentos", expectation: "allowed" }, { route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/recordatorios", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "allowed" }] },
   { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
   { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" } },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "denied" }] },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "denied" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }] },
   { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d5: [{ route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
   { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d6: [{ route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }] },
-  { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
+  { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }] },
   { key: "supervisor", profile: "TEAM_SUPERVISOR", allowed: "/obras", denied: "/clientes" },
-  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" } },
+  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "denied" }, { route: "/automatizaciones", expectation: "denied" }] },
   { key: "external", profile: "EXTERNAL_COLLABORATOR", allowed: "/obras", restrictedInline: "/capataz" },
   { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true, d5: [{ route: "/presupuestos/review-budget-1", expectation: "denied" }, { route: "/dinero/review-invoice-1", expectation: "denied" }] },
 ];
@@ -114,8 +115,15 @@ const allOwnerSurfaceFamilies = [
   { family: "subcontractor-detail-mobile", route: "/subcontratas/review-subcontractor-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "supplier-invoices-mobile", route: "/facturas-proveedor", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
   { family: "supplier-invoice-detail-mobile", route: "/facturas-proveedor/review-purchase-invoice-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "agenda-mobile", route: "/agenda", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "tasks-mobile", route: "/tareas", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "followups-mobile", route: "/seguimientos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "reminders-mobile", route: "/recordatorios", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "alerts-mobile", route: "/alertas", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "recommendations-mobile", route: "/recomendaciones", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "automations-mobile", route: "/automatizaciones", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
-const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6);
+const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6 || focusD7);
 const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
 if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
@@ -126,13 +134,14 @@ const report = {
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
-  focus: focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
+  focus: focusD7 ? "D7" : focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
   d4Interactions: null,
   d5Interactions: null,
   d6Interactions: null,
+  d7Interactions: null,
   loginCases: [],
   stateCases: [],
   authenticatedCapacity: null,
@@ -303,6 +312,20 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       d6ReceivedInvoicesContract: ["Facturas recibidas", "Pendiente revisar", "Pendiente pagar", "Vencido", "Imputado a trabajos"].every((label) => document.body.innerText.includes(label)),
       d6ReceivedInvoiceDetailContract: ["Datos fiscales y económicos", "Base imponible", "IVA", "IRPF", "Pagos parciales", "Gasto enlazado", "Historial"].every((label) => document.body.innerText.includes(label))
         && document.body.innerText.includes("No se registra una segunda salida"),
+      d7AgendaContract: ["Semana", "Mes", "Lista", "Vencimientos", "Nueva visita"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector("[data-agenda-week]")),
+      d7TasksContract: ["Mías", "Equipo", "Bloqueadas", "Completadas", "Nueva tarea"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector("[data-task-view]")),
+      d7FollowUpsContract: ["Fecha", "Promesa", "Último intento", "Canal", "Resultado", "Siguiente acción"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector("[data-follow-up-queue-item]")),
+      d7RemindersContract: ["Preparado", "Programado", "Enviado"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector("[data-reminder-state]")),
+      d7AlertsContract: ["Alertas y recomendaciones", "Nivel", "Origen", "Regla"].every((label) => document.body.innerText.includes(label))
+        && !/Prioridad\s+\d+\/100|Puntuación/iu.test(document.body.innerText),
+      d7RecommendationsContract: ["Centro de recomendaciones", "Siguiente mejor acción", "Regla", "evidencia"].every((label) => document.body.innerText.includes(label))
+        && !/Prioridad\s+\d+\/100|Puntuación/iu.test(document.body.innerText),
+      d7AutomationsContract: ["Automatizaciones", "Trigger:", "Próxima:", "fallos", "retries"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector("[data-automation-state]")),
     };
   });
   let accessibility = { criticalOrSerious: 0, violations: [] };
@@ -409,6 +432,15 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
     if (result.route === "/proveedores" && !result.d6SupplierContract) findings.push(`${context}:D6_SUPPLIER_CONTRACT_MISSING`);
     if (result.route === "/facturas-proveedor" && !result.d6ReceivedInvoicesContract) findings.push(`${context}:D6_RECEIVED_INVOICES_CONTRACT_MISSING`);
     if (result.route.startsWith("/facturas-proveedor/review-purchase-invoice-1") && !result.d6ReceivedInvoiceDetailContract) findings.push(`${context}:D6_RECEIVED_INVOICE_DETAIL_CONTRACT_MISSING`);
+  }
+  if (focusD7 && expectation === "allowed") {
+    if (result.route === "/agenda" && !result.d7AgendaContract) findings.push(`${context}:D7_AGENDA_CONTRACT_MISSING`);
+    if (result.route === "/tareas" && !result.d7TasksContract) findings.push(`${context}:D7_TASKS_CONTRACT_MISSING`);
+    if (result.route === "/seguimientos" && !result.d7FollowUpsContract) findings.push(`${context}:D7_FOLLOWUPS_CONTRACT_MISSING`);
+    if (result.route === "/recordatorios" && !result.d7RemindersContract) findings.push(`${context}:D7_REMINDERS_CONTRACT_MISSING`);
+    if (result.route === "/alertas" && !result.d7AlertsContract) findings.push(`${context}:D7_ALERTS_CONTRACT_MISSING`);
+    if (result.route === "/recomendaciones" && !result.d7RecommendationsContract) findings.push(`${context}:D7_RECOMMENDATIONS_CONTRACT_MISSING`);
+    if (result.route === "/automatizaciones" && !result.d7AutomationsContract) findings.push(`${context}:D7_AUTOMATIONS_CONTRACT_MISSING`);
   }
   return findings;
 }
@@ -1118,6 +1150,83 @@ async function auditD6Interactions(browser, storageState) {
   };
 }
 
+async function auditD7Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const agendaResult = await navigateAndAudit(page, "/agenda");
+    const filterDrawer = page.locator("details[data-agenda-filters]");
+    if (await filterDrawer.count() && !(await filterDrawer.evaluate((element) => element.open))) await filterDrawer.locator("summary").click();
+    const agendaDays = await page.locator("[data-agenda-day]").count();
+    const agendaFilterVisible = await page.locator('details[data-agenda-filters][open] input[name="buscar"]').isVisible();
+    const agendaOk = agendaResult.d7AgendaContract && agendaDays >= 5 && agendaFilterVisible;
+    cases.push({ key: "agenda-week-and-filter-drawer", ok: agendaOk, agendaDays, agendaFilterVisible });
+    if (!agendaOk) findings.push("D7_AGENDA_WEEK_FILTER_FAILED");
+
+    const tasksResult = await navigateAndAudit(page, "/tareas");
+    const taskColumns = await page.locator('[data-task-view="board"] section').count();
+    const newTaskLinks = await page.locator('a[href*="/tareas?"][href*="nuevo=1"]').count();
+    const tasksOk = tasksResult.d7TasksContract && taskColumns >= 3 && newTaskLinks === 1;
+    cases.push({ key: "tasks-volume-board", ok: tasksOk, taskColumns, newTaskLinks });
+    if (!tasksOk) findings.push("D7_TASKS_BOARD_FAILED");
+
+    const followUpsResult = await navigateAndAudit(page, "/seguimientos");
+    const queueItems = await page.locator("[data-follow-up-queue-item]").count();
+    const followUpDetailLinks = await page.locator('a[href^="/seguimientos/review-followup-"]').count();
+    const followUpsOk = followUpsResult.d7FollowUpsContract && queueItems >= 3 && followUpDetailLinks >= 1;
+    cases.push({ key: "followups-work-queue", ok: followUpsOk, queueItems, followUpDetailLinks });
+    if (!followUpsOk) findings.push("D7_FOLLOWUPS_QUEUE_FAILED");
+
+    const remindersResult = await navigateAndAudit(page, "/recordatorios");
+    const reminderStates = await page.locator("[data-reminder-state]").evaluateAll((items) => [...new Set(items.map((item) => item.getAttribute("data-reminder-state")).filter(Boolean))]);
+    const remindersOk = remindersResult.d7RemindersContract
+      && ["pendiente_confirmacion", "programado", "enviado"].every((state) => reminderStates.includes(state));
+    cases.push({ key: "reminder-delivery-states", ok: remindersOk, reminderStates });
+    if (!remindersOk) findings.push("D7_REMINDER_STATES_FAILED");
+
+    const alertsResult = await navigateAndAudit(page, "/alertas");
+    const alertsText = await page.locator("main").innerText();
+    const alertsOk = alertsResult.d7AlertsContract
+      && ["Mañana", "Esta semana no", "Resolver", "Descartar"].every((label) => alertsText.includes(label));
+    cases.push({ key: "alert-transparent-lifecycle", ok: alertsOk });
+    if (!alertsOk) findings.push("D7_ALERT_LIFECYCLE_FAILED");
+
+    const recommendationsResult = await navigateAndAudit(page, "/recomendaciones");
+    const recommendationPrimaryCount = recommendationsResult.primaryActionCount;
+    const recommendationsText = await page.locator("main").innerText();
+    const recommendationsOk = recommendationsResult.d7RecommendationsContract
+      && recommendationPrimaryCount <= 1
+      && ["Mañana", "Esta semana no", "Descartar"].every((label) => recommendationsText.includes(label));
+    cases.push({ key: "recommendation-decision-hierarchy", ok: recommendationsOk, recommendationPrimaryCount });
+    if (!recommendationsOk) findings.push("D7_RECOMMENDATION_HIERARCHY_FAILED");
+
+    const automationsResult = await navigateAndAudit(page, "/automatizaciones");
+    const automationsText = await page.locator("main").innerText();
+    const automationsOk = automationsResult.d7AutomationsContract
+      && automationsText.includes("Recordatorio interno de revisión")
+      && automationsText.includes("REVIEW_SYNTHETIC_FAILURE") === false;
+    cases.push({ key: "automation-lifecycle-observability", ok: automationsOk });
+    if (!automationsOk) findings.push("D7_AUTOMATION_OBSERVABILITY_FAILED");
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D7_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D7_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
@@ -1163,6 +1272,11 @@ try {
     if (focusD6 && profile.d6) {
       for (const d6Case of profile.d6) {
         profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d6Case.route, d6Case.expectation));
+      }
+    }
+    if (focusD7 && profile.d7) {
+      for (const d7Case of profile.d7) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d7Case.route, d7Case.expectation));
       }
     }
     for (const permissionCase of profileResult.permissionCases) report.blockingFindings.push(...permissionCase.findings);
@@ -1211,6 +1325,13 @@ try {
       `AUDIT_D6_INTERACTIONS=CASES_${report.d6Interactions.cases.length};OK=${report.d6Interactions.findings.length === 0}\n`,
     );
   }
+  if (focusD7) {
+    report.d7Interactions = await auditD7Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d7Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D7_INTERACTIONS=CASES_${report.d7Interactions.cases.length};OK=${report.d7Interactions.findings.length === 0}\n`,
+    );
+  }
 
   report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
   report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
@@ -1239,6 +1360,8 @@ report.summary = {
     + (report.d4Interactions?.deepLinkCases.length ?? 0)
     + (report.d4Interactions ? 2 : 0),
   d5InteractionCases: report.d5Interactions?.cases.length ?? 0,
+  d6InteractionCases: report.d6Interactions?.cases.length ?? 0,
+  d7InteractionCases: report.d7Interactions?.cases.length ?? 0,
   stateCases: report.stateCases.length,
   stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
   loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),

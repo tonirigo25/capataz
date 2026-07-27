@@ -248,6 +248,7 @@ function runUiChecks() {
   const migrationPath = "prisma/migrations/20260711213000_business_signals_risk_alerts/migration.sql";
   const page = fs.readFileSync("app/(app)/alertas/page.tsx", "utf8");
   const actions = fs.readFileSync("app/(app)/alertas/actions.ts", "utf8");
+  const useCases = fs.readFileSync("lib/application/operations/alert-use-cases.ts", "utf8");
   const navigation = fs.readFileSync("lib/product-navigation.ts", "utf8");
   const today = fs.readFileSync("app/(app)/hoy/page.tsx", "utf8");
   const docs = fs.readFileSync("docs/BLOQUE_3_SENALES_RIESGOS_ALERTAS.md", "utf8");
@@ -266,7 +267,7 @@ function runUiChecks() {
   expect(page.includes("getBusinessSignals"), "[business-signals] /alertas must use central engine");
   expect(page.includes("Por qué aparece"), "[business-signals] /alertas must expose explanations");
   expect(page.includes("snoozeSignalAction") && page.includes("dismissSignalAction") && page.includes("resolveSignalAction"), "[business-signals] /alertas must expose lifecycle actions");
-  expect(actions.includes("snoozeBusinessSignal") && actions.includes("dismissBusinessSignal") && actions.includes("resolveBusinessSignal"), "[business-signals] actions must call engine lifecycle helpers");
+  expect(actions.includes("alert-use-cases") && useCases.includes("snoozeBusinessSignal") && useCases.includes("dismissBusinessSignal") && useCases.includes("resolveBusinessSignal"), "[business-signals] actions must call engine lifecycle helpers");
   expect(!navigation.includes('href: "/alertas"') && fs.existsSync("app/(app)/alertas/page.tsx"), "[business-signals] /alertas must remain available without competing in global navigation");
   expect(!today.includes("getTodaySignalBrief"), "[business-signals] Hoy must keep proactive signal brief blocked during recovery");
   expect(docs.includes("Fallback") && docs.includes("Railway") && docs.includes("Producción"), "[business-signals] docs must cover fallback, Railway and production");
