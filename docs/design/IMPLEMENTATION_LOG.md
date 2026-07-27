@@ -205,3 +205,40 @@ Estado: `PASS`.
 - Safari, Chrome Android, NVDA, VoiceOver y zoom real 200–400 % permanecen `READY_FOR_EXTERNAL_INPUT`; no detienen D4.
 - Staging y producción no se modificaron. Providers live, correo live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D3_REVIEW_EVIDENCE.json`.
+
+## D4 - Clientes y Cliente 360
+
+Estado: `LOCAL_PASS / REMOTE_PENDING`.
+
+### Implementado
+
+- `/clientes` abre en la vista inteligente `Necesitan acción`, con accesos a `Activos` y `Todos`.
+- La búsqueda permanece visible; estado, tipo, archivo, orden y situaciones operativas viven en un drawer/sheet accesible.
+- Desktop usa una lista de 420–480 px y preview derecho. Click, hover y foco actualizan la selección sin perder el listado; la ficha completa mantiene deep link.
+- Móvil usa tarjetas compactas sin tabla horizontal, una acción primaria contextual y accesos rápidos autorizados a llamada, mensaje, visita y ficha.
+- Cada fila limita la primera lectura a nombre, estado, siguiente acción, riesgo principal, trabajo activo, saldo autorizado, último contacto y CTA contextual.
+- Cliente 360 reduce siete pestañas a cuatro áreas: `Resumen`, `Trabajo/Obras`, `Dinero` y `Archivos`.
+- Contactos, datos fiscales, dirección, notas y configuración permanecen accesibles en `ContextDrawer` y rail contextual; no se elimina ningún campo ni acción previa.
+- El header presenta tipo, contacto, responsable derivado de trabajo real, próxima fecha, estado, siguiente acción y menú secundario.
+- El recorrido Cliente → Oportunidad → Presupuesto → Trabajo → Factura → Cobro conserva enlaces compactos a sus cuatro áreas.
+- Dinero sigue protegido por las capacidades y scopes existentes. Perfiles parciales no reciben importes ni acciones fuera de alcance.
+- No se añade Prisma, migración, escritura económica ni cambio de reglas de negocio.
+
+### Evidencia local D4
+
+- `npm run test:client-work-operating-system`: PASS, 38/38.
+- `npm run test:crm-clientes`: PASS.
+- `npm run test:economic-control-treasury-experience`: PASS, 27/27.
+- `npm run test:route-access`: PASS, 52 casos.
+- `npm run test:visual-foundations`: PASS, 18/18.
+- `npm run test:product-shell-navigation`: PASS, 26/26.
+- `npm run design:validate`: PASS.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76; `/clientes` 114 kB y `/clientes/[id]` 109 kB de First Load JS.
+- `npm run readiness:validate-all-static`: PASS completo hasta F11 e identidad; 0 escrituras en staging y producción.
+
+### Pendiente remoto D4
+
+- Desplegar el SHA exacto a Railway Review.
+- Verificar OWNER full, ADMINISTRATIVE/SALES scoped y perfiles denegados/read-only.
+- Auditar `/clientes` y `/clientes/review-client-1` en 390 y 1440 px, filtros, deep links, drawer, foco, overflow, Axe y estados.

@@ -2028,4 +2028,30 @@ button:disabled,
   .split-workspace__context {
     display: block;
   }
+
+  .client-list-split {
+    display: grid;
+    grid-template-columns: minmax(26.25rem, 30rem) minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--cap-border);
+    border-radius: var(--cap-radius-xl);
+    background: var(--cap-surface-raised);
+  }
+
+  .client-list-split__list {
+    max-height: calc(100dvh - 17rem);
+    overflow-y: auto;
+    border-right: 1px solid var(--cap-border);
+  }
+
+  .client-list-split__preview {
+    position: sticky;
+    top: 5rem;
+    align-self: start;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 1179px) {
+  .client-list-split { display: none; }
 }

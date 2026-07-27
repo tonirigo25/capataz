@@ -13,6 +13,7 @@ const outputRoot = process.env.ORQENA_REVIEW_AUDIT_DIR ?? join(process.cwd(), "a
 const screenshotRoot = join(outputRoot, "screenshots");
 const reportPath = join(outputRoot, "authenticated-matrix.json");
 const focusD3 = process.env.ORQENA_REVIEW_FOCUS_D3 === "true";
+const focusD4 = process.env.ORQENA_REVIEW_FOCUS_D4 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -94,8 +95,10 @@ const allOwnerSurfaceFamilies = [
   { family: "platform-observability", route: "/plataforma/observabilidad" },
   { family: "platform-health", route: "/plataforma/salud" },
   { family: "dashboard-mobile", route: "/dashboard", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "clients-mobile", route: "/clientes?vista=activos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "client-360-mobile", route: "/clientes/review-client-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
-const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3);
+const availableOwnerSurfaceFamilies = allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4);
 const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
 if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
@@ -106,7 +109,7 @@ const report = {
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
-  focus: focusD3 ? "D3" : "FULL",
+  focus: focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
@@ -260,6 +263,11 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
           || /No hay prioridades disponibles en tu alcance/iu.test(document.body.innerText)),
       dashboardPrimaryKpiCount: Number(document.querySelector("[data-dashboard-primary-kpis]")?.getAttribute("data-dashboard-primary-kpis") ?? 0),
       dashboardContract: ["Evolución del periodo", "Excepciones", "Posición económica"].every((label) => document.body.innerText.includes(label)),
+      clientSmartViewCount: Number(document.querySelector("[data-client-smart-views]")?.getAttribute("data-client-smart-views") ?? 0),
+      clientListSplitVisible: Boolean([...document.querySelectorAll("[data-client-list-split]")].find(visible)),
+      clientMobileCardsVisible: Boolean([...document.querySelectorAll("[data-client-mobile-cards]")].find(visible)),
+      clientDetailAreaCount: Number(document.querySelector("[data-client-detail-areas]")?.getAttribute("data-client-detail-areas") ?? 0),
+      clientContextDrawerTriggerVisible: Boolean([...document.querySelectorAll("[data-context-drawer-trigger]")].find(visible)),
     };
   });
   let accessibility = { criticalOrSerious: 0, violations: [] };
@@ -343,6 +351,15 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
   }
   if (focusD3 && result.route === "/dashboard" && expectation === "allowed" && (result.dashboardPrimaryKpiCount !== 4 || !result.dashboardContract)) {
     findings.push(`${context}:D3_DASHBOARD_CONTRACT_${result.dashboardPrimaryKpiCount}`);
+  }
+  if (focusD4 && result.route.startsWith("/clientes") && !result.route.includes("review-client-1") && expectation === "allowed") {
+    if (result.clientSmartViewCount !== 3) findings.push(`${context}:D4_SMART_VIEWS_${result.clientSmartViewCount}`);
+    if (viewport === "390" && !result.clientMobileCardsVisible) findings.push(`${context}:D4_MOBILE_CARDS_MISSING`);
+    if (viewport === "1440" && !result.clientListSplitVisible) findings.push(`${context}:D4_DESKTOP_SPLIT_MISSING`);
+  }
+  if (focusD4 && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
+    if (result.clientDetailAreaCount !== 4) findings.push(`${context}:D4_DETAIL_AREAS_${result.clientDetailAreaCount}`);
+    if (!result.clientContextDrawerTriggerVisible) findings.push(`${context}:D4_CONTEXT_DRAWER_MISSING`);
   }
   return findings;
 }
@@ -606,7 +623,7 @@ async function auditRepresentativeStates(browser, storageState) {
     const diagnostics = attachDiagnostics(page);
     const route = "/clientes?buscar=__orqena_review_empty_state__";
     const result = await navigateAndAudit(page, route, { axe: true });
-    const emptyVisible = await page.getByText("No hay clientes para estos filtros", { exact: true }).count() === 1;
+    const emptyVisible = await page.getByText(/No hay clientes (?:para estos filtros|para esta vista)/u).count() === 1;
     const screenshot = join(screenshotRoot, "owner-state-empty-1440.png");
     await page.screenshot({ path: screenshot, fullPage: true });
     const findings = caseFindings({ result, diagnostics, profile: "owner-state", viewport: "1440", expectation: "allowed" });

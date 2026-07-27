@@ -43,6 +43,7 @@ const CLIENT_STATUSES = [
 
 export type ClientListQuery = {
   buscar?: string;
+  vista?: string;
   estado?: string;
   tipo?: string;
   archivo?: string;
@@ -239,6 +240,7 @@ const clientSelect = {
       titulo: true,
       direccion: true,
       tipoTrabajo: true,
+      responsable: true,
       estado: true,
       updatedAt: true,
       fechaInicio: true,
@@ -358,7 +360,8 @@ export async function getClientList(query: ClientListQuery, companyId: string, s
   const filters = parseFilters(query.filtros);
   const allItems = clients
     .map((client) => toListItem(client, now))
-    .filter((item) => matchesComputedFilters(item, filters));
+    .filter((item) => matchesComputedFilters(item, filters))
+    .filter((item) => matchesSmartView(item, query.vista));
   const sortedItems = sortClientItems(allItems, query.ordenar ?? "ultimaActividad_desc");
 
   const total = sortedItems.length;
@@ -571,6 +574,19 @@ function matchesComputedFilters(item: ClientListItem, filters: Set<string>) {
   if (filters.has("facturas_vencidas") && item.overdueInvoicesCount === 0) return false;
   if (filters.has("obras_activas") && item.activeWorksCount === 0) return false;
   if (filters.has("presupuestos_pendientes") && item.pendingBudgetsCount === 0) return false;
+  return true;
+}
+
+function matchesSmartView(item: ClientListItem, view?: string) {
+  if (!view || view === "accion") {
+    return (
+      item.pendingFields.length > 0 ||
+      item.overdueInvoicesCount > 0 ||
+      item.pendingTotal > 0 ||
+      item.pendingBudgetsCount > 0 ||
+      ["nuevo", "pendiente_datos", "visita_pendiente", "seguimiento_pendiente"].includes(item.status)
+    );
+  }
   return true;
 }
 
