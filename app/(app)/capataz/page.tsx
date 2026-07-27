@@ -62,6 +62,11 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
   return (
     <main className="screen">
       <div className="hidden md:block"><PageHeader eyebrow="Tu asistente" title={brand.productName} description="Consulta, prepara y revisa el trabajo de tu negocio." /></div>
+      <header className="mb-3 md:hidden">
+        <p className="type-label">Tu asistente</p>
+        <h1 className="type-page-title mt-1">{brand.productName}</h1>
+        <p className="type-secondary mt-1">Consulta, prepara y revisa tu trabajo.</p>
+      </header>
 
       <CapatazChat
         userId={auth.userId}

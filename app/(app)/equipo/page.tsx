@@ -970,7 +970,7 @@ export default async function TeamPage({
                             name="invitationId"
                             value={item.id}
                           />
-                          <button className="primary-button">Aprobar</button>
+                          <button className="secondary-button">Aprobar</button>
                         </form>
                         <form action={rejectInvitation}>
                           <input
