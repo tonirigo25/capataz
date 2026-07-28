@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import {
   changeTaskStatusAction,
@@ -18,6 +19,7 @@ import {
   editSeriesAction,
   archiveTaskAction,
 } from "../actions";
+import { statusLabel } from "@/lib/status";
 export const dynamic = "force-dynamic";
 export default async function TaskDetailPage({
   params,
@@ -53,7 +55,7 @@ export default async function TaskDetailPage({
   });
   if (!task) notFound();
   const [parentTask,automationRun]=await Promise.all([task.parentTaskId?prisma.task.findFirst({where:{id:task.parentTaskId,companyId:auth.companyId,...(allowedTaskIds===null?{}:{AND:[{id:{in:allowedTaskIds}}]})},select:{id:true,title:true}}):null,task.automationRunId?prisma.automationRun.findFirst({where:{id:task.automationRunId,companyId:auth.companyId},include:{definition:true}}):null]);
-  const [client, work, budget, invoice, candidates] = await Promise.all([
+  const [client, work, budget, invoice, candidates, activeMembers] = await Promise.all([
     task.clientId
       ? prisma.client.findFirst({
           where: { id: task.clientId, companyId:auth.companyId },
@@ -84,16 +86,22 @@ export default async function TaskDetailPage({
       orderBy: { title: "asc" },
       take: 100,
     }),
+    prisma.companyMembership.findMany({
+      where: { companyId: auth.companyId, status: "active" },
+      select: { userId: true, user: { select: { displayName: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
+  const assigneeName = activeMembers.find((membership) => membership.userId === task.assigneeId)?.user.displayName;
   const done = task.checklist.filter((i) => i.completed).length;
-  if(!canManage)return <main className="screen space-y-5"><Link href="/tareas" className="secondary-button">Volver a tareas</Link><PageHeader eyebrow="Solo lectura" title={task.title} description={task.description??"Sin descripción"}/><section className="card p-4"><p>Estado: {task.status}</p><p>Vencimiento: {format(task.dueAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
+  if(!canManage)return <main className="screen space-y-5"><Link href="/tareas" className="secondary-button">Volver a tareas</Link><PageHeader eyebrow="Solo lectura" title={task.title} description={task.description??"Sin descripción"}/><section className="card p-4"><p>Estado: {statusLabel(task.status)}</p><p>Vencimiento: {format(task.dueAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
   return (
     <main className="screen space-y-5">
       <Link href="/tareas" className="secondary-button">
         Volver a tareas
       </Link>
       <PageHeader
-        eyebrow={task.origin}
+        eyebrow={statusLabel(task.origin)}
         title={task.title}
         description={task.description ?? "Sin descripción"}
       />
@@ -101,11 +109,11 @@ export default async function TaskDetailPage({
         <div>
           <h2 className="font-black">Estado y planificación</h2>
           <dl className="mt-3 grid gap-2 text-sm">
-            <Row label="Estado" value={task.status} />
-            <Row label="Prioridad" value={task.priority} />
+            <Row label="Estado" value={statusLabel(task.status)} />
+            <Row label="Prioridad" value={statusLabel(task.priority)} />
             <Row
               label="Responsable"
-              value={task.assigneeId ? "Responsable asignado" : "Sin asignar"}
+              value={assigneeName ?? (task.assigneeId ? "Responsable asignado" : "Sin asignar")}
             />
             <Row label="Inicio" value={format(task.startsAt)} />
             <Row label="Vencimiento" value={format(task.dueAt)} />
@@ -163,7 +171,12 @@ export default async function TaskDetailPage({
           ))}
           <form action={archiveTaskAction}>
             <input type="hidden" name="id" value={task.id} />
-            <button className="danger-button">Archivar</button>
+            <ConfirmSubmitButton
+              className="danger-button"
+              message="La tarea dejará de aparecer entre las activas, pero conservará su historial, comentarios y relaciones."
+            >
+              Archivar
+            </ConfirmSubmitButton>
           </form>
         </div>
         <form action={changeTaskStatusAction} className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -212,7 +225,14 @@ export default async function TaskDetailPage({
           </label>
           <label className="text-sm font-bold">
             Responsable
-            <input className="field mt-1" name="assigneeId" defaultValue={task.assigneeId ?? ""} placeholder="Nombre o referencia interna" />
+            <select className="field mt-1" name="assigneeId" defaultValue={task.assigneeId ?? ""}>
+              <option value="">Sin asignar</option>
+              {activeMembers.map((membership) => (
+                <option key={membership.userId} value={membership.userId}>
+                  {membership.user.displayName}
+                </option>
+              ))}
+            </select>
           </label>
           <button className="primary-button self-end">
             Guardar planificación
@@ -230,7 +250,7 @@ export default async function TaskDetailPage({
             Nuevo elemento
           </label>
           <input id="check-title" className="field" name="title" required />
-          <button className="primary-button">Añadir</button>
+          <button className="secondary-button">Añadir</button>
         </form>
         {task.checklist.length ? (
           <ul className="mt-3 space-y-2">
@@ -316,7 +336,7 @@ export default async function TaskDetailPage({
               Nueva subtarea
               <input className="field mt-1" name="title" required />
             </label>
-            <button className="primary-button">Crear subtarea</button>
+            <button className="secondary-button">Crear subtarea</button>
           </form>
           {task.subtasks.length ? (
             <ul className="mt-3 space-y-2">
@@ -354,7 +374,7 @@ export default async function TaskDetailPage({
               <option value="related">Relacionada</option>
               </select>
             </label>
-            <button className="primary-button">Añadir dependencia</button>
+            <button className="secondary-button">Añadir dependencia</button>
           </form>
           {task.dependencies.map((dep) => (
             <div
@@ -428,7 +448,7 @@ export default async function TaskDetailPage({
             Ejemplo: cada semana los lunes. COUNT y UNTIL limitan la serie; las
             filas se generan dentro de una ventana.
           </p>
-          <button className="primary-button md:col-span-2">
+          <button className="secondary-button md:col-span-2">
             Guardar recurrencia
           </button>
         </form>
@@ -469,7 +489,7 @@ export default async function TaskDetailPage({
               Comentario
             </label>
             <input id="comment" className="field" name="content" required />
-            <button className="primary-button">Añadir</button>
+            <button className="secondary-button">Añadir</button>
           </form>
           {task.comments.map((item) => (
             <article className="mt-3 border-t pt-3 text-sm" key={item.id}>
@@ -510,7 +530,9 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 const format = (date: Date | null | undefined) =>
-  date ? date.toLocaleString("es-ES") : "Sin fecha";
+  date
+    ? date.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })
+    : "Sin fecha";
 const inputDate = (date: Date | null | undefined) =>
   date
     ? new Date(date.getTime() - date.getTimezoneOffset() * 60000)

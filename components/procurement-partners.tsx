@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   FileArchive,
   History,
+  PanelRightOpen,
   Plus,
   Search,
   ShieldCheck,
@@ -20,32 +21,51 @@ import { CompactFilterBar, CompactSearch, EmptyState, Notice, PageHeader, Result
 import { ListWorkspace } from "@/components/workspaces";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getPartnerDetail, getPartnerList, PARTNER_STATUS_OPTIONS } from "@/lib/procurement";
+import { prisma } from "@/lib/prisma";
 
 type Query = Record<string, string | string[] | undefined>;
+type PartnerListItem = Awaited<ReturnType<typeof getPartnerList>>["items"][number];
 
 export async function PartnerDirectory({ companyId, kind, searchParams }: { companyId: string; kind: BusinessPartnerKind; searchParams: Promise<Query> }) {
   const query = await searchParams;
   const subcontractor = kind === "SUBCONTRACTOR";
   const base = subcontractor ? "/subcontratas" : "/proveedores";
   const title = subcontractor ? "Subcontratas" : "Proveedores";
-  const result = await getPartnerList(companyId, kind, {
-    search: first(query.buscar),
-    status: first(query.estado),
-    tag: first(query.etiqueta),
-    duplicate: first(query.duplicados) === "1"
-  });
+  const [result, supplierCount, subcontractorCount, documentationAttention] = await Promise.all([
+    getPartnerList(companyId, kind, {
+      search: first(query.buscar),
+      status: first(query.estado),
+      tag: first(query.etiqueta),
+      duplicate: first(query.duplicados) === "1"
+    }),
+    prisma.businessPartner.count({ where: { companyId, kind: "SUPPLIER", archivedAt: null } }),
+    prisma.businessPartner.count({ where: { companyId, kind: "SUBCONTRACTOR", archivedAt: null } }),
+    prisma.businessPartner.count({
+      where: {
+        companyId,
+        kind: "SUBCONTRACTOR",
+        archivedAt: null,
+        documentStatus: { in: ["EXPIRING", "EXPIRED", "INCOMPLETE"] }
+      }
+    })
+  ]);
   return <ListWorkspace>
     <PageHeader
-      eyebrow={subcontractor ? "Red de colaboradores" : "Compras y suministros"}
-      title={title}
-      description={subcontractor ? "Control documental, especialidades, obras realizadas, valoración y deuda de cada subcontrata." : "Ficha económica y operativa de proveedores, con gastos, facturas, obras, documentos e historial."}
+      eyebrow={subcontractor ? "Red de colaboradores" : "Compras"}
+      title={subcontractor ? "Subcontratas" : "Proveedores y subcontratas"}
+      description={subcontractor ? "Control documental, especialidades, obras realizadas, valoración y deuda de cada subcontrata." : "Condiciones, documentación, trabajos vinculados, saldo y próxima decisión en una sola vista."}
       action={<Link href={`${base}?nuevo=1#ficha`} className="primary-button"><Plus size={18} />{subcontractor ? "Nueva subcontrata" : "Nuevo proveedor"}</Link>}
     >
+      <nav className="mb-3 flex flex-wrap gap-2" aria-label="Vistas inteligentes de compras">
+        <Link href="/proveedores" aria-current={!subcontractor ? "page" : undefined} className={`toolbar-chip ${!subcontractor ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>Proveedores · {supplierCount}</Link>
+        <Link href="/subcontratas" aria-current={subcontractor ? "page" : undefined} className={`toolbar-chip ${subcontractor ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>Subcontratas · {subcontractorCount}</Link>
+        <Link href="/subcontratas?estado=ACTIVE" className="toolbar-chip">Documentación · {documentationAttention}</Link>
+      </nav>
       <CompactFilterBar><form action={base} className="grid gap-3 md:grid-cols-[minmax(14rem,1fr)_13rem_13rem_auto]">
         <label><span className="label mb-1 block">Búsqueda rápida</span><CompactSearch name="buscar" defaultValue={first(query.buscar)} placeholder="Nombre, NIF, contacto, especialidad..." /></label>
         <label><span className="label mb-1 block">Estado</span><select className="field" name="estado" defaultValue={first(query.estado) || ""}><option value="">Todos</option>{PARTNER_STATUS_OPTIONS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label><span className="label mb-1 block">Etiqueta</span><select className="field" name="etiqueta" defaultValue={first(query.etiqueta) || ""}><option value="">Todas</option>{result.tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}</select></label>
-        <button className="primary-button self-end" type="submit"><Search size={18} />Filtrar</button>
+        <button className="secondary-button self-end" type="submit"><Search size={18} />Filtrar</button>
         <label className="flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" name="duplicados" value="1" defaultChecked={first(query.duplicados) === "1"} />Solo posibles duplicados</label>
       </form></CompactFilterBar>
     </PageHeader>
@@ -64,23 +84,39 @@ export async function PartnerDirectory({ companyId, kind, searchParams }: { comp
 
     <ResultCount shown={result.items.length} total={result.total} noun={title.toLowerCase()} />
     {result.items.length ? <>
-      <div className="hidden lg:block">
+      <div className="hidden lg:block" data-d6-supplier-directory="desktop" data-d6-supplier-fields="specialty documentation works balance next-action">
         <TableShell label={title}>
           <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500"><tr><th className="px-4 py-3">Entidad</th>{subcontractor ? <th className="px-4 py-3">Oficio y documentación</th> : <th className="px-4 py-3">Contacto</th>}<th className="px-4 py-3">Obras</th><th className="px-4 py-3">Facturado</th><th className="px-4 py-3">Pendiente</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3"></th></tr></thead>
+            <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500"><tr><th className="px-4 py-3">Entidad</th><th className="px-4 py-3">Especialidad y documentación</th><th className="px-4 py-3">Trabajos</th><th className="px-4 py-3">Saldo</th><th className="px-4 py-3">Situación</th><th className="px-4 py-3">Próxima acción</th><th className="px-4 py-3"></th></tr></thead>
             <tbody className="divide-y divide-slate-100 bg-white">{result.items.map((partner) => <tr key={partner.id} className="align-top">
               <td className="px-4 py-4"><Link href={`${base}/${partner.id}`} className="font-black text-obra-ink hover:underline">{partner.commercialName}</Link><p className="mt-1 text-xs text-slate-500">{partner.legalName} · {partner.taxId || "NIF pendiente"}</p><div className="mt-2 flex flex-wrap gap-1">{partner.tags.map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{tag}</span>)}{partner.duplicate ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">Posible duplicado</span> : null}</div></td>
-              <td className="px-4 py-4"><p className="font-bold text-slate-700">{subcontractor ? partner.tradeType || "Oficio pendiente" : partner.contactPerson || "Contacto pendiente"}</p><p className="mt-1 text-xs text-slate-500">{subcontractor ? `${partner.specialty || "Sin especialidad"} · ${documentStatusLabel(partner.documentStatus)}` : partner.email || partner.phone || "Sin contacto directo"}</p></td>
-              <td className="px-4 py-4 font-black">{partner.workLinks.length}</td>
-              <td className="px-4 py-4 font-black">{formatCurrency(partner.invoiced)}</td>
-              <td className={`px-4 py-4 font-black ${partner.pending ? "text-obra-red" : "text-obra-green"}`}>{formatCurrency(partner.pending)}{partner.overdue ? <p className="text-xs">{formatCurrency(partner.overdue)} vencido</p> : null}</td>
+              <td className="px-4 py-4"><p className="font-bold text-slate-700">{partnerSpecialty(partner, subcontractor)}</p><p className="mt-1 text-xs text-slate-500">{partnerDocumentation(partner, subcontractor)}</p></td>
+              <td className="px-4 py-4"><p className="font-black">{partner.workLinks.length}</p><p className="mt-1 text-xs text-slate-500">{partner.workLinks.length === 1 ? "trabajo vinculado" : "trabajos vinculados"}</p></td>
+              <td className={`px-4 py-4 font-black ${partner.pending ? "text-obra-red" : "text-obra-green"}`}>{formatCurrency(partner.pending)}{partner.overdue ? <p className="text-xs">{formatCurrency(partner.overdue)} vencido</p> : <p className="mt-1 text-xs font-normal text-slate-500">{partner.invoices.length} facturas</p>}</td>
               <td className="px-4 py-4"><PartnerStatus status={partner.status} /></td>
-              <td className="px-4 py-4 text-right"><Link className="secondary-button" href={`${base}/${partner.id}`}>Ver ficha</Link></td>
+              <td className="px-4 py-4"><Link href={`${base}/${partner.id}`} className="font-bold text-obra-ink underline decoration-slate-300 underline-offset-4">{partnerNextAction(partner)}</Link></td>
+              <td className="px-4 py-4 text-right">
+                <details className="relative" data-d6-supplier-context>
+                  <summary className="secondary-button cursor-pointer list-none" data-d6-supplier-context-trigger><PanelRightOpen size={17} />Contexto</summary>
+                  <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl" data-d6-supplier-context-panel>
+                    <p className="font-black text-obra-ink">{partner.commercialName}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <Mini label="Especialidad" value={partnerSpecialty(partner, subcontractor)} />
+                      <Mini label="Documentación" value={partnerDocumentation(partner, subcontractor)} />
+                      <Mini label="Trabajos" value={String(partner.workLinks.length)} />
+                      <Mini label="Saldo" value={formatCurrency(partner.pending)} />
+                    </div>
+                    <p className="mt-3 text-xs font-bold uppercase text-slate-500">Próxima acción</p>
+                    <p className="mt-1 text-sm font-bold">{partnerNextAction(partner)}</p>
+                    <Link className="secondary-button mt-3 w-full justify-center" href={`${base}/${partner.id}`}>Abrir ficha 360</Link>
+                  </div>
+                </details>
+              </td>
             </tr>)}</tbody>
           </table>
         </TableShell>
       </div>
-      <div className="grid gap-3 lg:hidden">{result.items.map((partner) => <article key={partner.id} className="card p-4"><div className="flex justify-between gap-3"><div><Link href={`${base}/${partner.id}`} className="font-black text-obra-ink">{partner.commercialName}</Link><p className="text-xs text-slate-500">{partner.taxId || "NIF pendiente"}</p></div><PartnerStatus status={partner.status} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><Mini label="Obras" value={String(partner.workLinks.length)} /><Mini label="Facturado" value={formatCurrency(partner.invoiced)} /><Mini label="Pendiente" value={formatCurrency(partner.pending)} /><Mini label={subcontractor ? "Documentación" : "Documentos"} value={subcontractor ? documentStatusLabel(partner.documentStatus) : String(partner.documents.length)} /></div><Link href={`${base}/${partner.id}`} className="primary-button mt-3 w-full">Abrir ficha</Link></article>)}</div>
+      <div className="card divide-y divide-slate-100 p-3 lg:hidden" data-d6-supplier-directory="mobile" data-d6-supplier-fields="specialty documentation works balance next-action">{result.items.map((partner) => <Link key={partner.id} href={`${base}/${partner.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-2 py-4"><div className="min-w-0"><p className="truncate font-black text-obra-ink">{partner.commercialName}</p><p className="mt-1 truncate text-xs text-slate-500">{partnerSpecialty(partner, subcontractor)} · {partner.taxId || "NIF pendiente"}</p><p className="mt-2 text-xs font-bold text-slate-600">{partnerDocumentation(partner, subcontractor)} · {formatCurrency(partner.pending)}</p></div><span className="self-center text-right text-sm font-bold text-obra-ink">{partnerNextAction(partner)} →</span></Link>)}</div>
     </> : <EmptyState icon={Search} title={`No hay ${title.toLowerCase()} con estos criterios`} description="Cambia los filtros o crea una ficha profesional nueva." action={<Link href={`${base}?nuevo=1#ficha`} className="primary-button"><Plus size={18} />Crear ficha</Link>} />}
   </ListWorkspace>;
 }
@@ -94,7 +130,7 @@ export async function PartnerProfile({ companyId, kind, id, searchParams }: { co
   const invoiced = sum(partner.invoices.filter((invoice) => invoice.status !== "VOID").map((invoice) => invoice.total));
   const pending = sum(partner.invoices.filter((invoice) => invoice.status !== "VOID").map((invoice) => invoice.pendingAmount));
   return <main className="screen">
-    <PageHeader eyebrow={subcontractor ? "Ficha de subcontrata" : "Ficha de proveedor"} title={partner.commercialName} description={`${partner.legalName} · ${partner.taxId || "NIF/CIF pendiente"}`} badge={<PartnerStatus status={partner.status} />} action={<Link className="secondary-button" href={base}>Volver</Link>} secondaryActions={<Link className="primary-button" href={`${invoiceBase}?nuevo=1&partner=${partner.id}#factura`}><Plus size={18} />Nueva factura</Link>} />
+    <PageHeader eyebrow={subcontractor ? "Ficha de subcontrata" : "Ficha de proveedor"} title={partner.commercialName} description={`${partner.legalName} · ${partner.taxId || "NIF/CIF pendiente"}`} badge={<PartnerStatus status={partner.status} />} action={<Link className="secondary-button" href={base}>Volver</Link>} secondaryActions={<Link className="secondary-button" href={`${invoiceBase}?nuevo=1&partner=${partner.id}#factura`}><Plus size={18} />Nueva factura</Link>} />
     {first(query.saved) ? <Notice tone="success" title="Ficha guardada" description="Los cambios y el historial están actualizados." /> : null}
     {first(query.error) ? <Notice tone="danger" description={errorMessage(first(query.error))} /> : null}
     <section className="my-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Facturado" value={formatCurrency(invoiced)} icon={CircleDollarSign} /><Metric label="Pendiente" value={formatCurrency(pending)} icon={AlertTriangle} tone={pending ? "warning" : "neutral"} /><Metric label="Obras relacionadas" value={String(partner.workLinks.length)} icon={BriefcaseBusiness} /><Metric label="Documentos" value={String(partner.documents.length)} icon={FileArchive} /></section>
@@ -137,6 +173,25 @@ function Field({ label, required, children }: { label: string; required?: boolea
 function Info({ label, value }: { label: string; value?: string | null }) { return <div><p className="label">{label}</p><p className="mt-1 text-sm font-bold text-obra-ink">{value || "Sin indicar"}</p></div>; }
 function PartnerStatus({ status }: { status: string }) { const map = { ACTIVE: ["Activo", "bg-emerald-100 text-emerald-800"], INACTIVE: ["Inactivo", "bg-slate-100 text-slate-700"], BLOCKED: ["Bloqueado", "bg-red-100 text-red-800"] } as const; const [label, style] = map[status as keyof typeof map] || [status, "bg-slate-100"]; return <span className={`rounded-full px-2 py-1 text-xs font-black ${style}`}>{label}</span>; }
 function documentStatusLabel(value: string) { return ({ VALID: "Vigente", EXPIRING: "Próxima a caducar", EXPIRED: "Caducada", INCOMPLETE: "Incompleta", NOT_REQUIRED: "No requerida" } as Record<string, string>)[value] || value; }
+function partnerSpecialty(partner: PartnerListItem, subcontractor: boolean) {
+  if (subcontractor) return partner.specialty || partner.tradeType || "Especialidad pendiente";
+  return partner.tags[0] || partner.contactPerson || "Suministro general";
+}
+function partnerDocumentation(partner: PartnerListItem, subcontractor: boolean) {
+  if (subcontractor) {
+    const insurance = partner.liabilityInsurance ? "RC registrada" : "RC pendiente";
+    return `${documentStatusLabel(partner.documentStatus)} · ${insurance}`;
+  }
+  return `${partner.documents.length} ${partner.documents.length === 1 ? "documento" : "documentos"}`;
+}
+function partnerNextAction(partner: PartnerListItem) {
+  if (partner.status === "BLOCKED") return "Revisar bloqueo";
+  if (["EXPIRED", "EXPIRING", "INCOMPLETE"].includes(partner.documentStatus)) return "Renovar documentación";
+  if (partner.overdue > 0) return "Revisar vencimiento";
+  if (partner.pending > 0) return "Revisar saldo";
+  if (partner.workLinks.length > 0) return "Abrir trabajo";
+  return "Completar ficha";
+}
 function invoiceStatusLabel(value: string) { return ({ PENDING: "Pendiente", PARTIALLY_PAID: "Parcialmente pagada", PAID: "Pagada", OVERDUE: "Vencida", VOID: "Anulada" } as Record<string, string>)[value] || value; }
 function errorMessage(value?: string) { return ({ invalid_tax_id: "El NIF/CIF no tiene un formato español válido.", duplicate_tax_id: "Ya existe una ficha de este tipo con el mismo NIF/CIF. No puede duplicarse.", duplicate_confirmation_required: "Revisa y confirma el posible duplicado.", required_fields: "Completa los campos obligatorios.", invalid_date: "Revisa la fecha indicada.", invalid_number: "Revisa el valor numérico.", not_found: "La ficha no existe o no pertenece a tu empresa." } as Record<string, string>)[value || ""] || "Revisa los datos e inténtalo de nuevo."; }
 function first(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }

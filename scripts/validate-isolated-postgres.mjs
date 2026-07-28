@@ -99,7 +99,33 @@ try {
     "20260712210000_company_numbering_and_settings",
     "20260713193000_company_document_sequences",
   ];
-  const postIdentityMigrations = ["20260717120000_procurement_management", "20260722120000_orqena_macrophase_1", "20260722190000_orqena_commercial_platform", "20260723230000_private_chat_ownership_and_profiles", "20260724150000_orqena_professional_portals_closure"];
+  const postIdentityMigrations = [
+    "20260716120000_expense_document_reader",
+    "20260717120000_procurement_management",
+    "20260722120000_orqena_macrophase_1",
+    "20260722190000_orqena_commercial_platform",
+    "20260723153000_chat_message_tenant_idempotency",
+    "20260723230000_private_chat_ownership_and_profiles",
+    "20260724150000_orqena_professional_portals_closure",
+    "20260725100000_readiness_m01_platform_contracts",
+    "20260725110000_readiness_m02_fiscal_ledger",
+    "20260725120000_readiness_m03_electronic_invoicing",
+    "20260725130000_readiness_m04_billing_webhooks",
+    "20260725140000_readiness_m05_email_delivery",
+    "20260725150000_readiness_m06_privacy_governance",
+    "20260725160000_readiness_m07_ai_governance",
+    "20260725170000_readiness_m08_product_analytics_support",
+    "20260725180000_readiness_m09_storage_integrity",
+    "20260725190000_readiness_m10_money_decimal_transition",
+    "20260725200000_readiness_f2_transactional_outbox",
+    "20260726100000_readiness_f2_observability_context",
+    "20260726120000_readiness_f3_fiscal_einvoice_engine",
+    "20260726140000_readiness_f4_commercial_email_storage",
+    "20260726160000_readiness_f5_privacy_security",
+    "20260726180000_readiness_f6_ai_governance",
+    "20260726190000_readiness_f7_product_integration",
+    "20260726200000_readiness_f8_metrics_pilots",
+  ];
   for (const migration of [...incrementalMigrations, ...postIdentityMigrations]) rmSync(join(tempRoot, "prisma", "migrations", migration), { recursive: true, force: true });
   execFileSync(
     "npx.cmd",

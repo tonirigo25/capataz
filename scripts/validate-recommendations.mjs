@@ -226,12 +226,13 @@ function runChatChecks() {
 function runCenterChecks() {
   const page = fs.readFileSync("app/(app)/recomendaciones/page.tsx", "utf8");
   const actions = fs.readFileSync("app/(app)/recomendaciones/actions.ts", "utf8");
+  const useCases = fs.readFileSync("lib/application/intelligence/recommendation-use-cases.ts", "utf8");
   expect(page.includes("Centro de recomendaciones"), "[recommendations] missing recommendation center");
   expect(page.includes("Por qué y seguimiento"), "[recommendations] center must expose why panel");
   expect(page.includes("executeRecommendationAction"), "[recommendations] center must wire confirmed execution");
   expect(page.includes("confirmed") && page.includes("Confirmar"), "[recommendations] confirmed action must require explicit confirmation");
-  expect(actions.includes("revalidatePath(\"/recomendaciones\")"), "[recommendations] actions must revalidate center");
-  expect(actions.includes("executeConfirmedRecommendationAction"), "[recommendations] actions must use central confirmed handler");
+  expect(actions.includes("recommendation-use-cases") && useCases.includes("revalidatePath(\"/recomendaciones\")"), "[recommendations] actions must revalidate center");
+  expect(useCases.includes("executeConfirmedRecommendationAction"), "[recommendations] actions must use central confirmed handler");
 }
 
 function runIntegrationChecks() {

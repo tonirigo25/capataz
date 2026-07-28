@@ -409,3 +409,33 @@ Evidence: `docs/readiness/evidence/c3/review-runtime-pool.json`,
 `docs/readiness/evidence/c5/remote-authenticated-summary.json`,
 `docs/readiness/evidence/c7/remote-restore-drill.json`,
 `docs/readiness/C10_GO_NO_GO.md` and `docs/readiness/LATEST_REVIEW.md`.
+
+## Orqena Field OS D11 - staging gate and production boundary
+
+Completed the automated D11 gate on functional SHA
+`2be6a99040c70c67fe2f91c0737f4c17bd116451`.
+
+- Railway Review deployment `ce516232-0c3e-438f-b276-64773e07ac7d` and
+  independent staging deployment `b4603964-09a0-421a-9d09-f0e96fff7ceb`
+  remained `SUCCESS`, noindex and provider-off. Both returned 200 for live,
+  ready and status; their final two-hour windows contained zero HTTP 5xx.
+- The first D11 staging deploy applied the 18 readiness migrations missing
+  from its historical baseline. Exact subsequent deploys found all 43
+  migrations and no pending migration.
+- Staging public audit passed 576 cases and 576 Axe across 24 routes, eight
+  viewports and three engines. Authenticated audit passed 96 profile plus 264
+  OWNER cases and 360 Axe. The selected role/tenant journey passed 25 surfaces.
+- Repeated remote performance closed C3's automated budget without lowering
+  thresholds: Review LCP 2200 ms and staging 2180 ms; CLS 0 and INP 24 ms.
+- A build-context audit found Git-ignored QA directories in CLI uploads.
+  `.railwayignore` now excludes backups, worktrees and browser artifacts; the
+  active Review and staging images were rebuilt from sanitized contexts.
+- Production remained deployment `53f1363b-256b-403b-a810-447807442c4c`,
+  application SHA `64cf8bbbca8ed99aabce4fbc50ebfb163fc05367`; it was not
+  redeployed, migrated or reconfigured.
+- Representative-data rehearsal, native backup/PITR, immutable main/tag and
+  signed human go/no-go remain `READY_FOR_EXTERNAL_INPUT`. Production remains
+  `NO-GO`; public indexing and every live provider remain disabled.
+
+Evidence: `docs/design/evidence/D11_STAGING_EVIDENCE.json`,
+`docs/readiness/C10_GO_NO_GO.md` and `docs/readiness/LATEST_REVIEW.md`.

@@ -96,9 +96,32 @@ async function main() {
     const first = await getAndMeasureActivationStatus(prisma, { companyId: companyA.id, actorId: userA.id });
     assert(first.completedAt && first.completedWithinSevenDays === true);
     assert.equal(first.milestones.every((item) => item.completedAt), true);
-    assert.equal(await prisma.productEvent.count({ where: { companyId: companyA.id, eventName: { startsWith: "activation." } } }), 5);
+    const activationEvents = await prisma.productEvent.findMany({
+      where: { companyId: companyA.id, eventName: { startsWith: "activation." } },
+      orderBy: { eventName: "asc" },
+    });
+    assert.equal(activationEvents.length, 6);
+    assert.deepEqual(
+      activationEvents.map((event) => event.eventName),
+      [
+        "activation.budget.completed",
+        "activation.client.completed",
+        "activation.company.completed",
+        "activation.completed",
+        "activation.document.completed",
+        "activation.time_to_first_value",
+      ],
+    );
+    const firstValue = activationEvents.find((event) => event.eventName === "activation.time_to_first_value");
+    const firstValueProperties = firstValue?.properties as { measurementVersion?: string; milestone?: string; minutes?: number; withinSevenDays?: boolean } | null;
+    assert(firstValueProperties);
+    assert(["client", "budget", "document"].includes(firstValueProperties.milestone ?? ""));
+    assert.equal(typeof firstValueProperties.minutes, "number");
+    assert((firstValueProperties.minutes ?? -1) >= 0);
+    assert.equal(firstValueProperties.withinSevenDays, true);
+    assert.equal(firstValueProperties.measurementVersion, "addendum-a1-v1");
     await getAndMeasureActivationStatus(prisma, { companyId: companyA.id, actorId: userA.id });
-    assert.equal(await prisma.productEvent.count({ where: { companyId: companyA.id, eventName: { startsWith: "activation." } } }), 5);
+    assert.equal(await prisma.productEvent.count({ where: { companyId: companyA.id, eventName: { startsWith: "activation." } } }), 6);
     const events = await prisma.productEvent.findMany({ where: { companyId: companyA.id } });
     assert.doesNotMatch(JSON.stringify(events), new RegExp(userA.id));
   });
@@ -108,7 +131,7 @@ async function main() {
     assert.equal(await prisma.companyExperiencePreference.count({ where: { companyId: companyB.id } }), 0);
     assert.equal(await prisma.productEvent.count({ where: { companyId: companyB.id } }), 0);
   });
-  console.log(JSON.stringify({ ok: true, passed, migrations: migrations[0]?.count, companies: 2, imports: { clients: true, documents: true, rollback: true }, activationEvents: 5, supportSanitized: true, externalCalls: 0, productionWrites: 0 }, null, 2));
+  console.log(JSON.stringify({ ok: true, passed, migrations: migrations[0]?.count, companies: 2, imports: { clients: true, documents: true, rollback: true }, activationEvents: 6, supportSanitized: true, externalCalls: 0, productionWrites: 0 }, null, 2));
 }
 
 main().finally(() => prisma.$disconnect()).catch((error) => { console.error(error); process.exitCode = 1; });

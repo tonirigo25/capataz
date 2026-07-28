@@ -11,6 +11,7 @@ import {
   Plus,
   Receipt,
   Search,
+  SlidersHorizontal,
   UserRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -35,10 +36,10 @@ import { requireCapability, resolveAuthorization } from "@/lib/commercial/author
 export const dynamic = "force-dynamic";
 
 const views = [
-  { id: "hoy", label: "Hoy" },
   { id: "semana", label: "Semana" },
   { id: "mes", label: "Mes" },
-  { id: "lista", label: "Lista" }
+  { id: "lista", label: "Lista" },
+  { id: "vencimientos", label: "Vencimientos" }
 ];
 
 export default async function AgendaPage({
@@ -49,12 +50,13 @@ export default async function AgendaPage({
   const query = await searchParams;
   const auth = await requireCapability("agenda.view");
   const canManage = (await resolveAuthorization(auth, "agenda.manage")).allowed;
-  const view = views.some((item) => item.id === query.vista) ? query.vista! : "hoy";
+  const view = views.some((item) => item.id === query.vista) ? query.vista! : "semana";
   const selectedDay = query.dia ? startOfDay(new Date(`${query.dia}T00:00:00`)) : startOfDay(new Date());
   const items = filterAgendaItems(await getAgendaItems(), query.tipo, query.buscar);
   const todayItems = itemsForDay(items, new Date());
   const weekStart = startOfWeek(selectedDay);
   const weekItems = itemsBetween(items, weekStart, addDays(weekStart, 7));
+  const navigationStep = view === "semana" ? 7 : 1;
   const nextVisit = items.find((item) => item.tipo === "visita" && item.fechaInicio >= new Date() && item.estado !== "cancelado");
   if (!canManage) return <ReadOnlyAgenda items={items} />;
 
@@ -65,9 +67,9 @@ export default async function AgendaPage({
         title="Agenda"
         description="Visitas, tareas, seguimientos y vencimientos ordenados para saber qué ocurre hoy y qué viene después."
         action={
-          <Link href="/gestion?tipo=eventoAgenda&returnTo=/agenda" className="primary-button">
+          <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda" className="primary-button">
             <Plus size={18} />
-            Nuevo evento
+            Nueva visita
           </Link>
         }
       />
@@ -75,13 +77,19 @@ export default async function AgendaPage({
       <Notice className="mb-4" tone="info" title="Resumen de hoy" description={`Tienes ${todayItems.filter((item) => item.tipo === "visita").length} visitas, ${todayItems.filter((item) => item.tipo.includes("seguimiento")).length} seguimientos y ${todayItems.filter((item) => item.tipo === "vencimiento_factura").length} vencimientos.${nextVisit ? ` La próxima cita es ${nextVisit.titulo} a las ${timeLabel(nextVisit.fechaInicio)}.` : ""}`} />
 
       <CompactFilterBar className="mb-4">
-        <form action="/agenda" className="grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_12rem_auto]">
-          <input type="hidden" name="vista" value={view} />
-          <input type="hidden" name="dia" value={toDateInputValue(selectedDay)} />
-          <label><span className="label mb-1 block">Buscar</span><CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, trabajo…" /></label>
-          <label><span className="label mb-1 block">Tipo</span><select className="field" name="tipo" defaultValue={query.tipo ?? "todos"}><option value="todos">Todos</option><option value="visitas">Visitas</option><option value="cobros">Cobros</option><option value="presupuestos">Presupuestos</option><option value="materiales">Materiales</option><option value="tareas">Tareas</option></select></label>
-          <button className="primary-button self-end" type="submit"><Search size={18} /> Aplicar</button>
-        </form>
+        <details data-agenda-filters open={Boolean(query.buscar || (query.tipo && query.tipo !== "todos"))}>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 font-black text-obra-ink">
+            <SlidersHorizontal size={18} />
+            Filtros de agenda
+          </summary>
+          <form action="/agenda" className="mt-3 grid gap-3 border-t border-slate-200 pt-3 sm:grid-cols-[minmax(14rem,1fr)_12rem_auto]">
+            <input type="hidden" name="vista" value={view} />
+            <input type="hidden" name="dia" value={toDateInputValue(selectedDay)} />
+            <label><span className="label mb-1 block">Buscar</span><CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Evento, cliente, trabajo…" /></label>
+            <label><span className="label mb-1 block">Tipo</span><select className="field" name="tipo" defaultValue={query.tipo ?? "todos"}><option value="todos">Todos</option><option value="visitas">Visitas</option><option value="cobros">Cobros</option><option value="presupuestos">Presupuestos</option><option value="materiales">Materiales</option><option value="tareas">Tareas</option></select></label>
+            <button className="secondary-button self-end" type="submit"><Search size={18} /> Aplicar</button>
+          </form>
+        </details>
       </CompactFilterBar>
 
       <Tabs label="Vistas de agenda" className="mb-3">
@@ -99,52 +107,16 @@ export default async function AgendaPage({
       </Tabs>
 
       <nav className="mb-5 flex items-center justify-between gap-2" aria-label="Cambiar fecha">
-        <Link href={agendaHref(view, addDays(selectedDay, -1), query)} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
+        <Link href={agendaHref(view, addDays(selectedDay, -navigationStep), query)} className="secondary-button"><ChevronLeft size={18} /> Anterior</Link>
         <Link href={agendaHref(view, new Date(), query)} className="secondary-button">Hoy</Link>
-        <Link href={agendaHref(view, addDays(selectedDay, 1), query)} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
+        <Link href={agendaHref(view, addDays(selectedDay, navigationStep), query)} className="secondary-button">Siguiente <ChevronRight size={18} /></Link>
       </nav>
 
-      {view === "hoy" ? <TodayView items={todayItems} /> : null}
-      {view === "semana" ? <WeekView items={weekItems} weekStart={weekStart} /> : null}
+      {view === "semana" ? <WeekView items={weekItems} selectedDay={selectedDay} weekStart={weekStart} /> : null}
       {view === "mes" ? <MonthView items={items} selectedDay={selectedDay} /> : null}
       {view === "lista" ? <ListView items={items} selectedType={query.tipo ?? "todos"} /> : null}
+      {view === "vencimientos" ? <ListView items={items.filter((item) => ["vencimiento_factura", "seguimiento_cobro", "presupuesto_pendiente"].includes(item.tipo))} selectedType="todos" showFilters={false} /> : null}
     </ListWorkspace>
-  );
-}
-
-function TodayView({ items }: { items: AgendaItem[] }) {
-  const next = items.find((item) => item.fechaInicio >= new Date() && item.estado !== "cancelado");
-  const grouped = [
-    { title: "Visitas", types: ["visita"] },
-    { title: "Seguimientos", types: ["seguimiento_presupuesto", "seguimiento_cobro"] },
-    { title: "Vencimientos", types: ["vencimiento_factura"] },
-    { title: "Materiales y tareas", types: ["compra_material", "recordatorio_interno", "tarea_obra", "llamada"] }
-  ];
-
-  return (
-    <div className="grid gap-5">
-      {next ? (
-        <section className="card border-obra-yellowDark p-4">
-          <p className="text-xs font-bold uppercase text-slate-500">Próxima cita</p>
-          <h2 className="mt-1 text-lg font-black text-obra-ink">{next.titulo}</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-600">{formatDate(next.fechaInicio)}</p>
-        </section>
-      ) : null}
-      <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
-        <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda" className="secondary-button">Visita</Link>
-        <Link href="/gestion?tipo=recordatorio&returnTo=/agenda" className="secondary-button">Recordatorio</Link>
-        <Link href="/gestion?tipo=eventoAgenda&tipoEvento=seguimiento_cobro&returnTo=/agenda" className="secondary-button">Seguimiento</Link>
-      </div>
-      {grouped.map((group) => {
-        const groupItems = items.filter((item) => group.types.includes(item.tipo));
-        return (
-          <section key={group.title}>
-            <HeaderLine title={group.title} count={groupItems.length} />
-            <EventList items={groupItems} empty="No hay eventos en este bloque para hoy." />
-          </section>
-        );
-      })}
-    </div>
   );
 }
 
@@ -159,38 +131,71 @@ function agendaHref(view: string, day: Date, query: { tipo?: string; buscar?: st
   return `/agenda?${params.toString()}`;
 }
 
-function WeekView({ items, weekStart }: { items: AgendaItem[]; weekStart: Date }) {
+function WeekView({ items, selectedDay, weekStart }: { items: AgendaItem[]; selectedDay: Date; weekStart: Date }) {
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const selectedItems = itemsForDay(items, selectedDay);
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-3" data-agenda-week>
       <Legend />
-      {days.map((day) => {
-        const dayItems = itemsForDay(items, day);
-        const summary = daySummary(dayItems);
-        return (
-          <details key={day.toISOString()} className="card p-4" open={toDateInputValue(day) === toDateInputValue(new Date())}>
-            <summary className="cursor-pointer list-none">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-black capitalize text-obra-ink">{weekdayLabel(day)}</h2>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{formatDay(day)}</p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{dayItems.length}</span>
-              </div>
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-bold text-slate-600">
-                <MiniCount label="Visitas" value={summary.visits} />
-                <MiniCount label="Seg." value={summary.followUps} />
-                <MiniCount label="Cobros" value={summary.invoices} />
-                <MiniCount label="Tareas" value={summary.tasks} />
-              </div>
-            </summary>
-            <div className="mt-4">
-              <EventList items={dayItems} empty="Sin citas ni tareas." />
-            </div>
-          </details>
-        );
-      })}
+      <nav className="flex gap-2 overflow-x-auto pb-1 lg:hidden" aria-label="Días de la semana">
+        {days.map((day) => {
+          const active = toDateInputValue(day) === toDateInputValue(selectedDay);
+          return (
+            <Link
+              className={`min-w-16 rounded-lg px-3 py-2 text-center text-xs font-black ${active ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}
+              href={`/agenda?vista=semana&dia=${toDateInputValue(day)}`}
+              key={day.toISOString()}
+            >
+              <span className="block capitalize">{weekdayLabel(day).slice(0, 3)}</span>
+              <span className="mt-1 block text-base">{day.getDate()}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <section className="card p-4 lg:hidden" data-agenda-selected-day>
+        <HeaderLine title={weekdayLabel(selectedDay)} count={selectedItems.length} subtitle={formatDay(selectedDay)} />
+        <EventList items={selectedItems} empty="Sin citas ni tareas para este día." />
+      </section>
+      <div className="hidden gap-3 lg:grid lg:grid-cols-5">
+        {days.slice(0, 5).map((day) => <WeekDayColumn day={day} items={itemsForDay(items, day)} key={day.toISOString()} />)}
+      </div>
+      <details className="card hidden p-4 lg:block">
+        <summary className="cursor-pointer font-black text-obra-ink">
+          Fin de semana · {itemsForDay(items, days[5]).length + itemsForDay(items, days[6]).length} elementos
+        </summary>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {days.slice(5).map((day) => <WeekDayColumn day={day} items={itemsForDay(items, day)} key={day.toISOString()} />)}
+        </div>
+      </details>
     </div>
+  );
+}
+
+function WeekDayColumn({ day, items }: { day: Date; items: AgendaItem[] }) {
+  const summary = daySummary(items);
+  return (
+    <section className="rounded-xl bg-slate-100/80 p-3" data-agenda-day={toDateInputValue(day)}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="font-black capitalize text-obra-ink">{weekdayLabel(day)}</h2>
+          <p className="text-xs font-semibold text-slate-600">{formatDay(day)}</p>
+        </div>
+        <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-600">{items.length}</span>
+      </div>
+      <p className="mt-2 text-xs font-semibold text-slate-600">
+        {summary.visits} visitas · {summary.followUps} seguimientos · {summary.tasks} tareas
+      </p>
+      <div className="mt-3 grid gap-2">
+        {items.map((item) => (
+          <Link className={`rounded-lg border-l-4 bg-white p-3 text-sm shadow-sm ${borderClass(item.tipo)}`} href={item.href} key={`${item.source}-${item.id}`}>
+            <span className="block text-xs font-bold uppercase text-slate-500">{timeLabel(item.fechaInicio)} · {statusLabel(item.tipo)}</span>
+            <span className="mt-1 block font-black text-obra-ink">{item.titulo}</span>
+            {item.clienteNombre || item.obraTitulo ? <span className="mt-1 block text-xs text-slate-600">{item.clienteNombre ?? item.obraTitulo}</span> : null}
+          </Link>
+        ))}
+        {!items.length ? <p className="rounded-lg bg-white p-3 text-sm text-slate-500">Sin citas ni tareas.</p> : null}
+      </div>
+    </section>
   );
 }
 
@@ -254,7 +259,7 @@ function MonthView({ items, selectedDay }: { items: AgendaItem[]; selectedDay: D
   );
 }
 
-function ListView({ items, selectedType }: { items: AgendaItem[]; selectedType: string }) {
+function ListView({ items, selectedType, showFilters = true }: { items: AgendaItem[]; selectedType: string; showFilters?: boolean }) {
   const upcoming = items.filter((item) => item.fechaInicio >= addDays(startOfDay(new Date()), -1));
   const filters = [
     ["todos", "Todos"],
@@ -267,13 +272,13 @@ function ListView({ items, selectedType }: { items: AgendaItem[]; selectedType: 
   const groups = groupByDay(upcoming);
   return (
     <div className="grid gap-4">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {showFilters ? <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map(([id, label]) => (
           <Link key={id} href={`/agenda?vista=lista&tipo=${id}`} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${selectedType === id ? "bg-obra-ink !text-white" : "border border-slate-200 bg-white text-obra-ink"}`}>
             {label}
           </Link>
         ))}
-      </div>
+      </div> : null}
       {Object.entries(groups).map(([date, dayItems]) => (
         <section key={date}>
           <HeaderLine title={date} count={dayItems.length} />
@@ -350,15 +355,6 @@ function HeaderLine({ title, count, subtitle }: { title: string; count: number; 
       </div>
       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{count}</span>
     </div>
-  );
-}
-
-function MiniCount({ label, value }: { label: string; value: number }) {
-  return (
-    <span className="rounded-lg bg-slate-50 px-2 py-2">
-      <span className="block text-base text-obra-ink">{value}</span>
-      <span className="block">{label}</span>
-    </span>
   );
 }
 

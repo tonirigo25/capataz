@@ -14,7 +14,7 @@ sintéticos.
 | C7 | READY_FOR_EXTERNAL_INPUT | plan Railway con backup/PITR, política de retención y restore nativo; revisores protegidos de GitHub; pentest independiente; DPIA/DPA y firmas legales/IP |
 | C8 | READY_FOR_EXTERNAL_INPUT | dominio y asociaciones App/Universal Links; Android/iOS objetivo; PDFs, picker, uploads y share en dispositivo; JDK/macOS/Xcode, firma y cuentas de store |
 | C9 | READY_FOR_EXTERNAL_INPUT | 5–10 empresas piloto reales, al menos 5 pagadas, contratos/consentimientos, entrevistas, facturas de providers, uso y horas de soporte verificadas, decisión de pricing |
-| C10 | READY_FOR_EXTERNAL_INPUT | snapshot representativo autorizado y protegido; backup previo; gate completo de staging; aprobación humana go/no-go |
+| C10 | READY_FOR_EXTERNAL_INPUT | snapshot representativo autorizado y protegido; backup/PITR nativo y restore; aprobación humana go/no-go |
 | C11 | READY_FOR_EXTERNAL_INPUT | 30–90 días de operación real: MRR, retención, soporte, costes, incidentes, backups y resultados de pilotos |
 
 ## Datos representativos

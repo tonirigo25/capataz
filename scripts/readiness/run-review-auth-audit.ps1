@@ -1,6 +1,8 @@
 param(
   [string]$Sha = "",
-  [switch]$PreserveOwnerAccess
+  [switch]$PreserveOwnerAccess,
+  [switch]$D10,
+  [switch]$SkipD10AuthEngines
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,19 +19,35 @@ if (-not $Sha) {
   }
 }
 
-$randomBytes = New-Object byte[] 32
-[System.Security.Cryptography.RandomNumberGenerator]::Fill($randomBytes)
-$qaPassword = ([Convert]::ToBase64String($randomBytes).TrimEnd("=").Replace("+", "A").Replace("/", "B")) + "Aa1!"
-
 $env:ORQENA_REVIEW_SEED_APPROVED = "true"
 $env:ORQENA_REVIEW_DATABASE_SERVICE_ID = $databaseServiceId
 $env:NEXT_PUBLIC_APP_ENV = "preview"
 $env:CREDENTIAL_SCOPE = "preview"
-$env:ORQENA_REVIEW_QA_PASSWORD = $qaPassword
 $env:ORQENA_REVIEW_ROTATE_OWNER_ACCESS = if ($PreserveOwnerAccess) { "false" } else { "true" }
 $env:ORQENA_REVIEW_PROVISION_MFA = "true"
+if ($D10) {
+  $env:ORQENA_REVIEW_FOCUS_D10 = "true"
+  $env:ORQENA_REVIEW_VIEWPORT_KEYS = "390,430,768,1024,1280,1440,1920"
+}
 
 try {
+  $qaPasswordLines = @(
+    & railway run `
+      --project $projectId `
+      --environment $reviewEnvironmentId `
+      --service $webServiceId `
+      --no-local `
+      -- node -e 'process.stdout.write(process.env.ORQENA_REVIEW_QA_PASSWORD || "")'
+  )
+  if ($LASTEXITCODE -ne 0) {
+    throw "REVIEW_QA_PASSWORD_LOOKUP_FAILED:$LASTEXITCODE"
+  }
+  $qaPassword = ($qaPasswordLines -join "").Trim()
+  if ($qaPassword.Length -lt 24) {
+    throw "REVIEW_QA_PASSWORD_INVALID"
+  }
+  $env:ORQENA_REVIEW_QA_PASSWORD = $qaPassword
+
   $publicDatabaseUrlLines = @(
     & railway run `
       --project $projectId `
@@ -83,6 +101,12 @@ try {
   if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
   }
+  if ($D10 -and -not $SkipD10AuthEngines) {
+    & npm run test:design-d10-auth-engines
+    if ($LASTEXITCODE -ne 0) {
+      exit $LASTEXITCODE
+    }
+  }
 } finally {
   Remove-Item Env:ORQENA_REVIEW_QA_PASSWORD -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_SEED_APPROVED -ErrorAction SilentlyContinue
@@ -90,4 +114,6 @@ try {
   Remove-Item Env:ORQENA_REVIEW_PROVISION_MFA -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_PUBLIC_DATABASE_URL -ErrorAction SilentlyContinue
   Remove-Item Env:ORQENA_REVIEW_OWNER_TOTP_SECRET -ErrorAction SilentlyContinue
+  Remove-Item Env:ORQENA_REVIEW_FOCUS_D10 -ErrorAction SilentlyContinue
+  Remove-Item Env:ORQENA_REVIEW_VIEWPORT_KEYS -ErrorAction SilentlyContinue
 }

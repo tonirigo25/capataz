@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "phase": "D11",
+  "status": "PASS_WITH_EXTERNAL_INPUT_GATES",
+  "generatedAt": "2026-07-28T16:05:04.3327546Z",
+  "branch": "feat/orqena-field-os-design-system",
+  "functionalSha": "2be6a99040c70c67fe2f91c0737f4c17bd116451",
+  "review": {
+    "projectId": "c54a5065-df2c-46b9-a82b-cfac3be07315",
+    "environmentId": "e41b5add-511c-4697-b2b5-48164506f49a",
+    "serviceId": "345992f1-c168-4221-a60d-b440d5a33e30",
+    "databaseServiceId": "d14f98ec-1a00-4cc5-88fc-2ac0c99c8f1b",
+    "deploymentId": "ce516232-0c3e-438f-b276-64773e07ac7d",
+    "imageDigest": "sha256:a8fb22cee71d22284f4d3c7b158b9147872c5460224160cb4df82e442f20bbb1",
+    "status": "SUCCESS",
+    "url": "https://orqena-review-web-review.up.railway.app",
+    "health": {
+      "live": 200,
+      "ready": 200,
+      "status": 200,
+      "robotsDisallowAll": true,
+      "xRobotsTagNoindex": true,
+      "http5xxDuringFinalWindow": 0
+    }
+  },
+  "staging": {
+    "projectId": "5a501cb4-639e-4dd3-a1fb-08ae1c839ebb",
+    "environmentId": "8c1eb538-d7a4-4963-bb7d-5567ecf93ac2",
+    "serviceId": "99a739da-4212-4c56-a407-dc198553c505",
+    "databaseServiceId": "44a39d4f-5bbe-4ebd-91c2-57b7f767aeda",
+    "volumeId": "c2033d13-0fa1-4c96-96a0-f7499db688c0",
+    "deploymentId": "b4603964-09a0-421a-9d09-f0e96fff7ceb",
+    "imageDigest": "sha256:aae594e2be50c7fd2189df5cfeaf42049d48666ad99ad1ce219ebccfd0f03861",
+    "status": "SUCCESS",
+    "url": "https://orqena-web-staging.up.railway.app",
+    "migrationsFound": 43,
+    "migrationsAppliedOnFirstD11Deploy": 18,
+    "pendingMigrationsOnExactRedeploy": 0,
+    "health": {
+      "live": 200,
+      "ready": 200,
+      "status": 200,
+      "robotsDisallowAll": true,
+      "xRobotsTagNoindex": true,
+      "http5xxDuringFinalWindow": 0
+    },
+    "liveProvidersEnabled": 0,
+    "publicIndexingEnabled": false
+  },
+  "publicAudit": {
+    "report": "artifacts/design-d11-staging-public-2be6a990/public-matrix.json",
+    "routes": 24,
+    "engines": 3,
+    "viewports": 8,
+    "publicMatrixCases": 576,
+    "axeCases": 576,
+    "screenshots": 24,
+    "visualDiffCases": 12,
+    "mediaCases": 7,
+    "performanceCases": 3,
+    "performanceMedian": {
+      "LCP": 2180,
+      "CLS": 0,
+      "INP": 24
+    },
+    "cleanOffscreenTargetReplays": 10,
+    "cleanIsolatedHydrationReplays": 2,
+    "blockingFindings": 0,
+    "productionWrites": 0,
+    "stagingWrites": 0
+  },
+  "authenticatedAudit": {
+    "report": "artifacts/design-d11-staging-auth-engines-2be6a990/authenticated-engine-matrix.json",
+    "profiles": 4,
+    "engines": 3,
+    "viewports": 8,
+    "loginCases": 4,
+    "profileCases": 96,
+    "ownerRoutes": 11,
+    "ownerSurfaceCases": 264,
+    "axeCases": 360,
+    "screenshots": 60,
+    "observations": 0,
+    "blockingFindings": 0,
+    "credentialsPersisted": false,
+    "productionWrites": 0,
+    "stagingWrites": 4,
+    "stagingWriteScope": "authorized synthetic authentication sessions only"
+  },
+  "journeyAudit": {
+    "report": "artifacts/design-d11-staging-2be6a990/manifest.json",
+    "screenshots": 25,
+    "uniqueHashes": 25,
+    "fullPageCaptures": 24,
+    "viewportFallbackCaptures": 1,
+    "observations": [
+      {
+        "code": "FULL_PAGE_TIMEOUT_VIEWPORT_FALLBACK",
+        "route": "/",
+        "status": 200,
+        "resolution": "La matriz pública independiente cubrió la misma ruta en los tres motores y ocho viewports sin bloqueo."
+      }
+    ],
+    "crossCompanyDenied": true,
+    "ownerOnlyGovernance": true,
+    "assignedScopeAllowed": true,
+    "unassignedScopeDenied": true,
+    "readOnlyMutationDenied": true,
+    "invitationAcceptedPendingAndOwnerApproved": true,
+    "noSkeletons": true,
+    "noUnresolvedConsoleOrNetworkErrors": true
+  },
+  "localEvidence": {
+    "typecheck": "PASS",
+    "build": "PASS; 76/76",
+    "fullStaticReadiness": "PASS; F1-F11, identity and addenda",
+    "secretScan": "PASS; 1056 files",
+    "diffCheck": "PASS"
+  },
+  "deploymentSecurity": {
+    "railwayIgnoreTracked": true,
+    "excludedPaths": [
+      ".codex-backup/",
+      ".worktrees/",
+      "artifacts/"
+    ],
+    "activeBuildsSanitized": true,
+    "candidateDeploymentsWithAuxiliaryPathsRemovedBeforeActivation": true
+  },
+  "production": {
+    "projectId": "ca7ec244-e961-42dc-8573-23835e6db5f5",
+    "environmentId": "42c14ac1-e933-485b-9b44-01272af389e0",
+    "serviceId": "ee18280b-6f71-4b4c-873e-124ba82b7206",
+    "deploymentId": "53f1363b-256b-403b-a810-447807442c4c",
+    "imageDigest": "sha256:42bc4e677bbed5c83c6a60f5ac60ad296ade27265366d9e6d828421e0955188a",
+    "applicationSha": "64cf8bbbca8ed99aabce4fbc50ebfb163fc05367",
+    "status": "SUCCESS",
+    "touched": false,
+    "promotionDecision": "NO_GO"
+  },
+  "reviewRoutes": [
+    "/",
+    "/demo",
+    "/estado",
+    "/producto",
+    "/login",
+    "/hoy",
+    "/dashboard",
+    "/clientes",
+    "/obras",
+    "/dinero",
+    "/documentos",
+    "/agenda",
+    "/capataz",
+    "/equipo",
+    "/configuracion",
+    "/auditoria"
+  ],
+  "externalInput": [
+    "Safari real",
+    "Chrome Android real",
+    "NVDA",
+    "VoiceOver",
+    "Zoom humano 200/400 por ciento",
+    "Usuarios y dispositivos reales",
+    "Snapshot representativo de producción autorizado y protegido",
+    "Backup/PITR nativo y restore verificado",
+    "SHA o tag inmutable promovido desde main",
+    "Go/no-go humano firmado"
+  ],
+  "boundaries": {
+    "productionTouched": false,
+    "liveProvidersEnabled": 0,
+    "publicIndexingEnabled": false,
+    "designMigrationsAdded": 0,
+    "businessRulesChanged": false,
+    "authorizationRulesChanged": false,
+    "tenantIsolationChanged": false
+  }
+}

@@ -32,6 +32,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import {
+  captureActions,
   createActions,
   isProductDestinationActive,
   resolveRouteContext,
@@ -43,7 +44,7 @@ import { BrandMark } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 type DesktopPanel = "more" | "create" | "user" | null;
-type Overlay = "search" | "create" | "more" | null;
+type Overlay = "search" | "capture" | "more" | null;
 
 const icons: Record<ProductIcon, LucideIcon> = {
   activity: Activity,
@@ -92,6 +93,10 @@ export function AppChrome({
   const dialogRef = useRef<HTMLDivElement>(null);
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
+  const canCapture = useMemo(
+    () => captureActions.some((item) => !item.capability || capabilities.includes(item.capability)),
+    [capabilities],
+  );
 
   useEffect(() => {
     setDesktopPanel(null);
@@ -193,7 +198,7 @@ export function AppChrome({
   }
 
   return (
-    <div className="min-h-dvh lg:pl-60">
+    <div className="field-os-app-shell min-h-dvh">
       <a
         href="#main-content"
         className="fixed left-4 top-3 z-[80] inline-flex min-h-11 -translate-y-20 items-center rounded-lg bg-brand px-4 py-2 font-semibold text-white transition focus:translate-y-0"
@@ -201,7 +206,7 @@ export function AppChrome({
         Saltar al contenido
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-border bg-surface lg:block">
+      <aside className="field-os-sidebar fixed inset-y-0 left-0 z-40 border-r">
         <DesktopNavigation
           navigation={portalManifest.navigation}
           pathname={pathname}
@@ -217,7 +222,7 @@ export function AppChrome({
         <div className="mx-auto flex h-16 max-w-product items-center gap-2 px-4 sm:px-6 lg:px-8">
           <Link
             href={portalManifest.safeHome}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white lg:hidden"
+            className="field-os-mobile-brand h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white"
             aria-label="Ir a Hoy"
           >
             <BrandMark className="h-7 w-7 text-white" />
@@ -231,7 +236,7 @@ export function AppChrome({
 
           <button
             type="button"
-            className="hidden h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface xl:flex"
+            className="field-os-global-search h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface"
             aria-label="Buscar en Orqena"
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
@@ -241,22 +246,22 @@ export function AppChrome({
           </button>
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            {portalManifest.quickActions.length ? <><button
+            <button
               type="button"
-              className="icon-button xl:hidden"
+              className="icon-button field-os-search-trigger"
               aria-label="Buscar en Orqena"
               onClick={(event) => openOverlay("search", event.currentTarget)}
             >
               <Search size={20} aria-hidden="true" />
             </button>
-            <button
+            {portalManifest.quickActions.length ? <button
               type="button"
-              className="secondary-button hidden lg:inline-flex"
+              className="field-os-desktop-action secondary-button"
               aria-expanded={desktopPanel === "create"}
               onClick={(event) => openDesktopPanel("create", event.currentTarget)}
             >
               <Plus size={18} aria-hidden="true" />Crear
-            </button></> : null}
+            </button> : null}
             {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
               <Bot size={18} aria-hidden="true" />Orqena
             </Link> : null}
@@ -269,7 +274,7 @@ export function AppChrome({
 
       <MobileBottomNavigation
         items={portalManifest.mobileNavigation}
-        canCreate={portalManifest.quickActions.length > 0}
+        canCapture={canCapture}
         pathname={pathname}
         overlay={overlay}
         onOpen={openOverlay}
@@ -320,8 +325,8 @@ export function AppChrome({
           >
             {overlay === "search" ? (
               <SearchDialog id={dialogId} showDashboard={portalManifest.navigation.some((item) => item.href === "/dashboard")} onClose={() => setOverlay(null)} />
-            ) : overlay === "create" ? (
-              <MobileCreateSheet capabilities={capabilities} id={dialogId} onClose={() => setOverlay(null)} />
+            ) : overlay === "capture" ? (
+              <MobileCaptureSheet capabilities={capabilities} id={dialogId} onClose={() => setOverlay(null)} />
             ) : (
               <MobileMoreSheet
                 navigation={portalManifest.navigation}
@@ -365,8 +370,8 @@ function DesktopNavigation({
     <div className="flex h-full flex-col">
       <div className="px-4 pb-3 pt-4">
         <Link href="/seleccionar-empresa" className="flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
-            <BrandMark className="h-7 w-7 text-white" />
+          <span className="field-os-sidebar__brand-mark flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+            <BrandMark className="h-7 w-7" />
           </span>
           <span className="min-w-0">
             <span className="block text-base font-bold leading-5 text-content">Orqena</span>
@@ -386,7 +391,7 @@ function DesktopNavigation({
           type="button"
           className={clsx(
             "mt-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-            desktopPanel === "more" ? "bg-brand-soft text-content" : "text-content-secondary hover:bg-subtle hover:text-content"
+            desktopPanel === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
           )}
           aria-expanded={desktopPanel === "more"}
           aria-controls="desktop-more-navigation"
@@ -435,7 +440,7 @@ const DesktopMorePanel = forwardRef<HTMLDivElement, {
     <div
       ref={ref}
       id="desktop-more-navigation"
-      className="fixed bottom-5 left-[15.75rem] top-20 z-50 w-[25rem] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-card"
+      className="field-os-sidebar-panel fixed bottom-5 top-20 z-50 w-[25rem] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-card"
     >
       <div className="mb-3 flex items-center justify-between">
         <div>
@@ -491,7 +496,7 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
   onClose
 }, ref) {
   return (
-    <div ref={ref} className="fixed bottom-3 left-[15.75rem] z-50 w-72 rounded-2xl border border-border bg-surface p-3 shadow-card">
+    <div ref={ref} className="field-os-sidebar-panel fixed bottom-3 z-50 w-72 rounded-2xl border border-border bg-surface p-3 shadow-card">
       <div className="border-b border-border px-2 pb-3">
         <p className="truncate text-sm font-semibold text-content">{userName}</p>
         <p className="truncate text-xs text-content-secondary">{companyName}</p>
@@ -521,36 +526,36 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
 
 function MobileBottomNavigation({
   items,
-  canCreate,
+  canCapture,
   pathname,
   overlay,
   onOpen
 }: {
   items: ProductDestination[];
-  canCreate: boolean;
+  canCapture: boolean;
   pathname: string;
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
-  const mobileItems = items.slice(0, canCreate ? 3 : 4);
+  const mobileItems = items.slice(0, canCapture ? 3 : 4);
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="field-os-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)]"
       aria-label="Navegación móvil"
     >
       <div className="mx-auto flex h-16 max-w-lg justify-around px-1">
         {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
-        {canCreate ? <button
+        {canCapture ? <button
           type="button"
-          className={clsx("shell-bottom-item", overlay === "create" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
-          aria-label="Crear"
-          aria-expanded={overlay === "create"}
-          onClick={(event) => onOpen("create", event.currentTarget)}
+          className={clsx("field-os-capture-trigger shell-bottom-item", overlay === "capture" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
+          aria-label="Capturar"
+          aria-expanded={overlay === "capture"}
+          onClick={(event) => onOpen("capture", event.currentTarget)}
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg">
             <Plus size={19} aria-hidden="true" />
           </span>
-          <span>Crear</span>
+          <span>Capturar</span>
         </button> : null}
         {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
         <button
@@ -626,10 +631,13 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
   );
 }
 
-function MobileCreateSheet({ id, capabilities, onClose }: { id: string; capabilities: string[]; onClose: () => void }) {
+function MobileCaptureSheet({ id, capabilities, onClose }: { id: string; capabilities: string[]; onClose: () => void }) {
   return (
-    <SheetFrame id={id} title="Crear" description="Elige una acción frecuente." onClose={onClose}>
-      <CreateRows capabilities={capabilities} onNavigate={onClose} />
+    <SheetFrame id={id} title="Capturar" description="Registra lo que acaba de pasar." onClose={onClose}>
+      <CaptureRows capabilities={capabilities} onNavigate={onClose} />
+      <p className="mt-4 rounded-lg bg-subtle p-3 text-xs leading-5 text-content-secondary">
+        La cámara o el micrófono sólo se solicitarán después de elegir una acción que los necesite.
+      </p>
     </SheetFrame>
   );
 }
@@ -758,6 +766,24 @@ function CreateRows({ capabilities, onNavigate }: { capabilities: string[]; onNa
   );
 }
 
+function CaptureRows({ capabilities, onNavigate }: { capabilities: string[]; onNavigate: () => void }) {
+  const actions = captureActions.filter((item) => !item.capability || capabilities.includes(item.capability));
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {actions.map((item) => {
+        const Icon = icons[item.icon];
+        return (
+          <Link key={item.href} href={item.href} onClick={onNavigate} className="flex min-h-28 flex-col rounded-lg border border-border bg-surface p-3 text-left transition hover:border-border-strong hover:bg-subtle">
+            <Icon size={21} className="text-brand-strong" aria-hidden="true" />
+            <span className="mt-auto pt-4 font-semibold text-content">{item.label}</span>
+            <span className="mt-1 text-xs font-normal leading-5 text-content-secondary">{item.description}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function NavigationGroup({
   group,
   pathname,
@@ -807,7 +833,7 @@ function NavigationLink({
       aria-current={active ? "page" : undefined}
       className={clsx(
         "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-        active ? "bg-brand-soft text-content" : "text-content-secondary hover:bg-subtle hover:text-content"
+        active ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
       )}
     >
       <Icon size={19} aria-hidden="true" />

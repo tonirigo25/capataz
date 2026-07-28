@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { CompactFilterBar, PageHeader, EmptyState, ResultCount } from "@/components/ui-primitives";
 import { prisma } from "@/lib/prisma";
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/automation-templates";
@@ -13,9 +14,9 @@ export const dynamic = "force-dynamic";
 export default async function AutomationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; nuevo?: string }>;
 }) {
-  const { estado = "all" } = await searchParams;
+  const { estado = "all", nuevo } = await searchParams;
   const auth = await requireCapability("company.update");
   const items = await prisma.automationDefinition.findMany({
     where: {
@@ -39,7 +40,13 @@ export default async function AutomationsPage({
       <PageHeader
         eyebrow="Motor seguro"
         title="Automatizaciones"
-        description="Definiciones versionadas, condiciones estructuradas, historial, dry run y retries."
+        description="Estado, trigger, próxima ejecución y fallos visibles; ninguna acción sensible se ejecuta sin confirmación."
+        action={
+          <Link className="primary-button" href={`/automatizaciones?estado=${estado}&nuevo=1`}>
+            <Plus size={18} />
+            Crear automatización
+          </Link>
+        }
       />
       <CompactFilterBar><nav
         className="flex gap-2 overflow-x-auto pb-2"
@@ -56,20 +63,21 @@ export default async function AutomationsPage({
             key={id}
             href={`/automatizaciones?estado=${id}`}
             aria-current={estado === id ? "page" : undefined}
-            className={
+            className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${
               estado === id
-                ? "primary-button shrink-0"
-                : "secondary-button shrink-0"
-            }
+                ? "bg-obra-ink text-white"
+                : "border border-slate-200 bg-white text-obra-ink"
+            }`}
           >
             {label}
           </Link>
         ))}
       </nav></CompactFilterBar>
       <ResultCount shown={items.length} total={items.length} noun="automatizaciones" />
-      <form
+      {nuevo === "1" ? <form
         action={createAutomationAction}
         className="card grid gap-3 p-4 md:grid-cols-2"
+        aria-label="Crear automatización"
       >
         <label className="text-sm font-bold">
           Nombre
@@ -79,10 +87,11 @@ export default async function AutomationsPage({
           Descripción
           <input className="field mt-1" name="description" />
         </label>
-        <button className="primary-button md:col-span-2">
-          Crear borrador manual
-        </button>
-      </form>
+        <div className="flex flex-wrap gap-2 md:col-span-2">
+          <button className="primary-button">Crear borrador manual</button>
+          <Link className="secondary-button" href={`/automatizaciones?estado=${estado}`}>Cancelar</Link>
+        </div>
+      </form> : null}
       {items.length ? (
         <section className="grid gap-3">
           {items.map((item) => {
@@ -94,7 +103,7 @@ export default async function AutomationsPage({
               failed = item.runs.filter((r) => r.status === "failed").length,
               retries = item.runs.filter((r) => r.nextRetryAt).length;
             return (
-              <article className="card p-4" key={item.id}>
+              <article className="card p-4" key={item.id} data-automation-state={item.status}>
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
                     <Link
@@ -143,7 +152,7 @@ export default async function AutomationsPage({
                           name="versionId"
                           value={version.id}
                         />
-                        <button className="primary-button">Publicar</button>
+                        <button className="secondary-button">Publicar</button>
                       </form>
                     ) : null}
                     <form action={runAutomationAction}>

@@ -3,6 +3,9 @@ import fs from "node:fs";
 const read = (path) => fs.readFileSync(path, "utf8");
 const client = read("app/(app)/clientes/[id]/page.tsx");
 const clients = read("app/(app)/clientes/page.tsx");
+const clientFilters = read("components/clients/client-filter-bar.tsx");
+const clientSplit = read("components/clients/client-split-view.tsx");
+const contextDrawer = read("components/context-drawer.tsx");
 const work = read("app/(app)/obras/[id]/page.tsx");
 const works = read("app/(app)/obras/page.tsx");
 const gallery = read("components/work-progress-gallery.tsx");
@@ -19,15 +22,19 @@ const ordered = (source, tokens) => {
   return indexes.every((index) => index >= 0) && indexes.every((index, position) => position === 0 || index > indexes[position - 1]);
 };
 
-check("cliente expone siete áreas 360 exactas", (client.match(/^  \["(resumen|actividad|trabajos|contactos|documentos|datos|economia)"/gm) ?? []).length === 7);
+check("cliente expone cuatro áreas 360 exactas", (client.match(/^  \["(resumen|trabajos|dinero|archivos)"/gm) ?? []).length === 4);
 check("cliente abre Resumen por defecto", client.includes(': "resumen");') && client.includes('requestedView'));
 check("cliente usa ParentNavigation y EntityHeader", client.includes("<EntityHeader") && client.includes('<ParentNavigation href="/clientes"'));
-check("cliente conserva una sola acción primaria", /Crear obra\s*<\/Link>/.test(client) && /menu=\{\s*<ClientActions/.test(client));
+check("cliente conserva una sola acción primaria contextual", client.includes("Abrir siguiente acción") && client.includes("<ContextDrawer") && client.includes("<ClientActions"));
 check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
 check("cliente conserva mapa heredado explícito", ["obras", "archivos", "dinero", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "notas"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
-check("listado de clientes prioriza próxima acción", clients.includes("Próxima acción") && clients.includes("client.nextAction") && clients.includes("client.activeWorksCount") && clients.includes("client.pendingTotal"));
+check("listado de clientes prioriza próxima acción", clients.includes("toWorkspaceItem") && clients.includes("nextAction") && clients.includes("activeWorksCount") && clients.includes("pendingTotal"));
+check("listado ofrece vistas inteligentes, búsqueda y filtros en sheet", ["Necesitan acción", "Activos", "Todos"].every((label) => clientFilters.includes(label)) && clientFilters.includes("<FilterSheet") && clientFilters.includes('type="search"'));
+check("desktop usa split 420-480 y móvil evita tabla", clientSplit.includes("data-client-list-split") && clientSplit.includes("data-client-mobile-cards") && !clientSplit.includes("<table"));
+check("preview cambia por click y foco sin perder deep link", clientSplit.includes("onClick={onSelect}") && clientSplit.includes("onFocusCapture={onSelect}") && clientSplit.includes("Abrir ficha completa"));
+check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('event.key === "Escape"') && contextDrawer.includes("opener.current?.focus()") && contextDrawer.includes('aria-modal="true"'));
 
 check("obra expone siete áreas 360 exactas", (work.match(/^  \["(resumen|progreso|planificacion|equipo|documentos|datos|economia)"/gm) ?? []).length === 7);
 check("obra abre Resumen por defecto", work.includes(': "resumen");') && work.includes("requestedView"));

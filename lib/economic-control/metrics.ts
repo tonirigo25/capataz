@@ -46,7 +46,6 @@ export function buildPayableDocuments(purchaseInvoices: PayableInput[], expenses
   const invoiceRows = purchaseInvoices.filter((invoice) => !invoice.voidedAt && invoice.status !== "VOID").map((invoice) => {
     const paid = Math.max(safeNumber(invoice.paidAmount), uniqueTotal(invoice.payments, (payment) => payment.id, (payment) => payment.amount));
     const pending = Math.max(0, safeNumber(invoice.total) - paid);
-    const base = invoice.work ? `/obras/${invoice.work.id}?vista=dinero` : `/facturas-proveedor/${invoice.id}`;
     return {
       id: `payable:${invoice.id}`,
       kind: "factura_recibida" as const,
@@ -63,7 +62,7 @@ export function buildPayableDocuments(purchaseInvoices: PayableInput[], expenses
       paid,
       pending,
       status: invoice.status,
-      href: base
+      href: `/facturas-proveedor/${invoice.id}`
     };
   });
   const standaloneExpenses = expenses.filter((expense) => !expense.purchaseInvoiceId && expense.paymentStatus !== "cancelled").map((expense) => {

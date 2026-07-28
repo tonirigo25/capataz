@@ -41,6 +41,27 @@ export function RecordWorkspace({
   );
 }
 
+export function SplitWorkspace({
+  children,
+  className,
+  context,
+  contextLabel = "Contexto relacionado",
+}: {
+  children: ReactNode;
+  className?: string;
+  context: ReactNode;
+  contextLabel?: string;
+}) {
+  return (
+    <main className={clsx("screen split-workspace", className)} data-workspace-family="split">
+      <div className="split-workspace__layout">
+        <div className="min-w-0">{children}</div>
+        <aside className="split-workspace__context" aria-label={contextLabel}>{context}</aside>
+      </div>
+    </main>
+  );
+}
+
 export function RecordPeek({
   title,
   description,

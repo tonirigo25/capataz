@@ -104,7 +104,7 @@ export default async function RecommendationsPage({
       <PageHeader
         eyebrow="Director de operaciones"
         title="Centro de recomendaciones"
-        description="Acciones recomendadas a partir de la actividad del negocio. Cualquier cambio requiere confirmación explícita."
+        description="Una decisión propuesta con origen, evidencia, impacto y confirmación humana antes de cualquier cambio."
         badge={<span className="rounded-full bg-content px-3 py-1 text-xs font-black text-surface">{result.summary.active} activas</span>}
         secondaryActions={
           <>
@@ -155,7 +155,7 @@ export default async function RecommendationsPage({
         <section className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="flex items-center gap-2 text-sm font-black uppercase"><Lightbulb size={18} /> Siguiente mejor acción · prioridad {result.summary.top.priority}/100</p>
+              <p className="flex items-center gap-2 text-sm font-black uppercase"><Lightbulb size={18} /> Siguiente mejor acción · {result.summary.top.levelText}</p>
               <h2 className="mt-2 text-xl font-black">{result.summary.top.title}</h2>
               <p className="mt-1 text-sm leading-6">{result.summary.top.summary}</p>
             </div>
@@ -197,9 +197,9 @@ function RecommendationGroupCard({ group, historyByFingerprint }: { group: Busin
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)} · prioridad {group.maxPriority}</p>
+          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)}</p>
           <h3 className="mt-1 text-lg font-black text-obra-ink">{group.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{group.explanation}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{withoutOpaquePriority(group.explanation)}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm sm:min-w-60">
           <Mini label="Recomendaciones" value={group.count} />
@@ -218,7 +218,7 @@ function RecommendationGroupCard({ group, historyByFingerprint }: { group: Busin
 
 function RecommendationCard({ recommendation, history }: { recommendation: BusinessRecommendation; history: RecommendationHistory[string] }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4" data-recommendation-level={recommendation.level} data-recommendation-source={recommendation.source}>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-xs font-black uppercase text-slate-500">
@@ -231,7 +231,7 @@ function RecommendationCard({ recommendation, history }: { recommendation: Busin
           <h4 className="mt-1 text-base font-black text-obra-ink">{recommendation.title}</h4>
           <p className="mt-1 text-sm leading-6 text-slate-600">{recommendation.summary}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
-            <span className="rounded-full bg-white px-2.5 py-1">Prioridad {recommendation.priority}/100</span>
+            <span className="rounded-full bg-white px-2.5 py-1">Nivel {recommendation.levelText}</span>
             <span className="rounded-full bg-white px-2.5 py-1">{recommendation.sourceLabel}</span>
             {recommendation.amount ? <span className="rounded-full bg-white px-2.5 py-1">{formatCurrency(recommendation.amount)}</span> : null}
             {recommendation.snoozedUntil ? <span className="rounded-full bg-white px-2.5 py-1">Hasta {formatDate(recommendation.snoozedUntil)}</span> : null}
@@ -254,7 +254,7 @@ function RecommendationCard({ recommendation, history }: { recommendation: Busin
       </div>
 
       <details className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-        <summary className="cursor-pointer text-sm font-black text-obra-ink">Por qué y seguimiento</summary>
+        <summary className="cursor-pointer text-sm font-black text-obra-ink">Por qué y seguimiento: regla y evidencia</summary>
         <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-600 lg:grid-cols-2">
           <div>
             <p className="font-black text-obra-ink">Explicación</p>
@@ -269,9 +269,9 @@ function RecommendationCard({ recommendation, history }: { recommendation: Busin
             <ul className="mt-1 grid gap-1">
               {recommendation.evidence.dataUsed.length ? recommendation.evidence.dataUsed.map((item) => <li key={item}>- {item}</li>) : <li>- Señal persistida y entidad relacionada.</li>}
             </ul>
-            <p className="mt-3 font-black text-obra-ink">Puntuación</p>
+            <p className="mt-3 font-black text-obra-ink">Criterios aplicados</p>
             <ul className="mt-1 grid gap-1">
-              {recommendation.evidence.scoreBreakdown.map((item) => <li key={`${item.label}-${item.detail}`}>- {item.label}: {item.value} · {item.detail}</li>)}
+              {recommendation.evidence.scoreBreakdown.map((item) => <li key={`${item.label}-${item.detail}`}>- {item.label}: {item.detail}</li>)}
             </ul>
           </div>
         </div>
@@ -332,7 +332,7 @@ function PrimaryAction({ recommendation, compact = false }: { recommendation: Bu
   if (!action) return null;
   if (action.href) {
     return (
-      <Link href={action.href} className={`${compact ? "primary-button bg-white text-obra-ink" : "primary-button min-h-10 px-3 py-1 text-xs"}`}>
+      <Link href={action.href} className={`${compact ? "primary-button bg-white text-obra-ink" : "secondary-button min-h-10 px-3 py-1 text-xs"}`}>
         {action.label}
         <ArrowRight size={16} />
       </Link>
@@ -341,7 +341,7 @@ function PrimaryAction({ recommendation, compact = false }: { recommendation: Bu
   if (action.requiresConfirmation) {
     return (
       <details className="rounded-lg border border-amber-200 bg-white p-2 text-sm">
-        <summary className="cursor-pointer font-black text-obra-ink">{action.label}</summary>
+        <summary className={`${compact ? "primary-button bg-white text-obra-ink" : "secondary-button"} cursor-pointer`}>{action.label}</summary>
         <div className="mt-2 grid gap-2">
           <p className="text-xs leading-5 text-slate-600">{action.description}</p>
           <ul className="grid gap-1 text-xs text-slate-600">
@@ -352,7 +352,7 @@ function PrimaryAction({ recommendation, compact = false }: { recommendation: Bu
             <input type="hidden" name="actionId" value={action.id} />
             <input type="hidden" name="confirmed" value="true" />
             <input type="hidden" name="idempotencyKey" value={`${recommendation.fingerprint}:${action.id}`} />
-            <button className="primary-button min-h-10 w-full px-3 py-1 text-xs" type="submit">Confirmar</button>
+            <button className="secondary-button min-h-10 w-full px-3 py-1 text-xs" type="submit">Confirmar</button>
           </form>
         </div>
       </details>
@@ -361,9 +361,15 @@ function PrimaryAction({ recommendation, compact = false }: { recommendation: Bu
   return (
     <form action={acceptRecommendationAction}>
       <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-      <button className="primary-button min-h-10 px-3 py-1 text-xs" type="submit">{action.label}</button>
+      <button className={`${compact ? "primary-button" : "secondary-button"} min-h-10 px-3 py-1 text-xs`} type="submit">{action.label}</button>
     </form>
   );
+}
+
+function withoutOpaquePriority(explanation: string) {
+  return explanation
+    .replace(/\s*Las \d+ principales concentran prioridad [0-9,\s]+\.?/iu, "")
+    .trim();
 }
 
 function Metric({ label, value, icon: Icon, tone }: { label: string; value: string | number; icon: typeof Lightbulb; tone: "neutral" | "success" | "warning" | "danger" | "info" }) {

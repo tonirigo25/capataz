@@ -38,7 +38,7 @@ export default async function SearchPage({
           placeholder="Cliente, trabajo, factura, documento…"
           autoFocus
         />
-        <button className="primary-button shrink-0" type="submit">
+        <button className="primary-button shrink-0" type="submit" aria-label="Buscar en Orqena">
           <Search size={18} aria-hidden="true" />
           <span className="hidden sm:inline">Buscar</span>
         </button>

@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { requireCapability, resolveScopedEntityIds } from "@/lib/commercial/authorization";
-import { CompactFilterBar, ResultCount } from "@/components/ui-primitives";
+import { CompactFilterBar, Notice, ResultCount } from "@/components/ui-primitives";
 
 export const dynamic = "force-dynamic";
 
@@ -68,12 +68,19 @@ export default async function RemindersPage({
     <ListWorkspace>
       <SectionHeader
         title="Recordatorios"
-        description="Seguimientos internos y mensajes preparados, siempre con confirmación."
+        description="Cola de mensajes internos: preparados, programados y enviados sin confundir intención con entrega."
         action={
           <DemoLimitButton href="/gestion?tipo=recordatorio&returnTo=/recordatorios" currentCount={programmedCount} limit={3}>
-            Añadir
+            Nuevo recordatorio
           </DemoLimitButton>
         }
+      />
+
+      <Notice
+        className="mb-5"
+        tone="info"
+        title="Estados de entrega"
+        description="Preparado: pendiente de confirmación humana. Programado: confirmado, pero todavía sin envío real. Enviado: constancia histórica simulada; los proveedores live siguen desactivados."
       />
 
       <section className="mb-5 grid grid-cols-2 gap-3">
@@ -97,7 +104,7 @@ export default async function RemindersPage({
 
       <div className="grid gap-3">
         {filtered.map((reminder) => (
-          <details key={reminder.id} className="card p-4">
+          <details key={reminder.id} className="card p-4" data-reminder-state={reminder.estado}>
             <summary className="cursor-pointer list-none">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -112,6 +119,7 @@ export default async function RemindersPage({
             <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
               <p className="text-sm leading-6 text-slate-600">{reminder.mensaje}</p>
               <div className="grid gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+                <p><strong className="text-obra-ink">Estado operativo:</strong> {deliveryStateLabel(reminder.estado)}</p>
                 <p><strong className="text-obra-ink">Requiere confirmación:</strong> {reminder.requiereConfirmacion ? "Sí" : "No"}</p>
                 {reminder.work ? <p><strong className="text-obra-ink">Obra:</strong> {reminder.work.titulo}</p> : null}
                 {reminder.invoice ? <p><strong className="text-obra-ink">Factura:</strong> {reminder.invoice.numero}</p> : null}
@@ -145,4 +153,11 @@ export default async function RemindersPage({
       </div>
     </ListWorkspace>
   );
+}
+
+function deliveryStateLabel(status: string) {
+  if (["borrador", "pendiente_confirmacion"].includes(status)) return "Preparado";
+  if (status === "programado") return "Programado, sin envío real";
+  if (status === "enviado") return "Enviado en simulación";
+  return statusLabel(status);
 }

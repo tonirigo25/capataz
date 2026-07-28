@@ -68,7 +68,11 @@ export default function StatusPage() {
           <p className="marketing-eyebrow">Promesa móvil verificable</p>
           <h2 className="mt-3 text-3xl font-black" id="mobile-capabilities">Web y PWA ahora; stores solo después de sus gates.</h2>
           <p className="marketing-lede mt-4 max-w-4xl">{mobileCapabilities.publicPromise}</p>
-          <div className="mt-8 overflow-x-auto">
+          <div
+            aria-label="Matriz de capacidades móviles desplazable"
+            className="mt-8 overflow-x-auto"
+            tabIndex={0}
+          >
             <table className="min-w-full border-collapse text-left text-sm">
               <thead><tr><th className="border-b border-border px-3 py-3">Capacidad</th><th className="border-b border-border px-3 py-3">Estado</th><th className="border-b border-border px-3 py-3">Evidencia necesaria</th></tr></thead>
               <tbody>{mobileCapabilities.capabilities.map((capability) => <tr key={capability.id}><th className="border-b border-border px-3 py-3 font-bold">{capability.label}</th><td className="border-b border-border px-3 py-3">{mobileStatus(capability.status)}</td><td className="border-b border-border px-3 py-3 text-content-secondary">{capability.evidence}</td></tr>)}</tbody>

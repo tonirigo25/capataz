@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import {
   CompactFilterBar,
   PageHeader,
@@ -13,6 +14,7 @@ import {
   resolveScopedEntityIds,
 } from "@/lib/commercial/authorization";
 import { ListWorkspace } from "@/components/workspaces";
+import { statusLabel } from "@/lib/status";
 export const dynamic = "force-dynamic";
 export default async function FollowUpsPage({
   searchParams,
@@ -106,7 +108,13 @@ export default async function FollowUpsPage({
       <PageHeader
         eyebrow="Relaciones"
         title="Seguimientos"
-        description="Próximas acciones, intentos manuales y resultados estructurados."
+        description="Cola de trabajo con promesas, último intento, canal, resultado y siguiente acción."
+        action={canManage ? (
+          <Link className="primary-button" href={`/seguimientos?filtro=${filter}&nuevo=1`}>
+            <Plus size={18} />
+            Nuevo seguimiento
+          </Link>
+        ) : undefined}
       />
       <CompactFilterBar>
         <nav
@@ -124,11 +132,11 @@ export default async function FollowUpsPage({
               key={id}
               href={`/seguimientos?filtro=${id}`}
               aria-current={filter === id ? "page" : undefined}
-              className={
+              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${
                 filter === id
-                  ? "primary-button shrink-0"
-                  : "secondary-button shrink-0"
-              }
+                  ? "bg-obra-ink text-white"
+                  : "border border-slate-200 bg-white text-obra-ink"
+              }`}
             >
               {label}
             </Link>
@@ -140,10 +148,11 @@ export default async function FollowUpsPage({
         total={items.length}
         noun="seguimientos"
       />
-      {canManage ? (
+      {canManage && query.nuevo === "1" ? (
         <form
           action={createFollowUpAction}
           className="card grid gap-3 p-4 md:grid-cols-3"
+          aria-label="Nuevo seguimiento"
         >
           <label className="text-sm font-bold">
             Título
@@ -192,35 +201,25 @@ export default async function FollowUpsPage({
               </select>
             </label>
           ) : null}
-          <button className="primary-button md:col-span-3">
-            Crear seguimiento
-          </button>
+          <div className="flex flex-wrap gap-2 md:col-span-3">
+            <button className="primary-button">Crear seguimiento</button>
+            <Link className="secondary-button" href={`/seguimientos?filtro=${filter}`}>Cancelar</Link>
+          </div>
         </form>
       ) : null}
       {items.length ? (
         <section className="grid gap-3" aria-live="polite">
           {items.map((item) => (
-            <article className="card p-4" key={item.id}>
-              <div className="flex flex-wrap justify-between gap-3">
-                <div>
+            <article className="card p-4" key={item.id} data-follow-up-queue-item>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
                   <Link
                     className="text-lg font-black hover:underline"
                     href={`/seguimientos/${item.id}`}
                   >
                     {item.title}
                   </Link>
-                  <p className="text-sm text-slate-500">
-                    {item.type} · {item.status} · {item.priority}
-                    {item.nextActionAt
-                      ? ` · ${item.nextActionAt.toLocaleString("es-ES")}`
-                      : ""}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    {item.attempts.length
-                      ? `Último intento ${item.attempts[0].attemptedAt.toLocaleString("es-ES")}`
-                      : "Sin intentos"}{" "}
-                    · {item.outcomes[0]?.type ?? "sin resultado"}
-                  </p>
+                  <p className="text-sm text-slate-500">{item.type} · {statusLabel(item.status)} · prioridad {statusLabel(item.priority)}</p>
                 </div>
                 <Link
                   className="secondary-button"
@@ -229,6 +228,14 @@ export default async function FollowUpsPage({
                   Abrir
                 </Link>
               </div>
+              <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                <QueueField label="Fecha" value={item.nextActionAt ? formatDate(item.nextActionAt) : "Sin fecha"} />
+                <QueueField label="Promesa" value={item.expectedOutcome ?? (item.status === "promised" ? "Promesa registrada" : "Sin promesa")} />
+                <QueueField label="Último intento" value={item.attempts[0]?.attemptedAt ? formatDate(item.attempts[0].attemptedAt) : "Sin intentos"} />
+                <QueueField label="Canal" value={item.attempts[0]?.channel ? statusLabel(item.attempts[0].channel) : "Pendiente de elegir"} />
+                <QueueField label="Resultado" value={item.outcomes[0]?.summary ?? item.attempts[0]?.response ?? (item.outcomes[0]?.type ? statusLabel(item.outcomes[0].type) : "Sin resultado")} />
+                <QueueField label="Siguiente acción" value={item.nextActionAt ? item.title : "Definir siguiente acción"} />
+              </dl>
             </article>
           ))}
         </section>
@@ -241,3 +248,15 @@ export default async function FollowUpsPage({
     </ListWorkspace>
   );
 }
+
+function QueueField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 font-semibold text-obra-ink">{value}</dd>
+    </div>
+  );
+}
+
+const formatDate = (date: Date) =>
+  date.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });

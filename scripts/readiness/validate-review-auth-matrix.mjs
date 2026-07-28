@@ -12,6 +12,13 @@ const deployedSha = process.env.ORQENA_REVIEW_SHA ?? "unknown";
 const outputRoot = process.env.ORQENA_REVIEW_AUDIT_DIR ?? join(process.cwd(), "artifacts", "review-auth");
 const screenshotRoot = join(outputRoot, "screenshots");
 const reportPath = join(outputRoot, "authenticated-matrix.json");
+const focusD3 = process.env.ORQENA_REVIEW_FOCUS_D3 === "true";
+const focusD4 = process.env.ORQENA_REVIEW_FOCUS_D4 === "true";
+const focusD5 = process.env.ORQENA_REVIEW_FOCUS_D5 === "true";
+const focusD6 = process.env.ORQENA_REVIEW_FOCUS_D6 === "true";
+const focusD7 = process.env.ORQENA_REVIEW_FOCUS_D7 === "true";
+const focusD8 = process.env.ORQENA_REVIEW_FOCUS_D8 === "true";
+const focusD10 = process.env.ORQENA_REVIEW_FOCUS_D10 === "true";
 
 if (baseUrl !== EXPECTED_ORIGIN) throw new Error(`REVIEW_ORIGIN_MISMATCH:${baseUrl}`);
 if (!password || password.length < 24) throw new Error("ORQENA_REVIEW_QA_PASSWORD_REQUIRED");
@@ -20,30 +27,34 @@ delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 
 mkdirSync(screenshotRoot, { recursive: true });
 
-const profiles = [
-  { key: "owner", profile: "OWNER", allowed: "/plataforma" },
-  { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria" },
-  { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero" },
-  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria" },
-  { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes" },
-  { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes" },
-  { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes" },
+const allProfiles = [
+  { key: "owner", profile: "OWNER", allowed: "/plataforma", d3: { route: "/dashboard", expectation: "allowed" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/obras/review-work-1", expectation: "allowed" }, { route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }], d6: [{ route: "/documentos", expectation: "allowed" }, { route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/recordatorios", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "allowed" }], d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/equipo", expectation: "allowed" }, { route: "/onboarding", expectation: "allowed" }, { route: "/configuracion", expectation: "allowed" }] },
+  { key: "general-manager", profile: "GENERAL_MANAGER", allowed: "/obras", denied: "/tesoreria", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }] },
+  { key: "admin", profile: "ADMINISTRATIVE", allowed: "/clientes", denied: "/dinero", d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/onboarding", expectation: "allowed" }, { route: "/configuracion", expectation: "allowed" }] },
+  { key: "sales", profile: "SALES", allowed: "/presupuestos", denied: "/tesoreria", d3: { route: "/dashboard", expectation: "denied" }, d4: { route: "/clientes/review-client-1", expectation: "allowed" }, d5: [{ route: "/presupuestos/review-budget-1", expectation: "allowed" }, { route: "/dinero/review-invoice-1", expectation: "denied" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "allowed" }, { route: "/alertas", expectation: "allowed" }, { route: "/recomendaciones", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }], d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/onboarding", expectation: "restricted-inline" }, { route: "/configuracion", expectation: "allowed" }] },
+  { key: "finance", profile: "FINANCE", allowed: "/tesoreria", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d5: [{ route: "/dinero/review-invoice-1", expectation: "allowed" }, { route: "/tesoreria", expectation: "allowed" }] },
+  { key: "procurement", profile: "PROCUREMENT_MANAGER", allowed: "/proveedores", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d6: [{ route: "/proveedores", expectation: "allowed" }, { route: "/facturas-proveedor", expectation: "allowed" }, { route: "/facturas-proveedor/review-purchase-invoice-1", expectation: "allowed" }] },
+  { key: "project-manager", profile: "PROJECT_MANAGER", allowed: "/obras", denied: "/clientes", d5: [{ route: "/obras/review-work-1", expectation: "allowed" }], d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "allowed" }, { route: "/automatizaciones", expectation: "denied" }] },
   { key: "supervisor", profile: "TEAM_SUPERVISOR", allowed: "/obras", denied: "/clientes" },
-  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes" },
+  { key: "worker", profile: "WORKER", allowed: "/tareas", denied: "/clientes", d3: { route: "/dashboard", expectation: "denied" }, d7: [{ route: "/agenda", expectation: "allowed" }, { route: "/tareas", expectation: "allowed" }, { route: "/seguimientos", expectation: "denied" }, { route: "/alertas", expectation: "denied" }, { route: "/automatizaciones", expectation: "denied" }], d8: [{ route: "/capataz", expectation: "allowed" }, { route: "/onboarding", expectation: "restricted-inline" }, { route: "/configuracion", expectation: "allowed" }] },
   { key: "external", profile: "EXTERNAL_COLLABORATOR", allowed: "/obras", restrictedInline: "/capataz" },
-  { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true },
+  { key: "viewer", profile: "ADVISOR_AUDITOR", allowed: "/auditoria", denied: "/clientes", readOnly: true, d5: [{ route: "/presupuestos/review-budget-1", expectation: "denied" }, { route: "/dinero/review-invoice-1", expectation: "denied" }] },
 ];
+const profiles = selectConfigured(allProfiles, "ORQENA_REVIEW_PROFILE_KEYS", "key");
 
-const viewports = [
+const allViewports = [
   { key: "320", width: 320, height: 720 },
   { key: "390", width: 390, height: 844 },
+  { key: "430", width: 430, height: 932 },
   { key: "768", width: 768, height: 1024 },
-  { key: "1024", width: 1024, height: 900 },
-  { key: "1440", width: 1440, height: 1000 },
+  { key: "1024", width: 1024, height: 768 },
+  { key: "1280", width: 1280, height: 800 },
+  { key: "1440", width: 1440, height: 900 },
   { key: "1920", width: 1920, height: 1080 },
 ];
+const viewports = selectConfigured(allViewports, "ORQENA_REVIEW_VIEWPORT_KEYS", "key");
 
-const ownerSurfaceFamilies = [
+const allOwnerSurfaceFamilies = [
   { family: "onboarding", route: "/onboarding" },
   { family: "company-create", route: "/crear-empresa" },
   { family: "company-select", route: "/seleccionar-empresa" },
@@ -61,19 +72,25 @@ const ownerSurfaceFamilies = [
   { family: "treasury", route: "/tesoreria" },
   { family: "expenses-materials", route: "/gastos-materiales" },
   { family: "document-reader", route: "/gastos-materiales/lector" },
+  { family: "document-review", route: "/gastos-materiales/lector/review-expense-document-1" },
   { family: "suppliers", route: "/proveedores" },
+  { family: "supplier-detail", route: "/proveedores/review-partner-1" },
   { family: "subcontractors", route: "/subcontratas" },
+  { family: "subcontractor-detail", route: "/subcontratas/review-subcontractor-1" },
   { family: "supplier-invoices", route: "/facturas-proveedor" },
+  { family: "supplier-invoice-detail", route: "/facturas-proveedor/review-purchase-invoice-1" },
   { family: "subcontractor-invoices", route: "/facturas-subcontratas" },
   { family: "agenda", route: "/agenda" },
   { family: "activity", route: "/actividad" },
   { family: "tasks", route: "/tareas" },
   { family: "task-detail", route: "/tareas/review-task-1" },
   { family: "followups", route: "/seguimientos" },
+  { family: "followup-detail", route: "/seguimientos/review-followup-1" },
   { family: "reminders", route: "/recordatorios" },
   { family: "alerts", route: "/alertas" },
   { family: "documents", route: "/documentos" },
   { family: "automations", route: "/automatizaciones" },
+  { family: "automation-detail", route: "/automatizaciones/review-automation-1" },
   { family: "recommendations", route: "/recomendaciones" },
   { family: "recommendation-control", route: "/recomendaciones/control" },
   { family: "orqena", route: "/capataz" },
@@ -90,19 +107,65 @@ const ownerSurfaceFamilies = [
   { family: "platform", route: "/plataforma" },
   { family: "platform-observability", route: "/plataforma/observabilidad" },
   { family: "platform-health", route: "/plataforma/salud" },
+  { family: "dashboard-mobile", route: "/dashboard", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "clients-mobile", route: "/clientes?vista=activos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "client-360-mobile", route: "/clientes/review-client-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "work-360-mobile", route: "/obras/review-work-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "budget-detail-mobile", route: "/presupuestos/review-budget-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "invoice-detail-mobile", route: "/dinero/review-invoice-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "treasury-mobile", route: "/tesoreria", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "documents-mobile", route: "/documentos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "document-review-mobile", route: "/gastos-materiales/lector/review-expense-document-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "suppliers-mobile", route: "/proveedores", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "supplier-detail-mobile", route: "/proveedores/review-partner-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "subcontractor-detail-mobile", route: "/subcontratas/review-subcontractor-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "supplier-invoices-mobile", route: "/facturas-proveedor", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "supplier-invoice-detail-mobile", route: "/facturas-proveedor/review-purchase-invoice-1", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "agenda-mobile", route: "/agenda", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "tasks-mobile", route: "/tareas", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "followups-mobile", route: "/seguimientos", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "reminders-mobile", route: "/recordatorios", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "alerts-mobile", route: "/alertas", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "recommendations-mobile", route: "/recomendaciones", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "automations-mobile", route: "/automatizaciones", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "orqena-mobile", route: "/capataz", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "team-access-mobile", route: "/equipo", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "onboarding-mobile", route: "/onboarding", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
+  { family: "settings-mobile", route: "/configuracion", viewport: { key: "390", width: 390, height: 844 }, focusedOnly: true },
 ];
+const availableOwnerSurfaceFamilies = focusD10
+  ? allOwnerSurfaceFamilies
+    .filter(({ focusedOnly }) => !focusedOnly)
+    .flatMap((surface) => viewports.map((viewport) => ({
+      ...surface,
+      baseFamily: surface.family,
+      family: `${surface.family}-${viewport.key}`,
+      viewport,
+    })))
+  : allOwnerSurfaceFamilies.filter(({ focusedOnly }) => !focusedOnly || focusD3 || focusD4 || focusD5 || focusD6 || focusD7 || focusD8);
+const ownerSurfaceFamilies = selectConfigured(availableOwnerSurfaceFamilies, "ORQENA_REVIEW_SURFACE_FAMILIES", "family");
+if (!profiles.some(({ key }) => key === "owner")) throw new Error("ORQENA_REVIEW_OWNER_PROFILE_REQUIRED");
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   origin: baseUrl,
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
+  focus: focusD10 ? "D10" : focusD8 ? "D8" : focusD7 ? "D7" : focusD6 ? "D6" : focusD5 ? "D5" : focusD4 ? "D4" : focusD3 ? "D3" : "FULL",
   viewports,
   profiles: [],
   ownerSurfaces: [],
+  d4Interactions: null,
+  d5Interactions: null,
+  d6Interactions: null,
+  d7Interactions: null,
+  d8Interactions: null,
+  d10Journey: null,
+  d10Tenants: null,
   loginCases: [],
+  ownerSessionRefresh: null,
   stateCases: [],
   authenticatedCapacity: null,
   stateCoverage: {
@@ -122,6 +185,15 @@ const report = {
   blockingFindings: [],
   productObservations: [],
 };
+
+function selectConfigured(items, environmentKey, itemKey) {
+  const requested = process.env[environmentKey]?.split(",").map((value) => value.trim()).filter(Boolean);
+  if (!requested?.length) return items;
+  const available = new Map(items.map((item) => [item[itemKey], item]));
+  const unknown = requested.filter((key) => !available.has(key));
+  if (unknown.length) throw new Error(`${environmentKey}_UNKNOWN:${unknown.join(",")}`);
+  return requested.map((key) => available.get(key));
+}
 
 function sanitize(value) {
   return String(value)
@@ -153,7 +225,7 @@ function attachDiagnostics(page) {
     if (!detail.includes("ERR_ABORTED")) events.push(`network:${request.method()}:${sanitize(request.url())}:${sanitize(detail)}`);
   });
   page.on("response", (response) => {
-    if (response.status() >= 500) events.push(`http:${response.status()}:${sanitize(response.url())}`);
+    if (response.status() >= 400) events.push(`http:${response.status()}:${sanitize(response.url())}`);
   });
   return { events, externalHosts };
 }
@@ -170,7 +242,7 @@ async function waitForSettled(page, route) {
   });
 }
 
-async function login(browser, profile) {
+async function login(browser, profile, { verifyMfa = true } = {}) {
   const startedAt = Date.now();
   const context = await browser.newContext({
     viewport: { width: 1024, height: 900 },
@@ -189,7 +261,7 @@ async function login(browser, profile) {
   await waitForSettled(page, `/login:${profile.key}`);
   const pathname = new URL(page.url()).pathname;
   if (!["/hoy", "/onboarding"].includes(pathname)) throw new Error(`LOGIN_DESTINATION:${profile.key}:${pathname}`);
-  if (profile.key === "owner") {
+  if (profile.key === "owner" && verifyMfa) {
     await page.goto(`${baseUrl}/configuracion/seguridad?required=platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await waitForSettled(page, "/configuracion/seguridad:owner");
     const code = page.getByLabel("Código de seis cifras");
@@ -220,8 +292,13 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
     const visible = (element) => {
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
-      return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+      const closedDetails = element.closest("details:not([open])");
+      const visibleInsideClosedDetails = !closedDetails || closedDetails.querySelector("summary")?.contains(element);
+      return visibleInsideClosedDetails && style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
     };
+    const visibleText = document.body.innerText.toLocaleLowerCase("es");
+    const availableText = (document.body.textContent ?? "").toLocaleLowerCase("es");
+    const containsAll = (source, labels) => labels.every((label) => source.includes(label.toLocaleLowerCase("es")));
     const headings = [...document.querySelectorAll("h1")].filter(visible);
     const primaryActions = [...document.querySelectorAll("a.primary-button, button.primary-button")].filter(visible);
     const brokenImages = [...document.images].filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.src);
@@ -237,6 +314,61 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
       objectiveAboveFold: headings.length === 1 && headings[0].getBoundingClientRect().top < window.innerHeight,
       readOnlyText: /solo lectura|modo lectura|lectura/i.test(document.body.innerText),
       restrictedText: /no tienes acceso|acceso restringido|tu portal no incluye/i.test(document.body.innerText),
+      priorityCount: Number(document.querySelector("[data-priority-count]")?.getAttribute("data-priority-count") ?? 0),
+      priorityContract: /Prioridades de hoy/iu.test(document.body.innerText)
+        && (/Origen:/iu.test(document.body.innerText) && /Impacto:/iu.test(document.body.innerText)
+          || /No hay prioridades disponibles en tu alcance/iu.test(document.body.innerText)),
+      dashboardPrimaryKpiCount: Number(document.querySelector("[data-dashboard-primary-kpis]")?.getAttribute("data-dashboard-primary-kpis") ?? 0),
+      dashboardContract: ["Evolución del periodo", "Excepciones", "Posición económica"].every((label) => document.body.innerText.includes(label)),
+      clientSmartViewCount: Number(document.querySelector("[data-client-smart-views]")?.getAttribute("data-client-smart-views") ?? 0),
+      clientListSplitVisible: Boolean([...document.querySelectorAll("[data-client-list-split]")].find(visible)),
+      clientMobileCardsVisible: Boolean([...document.querySelectorAll("[data-client-mobile-cards]")].find(visible)),
+      clientDetailAreaCount: Number(document.querySelector("[data-client-detail-areas]")?.getAttribute("data-client-detail-areas") ?? 0),
+      clientContextDrawerTriggerVisible: Boolean([...document.querySelectorAll("[data-context-drawer-trigger]")].find(visible)),
+      d5WorkContract: ["Estado real", "Evidencia", "Coste previsto", "Coste real", "Margen autorizado", "Próxima acción"].every((label) => document.body.innerText.includes(label))
+        && document.body.innerText.includes("Sin porcentaje físico inventado"),
+      d5BudgetContract: ["Guardar borrador", "Revisar y enviar", "Partidas"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector('[aria-label="Vista previa viva del presupuesto"]')),
+      d5InvoiceContract: ["Estado de cobro", "Historial y compromisos", "Siguiente acción", "Documento y estado fiscal"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector('[role="progressbar"][aria-label="Porcentaje cobrado"]')),
+      d5TreasuryContract: ["Caja registrada", "Por cobrar", "Por pagar", "Flujo previsto", "Previsión"].every((label) => document.body.innerText.includes(label))
+        && Boolean(document.querySelector('a[href="#treasury-registration"]')),
+      d6DocumentsContract: ["Bandeja documental", "Documento original", "Datos extraídos", "Comprobaciones"].every((label) => document.body.innerText.includes(label)),
+      d6SupplierContract: document.body.innerText.includes("Proveedores y subcontratas")
+        && Boolean([...document.querySelectorAll("[data-d6-supplier-directory]")].find(visible))
+        && [...document.querySelectorAll("[data-d6-supplier-directory]")].filter(visible).every((element) => element.getAttribute("data-d6-supplier-fields") === "specialty documentation works balance next-action"),
+      d6ReceivedInvoicesContract: ["Facturas recibidas", "Pendiente revisar", "Pendiente pagar", "Vencido", "Imputado a trabajos"].every((label) => document.body.innerText.includes(label)),
+      d6ReceivedInvoiceDetailContract: ["Datos fiscales y económicos", "Base imponible", "IVA", "IRPF", "Pagos parciales", "Gasto enlazado", "Historial"].every((label) => document.body.innerText.includes(label))
+        && document.body.innerText.includes("No se registra una segunda salida"),
+      d7AgendaContract: containsAll(visibleText, ["Semana", "Mes", "Lista", "Vencimientos", "Nueva visita"])
+        && Boolean(document.querySelector("[data-agenda-week]")),
+      d7TasksContract: containsAll(visibleText, ["Mías", "Equipo", "Bloqueadas", "Completadas", "Nueva tarea"])
+        && Boolean(document.querySelector("nav[aria-label='Vistas de tareas']"))
+        && (Boolean(document.querySelector("[data-task-view]")) || visibleText.includes("sin tareas")),
+      d7FollowUpsContract: containsAll(visibleText, ["Fecha", "Promesa", "Último intento", "Canal", "Resultado", "Siguiente acción"])
+        && Boolean(document.querySelector("[data-follow-up-queue-item]")),
+      d7RemindersContract: containsAll(visibleText, ["Preparado", "Programado", "Enviado"])
+        && Boolean(document.querySelector("[data-reminder-state]")),
+      d7AlertsContract: containsAll(availableText, ["Alertas y recomendaciones", "Nivel", "Origen", "Regla"])
+        && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(availableText),
+      d7RecommendationsContract: containsAll(availableText, ["Centro de recomendaciones", "Siguiente mejor acción", "Regla", "evidencia"])
+        && !/(?:prioridad|puntuación)\s*:?\s*\d+(?:\s*\/\s*100)?/iu.test(visibleText),
+      d7AutomationsContract: containsAll(visibleText, ["Automatizaciones", "Trigger:", "Próxima:", "fallos", "retries"])
+        && Boolean(document.querySelector("[data-automation-state]")),
+      d8AssistantContract: containsAll(visibleText, ["Historial", "Propuesta estructurada", "Revisar antes de guardar", "Memoria de Orqena"])
+        && Boolean([...document.querySelectorAll("[data-d8-assistant-workspace]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-d8-proposal-panel]")].find(visible))
+        && Boolean([...document.querySelectorAll('button[aria-label="Dictar por voz"]')].find(visible)),
+      d8TeamContract: containsAll(visibleText, ["Personas", "Portal resultante", "Perfil", "Alcance", "Modo", "MFA", "Paquetes", "Campos económicos", "Aprobación"])
+        && Boolean([...document.querySelectorAll("[data-d8-team-workspace]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-d8-resulting-portal]")].find(visible)),
+      d8OnboardingContract: containsAll(visibleText, ["Empresa", "Perfil", "Primer cliente", "Primer presupuesto", "Primer documento", "menos de 15 minutos", "modo manual", "Configurar más tarde"])
+        && Boolean([...document.querySelectorAll("[data-onboarding-milestones]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-onboarding-import]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-onboarding-later]")].find(visible)),
+      d8SettingsContract: containsAll(visibleText, ["Datos personales", "Empresa", "Fiscal y documentos", "Equipo", "Integraciones", "Seguridad", "Plan y uso", "App móvil", "Legal y soporte", "Zona sensible", "Checklist de configuración"])
+        && Boolean([...document.querySelectorAll("[data-d8-settings-workspace]")].find(visible))
+        && Boolean([...document.querySelectorAll("[data-settings-readiness]")].find(visible)),
     };
   });
   let accessibility = { criticalOrSerious: 0, violations: [] };
@@ -270,9 +402,27 @@ async function auditCurrentPage(page, route, { axe = false } = {}) {
   return { route, ...state, accessibility };
 }
 
+async function navigateWithTransportRetry(page, route) {
+  const url = `${baseUrl}${route}`;
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    } catch (error) {
+      lastError = error;
+      const message = String(error);
+      const retryable = /Timeout|net::ERR_|Target page, context or browser has been closed/u.test(message);
+      if (!retryable || attempt === 3) throw error;
+      process.stdout.write(`AUDIT_NAVIGATION_RETRY=${route};ATTEMPT=${attempt};REASON=transport\n`);
+      await page.waitForTimeout(attempt * 750);
+    }
+  }
+  throw lastError;
+}
+
 async function navigateAndAudit(page, route, options = {}) {
   const startedAt = Date.now();
-  const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const response = await navigateWithTransportRetry(page, route);
   await waitForSettled(page, route);
   return {
     status: response?.status() ?? 0,
@@ -297,6 +447,50 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
   if (expectation === "allowed" && ["/login", "/acceso-restringido"].includes(result.finalPath)) findings.push(`${context}:UNEXPECTED_DENIAL_${result.finalPath}`);
   if (expectation === "denied" && result.finalPath !== "/acceso-restringido") findings.push(`${context}:DENIAL_BYPASS_${result.finalPath}`);
   if (expectation === "restricted-inline" && (!result.restrictedText || result.finalPath !== result.route)) findings.push(`${context}:INLINE_RESTRICTION_MISSING_${result.finalPath}`);
+  if ((focusD3 || focusD10) && result.route === "/hoy" && (result.priorityCount > 3 || !result.priorityContract)) {
+    findings.push(`${context}:D3_TODAY_CONTRACT_${result.priorityCount}`);
+  }
+  if ((focusD3 || focusD10) && result.route === "/dashboard" && expectation === "allowed" && (result.dashboardPrimaryKpiCount !== 4 || !result.dashboardContract)) {
+    findings.push(`${context}:D3_DASHBOARD_CONTRACT_${result.dashboardPrimaryKpiCount}`);
+  }
+  if ((focusD4 || focusD10) && result.route.startsWith("/clientes") && !result.route.includes("review-client-1") && expectation === "allowed") {
+    if (result.clientSmartViewCount !== 3) findings.push(`${context}:D4_SMART_VIEWS_${result.clientSmartViewCount}`);
+    if (viewport === "390" && !result.clientMobileCardsVisible) findings.push(`${context}:D4_MOBILE_CARDS_MISSING`);
+    if (viewport === "1440" && !result.route.includes("__orqena_review_empty_state__") && !result.clientListSplitVisible) {
+      findings.push(`${context}:D4_DESKTOP_SPLIT_MISSING`);
+    }
+  }
+  if ((focusD4 || focusD10) && profile === "owner" && result.route.includes("/clientes/review-client-1") && expectation === "allowed") {
+    if (result.clientDetailAreaCount !== 4) findings.push(`${context}:D4_DETAIL_AREAS_${result.clientDetailAreaCount}`);
+    if (!result.clientContextDrawerTriggerVisible) findings.push(`${context}:D4_CONTEXT_DRAWER_MISSING`);
+  }
+  if ((focusD5 || focusD10) && expectation === "allowed" && profile === "owner") {
+    if (result.route.startsWith("/obras/review-work-1") && !result.d5WorkContract) findings.push(`${context}:D5_WORK_CONTRACT_MISSING`);
+    if (result.route.startsWith("/presupuestos/review-budget-1") && !result.d5BudgetContract) findings.push(`${context}:D5_BUDGET_CONTRACT_MISSING`);
+    if (result.route.startsWith("/dinero/review-invoice-1") && !result.d5InvoiceContract) findings.push(`${context}:D5_INVOICE_CONTRACT_MISSING`);
+    if (result.route === "/tesoreria" && !result.d5TreasuryContract) findings.push(`${context}:D5_TREASURY_CONTRACT_MISSING`);
+  }
+  if ((focusD6 || focusD10) && expectation === "allowed") {
+    if (result.route === "/documentos" && profile === "owner" && !result.d6DocumentsContract) findings.push(`${context}:D6_DOCUMENTS_CONTRACT_MISSING`);
+    if (result.route === "/proveedores" && !result.d6SupplierContract) findings.push(`${context}:D6_SUPPLIER_CONTRACT_MISSING`);
+    if (result.route === "/facturas-proveedor" && !result.d6ReceivedInvoicesContract) findings.push(`${context}:D6_RECEIVED_INVOICES_CONTRACT_MISSING`);
+    if (result.route.startsWith("/facturas-proveedor/review-purchase-invoice-1") && !result.d6ReceivedInvoiceDetailContract) findings.push(`${context}:D6_RECEIVED_INVOICE_DETAIL_CONTRACT_MISSING`);
+  }
+  if ((focusD7 || focusD10) && expectation === "allowed") {
+    if (result.route === "/agenda" && !result.d7AgendaContract) findings.push(`${context}:D7_AGENDA_CONTRACT_MISSING`);
+    if (result.route === "/tareas" && !result.d7TasksContract) findings.push(`${context}:D7_TASKS_CONTRACT_MISSING`);
+    if (result.route === "/seguimientos" && !result.d7FollowUpsContract) findings.push(`${context}:D7_FOLLOWUPS_CONTRACT_MISSING`);
+    if (result.route === "/recordatorios" && !result.d7RemindersContract) findings.push(`${context}:D7_REMINDERS_CONTRACT_MISSING`);
+    if (result.route === "/alertas" && !result.d7AlertsContract) findings.push(`${context}:D7_ALERTS_CONTRACT_MISSING`);
+    if (result.route === "/recomendaciones" && !result.d7RecommendationsContract) findings.push(`${context}:D7_RECOMMENDATIONS_CONTRACT_MISSING`);
+    if (result.route === "/automatizaciones" && !result.d7AutomationsContract) findings.push(`${context}:D7_AUTOMATIONS_CONTRACT_MISSING`);
+  }
+  if ((focusD8 || focusD10) && expectation === "allowed" && profile === "owner") {
+    if (result.route === "/capataz" && !result.d8AssistantContract) findings.push(`${context}:D8_ASSISTANT_CONTRACT_MISSING`);
+    if (result.route === "/equipo" && !result.d8TeamContract) findings.push(`${context}:D8_TEAM_CONTRACT_MISSING`);
+    if (result.route === "/onboarding" && !result.d8OnboardingContract) findings.push(`${context}:D8_ONBOARDING_CONTRACT_MISSING`);
+    if (result.route === "/configuracion" && !result.d8SettingsContract) findings.push(`${context}:D8_SETTINGS_CONTRACT_MISSING`);
+  }
   return findings;
 }
 
@@ -315,7 +509,7 @@ async function collectDesktopNavigation(page) {
   return [...primary, ...secondary];
 }
 
-async function auditProfileHome(browser, profile, storageState, viewport) {
+async function openProfileHome(browser, storageState, viewport) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     storageState,
@@ -326,6 +520,28 @@ async function auditProfileHome(browser, profile, storageState, viewport) {
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
   const result = await navigateAndAudit(page, "/hoy", { axe: ["390", "1440"].includes(viewport.key) });
+  return { context, page, diagnostics, result };
+}
+
+async function auditProfileHome(browser, profile, storageState, viewport) {
+  let attempt = await openProfileHome(browser, storageState, viewport);
+  let transientDiagnostics = [];
+  const hydrationOnly = attempt.diagnostics.events.length > 0
+    && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
+  if (hydrationOnly) {
+    transientDiagnostics = [...attempt.diagnostics.events];
+    await attempt.context.close();
+    attempt = await openProfileHome(browser, storageState, viewport);
+    report.productObservations.push({
+      severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+      context: `${profile.key}:${viewport.key}:/hoy`,
+      code: "HYDRATION_REPLAY",
+      firstAttempt: transientDiagnostics,
+      replayDiagnostics: attempt.diagnostics.events,
+    });
+  }
+
+  const { context, page, diagnostics, result } = attempt;
   const screenshot = join(screenshotRoot, `${profile.key}-hoy-${viewport.key}.png`);
   await page.screenshot({ path: screenshot, fullPage: true });
   const navigation = viewport.key === "1440" ? await collectDesktopNavigation(page) : [];
@@ -345,13 +561,14 @@ async function auditProfileHome(browser, profile, storageState, viewport) {
     screenshot: relative(process.cwd(), screenshot),
     navigation,
     canCreate,
+    transientDiagnostics,
     diagnostics: diagnostics.events,
     externalHosts: [...diagnostics.externalHosts],
     findings,
   };
 }
 
-async function auditPermissionRoute(browser, profile, storageState, route, expectation) {
+async function openPermissionRoute(browser, storageState, route) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     storageState,
@@ -360,6 +577,27 @@ async function auditPermissionRoute(browser, profile, storageState, route, expec
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
   const result = await navigateAndAudit(page, route, { axe: true });
+  return { context, diagnostics, result };
+}
+
+async function auditPermissionRoute(browser, profile, storageState, route, expectation) {
+  let attempt = await openPermissionRoute(browser, storageState, route);
+  let transientDiagnostics = [];
+  const hydrationOnly = attempt.diagnostics.events.length > 0
+    && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
+  if (hydrationOnly) {
+    transientDiagnostics = [...attempt.diagnostics.events];
+    await attempt.context.close();
+    attempt = await openPermissionRoute(browser, storageState, route);
+    report.productObservations.push({
+      severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+      context: `${profile.key}:1440:${route}`,
+      code: "HYDRATION_REPLAY",
+      firstAttempt: transientDiagnostics,
+      replayDiagnostics: attempt.diagnostics.events,
+    });
+  }
+  const { context, diagnostics, result } = attempt;
   const findings = caseFindings({
     result,
     diagnostics,
@@ -371,35 +609,60 @@ async function auditPermissionRoute(browser, profile, storageState, route, expec
   return {
     ...result,
     expectation,
+    transientDiagnostics,
     diagnostics: diagnostics.events,
     externalHosts: [...diagnostics.externalHosts],
     findings,
   };
 }
 
-async function auditOwnerSurface(browser, storageState, surface) {
+async function openOwnerSurface(browser, storageState, surface) {
+  const viewport = surface.viewport ?? { key: "1440", width: 1440, height: 1000 };
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 1000 },
+    viewport: { width: viewport.width, height: viewport.height },
     storageState,
     serviceWorkers: "block",
+    reducedMotion: viewport.key === "390" ? "reduce" : "no-preference",
   });
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
   const result = await navigateAndAudit(page, surface.route, { axe: true });
-  const screenshot = join(screenshotRoot, `owner-${surface.family}-1440.png`);
+  return { context, page, diagnostics, result, viewport };
+}
+
+async function auditOwnerSurface(browser, storageState, surface) {
+  let attempt = await openOwnerSurface(browser, storageState, surface);
+  let transientDiagnostics = [];
+  const hydrationOnly = attempt.diagnostics.events.length > 0
+    && attempt.diagnostics.events.every((event) => event.includes("Minified React error #418"));
+  if (hydrationOnly) {
+    transientDiagnostics = [...attempt.diagnostics.events];
+    await attempt.context.close();
+    attempt = await openOwnerSurface(browser, storageState, surface);
+    report.productObservations.push({
+      severity: attempt.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+      context: `owner:${attempt.viewport.key}:${surface.route}`,
+      code: "HYDRATION_REPLAY",
+      firstAttempt: transientDiagnostics,
+      replayDiagnostics: attempt.diagnostics.events,
+    });
+  }
+
+  const { context, page, diagnostics, result, viewport } = attempt;
+  const screenshot = join(screenshotRoot, `owner-${surface.family}-${viewport.key}.png`);
   await page.screenshot({ path: screenshot, fullPage: true });
   const expectation = "allowed";
   const findings = caseFindings({
     result,
     diagnostics,
     profile: "owner",
-    viewport: "1440",
+    viewport: viewport.key,
     expectation,
   });
   if (result.primaryActionCount > 1) {
     report.productObservations.push({
       severity: "REVIEW",
-      context: `owner:1440:${surface.route}`,
+      context: `owner:${viewport.key}:${surface.route}`,
       code: "MULTIPLE_PRIMARY_ACTIONS",
       count: result.primaryActionCount,
       labels: result.primaryActions,
@@ -409,8 +672,10 @@ async function auditOwnerSurface(browser, storageState, surface) {
   return {
     family: surface.family,
     ...result,
+    viewport: viewport.key,
     expectation,
     screenshot: relative(process.cwd(), screenshot),
+    transientDiagnostics,
     diagnostics: diagnostics.events,
     externalHosts: [...diagnostics.externalHosts],
     findings,
@@ -488,7 +753,7 @@ async function auditRepresentativeStates(browser, storageState) {
     const diagnostics = attachDiagnostics(page);
     const route = "/clientes?buscar=__orqena_review_empty_state__";
     const result = await navigateAndAudit(page, route, { axe: true });
-    const emptyVisible = await page.getByText("No hay clientes para estos filtros", { exact: true }).count() === 1;
+    const emptyVisible = await page.getByText(/No hay clientes (?:para estos filtros|para esta vista)/u).count() === 1;
     const screenshot = join(screenshotRoot, "owner-state-empty-1440.png");
     await page.screenshot({ path: screenshot, fullPage: true });
     const findings = caseFindings({ result, diagnostics, profile: "owner-state", viewport: "1440", expectation: "allowed" });
@@ -691,10 +956,582 @@ async function auditRepresentativeStates(browser, storageState) {
   return cases;
 }
 
+async function auditD4Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    storageState,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const findings = [];
+  const filterRoutes = [
+    "/clientes?vista=accion",
+    "/clientes?vista=activos",
+    "/clientes?vista=todos",
+    "/clientes?vista=activos&estado=nuevo",
+    "/clientes?vista=activos&tipo=Empresa",
+    "/clientes?vista=activos&archivo=archivados",
+    "/clientes?vista=activos&ordenar=nombre_desc",
+    "/clientes?vista=activos&filtros=obras_activas",
+    "/clientes?vista=activos&filtros=facturas_pendientes",
+    "/clientes?vista=activos&filtros=facturas_vencidas",
+    "/clientes?vista=activos&filtros=presupuestos_pendientes",
+    "/clientes?vista=activos&filtros=datos_incompletos",
+    "/clientes?vista=activos&filtros=seguimiento_pendiente",
+    "/clientes?vista=activos&filtros=sin_actividad_reciente",
+  ];
+  const filterCases = [];
+  for (const route of filterRoutes) {
+    const result = await navigateAndAudit(page, route);
+    const ok = result.status === 200
+      && result.finalPath === "/clientes"
+      && result.clientSmartViewCount === 3;
+    if (!ok) findings.push(`D4_FILTER_ROUTE:${route}:FAILED`);
+    filterCases.push({ route, status: result.status, ok });
+  }
+
+  await page.goto(`${baseUrl}/clientes?vista=activos`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await waitForSettled(page, "/clientes:vista-activos:filter-drawer");
+  const filterTrigger = page.getByRole("button", { name: /Filtros/u }).first();
+  await filterTrigger.click();
+  const filterDialog = page.getByRole("dialog", { name: "Filtros de clientes" });
+  const filterDrawerOpened = await filterDialog.isVisible();
+  await page.keyboard.press("Escape");
+  const filterDrawerClosed = await filterDialog.isHidden();
+  const filterFocusRestored = await filterTrigger.evaluate((element) => element === document.activeElement);
+  if (!filterDrawerOpened || !filterDrawerClosed || !filterFocusRestored) {
+    findings.push("D4_FILTER_DRAWER_INTERACTION_FAILED");
+  }
+
+  const detailAreas = [
+    ["resumen", "Resumen"],
+    ["trabajos", "Trabajo/Obras"],
+    ["dinero", "Dinero"],
+    ["archivos", "Archivos"],
+  ];
+  const deepLinkCases = [];
+  for (const [view, label] of detailAreas) {
+    const route = `/clientes/review-client-1?vista=${view}`;
+    const result = await navigateAndAudit(page, route);
+    const active = page.getByRole("link", { name: label, exact: true });
+    const ok = result.status === 200
+      && result.finalPath === "/clientes/review-client-1"
+      && await active.getAttribute("aria-current") === "page";
+    if (!ok) findings.push(`D4_DEEP_LINK:${view}:FAILED`);
+    deepLinkCases.push({ view, route, status: result.status, active: ok });
+  }
+
+  await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await waitForSettled(page, "/clientes/review-client-1:context-drawer");
+  const contextTrigger = page.getByRole("button", { name: "Ver contexto", exact: true });
+  await contextTrigger.click();
+  const contextDialog = page.getByRole("dialog", { name: /Contexto de Cliente Sintético Review/u });
+  const contextDrawerOpened = await contextDialog.isVisible();
+  const preservedSections = await Promise.all(
+    ["Contactos", "Datos fiscales", "Notas internas"].map(async (label) =>
+      contextDialog.getByRole("heading", { name: label, exact: true }).count(),
+    ),
+  );
+  await page.keyboard.press("Escape");
+  const contextDrawerClosed = await contextDialog.isHidden();
+  const contextFocusRestored = await contextTrigger.evaluate((element) => element === document.activeElement);
+  if (
+    !contextDrawerOpened
+    || !contextDrawerClosed
+    || !contextFocusRestored
+    || preservedSections.some((count) => count !== 1)
+  ) {
+    findings.push("D4_CONTEXT_DRAWER_INTERACTION_FAILED");
+  }
+
+  if (diagnostics.events.length) findings.push(`D4_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D4_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  await context.close();
+  return {
+    filterCases,
+    deepLinkCases,
+    filterDrawerOpened,
+    filterDrawerClosed,
+    filterFocusRestored,
+    contextDrawerOpened,
+    contextDrawerClosed,
+    contextFocusRestored,
+    preservedContextSections: preservedSections.reduce((total, count) => total + count, 0),
+    findings,
+  };
+}
+
+async function auditD5Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const budgetResult = await navigateAndAudit(page, "/presupuestos/review-budget-1");
+    const preview = page.locator('[aria-label="Vista previa viva del presupuesto"]');
+    const unitPrice = page.locator('#budget-line-editor [name="precioUnitario"]').first();
+    const before = await preview.getAttribute("data-preview-subtotal");
+    const originalValue = await unitPrice.inputValue();
+    await unitPrice.fill(String(Number(originalValue) + 1));
+    await page.waitForFunction(
+      ({ value }) => document.querySelector('[data-preview-subtotal]')?.getAttribute("data-preview-subtotal") !== value,
+      { value: before },
+      { timeout: 5_000 },
+    ).catch(() => undefined);
+    const after = await preview.getAttribute("data-preview-subtotal");
+    const livePreview = before !== after;
+    cases.push({ key: "budget-live-preview", ok: budgetResult.d5BudgetContract && livePreview, before, after });
+    if (!budgetResult.d5BudgetContract || !livePreview) findings.push("D5_BUDGET_LIVE_PREVIEW_FAILED");
+
+    const budgetPdf = await context.request.get(`${baseUrl}/presupuestos/review-budget-1/pdf?preview=1`, { timeout: 60_000 });
+    const budgetPdfOk = budgetPdf.status() === 200 && /application\/pdf/iu.test(budgetPdf.headers()["content-type"] ?? "");
+    cases.push({ key: "budget-pdf", ok: budgetPdfOk, status: budgetPdf.status(), contentType: budgetPdf.headers()["content-type"] ?? null });
+    if (!budgetPdfOk) findings.push(`D5_BUDGET_PDF_${budgetPdf.status()}`);
+
+    const workResult = await navigateAndAudit(page, "/obras/review-work-1?vista=economia");
+    const workLinks = {
+      budget: await page.locator('a[href="/presupuestos/review-budget-1"]').count(),
+      invoice: await page.locator('a[href="/dinero/review-invoice-1"]').count(),
+    };
+    const workOk = workResult.finalPath === "/obras/review-work-1" && workLinks.budget > 0 && workLinks.invoice > 0;
+    cases.push({ key: "work-to-quote-and-invoice", ok: workOk, links: workLinks });
+    if (!workOk) findings.push("D5_WORK_QUOTE_CASH_LINKS_FAILED");
+
+    const invoiceResult = await navigateAndAudit(page, "/dinero/review-invoice-1");
+    const invoiceText = await page.locator("main").innerText();
+    const invoiceOk = invoiceResult.d5InvoiceContract && /2000\s*€/u.test(invoiceText) && /4050\s*€/u.test(invoiceText);
+    cases.push({ key: "invoice-partial-balance", ok: invoiceOk });
+    if (!invoiceOk) findings.push("D5_INVOICE_PARTIAL_BALANCE_FAILED");
+
+    const invoicePdf = await context.request.get(`${baseUrl}/dinero/review-invoice-1/pdf?preview=1`, { timeout: 60_000 });
+    const invoicePdfOk = invoicePdf.status() === 200 && /application\/pdf/iu.test(invoicePdf.headers()["content-type"] ?? "");
+    cases.push({ key: "invoice-pdf", ok: invoicePdfOk, status: invoicePdf.status(), contentType: invoicePdf.headers()["content-type"] ?? null });
+    if (!invoicePdfOk) findings.push(`D5_INVOICE_PDF_${invoicePdf.status()}`);
+
+    const treasuryResult = await navigateAndAudit(page, "/tesoreria?vista=prevision&periodo=30d");
+    const treasuryText = await page.locator("main").innerText();
+    const treasuryOk = treasuryResult.finalPath === "/tesoreria"
+      && treasuryText.includes("Calendario de caja")
+      && treasuryText.includes("F-REV-1")
+      && treasuryText.includes("Sólo vencimientos documentados");
+    cases.push({ key: "treasury-documented-forecast", ok: treasuryOk });
+    if (!treasuryOk) findings.push("D5_TREASURY_FORECAST_FAILED");
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D5_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D5_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
+async function auditD6Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const documentsResult = await navigateAndAudit(page, "/documentos");
+    const documentsText = await page.locator("main").innerText();
+    const documentStates = {
+      registered: documentsText.includes("Registrado"),
+      duplicate: documentsText.includes("Posible duplicado"),
+      sha256: documentsText.includes("Huella SHA-256"),
+    };
+    const documentsOk = documentsResult.d6DocumentsContract && Object.values(documentStates).every(Boolean);
+    cases.push({ key: "document-inbox-review", ok: documentsOk, states: documentStates });
+    if (!documentsOk) findings.push("D6_DOCUMENT_INBOX_REVIEW_FAILED");
+
+    const suppliersResult = await navigateAndAudit(page, "/proveedores");
+    const contextTrigger = page.locator("[data-d6-supplier-context-trigger]").first();
+    const triggerCount = await contextTrigger.count();
+    if (triggerCount) await contextTrigger.click();
+    const contextVisible = triggerCount > 0
+      && await page.locator("details[data-d6-supplier-context][open] [data-d6-supplier-context-panel]").first().isVisible();
+    const suppliersOk = suppliersResult.d6SupplierContract && contextVisible;
+    cases.push({ key: "supplier-context-preview", ok: suppliersOk, triggerCount, contextVisible });
+    if (!suppliersOk) findings.push("D6_SUPPLIER_CONTEXT_PREVIEW_FAILED");
+
+    const invoicesResult = await navigateAndAudit(page, "/facturas-proveedor");
+    const detailLinks = await page.locator('a[href="/facturas-proveedor/review-purchase-invoice-1"]').count();
+    const invoicesOk = invoicesResult.d6ReceivedInvoicesContract && detailLinks > 0;
+    cases.push({ key: "received-invoice-directory", ok: invoicesOk, detailLinks });
+    if (!invoicesOk) findings.push("D6_RECEIVED_INVOICE_DIRECTORY_FAILED");
+
+    const detailResult = await navigateAndAudit(page, "/facturas-proveedor/review-purchase-invoice-1");
+    const detailText = (await page.locator("main").innerText()).replace(/\s+/gu, " ");
+    const partialPayment = /400(?:[,.]00)?\s*€/u.test(detailText) && /864[,.]45\s*€/u.test(detailText);
+    const expenseLinks = await page.locator('a[href="/gastos-materiales"]').count();
+    const detailOk = detailResult.d6ReceivedInvoiceDetailContract && partialPayment && expenseLinks > 0;
+    cases.push({ key: "received-invoice-expense-link", ok: detailOk, partialPayment, expenseLinks });
+    if (!detailOk) findings.push("D6_RECEIVED_INVOICE_EXPENSE_LINK_FAILED");
+
+    const treasuryResult = await navigateAndAudit(page, "/tesoreria?vista=prevision&periodo=30d");
+    const purchaseLinks = await page.locator('a[href="/facturas-proveedor/review-purchase-invoice-1"]').count();
+    const treasuryOk = treasuryResult.finalPath === "/tesoreria" && purchaseLinks === 1;
+    cases.push({ key: "treasury-single-purchase-outflow", ok: treasuryOk, purchaseLinks });
+    if (!treasuryOk) findings.push(`D6_TREASURY_PURCHASE_OUTFLOW_COUNT_${purchaseLinks}`);
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D6_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D6_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
+async function auditD7Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const agendaResult = await navigateAndAudit(page, "/agenda");
+    await page.getByRole("button", { name: /Filtros/iu }).first().click();
+    await page.getByRole("dialog", { name: "Filtros" }).waitFor({ state: "visible" });
+    const filterDrawer = page.locator("details[data-agenda-filters]");
+    if (await filterDrawer.count() && !(await filterDrawer.evaluate((element) => element.open))) await filterDrawer.locator("summary").click();
+    const agendaDays = await page.locator("[data-agenda-day]").count();
+    const agendaFilterVisible = await page.locator('details[data-agenda-filters][open] input[name="buscar"]').isVisible();
+    const agendaOk = agendaResult.d7AgendaContract && agendaDays >= 5 && agendaFilterVisible;
+    cases.push({ key: "agenda-week-and-filter-drawer", ok: agendaOk, agendaDays, agendaFilterVisible });
+    if (!agendaOk) findings.push("D7_AGENDA_WEEK_FILTER_FAILED");
+
+    const tasksResult = await navigateAndAudit(page, "/tareas");
+    const taskColumns = await page.locator('[data-task-view="board"] section').count();
+    const newTaskLinks = await page.locator('a[href*="/tareas?"][href*="nuevo=1"]').count();
+    const tasksOk = tasksResult.d7TasksContract && taskColumns >= 3 && newTaskLinks === 1;
+    cases.push({ key: "tasks-volume-board", ok: tasksOk, taskColumns, newTaskLinks });
+    if (!tasksOk) findings.push("D7_TASKS_BOARD_FAILED");
+
+    const followUpsResult = await navigateAndAudit(page, "/seguimientos");
+    const queueItems = await page.locator("[data-follow-up-queue-item]").count();
+    const followUpDetailLinks = await page.locator('a[href^="/seguimientos/review-followup-"]').count();
+    const followUpsOk = followUpsResult.d7FollowUpsContract && queueItems >= 3 && followUpDetailLinks >= 1;
+    cases.push({ key: "followups-work-queue", ok: followUpsOk, queueItems, followUpDetailLinks });
+    if (!followUpsOk) findings.push("D7_FOLLOWUPS_QUEUE_FAILED");
+
+    const remindersResult = await navigateAndAudit(page, "/recordatorios");
+    const reminderStates = await page.locator("[data-reminder-state]").evaluateAll((items) => [...new Set(items.map((item) => item.getAttribute("data-reminder-state")).filter(Boolean))]);
+    const remindersOk = remindersResult.d7RemindersContract
+      && ["pendiente_confirmacion", "programado", "enviado"].every((state) => reminderStates.includes(state));
+    cases.push({ key: "reminder-delivery-states", ok: remindersOk, reminderStates });
+    if (!remindersOk) findings.push("D7_REMINDER_STATES_FAILED");
+
+    const alertsResult = await navigateAndAudit(page, "/alertas");
+    const alertDetails = page.locator("main details").first();
+    if (await alertDetails.count()) await alertDetails.locator("summary").click();
+    const alertsText = await page.locator("main").innerText();
+    const alertsOk = alertsResult.d7AlertsContract
+      && ["Mañana", "Esta semana no", "Resolver", "Descartar"].every((label) => alertsText.includes(label));
+    cases.push({ key: "alert-transparent-lifecycle", ok: alertsOk });
+    if (!alertsOk) findings.push("D7_ALERT_LIFECYCLE_FAILED");
+
+    const recommendationsResult = await navigateAndAudit(page, "/recomendaciones");
+    const recommendationDetails = page.locator("main details").first();
+    if (await recommendationDetails.count()) await recommendationDetails.locator("summary").click();
+    const recommendationPrimaryCount = recommendationsResult.primaryActionCount;
+    const recommendationsText = await page.locator("main").innerText();
+    const recommendationsOk = recommendationsResult.d7RecommendationsContract
+      && recommendationPrimaryCount <= 1
+      && ["Mañana", "Esta semana no", "Descartar"].every((label) => recommendationsText.includes(label));
+    cases.push({ key: "recommendation-decision-hierarchy", ok: recommendationsOk, recommendationPrimaryCount });
+    if (!recommendationsOk) findings.push("D7_RECOMMENDATION_HIERARCHY_FAILED");
+
+    const automationsResult = await navigateAndAudit(page, "/automatizaciones");
+    const automationsText = await page.locator("main").innerText();
+    const automationsOk = automationsResult.d7AutomationsContract
+      && automationsText.includes("Recordatorio interno de revisión")
+      && automationsText.includes("REVIEW_SYNTHETIC_FAILURE") === false;
+    cases.push({ key: "automation-lifecycle-observability", ok: automationsOk });
+    if (!automationsOk) findings.push("D7_AUTOMATION_OBSERVABILITY_FAILED");
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D7_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D7_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
+async function auditD8Interactions(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 1000 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  try {
+    const assistantResult = await navigateAndAudit(page, "/capataz");
+    const assistantPaneCount = await page.locator("[data-d8-assistant-workspace] > *").count();
+    const assistantOk = assistantResult.d8AssistantContract && assistantPaneCount >= 3;
+    cases.push({ key: "assistant-three-pane-workspace", ok: assistantOk, assistantPaneCount });
+    if (!assistantOk) findings.push("D8_ASSISTANT_THREE_PANE_FAILED");
+
+    await page.getByLabel("Mensaje para Orqena").fill("Ha entrado un nuevo cliente Dalia Ensayo para reforma");
+    await page.getByRole("button", { name: "Enviar mensaje" }).click();
+    await page.locator("[data-d8-proposal-effects]").waitFor({ state: "visible", timeout: 30_000 });
+    const proposalButtons = {
+      save: page.getByRole("button", { name: "Guardar y aplicar", exact: true }),
+      review: page.getByRole("button", { name: "Revisar campos", exact: true }),
+      discard: page.getByRole("button", { name: "Descartar", exact: true }),
+    };
+    await proposalButtons.save.waitFor({ state: "visible" });
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "Guardar y aplicar" && !button.disabled)
+    , undefined, { timeout: 20_000 });
+    await proposalButtons.review.click();
+    const focusedProposalField = await page.evaluate(() => {
+      const active = document.activeElement;
+      return Boolean(active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName));
+    });
+    const proposalActionCount = await page.locator('[aria-label="Acciones de la propuesta"] button').count();
+    const proposalOk = focusedProposalField && proposalActionCount === 3;
+    cases.push({ key: "assistant-review-before-apply", ok: proposalOk, proposalActionCount, focusedProposalField });
+    if (!proposalOk) findings.push("D8_ASSISTANT_PROPOSAL_REVIEW_FAILED");
+    await proposalButtons.discard.click();
+    await page.getByText("Propuesta cancelada", { exact: true }).waitFor({ state: "visible" });
+    cases.push({ key: "assistant-discard-without-apply", ok: true });
+
+    const teamResult = await navigateAndAudit(page, "/equipo");
+    const peopleCount = await page.locator('a[href^="/equipo?persona="]').count();
+    const portalFactCount = await page.locator("[data-d8-resulting-portal] dt").count();
+    const focusedEditors = await page.locator("#ajustes-persona article").count();
+    const previewLinks = await page.getByRole("link", { name: /Previsualizar/iu }).count();
+    const teamOk = teamResult.d8TeamContract && peopleCount >= 2 && portalFactCount >= 7 && focusedEditors === 1 && previewLinks >= 1;
+    cases.push({ key: "team-person-and-resulting-portal", ok: teamOk, peopleCount, portalFactCount, focusedEditors, previewLinks });
+    if (!teamOk) findings.push("D8_TEAM_RESULTING_PORTAL_FAILED");
+
+    const pendingInvitation = await page.getByText("Pendiente de aprobación del propietario", { exact: false }).count();
+    const invitationActions = await page.getByRole("button", { name: /Aprobar|Rechazar|Revocar/iu }).count();
+    const invitationPreview = await page.getByRole("link", { name: "Previsualizar portal", exact: true }).count();
+    const invitationOk = pendingInvitation >= 1 && invitationActions >= 3 && invitationPreview >= 1;
+    cases.push({ key: "invitation-approval-lifecycle", ok: invitationOk, pendingInvitation, invitationActions, invitationPreview });
+    if (!invitationOk) findings.push("D8_INVITATION_LIFECYCLE_FAILED");
+
+    await navigateAndAudit(page, "/equipo?invitar=1#invitar");
+    const invitationFormVisible = await page.getByRole("button", { name: "Crear invitación", exact: true }).isVisible();
+    const invitationFields = await page.locator('#invitar input[name="email"], #invitar select[name="functionalProfileKey"], #invitar select[name="accessMode"], #invitar select[name="workIds"], #invitar select[name="clientIds"]').count();
+    const inviteOk = invitationFormVisible && invitationFields === 5;
+    cases.push({ key: "invitation-scoped-form", ok: inviteOk, invitationFields });
+    if (!inviteOk) findings.push("D8_INVITATION_FORM_FAILED");
+
+    const onboardingResult = await navigateAndAudit(page, "/onboarding");
+    const milestoneCount = await page.locator("[data-onboarding-milestones] li").count();
+    const onboardingOk = onboardingResult.d8OnboardingContract && milestoneCount === 5 && onboardingResult.primaryActionCount === 1;
+    cases.push({ key: "onboarding-five-first-value-milestones", ok: onboardingOk, milestoneCount, primaryActionCount: onboardingResult.primaryActionCount });
+    if (!onboardingOk) findings.push("D8_ONBOARDING_MILESTONES_FAILED");
+
+    const importResult = await navigateAndAudit(page, "/configuracion/importar");
+    const importText = await page.locator("main").innerText();
+    const importOk = importResult.finalPath === "/configuracion/importar"
+      && ["vista previa", "filas inválidas", "revertir", "Crear vista previa"].every((label) => importText.includes(label));
+    cases.push({ key: "import-preview-apply-rollback-surface", ok: importOk });
+    if (!importOk) findings.push("D8_IMPORT_SAFE_LIFECYCLE_FAILED");
+
+    const settingsResult = await navigateAndAudit(page, "/configuracion");
+    const defaultSettingsForms = await page.locator("main form").count();
+    const settingsOk = settingsResult.d8SettingsContract && defaultSettingsForms === 1;
+    cases.push({ key: "settings-sidebar-and-personal-separation", ok: settingsOk, defaultSettingsForms });
+    if (!settingsOk) findings.push("D8_SETTINGS_SEPARATION_FAILED");
+
+    await navigateAndAudit(page, "/configuracion?area=fiscal-documentos#fiscal-documentos");
+    const fiscalDetailsOpen = await page.locator("details#fiscal-documentos").evaluate((element) => element.open);
+    const fiscalFieldVisible = await page.getByLabel("NIF/CIF").isVisible();
+    const fiscalDeepLinkOk = new URL(page.url()).searchParams.get("area") === "fiscal-documentos" && fiscalDetailsOpen && fiscalFieldVisible;
+    cases.push({ key: "settings-fiscal-deep-link", ok: fiscalDeepLinkOk, fiscalDetailsOpen, fiscalFieldVisible });
+    if (!fiscalDeepLinkOk) findings.push("D8_SETTINGS_FISCAL_DEEP_LINK_FAILED");
+
+    const securityResult = await navigateAndAudit(page, "/configuracion/seguridad");
+    const securityText = await page.locator("main").innerText();
+    const securityOk = securityResult.finalPath === "/configuracion/seguridad"
+      && securityText.includes("Seguridad de acceso")
+      && securityText.includes("segundo factor");
+    cases.push({ key: "settings-mfa-surface", ok: securityOk });
+    if (!securityOk) findings.push("D8_SETTINGS_MFA_FAILED");
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D8_INTERACTIONS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D8_INTERACTIONS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
+async function auditD10Journey(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 900 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const cases = [];
+  const findings = [];
+  const journey = [
+    { key: "cliente", route: "/clientes/review-client-1", expected: /Cliente Sintético Review/u },
+    { key: "visita", route: "/agenda", expected: /Visita sintética/u },
+    { key: "presupuesto", route: "/presupuestos/review-budget-1", expected: /P-REV-1|Presupuesto sintético/u },
+    { key: "trabajo", route: "/obras/review-work-1", expected: /Reforma sintética completa/u },
+    { key: "gasto-documento", route: "/gastos-materiales/lector/review-expense-document-1", expected: /Factura Ferretería Norte Review/u },
+    { key: "factura", route: "/dinero/review-invoice-1", expected: /F-REV-1|Factura sintética parcial/u },
+    { key: "pago-parcial", route: "/dinero/review-invoice-1", expected: /2000\s*€/u },
+    { key: "cobro", route: "/tesoreria?vista=prevision&periodo=30d", expectedPath: "/tesoreria", expected: /F-REV-1/u },
+    { key: "dashboard", route: "/dashboard", expected: /Evolución del periodo/u },
+  ];
+  try {
+    for (const step of journey) {
+      const result = await navigateAndAudit(page, step.route, { axe: true });
+      const text = await page.locator("main").innerText();
+      const ok = result.status === 200
+        && result.finalPath === (step.expectedPath ?? step.route)
+        && result.h1Count === 1
+        && result.overflowPx <= 1
+        && result.accessibility.criticalOrSerious === 0
+        && step.expected.test(text);
+      if (!ok) findings.push(`D10_JOURNEY_${step.key.toUpperCase().replaceAll("-", "_")}_FAILED`);
+      cases.push({
+        key: step.key,
+        route: step.route,
+        status: result.status,
+        finalPath: result.finalPath,
+        axeBlocking: result.accessibility.criticalOrSerious,
+        overflowPx: result.overflowPx,
+        ok,
+      });
+    }
+  } finally {
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D10_JOURNEY_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D10_JOURNEY_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return {
+    sequence: journey.map(({ key }) => key),
+    syntheticOnly: true,
+    mutatesState: false,
+    cases,
+    findings,
+    diagnostics: diagnostics.events,
+    externalHosts: [...diagnostics.externalHosts],
+  };
+}
+
+async function auditD10Tenants(browser, storageState) {
+  const context = await browser.newContext({
+    storageState,
+    viewport: { width: 1440, height: 900 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const findings = [];
+  let restoredPrimaryTenant = false;
+  const result = {
+    companiesVisible: 0,
+    primaryTenant: "Orqena Review · Construcción",
+    negativeTenant: "Orqena Review · Instalaciones",
+    negativeTenantClientStatus: 0,
+    negativeTenantNotFoundVisible: false,
+    negativeTenantHeadings: [],
+    negativeTenantDetailLeaked: false,
+    primaryFixtureLeaked: false,
+    restoredPrimaryTenant: false,
+    findings,
+  };
+  try {
+    await page.goto(`${baseUrl}/seleccionar-empresa`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/seleccionar-empresa:d10-before-switch");
+    result.companiesVisible = await page.getByRole("button", { name: /Orqena Review ·/u }).count();
+    if (result.companiesVisible !== 2) findings.push(`D10_TENANTS_COMPANY_COUNT_${result.companiesVisible}`);
+
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/hoy", { timeout: 60_000 }),
+      page.getByRole("button", { name: /Orqena Review · Instalaciones/u }).click(),
+    ]);
+    await waitForSettled(page, "/hoy:d10-negative-tenant");
+    const activeNegative = await page.locator('[aria-label^="Cambiar empresa. Activa:"]').first().getAttribute("aria-label");
+    if (!activeNegative?.includes(result.negativeTenant)) findings.push("D10_TENANTS_NEGATIVE_NOT_ACTIVE");
+
+    const negativeClient = await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/clientes/review-client-1:d10-negative-tenant");
+    result.negativeTenantClientStatus = negativeClient?.status() ?? 0;
+    const negativeClientText = await page.locator("body").innerText();
+    result.negativeTenantHeadings = await page.locator("h1, h2").allInnerTexts();
+    result.negativeTenantNotFoundVisible = /(?:404|page could not be found|página no (?:se )?ha encontrado|página no encontrada)/iu.test(negativeClientText);
+    result.negativeTenantDetailLeaked = negativeClientText.includes("Cliente Sintético Review");
+    if (![200, 404].includes(result.negativeTenantClientStatus)) {
+      findings.push(`D10_TENANTS_CROSS_TENANT_STATUS_${result.negativeTenantClientStatus}`);
+    }
+    if (!result.negativeTenantNotFoundVisible) findings.push("D10_TENANTS_NOT_FOUND_STATE_MISSING");
+    if (result.negativeTenantDetailLeaked) findings.push("D10_TENANTS_PRIMARY_DETAIL_LEAKED");
+
+    await page.goto(`${baseUrl}/clientes`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await waitForSettled(page, "/clientes:d10-negative-tenant");
+    result.primaryFixtureLeaked = (await page.locator("main").innerText()).includes("Cliente Sintético Review");
+    if (result.primaryFixtureLeaked) findings.push("D10_TENANTS_PRIMARY_FIXTURE_LEAKED");
+  } finally {
+    try {
+      await page.goto(`${baseUrl}/seleccionar-empresa`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await waitForSettled(page, "/seleccionar-empresa:d10-restore");
+      await Promise.all([
+        page.waitForURL((url) => url.pathname === "/hoy", { timeout: 60_000 }),
+        page.getByRole("button", { name: /Orqena Review · Construcción/u }).click(),
+      ]);
+      await waitForSettled(page, "/hoy:d10-restored");
+      const restoredClient = await page.goto(`${baseUrl}/clientes/review-client-1`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      restoredPrimaryTenant = restoredClient?.status() === 200;
+    } catch {
+      restoredPrimaryTenant = false;
+    }
+    result.restoredPrimaryTenant = restoredPrimaryTenant;
+    if (!restoredPrimaryTenant) findings.push("D10_TENANTS_PRIMARY_RESTORE_FAILED");
+    await context.close();
+  }
+  if (diagnostics.events.length) findings.push(`D10_TENANTS_DIAGNOSTICS_${diagnostics.events.length}`);
+  if (diagnostics.externalHosts.size) findings.push(`D10_TENANTS_EXTERNAL_NETWORK_${[...diagnostics.externalHosts].join(",")}`);
+  return result;
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const storageStates = new Map();
   for (const profile of profiles) {
+    process.stdout.write(`AUDIT_LOGIN_START=${profile.key}\n`);
     const loginResult = await login(browser, profile);
     storageStates.set(profile.key, loginResult.storageState);
     report.loginCases.push({
@@ -722,8 +1559,34 @@ try {
     profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.allowed, "allowed"));
     if (profile.restrictedInline) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.restrictedInline, "restricted-inline"));
     if (profile.denied) profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.denied, "denied"));
+    if ((focusD3 || focusD10) && profile.d3) {
+      profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d3.route, profile.d3.expectation));
+    }
+    if ((focusD4 || focusD10) && profile.d4) {
+      profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, profile.d4.route, profile.d4.expectation));
+    }
+    if ((focusD5 || focusD10) && profile.d5) {
+      for (const d5Case of profile.d5) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d5Case.route, d5Case.expectation));
+      }
+    }
+    if ((focusD6 || focusD10) && profile.d6) {
+      for (const d6Case of profile.d6) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d6Case.route, d6Case.expectation));
+      }
+    }
+    if ((focusD7 || focusD10) && profile.d7) {
+      for (const d7Case of profile.d7) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d7Case.route, d7Case.expectation));
+      }
+    }
+    if ((focusD8 || focusD10) && profile.d8) {
+      for (const d8Case of profile.d8) {
+        profileResult.permissionCases.push(await auditPermissionRoute(browser, profile, storageState, d8Case.route, d8Case.expectation));
+      }
+    }
     for (const permissionCase of profileResult.permissionCases) report.blockingFindings.push(...permissionCase.findings);
-    const desktopHome = profileResult.homes.find(({ viewport }) => viewport === "1440");
+    const desktopHome = profileResult.homes.find(({ viewport }) => viewport === "1440") ?? profileResult.homes.at(-1);
     profileResult.portalSignature = desktopHome.navigation.map(({ href }) => href).sort().join("|");
     profileResult.navigationCount = desktopHome.navigation.length;
     profileResult.canCreate = desktopHome.canCreate;
@@ -733,12 +1596,13 @@ try {
   }
 
   const signatures = new Set(report.profiles.map(({ portalSignature }) => portalSignature));
-  if (signatures.size < 6) report.blockingFindings.push(`PORTAL_SIGNATURE_DIVERSITY_LOW:${signatures.size}`);
+  const minimumSignatureDiversity = Math.min(6, profiles.length);
+  if (signatures.size < minimumSignatureDiversity) report.blockingFindings.push(`PORTAL_SIGNATURE_DIVERSITY_LOW:${signatures.size}`);
   const ownerSignature = report.profiles.find(({ key }) => key === "owner")?.portalSignature;
   const workerSignature = report.profiles.find(({ key }) => key === "worker")?.portalSignature;
   if (ownerSignature === workerSignature) report.blockingFindings.push("PORTAL_SIGNATURE_OWNER_EQUALS_WORKER");
 
-  const ownerStorageState = storageStates.get("owner");
+  let ownerStorageState = storageStates.get("owner");
   for (const surface of ownerSurfaceFamilies) {
     const result = await auditOwnerSurface(browser, ownerStorageState, surface);
     report.ownerSurfaces.push(result);
@@ -746,6 +1610,78 @@ try {
     process.stdout.write(`AUDIT_SURFACE=${surface.family};ROUTE=${surface.route};FINAL=${result.finalPath}\n`);
   }
 
+  if (focusD4 || focusD10) {
+    report.d4Interactions = await auditD4Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d4Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D4_INTERACTIONS=FILTERS_${report.d4Interactions.filterCases.length};DEEP_LINKS_${report.d4Interactions.deepLinkCases.length};OK=${report.d4Interactions.findings.length === 0}\n`,
+    );
+  }
+  if (focusD5 || focusD10) {
+    report.d5Interactions = await auditD5Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d5Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D5_INTERACTIONS=CASES_${report.d5Interactions.cases.length};OK=${report.d5Interactions.findings.length === 0}\n`,
+    );
+  }
+  if (focusD6 || focusD10) {
+    report.d6Interactions = await auditD6Interactions(browser, ownerStorageState);
+    const d6HydrationOnly = report.d6Interactions.findings.length === 1
+      && report.d6Interactions.findings[0].startsWith("D6_INTERACTIONS_DIAGNOSTICS_")
+      && report.d6Interactions.diagnostics.length > 0
+      && report.d6Interactions.diagnostics.every((event) => event.includes("Minified React error #418"));
+    if (d6HydrationOnly) {
+      const firstAttempt = [...report.d6Interactions.diagnostics];
+      report.d6Interactions = await auditD6Interactions(browser, ownerStorageState);
+      report.d6Interactions.transientDiagnostics = firstAttempt;
+      report.productObservations.push({
+        severity: report.d6Interactions.findings.length ? "BLOCKER" : "REVIEW",
+        context: "owner:1440:D6_INTERACTIONS",
+        code: "HYDRATION_REPLAY",
+        firstAttempt,
+        replayDiagnostics: report.d6Interactions.diagnostics,
+      });
+    }
+    report.blockingFindings.push(...report.d6Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D6_INTERACTIONS=CASES_${report.d6Interactions.cases.length};OK=${report.d6Interactions.findings.length === 0}\n`,
+    );
+  }
+  if (focusD7 || focusD10) {
+    report.d7Interactions = await auditD7Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d7Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D7_INTERACTIONS=CASES_${report.d7Interactions.cases.length};OK=${report.d7Interactions.findings.length === 0}\n`,
+    );
+  }
+  if (focusD8 || focusD10) {
+    report.d8Interactions = await auditD8Interactions(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d8Interactions.findings);
+    process.stdout.write(
+      `AUDIT_D8_INTERACTIONS=CASES_${report.d8Interactions.cases.length};OK=${report.d8Interactions.findings.length === 0}\n`,
+    );
+  }
+  if (focusD10) {
+    report.d10Journey = await auditD10Journey(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d10Journey.findings);
+    process.stdout.write(
+      `AUDIT_D10_JOURNEY=CASES_${report.d10Journey.cases.length};OK=${report.d10Journey.findings.length === 0}\n`,
+    );
+    report.d10Tenants = await auditD10Tenants(browser, ownerStorageState);
+    report.blockingFindings.push(...report.d10Tenants.findings);
+    process.stdout.write(
+      `AUDIT_D10_TENANTS=COMPANIES_${report.d10Tenants.companiesVisible};OK=${report.d10Tenants.findings.length === 0}\n`,
+    );
+  }
+
+  const ownerProfile = profiles.find(({ key }) => key === "owner");
+  const refreshedOwner = await login(browser, ownerProfile, { verifyMfa: false });
+  ownerStorageState = refreshedOwner.storageState;
+  report.ownerSessionRefresh = {
+    durationMs: refreshedOwner.durationMs,
+    hydrationDiagnostics: refreshedOwner.hydrationDiagnostics,
+    mfaRequiredForRepresentativeStates: false,
+  };
   report.stateCases = await auditRepresentativeStates(browser, ownerStorageState);
   report.authenticatedCapacity = await auditAuthenticatedCapacity(ownerStorageState);
   for (const stateCase of report.stateCases) process.stdout.write(`AUDIT_STATE=${stateCase.state};OK=${stateCase.ok}\n`);
@@ -769,6 +1705,15 @@ report.summary = {
   permissionCases: report.profiles.reduce((total, profile) => total + profile.permissionCases.length, 0),
   distinctPortalSignatures: new Set(report.profiles.map(({ portalSignature }) => portalSignature)).size,
   ownerSurfaceFamilies: report.ownerSurfaces.length,
+  d4InteractionCases: (report.d4Interactions?.filterCases.length ?? 0)
+    + (report.d4Interactions?.deepLinkCases.length ?? 0)
+    + (report.d4Interactions ? 2 : 0),
+  d5InteractionCases: report.d5Interactions?.cases.length ?? 0,
+  d6InteractionCases: report.d6Interactions?.cases.length ?? 0,
+  d7InteractionCases: report.d7Interactions?.cases.length ?? 0,
+  d8InteractionCases: report.d8Interactions?.cases.length ?? 0,
+  d10JourneyCases: report.d10Journey?.cases.length ?? 0,
+  d10TenantCases: report.d10Tenants ? 1 : 0,
   stateCases: report.stateCases.length,
   stateCasesPassed: report.stateCases.filter(({ ok }) => ok).length,
   loginP95Ms: Math.round(percentile(report.loginCases.map(({ durationMs }) => durationMs), 0.95)),

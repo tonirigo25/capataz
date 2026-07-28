@@ -28,12 +28,18 @@ check("private-beta-capture-targets-contact", () => {
   assert.ok(read("components/auth/login-form.tsx").includes('href="/contacto"'));
 });
 check("header-mobile-and-final-demo-cta", () => {
-  assert.ok(read("app/marketing-v2/_components/marketing-header.tsx").match(/href="\/contacto"/gu)?.length >= 2);
-  assert.ok(landing.includes('href="/contacto">Solicitar demo'));
+  const header = read("app/marketing-v2/_components/marketing-header.tsx");
+  for (const label of ["Cómo funciona", "Resultados", "Para quién", "Confianza", "Entrar", "Ver demo"]) assert.ok(header.includes(label), label);
+  assert.ok(header.match(/href="\/demo#quick-demo"/gu)?.length >= 2);
+  assert.ok(landing.includes('href="#solicitar-acceso">Solicitar acceso'));
 });
-check("audio-copy-is-honest", () => assert.ok(read("app/marketing-v2/_components/hero-demo.tsx").includes("Ver un ejemplo con audio")));
+check("audio-copy-is-honest", () => {
+  const hero = read("app/marketing-v2/_components/hero-demo.tsx");
+  assert.ok(hero.includes("Del audio en la obra al cobro."));
+  assert.ok(hero.includes("Demo con datos de ejemplo. Nada se guarda ni se envía."));
+});
 check("quick-and-deep-demo-preserved", () => {
-  assert.ok(read("app/demo/page.tsx").includes("<ImmersiveJourney />"));
+  assert.ok(landing.includes("<ImmersiveJourney />"));
   assert.ok(read("app/demo/page.tsx").includes("<GuidedDemo />"));
 });
 check("form-captures-attribution-and-consent", () => {

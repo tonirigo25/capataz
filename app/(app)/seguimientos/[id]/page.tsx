@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { assertScopedEntityAccess, requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import {
   editFollowUpAction,
@@ -10,6 +11,7 @@ import {
   recordOutcomeAction,
   archiveFollowUpAction,
 } from "../actions";
+import { statusLabel } from "@/lib/status";
 export const dynamic = "force-dynamic";
 export default async function FollowUpDetailPage({
   params,
@@ -64,23 +66,23 @@ export default async function FollowUpDetailPage({
         })
       : null,
   ]);
-  if(!canManage)return <main className="screen space-y-5"><Link href="/seguimientos" className="secondary-button">Volver a seguimientos</Link><PageHeader eyebrow="Solo lectura" title={item.title} description={`${item.type} · ${item.status}`}/><section className="card p-4"><p>Próxima acción: {format(item.nextActionAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
+  if(!canManage)return <main className="screen space-y-5"><Link href="/seguimientos" className="secondary-button">Volver a seguimientos</Link><PageHeader eyebrow="Solo lectura" title={item.title} description={`${statusLabel(item.type)} · ${statusLabel(item.status)}`}/><section className="card p-4"><p>Próxima acción: {format(item.nextActionAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
   return (
     <main className="screen space-y-5">
       <Link className="secondary-button" href="/seguimientos">
         Volver a seguimientos
       </Link>
       <PageHeader
-        eyebrow={item.origin}
+        eyebrow={statusLabel(item.origin)}
         title={item.title}
-        description={`${item.type} · ${item.status}`}
+        description={`${statusLabel(item.type)} · ${statusLabel(item.status)}`}
       />
       <section className="card grid gap-4 p-4 md:grid-cols-2">
         <div>
           <h2 className="font-black">Seguimiento</h2>
           <dl className="mt-3 grid gap-2 text-sm">
-            <Row label="Estado" value={item.status} />
-            <Row label="Prioridad" value={item.priority} />
+            <Row label="Estado" value={statusLabel(item.status)} />
+            <Row label="Prioridad" value={statusLabel(item.priority)} />
             <Row
               label="Responsable"
               value={
@@ -184,7 +186,7 @@ export default async function FollowUpDetailPage({
               defaultValue={item.expectedOutcome ?? ""}
             />
           </label>
-          <button className="primary-button md:col-span-2">
+          <button className="secondary-button md:col-span-2">
             Guardar cambios
           </button>
         </form>
@@ -205,7 +207,12 @@ export default async function FollowUpDetailPage({
           ))}
           <form action={archiveFollowUpAction}>
             <input type="hidden" name="id" value={item.id} />
-            <button className="danger-button">Archivar</button>
+            <ConfirmSubmitButton
+              className="danger-button"
+              message="El seguimiento dejará de aparecer entre los activos, pero conservará todos sus intentos y resultados."
+            >
+              Archivar
+            </ConfirmSubmitButton>
           </form>
         </div>
       </section>
@@ -304,7 +311,7 @@ export default async function FollowUpDetailPage({
             Registrar este resultado no marca facturas pagadas ni cambia
             presupuestos automáticamente.
           </p>
-          <button className="primary-button md:col-span-2">
+          <button className="secondary-button md:col-span-2">
             Guardar resultado
           </button>
         </form>
@@ -316,7 +323,7 @@ export default async function FollowUpDetailPage({
             <ol className="mt-3 space-y-3 text-sm">
               {item.attempts.map((attempt) => (
                 <li className="border-t pt-3" key={attempt.id}>
-                  <strong>{attempt.channel}</strong> ·{" "}
+                  <strong>{statusLabel(attempt.channel)}</strong> ·{" "}
                   {format(attempt.attemptedAt)}
                   <p>{attempt.summary ?? "Sin notas"}</p>
                   {attempt.response ? (
@@ -340,7 +347,7 @@ export default async function FollowUpDetailPage({
             <ol className="mt-3 space-y-3 text-sm">
               {item.outcomes.map((outcome) => (
                 <li className="border-t pt-3" key={outcome.id}>
-                  <strong>{outcome.type}</strong> · {format(outcome.recordedAt)}
+                  <strong>{statusLabel(outcome.type)}</strong> · {format(outcome.recordedAt)}
                   <p>{outcome.summary ?? "Sin resumen"}</p>
                 </li>
               ))}
@@ -365,7 +372,9 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 const format = (date: Date | null | undefined) =>
-  date ? date.toLocaleString("es-ES") : "Sin fecha";
+  date
+    ? date.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })
+    : "Sin fecha";
 const inputDate = (date: Date | null | undefined) =>
   date
     ? new Date(date.getTime() - date.getTimezoneOffset() * 60000)

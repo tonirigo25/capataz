@@ -38,13 +38,13 @@ export function WorkMarginCalculator() {
         </div>
         <NumberField label="Contingencia sobre ingreso (%)" value={contingency} onChange={setContingency} max={100} />
       </form>
-      <aside className="card grid content-start gap-4 bg-content p-6 text-surface">
-        <p className="text-sm font-bold uppercase tracking-widest text-brand-soft">Resultado hipotético</p>
+      <aside className="card margin-calculator-result grid content-start gap-4 p-6">
+        <p className="margin-calculator-result__eyebrow text-sm font-bold uppercase tracking-widest">Resultado hipotético</p>
         <Result label="Coste de horas" value={money(result.labor)} />
         <Result label="Contingencia" value={money(result.risk)} />
         <Result label="Coste total estimado" value={money(result.totalCost)} />
         <Result label="Margen estimado" value={`${money(result.margin)} · ${number(result.percentage)} %`} />
-        <p className="text-sm leading-6 text-surface/75">No incluye IVA, financiación, desviaciones futuras, cobro efectivo ni costes no introducidos. Un margen positivo no demuestra rentabilidad final.</p>
+        <p className="margin-calculator-result__note text-sm leading-6">No incluye IVA, financiación, desviaciones futuras, cobro efectivo ni costes no introducidos. Un margen positivo no demuestra rentabilidad final.</p>
       </aside>
     </div>
     <details className="mt-8 border-y border-border py-5">
@@ -58,7 +58,7 @@ export function WorkMarginCalculator() {
 function NumberField({ label, value, onChange, max }: { label: string; value: number; onChange: (value: number) => void; max: number }) {
   return <label className="marketing-field"><span>{label}</span><input type="number" min="0" max={max} step="0.01" value={value} onChange={(event) => onChange(Math.min(max, Math.max(0, Number(event.target.value) || 0)))} /></label>;
 }
-function Result({ label, value }: { label: string; value: string }) { return <div className="border-t border-surface/20 pt-4"><p className="text-sm text-surface/70">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></div>; }
+function Result({ label, value }: { label: string; value: string }) { return <div className="margin-calculator-result__row border-t pt-4"><p className="text-sm">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></div>; }
 function PersistentCta({ resource }: { resource: "work_margin_calculator" }) {
   return <div className="sticky bottom-4 z-20 mt-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-content bg-surface-raised p-4 shadow-xl"><p className="font-bold">¿Quieres revisar este flujo con tus datos, sin importarlos todavía?</p><Link className="marketing-button" href="/contacto?source=margin-calculator" onClick={() => trackPublicFunnel("funnel.resource_cta", { resource, target: "contact" })}>Solicitar una revisión</Link></div>;
 }

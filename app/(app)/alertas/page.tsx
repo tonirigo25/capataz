@@ -90,8 +90,8 @@ export default async function AlertsPage({
     <main className="screen">
       <PageHeader
         eyebrow="Director de operaciones"
-        title="Centro de alertas"
-        description="Riesgos, prioridades y datos que requieren atención. Orqena prepara acciones para que puedas revisarlas antes de confirmar."
+        title="Alertas y recomendaciones"
+        description="Cada excepción muestra nivel, origen, regla, entidad, impacto y siguiente acción antes de cualquier decisión."
         badge={<span className="rounded-full bg-content px-3 py-1 text-xs font-black text-surface">{result.summary.active} activas</span>}
         secondaryActions={<Link href="/recomendaciones" className="secondary-button"><Lightbulb size={18} /> Ver recomendaciones</Link>}
       >
@@ -179,7 +179,7 @@ function SignalGroupCard({ group }: { group: BusinessSignalGroup }) {
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)} · prioridad {group.maxScore}</p>
+          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)}</p>
           <h3 className="mt-1 text-lg font-black text-obra-ink">{group.title}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">{group.explanation}</p>
         </div>
@@ -200,7 +200,7 @@ function SignalGroupCard({ group }: { group: BusinessSignalGroup }) {
 
 function SignalCard({ signal }: { signal: BusinessSignal }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4" data-alert-level={signal.level} data-alert-origin={signal.source}>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-xs font-black uppercase text-slate-500">
@@ -213,8 +213,9 @@ function SignalCard({ signal }: { signal: BusinessSignal }) {
           <h4 className="mt-1 text-base font-black text-obra-ink">{signal.title}</h4>
           <p className="mt-1 text-sm leading-6 text-slate-600">{signal.summary}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
-            <span className="rounded-full bg-white px-2.5 py-1">Prioridad {signal.prioridad}/100</span>
+            <span className="rounded-full bg-white px-2.5 py-1">Nivel {signal.levelText}</span>
             <span className="rounded-full bg-white px-2.5 py-1">{signal.sourceLabel}</span>
+            {signal.entity ? <span className="rounded-full bg-white px-2.5 py-1">Entidad: {signal.entity.label}</span> : null}
             {signal.relatedAmount ? <span className="rounded-full bg-white px-2.5 py-1">{formatCurrency(signal.relatedAmount)}</span> : null}
             {signal.snoozedUntil ? <span className="rounded-full bg-white px-2.5 py-1">Hasta {formatDate(signal.snoozedUntil)}</span> : null}
           </div>
@@ -244,7 +245,7 @@ function SignalCard({ signal }: { signal: BusinessSignal }) {
       </div>
 
       <details className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-        <summary className="cursor-pointer text-sm font-black text-obra-ink">Por qué aparece</summary>
+        <summary className="cursor-pointer text-sm font-black text-obra-ink">Por qué aparece: regla transparente y datos usados</summary>
         <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-600 lg:grid-cols-2">
           <div>
             <p className="font-black text-obra-ink">Explicación</p>
@@ -259,9 +260,9 @@ function SignalCard({ signal }: { signal: BusinessSignal }) {
             <ul className="mt-1 grid gap-1">
               {signal.explanation.dataUsed.map((item) => <li key={item}>- {item}</li>)}
             </ul>
-            <p className="mt-3 font-black text-obra-ink">Puntuación</p>
+            <p className="mt-3 font-black text-obra-ink">Criterios aplicados</p>
             <ul className="mt-1 grid gap-1">
-              {signal.explanation.scoreBreakdown.map((item) => <li key={`${item.label}-${item.detail}`}>- {item.label}: {item.value} · {item.detail}</li>)}
+              {signal.explanation.scoreBreakdown.map((item) => <li key={`${item.label}-${item.detail}`}>- {item.label}: {item.detail}</li>)}
             </ul>
           </div>
         </div>

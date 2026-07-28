@@ -7,11 +7,10 @@ import styles from "../page.module.css";
 import { brand } from "@/lib/brand";
 
 const navigation = [
-  ["Producto", "/producto"],
-  ["Soluciones", "/soluciones"],
-  ["Sectores", "/sectores"],
-  ["Seguridad", "/seguridad"],
-  ["Demo rápida", "/demo#quick-demo"],
+  ["Cómo funciona", "/#como-funciona"],
+  ["Resultados", "/#resultados"],
+  ["Para quién", "/#para-quien"],
+  ["Confianza", "/#confianza"],
 ] as const;
 
 export function MarketingHeader() {
@@ -50,7 +49,7 @@ export function MarketingHeader() {
 
         <div className={styles.headerActions}>
           <Link className={styles.loginLink} href="/login">Entrar</Link>
-          <Link className={styles.headerCta} href="/contacto">Solicitar demo</Link>
+          <Link className={styles.headerCta} href="/demo#quick-demo">Ver demo</Link>
           <button
             ref={triggerRef}
             className={styles.menuTrigger}
@@ -71,8 +70,8 @@ export function MarketingHeader() {
             <a key={href} href={href} onClick={() => setOpen(false)}>{label}</a>
           ))}
           <Link href="/login" onClick={() => setOpen(false)}>Entrar</Link>
-          <Link className={styles.mobileNavCta} href="/contacto" onClick={() => setOpen(false)}>
-            Solicitar demo
+          <Link className={styles.mobileNavCta} href="/demo#quick-demo" onClick={() => setOpen(false)}>
+            Ver demo
           </Link>
         </nav>
       ) : null}

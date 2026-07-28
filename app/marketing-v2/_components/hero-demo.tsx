@@ -63,36 +63,28 @@ export function HeroDemo() {
     <section className={styles.hero} aria-labelledby="public-hero-title">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>IA práctica para construcción y reformas</p>
-          <h1 id="public-hero-title">Habla con {brand.productName}. Tu negocio se pone al día.</h1>
+          <p className={styles.eyebrow}>Sistema operativo para obra y reformas</p>
+          <h1 id="public-hero-title">Del audio en la obra al cobro.</h1>
           <p className={styles.heroSubtitle}>
-            Manda un audio, una foto, una factura o un mensaje. {brand.productName} prepara
-            presupuestos, registra gastos, actualiza obras y te avisa de cobros,
-            documentos y márgenes. Tú revisas y decides.
+            {brand.productName} conecta lo que ocurre en visitas, presupuestos, trabajos,
+            compras y facturas. Sin repetir datos, sin perder de vista el margen y siempre
+            bajo tu confirmación.
           </p>
 
           <div className={styles.heroActions} aria-label="Acciones principales">
             <a
               className={styles.primaryAction}
-              href="#public-demo"
-              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "quick_demo" })}
+              href="#como-funciona"
+              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "how_it_works" })}
             >
-              <Mic aria-hidden="true" />
-              Ver un ejemplo con audio
+              Ver cómo funciona
             </a>
             <Link
               className={styles.secondaryAction}
-              href="/contacto"
-              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "contact" })}
+              href="#solicitar-acceso"
+              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "access_request" })}
             >
-              Solicitar demo
-            </Link>
-            <Link
-              className={styles.secondaryAction}
-              href="/demo#quick-demo"
-              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "deep_demo" })}
-            >
-              Demo rápida de 90 s
+              Solicitar acceso
             </Link>
           </div>
 
@@ -105,13 +97,18 @@ export function HeroDemo() {
         <div className={styles.demoShell}>
           <div className={styles.demoTopline}>
             <div>
-              <span>Vista previa local</span>
-              <strong>{brand.productName} prepara. Tú decides.</strong>
+              <span>{brand.productName} · Preparar presupuesto</span>
+              <strong>La persona confirma siempre</strong>
             </div>
             <span className={styles.localBadge}>Sin conexión</span>
           </div>
 
           <div id="public-demo" className={styles.tabs} data-active-tab={activeId}>
+            <ol className={styles.heroFlow} aria-label="De audio a presupuesto">
+              <li>Audio</li>
+              <li>Extracción</li>
+              <li>Presupuesto</li>
+            </ol>
             <div className={styles.tabList} role="tablist" aria-label="Tipo de entrada para la demostración">
               {demoScenarios.map((scenario, index) => {
                 const Icon = icons[scenario.id];
@@ -205,6 +202,12 @@ export function HeroDemo() {
           </div>
         </div>
       </div>
+      <ul className={styles.heroValueBand} aria-label="Valor del sistema operativo de obra">
+        <li><strong>Una sola historia</strong><span>Cliente, obra, dinero y documentos conectados.</span></li>
+        <li><strong>Control del margen</strong><span>Costes y desviaciones antes de que sea tarde.</span></li>
+        <li><strong>Trabajo desde el móvil</strong><span>Audio, foto, ticket o avance desde la obra.</span></li>
+        <li><strong>Confirmación humana</strong><span>{brand.productName} prepara; tú decides y autorizas.</span></li>
+      </ul>
     </section>
   );
 }

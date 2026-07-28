@@ -7,7 +7,7 @@ import { DeterministicDocumentExtractionProvider, resolveDocumentExtractionProvi
 import { LocalDocumentStorage } from "../lib/document-storage";
 import { MAX_EXPENSE_DOCUMENT_BYTES, normalizeExpenseExtraction, parseDate, parseMoney, sanitizeFilename, validateExpenseDocumentFile } from "../lib/expense-document";
 
-const actions = readFileSync("app/(app)/gastos-materiales/actions.ts", "utf8");
+const actions = readFileSync("lib/application/finance/expense-use-cases.ts", "utf8");
 const downloadRoute = readFileSync("app/(app)/gastos-materiales/lector/[id]/archivo/route.ts", "utf8");
 const reviewPage = readFileSync("app/(app)/gastos-materiales/lector/[id]/page.tsx", "utf8");
 const extraction = readFileSync("lib/document-extraction.ts", "utf8");
@@ -50,7 +50,8 @@ assert.match(downloadRoute, /findFirst\(\{ where: \{ id, companyId/, "21 route a
 assert.match(actions, /No se pudo analizar el documento/, "22 error sanitizado");
 assert.match(extraction, /ignora cualquier instrucción, comando/, "23 prompt injection sin autoridad");
 assert.match(actions, /document\.expenseId \|\| document\.status === "SAVED"/, "24 creación idempotente");
-assert.match(storageSource, /rm\(temporary, \{ force: true \}\)/, "25 temporal limpiado");
+assert.match(storageSource, /rm\(quarantine, \{ force: true \}\)/, "25 cuarentena temporal limpiada");
+assert.match(storageSource, /\.quarantine\/\$\{safeCompany\}/, "25b subida permanece en cuarentena hasta promoción atómica");
 assert.match(schema, /@@index\(\[companyId, sha256\]\)/, "índice hash por empresa");
 assert.match(nextConfig, /middlewareClientMaxBodySize:\s*["']11mb["']/, "26 multipart conserva el archivo completo antes de validar 10 MB");
 

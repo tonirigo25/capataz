@@ -24,25 +24,27 @@ const primaryOrder = [
   'label: "Facturas y cobros"'
 ];
 const primaryIndexes = primaryOrder.map((token) => navigation.indexOf(token));
+const navigationOnly = navigation.slice(navigation.indexOf("export const primaryNavigation"), navigation.indexOf("export const createActions"));
+const createOnly = navigation.slice(navigation.indexOf("export const createActions"), navigation.indexOf("export const captureActions"));
 
-check("sidebar conserva ancho de 240 px", chrome.includes("lg:pl-60") && chrome.includes("w-60"));
+check("sidebar usa el token Field OS de 248 px", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 248px"));
 check("navegación principal tiene seis destinos en orden", primaryIndexes.every((index) => index >= 0) && primaryIndexes.every((index, position) => position === 0 || index > primaryIndexes[position - 1]));
 check("Agenda se mantiene dentro de Más", navigation.indexOf('label: "Agenda"') > navigation.indexOf('label: "Control"'));
 check("Más usa tres grupos aprobados", ['label: "Compras"', 'label: "Control"', 'label: "Administración"'].every((token) => navigation.includes(token)));
-check("Más excluye rutas ocultas históricas", ["/tareas", "/seguimientos", "/automatizaciones", "/alertas", "/recomendaciones", "/inteligencia"].every((route) => !navigation.includes(`href: "${route}"`)));
+check("Más excluye rutas ocultas históricas", ["/tareas", "/seguimientos", "/automatizaciones", "/alertas", "/recomendaciones", "/inteligencia"].every((route) => !navigationOnly.includes(`href: "${route}"`)));
 check("rutas centrales no están bloqueadas por middleware", !middleware.includes("modulo-no-disponible") && middleware.includes("isProtectedPage"));
 check("contexto de ruta central cubre áreas, detalles, formularios, documentos y desconocidas", ["areaContexts", "detailContexts", 'kind: "form"', 'kind: "document"', 'kind: "unknown"'].every((token) => navigation.includes(token)));
 check("shell no expone el modo test y limita el aviso al demo de plataforma", shell.includes('mode === "demo" && platformAccess') && !shell.includes('mode === "production" || !platformAccess'));
 check("panel Más cierra por Escape, exterior, destino y botón", chrome.includes('event.key === "Escape"') && chrome.includes('document.addEventListener("pointerdown"') && chrome.includes("onNavigate={onClose}") && chrome.includes('aria-label="Cerrar Más"'));
 check("paneles restauran foco y hojas bloquean scroll", chrome.includes("activeTriggerRef.current?.focus()") && chrome.includes('document.body.style.overflow = "hidden"'));
 check("diálogos contienen el foco por teclado", chrome.includes('event.key !== "Tab"') && chrome.includes("getFocusable") && chrome.includes('role="dialog"'));
-check("búsqueda usa activador compacto hasta xl, atajo y ruta existentes", chrome.includes("Buscar en Orqena") && chrome.includes("xl:flex") && chrome.includes("xl:hidden") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
+check("búsqueda usa activador central y compacto, atajo y ruta existentes", chrome.includes("field-os-global-search") && chrome.includes("field-os-search-trigger") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
 check("búsqueda presenta filas y estados vacío, carga, error y resultados", searchPage.includes("InteractiveRow") && searchPage.includes("¿Qué necesitas encontrar?") && searchPage.includes("No hay resultados") && searchLoading.includes("LoadingState") && searchError.includes("ErrorState"));
 check("Orqena conserva la acción secundaria y el alias", chrome.includes('href="/capataz"') && chrome.includes(">Orqena"));
 check("notificaciones limitan contador a 99+ sin danger", chrome.includes('count > 99 ? "99+"') && !chrome.includes("bg-danger"));
-check("móvil se construye desde PortalManifest y mantiene Crear y Más", chrome.includes("portalManifest.mobileNavigation") && chrome.includes('aria-label="Crear"') && chrome.includes('aria-label="Más áreas"'));
+check("móvil se construye desde PortalManifest y mantiene Capturar y Más", chrome.includes("portalManifest.mobileNavigation") && chrome.includes('aria-label="Capturar"') && chrome.includes('aria-label="Más áreas"'));
 check("Dashboard está disponible desde Más y búsqueda", chrome.includes('href="/dashboard"') && searchPage.includes('href="/dashboard"'));
-check("Crear contiene exactamente seis acciones aprobadas", (navigation.match(/description: "/g) ?? []).length === 6 && ["Presupuesto", "Cliente", "Obra", "Gasto", "Cobro", "Visita"].every((label) => navigation.includes(`label: "${label}"`)));
+check("Crear contiene exactamente seis acciones aprobadas", (createOnly.match(/description: "/g) ?? []).length === 6 && ["Presupuesto", "Cliente", "Trabajo", "Gasto", "Cobro", "Visita"].every((label) => createOnly.includes(`label: "${label}"`)));
 check("Crear no incluye Capataz", !navigation.slice(navigation.indexOf("export const createActions"), navigation.indexOf("export type RouteContext")).includes("Capataz"));
 check("bottom sheet usa filas, scroll interno y safe area", chrome.includes("shell-menu-row") && chrome.includes("max-h-[85dvh]") && chrome.includes("env(safe-area-inset-bottom)"));
 check("destinos móviles tienen aria-current y targets de 44 px", chrome.includes('aria-current={active ? "page"') && styles.includes(".shell-bottom-item") && styles.includes("min-h-16"));

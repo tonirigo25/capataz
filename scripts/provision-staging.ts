@@ -46,8 +46,8 @@ async function stagingUser(key: string, roleName: string, passwordHash: string) 
   const email = `${key}@staging.orqena.invalid`;
   return prisma.user.upsert({
     where: { emailNormalized: email },
-    update: { displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date() },
-    create: { email, emailNormalized: email, displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date() }
+    update: { displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null },
+    create: { email, emailNormalized: email, displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null }
   });
 }
 
@@ -56,6 +56,7 @@ async function main() {
   const password = process.env.ORQENA_STAGING_TEST_PASSWORD;
   if (!password || password.length < 16) throw new Error("ORQENA_STAGING_TEST_PASSWORD_REQUIRED");
   const passwordHash = await hashPassword(password);
+  await prisma.idempotencyRecord.deleteMany({ where: { companyId: null, namespace: "rate_limit:login" } });
   await ensureBasePlans(prisma);
 
   const users = new Map(await Promise.all(profileFixtures.map(async (fixture) => [fixture.key, await stagingUser(fixture.key, fixture.label, passwordHash)] as const)));
@@ -94,6 +95,16 @@ async function main() {
     const emailNormalized = `invite-${suffix}@staging.orqena.invalid`;
     await prisma.invitation.upsert({ where: { tokenHash: hashToken(`staging-${suffix}-stable-token`) }, update: { expiresAt, status: "PENDING" }, create: { ...invitationBase, emailNormalized, tokenHash: hashToken(`staging-${suffix}-stable-token`), expiresAt } });
   }
+  const approvalUser = await stagingUser("invite-approval", "Solicitante Staging", passwordHash);
+  const approvalMembership = await prisma.companyMembership.upsert({
+    where: { userId_companyId: { userId: approvalUser.id, companyId: business.id } },
+    update: { role: "MEMBER", functionalProfileKey: "WORKER", accessMode: "STANDARD", status: "pending_owner_approval", origin: "staging" },
+    create: { userId: approvalUser.id, companyId: business.id, role: "MEMBER", functionalProfileKey: "WORKER", accessMode: "STANDARD", status: "pending_owner_approval", origin: "staging" }
+  });
+  await prisma.membershipAccessPackage.deleteMany({ where: { membershipId: approvalMembership.id } });
+  await prisma.membershipAccessPackage.createMany({
+    data: profileDefaultPackages.WORKER.map((packageKey) => ({ companyId: business.id, membershipId: approvalMembership.id, packageKey, grantedById: owner.id }))
+  });
   await prisma.invitation.upsert({ where: { tokenHash: hashToken("staging-owner-approval-stable-token") }, update: { status: "PENDING_OWNER_APPROVAL", expiresAt: new Date(Date.now() + 7 * 86400000), functionalProfileKey: "WORKER" }, create: { ...invitationBase, emailNormalized: "invite-approval@staging.orqena.invalid", functionalProfileKey: "WORKER", status: "PENDING_OWNER_APPROVAL", tokenHash: hashToken("staging-owner-approval-stable-token"), expiresAt: new Date(Date.now() + 7 * 86400000) } });
   await prisma.emailOutbox.upsert({
     where: { id: "staging-outbox-1" },
