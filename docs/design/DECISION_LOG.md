@@ -51,3 +51,11 @@ La conversación puede preparar una propuesta, pero el efecto vive en un panel e
 ## D-013 - Matriz de rutas compilada contra el repositorio
 
 La matriz CSV conserva el contenido entregado y añade toda página especializada presente en `app`. Sus dimensiones de estado y permiso viven en `lib/route-experience-manifest.ts` para que sean tipadas y verificables; el gate D9 recompila ambos inventarios y exige correspondencia uno a uno. Una ruta nueva sin fila o sin regla única rompe el gate.
+
+## D-014 - Abortos de Server Action al cerrar un contexto
+
+Una petición fallida no se ignora por contener `ERR_ABORTED`. El auditor sólo la registra como cierre esperado cuando es un `POST` al mismo origen y lleva la cabecera `Next-Action`; cualquier otro aborto, diagnóstico, respuesta 5xx o llamada externa continúa siendo bloqueante.
+
+## D-015 - Viewport adicional del addendum
+
+La matriz D10 conserva los siete viewports maestros y añade 320 px como cobertura focal obligatoria. La evidencia completa de 390, 430, 768, 1024, 1280, 1440 y 1920 no se sustituye: 320 px la amplía para detectar regresiones móviles estrechas.

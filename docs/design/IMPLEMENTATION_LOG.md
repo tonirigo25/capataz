@@ -448,3 +448,33 @@ Estado: `PASS`.
 - Safari, Chrome Android, NVDA, VoiceOver, zoom humano y validación con usuarios/datos/dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
 - Staging y producción no se modificaron. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
 - Evidencia estructurada: `docs/design/evidence/D9_REVIEW_EVIDENCE.json`.
+
+## D10 — Auditoría integral de producto y diseño
+
+Estado: `PASS` en Railway Review.
+
+### Cobertura ejecutada
+
+- Auditoría autenticada amplia: 11 perfiles, 77 combinaciones perfil/viewport, 84 permisos, 10 firmas de portal, 364 superficies OWNER, 58 interacciones D4–D10, un aislamiento tenant, 6/6 estados, 3 casos de capacidad y 470 casos Axe; 0 bloqueadores.
+- Auditoría pública completa: 24 rutas, Chromium/Firefox/WebKit y 390, 430, 768, 1024, 1280, 1440 y 1920 px; 504 casos públicos, 504 Axe, 21 capturas, 12 diffs visuales, 7 casos de medios y 0 bloqueadores.
+- Addendum móvil: replay completo de las 24 rutas en los tres motores a 320 px; 72 casos públicos, 72 Axe y 0 bloqueadores.
+- Rendimiento remoto: LCP mediano 2200 ms, CLS 0 e INP 24 ms en la repetición exacta final, dentro de los presupuestos 2500/0,1/200.
+- Gates PostgreSQL críticos en entorno local aislado: F2, F3, F4, F6, F7, F8, C2 y pentest tenant F11, 8/8; 43 migraciones, 0 escrituras en staging o producción.
+- `npm run typecheck`: PASS. `npm run build`: PASS, 76/76. `git diff --check`: PASS.
+
+### Hallazgos resueltos
+
+- VIEWER ve en `/auditoria` un aviso explícito de solo lectura sin adquirir permisos de escritura.
+- Los abortos al cerrar contextos sólo son esperados si corresponden a un `POST` same-origin con cabecera `Next-Action`; el resto continúa bloqueando.
+- La matriz horizontal de `/estado` es ahora una región etiquetada y enfocable a 320 px; el replay pasó en los tres motores.
+- Una medición focal de LCP fuera de presupuesto no se descartó. El replay exacto posterior midió 2200 ms y cerró el gate con evidencia.
+
+### Railway Review
+
+- SHA funcional exacto: `a1c0beffed46ce7b9450e14e69535182cf3d6592`.
+- Deployment: `1d9097b8-dadd-4f7c-ae21-206cadaa1103`, `SUCCESS`, imagen `sha256:31833c69c9d3846f2041e92001d2d4794a2774d68cb52cbd600188ffe0fb6612`.
+- 43 migraciones encontradas, ninguna pendiente; live, ready y status 200; `robots.txt` mantiene `Disallow: /` y las respuestas llevan `X-Robots-Tag: noindex`.
+- Rutas recomendadas: `/`, `/demo`, `/estado`, `/hoy`, `/dashboard`, `/capataz`, `/auditoria`, `/clientes`, `/obras`, `/dinero` y `/equipo`.
+- Staging y producción no se modificaron durante D10. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
+- Safari real, Chrome Android real, NVDA, VoiceOver, zoom real y validación con usuarios/datos/dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
+- Evidencia estructurada: `docs/design/evidence/D10_REVIEW_EVIDENCE.json`.
