@@ -2,9 +2,14 @@
   "name": "capataz",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "0.35.3"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build && node scripts/prepare-standalone.mjs",
+    "lint": "eslint app/api/billing app/api/documents app/api/health app/api/marketing app/marketing-internal components/marketing/launch-contact-form.tsx components/marketing/marketing-shell.tsx lib/billing lib/document-storage.ts lib/email lib/host-routing.ts lib/marketing middleware.ts next.config.ts --max-warnings 0",
     "start": "node scripts/start-standalone.mjs",
     "typecheck": "prisma generate && tsc --noEmit",
     "test:ai": "node scripts/validate-capataz-ai.mjs",
@@ -27,6 +32,7 @@
     "test:orqena-product-transformation": "node scripts/validate-orqena-product-transformation.mjs",
     "test:orqena-commercial-platform": "node scripts/validate-orqena-commercial-platform.mjs",
     "validate:orqena-visual": "node scripts/validate-orqena-visual.mjs",
+    "visual:launch-fixture": "node scripts/start-launch-visual-fixture.mjs",
     "validate:orqena-staging": "node scripts/validate-orqena-staging.mjs",
     "commercial:setup-local": "tsx scripts/configure-commercial-platform.ts",
     "commercial:provision-staging": "tsx scripts/provision-staging.ts",
@@ -60,6 +66,17 @@
     "test:contacts": "node scripts/validate-contacts.mjs",
     "test:documents": "node scripts/validate-documents.mjs",
     "test:expense-document-reader": "tsx scripts/validate-expense-document-reader.ts",
+    "test:launch-platform": "tsx scripts/validate-launch-platform.ts",
+    "test:stripe-billing": "tsx scripts/validate-stripe-billing.ts",
+    "test:cloudflare-sync": "node scripts/validate-cloudflare-sync.mjs",
+    "security:secrets": "node scripts/scan-committed-secrets.mjs",
+    "infra:r2:verify": "node scripts/verify-r2.mjs",
+    "documents:migrate-local:plan": "node scripts/plan-local-document-migration.mjs",
+    "infra:cloudflare:plan": "node infra/cloudflare/sync.mjs",
+    "infra:cloudflare:apply": "node infra/cloudflare/sync.mjs --apply",
+    "infra:cloudflare:verify": "node infra/cloudflare/verify.mjs",
+    "infra:resend:configure": "node infra/resend/configure.mjs",
+    "infra:resend:verify": "node infra/resend/configure.mjs --verify",
     "test:procurement": "tsx scripts/validate-procurement.ts",
     "test:internal-notes": "node scripts/validate-internal-notes.mjs",
     "test:agenda": "node scripts/validate-agenda.mjs",
@@ -162,6 +179,8 @@
     "mobile:ios:open": "cap open ios"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1096.0",
+    "@aws-sdk/s3-request-presigner": "^3.1096.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
@@ -171,18 +190,21 @@
     "lucide-react": "^0.468.0",
     "next": "^15.3.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "stripe": "^22.3.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "eslint": "^10.8.0",
     "playwright-core": "^1.61.1",
-    "postcss": "^8.4.49",
+    "postcss": "8.5.24",
     "prisma": "^6.10.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.65.0"
   }
 }

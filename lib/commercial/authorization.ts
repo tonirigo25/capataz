@@ -40,7 +40,7 @@ export async function resolveAuthorization(context: CompanyContext, capability: 
   if (membership.accessMode === "READ_ONLY" && mutating) return { allowed: false, reason: "permission", scope: "COMPANY" };
   const commercial = await getEntitlements(context.companyId);
   const isReadOperation = capability.endsWith(".view") || capability.endsWith(".export") || capability === "orqena.use" || capability === "company.billing.manage";
-  if (commercial.subscription && ["EXPIRED", "PAUSED", "CANCELED"].includes(commercial.subscription.status) && !isReadOperation) return { allowed: false, reason: "subscription", scope: "COMPANY" };
+  if (process.env.BILLING_ENABLED === "true" && commercial.subscription && ["EXPIRED", "PAUSED", "CANCELED"].includes(commercial.subscription.status) && !isReadOperation) return { allowed: false, reason: "subscription", scope: "COMPANY" };
   const entitlement = capabilityCatalog[capability].requiredEntitlement;
   if (entitlement) {
     if (!Boolean(commercial.values[entitlement])) return { allowed: false, reason: "entitlement", scope: "COMPANY" };

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { createOpaqueToken, hashToken } from "@/lib/auth/crypto";
 import { prisma } from "@/lib/prisma";
+import { applicationLink, createEmailProvider, sendTransactionalEmail } from "@/lib/email";
 
 export const emailEventKeys = ["employee_invited", "employee_accepted", "owner_approval_requested", "employee_approved", "employee_rejected", "invitation_revoked", "invitation_expiring", "profile_changed", "permissions_changed", "membership_suspended", "membership_reactivated", "security_alert", "demo_requested"] as const;
 export type EmailEventKey = (typeof emailEventKeys)[number];
@@ -30,18 +31,24 @@ export async function processEmailOutboxItem(id: string, companyId: string) {
       const invitation = await prisma.invitation.findFirstOrThrow({ where: { id: item.invitationId, companyId } });
       await prisma.invitation.update({ where: { id: invitation.id }, data: { tokenHash: hashToken(token) } });
     }
-    const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-    const link = token ? `${base}/aceptar-invitacion?token=${encodeURIComponent(token)}` : undefined;
+    const link = token ? `${applicationLink("/aceptar-invitacion")}?token=${encodeURIComponent(token)}` : undefined;
     previewHtml = link ? `<p>${previewText(item.eventKey as EmailEventKey)}</p><p><a href="${link}">Aceptar invitación</a></p>` : `<p>${previewText(item.eventKey as EmailEventKey)}</p>`;
     if (process.env.EMAIL_PROVIDER !== "local" && process.env.NEXT_PUBLIC_APP_ENV === "staging") throw new Error("STAGING_EXTERNAL_EMAIL_FORBIDDEN");
+    const provider = createEmailProvider();
+    await sendTransactionalEmail({
+      to: item.recipient,
+      subject: item.subject,
+      text: item.textBody || previewText(item.eventKey as EmailEventKey),
+      html: previewHtml,
+    }, provider);
     await prisma.$transaction([
-      prisma.emailDeliveryAttempt.create({ data: { outboxId: id, attempt, provider: process.env.EMAIL_PROVIDER ?? "local", status: "SENT" } }),
-      prisma.emailOutbox.update({ where: { id }, data: { status: "SENT", processedAt: new Date(), lastError: null, payload: { ...asObject(item.payload), linkGenerated: Boolean(link), deliveredBy: "local-preview" } } })
+      prisma.emailDeliveryAttempt.create({ data: { outboxId: id, attempt, provider: provider.name, status: "SENT" } }),
+      prisma.emailOutbox.update({ where: { id }, data: { status: "SENT", processedAt: new Date(), lastError: null, payload: { ...asObject(item.payload), linkGenerated: Boolean(link), deliveredBy: provider.name } } })
     ]);
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "EMAIL_DELIVERY_FAILED";
     await prisma.$transaction([
-      prisma.emailDeliveryAttempt.create({ data: { outboxId: id, attempt, provider: process.env.EMAIL_PROVIDER ?? "local", status: "FAILED", errorDetail: message } }),
+      prisma.emailDeliveryAttempt.create({ data: { outboxId: id, attempt, provider: process.env.RESEND_API_KEY ? "resend" : "missing", status: "FAILED", errorCode: message.split(":")[0].slice(0, 100), errorDetail: message } }),
       prisma.emailOutbox.update({ where: { id }, data: { status: attempt < 3 ? "RETRYING" : "FAILED", lastError: message, availableAt: new Date(Date.now() + Math.min(attempt, 5) * 60_000) } })
     ]);
   }

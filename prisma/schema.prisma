@@ -2290,6 +2290,8 @@ model Company {
   teams                   Team[]
   invitations             Invitation[]
   subscriptions           Subscription[]
+  billingCustomer         BillingCustomer?
+  billingEvents           BillingEvent[]
   entitlementOverrides    CompanyEntitlementOverride[]
   usageRecords            UsageRecord[]
   auditLogs               AuditLog[]
@@ -2753,6 +2755,8 @@ model Subscription {
   provider               String                @default("local")
   externalCustomerId     String?
   externalSubscriptionId String?
+  stripeSubscriptionId   String?               @unique
+  stripePriceId          String?
   startedAt              DateTime              @default(now())
   trialEndsAt            DateTime?
   currentPeriodStart     DateTime
@@ -2769,6 +2773,32 @@ model Subscription {
 
   @@index([companyId, status])
   @@index([currentPeriodEnd])
+}
+
+model BillingCustomer {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  stripeCustomerId String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+}
+
+model BillingEvent {
+  id               String    @id @default(cuid())
+  stripeEventId    String    @unique
+  eventType        String
+  eventCreatedAt   DateTime
+  processedAt      DateTime?
+  processingResult String
+  companyId        String?
+  createdAt        DateTime  @default(now())
+  company          Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, eventCreatedAt])
+  @@index([processingResult, createdAt])
 }
 
 model SubscriptionHistory {

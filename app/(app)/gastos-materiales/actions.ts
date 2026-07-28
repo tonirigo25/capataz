@@ -40,7 +40,6 @@ export async function uploadExpenseDocument(formData: FormData) {
   let stored: Awaited<ReturnType<typeof documentStorage.put>> | null = null;
   let createdDocumentId: string | null = null;
   try {
-    stored = await documentStorage.put({ companyId: context.companyId, bytes: bytes!, extension: validated!.extension });
     const document = await prisma.document.create({
       data: {
         companyId: context.companyId,
@@ -48,8 +47,6 @@ export async function uploadExpenseDocument(formData: FormData) {
         name: validated!.filename,
         originalName: validated!.filename,
         mimeType: validated!.mimeType,
-        size: stored.sizeBytes,
-        storageKey: stored.storageKey,
         sha256: validated!.sha256,
         category: validated!.mimeType === "application/pdf" ? "factura" : "ticket",
         status: "UPLOADED",
@@ -58,6 +55,19 @@ export async function uploadExpenseDocument(formData: FormData) {
       }
     });
     createdDocumentId = document.id;
+    stored = await documentStorage.put({
+      companyId: context.companyId,
+      category: validated!.mimeType === "application/pdf" ? "facturas" : "tickets",
+      documentId: document.id,
+      filename: validated!.filename,
+      mimeType: validated!.mimeType,
+      checksum: validated!.sha256,
+      bytes: bytes!,
+    });
+    await prisma.document.update({
+      where: { id: document.id },
+      data: { size: stored.sizeBytes, storageKey: stored.storageKey, sha256: stored.checksum },
+    });
     await processDocument(document.id, context.companyId);
     redirect(`/gastos-materiales/lector/${document.id}`);
   } catch (error) {

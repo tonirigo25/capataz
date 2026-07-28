@@ -168,11 +168,16 @@ export async function acceptEmployeeInvitation(input: {
         employeeAcceptedAt: now,
       },
     });
+    const owner = await tx.companyMembership.findFirstOrThrow({
+      where: { companyId: invitation.companyId, role: "OWNER", status: "active" },
+      include: { user: { select: { emailNormalized: true } } },
+      orderBy: { createdAt: "asc" },
+    });
     await queueEmailEvent(tx as typeof prisma, {
       companyId: invitation.companyId,
       invitationId: invitation.id,
       eventKey: "owner_approval_requested",
-      recipient: "owner-notification@orqena.invalid",
+      recipient: owner.user.emailNormalized,
       createdById: input.userId,
       payload: { membershipId: membership.id },
     });

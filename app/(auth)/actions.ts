@@ -48,7 +48,8 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
       if (invitationValid && invitation) {
         await tx.companyMembership.create({ data: { userId: created.id, companyId: invitation.companyId, status: "pending_owner_approval", role: invitation.role, functionalProfileKey: invitation.functionalProfileKey, accessMode: invitation.accessMode, invitedAt: invitation.createdAt, acceptedAt: new Date(), invitedById: invitation.inviterId, origin: "invitation" } });
         await tx.invitation.update({ where: { id: invitation.id }, data: { status: "PENDING_OWNER_APPROVAL", acceptedAt: new Date(), employeeAcceptedAt: new Date() } });
-        await queueEmailEvent(tx as typeof prisma, { companyId: invitation.companyId, invitationId: invitation.id, eventKey: "owner_approval_requested", recipient: "owner-notification@orqena.invalid", createdById: created.id });
+        const owner = await tx.companyMembership.findFirstOrThrow({ where: { companyId: invitation.companyId, role: "OWNER", status: "active" }, include: { user: { select: { emailNormalized: true } } }, orderBy: { createdAt: "asc" } });
+        await queueEmailEvent(tx as typeof prisma, { companyId: invitation.companyId, invitationId: invitation.id, eventKey: "owner_approval_requested", recipient: owner.user.emailNormalized, createdById: created.id });
       } else {
         await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
       }
@@ -59,7 +60,12 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
     return { status: "error", message: "No hemos podido completar el registro. Tus datos no se han guardado; inténtalo de nuevo.", fields };
   }
   await recordSecurityEvent({ type: "registration_created", outcome: "success", userId: user.id });
-  try { await sendVerificationEmail(user.email, rawToken); } catch { return { status: "success", message: "Tu cuenta se ha creado, pero el mensaje está tardando. Usa el reenvío de verificación en unos minutos." }; }
+  try {
+    await sendVerificationEmail(user.email, rawToken);
+  } catch {
+    await recordSecurityEvent({ type: "verification_email_failed", outcome: "failure", userId: user.id });
+    return { status: "success", message: "Tu cuenta se ha creado, pero el correo no se ha podido enviar. Contacta con soporte para continuar." };
+  }
   return { status: "success", message: "Cuenta creada. Revisa tu correo para verificarla antes de iniciar sesión." };
 }
 
@@ -103,7 +109,12 @@ export async function requestPasswordResetAction(_previous: AuthActionState, for
     prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + authConfig.resetMinutes * 60_000) } })
   ]);
   await recordSecurityEvent({ type: "password_reset_requested", outcome: "success", userId: user.id });
-  try { await sendPasswordResetEmail(user.email, rawToken); } catch { /* anti-enumeration response remains identical */ }
+  try {
+    await sendPasswordResetEmail(user.email, rawToken);
+  } catch {
+    await recordSecurityEvent({ type: "password_reset_email_failed", outcome: "failure", userId: user.id });
+    // The public response remains identical to avoid account enumeration.
+  }
   return response;
 }
 
