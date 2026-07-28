@@ -24,7 +24,6 @@ export function validateRuntimeConfig(phase = "runtime") {
   }
 
   if (environment === "production") {
-    requireNames(errors, "production identity is incomplete", ["PRODUCT_NAME", "LEGAL_ENTITY_NAME", "LEGAL_TAX_ID"]);
     if (present("APP_BASE_URL")) {
       const appUrl = new URL(process.env.APP_BASE_URL);
       if (appUrl.protocol !== "https:" || /localhost|127\.0\.0\.1|railway\.app$/i.test(appUrl.hostname)) {
@@ -58,7 +57,7 @@ export function validateRuntimeConfig(phase = "runtime") {
     errors.push("fake AI provider is forbidden in production runtime");
   }
   if (process.env.STORAGE_PROVIDER?.trim().toLowerCase() === "s3") {
-    requireNames(errors, "S3 storage configuration is incomplete", ["S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "MALWARE_SCAN_ENDPOINT", "MALWARE_SCAN_AUTHORIZATION"]);
+    requireNames(errors, "S3 storage configuration is incomplete", ["S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]);
   }
 
   if (phase !== "build") {

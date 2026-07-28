@@ -3,23 +3,25 @@ import { NextResponse } from "next/server";
 import { normalizeEmail } from "@/lib/auth/crypto";
 import { sendContactNotification } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 
 const ALLOWED_REASONS = new Set(["informacion", "acceso", "soporte", "privacidad"]);
 const ALLOWED_ORIGINS = new Set(["https://orqenatech.com", "https://app.orqenatech.com"]);
 
 export async function POST(request: Request) {
-  if (!isAllowedOrigin(request.headers.get("origin"))) {
-    return NextResponse.json({ ok: false, error: "ORIGIN_NOT_ALLOWED" }, { status: 403 });
-  }
+  return publicRequestContext("POST /api/marketing/contact", request, async () => {
+    if (!isAllowedOrigin(request.headers.get("origin"))) {
+      return NextResponse.json({ ok: false, error: "ORIGIN_NOT_ALLOWED" }, { status: 403 });
+    }
 
   let input: Record<string, unknown>;
-  try {
-    input = await request.json() as Record<string, unknown>;
-  } catch {
-    return NextResponse.json({ ok: false, error: "INVALID_JSON" }, { status: 400 });
-  }
+    try {
+      input = await request.json() as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ ok: false, error: "INVALID_JSON" }, { status: 400 });
+    }
 
-  if (clean(input.website, 200)) return NextResponse.json({ ok: true }, { status: 201 });
+    if (clean(input.website, 200)) return NextResponse.json({ ok: true }, { status: 201 });
   const renderedAt = Number(input.renderedAt);
   const elapsed = Date.now() - renderedAt;
   const name = clean(input.name, 120);
@@ -63,8 +65,8 @@ export async function POST(request: Request) {
     },
   });
 
-  try {
-    await sendContactNotification({ name, email, company, reason, message });
+    try {
+      await sendContactNotification({ name, email, company, reason, message });
     await prisma.$transaction([
       prisma.demoRequest.update({ where: { id: contact.id }, data: { status: "DELIVERED" } }),
       prisma.auditLog.create({
@@ -92,8 +94,9 @@ export async function POST(request: Request) {
         },
       }),
     ]);
-    return NextResponse.json({ ok: false, error: code }, { status: 503 });
-  }
+      return NextResponse.json({ ok: false, error: code }, { status: 503 });
+    }
+  });
 }
 
 function isAllowedOrigin(origin: string | null) {

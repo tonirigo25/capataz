@@ -18,6 +18,13 @@ const databaseName = "capataz_test_readiness_f1";
 const expectedMigrationCount = readdirSync(join(process.cwd(), "prisma", "migrations"), { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .length;
+const expectedTargetTables = [
+  "FeatureFlag", "IdempotencyRecord", "WebhookEvent", "IntegrationConnection", "EncryptedCredential",
+  "FiscalDocument", "FiscalRecord", "FiscalTransmission", "FiscalEvent", "FiscalSoftwareDeclaration",
+  "ElectronicInvoiceArtifact", "ElectronicInvoiceDelivery", "ElectronicInvoiceStatusEvent", "BillingCustomer", "BillingPriceMapping", "BillingEvent",
+  "EmailSuppression", "EmailWebhookEvent", "LegalDocumentVersion", "LegalAcceptance", "ProcessingActivity", "RetentionPolicy", "PrivacyRequest", "ConsentRecord", "DataBreachIncident",
+  "CompanyAiPolicy", "AiUsageEvent", "AiModelVersion", "AiPromptVersion", "AiEvaluationRun", "AiGatewayOperation", "AiReviewEvent", "AiCircuitState", "ProductEvent", "CompanyDailyMetric", "PilotCohort", "PilotFeedback", "SupportTicket", "Incident", "StoredObject", "UploadScan",
+];
 let runtime;
 const removeSignalHandlers = installCleanupSignalHandlers(async () => {
   await stopIsolatedPostgres(runtime).catch(() => undefined);
@@ -55,13 +62,7 @@ try {
   await client.connect();
   const migrationResult = await client.query('SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL');
   const readinessMigrationResult = await client.query('SELECT COUNT(*)::int AS count FROM "_prisma_migrations" WHERE migration_name LIKE \'%_readiness_m%\' AND finished_at IS NOT NULL');
-  const targetTables = await client.query("SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY($1)", [[
-    "FeatureFlag", "IdempotencyRecord", "WebhookEvent", "IntegrationConnection", "EncryptedCredential",
-    "FiscalDocument", "FiscalRecord", "FiscalTransmission", "FiscalEvent", "FiscalSoftwareDeclaration",
-    "ElectronicInvoiceArtifact", "ElectronicInvoiceDelivery", "ElectronicInvoiceStatusEvent", "BillingCustomer", "BillingPriceMapping", "BillingEvent",
-    "EmailSuppression", "EmailWebhookEvent", "LegalDocumentVersion", "LegalAcceptance", "ProcessingActivity", "RetentionPolicy", "PrivacyRequest", "ConsentRecord", "DataBreachIncident",
-    "CompanyAiPolicy", "AiUsageEvent", "AiModelVersion", "AiPromptVersion", "AiEvaluationRun", "AiGatewayOperation", "AiReviewEvent", "AiCircuitState", "ProductEvent", "CompanyDailyMetric", "PilotCohort", "PilotFeedback", "SupportTicket", "Incident", "StoredObject", "UploadScan",
-  ]]);
+  const targetTables = await client.query("SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY($1)", [expectedTargetTables]);
   const now = new Date();
   await client.query('INSERT INTO "Company" (id,slug,"nombreComercial","updatedAt") VALUES ($1,$2,$3,$4)', ["f1-company", "f1-company", "F1 isolated", now]);
   await client.query('INSERT INTO "Client" (id,"companyId",nombre,telefono,direccion,tipo,origen) VALUES ($1,$2,$3,$4,$5,$6,$7)', ["f1-client", "f1-company", "Client", "000", "Isolated", "company", "f1"]);
@@ -77,7 +78,9 @@ try {
     throw new Error(`EXPECTED_${expectedMigrationCount}_MIGRATIONS_FOUND_${migrationResult.rows[0].count}`);
   }
   if (readinessMigrationResult.rows[0].count !== 10) throw new Error(`EXPECTED_10_READINESS_MIGRATIONS_FOUND_${readinessMigrationResult.rows[0].count}`);
-  if (targetTables.rows[0].count !== 38) throw new Error(`EXPECTED_38_TARGET_TABLES_FOUND_${targetTables.rows[0].count}`);
+  if (targetTables.rows[0].count !== expectedTargetTables.length) {
+    throw new Error(`EXPECTED_${expectedTargetTables.length}_TARGET_TABLES_FOUND_${targetTables.rows[0].count}`);
+  }
   if (!/No pending migrations/i.test(secondDeploy)) throw new Error("SECOND_DEPLOY_NOT_IDEMPOTENT");
 
   console.log(JSON.stringify({

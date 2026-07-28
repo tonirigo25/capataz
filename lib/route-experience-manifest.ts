@@ -78,6 +78,7 @@ export const fieldOsShellContract = {
 
 export const routeExperienceManifest: RouteExperienceRule[] = [
   rule("public-home", /^\/$/, { ...publicShared, family: "marketing", shell: "marketing", access: "public", title: brand.productName, primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
+  rule("public-marketing-host-router", /^\/marketing-internal\/\[\[\.\.\.slug\]\]$/, { ...publicShared, family: "marketing", shell: "standalone", access: "public", title: `${brand.productName} — Superficie comercial`, primaryAction: "Solicitar acceso", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-marketing-preview", /^\/marketing-v2$/, { ...publicShared, family: "marketing", shell: "standalone", access: "public", title: `${brand.productName} — Vista previa preservada`, primaryAction: "Ver la base visual", empty: "not-applicable", screenshotGroup: "public" }),
   rule("public-guided-demo-preview", /^\/demo-v2$/, { ...publicShared, family: "marketing", shell: "standalone", access: "public", title: `Prueba ${brand.productName} — Demostración guiada`, primaryAction: "Recorrer demostración", empty: "not-applicable", demo: "public-synthetic", screenshotGroup: "public" }),
   rule("public-product", /^\/(?:producto(?:\/\[modulo\])?|soluciones(?:\/\[solucion\])?)$/, { ...publicShared, family: "marketing", shell: "marketing", access: "public", title: "Producto", primaryAction: "Explorar demo", empty: "not-applicable", screenshotGroup: "public" }),

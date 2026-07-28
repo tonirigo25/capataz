@@ -88,7 +88,12 @@ const APP_PAGE_PREFIXES = [
 const SHARED_STATIC_PREFIXES = ["/_next/", "/brand/", "/marketing/", "/icons/"] as const;
 const SHARED_STATIC_EXACT = new Set(["/favicon.ico"]);
 const APP_PWA_PATHS = new Set(["/manifest.webmanifest", "/service-worker.js", "/offline.html"]);
-const SHARED_HEALTH_PATHS = new Set(["/api/status", "/api/health"]);
+const SHARED_HEALTH_PATHS = new Set([
+  "/api/status",
+  "/api/health",
+  "/api/health/live",
+  "/api/health/ready",
+]);
 const MARKETING_API_PATHS = new Set(["/api/marketing/contact"]);
 
 export type HostRoutingDecision =
@@ -114,10 +119,18 @@ export function resolveHostRouting(input: {
   search?: string;
   nodeEnv?: string;
   developmentSite?: "app" | "marketing";
+  hasSessionCookie?: boolean;
 }): HostRoutingDecision {
   const host = normalizeRequestHost(input.host);
   const pathname = normalizePathname(input.pathname);
   const search = normalizeSearch(input.search);
+
+  // Railway health probes use an internal hostname rather than the public
+  // service domain. Keep only the explicit liveness/readiness surface
+  // host-agnostic so load-balancer validation can reach the application.
+  if (SHARED_HEALTH_PATHS.has(pathname)) {
+    return { action: "pass", site: "platform" };
+  }
 
   if (host === MARKETING_WWW_HOST || DEFENSIVE_HOSTS.has(host)) {
     return { action: "redirect", location: `${marketingUrl(pathname)}${search}`, status: 301 };
@@ -131,7 +144,11 @@ export function resolveHostRouting(input: {
     return appDecision(pathname, search);
   }
 
-  if (isPlatformHost(host) || (input.nodeEnv !== "production" && isLocalHost(host))) {
+  if (isPlatformHost(host)) {
+    return platformDecision(pathname, search, Boolean(input.hasSessionCookie));
+  }
+
+  if (input.nodeEnv !== "production" && isLocalHost(host)) {
     return { action: "pass", site: "platform" };
   }
 
@@ -149,6 +166,19 @@ export function internalMarketingPath(pathname: string) {
 
 export function isPlatformHost(host: string) {
   return host.endsWith(".up.railway.app");
+}
+
+function platformDecision(pathname: string, search: string, hasSessionCookie: boolean): HostRoutingDecision {
+  if (pathname === "/capataz" && hasSessionCookie) {
+    return { action: "pass", site: "app" };
+  }
+  if (isLaunchMarketingPath(pathname)) {
+    return { action: "rewrite", pathname: internalMarketingPath(pathname), site: "marketing" };
+  }
+  if (isLegacyMarketingPath(pathname)) {
+    return { action: "pass", site: "marketing" };
+  }
+  return { action: "pass", site: "platform" };
 }
 
 function marketingDecision(pathname: string, search: string): HostRoutingDecision {

@@ -45,7 +45,7 @@ export function verifyStripeWebhook(input: { rawBody: string; signatureHeader: s
 }
 
 export function verifyResendWebhook(input: { rawBody: string; id: string; timestamp: string; signature: string; secret: string }) {
-  const verifier = new Resend("re_webhook_verification_only");
+  const verifier = new Resend("webhook-verification-only");
   return verifier.webhooks.verify({ payload: input.rawBody, headers: { id: input.id, timestamp: input.timestamp, signature: input.signature }, webhookSecret: input.secret });
 }
 

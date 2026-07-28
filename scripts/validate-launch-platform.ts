@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,6 +27,7 @@ import {
 import { STRIPE_WEBHOOK_EVENTS, isBillingEnabled, stripePriceForPlan, stripeTrialDays } from "../lib/billing/config";
 import { paidAccessState } from "../lib/billing/service";
 import { getStripeClient, requireStripeWebhookSecret } from "../lib/billing/stripe-client";
+import { parseServerConfig } from "../lib/config/server";
 
 let cases = 0;
 function equal<T>(actual: T, expected: T, label: string) {
@@ -64,6 +66,22 @@ async function validateHosts() {
   equal(resolveHostRouting({ host: APP_HOST, pathname: "/capataz", nodeEnv: "production" }).action, "pass", "app keeps private Capataz");
   equal(resolveHostRouting({ host: "attacker.example", pathname: "/", nodeEnv: "production" }).action, "reject", "unknown production host fails closed");
   equal(resolveHostRouting({ host: "preview.up.railway.app", pathname: "/api/health", nodeEnv: "production" }).action, "pass", "Railway health remains reachable");
+  equal(resolveHostRouting({ host: "orqena-review-web.railway.internal", pathname: "/api/health/live", nodeEnv: "production" }).action, "pass", "Railway internal liveness remains reachable");
+  equal(resolveHostRouting({ host: "orqena-review-web.railway.internal", pathname: "/api/health/ready", nodeEnv: "production" }).action, "pass", "Railway internal readiness remains reachable");
+  equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/precios", nodeEnv: "production" }), {
+    action: "rewrite",
+    pathname: "/marketing-internal/precios",
+    site: "marketing",
+  }, "Railway validation host serves launch marketing routes");
+  equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production" }), {
+    action: "rewrite",
+    pathname: "/marketing-internal/capataz",
+    site: "marketing",
+  }, "Railway validation host serves the public Capataz page without a session");
+  equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production", hasSessionCookie: true }), {
+    action: "pass",
+    site: "app",
+  }, "Railway validation host preserves authenticated Capataz");
   assert.doesNotMatch(sessionSource, /domain\s*:/i, "session cookies remain host-only");
   assert.match(sessionSource, /sameSite:\s*"lax"/, "session cookies keep SameSite protection");
   assert.match(pwaSource, /hostname === appHostname \|\| platformHostname/, "private service worker is host-gated");
@@ -149,11 +167,54 @@ async function validateBilling() {
   }
 }
 
+async function validateProductionStartupGates() {
+  const productionEnvironment: NodeJS.ProcessEnv = {
+    ...process.env,
+    NEXT_PUBLIC_APP_ENV: "production",
+    APP_ENV: "production",
+    APP_BASE_URL: "https://app.orqenatech.com",
+    DATABASE_URL: "postgresql://runtime-check.invalid/orqena",
+    STORAGE_PROVIDER: "s3",
+    S3_REGION: "auto",
+    S3_BUCKET: "orqena-private",
+    S3_ACCESS_KEY_ID: "runtime-check-access",
+    S3_SECRET_ACCESS_KEY: "runtime-check-secret",
+    STORAGE_SIGNING_SECRET: "runtime-check-signing-secret-at-least-32-characters",
+    APP_ENCRYPTION_KEYS: `v1:${Buffer.alloc(32, 7).toString("base64")}`,
+    APP_ACTIVE_KEY_VERSION: "v1",
+    JOB_RUNNER_SECRET: "runtime-check-job-secret",
+    AI_ENABLED: "false",
+    AI_PROVIDER_MODE: "off",
+    BILLING_ENABLED: "false",
+    EMAIL_LIVE_ENABLED: "false",
+    FISCAL_ENGINE_ENABLED: "false",
+    PUBLIC_INDEXING_ENABLED: "false",
+    ORQENA_PUBLIC_REGISTRATION_ENABLED: "false",
+    DEPLOYMENT_ENVIRONMENT_ID: "production-runtime-check",
+    DATABASE_RESOURCE_ID: "production-database-check",
+    STORAGE_RESOURCE_ID: "production-storage-check",
+    CREDENTIAL_SCOPE: "production",
+  };
+  delete productionEnvironment.LEGAL_ENTITY_NAME;
+  delete productionEnvironment.LEGAL_TAX_ID;
+  delete productionEnvironment.MALWARE_SCAN_ENDPOINT;
+  delete productionEnvironment.MALWARE_SCAN_AUTHORIZATION;
+
+  equal(parseServerConfig(productionEnvironment, "ready").environment, "production", "private runtime starts before legal activation");
+  const runtimeResult = JSON.parse(execFileSync(process.execPath, ["scripts/readiness/validate-runtime-config.mjs", "ready"], {
+    cwd: process.cwd(),
+    env: productionEnvironment,
+    encoding: "utf8",
+  }));
+  equal(runtimeResult.ok, true, "missing live malware provider remains fail-closed per operation");
+}
+
 async function main() {
   await validateHosts();
   await validateDocuments();
   await validateEmail();
   await validateBilling();
+  await validateProductionStartupGates();
   console.log(`[launch-platform] OK ${cases} casos`);
 }
 

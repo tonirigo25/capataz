@@ -2,25 +2,28 @@ import { NextResponse } from "next/server";
 import { BillingAccessError, requireBillingContext } from "@/lib/billing/auth";
 import { createCheckout } from "@/lib/billing/service";
 import { planCatalog, type PlanKey } from "@/lib/commercial/plans";
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 
 export async function POST(request: Request) {
-  try {
-    const context = await requireBillingContext();
-    const input = await request.json() as { planKey?: string };
-    const planKey = String(input.planKey ?? "").toUpperCase() as PlanKey;
-    if (!(planKey in planCatalog) || planKey === "ENTERPRISE") {
-      return NextResponse.json({ error: "BILLING_PLAN_INVALID" }, { status: 400 });
+  return publicRequestContext("POST /api/billing/checkout", request, async () => {
+    try {
+      const context = await requireBillingContext();
+      const input = await request.json() as { planKey?: string };
+      const planKey = String(input.planKey ?? "").toUpperCase() as PlanKey;
+      if (!(planKey in planCatalog) || planKey === "ENTERPRISE") {
+        return NextResponse.json({ error: "BILLING_PLAN_INVALID" }, { status: 400 });
+      }
+      const session = await createCheckout({
+        companyId: context.companyId,
+        userEmail: context.email,
+        companyName: context.companyName,
+        planKey,
+      });
+      return NextResponse.json({ checkoutUrl: session.url, sessionId: session.id });
+    } catch (error) {
+      return billingError(error);
     }
-    const session = await createCheckout({
-      companyId: context.companyId,
-      userEmail: context.email,
-      companyName: context.companyName,
-      planKey,
-    });
-    return NextResponse.json({ checkoutUrl: session.url, sessionId: session.id });
-  } catch (error) {
-    return billingError(error);
-  }
+  });
 }
 
 function billingError(error: unknown) {

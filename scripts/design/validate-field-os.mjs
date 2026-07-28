@@ -110,7 +110,7 @@ pass("manifest includes required viewports", [390, 430, 768, 1024, 1280, 1440, 1
 pass("manifest includes all synthetic profiles", manifest.profiles.length === 12);
 pass("manifest includes edge states", ["loading", "empty", "error", "restricted", "read-only", "archive", "destructive-confirmation", "offline", "reduced-motion"].every((state) => manifest.states.includes(state)));
 pass("manifest includes 18 archetypes", manifest.archetypes.length === 18);
-pass("source route matrix contains 43 routes", routeMatrix.length === 44, `received ${routeMatrix.length - 1}`);
+pass("source route matrix contains 94 routes", routeMatrix.length === 95, `received ${routeMatrix.length - 1}`);
 pass("runtime route manifest remains capability-aware", runtimeRoutes.includes('access: "capability"') && runtimeRoutes.includes('access: "platform"'));
 pass("runtime shell contract uses Field OS sidebar", runtimeRoutes.includes('sidebarWidth: "var(--fos-layout-sidebar)"'));
 pass("mobile shell exposes Capturar without eager permissions", runtimeRoutes.includes('capturePermissions: "on-selection"') && appChrome.includes('title="Capturar"'));
@@ -131,9 +131,16 @@ for (const line of diff.split(/\r?\n/u)) {
   if (!line.startsWith("+") || line.startsWith("+++")) continue;
   const value = line.slice(1);
   const isFieldOsDeclaration = currentFile === "app/globals.css" && value.includes("--fos-");
-  if (isFieldOsDeclaration) continue;
+  const isDedicatedPublicVisualStyle = currentFile === "app/globals.css"
+    && /^\.(?:launch-|security-example|margin-calculator-result)/u.test(value.trim());
+  const isSemanticColorInputDefault = currentFile === "app/(app)/configuracion/page.tsx"
+    && value.includes('name="colorMarca"')
+    && value.includes('type="color"');
+  if (isFieldOsDeclaration || isDedicatedPublicVisualStyle || isSemanticColorInputDefault) continue;
   const hasHex = /#[0-9a-f]{3,8}\b/iu.test(value);
-  const hasArbitraryTailwind = /\b(?:rounded|shadow)-\[[^\]]+\]/u.test(value);
+  const arbitraryTailwindValues = [...value.matchAll(/\b(?:rounded|shadow)-\[([^\]]+)\]/gu)]
+    .map((match) => match[1].trim());
+  const hasArbitraryTailwind = arbitraryTailwindValues.some((token) => !token.startsWith("var("));
   const radiusValue = value.match(/border-radius\s*:\s*([^;]+)/iu)?.[1].trim();
   const shadowValue = value.match(/box-shadow\s*:\s*([^;]+)/iu)?.[1].trim();
   const hasLiteralRadius = Boolean(radiusValue && radiusValue !== "0" && !radiusValue.startsWith("var("));

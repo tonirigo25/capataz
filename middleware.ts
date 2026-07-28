@@ -68,6 +68,7 @@ export function middleware(request: NextRequest) {
     search,
     nodeEnv: process.env.NODE_ENV,
     developmentSite: resolveDevelopmentSite(request),
+    hasSessionCookie: request.cookies.has(SESSION_COOKIE_NAME),
   });
 
   if (routing.action === "redirect") {
