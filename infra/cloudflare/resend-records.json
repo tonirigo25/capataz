@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-07-28T18:10:24.965Z",
+  "domainId": "f1ebc8ba-2b0e-4e3a-9ca9-95b36d872a95",
+  "name": "updates.orqenatech.com",
+  "status": "pending",
+  "region": "eu-west-1",
+  "openTracking": false,
+  "clickTracking": false,
+  "capabilities": {
+    "sending": "enabled",
+    "receiving": "disabled"
+  },
+  "records": [
+    {
+      "record": "DKIM",
+      "name": "resend._domainkey.updates",
+      "type": "TXT",
+      "content": "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC1abO/bOq8Gl2HXzF365lYY3BwFhIEpUcFqya7Sr+8eHggu/RvXFCjZkAeJyt2E4BSyo3VAKyLM5trOJW82+TjfNFXEkim9hPpAt1aK6Bh78PZDLeXC+rnAu3QREnfDf2IK+KvpOuYF4vWkIJpsrTEIdCJnLav32w+oAOrSkBbAQIDAQAB",
+      "status": "pending"
+    },
+    {
+      "record": "SPF",
+      "name": "send.updates",
+      "type": "MX",
+      "content": "feedback-smtp.eu-west-1.amazonses.com",
+      "priority": 10,
+      "status": "pending"
+    },
+    {
+      "record": "SPF",
+      "name": "send.updates",
+      "type": "TXT",
+      "content": "v=spf1 include:amazonses.com ~all",
+      "status": "pending"
+    }
+  ]
+}
