@@ -194,6 +194,7 @@
     "stripe": "^22.3.2"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^15.5.22",
     "@types/node": "^22.10.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
