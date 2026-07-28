@@ -1826,7 +1826,7 @@ function SectionList({
   const hasContent = childArray.some(Boolean);
   return (
     <section>
-      <SectionHeader title={title} description={description} />
+      <SectionHeader level={2} title={title} description={description} />
       {hasContent ? (
         <div className="grid gap-3">{children}</div>
       ) : (

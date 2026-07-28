@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "orqena-release-flags-v1",
+  "defaultPolicy": "fail-closed",
+  "flags": [
+    {
+      "key": "ORQENA_PUBLIC_REGISTRATION_ENABLED",
+      "owner": "product-and-security",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Approved public-launch decision and abuse/privacy review",
+      "killSwitch": "Set false; invitation acceptance remains available",
+      "rollback": "Set false and verify /registro does not create autonomous accounts"
+    },
+    {
+      "key": "PUBLIC_INDEXING_ENABLED",
+      "owner": "marketing-and-legal",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Controlled domain, approved legal copy and search-console ownership",
+      "killSwitch": "Set false",
+      "rollback": "Set false and verify X-Robots-Tag: noindex, nofollow"
+    },
+    {
+      "key": "PUBLIC_PRICING_ENABLED",
+      "owner": "finance-and-product",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Approved commercial terms, taxes and cancellation policy",
+      "killSwitch": "Set false",
+      "rollback": "Set false and verify /planes does not publish an offer"
+    },
+    {
+      "key": "FISCAL_ENGINE_ENABLED",
+      "owner": "fiscal-and-engineering",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Provider, certificate reference, version and fiscal sign-off",
+      "killSwitch": "Set false",
+      "rollback": "Set false before provider rollback; retain immutable local evidence"
+    },
+    {
+      "key": "BILLING_ENABLED",
+      "owner": "finance-and-engineering",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Approved Stripe account, products, tax treatment and webhook secrets",
+      "killSwitch": "Set false",
+      "rollback": "Set false; preserve existing subscription records for reconciliation"
+    },
+    {
+      "key": "EMAIL_LIVE_ENABLED",
+      "owner": "operations-and-security",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Verified sender, reply-to, webhook, DKIM, SPF and DMARC",
+      "killSwitch": "Set false",
+      "rollback": "Set false; keep outbox events pending without sending"
+    },
+    {
+      "key": "AI_ENABLED",
+      "owner": "ai-governance-and-security",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Approved provider, scoped key, model snapshot, data profile and store=false",
+      "killSwitch": "Set false globally; company policy can also enable its kill switch",
+      "rollback": "Set false and verify provider invocation remains at zero"
+    },
+    {
+      "key": "ANALYTICS_ENABLED",
+      "owner": "product-and-privacy",
+      "local": false,
+      "preview": false,
+      "staging": false,
+      "production": false,
+      "activationEvidence": "Approved purpose, consent contract and retention policy",
+      "killSwitch": "Set false",
+      "rollback": "Set false; public endpoints fail closed"
+    }
+  ]
+}

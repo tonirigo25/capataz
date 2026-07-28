@@ -18,7 +18,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
     resolveAuthorization(auth, "orqena.use"), resolveAuthorization(auth, "sales.invoices.view"),
     resolveAuthorization(auth, "sales.budgets.view"), resolveAuthorization(auth, "sales.pricing.view"), resolveAuthorization(auth, "purchases.received_invoices.view"), resolveAuthorization(auth, "followups.view")
   ]);
-  if (!orqenaAccess.allowed) return <main className="screen"><p>No tienes acceso a {brand.productName} en esta empresa.</p></main>;
+  if (!orqenaAccess.allowed) return <main className="screen"><h1 className="type-page-title">Acceso a {brand.productName}</h1><p className="type-secondary mt-2">No tienes acceso a {brand.productName} en esta empresa.</p></main>;
   const economicCapabilities = ["sales.budgets.view", "sales.invoices.view", "treasury.view", "banking.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
   const economicDecisions = await Promise.all(economicCapabilities.map((capability) => resolveAuthorization(auth, capability)));
   const canSeeEconomy = economicDecisions.every((decision) => decision.allowed && decision.scope === "COMPANY");

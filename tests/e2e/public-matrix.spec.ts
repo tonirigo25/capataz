@@ -1,0 +1,48 @@
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test } from "@playwright/test";
+
+const coreRoutes = ["/", "/demo", "/contacto", "/login"];
+const detailedRoutes = ["/producto", "/soluciones", "/sectores", "/planes", "/seguridad", "/estado", "/soporte", "/privacidad", "/terminos", "/cookies", "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida", "/route-that-does-not-exist"];
+const viewportPairs = [{ width: 390, height: 844 }, { width: 1440, height: 900 }];
+const chromiumWidths = [320, 390, 768, 1024, 1440, 1920];
+
+for (const route of coreRoutes) {
+  test(`C1 multi-browser public core ${route} has no blocking accessibility or layout failure`, async ({ page, browserName }) => {
+    test.setTimeout(60_000);
+    for (const viewport of viewportPairs) {
+      await page.setViewportSize(viewport);
+      const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), `${browserName}:${route}`).toBe(200);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${browserName}:${route}:${viewport.width}`).toBeLessThanOrEqual(1);
+      const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+      expect(results.violations.filter(({ impact }) => impact === "critical" || impact === "serious"), `${browserName}:${route}:${viewport.width}`).toEqual([]);
+    }
+  });
+}
+
+for (const route of detailedRoutes) {
+  test(`Chromium detailed responsive matrix keeps ${route} noindex and media intact`, async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium");
+    for (const width of chromiumWidths) {
+      await page.setViewportSize({ width, height: width <= 768 ? 844 : 900 });
+      const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), `${route}:${width}`).toBe(route.includes("does-not-exist") ? 404 : 200);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${route}:${width}`).toBeLessThanOrEqual(1);
+      expect(await page.locator("img").evaluateAll((images) => images.filter((image) => !(image instanceof HTMLImageElement) || !image.complete || image.naturalWidth === 0).length), `${route}:${width}`).toBe(0);
+      const robotDirectives = await page.locator('meta[name="robots"]').evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute("content") ?? ""),
+      );
+      expect(robotDirectives.length, `${route}:${width}:robots`).toBeGreaterThan(0);
+      expect(robotDirectives.every((content) => /noindex/u.test(content)), `${route}:${width}:robots`).toBe(true);
+    }
+  });
+}
+
+test("reduced motion exposes the full canonical journey without scroll control", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium");
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/demo", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("[data-canonical-journey]")).toHaveAttribute("data-canonical-journey", "lead-visita-presupuesto-trabajo-gasto-factura-cobro");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollSnapType)).not.toContain("mandatory");
+});

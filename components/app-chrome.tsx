@@ -265,7 +265,7 @@ export function AppChrome({
         </div>
       </header>
 
-      <main id="main-content" className="relative">{children}</main>
+      <div id="main-content" className="relative" tabIndex={-1}>{children}</div>
 
       <MobileBottomNavigation
         items={portalManifest.mobileNavigation}

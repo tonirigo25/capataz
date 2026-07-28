@@ -5,8 +5,8 @@
 - Crear cuenta Apple Developer.
 - Configurar App Store Connect.
 - Crear nueva app.
-- Bundle ID: `com.capataz.app`.
-- Nombre visible: `Capataz`.
+- Bundle ID: `com.orqena.app`.
+- Nombre visible: `Orqena`.
 - Configurar categoría Productividad o Empresa.
 - Abrir Xcode con `npx cap open ios`.
 - Seleccionar Team Apple Developer.
@@ -16,8 +16,8 @@
 - Upload to App Store Connect.
 - Añadir capturas.
 - Añadir descripción.
-- Añadir política de privacidad: `https://capataz.app/privacidad`.
-- Añadir URL soporte: `https://capataz.app/soporte`.
+- Añadir política de privacidad del dominio final aprobado.
+- Añadir URL de soporte del dominio final aprobado.
 - Añadir datos de revisión.
 - Indicar cuenta demo o acceso sin login.
 - Activar TestFlight si procede.
@@ -27,12 +27,12 @@
 
 - Crear cuenta Play Console.
 - Crear app.
-- Package name: `com.capataz.app`.
+- Package name: `com.orqena.app`.
 - Configurar ficha Play Store.
 - Subir AAB desde `android/app/build/outputs/bundle/release/app-release.aab`.
 - Configurar Play App Signing.
-- Añadir política de privacidad: `https://capataz.app/privacidad`.
-- Añadir URL soporte: `https://capataz.app/soporte`.
+- Añadir política de privacidad del dominio final aprobado.
+- Añadir URL de soporte del dominio final aprobado.
 - Añadir capturas.
 - Completar Data Safety.
 - Completar clasificación de contenido.

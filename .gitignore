@@ -12,6 +12,7 @@ prisma/dev.db-journal
 *.log
 *.tsbuildinfo
 artifacts/
+.lighthouseci/
 test-results/
 playwright-report/
 .vitest-reports/

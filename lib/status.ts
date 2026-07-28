@@ -1,6 +1,18 @@
 import type { InvoiceStatus } from "@prisma/client";
 
 export const statusLabels: Record<string, string> = {
+  DRAFT: "Borrador",
+  PREPARED: "Preparado",
+  ISSUED: "Emitido",
+  SENT: "Enviado",
+  TRANSMITTED: "Transmitido",
+  ACCEPTED: "Aceptado",
+  REJECTED: "Rechazado",
+  OVERDUE: "Vencido",
+  PARTIAL: "Parcial",
+  PARTIALLY_PAID: "Parcialmente pagado",
+  PAID: "Pagado",
+  VOID: "Anulado",
   nuevo: "Nuevo",
   pendiente_datos: "Pendiente datos",
   visita_pendiente: "Visita pendiente",
@@ -108,8 +120,37 @@ export const statusLabels: Record<string, string> = {
   urgente: "Urgente"
 };
 
+export const statusDescriptions: Record<string, string> = {
+  DRAFT: "Editable. Aún no acredita emisión, envío ni aceptación.",
+  borrador: "Editable. Aún no acredita emisión, envío ni aceptación.",
+  PREPARED: "Preparado para revisión. Todavía no consta como emitido.",
+  pendiente_revision: "Preparado para revisión. Todavía no consta como emitido.",
+  ISSUED: "Emitido en Orqena. La entrega, transmisión y aceptación se prueban por separado.",
+  emitida: "Emitida en Orqena. La entrega, transmisión y aceptación se prueban por separado.",
+  SENT: "Envío registrado. No acredita recepción, aceptación ni pago.",
+  enviado: "Envío registrado. No acredita recepción, aceptación ni pago.",
+  enviada: "Envío registrado. No acredita recepción, aceptación ni pago.",
+  TRANSMITTED: "Transmitido al proveedor o canal. No equivale a aceptación.",
+  ACCEPTED: "Aceptación registrada para este flujo. No equivale a pago salvo evidencia de cobro.",
+  aceptado: "Aceptación registrada. No equivale a factura emitida ni cobrada.",
+  REJECTED: "Rechazo registrado; el documento no se anula automáticamente.",
+  rechazado: "Rechazo registrado; el documento no se anula automáticamente.",
+  OVERDUE: "La fecha ha vencido y queda saldo según los registros actuales.",
+  vencida: "La fecha ha vencido y queda saldo según los registros actuales.",
+  PARTIAL: "Existe cumplimiento parcial; consulta el importe o alcance pendiente.",
+  PARTIALLY_PAID: "Existe un pago parcial y permanece saldo pendiente.",
+  parcialmente_pagada: "Existe un pago parcial y permanece saldo pendiente.",
+  PAID: "El saldo registrado es cero; no afirma conciliación bancaria externa.",
+  pagada: "El saldo registrado es cero; no afirma conciliación bancaria externa.",
+  VOID: "Anulado en Orqena; conserva su trazabilidad histórica.",
+};
+
 export function statusLabel(status: string) {
   return statusLabels[status] ?? status.replaceAll("_", " ");
+}
+
+export function statusDescription(status: string) {
+  return statusDescriptions[status] ?? "Estado operativo según los registros actuales.";
 }
 
 export function statusClass(status: string) {
@@ -140,7 +181,7 @@ export function statusClass(status: string) {
     "seguimiento_cobro",
     "vencimiento_factura"
   ].includes(status)) {
-    return "bg-warning/10 text-warning";
+    return "bg-warning/10 text-content";
   }
   if (["borrador", "pendiente_revision", "emitida", "enviada", "en_curso", "planificada", "preparacion", "parcialmente_terminada", "facturada", "visita", "compra_material"].includes(status)) {
     return "bg-brand-soft text-brand-strong";

@@ -164,7 +164,7 @@ export default async function DocumentsPage() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section>
-          <SectionHeader title="Últimos presupuestos" />
+          <SectionHeader level={2} title="Últimos presupuestos" />
           <div className="grid gap-3">
             {budgets.map((budget) => (
               <article key={budget.id} className="card p-4">
@@ -188,7 +188,7 @@ export default async function DocumentsPage() {
         </section>
 
         <section>
-          <SectionHeader title="Últimas facturas" />
+          <SectionHeader level={2} title="Últimas facturas" />
           <div className="grid gap-3">
             {invoices.map((invoice) => {
               const liveStatus = invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);

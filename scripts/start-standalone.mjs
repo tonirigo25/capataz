@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs";
 
-process.env.HOSTNAME ||= process.platform === "win32" ? "127.0.0.1" : "0.0.0.0";
+if (process.env.RAILWAY_ENVIRONMENT_ID) {
+  process.env.HOSTNAME = "0.0.0.0";
+} else {
+  process.env.HOSTNAME ||= process.platform === "win32" ? "127.0.0.1" : "0.0.0.0";
+}
 process.env.PORT ||= "8080";
 
 const runtimeValidator = new URL("./readiness/validate-runtime-config.mjs", import.meta.url);

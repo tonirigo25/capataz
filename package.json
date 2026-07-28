@@ -1,6 +1,6 @@
 {
-  "name": "capataz",
-  "version": "0.1.0",
+  "name": "orqena",
+  "version": "1.0.0-rc.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,6 +15,8 @@
     "readiness:validate-action-boundaries": "node scripts/readiness/validate-action-boundaries.mjs && node scripts/readiness/validate-action-boundaries-negative.mjs",
     "readiness:validate-context-boundaries": "node scripts/readiness/validate-context-boundaries.mjs && node scripts/readiness/validate-context-boundaries-negative.mjs",
     "readiness:seed-temporary-railway": "tsx scripts/readiness/seed-temporary-railway.ts",
+    "readiness:provision-continuous-review": "tsx scripts/readiness/provision-continuous-review.ts",
+    "readiness:validate-review-auth": "node scripts/readiness/validate-review-auth-matrix.mjs",
     "readiness:validate-f2-postgres": "node scripts/readiness/run-f2-postgres-isolated.mjs",
     "readiness:validate-f2-health": "node scripts/readiness/validate-f2-health-isolated.mjs",
     "readiness:validate-f3": "tsx scripts/readiness/validate-f3-fiscal.ts",
@@ -32,13 +34,28 @@
     "readiness:validate-f8-browser": "node scripts/readiness/run-f8-browser-isolated.mjs",
     "readiness:validate-f9": "tsx scripts/readiness/validate-f9-public.ts && npm run test:public-indexing",
     "readiness:validate-f9-browser": "node scripts/readiness/run-f9-browser-isolated.mjs",
+    "readiness:lighthouse": "node scripts/readiness/run-lighthouse-ci.mjs",
+    "readiness:validate-c5": "node scripts/readiness/validate-c5-controls.mjs",
+    "readiness:validate-runtime-pool": "node scripts/readiness/validate-runtime-pool-safety.mjs",
+    "readiness:validate-c6-provider-gates": "node scripts/readiness/validate-c6-provider-gates.mjs",
+    "readiness:validate-c7-continuity": "node scripts/readiness/validate-c7-continuity-evidence.mjs",
+    "readiness:validate-c5-low-end": "node scripts/readiness/run-c5-low-end-isolated.mjs",
+    "readiness:validate-review-capacity": "node scripts/readiness/validate-review-capacity.mjs",
     "readiness:scan-secrets": "node scripts/readiness/scan-secrets.mjs",
     "readiness:validate-f4-postgres": "node scripts/readiness/run-f4-postgres-isolated.mjs",
     "readiness:validate-otel": "tsx scripts/readiness/validate-otel-exporter.mjs",
     "readiness:validate-providers": "tsx scripts/readiness/validate-provider-contracts.ts",
     "readiness:compile-requirements": "node scripts/readiness/compile-requirements.mjs",
-    "readiness:validate-all-static": "npm run readiness:validate-f1 && npm run readiness:validate-f2 && npm run readiness:validate-action-boundaries && npm run readiness:validate-context-boundaries && npm run readiness:validate-otel && npm run readiness:validate-providers && npm run readiness:validate-f3 && npm run readiness:validate-f4 && npm run readiness:validate-f5 && npm run readiness:validate-f6-static && npm run readiness:validate-f6 && npm run readiness:validate-f7 && npm run readiness:validate-f8 && npm run readiness:validate-f9 && npm run mobile:validate && npm run readiness:validate-f11",
+    "readiness:validate-all-static": "npm run readiness:validate-f1 && npm run readiness:validate-f2 && npm run readiness:validate-action-boundaries && npm run readiness:validate-context-boundaries && npm run readiness:validate-otel && npm run readiness:validate-providers && npm run readiness:validate-f3 && npm run readiness:validate-f4 && npm run readiness:validate-f5 && npm run readiness:validate-f6-static && npm run readiness:validate-f6 && npm run readiness:validate-f7 && npm run readiness:validate-f8 && npm run readiness:validate-f9 && npm run readiness:validate-c2 && npm run readiness:validate-addendum-product && npm run readiness:validate-addendum-acquisition && npm run readiness:validate-addendum-operations && npm run readiness:validate-release-compatibility && npm run readiness:validate-runtime-pool && npm run readiness:validate-c5 && npm run readiness:validate-c6-provider-gates && npm run readiness:validate-c7-continuity && npm run test:pwa-safety && npm run mobile:validate && npm run readiness:validate-f11 && npm run readiness:validate-identity",
     "readiness:validate-f11": "node scripts/readiness/validate-f11-governance.mjs",
+    "readiness:validate-identity": "node scripts/readiness/validate-identity.mjs",
+    "readiness:c0-manifest": "node scripts/readiness/generate-c0-release-manifest.mjs",
+    "readiness:validate-release-compatibility": "node scripts/readiness/validate-release-compatibility.mjs",
+    "readiness:validate-c2": "node scripts/readiness/validate-c2-funnel.mjs",
+    "readiness:validate-c2-postgres": "node scripts/readiness/run-c2-postgres-isolated.mjs",
+    "readiness:validate-addendum-product": "node scripts/readiness/validate-addendum-product.mjs",
+    "readiness:validate-addendum-acquisition": "node scripts/readiness/validate-addendum-acquisition.mjs",
+    "readiness:validate-addendum-operations": "node scripts/readiness/validate-addendum-operations.mjs",
     "readiness:validate-f11-tenant": "node scripts/readiness/run-f11-tenant-pentest.mjs",
     "readiness:report": "node scripts/readiness/generate-readiness-report.mjs",
     "readiness:licenses": "node scripts/readiness/generate-license-report.mjs",
@@ -230,6 +247,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@cyclonedx/cyclonedx-npm": "^6.0.0",
+    "@lhci/cli": "0.15.1",
     "@playwright/test": "^1.62.0",
     "@types/node": "^22.10.1",
     "@types/qrcode": "^1.5.6",
@@ -250,6 +268,8 @@
   "overrides": {
     "brace-expansion": "5.0.8",
     "postcss": "$postcss",
-    "sharp": "0.35.3"
+    "sharp": "0.35.3",
+    "tmp": "0.2.7",
+    "uuid": "11.1.1"
   }
 }

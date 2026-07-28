@@ -1,4 +1,4 @@
-package com.capataz.app;
+package com.orqena.app;
 
 import com.getcapacitor.BridgeActivity;
 

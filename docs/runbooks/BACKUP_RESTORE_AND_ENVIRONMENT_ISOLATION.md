@@ -1,6 +1,10 @@
 # Backups, PITR, restore drill y aislamiento
 
-Estado: automatización y puertas listas; activación/inspección de políticas Railway y el primer restore remoto necesitan autorización externa porque cambian infraestructura persistente o crean un servicio.
+Estado: automatización y puertas listas. El restore lógico remoto sobre un servicio
+hermano de `review` se ejecutó y verificó el 2026-07-26; su servicio y volumen
+temporales ya están eliminados. El backup/PITR nativo de Railway sigue
+`READY_FOR_EXTERNAL_INPUT` porque el entorno observado está en Hobby y la
+interfaz del proveedor exige Pro.
 
 ## Puerta fail-closed
 
@@ -20,7 +24,10 @@ Referencia oficial Railway para backups de volúmenes: https://docs.railway.com/
 ## Restore drill
 
 1. Congelar `source service ID`, timestamp objetivo, release y checksum lógico sin imprimir secretos.
-2. Crear un servicio PostgreSQL nuevo mediante la acción oficial “Restore to this moment”. Nunca restaurar sobre el origen.
+2. Crear un servicio PostgreSQL nuevo y hermano. Para PITR nativo, usar la acción
+   oficial “Restore to this moment”; para el simulacro lógico autorizado se
+   admite `pg_dump`/`pg_restore` con checksum y transacción única. Nunca restaurar
+   sobre el origen.
 3. Verificar que el origen sigue healthy y que su deployment/volume no cambió.
 4. Conectar un validador read-only al servicio restaurado; contar migraciones, tenants y registros críticos, y comparar checksum lógico.
 5. Medir `RPO = target timestamp - last recoverable transaction` y `RTO = validation complete - drill start`.
@@ -30,4 +37,9 @@ Railway documenta que PITR crea un servicio hermano nuevo y no toca el origen: h
 
 ## Puertas de cierre
 
-`STOR-008` no pasa hasta ver políticas/alertas activas. `STOR-009` no pasa hasta ejecutar el restore real y medir RPO/RTO/checksum. `STOR-007` requiere IDs/credenciales/buckets reales separados. El código y el simulacro local no sustituyen estas pruebas.
+`STOR-008` no pasa hasta ver políticas/alertas nativas activas. El restore lógico
+remoto de `STOR-009` pasa con RTO superior acotado, hash, esquema y relaciones
+tenant verificadas en
+`docs/readiness/evidence/c7/remote-restore-drill.json`; la variante PITR nativa
+sigue `READY_FOR_EXTERNAL_INPUT`. `STOR-007` requiere IDs, credenciales y buckets
+reales separados. El código y un simulacro local no sustituyen estas pruebas.

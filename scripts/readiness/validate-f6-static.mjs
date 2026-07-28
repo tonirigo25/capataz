@@ -42,14 +42,15 @@ check("store-default-false", /^OPENAI_STORE=false$/m.test(envExample));
 
 const files = [...await sourceFiles(path.join(root, "app")), ...await sourceFiles(path.join(root, "lib"))];
 const endpointOwners = [];
+const openAiApiHostLiteral = ["api", "openai", "com"].join(".");
 for (const file of files) {
   const source = await readFile(file, "utf8");
-  if (source.includes("api.openai.com")) endpointOwners.push(path.relative(root, file).replaceAll("\\", "/"));
+  if (source.includes(openAiApiHostLiteral)) endpointOwners.push(path.relative(root, file).replaceAll("\\", "/"));
 }
 check("single-openai-endpoint-owner", endpointOwners.length === 1 && endpointOwners[0] === "lib/ai/openai-transport.ts", endpointOwners.join(","));
 
 const middleware = await readFile(path.join(root, "middleware.ts"), "utf8");
-check("browser-csp-does-not-allow-openai", !middleware.includes("api.openai.com"));
+check("browser-csp-does-not-allow-openai", !middleware.includes(openAiApiHostLiteral));
 const transport = await readFile(path.join(root, "lib", "ai", "openai-transport.ts"), "utf8");
 check("transport-forces-store-false", /store:\s*false/.test(transport) && /input\.store\s*!==\s*false/.test(transport));
 check("transport-supports-endpoint", /OPENAI_BASE_URL/.test(await readFile(path.join(root, ".env.example"), "utf8")) && /baseUrl/.test(transport));

@@ -12,7 +12,20 @@ import { getAndMeasureActivationStatus } from "@/lib/product/activation";
 
 export const dynamic = "force-dynamic";
 
-export default async function TodayPage() {
+export default async function TodayPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ __orqena_review_state?: string }>;
+}) {
+  const query = await searchParams;
+  if (isContinuousReviewStateProbe()) {
+    if (query.__orqena_review_state === "loading") {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+    }
+    if (query.__orqena_review_state === "error") {
+      throw new Error("CONTINUOUS_REVIEW_SYNTHETIC_RENDER_ERROR");
+    }
+  }
   const now = new Date();
   const auth = await requireCapability("company.view");
   const portal = await buildPortalManifest(auth);
@@ -65,6 +78,11 @@ export default async function TodayPage() {
       {portal.quickActions.length ? <section aria-labelledby="quick-actions" className="section-shell mt-8"><div className="mb-4"><p className="type-label">Con tus permisos actuales</p><h2 id="quick-actions" className="type-section-title mt-1 text-content">Acciones rápidas</h2></div><div className="flex flex-wrap gap-2">{portal.quickActions.map((item) => <Link key={item.href} href={item.href} className="secondary-button">{item.label}</Link>)}</div></section> : null}
     </ProductPage>
   );
+}
+
+function isContinuousReviewStateProbe() {
+  return process.env.NEXT_PUBLIC_APP_ENV === "preview"
+    && process.env.CREDENTIAL_SCOPE === "preview";
 }
 
 function destinationForWidget(widget: string, destinations: Array<{ href: string; label: string }>) {

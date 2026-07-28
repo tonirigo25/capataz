@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "orqena-c0-sources-v1",
+  "repository": "tonirigo25/capataz",
+  "main": {
+    "ref": "main",
+    "sha": "64cf8bbbca8ed99aabce4fbc50ebfb163fc05367"
+  },
+  "source": {
+    "ref": "program/orqena-production-readiness",
+    "sha": "a68a025ddc9589e6e915780156c6191df590fe60",
+    "candidateTag": "orqena-rc-2026.07.1"
+  },
+  "supersededPullRequest": {
+    "number": 24,
+    "state": "CLOSED",
+    "merged": false,
+    "headRef": "feat/capataz-marketing-v2",
+    "headSha": "ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4",
+    "comment": "superseded by the explicit F9 merge in program/orqena-production-readiness",
+    "verifiedAt": "2026-07-26T17:40:16Z"
+  },
+  "productionObservation": {
+    "projectId": "ca7ec244-e961-42dc-8573-23835e6db5f5",
+    "environmentId": "42c14ac1-e933-485b-9b44-01272af389e0",
+    "webServiceId": "ee18280b-6f71-4b4c-873e-124ba82b7206",
+    "deploymentId": "2e266e66-be53-4008-a1b9-cbfaca21c750",
+    "deploymentStatus": "SUCCESS",
+    "branch": "main",
+    "sha": "64cf8bbbca8ed99aabce4fbc50ebfb163fc05367",
+    "url": "https://capataz-production.up.railway.app",
+    "observedAt": "2026-07-26T17:39:45Z",
+    "mutationPerformed": false
+  },
+  "repositoryPolicy": {
+    "observedVisibility": "PUBLIC",
+    "license": "PROPRIETARY",
+    "decisionStatus": "READY_FOR_EXTERNAL_INPUT",
+    "recommendation": "Move to private before buyer diligence or sharing non-public evidence unless counsel explicitly approves continued public source exposure."
+  }
+}

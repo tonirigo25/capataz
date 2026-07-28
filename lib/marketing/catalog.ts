@@ -91,7 +91,7 @@ function moduleWorkflow(slug: string) {
 
 const sectorCopy: Record<string, { slug: string; lead: string; story: string; faq: string[] }> = {
   general_services: { slug: "servicios-generales", lead: "Clientes, servicios y equipo en una operación flexible.", story: "Desde la solicitud hasta la entrega, cada persona conserva el mismo contexto.", faq: ["¿Puedo adaptar los nombres?", "Sí, la terminología parte del perfil sectorial."] },
-  construction: { slug: "construccion", lead: "Obras, responsables y avances con trazabilidad.", story: "Planificación, ejecución y entrega se expresan con vocabulario propio del sector.", faq: ["¿Orqena es solo para construcción?", "No. Construcción es uno de los perfiles disponibles."] },
+  construction: { slug: "construccion", lead: "Obras y reformas, responsables y avances con trazabilidad.", story: "Planificación, ejecución y entrega se expresan con vocabulario de construcción y reformas.", faq: ["¿Cuál es el foco público de Orqena?", "Empresas de construcción, reformas e instalaciones de 1 a 20 personas."] },
   installations: { slug: "instalaciones-mantenimiento", lead: "Avisos, instalaciones y mantenimiento técnico coordinados.", story: "La agenda y el trabajo conectan oficina, responsable y técnico.", faq: ["¿Sirve para mantenimiento recurrente?", "El perfil admite servicios e intervenciones; el alcance concreto se revisa en la demo."] },
   professional_services: { slug: "servicios-profesionales", lead: "Clientes, proyectos y entregables en una relación continua.", story: "El proyecto mantiene actividad, agenda y documentos cerca de la decisión.", faq: ["¿Puedo trabajar por proyecto?", "Sí, el vocabulario visible usa proyectos y responsables."] },
   consulting: { slug: "consultoria", lead: "Diagnósticos, planes de acción y seguimiento compartido.", story: "Cada recomendación conserva sus fuentes, responsables y próximos pasos.", faq: ["¿Orqena sustituye el criterio profesional?", "No. Ayuda a preparar contexto y propuestas bajo revisión humana."] },
@@ -105,11 +105,15 @@ const sectorCopy: Record<string, { slug: string; lead: string; story: string; fa
   other: { slug: "otros", lead: "Una base neutral para actividades con un flujo propio.", story: "La configuración flexible conserva clientes, trabajos, agenda y documentos.", faq: ["¿Y si mi sector no aparece?", "El perfil Otros mantiene lenguaje neutral y puede revisarse en una demo."] },
 };
 
-export const marketingSectorCatalog = Object.entries(sectorProfiles).map(([key, profile]) => ({
+export const internalMarketingSectorCatalog = Object.entries(sectorProfiles).map(([key, profile]) => ({
   ...profile,
   ...sectorCopy[key],
   key,
 }));
+
+export const marketingSectorCatalog = internalMarketingSectorCatalog.filter(({ key }) =>
+  ["construction", "installations"].includes(key),
+);
 
 export function getMarketingModule(slug: string) {
   return marketingProductCatalog.find((item) => item.slug === slug);

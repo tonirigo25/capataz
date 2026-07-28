@@ -47,7 +47,7 @@ try {
   assert.ok(Array.isArray(publicRules.allow) && publicRules.allow.includes("/producto"));
   assert.match(String(publicRobots.sitemap), /\/sitemap\.xml$/);
 
-  for (const path of ["/", "/producto", "/producto/agenda", "/soluciones", "/sectores", "/sectores/construccion", "/planes"]) {
+  for (const path of ["/", "/producto", "/producto/agenda", "/soluciones", "/soluciones/presupuestos-de-obra", "/sectores", "/sectores/construccion", "/planes", "/estado", "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida"]) {
     assert.equal(isPublicIndexablePath(path), true, `${path} must be publicly indexable after opt-in`);
     assert.equal(shouldSendNoIndexHeader(path), false, `${path} must not receive noindex after opt-in`);
   }

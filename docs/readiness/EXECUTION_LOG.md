@@ -1,5 +1,49 @@
 # Orqena production readiness execution log
 
+## Continuous review and C0-C5 integrated block — 2026-07-26
+
+- Created persistent Railway project `orqena-review-continuous`
+  (`c54a5065-df2c-46b9-a82b-cfac3be07315`) with dedicated review environment,
+  web service, PostgreSQL service/instance, volume and stable review domain.
+- Proved review/staging/production database references have distinct
+  fingerprints without printing their values. All public indexing, email,
+  billing, fiscal, AI and other live-provider flags remain off in review.
+- Baseline deployment `ad630afc-5c66-4616-95c3-eb591b06a287` at immutable SHA
+  `a68a025ddc9589e6e915780156c6191df590fe60` applied all 43 migrations but
+  failed the web health check. Runtime evidence isolated the cause to Railway's
+  injected `HOSTNAME`; the standalone launcher now binds `0.0.0.0` on Railway.
+- The failed baseline is not called green. Synthetic personas and one-time
+  owner access remain unprovisioned until the corrected deployment passes.
+- Integrated product/addendum controls A1-A4, B3, D2, E and G with executable
+  evidence. B1, B2, physical-device/manual accessibility, representative-data
+  migration and operational external approvals remain
+  `READY_FOR_EXTERNAL_INPUT`.
+- Public browser evidence passed 26 effective matrix cases across Chromium,
+  Firefox and WebKit plus six responsive widths; 28 browser-inapplicable cases
+  were explicitly skipped. F9 separately passed 18/18.
+- Synthetic low-end evidence passed four routes with 4x CPU throttling and
+  bounded 4G: LCP `312-1084 ms`, CLS `0`. Lighthouse accepted all three routes
+  with accessibility and best-practices `1.00`; home LCP `2623 ms` keeps the
+  stricter C3 `2500 ms` target `IN_PROGRESS`.
+- Staging and production were not modified.
+
+## C0 external product/marketing closure — 2026-07-26
+
+- Froze `main` at `64cf8bbbca8ed99aabce4fbc50ebfb163fc05367`
+  and the immutable program source at
+  `a68a025ddc9589e6e915780156c6191df590fe60`.
+- Verified the production Railway web deployment still serves the `main` SHA;
+  no production or persistent-staging mutation was performed.
+- Closed superseded PR #24 without merge and preserved its source branch.
+- Created and published annotated candidate tag `orqena-rc-2026.07.1` on the
+  immutable program source.
+- Aligned package, native identifiers, examples and store drafts to Orqena,
+  preserving `CAPATAZ_*` and `/capataz` only as compatibility aliases.
+- Replaced unapproved public-domain examples with `.invalid` placeholders and
+  removed the invented store-review credential.
+- Recorded repository visibility as an external legal/commercial decision:
+  current state public + proprietary, recommendation private before diligence.
+
 ## Program baseline
 
 - Program branch: `program/orqena-production-readiness`
@@ -243,3 +287,125 @@ Executed on `codex/readiness-completion-audit` from integrated program SHA `94c3
 - Production, persistent staging, Railway and provider projects were not modified. No deployment, real OpenAI call, live provider call, customer fixture, credential creation or secret exposure occurred.
 
 Evidence: `docs/readiness/evidence/f11/completion-audit.json` and the updated F11 audit manifest.
+
+## External closure C0-C5 and continuous review - IN PROGRESS
+
+Work continued on `codex/orqena-external-closure` without reopening F1-F11.
+The immutable source frontier was
+`a68a025ddc9589e6e915780156c6191df590fe60`; production and staging remained
+unchanged.
+
+- Created the isolated persistent Railway project
+  `c54a5065-df2c-46b9-a82b-cfac3be07315`, review environment
+  `e41b5add-511c-4697-b2b5-48164506f49a`, dedicated PostgreSQL service/volume,
+  dedicated web service/volume and stable domain
+  `https://orqena-review-web-review.up.railway.app`.
+- Verified by fingerprints, without printing connection strings, that review,
+  staging and production use distinct database URLs.
+- Baseline deployment `ad630afc-5c66-4616-95c3-eb591b06a287` on the immutable
+  source correctly failed its health check after all migrations because the
+  standalone launcher inherited Railway's container hostname. The repair binds
+  `0.0.0.0` only on Railway and its focal migration-owner regression passed.
+- Candidate deployment `61cb2e88-a34e-4e7d-9a3d-b8f881e9e91e` correctly
+  failed its npm 10 clean install. Regenerating the lockfile with npm 10.9.8
+  produced a reproducible clean install and zero dependency vulnerabilities.
+- Deployment `86b72560-b4fb-40c3-a0b7-638ccf320260` of
+  `766bbfeb17d399883113e83a959ce73326689d31` is `SUCCESS`. Its sole pre-deploy
+  migration owner applied all 43 tracked migrations with none pending;
+  live/ready/status health is HTTP 200.
+- Remote public smoke returned HTTP 200 for twelve routes/endpoints. The
+  Playwright public matrix passed 32 cases and explicitly skipped 28
+  inapplicable cases across Chromium, Firefox and WebKit, widths 320-1920,
+  reduced motion, axe, images, overflow and noindex.
+- Two identical synthetic demo submissions persisted one lead, one audit event
+  and one email outbox row; live email remained disabled. A cross-site request
+  returned 403 and persisted zero rows.
+- Provisioned two synthetic companies and eleven role-specific profiles. The
+  owner is PLATFORM_OWNER; passwords and cookies are never printed or
+  persisted. Each intentional access rotation creates a separately delivered
+  one-hour reset URL, while audit retries preserve the existing unused URL.
+- C0 release identity/provenance, the consented demo funnel, public story,
+  solution/trust/resource surfaces, PWA safety, exact Lighthouse assertions,
+  low-end checks and multi-browser public coverage are integrated. The home
+  Lighthouse LCP remains 2623 ms against the 2500 ms C3 target, so C3 is not
+  PASS.
+- Public indexing, live billing, live email, live fiscal transmission and all
+  other live providers remain disabled. Representative migration/restore,
+  staging, production go/no-go, real devices, assisted screen-reader review and
+  legal/commercial signatures remain open or `READY_FOR_EXTERNAL_INPUT`.
+
+Evidence: `docs/readiness/LATEST_REVIEW.md`,
+`docs/readiness/CONTINUOUS_REVIEW_TOPOLOGY.md`, the C0-C5 validators, remote
+Railway deployment records and ignored local browser artifacts under
+`artifacts/review-auth`.
+
+### First authenticated remote batch - FAILED with actionable evidence
+
+The first populated-role batch ran against review SHA
+`766bbfeb17d399883113e83a959ce73326689d31`; it did not mutate business
+workflows and did not call an external provider.
+
+- Covered eleven synthetic profiles at 320, 390, 768, 1024, 1440 and 1920 px,
+  22 allow/deny cases, 46 owner surface families and 90 axe cases.
+- Produced 112 ignored screenshots, ten distinct portal signatures, 63
+  blocking findings and 12 product observations.
+- No HTTP 5xx, overflow, broken image, external network request or
+  owner/worker portal-signature collision was found.
+- Demonstrated a shared nested-main regression: AppChrome rendered a `main`
+  around routes that already rendered `main`, `ListWorkspace` or
+  `RecordWorkspace`. The candidate now gives the screen component sole landmark
+  ownership and retains the skip target on a focusable neutral container.
+- Demonstrated eight pages whose reusable top `SectionHeader` was an `h2`.
+  The component now defaults to a page-level `h1`; the three known nested
+  section uses explicitly remain `h2`.
+- Added explicit labels to both private asset uploads and the privacy-request
+  type/reference controls.
+- The external collaborator's `/capataz` denial is intentionally rendered
+  in-line with no data. The auditor now requires that protected state and a
+  real heading instead of incorrectly requiring a redirect.
+- Nine serious/critical axe cases, twelve multiple-primary-action observations
+and one non-reproduced React hydration diagnostic remain open for the next
+selector-level remote batch. V5 is `IN_PROGRESS`, not PASS.
+
+## External closure continuation - pool, continuity and authenticated audit
+
+Continued on `codex/orqena-external-closure` without restarting the program or
+reopening F1-F11 except for demonstrated regressions. Staging and production
+remained unchanged.
+
+- Deployment `19ec8c69-9401-4c78-acae-9ae09842514c` served application SHA
+  `d22b42454d10baff0873e5a1afccf85db9bf49a5`, applied 43 migrations once and
+  passed live/ready/status/noindex checks.
+- A pre-audit Prisma error led to a direct database measurement of 107
+  connections, including 98 idle, against 100 maximum. The production-only
+  singleton omission in `lib/prisma.ts` was repaired and guarded; the review
+  database URL now uses `connection_limit=10` and `pool_timeout=10` without
+  changing staging or production.
+- Public synthetic bursts passed 30 requests per path at concurrency 10 with
+  zero failures/429, p95 302–524 ms and recovery 203–217 ms. Authenticated
+  bursts passed `/hoy`, `/dashboard` and `/clientes` with p95 724/534/502 ms.
+  After the full audit, the database reported 19 total, one active, ten idle
+  and zero idle-in-transaction connections.
+- The authenticated matrix passed 11 profiles, 66 profile/viewport cases, 21
+  authorization cases, 46 OWNER families, 89 axe cases and six of six state
+  cases, with zero blocking findings and zero HTTP 5xx during the successful
+  interval. Thirteen multiple-primary-action observations remain documented.
+- The MFA rerun demonstrated that deterministic F5 clock injection used
+  milliseconds where `otplib` v13 requires epoch seconds. The runtime/test
+  conversion and focal validator were corrected; the isolated F5 suite passed
+  12/12 after 43/43 migrations, with zero external calls or production writes.
+- A remote logical backup/restore into a sibling review PostgreSQL service
+  passed checksum, schema, migration, row and tenant-integrity checks. The
+  temporary service, volume, dump and client binaries were removed. Native
+  Railway backup/PITR and representative production data remain external.
+- GitHub checks for the audited application SHA passed application, browser,
+  critical-database, CodeQL, supply-chain, Prisma Compute and Railway review.
+- C3 remains `IN_PROGRESS` solely because the strict home Lighthouse LCP is
+  2623 ms versus 2500 ms. Manual devices/AT/zoom, legal/brand, representative
+  migration data, native backup/PITR, staging and human go/no-go remain
+  `READY_FOR_EXTERNAL_INPUT`. The production decision remains `NO-GO`.
+
+Evidence: `docs/readiness/evidence/c3/review-runtime-pool.json`,
+`docs/readiness/evidence/c5/remote-authenticated-summary.json`,
+`docs/readiness/evidence/c7/remote-restore-drill.json`,
+`docs/readiness/C10_GO_NO_GO.md` and `docs/readiness/LATEST_REVIEW.md`.

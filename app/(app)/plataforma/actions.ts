@@ -3,6 +3,7 @@
 import { executeNextAction } from "@/lib/platform/next-action-boundary";
 import { createSupportGrant as createSupportGrantUseCase, closeSupportGrant as closeSupportGrantUseCase, toggleCompanySuspension as toggleCompanySuspensionUseCase } from "@/lib/application/platform/platform-admin-use-cases";
 import { savePilotCohortUseCase, saveProductExperimentUseCase, saveServiceCostUseCase, updateSupportTicketUseCase } from "@/lib/application/platform/platform-metrics-use-cases";
+import { updateDemoRequestUseCase } from "@/lib/application/platform/demo-request-use-cases";
 
 export async function createSupportGrant(formData: FormData) {
   return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#createSupportGrant" }, () => createSupportGrantUseCase(formData));
@@ -30,4 +31,8 @@ export async function saveProductExperiment(formData: FormData) {
 
 export async function updateSupportTicket(formData: FormData) {
   return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#updateSupportTicket" }, () => updateSupportTicketUseCase(formData));
+}
+
+export async function updateDemoRequest(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#updateDemoRequest" }, () => updateDemoRequestUseCase(formData));
 }

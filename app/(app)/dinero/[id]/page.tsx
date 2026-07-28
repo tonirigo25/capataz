@@ -166,7 +166,7 @@ function Mini({
 }) {
   return (
     <div>
-      <p className="flex items-center gap-1 text-xs font-semibold uppercase text-slate-500">
+      <p className="flex items-center gap-1 text-xs font-semibold uppercase text-content-secondary">
         <Icon size={14} className="text-obra-graphite" />
         {label}
       </p>

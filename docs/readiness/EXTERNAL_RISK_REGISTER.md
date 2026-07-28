@@ -90,13 +90,38 @@ No organization, project, selector or other sensitive identifier is recorded in 
 - Missing external evidence: repository-admin configuration of required reviewers on the staging and production GitHub environments.
 - Containment: the workflow cannot deploy and requires an explicit `confirm_no_deploy` input.
 
+## REVIEW-PERFORMANCE-001
+
+- Phase/control: C3 / public experience budget
+- Status: `IN_PROGRESS`
+- Observation: la ráfaga pública y la recuperación del `review` pasan sin errores, 429 ni HTTP 5xx, pero el Lighthouse local reproducible de `/` registró LCP `2623 ms` frente al máximo `2500 ms`.
+- Containment: no se declara PASS de C3, disponibilidad ni capacidad de producción; el entorno sigue con noindex y providers live apagados.
+- Required resolution: reducir y volver a medir el LCP con el mismo presupuesto versionado, sin rebajar el umbral.
+
+## AUTHENTICATED-MANUAL-001
+
+- Phase/control: C5 / V5
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: la automatización cubre perfiles sintéticos, permisos, viewports, estados, teclado y axe; no sustituye lectores de pantalla, zoom real ni dispositivos físicos.
+- Missing external evidence: NVDA y VoiceOver, Safari/iOS y Chrome/Android físicos, zoom 200%/400% real y aprobación humana de baselines.
+- Containment: los resultados automatizados se publican como subcontroles separados y ninguna prueba manual se representa como PASS.
+
+## REPRESENTATIVE-MIGRATION-001
+
+- Phase/control: C7 / C10
+- Status: `READY_FOR_EXTERNAL_INPUT`
+- Observation: el restore lógico de datos sintéticos aislados pasó, pero no existe un snapshot representativo autorizado para el ensayo de migración previo a producción.
+- Missing external evidence: copia protegida y preferiblemente anonimizada, autorización de uso, criterios de reconciliación y propietario del go/no-go.
+- Containment: el restore sintético no desbloquea staging ni producción y no se usa como sustituto del backup/PITR nativo.
+
 ## DR-RESTORE-001
 
 - Phase/control: F11 / DATA-003
 - Status: `READY_FOR_EXTERNAL_INPUT`
-- Observation: local fresh-schema, export/restore reference and checksum controls pass; remote policy activation was not attempted.
-- Missing external evidence: provider backup/PITR policy plus an authorized sibling-resource restore with measured RPO/RTO.
-- Containment: the procedure forbids restoring over the source; any real drill requires separate infrastructure authorization.
+- Observation: el 2026-07-26 pasó un backup/restore lógico remoto, transaccional y con checksum, en un servicio PostgreSQL hermano del `review` persistente. Se verificaron 43 migraciones, huella de 780 objetos de esquema, conteos de 155 tablas y cero relaciones tenant huérfanas; el origen no se sustituyó ni repuntó.
+- Cleanup evidence: el servicio y volumen temporales ya no aparecen en el entorno; sólo permanecen el web y PostgreSQL dedicados de review. El dump y los clientes PostgreSQL temporales se eliminaron después de la verificación.
+- Missing external evidence: política nativa de backup/PITR y restore nativo del proveedor. Railway mostró que esta capacidad requiere Pro mientras el entorno observado está en Hobby.
+- Containment: el resultado lógico no se presenta como prueba de PITR ni como ensayo de migración con datos representativos de producción; producción y staging no se tocaron.
 
 ## ASSET-TITLE-001
 

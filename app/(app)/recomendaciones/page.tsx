@@ -105,7 +105,7 @@ export default async function RecommendationsPage({
         eyebrow="Director de operaciones"
         title="Centro de recomendaciones"
         description="Acciones recomendadas a partir de la actividad del negocio. Cualquier cambio requiere confirmación explícita."
-        badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{result.summary.active} activas</span>}
+        badge={<span className="rounded-full bg-content px-3 py-1 text-xs font-black text-surface">{result.summary.active} activas</span>}
         secondaryActions={
           <>
             <Link href="/recomendaciones/control" className="secondary-button"><Activity size={18} /> Control proactivo</Link>
@@ -171,7 +171,7 @@ export default async function RecommendationsPage({
             <h2 className="text-xl font-black text-obra-ink">Recomendaciones agrupadas por tipo</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">Cada grupo enseña las 3 principales para evitar ruido. Las acciones de negocio no se ejecutan con el primer clic.</p>
           </div>
-          <p className="text-sm font-bold text-slate-500">Generado {formatDate(result.generatedAt)}</p>
+          <p className="text-sm font-bold text-content-secondary">Generado {formatDate(result.generatedAt)}</p>
         </div>
 
         {result.groups.length ? (

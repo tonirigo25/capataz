@@ -6,6 +6,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { demoScenarios, type DemoId } from "./demo-data";
 import styles from "../page.module.css";
 import { brand } from "@/lib/brand";
+import { trackPublicFunnel } from "@/lib/product/public-analytics";
 
 type LocalAction = "idle" | "reviewing" | "editing" | "discarded";
 
@@ -71,13 +72,28 @@ export function HeroDemo() {
           </p>
 
           <div className={styles.heroActions} aria-label="Acciones principales">
-            <Link className={styles.primaryAction} href="/demo">
+            <a
+              className={styles.primaryAction}
+              href="#public-demo"
+              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "quick_demo" })}
+            >
               <Mic aria-hidden="true" />
-              Probar con un audio
-            </Link>
-            <a className={styles.secondaryAction} href="#solicitar-acceso">
-              Solicitar acceso
+              Ver un ejemplo con audio
             </a>
+            <Link
+              className={styles.secondaryAction}
+              href="/contacto"
+              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "contact" })}
+            >
+              Solicitar demo
+            </Link>
+            <Link
+              className={styles.secondaryAction}
+              href="/demo#quick-demo"
+              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "deep_demo" })}
+            >
+              Demo rápida de 90 s
+            </Link>
           </div>
 
           <p className={styles.demoNote}>

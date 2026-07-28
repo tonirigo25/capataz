@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "orqena-mobile-capabilities-v1",
+  "publicPromise": "A responsive web application and an installable PWA are available in the release candidate. Native store distribution is not published.",
+  "capabilities": [
+    {
+      "id": "responsive-web",
+      "label": "Web adaptable",
+      "status": "AVAILABLE_IN_RC",
+      "evidence": "C5 browser matrix on the exact candidate SHA"
+    },
+    {
+      "id": "pwa-install",
+      "label": "PWA instalable",
+      "status": "AVAILABLE_IN_RC",
+      "evidence": "Manifest, service-worker safety and update-path checks"
+    },
+    {
+      "id": "native-wrapper",
+      "label": "Contenedor nativo",
+      "status": "PREPARED_NOT_SUBMITTED",
+      "evidence": "Capacitor configuration and F10 static validation"
+    },
+    {
+      "id": "app-links",
+      "label": "Enlaces universales",
+      "status": "READY_FOR_EXTERNAL_INPUT",
+      "evidence": "Controlled domain, Android certificate and Apple team ID"
+    },
+    {
+      "id": "signed-store-builds",
+      "label": "Builds firmadas",
+      "status": "READY_FOR_EXTERNAL_INPUT",
+      "evidence": "Signing identities, devices and store consoles"
+    },
+    {
+      "id": "offline-mutations",
+      "label": "Cambios sin conexión",
+      "status": "NOT_SUPPORTED",
+      "evidence": "Architecture intentionally has no offline mutation queue"
+    },
+    {
+      "id": "push-notifications",
+      "label": "Notificaciones push nativas",
+      "status": "NOT_SUPPORTED",
+      "evidence": "No permission or provider is configured"
+    }
+  ]
+}

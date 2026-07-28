@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "orqena-external-closure-evidence-v1",
+  "phase": "C0",
+  "status": "PASS",
+  "sourceSha": "a68a025ddc9589e6e915780156c6191df590fe60",
+  "candidateTag": "orqena-rc-2026.07.1",
+  "productionShaObserved": "64cf8bbbca8ed99aabce4fbc50ebfb163fc05367",
+  "productionMutationCount": 0,
+  "stagingMutationCount": 0,
+  "pullRequest24": {
+    "state": "CLOSED",
+    "merged": false,
+    "branchPreserved": true
+  },
+  "identity": {
+    "canonicalProduct": "Orqena",
+    "packageVersion": "1.0.0-rc.1",
+    "legacyTechnicalAliasesPreserved": true,
+    "finalDomainClaimed": false
+  },
+  "repositoryVisibilityDecision": "READY_FOR_EXTERNAL_INPUT",
+  "evidence": [
+    "docs/readiness/c0-release-sources.json",
+    "docs/readiness/evidence/c0/release-manifest.json",
+    "CHANGELOG.md",
+    "scripts/readiness/validate-identity.mjs"
+  ]
+}

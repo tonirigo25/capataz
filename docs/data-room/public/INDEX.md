@@ -10,6 +10,8 @@
 | Legal | versioned review-required templates; signed approvals remain private |
 | Commercial | pricing/billing gates and pilot contracts; real contracts remain private |
 | Transition | support matrix, transition package, release-manifest generator |
+| Release decision | `docs/readiness/C10_GO_NO_GO.md`; current verdict is NO-GO |
+| External inputs | `docs/readiness/EXTERNAL_INPUT_HANDOFF.md`; no listed item is PASS |
 
 The reproducible report and release manifest include source SHA and content
 checksums. Dates are evidence timestamps, never substituted for commit identity.

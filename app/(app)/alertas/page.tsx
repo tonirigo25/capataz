@@ -92,7 +92,7 @@ export default async function AlertsPage({
         eyebrow="Director de operaciones"
         title="Centro de alertas"
         description="Riesgos, prioridades y datos que requieren atención. Orqena prepara acciones para que puedas revisarlas antes de confirmar."
-        badge={<span className="rounded-full bg-obra-yellow px-3 py-1 text-xs font-black text-obra-ink">{result.summary.active} activas</span>}
+        badge={<span className="rounded-full bg-content px-3 py-1 text-xs font-black text-surface">{result.summary.active} activas</span>}
         secondaryActions={<Link href="/recomendaciones" className="secondary-button"><Lightbulb size={18} /> Ver recomendaciones</Link>}
       >
         <CompactFilterBar><form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/alertas">
@@ -153,7 +153,7 @@ export default async function AlertsPage({
             <h2 className="text-xl font-black text-obra-ink">Señales agrupadas por tipo y estado</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">Cada grupo muestra como máximo las 3 señales principales para evitar ruido.</p>
           </div>
-          <p className="text-sm font-bold text-slate-500">Generado {formatDate(result.generatedAt)}</p>
+          <p className="text-sm font-bold text-content-secondary">Generado {formatDate(result.generatedAt)}</p>
         </div>
 
         {result.groups.length ? (
