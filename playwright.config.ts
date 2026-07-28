@@ -23,7 +23,7 @@ export default defineConfig({
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     command: "npm run start",
-    url: baseURL,
+    url: `${baseURL}/api/health`,
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
