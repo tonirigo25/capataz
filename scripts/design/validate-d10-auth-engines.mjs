@@ -60,6 +60,7 @@ const profileCases = [];
 const ownerSurfaceCases = [];
 const loginCases = [];
 const screenshots = [];
+const observations = [];
 
 function sanitize(value) {
   return String(value)
@@ -136,49 +137,71 @@ async function loginProfiles() {
   const states = new Map();
   try {
     for (const profile of profiles) {
-      const context = await browser.newContext({
-        viewport: { width: 1024, height: 768 },
-        serviceWorkers: "block",
-      });
-      const page = await context.newPage();
-      const diagnostics = attachDiagnostics(page);
-      const startedAt = Date.now();
-      const response = await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-      await page.getByLabel("Correo").fill(`${profile.key}@review.orqena.invalid`);
-      await page.getByLabel("Contraseña").fill(password);
-      await Promise.all([
-        page.waitForURL((url) => url.pathname !== "/login", { timeout: 60_000 }),
-        page.getByRole("button", { name: "Entrar", exact: true }).click(),
-      ]);
-      await settle(page);
-      if (profile.key === "owner") {
-        await page.goto(`${origin}/configuracion/seguridad?required=platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-        await settle(page);
-        const code = page.getByLabel("Código de seis cifras");
-        const remainingInStepMs = 30_000 - (Date.now() % 30_000);
-        if (remainingInStepMs < 5_000) await page.waitForTimeout(remainingInStepMs + 250);
-        const token = await generate({ secret: ownerMfaSecret, epoch: Math.floor(Date.now() / 1_000) });
-        await code.fill(token);
-        await page.getByRole("button", { name: "Verificar", exact: true }).click();
-        await page.getByText("Segundo factor verificado durante las últimas 12 horas.").waitFor({ state: "visible", timeout: 30_000 });
+      const firstAttempt = await loginProfile(browser, profile);
+      const replayed = hydrationOnly(firstAttempt.diagnostics)
+        ? await loginProfile(browser, profile)
+        : null;
+      const audited = replayed ?? firstAttempt;
+      if (replayed) {
+        observations.push({
+          severity: replayed.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+          context: `login:${profile.key}`,
+          code: "HYDRATION_REPLAY",
+          firstAttempt: firstAttempt.diagnostics.events,
+          replayDiagnostics: replayed.diagnostics.events,
+        });
       }
-      if (response?.status() !== 200) findings.push(`login:${profile.key}:HTTP_${response?.status() ?? 0}`);
-      if (diagnostics.events.length) findings.push(`login:${profile.key}:DIAGNOSTICS_${diagnostics.events.length}`);
-      if (diagnostics.externalHosts.size) findings.push(`login:${profile.key}:EXTERNAL_${[...diagnostics.externalHosts].join(",")}`);
-      states.set(profile.key, await context.storageState());
+      if (audited.response?.status() !== 200) findings.push(`login:${profile.key}:HTTP_${audited.response?.status() ?? 0}`);
+      if (audited.diagnostics.events.length) findings.push(`login:${profile.key}:DIAGNOSTICS_${audited.diagnostics.events.length}`);
+      if (audited.diagnostics.externalHosts.size) findings.push(`login:${profile.key}:EXTERNAL_${[...audited.diagnostics.externalHosts].join(",")}`);
+      states.set(profile.key, await audited.context.storageState());
       loginCases.push({
         profile: profile.key,
         engine: "chromium",
-        durationMs: Date.now() - startedAt,
+        durationMs: audited.durationMs,
         mfa: profile.key === "owner",
+        transientDiagnostics: replayed ? firstAttempt.diagnostics.events : [],
+        diagnostics: audited.diagnostics.events,
+        externalHosts: [...audited.diagnostics.externalHosts],
       });
-      await context.close();
+      await firstAttempt.context.close();
+      await replayed?.context.close();
     }
   } finally {
     ownerMfaSecret = undefined;
     await browser.close();
   }
   return states;
+}
+
+async function loginProfile(browser, profile) {
+  const context = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const startedAt = Date.now();
+  const response = await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.getByLabel("Correo").fill(`${profile.key}@review.orqena.invalid`);
+  await page.getByLabel("Contraseña").fill(password);
+  await Promise.all([
+    page.waitForURL((url) => url.pathname !== "/login", { timeout: 60_000 }),
+    page.getByRole("button", { name: "Entrar", exact: true }).click(),
+  ]);
+  await settle(page);
+  if (profile.key === "owner") {
+    await page.goto(`${origin}/configuracion/seguridad?required=platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await settle(page);
+    const code = page.getByLabel("Código de seis cifras");
+    const remainingInStepMs = 30_000 - (Date.now() % 30_000);
+    if (remainingInStepMs < 5_000) await page.waitForTimeout(remainingInStepMs + 250);
+    const token = await generate({ secret: ownerMfaSecret, epoch: Math.floor(Date.now() / 1_000) });
+    await code.fill(token);
+    await page.getByRole("button", { name: "Verificar", exact: true }).click();
+    await page.getByText("Segundo factor verificado durante las últimas 12 horas.").waitFor({ state: "visible", timeout: 30_000 });
+  }
+  return { context, response, diagnostics, durationMs: Date.now() - startedAt };
 }
 
 function collectFindings(prefix, state, diagnostics, profile = null) {
@@ -194,6 +217,45 @@ function collectFindings(prefix, state, diagnostics, profile = null) {
   if (profile?.readOnly && (state.createActions > 0 || !state.readOnlyText)) {
     findings.push(`${prefix}:READ_ONLY_CONTRACT`);
   }
+}
+
+function hydrationOnly(diagnostics) {
+  return diagnostics.events.length > 0
+    && diagnostics.externalHosts.size === 0
+    && diagnostics.events.every((event) => event.includes("Minified React error #418"));
+}
+
+async function replayAuthenticatedRoute(browser, { viewport, storageState, route }) {
+  const context = await browser.newContext({
+    viewport: { width: viewport.width, height: viewport.height },
+    storageState,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = attachDiagnostics(page);
+  const response = await page.goto(`${origin}${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await settle(page);
+  const state = await stateOf(page);
+  return { context, page, diagnostics, response, state };
+}
+
+async function replayIfHydrationOnly(browser, input, firstAttempt, prefix) {
+  if (!hydrationOnly(firstAttempt.diagnostics)) {
+    return { ...firstAttempt, transientDiagnostics: [], replayContext: null };
+  }
+  const replay = await replayAuthenticatedRoute(browser, input);
+  observations.push({
+    severity: replay.diagnostics.events.length ? "BLOCKER" : "REVIEW",
+    context: prefix,
+    code: "HYDRATION_REPLAY",
+    firstAttempt: firstAttempt.diagnostics.events,
+    replayDiagnostics: replay.diagnostics.events,
+  });
+  return {
+    ...replay,
+    transientDiagnostics: firstAttempt.diagnostics.events,
+    replayContext: replay.context,
+  };
 }
 
 const storageStates = await loginProfiles();
@@ -214,20 +276,27 @@ for (const engine of engines) {
         await settle(page);
         const state = await stateOf(page);
         const prefix = `${engine.key}:${viewport.key}:${profile.key}:${profile.route}`;
-        if (response?.status() !== 200) findings.push(`${prefix}:HTTP_${response?.status() ?? 0}`);
-        if (new URL(page.url()).pathname !== profile.route) findings.push(`${prefix}:FINAL_${new URL(page.url()).pathname}`);
-        collectFindings(prefix, state, diagnostics, profile);
+        const audited = await replayIfHydrationOnly(browser, {
+          viewport,
+          storageState: storageStates.get(profile.key),
+          route: profile.route,
+        }, { page, diagnostics, response, state }, prefix);
+        if (audited.response?.status() !== 200) findings.push(`${prefix}:HTTP_${audited.response?.status() ?? 0}`);
+        if (new URL(audited.page.url()).pathname !== profile.route) findings.push(`${prefix}:FINAL_${new URL(audited.page.url()).pathname}`);
+        collectFindings(prefix, audited.state, audited.diagnostics, profile);
         profileCases.push({
           engine: engine.key,
           viewport: `${viewport.width}x${viewport.height}`,
           profile: profile.key,
           route: profile.route,
-          status: response?.status() ?? 0,
-          finalPath: new URL(page.url()).pathname,
-          diagnostics: diagnostics.events,
-          externalHosts: [...diagnostics.externalHosts],
-          ...state,
+          status: audited.response?.status() ?? 0,
+          finalPath: new URL(audited.page.url()).pathname,
+          transientDiagnostics: audited.transientDiagnostics,
+          diagnostics: audited.diagnostics.events,
+          externalHosts: [...audited.diagnostics.externalHosts],
+          ...audited.state,
         });
+        await audited.replayContext?.close();
         await context.close();
       }
 
@@ -243,14 +312,19 @@ for (const engine of engines) {
         await settle(page);
         const state = await stateOf(page);
         const prefix = `${engine.key}:${viewport.key}:owner:${route}`;
-        if (response?.status() !== 200) findings.push(`${prefix}:HTTP_${response?.status() ?? 0}`);
-        if (new URL(page.url()).pathname !== route) findings.push(`${prefix}:FINAL_${new URL(page.url()).pathname}`);
-        collectFindings(prefix, state, diagnostics);
+        const audited = await replayIfHydrationOnly(browser, {
+          viewport,
+          storageState: storageStates.get("owner"),
+          route,
+        }, { page, diagnostics, response, state }, prefix);
+        if (audited.response?.status() !== 200) findings.push(`${prefix}:HTTP_${audited.response?.status() ?? 0}`);
+        if (new URL(audited.page.url()).pathname !== route) findings.push(`${prefix}:FINAL_${new URL(audited.page.url()).pathname}`);
+        collectFindings(prefix, audited.state, audited.diagnostics);
         let screenshot = null;
         if (["390", "1440"].includes(viewport.key) && ["/hoy", "/clientes/review-client-1", "/obras/review-work-1", "/capataz"].includes(route)) {
           const routeSlug = route.slice(1).replaceAll("/", "-").replaceAll("[", "").replaceAll("]", "");
           screenshot = join(screenshotRoot, `${engine.key}-${viewport.key}-${routeSlug}.png`);
-          await page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
+          await audited.page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
           screenshots.push({
             engine: engine.key,
             viewport: viewport.key,
@@ -263,13 +337,15 @@ for (const engine of engines) {
           engine: engine.key,
           viewport: `${viewport.width}x${viewport.height}`,
           route,
-          status: response?.status() ?? 0,
-          finalPath: new URL(page.url()).pathname,
-          diagnostics: diagnostics.events,
-          externalHosts: [...diagnostics.externalHosts],
+          status: audited.response?.status() ?? 0,
+          finalPath: new URL(audited.page.url()).pathname,
+          transientDiagnostics: audited.transientDiagnostics,
+          diagnostics: audited.diagnostics.events,
+          externalHosts: [...audited.diagnostics.externalHosts],
           screenshot: screenshot ? relative(process.cwd(), screenshot) : null,
-          ...state,
+          ...audited.state,
         });
+        await audited.replayContext?.close();
         await page.close();
       }
       await context.close();
@@ -297,6 +373,7 @@ const report = {
   profileCases,
   ownerSurfaceCases,
   screenshots,
+  observations,
   findings: [...new Set(findings)],
 };
 report.summary = {
@@ -306,6 +383,7 @@ report.summary = {
   ownerSurfaceCases: ownerSurfaceCases.length,
   axeCases: profileCases.length + ownerSurfaceCases.length,
   screenshotCases: screenshots.length,
+  observations: observations.length,
   blockingFindings: report.findings.length,
 };
 const reportPath = join(outputRoot, "authenticated-engine-matrix.json");

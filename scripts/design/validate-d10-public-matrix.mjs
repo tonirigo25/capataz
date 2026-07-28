@@ -4,11 +4,22 @@ import { join, relative } from "node:path";
 import { chromium, firefox, webkit } from "playwright";
 import sharp from "sharp";
 
-const EXPECTED_ORIGIN = "https://orqena-review-web-review.up.railway.app";
+const target = process.env.ORQENA_D10_TARGET ?? "review";
+const expectedOrigins = {
+  review: "https://orqena-review-web-review.up.railway.app",
+  staging: "https://orqena-web-staging.up.railway.app",
+};
+const EXPECTED_ORIGIN = expectedOrigins[target];
+if (!EXPECTED_ORIGIN) throw new Error(`D10_TARGET_INVALID:${target}`);
 const origin = (process.env.ORQENA_D10_BASE_URL ?? EXPECTED_ORIGIN).replace(/\/$/u, "");
 const deployedSha = process.env.ORQENA_D10_SHA ?? "";
-if (process.env.ORQENA_D10_REMOTE_APPROVED !== "true") throw new Error("D10_REMOTE_APPROVAL_REQUIRED");
-if (origin !== EXPECTED_ORIGIN) throw new Error(`D10_REVIEW_ORIGIN_MISMATCH:${origin}`);
+if (target === "review" && process.env.ORQENA_D10_REMOTE_APPROVED !== "true") {
+  throw new Error("D10_REMOTE_APPROVAL_REQUIRED");
+}
+if (target === "staging" && process.env.ORQENA_D11_STAGING_APPROVED !== "true") {
+  throw new Error("D11_STAGING_APPROVAL_REQUIRED");
+}
+if (origin !== EXPECTED_ORIGIN) throw new Error(`D10_${target.toUpperCase()}_ORIGIN_MISMATCH:${origin}`);
 if (!/^[0-9a-f]{40}$/u.test(deployedSha)) throw new Error("D10_SHA_REQUIRED");
 
 const outputRoot = process.env.ORQENA_D10_OUTPUT_DIR
@@ -534,6 +545,7 @@ for (const viewport of ["390", "768", "1024", "1440"]) {
 const report = {
   schemaVersion: 1,
   phase: "D10",
+  target,
   generatedAt: new Date().toISOString(),
   origin,
   deployedSha,
