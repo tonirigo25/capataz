@@ -1,115 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { requireCompanyContext } from "@/lib/auth/session";
-import { requireActiveOwner } from "@/lib/commercial/owner-governance";
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { saveUserProfile as saveUserProfileUseCase, saveCompanySettings as saveCompanySettingsUseCase, uploadCompanyAsset as uploadCompanyAssetUseCase } from "@/lib/application/company/settings-use-cases";
 
 export async function saveUserProfile(formData: FormData) {
-  const auth = await requireCompanyContext();
-  const id = auth.userId;
-  const data = {
-    nombre: optionalText(formData, "nombre"),
-    apellidos: optionalText(formData, "apellidos"),
-    tratamiento: optionalText(formData, "tratamiento"),
-    nombrePreferido: optionalText(formData, "nombrePreferido"),
-    telefono: optionalText(formData, "telefono"),
-    email: optionalText(formData, "email"),
-    cargo: optionalText(formData, "cargo"),
-    oficioPrincipal: optionalText(formData, "oficioPrincipal"),
-    idioma: text(formData, "idioma") || "es-ES",
-    zonaHoraria: text(formData, "zonaHoraria") || "Europe/Madrid",
-    preferenciaVisual: text(formData, "preferenciaVisual") || "sistema",
-    notificacionesInternas: formData.get("notificacionesInternas") === "on",
-    notificacionesEmail: formData.get("notificacionesEmail") === "on",
-    tonoPreferido: text(formData, "tonoPreferido") || "directo"
-  };
-
-  await prisma.usuarioPerfil.upsert({
-    where: { id },
-    update: data,
-    create: { id, ...data }
-  });
-
-  revalidatePath("/configuracion");
-  revalidatePath("/capataz");
-  revalidatePath("/hoy");
+  return executeNextAction({ operation: "app/(app)/configuracion/actions.ts#saveUserProfile" }, () => saveUserProfileUseCase(formData));
 }
 
 export async function saveCompanySettings(formData: FormData) {
-  const auth = await requireActiveOwner();
-  const data = {
-    nombreComercial: text(formData, "nombreComercial") || "Mi empresa",
-    razonSocial: optionalText(formData, "razonSocial"),
-    nifCif: optionalText(formData, "nifCif"),
-    direccionFiscal: optionalText(formData, "direccionFiscal"),
-    codigoPostal: optionalText(formData, "codigoPostal"),
-    ciudad: optionalText(formData, "ciudad"),
-    municipio: optionalText(formData, "municipio"),
-    provincia: optionalText(formData, "provincia"),
-    pais: text(formData, "pais") || "España",
-    telefono: optionalText(formData, "telefono"),
-    email: optionalText(formData, "email"),
-    web: optionalText(formData, "web"),
-    personaContacto: optionalText(formData, "personaContacto"),
-    iban: optionalText(formData, "iban"),
-    condicionesPorDefecto: optionalText(formData, "condicionesPorDefecto"),
-    textoLegal: optionalText(formData, "textoLegal"),
-    logoUrl: optionalText(formData, "logoUrl"),
-    selloUrl: optionalText(formData, "selloUrl"),
-    colorMarca: text(formData, "colorMarca") || "#f6c945",
-    ivaDefecto: number(formData, "ivaDefecto", 21),
-    moneda: text(formData, "moneda") || "EUR",
-    validezPresupuestoDias: integer(formData, "validezPresupuestoDias", 15),
-    formaPagoDefecto: optionalText(formData, "formaPagoDefecto"),
-    seriePresupuestos: text(formData, "seriePresupuestos") || "2026",
-    serieFacturas: text(formData, "serieFacturas") || "2026",
-    serieObras: text(formData, "serieObras") || "2026",
-    prefijoPresupuesto: text(formData, "prefijoPresupuesto") || "P",
-    prefijoFactura: text(formData, "prefijoFactura") || "F",
-    prefijoObra: text(formData, "prefijoObra") || "OB"
-  };
-
-  await prisma.company.update({ where: { id: auth.companyId }, data: {
-    nombreComercial: data.nombreComercial, razonSocial: data.razonSocial, taxId: data.nifCif,
-    direccion: data.direccionFiscal, codigoPostal: data.codigoPostal, ciudad: data.ciudad,
-    provincia: data.provincia, pais: data.pais, telefono: data.telefono, email: data.email,
-    web: data.web, contactPerson: data.personaContacto, iban: data.iban,
-    defaultConditions: data.condicionesPorDefecto, legalText: data.textoLegal, logoUrl: data.logoUrl,
-    sealUrl: data.selloUrl, brandColor: data.colorMarca, defaultVat: data.ivaDefecto,
-    currency: data.moneda, budgetValidityDays: data.validezPresupuestoDias,
-    defaultPaymentTerms: data.formaPagoDefecto, budgetSeries: data.seriePresupuestos,
-    invoiceSeries: data.serieFacturas, workSeries: data.serieObras, budgetPrefix: data.prefijoPresupuesto,
-    invoicePrefix: data.prefijoFactura, workPrefix: data.prefijoObra
-  } });
-
-  revalidatePath("/configuracion");
-  revalidatePath("/capataz");
-  revalidatePath("/hoy");
-  revalidatePath("/presupuestos");
-  revalidatePath("/dinero");
+  return executeNextAction({ operation: "app/(app)/configuracion/actions.ts#saveCompanySettings" }, () => saveCompanySettingsUseCase(formData));
 }
 
-function text(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function optionalText(formData: FormData, key: string) {
-  const value = text(formData, key);
-  return value || null;
-}
-
-function number(formData: FormData, key: string, fallback: number) {
-  const value = text(formData, key);
-  if (!value) return fallback;
-  const parsed = Number(value.replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function integer(formData: FormData, key: string, fallback: number) {
-  const value = text(formData, key);
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
+export async function uploadCompanyAsset(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/configuracion/actions.ts#uploadCompanyAsset" }, () => uploadCompanyAssetUseCase(formData));
 }

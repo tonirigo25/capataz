@@ -1,0 +1,3423 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-26T14:04:32.426Z",
+  "classifications": [
+    {
+      "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
+      "actionFile": "app/(app)/agenda/actions.ts",
+      "exportName": "updateAgendaEventStatus",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:agenda.manage",
+        "requireCapability:agenda.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/agenda-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/agenda/actions.ts#reprogramAgendaEvent",
+      "actionFile": "app/(app)/agenda/actions.ts",
+      "exportName": "reprogramAgendaEvent",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:agenda.manage",
+        "requireCapability:agenda.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/agenda-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/alertas/actions.ts#dismissSignalAction",
+      "actionFile": "app/(app)/alertas/actions.ts",
+      "exportName": "dismissSignalAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/alert-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/alertas/actions.ts#snoozeSignalAction",
+      "actionFile": "app/(app)/alertas/actions.ts",
+      "exportName": "snoozeSignalAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/alert-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/alertas/actions.ts#resolveSignalAction",
+      "actionFile": "app/(app)/alertas/actions.ts",
+      "exportName": "resolveSignalAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/alert-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#createAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "createAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#publishAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "publishAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#runAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "runAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#toggleAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "toggleAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#duplicateAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "duplicateAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#newAutomationVersionAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "newAutomationVersionAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#archiveAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "archiveAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#disableAutomationAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "disableAutomationAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#saveDraftVersionAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "saveDraftVersionAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#saveAutomationScheduleAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "saveAutomationScheduleAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#retryRunNowAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "retryRunNowAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#cancelRunAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "cancelRunAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/automatizaciones/actions.ts#confirmStepAction",
+      "actionFile": "app/(app)/automatizaciones/actions.ts",
+      "exportName": "confirmStepAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/automation/automation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#runChatCommand",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "runChatCommand",
+      "inputShape": [
+        "text: string",
+        "context?: ChatCommandContext | null",
+        "options: ChatCommandOptions = {}"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "canExecuteOrqenaMutation",
+        "requireCapability:orqena.use",
+        "requireCompanyContext",
+        "requireOrqenaAuthorization",
+        "resolveAuthorization:clients.view",
+        "resolveAuthorization:sales.budgets.view",
+        "resolveAuthorization:sales.invoices.view",
+        "resolveAuthorization:work.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/orchestration.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#loadChatConversations",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "loadChatConversations",
+      "inputShape": [
+        "includeArchived = false"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.use",
+        "requireCompanyContext"
+      ],
+      "operation": "QUERY",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#getOrCreateInitialConversation",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "getOrCreateInitialConversation",
+      "inputShape": [
+        "preferredConversationId?: string | null"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.use",
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#createChatConversation",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "createChatConversation",
+      "inputShape": [
+        "title = \"Nueva conversación\""
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.use",
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#renameChatConversation",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "renameChatConversation",
+      "inputShape": [
+        "conversationId: string",
+        "title: string"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.use",
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#archiveChatConversation",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "archiveChatConversation",
+      "inputShape": [
+        "conversationId: string"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.use",
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#deleteChatConversation",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "deleteChatConversation",
+      "inputShape": [
+        "conversationId: string"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.use",
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#preparePendingProposal",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "preparePendingProposal",
+      "inputShape": [
+        "conversationId: string",
+        "proposal: { type: string; payload: Record<string, unknown>; review: Record<string, unknown> }"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#cancelPendingProposal",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "cancelPendingProposal",
+      "inputShape": [
+        "conversationId: string",
+        "confirmationId: string"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/capataz/actions.ts#executePendingProposal",
+      "actionFile": "app/(app)/capataz/actions.ts",
+      "exportName": "executePendingProposal",
+      "inputShape": [
+        "conversationId: string",
+        "confirmationId: string",
+        "operation: PendingProposalOperation",
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/orqena/application/capataz/conversation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/clientes/actions.ts#scheduleBudgetFollowUp",
+      "actionFile": "app/(app)/clientes/actions.ts",
+      "exportName": "scheduleBudgetFollowUp",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:agenda.manage",
+        "requireCapability:agenda.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/client-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/clientes/actions.ts#archiveClient",
+      "actionFile": "app/(app)/clientes/actions.ts",
+      "exportName": "archiveClient",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:clients.archive"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/client-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/clientes/actions.ts#restoreClient",
+      "actionFile": "app/(app)/clientes/actions.ts",
+      "exportName": "restoreClient",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:clients.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/client-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/actions.ts#saveUserProfile",
+      "actionFile": "app/(app)/configuracion/actions.ts",
+      "exportName": "saveUserProfile",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/settings-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/actions.ts#saveCompanySettings",
+      "actionFile": "app/(app)/configuracion/actions.ts",
+      "exportName": "saveCompanySettings",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/settings-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/actions.ts#uploadCompanyAsset",
+      "actionFile": "app/(app)/configuracion/actions.ts",
+      "exportName": "uploadCompanyAsset",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/settings-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/ia/actions.ts#reviewAiResult",
+      "actionFile": "app/(app)/configuracion/ia/actions.ts",
+      "exportName": "reviewAiResult",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/ai/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/ia/actions.ts#changeAiKillSwitch",
+      "actionFile": "app/(app)/configuracion/ia/actions.ts",
+      "exportName": "changeAiKillSwitch",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/ai/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/importar/actions.ts#previewImport",
+      "actionFile": "app/(app)/configuracion/importar/actions.ts",
+      "exportName": "previewImport",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/import-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/importar/actions.ts#applyImport",
+      "actionFile": "app/(app)/configuracion/importar/actions.ts",
+      "exportName": "applyImport",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/import-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/importar/actions.ts#rollbackImport",
+      "actionFile": "app/(app)/configuracion/importar/actions.ts",
+      "exportName": "rollbackImport",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/import-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/memoria/actions.ts#changeMemory",
+      "actionFile": "app/(app)/configuracion/memoria/actions.ts",
+      "exportName": "changeMemory",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.memory.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/memory-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/preferencias/actions.ts#savePreferences",
+      "actionFile": "app/(app)/configuracion/preferencias/actions.ts",
+      "exportName": "savePreferences",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "app/(app)/configuracion/preferencias/actions.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#preparePrivacyCatalog",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "preparePrivacyCatalog",
+      "inputShape": [],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#createPrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "createPrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#verifyPrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "verifyPrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#exportPrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "exportPrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/privacidad/actions.ts#completePrivacyRequest",
+      "actionFile": "app/(app)/configuracion/privacidad/actions.ts",
+      "exportName": "completePrivacyRequest",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/privacy/governance-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/seguridad/actions.ts#startMfaEnrollment",
+      "actionFile": "app/(app)/configuracion/seguridad/actions.ts",
+      "exportName": "startMfaEnrollment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/security/mfa-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/seguridad/actions.ts#confirmMfaEnrollment",
+      "actionFile": "app/(app)/configuracion/seguridad/actions.ts",
+      "exportName": "confirmMfaEnrollment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/security/mfa-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/seguridad/actions.ts#verifyMfaChallenge",
+      "actionFile": "app/(app)/configuracion/seguridad/actions.ts",
+      "exportName": "verifyMfaChallenge",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/security/mfa-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/soporte/actions.ts#createSupportTicket",
+      "actionFile": "app/(app)/configuracion/soporte/actions.ts",
+      "exportName": "createSupportTicket",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/support/ticket-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/soporte/actions.ts#submitSupportFeedback",
+      "actionFile": "app/(app)/configuracion/soporte/actions.ts",
+      "exportName": "submitSupportFeedback",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyContext"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/support/ticket-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/configuracion/soporte/actions.ts#updateTestimonialConsent",
+      "actionFile": "app/(app)/configuracion/soporte/actions.ts",
+      "exportName": "updateTestimonialConsent",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "app/(app)/configuracion/soporte/actions.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/demo-guiada/actions.ts#runGuidedDemoStep",
+      "actionFile": "app/(app)/demo-guiada/actions.ts",
+      "exportName": "runGuidedDemoStep",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertDemoOwnership",
+        "requireCapability:company.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/demo/guided-demo-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/dinero/actions.ts#registerPayment",
+      "actionFile": "app/(app)/dinero/actions.ts",
+      "exportName": "registerPayment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:treasury.collections.register",
+        "requireCapability:treasury.collections.register"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/receivables-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/dinero/actions.ts#prepareCollectionReminder",
+      "actionFile": "app/(app)/dinero/actions.ts",
+      "exportName": "prepareCollectionReminder",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:treasury.collections.register",
+        "requireCapability:treasury.collections.register"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/receivables-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/dinero/actions.ts#markInvoicePaid",
+      "actionFile": "app/(app)/dinero/actions.ts",
+      "exportName": "markInvoicePaid",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:treasury.collections.register",
+        "requireCapability:treasury.collections.register"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/receivables-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#inviteMember",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "inviteMember",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#changeFunctionalProfile",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "changeFunctionalProfile",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": true,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#setAccessPackage",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "setAccessPackage",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": true,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#setPermissionOverride",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "setPermissionOverride",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#setFieldVisibility",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "setFieldVisibility",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#setApprovalAuthority",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "setApprovalAuthority",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#setScopeAssignment",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "setScopeAssignment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": true,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#approveInvitation",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "approveInvitation",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#rejectInvitation",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "rejectInvitation",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#revokeInvitation",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "revokeInvitation",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#updatePendingInvitation",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "updatePendingInvitation",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#processOutbox",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "processOutbox",
+      "inputShape": [
+        "_previous: { previewHtml: string | null }",
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#changeMembershipState",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "changeMembershipState",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": true,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipo/actions.ts#transferOwnership",
+      "actionFile": "app/(app)/equipo/actions.ts",
+      "exportName": "transferOwnership",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireActiveOwner"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/membership-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipos/actions.ts#createTeam",
+      "actionFile": "app/(app)/equipos/actions.ts",
+      "exportName": "createTeam",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.teams.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/team-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/equipos/actions.ts#assignTeamMember",
+      "actionFile": "app/(app)/equipos/actions.ts",
+      "exportName": "assignTeamMember",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.teams.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/team-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gastos-materiales/actions.ts#updateMaterialStatus",
+      "actionFile": "app/(app)/gastos-materiales/actions.ts",
+      "exportName": "updateMaterialStatus",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertExpenseScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireCapability:purchases.received_invoices.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/expense-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gastos-materiales/actions.ts#uploadExpenseDocument",
+      "actionFile": "app/(app)/gastos-materiales/actions.ts",
+      "exportName": "uploadExpenseDocument",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertExpenseScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireCapability:purchases.received_invoices.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/expense-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gastos-materiales/actions.ts#retryExpenseDocumentExtraction",
+      "actionFile": "app/(app)/gastos-materiales/actions.ts",
+      "exportName": "retryExpenseDocumentExtraction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertExpenseScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireCapability:purchases.received_invoices.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/expense-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gastos-materiales/actions.ts#saveExpenseFromDocument",
+      "actionFile": "app/(app)/gastos-materiales/actions.ts",
+      "exportName": "saveExpenseFromDocument",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertExpenseScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireApprovalAuthority:purchase.approve",
+        "requireCapability:purchases.received_invoices.manage",
+        "resolveAuthorization:purchases.received_invoices.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/expense-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gastos-materiales/actions.ts#deleteExpenseDocument",
+      "actionFile": "app/(app)/gastos-materiales/actions.ts",
+      "exportName": "deleteExpenseDocument",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertExpenseScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireCapability:purchases.received_invoices.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/expense-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gastos-materiales/actions.ts#findDuplicateExpenseDocumentIds",
+      "actionFile": "app/(app)/gastos-materiales/actions.ts",
+      "exportName": "findDuplicateExpenseDocumentIds",
+      "inputShape": [
+        "input: { excludeDocumentId?: string; sha256?: string | null; invoiceNumber?: string | null; issuerName?: string | null; issuerTaxId?: string | null; issueDate?: string | null; total?: number | null }"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:purchases.received_invoices.manage",
+        "resolveAuthorization:purchases.received_invoices.manage"
+      ],
+      "operation": "QUERY",
+      "service": "lib/application/finance/expense-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/gestion/actions.ts#saveManualRecord",
+      "actionFile": "app/(app)/gestion/actions.ts",
+      "exportName": "saveManualRecord",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertManualRecordScope",
+        "assertRelated",
+        "assertSafeDocumentUrl",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Document",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:clients.update",
+        "assertScopedEntityAccess:documents.manage",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "assertScopedEntityAccess:work.update",
+        "requireApprovalAuthority:discount.approve",
+        "requireApprovalAuthority:invoice.issue",
+        "requireApprovalAuthority:purchase.approve",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability:agenda.manage",
+        "requireCompanyContext",
+        "requiredDate:fecha",
+        "requiredDate:fechaEmision",
+        "requiredDate:fechaInicio",
+        "requiredDate:fechaProgramada",
+        "requiredDate:fechaVencimiento",
+        "requiredDate:tomadaEn",
+        "resolveAuthorization:margin_amount.view",
+        "resolveAuthorization:margin_percent.view",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.discount.apply",
+        "resolveAuthorization:sales.invoices.issue",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/management-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/notificaciones/actions.ts#markNotificationReadAction",
+      "actionFile": "app/(app)/notificaciones/actions.ts",
+      "exportName": "markNotificationReadAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/notification-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/notificaciones/actions.ts#markAllNotificationsReadAction",
+      "actionFile": "app/(app)/notificaciones/actions.ts",
+      "exportName": "markAllNotificationsReadAction",
+      "inputShape": [],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/notification-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/obras/actions.ts#updateWorkStatus",
+      "actionFile": "app/(app)/obras/actions.ts",
+      "exportName": "updateWorkStatus",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:work.update",
+        "requireCapability:work.update"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/work-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/onboarding/actions.ts#saveBusinessOnboarding",
+      "actionFile": "app/(app)/onboarding/actions.ts",
+      "exportName": "saveBusinessOnboarding",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCompanyRole"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/onboarding-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plan-y-uso/actions.ts#changeLocalPlan",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "changeLocalPlan",
+      "inputShape": [
+        "formData:FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/plan-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plan-y-uso/actions.ts#startStripeCheckout",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "startStripeCheckout",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/stripe-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plan-y-uso/actions.ts#openStripeCustomerPortal",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "openStripeCustomerPortal",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/stripe-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#createSupportGrant",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "createSupportGrant",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_ADMIN"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-admin-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#closeSupportGrant",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "closeSupportGrant",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_SUPPORT"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-admin-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#toggleCompanySuspension",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "toggleCompanySuspension",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_ADMIN"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-admin-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#savePilotCohort",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "savePilotCohort",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#saveServiceCost",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "saveServiceCost",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#saveProductExperiment",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "saveProductExperiment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_OWNER"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plataforma/actions.ts#updateSupportTicket",
+      "actionFile": "app/(app)/plataforma/actions.ts",
+      "exportName": "updateSupportTicket",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requirePlatformAccount:PLATFORM_SUPPORT"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/platform/platform-metrics-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#updateBudgetStatus",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "updateBudgetStatus",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#convertBudgetToWork",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "convertBudgetToWork",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability:work.create",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#convertBudgetToInvoice",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "convertBudgetToInvoice",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#duplicateBudget",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "duplicateBudget",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#createBudgetFromTemplate",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "createBudgetFromTemplate",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.budgets.create",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireCapability:sales.budgets.create",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#saveBudgetLine",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "saveBudgetLine",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/presupuestos/actions.ts#deleteBudgetLine",
+      "actionFile": "app/(app)/presupuestos/actions.ts",
+      "exportName": "deleteBudgetLine",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:sales.pricing.view",
+        "requireApprovalAuthority:quote.approve",
+        "requireCapability",
+        "resolveAuthorization:sales.budgets.approve",
+        "resolveAuthorization:sales.pricing.view"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/budget-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/proveedores/actions.ts#saveBusinessPartner",
+      "actionFile": "app/(app)/proveedores/actions.ts",
+      "exportName": "saveBusinessPartner",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:purchases.suppliers.manage",
+        "requiredDate",
+        "requiredText:commercialName",
+        "requiredText:legalName"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/procurement-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/proveedores/actions.ts#createPurchaseInvoice",
+      "actionFile": "app/(app)/proveedores/actions.ts",
+      "exportName": "createPurchaseInvoice",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertProcurementScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireApprovalAuthority:supplier_invoice.approve",
+        "requireCapability:purchases.received_invoices.manage",
+        "requiredDate",
+        "requiredEnum",
+        "requiredNumber",
+        "requiredText:businessPartnerId",
+        "requiredText:description",
+        "requiredText:invoiceNumber"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/procurement-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/proveedores/actions.ts#registerPurchaseInvoicePayment",
+      "actionFile": "app/(app)/proveedores/actions.ts",
+      "exportName": "registerPurchaseInvoicePayment",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertProcurementScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireApprovalAuthority:payment.approve",
+        "requireApprovalAuthority:payment.execute",
+        "requireCapability:treasury.payments.register",
+        "requiredDate",
+        "requiredNumber",
+        "requiredText:method",
+        "requiredText:purchaseInvoiceId"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/procurement-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/proveedores/actions.ts#voidPurchaseInvoice",
+      "actionFile": "app/(app)/proveedores/actions.ts",
+      "exportName": "voidPurchaseInvoice",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertProcurementScope",
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "requireCapability:purchases.received_invoices.manage",
+        "requiredText:purchaseInvoiceId"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/procurement-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recomendaciones/actions.ts#markRecommendationViewedAction",
+      "actionFile": "app/(app)/recomendaciones/actions.ts",
+      "exportName": "markRecommendationViewedAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/recommendation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recomendaciones/actions.ts#snoozeRecommendationAction",
+      "actionFile": "app/(app)/recomendaciones/actions.ts",
+      "exportName": "snoozeRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/recommendation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recomendaciones/actions.ts#dismissRecommendationAction",
+      "actionFile": "app/(app)/recomendaciones/actions.ts",
+      "exportName": "dismissRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/recommendation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recomendaciones/actions.ts#acceptRecommendationAction",
+      "actionFile": "app/(app)/recomendaciones/actions.ts",
+      "exportName": "acceptRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/recommendation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recomendaciones/actions.ts#executeRecommendationAction",
+      "actionFile": "app/(app)/recomendaciones/actions.ts",
+      "exportName": "executeRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/recommendation-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recomendaciones/control/actions.ts#runProactiveEvaluationAction",
+      "actionFile": "app/(app)/recomendaciones/control/actions.ts",
+      "exportName": "runProactiveEvaluationAction",
+      "inputShape": [],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/proactive-control-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recordatorios/actions.ts#confirmReminder",
+      "actionFile": "app/(app)/recordatorios/actions.ts",
+      "exportName": "confirmReminder",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:agenda.manage",
+        "requireCapability:agenda.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/reminder-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recordatorios/actions.ts#cancelReminder",
+      "actionFile": "app/(app)/recordatorios/actions.ts",
+      "exportName": "cancelReminder",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:agenda.manage",
+        "requireCapability:agenda.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/reminder-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/recordatorios/actions.ts#markReminderDone",
+      "actionFile": "app/(app)/recordatorios/actions.ts",
+      "exportName": "markReminderDone",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:agenda.manage",
+        "requireCapability:agenda.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/reminder-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#createFollowUpAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "createFollowUpAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#addAttemptAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "addAttemptAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#completeFollowUpAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "completeFollowUpAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#editFollowUpAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "editFollowUpAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#changeFollowUpStatusAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "changeFollowUpStatusAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#registerAttemptAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "registerAttemptAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#recordOutcomeAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "recordOutcomeAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/seguimientos/actions.ts#archiveFollowUpAction",
+      "actionFile": "app/(app)/seguimientos/actions.ts",
+      "exportName": "archiveFollowUpAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:followups.manage",
+        "requireCapability:followups.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/follow-up-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#createTaskAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "createTaskAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#completeTaskAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "completeTaskAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#addChecklistAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "addChecklistAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#toggleChecklistAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "toggleChecklistAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#updateTaskAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "updateTaskAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#archiveTaskAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "archiveTaskAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#changeTaskStatusAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "changeTaskStatusAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#addTaskCommentAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "addTaskCommentAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#editChecklistAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "editChecklistAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#moveChecklistAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "moveChecklistAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#createSubtaskAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "createSubtaskAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#addDependencyAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "addDependencyAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#removeDependencyAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "removeDependencyAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#saveRecurrenceAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "saveRecurrenceAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tareas/actions.ts#editSeriesAction",
+      "actionFile": "app/(app)/tareas/actions.ts",
+      "exportName": "editSeriesAction",
+      "inputShape": [
+        "data: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertScopedTaskAccess:tasks.manage",
+        "requireCapability:tasks.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/operations/task-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#createFinancialAccount",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "createFinancialAccount",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#updateFinancialAccount",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "updateFinancialAccount",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#archiveFinancialAccount",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "archiveFinancialAccount",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#createCashMovement",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "createCashMovement",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage",
+        "requireTreasuryReferences",
+        "requiredDate:date"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#createCashTransfer",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "createCashTransfer",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage",
+        "requiredDate:date"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#createRecurringExpense",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "createRecurringExpense",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage",
+        "requireTreasuryReferences",
+        "requiredDate:nextDueDate"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#createExpectedCashFlow",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "createExpectedCashFlow",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage",
+        "requireTreasuryReferences",
+        "requiredDate:expectedDate"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/tesoreria/actions.ts#saveTreasurySettings",
+      "actionFile": "app/(app)/tesoreria/actions.ts",
+      "exportName": "saveTreasurySettings",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:treasury.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/finance/treasury-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(auth)/actions.ts#registerAction",
+      "actionFile": "app/(auth)/actions.ts",
+      "exportName": "registerAction",
+      "inputShape": [
+        "_previous: AuthActionState",
+        "form: FormData"
+      ],
+      "authentication": "public or optional session",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/auth/auth-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
+        "outbox": true,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(auth)/actions.ts#loginAction",
+      "actionFile": "app/(auth)/actions.ts",
+      "exportName": "loginAction",
+      "inputShape": [
+        "_previous: AuthActionState",
+        "form: FormData"
+      ],
+      "authentication": "public or optional session",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/auth/auth-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": true,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(auth)/actions.ts#logoutAction",
+      "actionFile": "app/(auth)/actions.ts",
+      "exportName": "logoutAction",
+      "inputShape": [],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/auth/auth-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(auth)/actions.ts#requestPasswordResetAction",
+      "actionFile": "app/(auth)/actions.ts",
+      "exportName": "requestPasswordResetAction",
+      "inputShape": [
+        "_previous: AuthActionState",
+        "form: FormData"
+      ],
+      "authentication": "public or optional session",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/auth/auth-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
+        "outbox": true,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(auth)/actions.ts#resetPasswordAction",
+      "actionFile": "app/(auth)/actions.ts",
+      "exportName": "resetPasswordAction",
+      "inputShape": [
+        "_previous: AuthActionState",
+        "form: FormData"
+      ],
+      "authentication": "public or optional session",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/auth/auth-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(auth)/actions.ts#verifyEmailToken",
+      "actionFile": "app/(auth)/actions.ts",
+      "exportName": "verifyEmailToken",
+      "inputShape": [
+        "token: string"
+      ],
+      "authentication": "public or optional session",
+      "authorization": [
+        "delegated domain authorization"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/auth/auth-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/aceptar-invitacion/actions.ts#acceptInvitation",
+      "actionFile": "app/aceptar-invitacion/actions.ts",
+      "exportName": "acceptInvitation",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/company/accept-invitation-use-case.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/crear-empresa/actions.ts#createCompanyAction",
+      "actionFile": "app/crear-empresa/actions.ts",
+      "exportName": "createCompanyAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/tenancy/create-company-use-case.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/seleccionar-empresa/actions.ts#switchActiveCompany",
+      "actionFile": "app/seleccionar-empresa/actions.ts",
+      "exportName": "switchActiveCompany",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireAuthenticatedUser",
+        "requireCompanyMembership"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/tenancy/select-company-use-case.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    }
+  ]
+}

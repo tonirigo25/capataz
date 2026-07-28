@@ -1,0 +1,76 @@
+{
+  "capturedAt": "2026-07-26T09:40:44.0260310Z",
+  "source": {
+    "branch": "feat/readiness-f2-platform-core",
+    "commit": "30fad8740557ebccdf982fd95b854a2b43ac90cd"
+  },
+  "temporaryEnvironment": {
+    "id": "c2d804a0-e325-423f-ba71-9dd997449335",
+    "name": "orqena-readiness-f2-staging",
+    "webServiceId": "d73d0a69-9cf8-4ba4-83cf-99021487025b",
+    "postgresServiceIds": [
+      "4a7d7b7a-15f5-4628-a992-e3198622699e",
+      "b647e58c-37bb-427c-8fb7-054b239d67ec"
+    ],
+    "webVolumeId": "1d28f3ec-3f6d-4576-9fdf-f4a5cc31b975",
+    "postgresVolumeId": "9dfae14c-cc5f-48b2-8c7a-e448806cc699",
+    "databaseIsolationProved": true,
+    "secretsPrintedOrPersisted": false
+  },
+  "deployments": {
+    "postgres": {
+      "id": "8bcb5b61-aa3a-4ade-b96b-52af7fa0e60f",
+      "status": "SUCCESS"
+    },
+    "reportOnly": {
+      "id": "94d5dae2-03d8-4175-96f7-0291d98d6685",
+      "status": "SUCCESS",
+      "headerChecks": "12/12 PASS",
+      "cspFindings": 0,
+      "cspViolationLogs": 0
+    },
+    "enforce": {
+      "id": "8f4c0558-7753-4e99-b5bd-4dbd24f34671",
+      "status": "SUCCESS",
+      "headerChecks": "11/11 PASS",
+      "cspFindings": 0,
+      "cspViolationLogs": 0
+    }
+  },
+  "browser": {
+    "representativeRoutes": 12,
+    "authenticatedFlow": true,
+    "menuThemeAndFormInteraction": true,
+    "pdfPreview": "200 application/pdf inline private",
+    "capturedCdpEventsPerRun": 5
+  },
+  "cost": {
+    "currency": "USD",
+    "attributable": 0.0035905805364022424,
+    "unattributedDeletedVolume": 0.0018888763183602779,
+    "conservativeUpperBound": 0.00547945685476252
+  },
+  "duration": {
+    "preTeardownValidationSeconds": 4212,
+    "createToFinalVerificationSecondsApprox": 4359
+  },
+  "teardown": {
+    "environmentAbsent": true,
+    "temporaryServicesAbsent": true,
+    "temporaryVolumeInstancesAbsent": true
+  },
+  "persistentBaselines": {
+    "staging": {
+      "environmentId": "8c1eb538-d7a4-4963-bb7d-5567ecf93ac2",
+      "deploymentId": "dc3ce593-3bc8-4abb-9167-9b9d2f774549",
+      "status": "SUCCESS",
+      "unchanged": true
+    },
+    "production": {
+      "environmentId": "42c14ac1-e933-485b-9b44-01272af389e0",
+      "deploymentId": "2e266e66-be53-4008-a1b9-cbfaca21c750",
+      "status": "SUCCESS",
+      "unchanged": true
+    }
+  }
+}

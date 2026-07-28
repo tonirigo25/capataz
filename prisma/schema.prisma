@@ -673,65 +673,69 @@ model Client {
 }
 
 model Work {
-  id                    String                @id @default(cuid())
-  companyId             String?
-  numeroInterno         String?
-  codigo                String?
-  clienteId             String
-  contactoId            String?
-  contactoPrincipal     String?
-  contactoTelefono      String?
-  contactoEmail         String?
-  titulo                String
-  direccion             String
-  latitud               Float?
-  longitud              Float?
-  tipoTrabajo           String
-  estado                WorkStatus            @default(pendiente_inicio)
-  prioridad             WorkPriority          @default(media)
-  fechaCreacion         DateTime              @default(now())
-  fechaInicioPrevista   DateTime?
-  fechaInicio           DateTime?
-  fechaInicioReal       DateTime?
-  fechaFinPrevista      DateTime?
-  fechaFinReal          DateTime?
-  responsable           String?
-  comercial             String?
-  jefeObra              String?
-  descripcion           String?
-  observacionesInternas String?
-  notasPrivadas         String?
-  presupuestoAprobado   Float
-  costePrevisto         Float                 @default(0)
-  gastoReal             Float                 @default(0)
-  margenEstimado        Float                 @default(0)
-  horasEstimadas        Float                 @default(0)
-  horasReales           Float                 @default(0)
-  subcontratasCoste     Float                 @default(0)
-  archivada             Boolean               @default(false)
-  archivadaAt           DateTime?
-  notas                 String?
-  updatedAt             DateTime              @updatedAt
-  budgets               Budget[]
-  client                Client                @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  contact               Contact?              @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
-  repositoryDocuments   Document[]
-  documents             WorkDocument[]
-  expenses              Expense[]
-  partnerLinks          BusinessPartnerWork[]
-  purchaseInvoices      PurchaseInvoice[]
-  preferredByPartners   PartnerLearning[]     @relation("PartnerPreferredWork")
-  internalNotes         InternalNote[]
-  photos                WorkPhoto[]
-  invoices              Invoice[]
-  materials             Material[]
-  payments              Payment[]
-  cashMovements         CashMovement[]
-  expectedCashFlows     ExpectedCashFlow[]
-  recurringExpenses     RecurringExpense[]
-  reminders             Reminder[]
-  agendaEvents          EventoAgenda[]
-  company               Company?              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                         String                @id @default(cuid())
+  companyId                  String?
+  numeroInterno              String?
+  codigo                     String?
+  clienteId                  String
+  contactoId                 String?
+  contactoPrincipal          String?
+  contactoTelefono           String?
+  contactoEmail              String?
+  titulo                     String
+  direccion                  String
+  latitud                    Float?
+  longitud                   Float?
+  tipoTrabajo                String
+  estado                     WorkStatus            @default(pendiente_inicio)
+  prioridad                  WorkPriority          @default(media)
+  fechaCreacion              DateTime              @default(now())
+  fechaInicioPrevista        DateTime?
+  fechaInicio                DateTime?
+  fechaInicioReal            DateTime?
+  fechaFinPrevista           DateTime?
+  fechaFinReal               DateTime?
+  responsable                String?
+  comercial                  String?
+  jefeObra                   String?
+  descripcion                String?
+  observacionesInternas      String?
+  notasPrivadas              String?
+  presupuestoAprobado        Float
+  presupuestoAprobadoDecimal Decimal?              @db.Decimal(18, 2)
+  costePrevisto              Float                 @default(0)
+  costePrevistoDecimal       Decimal?              @db.Decimal(18, 2)
+  gastoReal                  Float                 @default(0)
+  gastoRealDecimal           Decimal?              @db.Decimal(18, 2)
+  margenEstimado             Float                 @default(0)
+  margenEstimadoDecimal      Decimal?              @db.Decimal(18, 2)
+  horasEstimadas             Float                 @default(0)
+  horasReales                Float                 @default(0)
+  subcontratasCoste          Float                 @default(0)
+  archivada                  Boolean               @default(false)
+  archivadaAt                DateTime?
+  notas                      String?
+  updatedAt                  DateTime              @updatedAt
+  budgets                    Budget[]
+  client                     Client                @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  contact                    Contact?              @relation("WorkSiteContact", fields: [contactoId], references: [id], onDelete: SetNull)
+  repositoryDocuments        Document[]
+  documents                  WorkDocument[]
+  expenses                   Expense[]
+  partnerLinks               BusinessPartnerWork[]
+  purchaseInvoices           PurchaseInvoice[]
+  preferredByPartners        PartnerLearning[]     @relation("PartnerPreferredWork")
+  internalNotes              InternalNote[]
+  photos                     WorkPhoto[]
+  invoices                   Invoice[]
+  materials                  Material[]
+  payments                   Payment[]
+  cashMovements              CashMovement[]
+  expectedCashFlows          ExpectedCashFlow[]
+  recurringExpenses          RecurringExpense[]
+  reminders                  Reminder[]
+  agendaEvents               EventoAgenda[]
+  company                    Company?              @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, numeroInterno])
   @@unique([companyId, codigo])
@@ -813,88 +817,100 @@ model WorkPhoto {
 }
 
 model Budget {
-  id               String         @id @default(cuid())
-  companyId        String?
-  clienteId        String
-  obraId           String?
-  numero           String
-  titulo           String
-  partidas         String
-  subtotal         Float
-  iva              Float
-  descuento        Float          @default(0)
-  total            Float
-  margenEstimado   Float
-  estado           BudgetStatus   @default(borrador)
-  fechaCreacion    DateTime       @default(now())
-  fechaEnvio       DateTime?
-  fechaValidez     DateTime?
-  fechaSeguimiento DateTime?
-  condiciones      String?
-  observaciones    String?
-  formaPago        String?
-  client           Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  agendaEvents     EventoAgenda[]
-  documents        Document[]
-  internalNotes    InternalNote[]
-  reminders        Reminder[]
-  work             Work?          @relation(fields: [obraId], references: [id])
-  company          Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                    String         @id @default(cuid())
+  companyId             String?
+  clienteId             String
+  obraId                String?
+  numero                String
+  titulo                String
+  partidas              String
+  subtotal              Float
+  subtotalDecimal       Decimal?       @db.Decimal(18, 2)
+  iva                   Float
+  ivaDecimal            Decimal?       @db.Decimal(18, 2)
+  descuento             Float          @default(0)
+  descuentoDecimal      Decimal?       @db.Decimal(18, 2)
+  total                 Float
+  totalDecimal          Decimal?       @db.Decimal(18, 2)
+  margenEstimado        Float
+  margenEstimadoDecimal Decimal?       @db.Decimal(18, 2)
+  estado                BudgetStatus   @default(borrador)
+  fechaCreacion         DateTime       @default(now())
+  fechaEnvio            DateTime?
+  fechaValidez          DateTime?
+  fechaSeguimiento      DateTime?
+  condiciones           String?
+  observaciones         String?
+  formaPago             String?
+  client                Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  agendaEvents          EventoAgenda[]
+  documents             Document[]
+  internalNotes         InternalNote[]
+  reminders             Reminder[]
+  work                  Work?          @relation(fields: [obraId], references: [id])
+  company               Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, numero])
   @@index([companyId])
 }
 
 model Invoice {
-  id                String             @id @default(cuid())
-  companyId         String?
-  clienteId         String
-  obraId            String?
-  numero            String
-  concepto          String
-  partidas          String?
-  importeBase       Float
-  iva               Float
-  total             Float
-  pagado            Float              @default(0)
-  pendiente         Float
-  fechaEmision      DateTime
-  fechaVencimiento  DateTime
-  estado            InvoiceStatus      @default(pendiente_pago)
-  observaciones     String?
-  metodoPago        String?
-  datosBancarios    String?
-  cashMovements     CashMovement[]
-  client            Client             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  agendaEvents      EventoAgenda[]
-  documents         Document[]
-  expectedCashFlows ExpectedCashFlow[]
-  internalNotes     InternalNote[]
-  payments          Payment[]
-  reminders         Reminder[]
-  work              Work?              @relation(fields: [obraId], references: [id])
-  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                 String             @id @default(cuid())
+  companyId          String?
+  clienteId          String
+  obraId             String?
+  numero             String
+  concepto           String
+  partidas           String?
+  importeBase        Float
+  importeBaseDecimal Decimal?           @db.Decimal(18, 2)
+  iva                Float
+  ivaDecimal         Decimal?           @db.Decimal(18, 2)
+  total              Float
+  totalDecimal       Decimal?           @db.Decimal(18, 2)
+  pagado             Float              @default(0)
+  pagadoDecimal      Decimal?           @db.Decimal(18, 2)
+  pendiente          Float
+  pendienteDecimal   Decimal?           @db.Decimal(18, 2)
+  fechaEmision       DateTime
+  fechaVencimiento   DateTime
+  estado             InvoiceStatus      @default(pendiente_pago)
+  observaciones      String?
+  metodoPago         String?
+  datosBancarios     String?
+  cashMovements      CashMovement[]
+  client             Client             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  agendaEvents       EventoAgenda[]
+  documents          Document[]
+  expectedCashFlows  ExpectedCashFlow[]
+  internalNotes      InternalNote[]
+  payments           Payment[]
+  reminders          Reminder[]
+  work               Work?              @relation(fields: [obraId], references: [id])
+  company            Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalDocuments    FiscalDocument[]
 
   @@unique([companyId, numero])
   @@index([companyId])
 }
 
 model Payment {
-  id            String         @id @default(cuid())
-  companyId     String?
-  facturaId     String
-  clienteId     String
-  obraId        String?
-  importe       Float
-  metodo        String
-  fecha         DateTime       @default(now())
-  tipo          PaymentType
-  notas         String?
-  cashMovements CashMovement[]
-  client        Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  invoice       Invoice        @relation(fields: [facturaId], references: [id], onDelete: Cascade)
-  work          Work?          @relation(fields: [obraId], references: [id])
-  company       Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id             String         @id @default(cuid())
+  companyId      String?
+  facturaId      String
+  clienteId      String
+  obraId         String?
+  importe        Float
+  importeDecimal Decimal?       @db.Decimal(18, 2)
+  metodo         String
+  fecha          DateTime       @default(now())
+  tipo           PaymentType
+  notas          String?
+  cashMovements  CashMovement[]
+  client         Client         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  invoice        Invoice        @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  work           Work?          @relation(fields: [obraId], references: [id])
+  company        Company?       @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
 }
@@ -910,6 +926,7 @@ model Expense {
   concepto          String
   categoria         ExpenseCategory
   importe           Float
+  importeDecimal    Decimal?           @db.Decimal(18, 2)
   fecha             DateTime
   paymentStatus     ExpenseCashStatus?
   paymentDueDate    DateTime?
@@ -931,21 +948,24 @@ model Expense {
 }
 
 model FinancialAccount {
-  id                     String               @id @default(cuid())
-  companyId              String?
-  name                   String
-  type                   FinancialAccountType @default(bank)
-  currency               String               @default("EUR")
-  openingBalance         Float                @default(0)
-  currentManualBalance   Float?
-  manualBalanceUpdatedAt DateTime?
-  minimumBalance         Float?
-  isActive               Boolean              @default(true)
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
-  archivedAt             DateTime?
-  movements              CashMovement[]
-  company                Company?             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                          String               @id @default(cuid())
+  companyId                   String?
+  name                        String
+  type                        FinancialAccountType @default(bank)
+  currency                    String               @default("EUR")
+  openingBalance              Float                @default(0)
+  openingBalanceDecimal       Decimal?             @db.Decimal(18, 2)
+  currentManualBalance        Float?
+  currentManualBalanceDecimal Decimal?             @db.Decimal(18, 2)
+  manualBalanceUpdatedAt      DateTime?
+  minimumBalance              Float?
+  minimumBalanceDecimal       Decimal?             @db.Decimal(18, 2)
+  isActive                    Boolean              @default(true)
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  archivedAt                  DateTime?
+  movements                   CashMovement[]
+  company                     Company?             @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([isActive])
   @@index([archivedAt])
@@ -958,6 +978,7 @@ model CashMovement {
   accountId       String
   type            CashMovementType
   amount          Float
+  amountDecimal   Decimal?           @db.Decimal(18, 2)
   date            DateTime
   description     String
   invoiceId       String?
@@ -999,6 +1020,7 @@ model RecurringExpense {
   companyId         String?
   name              String
   amount            Float
+  amountDecimal     Decimal?                  @db.Decimal(18, 2)
   frequency         RecurringExpenseFrequency
   nextDueDate       DateTime
   category          String?
@@ -1024,6 +1046,7 @@ model ExpectedCashFlow {
   companyId          String?
   type               ExpectedCashFlowType
   amount             Float
+  amountDecimal      Decimal?               @db.Decimal(18, 2)
   expectedDate       DateTime
   description        String
   probability        Float?
@@ -1057,16 +1080,18 @@ model ExpectedCashFlow {
 }
 
 model TreasurySettings {
-  id                      String   @id @default(cuid())
-  currency                String   @default("EUR")
-  minimumCashBalance      Float?
-  safetyBuffer            Float?
-  targetCoverageDays      Int?
-  includeEstimatedInflows Boolean  @default(true)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  companyId               String?
-  company                 Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id                        String   @id @default(cuid())
+  currency                  String   @default("EUR")
+  minimumCashBalance        Float?
+  minimumCashBalanceDecimal Decimal? @db.Decimal(18, 2)
+  safetyBuffer              Float?
+  safetyBufferDecimal       Decimal? @db.Decimal(18, 2)
+  targetCoverageDays        Int?
+  includeEstimatedInflows   Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  companyId                 String?
+  company                   Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
 }
@@ -1180,51 +1205,54 @@ model InternalNote {
 }
 
 model Document {
-  id                   String                   @id @default(cuid())
-  companyId            String?
-  name                 String
-  originalName         String?
-  mimeType             String?
-  size                 Int?
-  storageKey           String?
-  sha256               String?
-  url                  String?
-  category             DocumentCategory         @default(otro)
-  classification       DocumentClassification   @default(OPERATIONAL)
-  clientId             String?
-  workId               String?
-  budgetId             String?
-  invoiceId            String?
-  expenseId            String?
-  businessPartnerId    String?
-  purchaseInvoiceId    String?
-  uploadedById         String?
-  metadata             Json?
-  status               ExpenseDocumentStatus    @default(UPLOADED)
-  documentType         ExpenseDocumentType?
-  extractionStatus     DocumentExtractionStatus @default(PENDING)
-  extractionConfidence Float?
-  extractedData        Json?
-  extractionError      String?
-  extractedIssuer      String?
-  extractedIssuerTaxId String?
-  extractedInvoiceNo   String?
-  extractedIssueDate   DateTime?
-  extractedTotal       Float?
-  processedAt          DateTime?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  archivedAt           DateTime?
-  client               Client?                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  work                 Work?                    @relation(fields: [workId], references: [id], onDelete: Cascade)
-  budget               Budget?                  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  invoice              Invoice?                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  expense              Expense?                 @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  businessPartner      BusinessPartner?         @relation(fields: [businessPartnerId], references: [id], onDelete: SetNull)
-  purchaseInvoice      PurchaseInvoice?         @relation(fields: [purchaseInvoiceId], references: [id], onDelete: SetNull)
-  workPhoto            WorkPhoto?
-  company              Company?                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  uploadedBy           User?                    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  id                    String                   @id @default(cuid())
+  companyId             String?
+  name                  String
+  originalName          String?
+  mimeType              String?
+  size                  Int?
+  storageKey            String?
+  sha256                String?
+  url                   String?
+  category              DocumentCategory         @default(otro)
+  classification        DocumentClassification   @default(OPERATIONAL)
+  clientId              String?
+  workId                String?
+  budgetId              String?
+  invoiceId             String?
+  expenseId             String?
+  businessPartnerId     String?
+  purchaseInvoiceId     String?
+  uploadedById          String?
+  metadata              Json?
+  status                ExpenseDocumentStatus    @default(UPLOADED)
+  documentType          ExpenseDocumentType?
+  extractionStatus      DocumentExtractionStatus @default(PENDING)
+  extractionConfidence  Float?
+  extractedData         Json?
+  extractionError       String?
+  extractedIssuer       String?
+  extractedIssuerTaxId  String?
+  extractedInvoiceNo    String?
+  extractedIssueDate    DateTime?
+  extractedTotal        Float?
+  extractedTotalDecimal Decimal?                 @db.Decimal(18, 2)
+  storedObjectId        String?                  @unique
+  processedAt           DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  archivedAt            DateTime?
+  client                Client?                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  work                  Work?                    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  budget                Budget?                  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  invoice               Invoice?                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expense               Expense?                 @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  businessPartner       BusinessPartner?         @relation(fields: [businessPartnerId], references: [id], onDelete: SetNull)
+  purchaseInvoice       PurchaseInvoice?         @relation(fields: [purchaseInvoiceId], references: [id], onDelete: SetNull)
+  workPhoto             WorkPhoto?
+  company               Company?                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  uploadedBy            User?                    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  storedObject          StoredObject?            @relation(fields: [storedObjectId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([workId])
@@ -1924,7 +1952,7 @@ model AutomationConfirmation {
 }
 
 model BusinessEvent {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   type             String
   companyId        String?
   actorId          String?
@@ -1933,14 +1961,30 @@ model BusinessEvent {
   relatedEntities  Json?
   correlationId    String
   causationId      String?
+  requestId        String?
+  jobId            String?
+  operation        String?
+  release          String?
+  environment      String?
   payloadSanitized Json?
   occurredAt       DateTime
-  recordedAt       DateTime @default(now())
-  schemaVersion    Int      @default(1)
+  recordedAt       DateTime  @default(now())
+  schemaVersion    Int       @default(1)
+  idempotencyKey   String?   @unique
+  destination      String?
+  deliveryStatus   String    @default("PROCESSED")
+  attempts         Int       @default(0)
+  availableAt      DateTime  @default(now())
+  processedAt      DateTime?
+  lastError        String?
 
   @@index([type, occurredAt])
   @@index([entityType, entityId])
   @@index([correlationId])
+  @@index([requestId])
+  @@index([jobId])
+  @@index([deliveryStatus, availableAt])
+  @@index([companyId, deliveryStatus])
 }
 
 model Task {
@@ -2195,6 +2239,7 @@ model User {
   auditLogs           AuditLog[]               @relation("AuditUserActor")
   chatConversations   ChatConversation[]       @relation("ChatConversationOwner")
   chatActionLogs      ChatActionLog[]          @relation("ChatActionActor")
+  mfaFactors          MfaFactor[]
 
   @@index([status])
 }
@@ -2227,6 +2272,8 @@ model Company {
   legalText               String?
   logoUrl                 String?
   sealUrl                 String?
+  logoStoredObjectId      String?                           @unique
+  sealStoredObjectId      String?                           @unique
   brandColor              String                            @default("#f6c945")
   defaultVat              Float                             @default(21)
   currency                String                            @default("EUR")
@@ -2300,6 +2347,59 @@ model Company {
   fieldVisibilityPolicies MembershipFieldVisibilityPolicy[]
   emailOutbox             EmailOutbox[]
   taskRecurrences         TaskRecurrence[]
+  featureFlags            FeatureFlag[]
+  idempotencyRecords      IdempotencyRecord[]
+  webhookEvents           WebhookEvent[]
+  integrationConnections  IntegrationConnection[]
+  encryptedCredentials    EncryptedCredential[]
+  fiscalDocuments         FiscalDocument[]
+  fiscalRecords           FiscalRecord[]
+  fiscalTransmissions     FiscalTransmission[]
+  fiscalEvents            FiscalEvent[]
+  fiscalDeclarations      FiscalSoftwareDeclaration[]
+  electronicArtifacts     ElectronicInvoiceArtifact[]
+  electronicDeliveries    ElectronicInvoiceDelivery[]
+  electronicStatusEvents  ElectronicInvoiceStatusEvent[]
+  billingCustomers        BillingCustomer[]
+  billingEvents           BillingEvent[]
+  billingReconciliations  BillingReconciliationRun[]
+  emailSuppressions       EmailSuppression[]
+  emailWebhookEvents      EmailWebhookEvent[]
+  legalAcceptances        LegalAcceptance[]
+  processingActivities    ProcessingActivity[]
+  retentionPolicies       RetentionPolicy[]
+  privacyRequests         PrivacyRequest[]
+  consentRecords          ConsentRecord[]
+  dataBreachIncidents     DataBreachIncident[]
+  aiPolicies              CompanyAiPolicy[]
+  aiUsageEvents           AiUsageEvent[]
+  aiEvaluationRuns        AiEvaluationRun[]
+  aiGatewayOperations     AiGatewayOperation[]
+  aiReviewEvents          AiReviewEvent[]
+  productEvents           ProductEvent[]
+  dailyMetrics            CompanyDailyMetric[]
+  pilotCohorts            PilotCohort[]
+  pilotFeedback           PilotFeedback[]
+  supportTickets          SupportTicket[]
+  serviceCosts            CompanyServiceCost[]
+  testimonialConsents     TestimonialConsent[]
+  importBatches           CompanyImportBatch[]
+  experiencePreference    CompanyExperiencePreference?
+  incidents               Incident[]
+  storedObjects           StoredObject[]
+  logoStoredObject        StoredObject?                     @relation("CompanyLogo", fields: [logoStoredObjectId], references: [id], onDelete: SetNull)
+  sealStoredObject        StoredObject?                     @relation("CompanySeal", fields: [sealStoredObjectId], references: [id], onDelete: SetNull)
+  uploadScans             UploadScan[]
+  legalHolds              LegalHold[]
+  governanceExecutions    DataGovernanceExecution[]
+  dataExports             CompanyDataExport[]
+  privacyRequestEvents    PrivacyRequestEvent[]
+  riskAssessments         PrivacyRiskAssessment[]
+  operationalMetrics      OperationalMetric[]
+  jobHeartbeats           JobHeartbeat[]
+  syntheticCheckRuns      SyntheticCheckRun[]
+  incidentTimelineEvents  IncidentTimelineEvent[]
+  postmortemActions       PostmortemAction[]
 
   @@index([status])
   @@index([isDemo])
@@ -2416,40 +2516,46 @@ model BusinessPartnerWork {
 }
 
 model PurchaseInvoice {
-  id                String                   @id @default(cuid())
-  companyId         String
-  businessPartnerId String
-  workId            String?
-  kind              PurchaseInvoiceKind
-  status            PurchaseInvoiceStatus    @default(PENDING)
-  fiscalType        FiscalDocumentType       @default(FULL_INVOICE)
-  invoiceNumber     String
-  issueDate         DateTime
-  dueDate           DateTime
-  taxableBase       Float
-  vatRate           Float?
-  vatAmount         Float                    @default(0)
-  withholdingRate   Float?
-  withholdingAmount Float                    @default(0)
-  total             Float
-  paidAmount        Float                    @default(0)
-  pendingAmount     Float
-  currency          String                   @default("EUR")
-  paymentMethod     String?
-  description       String
-  workDescription   String?
-  certifications    Json?
-  notes             String?
-  voidedAt          DateTime?
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
-  company           Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  businessPartner   BusinessPartner          @relation(fields: [businessPartnerId], references: [id], onDelete: Restrict)
-  work              Work?                    @relation(fields: [workId], references: [id], onDelete: SetNull)
-  payments          PurchaseInvoicePayment[]
-  documents         Document[]
-  expense           Expense?
-  history           PurchaseInvoiceHistory[]
+  id                       String                   @id @default(cuid())
+  companyId                String
+  businessPartnerId        String
+  workId                   String?
+  kind                     PurchaseInvoiceKind
+  status                   PurchaseInvoiceStatus    @default(PENDING)
+  fiscalType               FiscalDocumentType       @default(FULL_INVOICE)
+  invoiceNumber            String
+  issueDate                DateTime
+  dueDate                  DateTime
+  taxableBase              Float
+  taxableBaseDecimal       Decimal?                 @db.Decimal(18, 2)
+  vatRate                  Float?
+  vatAmount                Float                    @default(0)
+  vatAmountDecimal         Decimal?                 @db.Decimal(18, 2)
+  withholdingRate          Float?
+  withholdingAmount        Float                    @default(0)
+  withholdingAmountDecimal Decimal?                 @db.Decimal(18, 2)
+  total                    Float
+  totalDecimal             Decimal?                 @db.Decimal(18, 2)
+  paidAmount               Float                    @default(0)
+  paidAmountDecimal        Decimal?                 @db.Decimal(18, 2)
+  pendingAmount            Float
+  pendingAmountDecimal     Decimal?                 @db.Decimal(18, 2)
+  currency                 String                   @default("EUR")
+  paymentMethod            String?
+  description              String
+  workDescription          String?
+  certifications           Json?
+  notes                    String?
+  voidedAt                 DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  company                  Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  businessPartner          BusinessPartner          @relation(fields: [businessPartnerId], references: [id], onDelete: Restrict)
+  work                     Work?                    @relation(fields: [workId], references: [id], onDelete: SetNull)
+  payments                 PurchaseInvoicePayment[]
+  documents                Document[]
+  expense                  Expense?
+  history                  PurchaseInvoiceHistory[]
 
   @@unique([companyId, businessPartnerId, invoiceNumber])
   @@index([companyId, kind, status])
@@ -2462,6 +2568,7 @@ model PurchaseInvoicePayment {
   companyId         String
   purchaseInvoiceId String
   amount            Float
+  amountDecimal     Decimal?        @db.Decimal(18, 2)
   paidAt            DateTime
   method            String
   reference         String?
@@ -2753,12 +2860,21 @@ model Subscription {
   provider               String                @default("local")
   externalCustomerId     String?
   externalSubscriptionId String?
+  providerPriceId        String?
+  providerProductId      String?
+  providerCheckoutId     String?
+  providerVersion        String?
   startedAt              DateTime              @default(now())
   trialEndsAt            DateTime?
   currentPeriodStart     DateTime
   currentPeriodEnd       DateTime
   cancelAtPeriodEnd      Boolean               @default(false)
   canceledAt             DateTime?
+  graceEndsAt            DateTime?
+  readOnlyAt             DateTime?
+  cancellationReason     String?
+  cancellationComment    String?
+  lastProviderEventAt    DateTime?
   metadata               Json?
   scheduledPlanKey       String?
   createdAt              DateTime              @default(now())
@@ -2766,6 +2882,7 @@ model Subscription {
   company                Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
   plan                   Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
   history                SubscriptionHistory[]
+  billingEvents          BillingEvent[]
 
   @@index([companyId, status])
   @@index([currentPeriodEnd])
@@ -2837,58 +2954,74 @@ model Invitation {
 }
 
 model EmailOutbox {
-  id               String                 @id @default(cuid())
-  companyId        String?
-  invitationId     String?
-  eventKey         String
-  templateKey      String
-  templateVersion  Int
-  recipient        String
-  subject          String
-  htmlBody         String?
-  textBody         String?
-  payload          Json?
-  status           EmailOutboxStatus      @default(PENDING)
-  attempts         Int                    @default(0)
-  availableAt      DateTime               @default(now())
-  processedAt      DateTime?
-  lastError        String?
-  createdById      String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  company          Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  createdBy        User?                  @relation("EmailOutboxCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  deliveryAttempts EmailDeliveryAttempt[]
+  id                String                 @id @default(cuid())
+  companyId         String?
+  invitationId      String?
+  eventKey          String
+  templateKey       String
+  templateVersion   Int
+  schemaVersion     Int                    @default(1)
+  idempotencyKey    String?
+  recipient         String
+  recipientHash     String?
+  subject           String
+  htmlBody          String?
+  textBody          String?
+  payload           Json?
+  status            EmailOutboxStatus      @default(PENDING)
+  attempts          Int                    @default(0)
+  availableAt       DateTime               @default(now())
+  processedAt       DateTime?
+  providerMessageId String?
+  deadLetteredAt    DateTime?
+  trackingEnabled   Boolean                @default(false)
+  lastError         String?
+  createdById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  company           Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdBy         User?                  @relation("EmailOutboxCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deliveryAttempts  EmailDeliveryAttempt[]
+  webhookEvents     EmailWebhookEvent[]
 
+  @@unique([companyId, idempotencyKey])
   @@index([companyId, status, availableAt])
   @@index([invitationId, eventKey])
   @@index([recipient, createdAt])
+  @@index([providerMessageId])
 }
 
 model EmailDeliveryAttempt {
-  id          String            @id @default(cuid())
-  outboxId    String
-  attempt     Int
-  provider    String
-  status      EmailOutboxStatus
-  errorCode   String?
-  errorDetail String?
-  createdAt   DateTime          @default(now())
-  outbox      EmailOutbox       @relation(fields: [outboxId], references: [id], onDelete: Cascade)
+  id                String            @id @default(cuid())
+  outboxId          String
+  attempt           Int
+  provider          String
+  status            EmailOutboxStatus
+  errorCode         String?
+  errorDetail       String?
+  providerMessageId String?
+  retryAt           DateTime?
+  latencyMs         Int?
+  createdAt         DateTime          @default(now())
+  outbox            EmailOutbox       @relation(fields: [outboxId], references: [id], onDelete: Cascade)
 
   @@unique([outboxId, attempt])
   @@index([status, createdAt])
+  @@index([provider, providerMessageId])
 }
 
 model EmailTemplateVersion {
-  id          String   @id @default(cuid())
-  templateKey String
-  version     Int
-  subject     String
-  htmlSource  String
-  textSource  String?
-  active      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  templateKey      String
+  version          Int
+  subject          String
+  htmlSource       String
+  textSource       String?
+  allowedVariables Json
+  contentHash      String
+  trackingEnabled  Boolean  @default(false)
+  active           Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
   @@unique([templateKey, version])
   @@index([templateKey, active])
@@ -2927,6 +3060,20 @@ model AuditLog {
   reason          String?
   ipHash          String?
   userAgent       String?
+  requestId       String?
+  correlationId   String?
+  causationId     String?
+  membershipId    String?
+  actorType       String?
+  jobId           String?
+  provider        String?
+  operation       String?
+  release         String?
+  environment     String?
+  chainScope      String?
+  previousHash    String?
+  entryHash       String?
+  chainVersion    Int?
   createdAt       DateTime         @default(now())
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   platformActor   PlatformAccount? @relation("AuditPlatformActor", fields: [platformActorId], references: [id], onDelete: SetNull)
@@ -2934,6 +3081,10 @@ model AuditLog {
 
   @@index([companyId, createdAt])
   @@index([action, createdAt])
+  @@index([correlationId, createdAt])
+  @@index([requestId, createdAt])
+  @@index([jobId, createdAt])
+  @@index([chainScope, createdAt, id])
 }
 
 model SupportAccessGrant {
@@ -2956,19 +3107,41 @@ model SupportAccessGrant {
 }
 
 model Session {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  lastSeenAt DateTime  @default(now())
-  revokedAt  DateTime?
-  userAgent  String?
-  ipHash     String?
-  createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(cuid())
+  userId                 String
+  tokenHash              String    @unique
+  expiresAt              DateTime
+  lastSeenAt             DateTime  @default(now())
+  revokedAt              DateTime?
+  userAgent              String?
+  ipHash                 String?
+  secondFactorVerifiedAt DateTime?
+  createdAt              DateTime  @default(now())
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt, expiresAt])
   @@index([expiresAt])
+}
+
+model MfaFactor {
+  id                   String    @id @default(cuid())
+  userId               String
+  type                 String    @default("TOTP")
+  label                String
+  keyVersion           String
+  algorithm            String    @default("aes-256-gcm")
+  ciphertext           String
+  initializationVector String
+  authenticationTag    String
+  status               String    @default("PENDING")
+  confirmedAt          DateTime?
+  lastUsedAt           DateTime?
+  disabledAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
 }
 
 model EmailVerificationToken {
@@ -2996,18 +3169,1324 @@ model PasswordResetToken {
 }
 
 model SecurityAuditEvent {
-  id        String               @id @default(cuid())
-  companyId String?
-  userId    String?
-  type      String
-  outcome   SecurityAuditOutcome
-  requestId String?
-  metadata  Json?
-  createdAt DateTime             @default(now())
-  company   Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id            String               @id @default(cuid())
+  companyId     String?
+  userId        String?
+  type          String
+  outcome       SecurityAuditOutcome
+  requestId     String?
+  correlationId String?
+  causationId   String?
+  membershipId  String?
+  actorType     String?
+  jobId         String?
+  operation     String?
+  release       String?
+  environment   String?
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+  company       Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user          User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([companyId, createdAt])
   @@index([userId, createdAt])
   @@index([type, createdAt])
+  @@index([correlationId, createdAt])
+  @@index([jobId, createdAt])
+}
+
+// Platform contracts (M01). These records establish tenant-scoped, versioned
+// boundaries shared by the web process and independently deployed workers.
+model FeatureFlag {
+  id        String    @id @default(cuid())
+  companyId String?
+  key       String
+  enabled   Boolean   @default(false)
+  config    Json?
+  reason    String?
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  company   Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, key])
+  @@index([key, enabled])
+  @@index([companyId, enabled])
+}
+
+model IdempotencyRecord {
+  id             String    @id @default(cuid())
+  companyId      String?
+  namespace      String
+  idempotencyKey String
+  requestHash    String
+  responseStatus Int?
+  responseBody   Json?
+  schemaVersion  Int       @default(1)
+  lockedUntil    DateTime?
+  completedAt    DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  company        Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, namespace, idempotencyKey])
+  @@index([expiresAt])
+}
+
+model WebhookEvent {
+  id                String    @id @default(cuid())
+  companyId         String?
+  provider          String
+  externalEventId   String
+  eventType         String
+  schemaVersion     Int       @default(1)
+  payload           Json
+  signatureVerified Boolean   @default(false)
+  status            String    @default("RECEIVED")
+  attempts          Int       @default(0)
+  availableAt       DateTime  @default(now())
+  processedAt       DateTime?
+  lastError         String?
+  requestId         String?
+  correlationId     String?
+  causationId       String?
+  operation         String?
+  release           String?
+  environment       String?
+  receivedAt        DateTime  @default(now())
+  company           Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, externalEventId])
+  @@index([provider, status, availableAt])
+  @@index([companyId, receivedAt])
+  @@index([correlationId, receivedAt])
+}
+
+model IntegrationConnection {
+  id                String                @id @default(cuid())
+  companyId         String
+  provider          String
+  status            String                @default("DISABLED")
+  mode              String                @default("sandbox")
+  externalAccountId String?
+  config            Json?
+  lastHealthCheckAt DateTime?
+  lastSuccessAt     DateTime?
+  lastErrorCode     String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  credentials       EncryptedCredential[]
+
+  @@unique([companyId, provider])
+  @@index([companyId, status])
+}
+
+model EncryptedCredential {
+  id                      String                 @id @default(cuid())
+  companyId               String
+  integrationConnectionId String?
+  purpose                 String
+  keyVersion              String
+  algorithm               String
+  ciphertext              String
+  initializationVector    String
+  authenticationTag       String
+  fingerprint             String?
+  rotatedAt               DateTime?
+  expiresAt               DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  company                 Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  integrationConnection   IntegrationConnection? @relation(fields: [integrationConnectionId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, purpose, keyVersion])
+  @@index([integrationConnectionId])
+}
+
+// Fiscal ledger (M02). FiscalRecord is append-only by application contract.
+model FiscalDocument {
+  id                       String                      @id @default(cuid())
+  companyId                String
+  invoiceId                String?
+  issuanceKey              String?
+  documentType             String
+  series                   String
+  number                   String
+  issueDate                DateTime
+  currency                 String                      @default("EUR")
+  taxableBase              Decimal                     @db.Decimal(18, 2)
+  discountAmount           Decimal                     @default(0) @db.Decimal(18, 2)
+  taxAmount                Decimal                     @db.Decimal(18, 2)
+  withholdingAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  total                    Decimal                     @db.Decimal(18, 2)
+  status                   String                      @default("DRAFT")
+  mode                     String                      @default("off")
+  schemaVersion            Int                         @default(1)
+  sourceSnapshot           Json
+  snapshotHash             String?
+  qrPayload                String?
+  qrVersion                String?
+  correctionKind           String?
+  correctionReason         String?
+  originalFiscalDocumentId String?
+  softwareVersion          String?
+  releaseSha               String?
+  configurationHash        String?
+  legacySource             Boolean                     @default(false)
+  retentionUntil           DateTime?
+  issuedAt                 DateTime?
+  voidedAt                 DateTime?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  company                  Company                     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  invoice                  Invoice?                    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  originalFiscalDocument   FiscalDocument?             @relation("FiscalCorrections", fields: [originalFiscalDocumentId], references: [id], onDelete: Restrict)
+  corrections              FiscalDocument[]            @relation("FiscalCorrections")
+  records                  FiscalRecord[]
+  transmissions            FiscalTransmission[]
+  events                   FiscalEvent[]
+  electronicArtifacts      ElectronicInvoiceArtifact[]
+
+  @@unique([companyId, series, number])
+  @@unique([companyId, issuanceKey])
+  @@index([companyId, status, issueDate])
+  @@index([companyId, documentType, series, issueDate])
+  @@index([originalFiscalDocumentId])
+  @@index([invoiceId])
+}
+
+model FiscalRecord {
+  id                String         @id @default(cuid())
+  companyId         String
+  fiscalDocumentId  String
+  sequence          BigInt
+  chainScope        String         @default("legacy")
+  eventType         String
+  schemaVersion     Int            @default(1)
+  payload           Json
+  canonicalInput    String         @default("")
+  previousHash      String?
+  recordHash        String
+  algorithm         String         @default("SHA-256")
+  softwareVersion   String?
+  releaseSha        String?
+  configurationHash String?
+  occurredAt        DateTime
+  createdAt         DateTime       @default(now())
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalDocument    FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, sequence])
+  @@unique([fiscalDocumentId, recordHash])
+  @@index([companyId, occurredAt])
+  @@index([companyId, chainScope, sequence])
+}
+
+model FiscalTransmission {
+  id                String         @id @default(cuid())
+  companyId         String
+  fiscalDocumentId  String
+  provider          String
+  mode              String
+  idempotencyKey    String
+  schemaVersion     Int            @default(1)
+  status            String         @default("PENDING")
+  requestPayload    Json?
+  responsePayload   Json?
+  requestHash       String?
+  responseHash      String?
+  providerReference String?
+  attempts          Int            @default(0)
+  availableAt       DateTime       @default(now())
+  transmittedAt     DateTime?
+  acknowledgedAt    DateTime?
+  lastError         String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalDocument    FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, provider, idempotencyKey])
+  @@index([provider, status, availableAt])
+}
+
+model FiscalEvent {
+  id               String         @id @default(cuid())
+  companyId        String
+  fiscalDocumentId String
+  eventType        String
+  schemaVersion    Int            @default(1)
+  payload          Json
+  sequence         BigInt?
+  previousHash     String?
+  eventHash        String?
+  releaseSha       String?
+  source           String
+  occurredAt       DateTime
+  createdAt        DateTime       @default(now())
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalDocument   FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, sequence])
+  @@index([companyId, eventType, occurredAt])
+  @@index([fiscalDocumentId, occurredAt])
+}
+
+model FiscalSoftwareDeclaration {
+  id                String    @id @default(cuid())
+  companyId         String
+  softwareName      String
+  softwareVersion   String
+  provider          String
+  mode              String
+  declarationHash   String
+  releaseSha        String?
+  configurationHash String?
+  capabilities      Json?
+  approvalStatus    String    @default("DRAFT")
+  approvalReference String?
+  signedAt          DateTime?
+  payload           Json
+  validFrom         DateTime
+  validUntil        DateTime?
+  createdAt         DateTime  @default(now())
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, softwareVersion, declarationHash])
+  @@index([companyId, validFrom, validUntil])
+}
+
+// Electronic invoice artifacts and delivery (M03).
+model ElectronicInvoiceArtifact {
+  id               String                         @id @default(cuid())
+  companyId        String
+  fiscalDocumentId String
+  format           String
+  schemaVersion    String
+  semanticVersion  String                         @default("legacy")
+  validatorVersion String                         @default("legacy")
+  contentHash      String
+  semanticHash     String?
+  storageKey       String
+  mimeType         String                         @default("application/xml")
+  signatureProfile String?
+  signedAt         DateTime?
+  retentionUntil   DateTime?
+  status           String                         @default("GENERATED")
+  generatedAt      DateTime                       @default(now())
+  company          Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalDocument   FiscalDocument                 @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
+  deliveries       ElectronicInvoiceDelivery[]
+  statusEvents     ElectronicInvoiceStatusEvent[]
+
+  @@unique([fiscalDocumentId, format, schemaVersion])
+  @@index([companyId, status, generatedAt])
+}
+
+model ElectronicInvoiceDelivery {
+  id                String                    @id @default(cuid())
+  companyId         String
+  artifactId        String
+  channel           String
+  recipient         String
+  recipientHash     String?
+  idempotencyKey    String?
+  status            String                    @default("PENDING")
+  attempts          Int                       @default(0)
+  availableAt       DateTime                  @default(now())
+  deliveredAt       DateTime?
+  acknowledgedAt    DateTime?
+  providerReference String?
+  responseHash      String?
+  lastError         String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  company           Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  artifact          ElectronicInvoiceArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, channel, idempotencyKey])
+  @@index([companyId, status, availableAt])
+  @@index([artifactId, createdAt])
+}
+
+model ElectronicInvoiceStatusEvent {
+  id            String                    @id @default(cuid())
+  companyId     String
+  artifactId    String
+  eventType     String
+  schemaVersion Int                       @default(1)
+  payload       Json
+  sequence      Int?
+  previousHash  String?
+  eventHash     String?
+  occurredAt    DateTime
+  createdAt     DateTime                  @default(now())
+  company       Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  artifact      ElectronicInvoiceArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
+
+  @@unique([artifactId, sequence])
+  @@index([companyId, eventType, occurredAt])
+  @@index([artifactId, occurredAt])
+}
+
+// Billing and provider webhook projection (M04).
+model BillingCustomer {
+  id                 String   @id @default(cuid())
+  companyId          String   @unique
+  provider           String   @default("stripe")
+  externalCustomerId String
+  email              String?
+  currency           String   @default("EUR")
+  livemode           Boolean  @default(false)
+  legalName          String?
+  taxId              String?
+  addressLine        String?
+  postalCode         String?
+  city               String?
+  countryCode        String?  @default("ES")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, externalCustomerId])
+}
+
+model BillingPriceMapping {
+  id              String   @id @default(cuid())
+  provider        String   @default("stripe")
+  planKey         String
+  interval        String
+  currency        String
+  externalPriceId String
+  active          Boolean  @default(false)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([provider, externalPriceId])
+  @@unique([provider, planKey, interval, currency])
+  @@index([planKey, active])
+}
+
+model BillingEvent {
+  id                String        @id @default(cuid())
+  companyId         String
+  subscriptionId    String?
+  provider          String
+  externalEventId   String
+  eventType         String
+  schemaVersion     Int           @default(1)
+  payload           Json
+  payloadHash       String?
+  occurredAt        DateTime?
+  status            String        @default("RECEIVED")
+  signatureVerified Boolean       @default(false)
+  attempts          Int           @default(0)
+  processedAt       DateTime?
+  lastError         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalEventId])
+  @@index([companyId, status, createdAt])
+}
+
+model BillingReconciliationRun {
+  id               String    @id @default(cuid())
+  companyId        String
+  provider         String
+  status           String    @default("STARTED")
+  localSnapshot    Json
+  providerSnapshot Json
+  divergences      Json
+  divergenceCount  Int       @default(0)
+  correctionMode   String    @default("AUDIT_ONLY")
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, startedAt])
+  @@index([status, startedAt])
+}
+
+// Email delivery governance (M05).
+model EmailSuppression {
+  id             String   @id @default(cuid())
+  companyId      String?
+  emailHash      String
+  emailEncrypted String?
+  reason         String
+  source         String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, emailHash])
+  @@index([emailHash, active])
+}
+
+model EmailWebhookEvent {
+  id                String       @id @default(cuid())
+  companyId         String?
+  outboxId          String?
+  provider          String
+  externalEventId   String
+  providerMessageId String?
+  eventType         String
+  schemaVersion     Int          @default(1)
+  payload           Json
+  signatureVerified Boolean      @default(false)
+  occurredAt        DateTime
+  createdAt         DateTime     @default(now())
+  company           Company?     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  outbox            EmailOutbox? @relation(fields: [outboxId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalEventId])
+  @@index([providerMessageId, occurredAt])
+  @@index([companyId, occurredAt])
+}
+
+// Privacy and governance records (M06).
+model LegalDocumentVersion {
+  id          String            @id @default(cuid())
+  documentKey String
+  locale      String            @default("es-ES")
+  version     String
+  contentHash String
+  storageKey  String
+  effectiveAt DateTime
+  retiredAt   DateTime?
+  createdAt   DateTime          @default(now())
+  acceptances LegalAcceptance[]
+
+  @@unique([documentKey, locale, version])
+  @@index([documentKey, effectiveAt])
+}
+
+model LegalAcceptance {
+  id                     String               @id @default(cuid())
+  companyId              String
+  userId                 String
+  legalDocumentVersionId String
+  purpose                String
+  ipHash                 String?
+  userAgent              String?
+  acceptedAt             DateTime             @default(now())
+  company                Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  legalDocumentVersion   LegalDocumentVersion @relation(fields: [legalDocumentVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, legalDocumentVersionId, purpose])
+  @@index([companyId, acceptedAt])
+}
+
+model ProcessingActivity {
+  id              String   @id @default(cuid())
+  companyId       String
+  key             String
+  purpose         String
+  lawfulBasis     String
+  dataCategories  Json
+  subjectTypes    Json
+  recipients      Json?
+  transferDetails Json?
+  retentionKey    String
+  owner           String
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, key])
+  @@index([companyId, active])
+}
+
+model RetentionPolicy {
+  id              String    @id @default(cuid())
+  companyId       String
+  key             String
+  resourceType    String
+  retentionDays   Int
+  legalHoldDays   Int       @default(0)
+  action          String
+  enabled         Boolean   @default(false)
+  lastEvaluatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, key])
+  @@index([companyId, enabled])
+}
+
+model PrivacyRequest {
+  id                 String                @id @default(cuid())
+  companyId          String
+  requestType        String
+  subjectReference   String
+  status             String                @default("RECEIVED")
+  dueAt              DateTime
+  assignedTo         String?
+  identityVerifiedAt DateTime?
+  completedAt        DateTime?
+  resolution         Json?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  company            Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  events             PrivacyRequestEvent[]
+
+  @@index([companyId, status, dueAt])
+}
+
+model ConsentRecord {
+  id            String    @id @default(cuid())
+  companyId     String
+  subjectId     String
+  purpose       String
+  granted       Boolean
+  policyVersion String
+  source        String
+  evidence      Json?
+  grantedAt     DateTime?
+  withdrawnAt   DateTime?
+  createdAt     DateTime  @default(now())
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, subjectId, purpose, createdAt])
+}
+
+model DataBreachIncident {
+  id                  String    @id @default(cuid())
+  companyId           String
+  title               String
+  severity            String
+  status              String    @default("OPEN")
+  detectedAt          DateTime
+  containedAt         DateTime?
+  authorityNotifiedAt DateTime?
+  subjectsNotifiedAt  DateTime?
+  assessment          Json
+  resolution          Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, detectedAt])
+}
+
+// AI governance and immutable usage evidence (M07).
+model CompanyAiPolicy {
+  id                         String   @id @default(cuid())
+  companyId                  String
+  enabled                    Boolean  @default(false)
+  killSwitch                 Boolean  @default(true)
+  allowedPurposes            Json
+  prohibitedData             Json
+  approvedModels             Json
+  allowedRoles               Json     @default("[]")
+  allowedScopes              Json     @default("[]")
+  allowedFields              Json     @default("{}")
+  approvedClassifications    Json     @default("[]")
+  dataProfile                String
+  companyMonthlyBudget       Decimal  @default(0) @db.Decimal(18, 6)
+  userMonthlyBudget          Decimal  @default(0) @db.Decimal(18, 6)
+  operationBudget            Decimal  @default(0) @db.Decimal(18, 6)
+  maxInputTokens             Int      @default(4096)
+  maxOutputTokens            Int      @default(1024)
+  maxPayloadBytes            Int      @default(65536)
+  maxConcurrency             Int      @default(2)
+  timeoutMs                  Int      @default(15000)
+  retentionDays              Int      @default(30)
+  humanReviewRequired        Boolean  @default(true)
+  sensitiveEffectsNeedOutbox Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  company                    Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId])
+}
+
+model AiModelVersion {
+  id           String            @id @default(cuid())
+  provider     String
+  model        String
+  version      String
+  capabilities Json
+  active       Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  usageEvents  AiUsageEvent[]
+  evaluations  AiEvaluationRun[]
+
+  @@unique([provider, model, version])
+}
+
+model AiPromptVersion {
+  id            String            @id @default(cuid())
+  promptKey     String
+  version       String
+  contentHash   String
+  template      String
+  schemaVersion Int               @default(1)
+  active        Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  usageEvents   AiUsageEvent[]
+  evaluations   AiEvaluationRun[]
+
+  @@unique([promptKey, version])
+  @@index([promptKey, active])
+}
+
+model AiUsageEvent {
+  id               String          @id @default(cuid())
+  companyId        String
+  modelVersionId   String
+  promptVersionId  String
+  purpose          String
+  actorIdHash      String?
+  requestId        String?
+  correlationId    String?
+  causationId      String?
+  operationKey     String?
+  idempotencyKey   String?
+  lane             String          @default("fast")
+  modelSnapshot    String?
+  schemaVersion    Int             @default(1)
+  requestHash      String
+  outputHash       String?
+  inputTokens      Int?
+  outputTokens     Int?
+  costAmount       Decimal?        @db.Decimal(18, 6)
+  currency         String          @default("EUR")
+  storeRequested   Boolean         @default(false)
+  humanReviewed    Boolean         @default(false)
+  escalated        Boolean         @default(false)
+  retryCount       Int             @default(0)
+  latencyMs        Int?
+  errorCode        String?
+  providerRefHash  String?
+  estimatedUsage   Boolean         @default(false)
+  contentExpiresAt DateTime?
+  contentPurgedAt  DateTime?
+  outcome          String
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  modelVersion     AiModelVersion  @relation(fields: [modelVersionId], references: [id], onDelete: Restrict)
+  promptVersion    AiPromptVersion @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  reviewEvents     AiReviewEvent[]
+
+  @@index([companyId, purpose, createdAt])
+  @@index([companyId, actorIdHash, createdAt])
+  @@index([correlationId])
+  @@index([contentExpiresAt, contentPurgedAt])
+}
+
+model AiEvaluationRun {
+  id              String          @id @default(cuid())
+  companyId       String
+  modelVersionId  String
+  promptVersionId String
+  suiteKey        String
+  datasetVersion  String
+  status          String          @default("PENDING")
+  metrics         Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  modelVersion    AiModelVersion  @relation(fields: [modelVersionId], references: [id], onDelete: Restrict)
+  promptVersion   AiPromptVersion @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, suiteKey, createdAt])
+}
+
+model AiGatewayOperation {
+  id               String    @id @default(cuid())
+  companyId        String
+  actorIdHash      String?
+  purpose          String
+  idempotencyKey   String
+  requestHash      String
+  status           String    @default("IN_PROGRESS")
+  responseEnvelope Json?
+  responseHash     String?
+  errorCode        String?
+  attemptCount     Int       @default(0)
+  lockedUntil      DateTime?
+  contentExpiresAt DateTime?
+  contentPurgedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, status, createdAt])
+  @@index([contentExpiresAt, contentPurgedAt])
+}
+
+model AiReviewEvent {
+  id              String       @id @default(cuid())
+  companyId       String
+  usageEventId    String
+  actorIdHash     String
+  outcome         String
+  correctionKinds Json?
+  reasonCode      String?
+  createdAt       DateTime     @default(now())
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  usageEvent      AiUsageEvent @relation(fields: [usageEventId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, outcome, createdAt])
+  @@index([usageEventId, createdAt])
+}
+
+model AiCircuitState {
+  id                 String    @id @default(cuid())
+  environment        String
+  provider           String
+  state              String    @default("CLOSED")
+  consecutiveFailure Int       @default(0)
+  openedUntil        DateTime?
+  halfOpenLeaseUntil DateTime?
+  lastFailureCode    String?
+  lastFailureAt      DateTime?
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([environment, provider])
+  @@index([state, openedUntil])
+}
+
+// Product analytics, pilot support, and incident evidence (M08).
+model ProductEvent {
+  id            String   @id @default(cuid())
+  eventId       String?  @unique
+  companyId     String?
+  actorHash     String?
+  eventName     String
+  schemaVersion Int      @default(1)
+  properties    Json?
+  occurredAt    DateTime
+  receivedAt    DateTime @default(now())
+  company       Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, eventName, occurredAt])
+}
+
+model CompanyDailyMetric {
+  id           String   @id @default(cuid())
+  companyId    String
+  metricDate   DateTime @db.Date
+  metricKey    String
+  value        Decimal  @db.Decimal(20, 6)
+  dimensions   Json?
+  calculatedAt DateTime @default(now())
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, metricDate, metricKey])
+  @@index([metricKey, metricDate])
+}
+
+model PilotCohort {
+  id                    String          @id @default(cuid())
+  companyId             String
+  cohortKey             String
+  status                String          @default("PLANNED")
+  startsAt              DateTime
+  endsAt                DateTime?
+  goals                 Json
+  paid                  Boolean         @default(false)
+  contractStatus        String          @default("NOT_RECORDED")
+  consentStatus         String          @default("NOT_RECORDED")
+  successCriteria       Json            @default("[]")
+  cadence               String          @default("WEEKLY")
+  onboardingStartedAt   DateTime?
+  onboardingCompletedAt DateTime?
+  handoff               Json?
+  resultStatus          String          @default("PENDING")
+  outcome               Json?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  company               Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  feedback              PilotFeedback[]
+
+  @@unique([companyId, cohortKey])
+  @@index([status, startsAt])
+}
+
+model PilotFeedback {
+  id             String       @id @default(cuid())
+  companyId      String
+  cohortId       String?
+  category       String
+  severity       String?
+  sentiment      String?
+  content        String
+  score          Int?
+  consentGranted Boolean      @default(false)
+  contactAllowed Boolean      @default(false)
+  source         String       @default("IN_APP")
+  reporterHash   String?
+  status         String       @default("OPEN")
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  cohort         PilotCohort? @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, createdAt])
+}
+
+model SupportTicket {
+  id                    String                    @id @default(cuid())
+  companyId             String
+  actorIdHash           String
+  externalReference     String?
+  category              String
+  priority              String
+  status                String                    @default("OPEN")
+  subject               String
+  description           String
+  route                 String?
+  release               String?
+  requestId             String?
+  correlationId         String?
+  context               Json?
+  assignedTo            String?
+  firstResponseAt       DateTime?
+  resolvedAt            DateTime?
+  firstResponseDueAt    DateTime?
+  resolutionDueAt       DateTime?
+  supportMinutes        Int                       @default(0)
+  resolutionCode        String?
+  satisfactionScore     Int?
+  satisfactionConsentAt DateTime?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  company               Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  attachments           SupportTicketAttachment[]
+
+  @@index([companyId, status, priority, createdAt])
+  @@index([correlationId])
+}
+
+model SupportTicketAttachment {
+  id             String        @id @default(cuid())
+  ticketId       String
+  storedObjectId String
+  createdAt      DateTime      @default(now())
+  ticket         SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  storedObject   StoredObject  @relation(fields: [storedObjectId], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, storedObjectId])
+  @@index([storedObjectId])
+}
+
+model ProductExperiment {
+  id            String    @id @default(cuid())
+  experimentKey String    @unique
+  area          String
+  hypothesis    String
+  primaryMetric String
+  guardrails    Json      @default("[]")
+  status        String    @default("DRAFT")
+  startsAt      DateTime?
+  endsAt        DateTime?
+  decision      String?
+  decisionAt    DateTime?
+  evidence      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, startsAt])
+}
+
+model CompanyServiceCost {
+  id                  String   @id @default(cuid())
+  companyId           String
+  periodStart         DateTime @db.Date
+  periodEnd           DateTime @db.Date
+  category            String
+  amount              Decimal  @db.Decimal(18, 6)
+  currency            String   @default("EUR")
+  sourceType          String
+  sourceReferenceHash String
+  verified            Boolean  @default(false)
+  planKey             String?
+  createdAt           DateTime @default(now())
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, category, periodStart, periodEnd, sourceReferenceHash])
+  @@index([companyId, periodStart, periodEnd])
+  @@index([category, periodStart])
+}
+
+model TestimonialConsent {
+  id                    String    @id @default(cuid())
+  companyId             String
+  subjectHash           String
+  scope                 Json
+  status                String    @default("PENDING")
+  artifactReferenceHash String?
+  grantedAt             DateTime?
+  withdrawnAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, subjectHash])
+  @@index([status, grantedAt])
+}
+
+model CompanyExperiencePreference {
+  id                      String   @id @default(cuid())
+  companyId               String   @unique
+  aiSuggestionsEnabled    Boolean  @default(false)
+  operationalEmailEnabled Boolean  @default(true)
+  marketingEmailEnabled   Boolean  @default(false)
+  policyVersion           String   @default("v1")
+  updatedByHash           String
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+}
+
+model CompanyImportBatch {
+  id              String             @id @default(cuid())
+  companyId       String
+  actorIdHash     String
+  kind            String
+  sourceHash      String
+  schemaVersion   Int                @default(1)
+  status          String             @default("PREVIEWED")
+  totalRows       Int
+  validRows       Int
+  invalidRows     Int
+  duplicateRows   Int
+  appliedRows     Int                @default(0)
+  confirmationKey String
+  appliedAt       DateTime?
+  rolledBackAt    DateTime?
+  createdAt       DateTime           @default(now())
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  rows            CompanyImportRow[]
+
+  @@unique([companyId, sourceHash, kind])
+  @@index([companyId, status, createdAt])
+}
+
+model CompanyImportRow {
+  id              String             @id @default(cuid())
+  batchId         String
+  rowNumber       Int
+  dedupeKey       String?
+  status          String
+  errorCodes      Json               @default("[]")
+  normalizedData  Json?
+  createdEntityId String?
+  createdAt       DateTime           @default(now())
+  batch           CompanyImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+}
+
+model Incident {
+  id            String                  @id @default(cuid())
+  companyId     String?
+  incidentKey   String                  @unique
+  severity      String
+  status        String                  @default("OPEN")
+  title         String
+  summary       String
+  startedAt     DateTime
+  detectedAt    DateTime
+  mitigatedAt   DateTime?
+  resolvedAt    DateTime?
+  rootCause     String?
+  postmortemUrl String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  company       Company?                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  timeline      IncidentTimelineEvent[]
+  actions       PostmortemAction[]
+
+  @@index([status, severity, startedAt])
+}
+
+// Private storage integrity (M09).
+model StoredObject {
+  id                   String                    @id @default(cuid())
+  companyId            String
+  provider             String
+  bucket               String
+  objectKey            String
+  versionId            String?
+  originalName         String?
+  safeName             String?
+  mimeType             String
+  sizeBytes            BigInt
+  sha256               String
+  classification       String
+  encryption           String?
+  providerVersion      String?
+  contentDisposition   String?                   @default("attachment")
+  status               String                    @default("PENDING_SCAN")
+  createdAt            DateTime                  @default(now())
+  deletedAt            DateTime?
+  retentionKey         String?
+  retainUntil          DateTime?
+  legalHoldUntil       DateTime?
+  quarantineReason     String?
+  deletionEvidenceHash String?
+  company              Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  logoForCompany       Company?                  @relation("CompanyLogo")
+  sealForCompany       Company?                  @relation("CompanySeal")
+  documents            Document[]
+  supportAttachments   SupportTicketAttachment[]
+  scans                UploadScan[]
+
+  @@unique([provider, bucket, objectKey, versionId])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, sha256])
+}
+
+model UploadScan {
+  id             String       @id @default(cuid())
+  companyId      String
+  storedObjectId String
+  engine         String
+  engineVersion  String?
+  status         String
+  result         Json?
+  scannedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  storedObject   StoredObject @relation(fields: [storedObjectId], references: [id], onDelete: Cascade)
+
+  @@unique([storedObjectId, engine])
+  @@index([companyId, status, createdAt])
+}
+
+model Subprocessor {
+  id                  String               @id @default(cuid())
+  key                 String               @unique
+  name                String
+  purpose             String
+  dataCategories      Json
+  processingLocations Json
+  safeguards          Json?
+  privacyUrl          String?
+  status              String               @default("ACTIVE")
+  effectiveAt         DateTime
+  lastReviewedAt      DateTime
+  versionHash         String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  changes             SubprocessorChange[]
+
+  @@index([status, effectiveAt])
+}
+
+model SubprocessorChange {
+  id             String       @id @default(cuid())
+  subprocessorId String
+  changeType     String
+  summary        String
+  noticeRequired Boolean      @default(true)
+  noticeDueAt    DateTime?
+  notifiedAt     DateTime?
+  contentHash    String
+  createdAt      DateTime     @default(now())
+  subprocessor   Subprocessor @relation(fields: [subprocessorId], references: [id], onDelete: Restrict)
+
+  @@index([noticeRequired, noticeDueAt])
+}
+
+model LegalHold {
+  id               String    @id @default(cuid())
+  companyId        String
+  resourceType     String
+  resourceId       String?
+  subjectReference String?
+  reason           String
+  status           String    @default("ACTIVE")
+  startsAt         DateTime  @default(now())
+  expiresAt        DateTime?
+  releasedAt       DateTime?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, resourceType, resourceId])
+  @@index([companyId, subjectReference, status])
+}
+
+model DataGovernanceExecution {
+  id             String    @id @default(cuid())
+  companyId      String
+  executionType  String
+  mode           String
+  status         String
+  policyKey      String?
+  candidateCount Int       @default(0)
+  affectedCount  Int       @default(0)
+  blockedCount   Int       @default(0)
+  manifest       Json
+  manifestHash   String
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, executionType, startedAt])
+  @@index([status, startedAt])
+}
+
+model CompanyDataExport {
+  id               String    @id @default(cuid())
+  companyId        String
+  privacyRequestId String?
+  exportType       String
+  subjectReference String?
+  status           String    @default("PENDING")
+  manifest         Json
+  manifestHash     String
+  packageHash      String?
+  recordCount      Int       @default(0)
+  objectCount      Int       @default(0)
+  expiresAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, exportType, createdAt])
+  @@index([privacyRequestId])
+}
+
+model PrivacyRequestEvent {
+  id               String         @id @default(cuid())
+  companyId        String
+  privacyRequestId String
+  eventType        String
+  actorReference   String?
+  communicationRef String?
+  metadata         Json?
+  occurredAt       DateTime       @default(now())
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  privacyRequest   PrivacyRequest @relation(fields: [privacyRequestId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, privacyRequestId, occurredAt])
+}
+
+model PrivacyRiskAssessment {
+  id                   String    @id @default(cuid())
+  companyId            String
+  processingActivityId String?
+  assessmentType       String
+  version              String
+  status               String    @default("DRAFT")
+  highRisk             Boolean   @default(false)
+  risks                Json
+  safeguards           Json
+  residualRisk         Json
+  owner                String
+  approvedBy           String?
+  approvedAt           DateTime?
+  nextReviewAt         DateTime?
+  contentHash          String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, assessmentType, version])
+  @@index([companyId, status, highRisk])
+}
+
+model OperationalMetric {
+  id         String   @id @default(cuid())
+  companyId  String?
+  metricKey  String
+  value      Decimal  @db.Decimal(20, 6)
+  unit       String
+  dimensions Json?
+  measuredAt DateTime @default(now())
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([metricKey, measuredAt])
+  @@index([companyId, metricKey, measuredAt])
+}
+
+model JobHeartbeat {
+  id                   String    @id @default(cuid())
+  companyId            String?
+  jobKey               String
+  environment          String
+  release              String?
+  status               String    @default("HEALTHY")
+  lastStartedAt        DateTime?
+  lastSucceededAt      DateTime?
+  lastFailedAt         DateTime?
+  expectedEverySeconds Int
+  deadLetterCount      Int       @default(0)
+  metadata             Json?
+  updatedAt            DateTime  @updatedAt
+  company              Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([environment, jobKey, companyId])
+  @@index([status, updatedAt])
+}
+
+model SyntheticCheckRun {
+  id             String   @id @default(cuid())
+  companyId      String?
+  checkKey       String
+  environment    String
+  release        String?
+  status         String
+  durationMs     Int
+  assertionCount Int
+  failureCode    String?
+  evidenceHash   String
+  startedAt      DateTime
+  completedAt    DateTime @default(now())
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([environment, checkKey, startedAt])
+  @@index([status, startedAt])
+}
+
+model IncidentTimelineEvent {
+  id         String   @id @default(cuid())
+  companyId  String?
+  incidentId String
+  eventType  String
+  actor      String
+  summary    String
+  evidence   Json?
+  occurredAt DateTime @default(now())
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+
+  @@index([incidentId, occurredAt])
+  @@index([companyId, occurredAt])
+}
+
+model PostmortemAction {
+  id          String    @id @default(cuid())
+  companyId   String?
+  incidentId  String
+  description String
+  owner       String
+  dueAt       DateTime
+  status      String    @default("OPEN")
+  completedAt DateTime?
+  evidenceRef String?
+  createdAt   DateTime  @default(now())
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+
+  @@index([incidentId, status, dueAt])
 }

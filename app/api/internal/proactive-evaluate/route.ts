@@ -1,3 +1,4 @@
+import { internalJobRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { runProactiveEvaluation, type ProactiveEvaluationType } from "@/lib/proactive-evaluation";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 export const maxDuration = 900;
 
 export async function POST(request: Request) {
+  return internalJobRequestContext("POST /api/internal/proactive-evaluate", request, async () => {
   const auth = authorizeInternalRequest(request);
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ ok: false, error: "La reevaluación proactiva falló. Revisa el centro de control interno." }, { status: 500 });
   }
+
+  });
 }
 
 function authorizeInternalRequest(request: Request) {

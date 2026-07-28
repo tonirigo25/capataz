@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPublicConfig } from "@/lib/config/public";
 
 export const X_ROBOTS_TAG_VALUE = "noindex, nofollow, noarchive, nosnippet";
 
@@ -48,11 +49,7 @@ export const PUBLIC_ROBOTS_ALLOW_PATHS = [
 ] as const;
 
 export function isPublicIndexingEnabled(): boolean {
-  try {
-    return process.env.PUBLIC_INDEXING_ENABLED === "true";
-  } catch {
-    return false;
-  }
+  return getPublicConfig().publicIndexingEnabled;
 }
 
 export function isPublicIndexablePath(pathname: string): boolean {

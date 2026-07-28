@@ -1,4 +1,5 @@
 import { sectorProfiles } from "@/lib/business-profile/sectors";
+import { brand } from "@/lib/brand";
 
 export type MarketingModule = {
   slug: string;
@@ -27,7 +28,7 @@ export const marketingProductCatalog: MarketingModule[] = [
   module("agenda", "Agenda", "Contexto diario", "Una cita sin relación obliga a reconstruir el contexto.", "Cliente, trabajo, contacto y responsable se seleccionan de forma coherente.", ["Comercial", "Responsable", "Empleado"], "ContextualAgendaDemo", ["Día, semana y lista", "Creación contextual", "Filtros persistentes"], ["Clientes", "Trabajo", "Equipo"], "Ver Agenda contextual", "brand"),
   module("documentos", "Documentos", "Trazabilidad", "Una carpeta no explica por qué existe un archivo.", "Cada documento aparece junto a la relación y actividad que lo justifican.", ["Todos los portales"], "Client360Demo", ["Clasificación", "Relaciones", "Acciones por permiso"], ["Clientes", "Trabajo", "Facturas"], "Conocer Documentos", "sand"),
   module("equipo", "Equipo", "Responsabilidad", "Una misma pantalla para todos oculta prioridades y confunde accesos.", "Cada persona recibe navegación, métricas y acciones según su portal.", ["Propietario", "Dirección", "Responsables"], "RolePortalStudio", ["Portal preview", "Invitaciones", "Aprobaciones"], ["Hoy", "Seguridad", "Configuración"], "Explorar portales", "blue"),
-  module("orqena", "Orqena", "Decisión asistida", "Buscar contexto y preparar el siguiente paso consume tiempo.", "Orqena explica fuentes, propone y espera confirmación antes de actuar.", ["Perfiles con acceso habilitado"], "OrqenaActionDemo", ["Fuentes visibles", "Edición", "Confirmar o cancelar"], ["Página activa", "Permisos", "Memoria"], "Ver Orqena en acción", "brand"),
+  module("orqena", brand.productName, "Decisión asistida", "Buscar contexto y preparar el siguiente paso consume tiempo.", `${brand.productName} explica fuentes, propone y espera confirmación antes de actuar.`, ["Perfiles con acceso habilitado"], "OrqenaActionDemo", ["Fuentes visibles", "Edición", "Confirmar o cancelar"], ["Página activa", "Permisos", "Memoria"], `Ver ${brand.productName} en acción`, "brand"),
   module("movil", "Móvil", "Continuidad", "El trabajo pierde ritmo cuando solo funciona en escritorio.", "Tareas, agenda, avance y evidencias se diseñan para la mano.", ["Responsable", "Empleado", "Comercial"], "MobileWorkDemo", ["Dock por perfil", "Safe areas", "Sincronización"], ["Hoy", "Tareas", "Agenda"], "Explorar la experiencia móvil", "sand"),
 ];
 

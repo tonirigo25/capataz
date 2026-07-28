@@ -1,3 +1,5 @@
+import { brand } from "@/lib/brand";
+
 export type ProductIcon =
   | "activity"
   | "agenda"
@@ -90,7 +92,7 @@ const areaContexts = [
   ...primaryNavigation,
   ...secondaryNavigation.flatMap((group) => group.items),
   { href: "/buscar", label: "Búsqueda" },
-  { href: "/capataz", label: "Orqena" },
+  { href: "/capataz", label: brand.productName },
   { href: "/equipo", label: "Equipo" },
   { href: "/equipos", label: "Equipos" },
   { href: "/plan-y-uso", label: "Plan y uso" },
@@ -122,7 +124,7 @@ export function resolveRouteContext(pathname: string): RouteContext {
     .sort((a, b) => b.href.length - a.href.length)
     .find(({ href }) => pathname === href || pathname.startsWith(`${href}/`));
 
-  return area ? { label: area.label, kind: "area" } : { label: "Orqena", kind: "unknown" };
+  return area ? { label: area.label, kind: "area" } : { label: brand.productName, kind: "unknown" };
 }
 
 export function isProductDestinationActive(pathname: string, href: string) {

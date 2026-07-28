@@ -4,12 +4,13 @@ import { resolveMobileConfig } from "./lib/mobile-config";
 const mobile = resolveMobileConfig(process.env);
 
 const config: CapacitorConfig = {
-  appId: "com.capataz.app",
-  appName: "Capataz",
+  appId: mobile.appId,
+  appName: mobile.appName,
   webDir: "mobile-web",
   server: {
     url: mobile.serverUrl,
-    cleartext: mobile.cleartext
+    cleartext: mobile.cleartext,
+    allowNavigation: [mobile.appLinkHost]
   },
   android: {
     allowMixedContent: mobile.allowMixedContent

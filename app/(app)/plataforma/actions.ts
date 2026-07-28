@@ -1,4 +1,33 @@
-"use server";import {revalidatePath}from"next/cache";import{prisma}from"@/lib/prisma";import{requirePlatformAccount}from"@/lib/commercial/platform";
-export async function createSupportGrant(formData:FormData){const actor=await requirePlatformAccount("PLATFORM_ADMIN");const companyId=String(formData.get("companyId")??"");const reason=String(formData.get("reason")??"").trim().slice(0,300);const minutes=Math.min(120,Math.max(5,Number(formData.get("minutes")??30)));if(!reason)throw new Error("SUPPORT_REASON_REQUIRED");const company=await prisma.company.findUnique({where:{id:companyId}});if(!company)throw new Error("COMPANY_NOT_FOUND");await prisma.$transaction(async(tx)=>{const grant=await tx.supportAccessGrant.create({data:{companyId,platformAccountId:actor.platformAccountId,reason,ticketReference:String(formData.get("ticket")??"").trim()||null,capabilityKeys:["company.view","company.configuration.view"],expiresAt:new Date(Date.now()+minutes*60000)}});await tx.auditLog.create({data:{companyId,platformActorId:actor.platformAccountId,action:"support.access_started",targetType:"SupportAccessGrant",targetId:grant.id,reason,metadata:{expiresAt:grant.expiresAt.toISOString()}}})});revalidatePath("/plataforma")}
-export async function closeSupportGrant(formData:FormData){const actor=await requirePlatformAccount("PLATFORM_SUPPORT");const id=String(formData.get("grantId")??"");await prisma.$transaction(async(tx)=>{const grant=await tx.supportAccessGrant.findFirstOrThrow({where:{id,platformAccountId:actor.platformAccountId,status:"ACTIVE"}});await tx.supportAccessGrant.update({where:{id},data:{status:"CLOSED",endedAt:new Date()}});await tx.auditLog.create({data:{companyId:grant.companyId,platformActorId:actor.platformAccountId,action:"support.access_ended",targetType:"SupportAccessGrant",targetId:id}})});revalidatePath("/plataforma")}
-export async function toggleCompanySuspension(formData:FormData){const actor=await requirePlatformAccount("PLATFORM_ADMIN");const companyId=String(formData.get("companyId")??"");const suspend=String(formData.get("suspend"))==="true";const reason=String(formData.get("reason")??"").trim();if(!reason)throw new Error("REASON_REQUIRED");await prisma.$transaction([prisma.company.update({where:{id:companyId},data:{commercialStatus:suspend?"SUSPENDED":"ACTIVE"}}),prisma.auditLog.create({data:{companyId,platformActorId:actor.platformAccountId,action:suspend?"company.suspended":"company.reactivated",targetType:"Company",targetId:companyId,reason}})]);revalidatePath("/plataforma")}
+"use server";
+
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { createSupportGrant as createSupportGrantUseCase, closeSupportGrant as closeSupportGrantUseCase, toggleCompanySuspension as toggleCompanySuspensionUseCase } from "@/lib/application/platform/platform-admin-use-cases";
+import { savePilotCohortUseCase, saveProductExperimentUseCase, saveServiceCostUseCase, updateSupportTicketUseCase } from "@/lib/application/platform/platform-metrics-use-cases";
+
+export async function createSupportGrant(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#createSupportGrant" }, () => createSupportGrantUseCase(formData));
+}
+
+export async function closeSupportGrant(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#closeSupportGrant" }, () => closeSupportGrantUseCase(formData));
+}
+
+export async function toggleCompanySuspension(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#toggleCompanySuspension" }, () => toggleCompanySuspensionUseCase(formData));
+}
+
+export async function savePilotCohort(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#savePilotCohort" }, () => savePilotCohortUseCase(formData));
+}
+
+export async function saveServiceCost(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#saveServiceCost" }, () => saveServiceCostUseCase(formData));
+}
+
+export async function saveProductExperiment(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#saveProductExperiment" }, () => saveProductExperimentUseCase(formData));
+}
+
+export async function updateSupportTicket(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plataforma/actions.ts#updateSupportTicket" }, () => updateSupportTicketUseCase(formData));
+}

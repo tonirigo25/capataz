@@ -15,7 +15,9 @@ function compileModule(path) {
   }).outputText;
   const sandbox = {
     exports: {},
-    require: nativeRequire,
+    require: (specifier) => specifier === "@/lib/ai/openai-transport"
+      ? { openAiHttpRequest: async () => { throw new Error("Legacy VM live transport is disabled; use the governed AI live gate."); } }
+      : nativeRequire(specifier),
     console,
     process,
     fetch,

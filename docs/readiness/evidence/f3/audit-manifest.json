@@ -1,0 +1,71 @@
+{
+  "phase": "F3",
+  "verdict": "PASS_WITH_EXTERNAL_INPUT_GATES",
+  "branch": "feat/readiness-f3-fiscal",
+  "baseBranch": "program/orqena-production-readiness",
+  "baseCommit": "d5e1af3a26bac103e7ff403b7eec414c6c1da597",
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "databaseTarget": "ephemeral isolated loopback PostgreSQL only",
+    "externalProvidersCalled": false,
+    "liveFiscalCredentialsInstalled": false
+  },
+  "requirements": {
+    "total": 30,
+    "pass": 25,
+    "readyForExternalInput": 5,
+    "pending": 0,
+    "blocked": 0,
+    "waived": 0,
+    "externalInputIds": ["FISC-001", "EINV-002", "EINV-003", "EINV-004", "EINV-012"]
+  },
+  "schema": {
+    "sha256": "99599ed5ee3ed76c3841a377ce241a0a1d09018371f884935905a36f1cda36e0",
+    "models": 130,
+    "relations": 222,
+    "migration": "20260726120000_readiness_f3_fiscal_einvoice_engine",
+    "totalMigrationsAppliedFromFresh": 38,
+    "additive": true,
+    "rollback": "logical flags; immutable evidence is retained"
+  },
+  "validation": {
+    "pureChecks": "12/12 PASS",
+    "officialAeatHashVectors": "3/3 exact PASS",
+    "electronicInvoiceFormats": ["UBL-2.1-EN16931:2017", "UNCEFACT-CII-D16B-EN16931:2017", "Facturae-3.2.2", "UN-EDIFACT-INVOIC-D16B"],
+    "isolatedPostgres": "PASS",
+    "concurrentIssuance": "8 requested, 8 unique, F26-000001 through F26-000008, next 9",
+    "invalidInputConsumedNumber": false,
+    "appendOnlyDatabaseTriggers": "PASS",
+    "chainRecords": 10,
+    "tamperDetected": true,
+    "correctionPreservedOriginal": true,
+    "cancellationPreservedArtifact": true,
+    "transmissionRetry": "2 provider calls, 1 accepted effect, replay true",
+    "deliveryReplay": true,
+    "storageRestoreExactBytes": true,
+    "publicDeliveryBlocked": true,
+    "legacyClassification": "LEGACY_NOT_RETRO_CERTIFIED",
+    "softwareDeclarationStatus": "DRAFT",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "staticPagesGenerated": 64,
+    "f1Regression": "56/56 PASS",
+    "f2Regression": "26/26 PASS"
+  },
+  "authoritativeSources": [
+    "https://www.boe.es/eli/es/rd/2023/12/05/1007/con",
+    "https://www.boe.es/eli/es/o/2024/10/17/hac1177/con",
+    "https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/Veri-Factu_especificaciones_huella_hash_registros.pdf",
+    "https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/DetalleEspecificacTecnCodigoQRfactura.pdf",
+    "https://www.boe.es/eli/es/rd/2026/03/25/238/con",
+    "https://www.facturae.gob.es/formato/ultima-version"
+  ],
+  "externalInput": {
+    "FISC-001": "Independent fiscal-specialist review and signed checklist tied to exact release/configuration",
+    "EINV-002": "Official UBL XSD and EN16931 business-rule validation",
+    "EINV-003": "Official CII XSD and EN16931 business-rule validation",
+    "EINV-004": "Official Facturae XSD and XAdES validation using authorized certificate",
+    "EINV-012": "Independent official/partner interoperability fixtures"
+  }
+}

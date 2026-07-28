@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { brand } from "@/lib/brand";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
@@ -1671,8 +1672,6 @@ function CompanySettingsCard({ card }: { card: Extract<ActionCard, { type: "comp
         <InputField name="provincia" label="Provincia" value={card.company.provincia} />
         <InputField name="pais" label="País" value={card.company.pais} />
         <InputField name="iban" label="IBAN / datos bancarios" value={card.company.iban} />
-        <InputField name="logoUrl" label="Logo URL o ruta local" value={card.company.logoUrl} />
-        <InputField name="selloUrl" label="Sello URL o ruta local" value={card.company.selloUrl} />
         <InputField name="colorMarca" label="Color marca" type="color" value={card.company.colorMarca} />
         <InputField name="ivaDefecto" label="IVA por defecto" type="number" value={card.company.ivaDefecto} />
         <InputField name="seriePresupuestos" label="Serie presupuestos" value={card.company.seriePresupuestos} />
@@ -1775,7 +1774,7 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
       <InputField name="email" label="Email" type="email" value="" />
       <InputField name="direccion" label="Dirección" value="Pendiente" />
       <InputField name="tipoCliente" label="Tipo" value="Particular" />
-      <InputField name="origen" label="Origen" value="Orqena" />
+      <InputField name="origen" label="Origen" value={brand.productName} />
       <TextareaField name="notas" label="Notas" value={`Cliente potencial preparado con Orqena. Trabajo solicitado: ${card.job}.`} />
       {limited ? (
         <DemoLimitButton
@@ -2138,9 +2137,7 @@ function extractCompanyProposal(text: string, normalized: string): Partial<Compa
     normalized.includes("cif") ||
     normalized.includes("nif") ||
     normalized.includes("iban") ||
-    normalized.includes("iva") ||
-    normalized.includes("logo") ||
-    normalized.includes("sello");
+    normalized.includes("iva");
   if (!isCompanyData) return null;
 
   const proposal: Partial<CompanyCardFields> = {};
@@ -2150,18 +2147,13 @@ function extractCompanyProposal(text: string, normalized: string): Partial<Compa
   const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
   const iban = text.match(/\bES\d{2}[A-Z0-9 ]{10,}\b/i)?.[0];
   const iva = normalized.match(/iva(?:\s+por defecto)?(?:\s+al|\s+de|\s+es)?\s+(\d+(?:[,.]\d+)?)/)?.[1];
-  const asset = text.match(/(?:https?:\/\/|\/)[^\s]+/)?.[0];
-
   if (companyName) proposal.nombreComercial = cleanCompanyValue(companyName);
   if (fiscalName) proposal.razonSocial = cleanCompanyValue(fiscalName);
   if (taxId) proposal.nifCif = taxId.toUpperCase();
   if (email && normalized.includes("empresa")) proposal.email = email;
   if (iban) proposal.iban = iban.toUpperCase().replace(/\s+/g, " ");
   if (iva) proposal.ivaDefecto = Number(iva.replace(",", "."));
-  if (asset && normalized.includes("logo")) proposal.logoUrl = asset;
-  if (asset && normalized.includes("sello")) proposal.selloUrl = asset;
-
-  return Object.keys(proposal).length || normalized.includes("logo") || normalized.includes("sello") ? proposal : null;
+  return Object.keys(proposal).length ? proposal : null;
 }
 
 function cleanNullable(value: string | null | undefined) {

@@ -1,16 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { markAllNotificationsRead, markNotificationRead } from "@/lib/notifications";
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { markNotificationReadAction as markNotificationReadActionUseCase, markAllNotificationsReadAction as markAllNotificationsReadActionUseCase } from "@/lib/application/operations/notification-use-cases";
 
 export async function markNotificationReadAction(formData: FormData) {
-  const sourceKey = String(formData.get("sourceKey") ?? "");
-  if (!sourceKey) return;
-  await markNotificationRead(sourceKey);
-  revalidatePath("/notificaciones");
+  return executeNextAction({ operation: "app/(app)/notificaciones/actions.ts#markNotificationReadAction" }, () => markNotificationReadActionUseCase(formData));
 }
 
 export async function markAllNotificationsReadAction() {
-  await markAllNotificationsRead();
-  revalidatePath("/notificaciones");
+  return executeNextAction({ operation: "app/(app)/notificaciones/actions.ts#markAllNotificationsReadAction" }, () => markAllNotificationsReadActionUseCase());
 }

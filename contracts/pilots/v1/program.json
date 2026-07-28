@@ -1,0 +1,9 @@
+{
+  "contract": "orqena.private-pilot-program",
+  "version": 1,
+  "targetCompanies": { "minimum": 5, "maximum": 10, "minimumPaid": 5 },
+  "requiredEvidence": ["contractStatus", "consentStatus", "successCriteria", "cadence", "onboardingTimes", "resultStatus"],
+  "cadence": ["WEEKLY", "FORTNIGHTLY"],
+  "successCriteriaCatalog": ["activation_7d", "weekly_active", "budget_conversion", "collection_time", "time_saved", "support_minutes"],
+  "liveEnrollmentStatus": "READY_FOR_EXTERNAL_INPUT"
+}

@@ -1,0 +1,13 @@
+{
+  "contract": "orqena.web-performance-budget",
+  "version": 1,
+  "routes": ["public", "auth", "app", "platform"],
+  "budgets": {
+    "LCP": { "maximum": 2500, "unit": "ms" },
+    "CLS": { "maximum": 0.1, "unit": "score" },
+    "INP": { "maximum": 200, "unit": "ms" },
+    "FCP": { "maximum": 1800, "unit": "ms" },
+    "TTFB": { "maximum": 800, "unit": "ms" }
+  },
+  "accessibility": { "standard": "WCAG 2.2 AA", "blockingImpacts": ["critical", "serious"] }
+}

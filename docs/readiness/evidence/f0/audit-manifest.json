@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "phase": "F0",
+  "capturedAt": "2026-07-25T23:44:45.2473883+02:00",
+  "repository": "tonirigo25/capataz",
+  "pullRequest": {
+    "number": 24,
+    "state": "OPEN",
+    "draft": true,
+    "base": "main",
+    "head": "feat/capataz-marketing-v2",
+    "headSha": "ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4",
+    "author": "tonirigo25",
+    "authorType": "User",
+    "repositoryPermission": "admin"
+  },
+  "railway": {
+    "projectId": "5a501cb4-639e-4dd3-a1fb-08ae1c839ebb",
+    "workspaceId": "035edc41-8165-48cc-88a8-5ab7d5767442",
+    "baseEnvironmentId": "8c1eb538-d7a4-4963-bb7d-5567ecf93ac2",
+    "previewEnvironmentId": "cb9f5ffe-6f86-4f45-ae70-e2f60a6f99a4",
+    "previewEnvironmentName": "capataz-review-pr-24",
+    "previewDomain": "orqena-web-capataz-review-pr-24.up.railway.app",
+    "webServiceId": "99a739da-4212-4c56-a407-dc198553c505",
+    "postgresServiceId": "44a39d4f-5bbe-4ebd-91c2-57b7f767aeda",
+    "webServiceInstanceId": "5c59edad-7a48-403d-ba85-9a335fdb58bf",
+    "postgresServiceInstanceId": "dfd967c0-e254-4e82-a095-6451ecddc29f",
+    "cronServiceInstanceId": "d5cd2d68-5f79-4f72-b984-27f2a7ebe80c",
+    "postgresDeploymentId": "72d0ffc2-1784-4d55-9fc8-2cf29e8fd742",
+    "webDeploymentId": "6c991616-a5f9-46bd-b629-977caf960d7c",
+    "webDeploymentStatus": "SUCCESS",
+    "webDeploymentSha": "ff175b7cfe7fccc6e59d02627e4d9e02fdf996b4",
+    "databaseUrl": {
+      "present": true,
+      "internalReference": true,
+      "referencesProduction": false
+    },
+    "migrationsFound": 25,
+    "pendingMigrations": 0,
+    "resources": {
+      "deployedServices": ["Postgres", "orqena-web"],
+      "undeployedServices": ["orqena-cron"],
+      "volumeInstances": [
+        { "mountPath": "/var/lib/postgresql/data", "capacityMb": 5000, "initialUsedMb": 0 },
+        { "mountPath": "/data/orqena/documents", "capacityMb": 5000, "initialUsedMb": 0 }
+      ],
+      "plan": "hobby",
+      "exactCost": "NOT_EXPOSED_BY_CLI"
+    },
+    "teardown": {
+      "completed": true,
+      "environmentAbsentAfterDelete": true
+    }
+  },
+  "routeChecks": {
+    "/marketing-v2": 200,
+    "/demo-v2": 200,
+    "/": 200,
+    "/demo": 200,
+    "/login": 200,
+    "/hoy": 200,
+    "/api/status": 200
+  },
+  "indexing": {
+    "marketingV2Header": "noindex, nofollow, noarchive, nosnippet",
+    "demoV2Header": "noindex, nofollow, noarchive, nosnippet",
+    "sitemapUrlCount": 0,
+    "robotsDisallowAll": true
+  },
+  "browserValidation": {
+    "requestedViewports": ["390x844", "1440x900"],
+    "horizontalOverflow": false,
+    "brokenImages": 0,
+    "consoleWarnings": 0,
+    "consoleErrors": 0,
+    "apiRequestsFromV2": 0,
+    "validLoadFailures": 0,
+    "guidedDemoCompleted": true,
+    "guidedDemoInteractionRequests": 0,
+    "screenshots": [
+      {
+        "path": "docs/readiness/evidence/f0/demo-v2-1440x900.png",
+        "requestedViewport": "1440x900",
+        "capturedContentRect": "1406x891",
+        "sha256": "E2F8F87CA7D7D04EE6ED27219107BF0EC93794EF948331361C1663103DA8F031"
+      },
+      {
+        "path": "docs/readiness/evidence/f0/demo-v2-390x844.png",
+        "requestedViewport": "390x844",
+        "capturedContentRect": "375x811",
+        "sha256": "8496F90ACCD43171ED8F7A1BEB486A309B9E7E1745B05C8CDB2912B4B5A6745C"
+      },
+      {
+        "path": "docs/readiness/evidence/f0/marketing-v2-1440x900.png",
+        "requestedViewport": "1440x900",
+        "capturedContentRect": "1406x891",
+        "sha256": "E56F54987C15A03A5E8999AC2C4A02E279D93003E4DD3121B24D3BA7B91E5986"
+      },
+      {
+        "path": "docs/readiness/evidence/f0/marketing-v2-390x844.png",
+        "requestedViewport": "390x844",
+        "capturedContentRect": "375x811",
+        "sha256": "CE5F602A30F5AA877B1B772DC140B882AECF72002F0A39E0C73DD021366EDF94"
+      }
+    ]
+  },
+  "localGates": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "publicIndexing": "PASS",
+    "diffCheck": "PASS"
+  },
+  "unchangedDeployments": {
+    "staging": "dc3ce593-3bc8-4abb-9167-9b9d2f774549",
+    "production": "2e266e66-be53-4008-a1b9-cbfaca21c750",
+    "productionSha": "64cf8bbbca8ed99aabce4fbc50ebfb163fc05367"
+  },
+  "secretsPrinted": false
+}

@@ -1,71 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
-import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
-import { companyCore } from "@/lib/tenant/core";
-
-async function ownedReminder(id: string) {
-  const auth = await requireCapability("agenda.manage");
-  const { companyId } = auth;
-  const core = companyCore(prisma, companyId);
-  const reminder = await core.getReminder(id);
-  if (reminder?.obraId) await assertScopedEntityAccess(auth, "agenda.manage", "Work", reminder.obraId);
-  else if (reminder?.clienteId) await assertScopedEntityAccess(auth, "agenda.manage", "Client", reminder.clienteId);
-  else if (reminder && auth.scope !== "COMPANY") throw new Error("SCOPED_ENTITY_FORBIDDEN");
-  return { companyId, core, reminder };
-}
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { confirmReminder as confirmReminderUseCase, cancelReminder as cancelReminderUseCase, markReminderDone as markReminderDoneUseCase } from "@/lib/application/operations/reminder-use-cases";
 
 export async function confirmReminder(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
-  if (!id || !confirmado) return;
-  const owned = await ownedReminder(id);
-  if (!owned.reminder) return;
-
-  const reminder = await owned.core.updateReminder(id, {
-      estado: "programado",
-      requiereConfirmacion: false,
-      confirmadoPorUsuario: true
-  });
-  await reevaluateProactiveAfterMutation({ companyId: owned.companyId, entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_confirmed" });
-
-  revalidatePath("/recordatorios");
-  revalidatePath("/agenda");
-  revalidatePath("/hoy");
+  return executeNextAction({ operation: "app/(app)/recordatorios/actions.ts#confirmReminder" }, () => confirmReminderUseCase(formData));
 }
 
 export async function cancelReminder(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
-  if (!id || !confirmado) return;
-  const owned = await ownedReminder(id);
-  if (!owned.reminder) return;
-
-  const reminder = await owned.core.updateReminder(id, { estado: "cancelado" });
-  await reevaluateProactiveAfterMutation({ companyId: owned.companyId, entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_cancelled" });
-
-  revalidatePath("/recordatorios");
-  revalidatePath("/agenda");
-  revalidatePath("/hoy");
+  return executeNextAction({ operation: "app/(app)/recordatorios/actions.ts#cancelReminder" }, () => cancelReminderUseCase(formData));
 }
 
 export async function markReminderDone(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  const confirmado = String(formData.get("confirmadoPorUsuario") ?? "") === "true";
-  if (!id || !confirmado) return;
-  const owned = await ownedReminder(id);
-  if (!owned.reminder) return;
-
-  const reminder = await owned.core.updateReminder(id, {
-      estado: "realizado",
-      requiereConfirmacion: false,
-      confirmadoPorUsuario: true
-  });
-  await reevaluateProactiveAfterMutation({ companyId: owned.companyId, entityType: "reminder", entityId: id, clientId: reminder.clienteId, workId: reminder.obraId, invoiceId: reminder.facturaId, budgetId: reminder.presupuestoId, reason: "reminder_completed" });
-
-  revalidatePath("/recordatorios");
-  revalidatePath("/agenda");
-  revalidatePath("/hoy");
+  return executeNextAction({ operation: "app/(app)/recordatorios/actions.ts#markReminderDone" }, () => markReminderDoneUseCase(formData));
 }

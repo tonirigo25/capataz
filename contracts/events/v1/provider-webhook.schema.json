@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orqena.invalid/contracts/events/v1/provider-webhook.schema.json",
+  "title": "Verified provider webhook v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "externalEventId", "eventType", "signatureVerified", "receivedAt"],
+  "properties": {
+    "provider": { "type": "string", "minLength": 1 },
+    "externalEventId": { "type": "string", "minLength": 1 },
+    "eventType": { "type": "string", "minLength": 1 },
+    "signatureVerified": { "const": true },
+    "receivedAt": { "type": "string", "format": "date-time" }
+  }
+}
