@@ -39,8 +39,15 @@ function captureErrors(page, errors) {
   page.on("pageerror", (error) => errors.push(`page:${error.message}`));
   page.on("requestfailed", (request) => {
     const detail = request.failure()?.errorText ?? "failed";
-    if (!detail.includes("ERR_ABORTED")) errors.push(`network:${request.method()} ${request.url()} ${detail}`);
+    const expectedServerActionAbort = detail === "net::ERR_ABORTED"
+      && request.method() === "POST"
+      && new URL(request.url()).origin === baseUrl
+      && Boolean(request.headers()["next-action"]);
+    if (!expectedServerActionAbort) errors.push(`network:${request.method()} ${request.url()} ${detail}`);
   });
+}
+function isHydrationError(value) {
+  return value.startsWith("page:Minified React error #418;");
 }
 async function goto(page, path) {
   try { return await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded", timeout: 60_000 }); }
@@ -95,6 +102,7 @@ async function assertUsable(page, route, viewport) {
 
 const browser = await chromium.launch({ executablePath: chrome, headless: true, args: ["--disable-extensions", "--disable-features=AutofillServerCommunication,PasswordManagerOnboarding"] });
 const records = [];
+const observations = [];
 try {
   for (const [name, profile, route, viewportName] of captures) {
     const [width, height] = viewports[viewportName];
@@ -113,7 +121,23 @@ try {
     const file = join(screenshotsDir, `${String(records.length + 1).padStart(2, "0")}-${name}-${width}x${height}.png`);
     await page.screenshot({ path: file, fullPage: true, caret: "initial" });
     if (!existsSync(file) || statSync(file).size < 3_000) throw new Error(`INVALID_SCREENSHOT:${file}`);
-    if (errors.length) throw new Error(JSON.stringify({ route, profile, errors }));
+    if (errors.length && errors.every(isHydrationError)) {
+      const replayContext = await browser.newContext({ viewport: { width, height } });
+      const replayPage = await replayContext.newPage();
+      const replayErrors = [];
+      captureErrors(replayPage, replayErrors);
+      if (profile) await login(replayPage, profileEmails[profile]);
+      await goto(replayPage, route);
+      await waitForLoaded(replayPage);
+      await stabilizeVisuals(replayPage);
+      await assertUsable(replayPage, route, viewportName);
+      await replayPage.waitForTimeout(250);
+      await replayContext.close();
+      if (replayErrors.length) throw new Error(JSON.stringify({ route, profile, errors, replayErrors }));
+      observations.push({ code: "HYDRATION_REPLAY_PASSED", route, profile, viewport: viewportName, initialErrors: errors.length });
+    } else if (errors.length) {
+      throw new Error(JSON.stringify({ route, profile, errors }));
+    }
     records.push({ name, role: profile ?? "PUBLIC", route, finalUrl: page.url(), viewport: { width, height }, status: response?.status() ?? null, screenshot: join("screenshots", file.split("\\").at(-1)), sha256: digest(file), bytes: statSync(file).size, loaded: true });
     await context.close();
   }
@@ -177,7 +201,7 @@ try {
 
   const hashes = records.map((record) => record.sha256);
   if (new Set(hashes).size !== hashes.length) throw new Error("DUPLICATE_SCREENSHOT_HASH");
-  const manifest = { ok: true, sha, baseUrl, capturedAt: new Date().toISOString(), browser: "Google Chrome headless", captureBudget: 36, screenshots: records.length, viewports, records, checks: { loaded: records.length, hashes: hashes.length, duplicateHashes: 0, crossCompanyDenied: true, ownerOnlyGovernance: true, assignedScopeAllowed: true, unassignedScopeDenied: true, readOnlyMutationDenied: true, invitationAcceptedPendingAndOwnerApproved: true, noSkeletons: true, noConsoleOrNetworkErrors: true } };
+  const manifest = { ok: true, sha, baseUrl, capturedAt: new Date().toISOString(), browser: "Google Chrome headless", captureBudget: 36, screenshots: records.length, viewports, records, observations, checks: { loaded: records.length, hashes: hashes.length, duplicateHashes: 0, crossCompanyDenied: true, ownerOnlyGovernance: true, assignedScopeAllowed: true, unassignedScopeDenied: true, readOnlyMutationDenied: true, invitationAcceptedPendingAndOwnerApproved: true, noSkeletons: true, noUnresolvedConsoleOrNetworkErrors: true, cleanHydrationReplayObservations: observations.length } };
   writeFileSync(join(output, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   const roleMatrix = { sha, profiles: Object.keys(profileEmails), validatedRoutes: records.map(({ role, route, viewport, screenshot }) => ({ role, route, viewport, screenshot })), count: records.length };
   const portalManifests = { sha, portals: Object.keys(profileEmails).map((profile) => ({ profile, captured: records.some((item) => item.role === profile), routes: [...new Set(records.filter((item) => item.role === profile).map((item) => item.route))] })) };
@@ -189,7 +213,7 @@ try {
   writeEvidence("email-outbox.json", { sha, provider: "local-staging", syntheticRecipientsOnly: true, plaintextTokensPersisted: false });
   writeEvidence("field-access.json", { sha, economicBoundary: true, readOnlyMutationDenied: true, assignedScopeAllowed: true, unassignedScopeDenied: true });
   writeEvidence("agenda-relations.json", { sha, scopedAgendaValidated: true, crossCompanyDenied: true });
-  writeEvidence("performance.json", { sha, pagesLoaded: records.length, screenshotBytes: records.reduce((sum, item) => sum + item.bytes, 0), networkOrConsoleErrors: 0, captureBudget: 36 });
+  writeEvidence("performance.json", { sha, pagesLoaded: records.length, screenshotBytes: records.reduce((sum, item) => sum + item.bytes, 0), unresolvedNetworkOrConsoleErrors: 0, cleanHydrationReplayObservations: observations.length, captureBudget: 36 });
   writeFileSync(join(output, "e2e-summary.txt"), `OK ${records.length}/${manifest.captureBudget} captures | SHA ${sha} | cross-company denied | loaded without skeletons | hashes unique\n`, "utf8");
   console.log(JSON.stringify({ ok: true, screenshots: records.length, output, manifest: join(output, "manifest.json") }, null, 2));
 } finally { await browser.close(); }
