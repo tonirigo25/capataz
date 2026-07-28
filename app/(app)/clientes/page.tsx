@@ -1,29 +1,18 @@
 import Link from "next/link";
-import type { ComponentType, ReactNode } from "react";
-import {
-  AlertTriangle,
-  Archive,
-  ArrowLeft,
-  ArrowRight,
-  BriefcaseBusiness,
-  CircleDollarSign,
-  Eraser,
-  Eye,
-  FileClock,
-  Search,
-  SlidersHorizontal,
-  UserPlus,
-} from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 import { DemoLimitButton } from "@/components/demo-limit-button";
-import { ListWorkspace, RecordPeek } from "@/components/workspaces";
-import { StatusPill } from "@/components/status-pill";
 import {
-  CompactFilterBar,
-  CompactSearch,
+  ClientFilterBar,
+  type ClientFilterQuery,
+} from "@/components/clients/client-filter-bar";
+import {
+  ClientSplitView,
+  type ClientWorkspaceItem,
+} from "@/components/clients/client-split-view";
+import {
   EmptyState,
   PageHeader,
   ResultCount,
-  TableShell,
 } from "@/components/ui-primitives";
 import {
   getClientList,
@@ -56,7 +45,7 @@ const statusOptions = [
   ["obra_activa", "Obra activa"],
   ["pendiente_cobro", "Pendiente cobro"],
   ["finalizado", "Finalizado"],
-];
+] as const;
 
 const filterOptions = [
   ["obras_activas", "Con obras activas"],
@@ -66,7 +55,7 @@ const filterOptions = [
   ["datos_incompletos", "Con datos incompletos"],
   ["seguimiento_pendiente", "Con seguimiento pendiente"],
   ["sin_actividad_reciente", "Sin actividad reciente"],
-];
+] as const;
 
 const orderOptions = [
   ["ultimaActividad_desc", "Última actividad primero"],
@@ -76,7 +65,17 @@ const orderOptions = [
   ["saldo_desc", "Mayor saldo pendiente"],
   ["facturacion_desc", "Mayor facturación"],
   ["obras_desc", "Más obras activas"],
-];
+] as const;
+
+const actionStatuses = [
+  "nuevo",
+  "pendiente_datos",
+  "visita_pendiente",
+  "presupuesto_pendiente",
+  "presupuesto_enviado",
+  "seguimiento_pendiente",
+  "pendiente_cobro",
+] as const;
 
 export default async function ClientsPage({
   searchParams,
@@ -92,8 +91,6 @@ export default async function ClientsPage({
     "clients.view",
     "Client",
   );
-  const scopeWhere =
-    scopedClientIds === null ? {} : { id: { in: scopedClientIds } };
   const aggregateCapabilities = [
     "reports.view",
     "clients.create",
@@ -121,74 +118,28 @@ export default async function ClientsPage({
   const economicAllowed = aggregateDecisions.every(
     (decision) => decision.allowed && decision.scope === "COMPANY",
   );
+  const canCreateClient = aggregateDecisions[1]?.allowed === true;
+
   if (!economicAllowed) {
-    const clients = await prisma.client.findMany({
-      where: {
-        companyId,
-        ...scopeWhere,
-        archivadoAt: query.archivo === "archivados" ? { not: null } : null,
-        ...(query.buscar
-          ? { nombre: { contains: query.buscar, mode: "insensitive" } }
-          : {}),
-      },
-      select: {
-        id: true,
-        nombre: true,
-        telefono: true,
-        email: true,
-        estado: true,
-      },
-      orderBy: { nombre: "asc" },
-      take: 100,
-    });
-    const canCreateClient = aggregateDecisions[1]?.allowed === true;
     return (
-      <main className="screen">
-        <PageHeader
-          eyebrow="CRM"
-          title="Clientes"
-          description="Contactos autorizados, sin información económica."
-          action={
-            canCreateClient ? (
-              <Link
-                href="/gestion?tipo=cliente&returnTo=/clientes"
-                className="primary-button"
-              >
-                <UserPlus size={18} />
-                Añadir cliente
-              </Link>
-            ) : undefined
-          }
-        />
-        <ResultCount
-          shown={clients.length}
-          total={clients.length}
-          noun="clientes"
-        />
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {clients.map((client) => (
-            <Link
-              key={client.id}
-              href={`/clientes/${client.id}`}
-              className="card p-4"
-            >
-              <h2 className="font-black text-obra-ink">{client.nombre}</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {client.telefono ?? client.email ?? "Sin contacto"}
-              </p>
-              <StatusPill status={client.estado} />
-            </Link>
-          ))}
-        </div>
-      </main>
+      <ScopedClientsPage
+        companyId={companyId}
+        scopedClientIds={scopedClientIds}
+        query={query}
+        canCreateClient={canCreateClient}
+      />
     );
   }
+
   const result = await getClientList(query, companyId, scopedClientIds);
   const operationalContexts = await getOperationalContextsForClients(
     result.items.map((client) => client.id),
   );
-  const activeFilterSet = new Set(
-    (query.filtros ?? "").split(",").filter(Boolean),
+  const items = result.items.map((client) =>
+    toWorkspaceItem(
+      client,
+      operationalContexts.get(client.id)?.nextStep ?? client.nextAction,
+    ),
   );
   const hasCriteria = Boolean(
     query.buscar ||
@@ -198,335 +149,13 @@ export default async function ClientsPage({
   );
 
   return (
-    <ListWorkspace>
+    <main className="screen" data-workspace-family="list">
       <PageHeader
-        eyebrow="CRM"
+        eyebrow="Relaciones"
         title="Clientes"
-        description="Contactos, trabajos y próxima acción de cada cliente."
+        description="Empieza por quien necesita atención y abre su contexto sin perder el listado."
         action={
-          <DemoLimitButton
-            href="/gestion?tipo=cliente&returnTo=/clientes"
-            currentCount={result.total}
-            limit={3}
-          >
-            <UserPlus size={18} />
-            Añadir cliente
-          </DemoLimitButton>
-        }
-      >
-        <CompactFilterBar>
-          <form
-            action="/clientes"
-            className="grid gap-3"
-            aria-label="Buscar y filtrar clientes"
-          >
-            <div className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_13rem_13rem_13rem_13rem_auto]">
-              <label>
-                <span className="label mb-1 block">Buscar</span>
-                <span className="flex gap-2">
-                  <CompactSearch
-                    name="buscar"
-                    defaultValue={query.buscar ?? ""}
-                    placeholder="Nombre, CIF/NIF, email, teléfono…"
-                  />
-                  <button
-                    className="icon-button lg:hidden"
-                    type="submit"
-                    aria-label="Buscar clientes"
-                  >
-                    <Search size={19} />
-                  </button>
-                </span>
-              </label>
-
-              <Select
-                name="tipo"
-                label="Tipo"
-                value={query.tipo ?? "todos"}
-                options={[
-                  ["todos", "Todos"],
-                  ...result.typeOptions.map((type) => [type, type]),
-                ]}
-              />
-              <Select
-                name="estado"
-                label="Estado"
-                value={query.estado ?? "todos"}
-                options={statusOptions}
-              />
-              <Select
-                name="archivo"
-                label="Archivo"
-                value={query.archivo ?? "activos"}
-                options={[
-                  ["activos", "Activos"],
-                  ["archivados", "Archivados"],
-                  ["todos", "Todos"],
-                ]}
-              />
-              <Select
-                name="ordenar"
-                label="Orden"
-                value={query.ordenar ?? "ultimaActividad_desc"}
-                options={orderOptions}
-              />
-
-              <button
-                type="submit"
-                className="primary-button hidden self-end lg:inline-flex"
-              >
-                <Search size={18} />
-                Aplicar
-              </button>
-            </div>
-
-            <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-2 sm:p-3">
-              <legend className="mb-2 flex items-center gap-2 text-sm font-black text-obra-ink">
-                <SlidersHorizontal size={17} />
-                Filtros operativos
-              </legend>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                {filterOptions.map(([id, label]) => (
-                  <label
-                    key={id}
-                    className="flex min-h-11 items-center gap-2 rounded-lg bg-white px-2 py-1.5 text-sm font-semibold text-slate-700"
-                  >
-                    <input
-                      className="mt-1"
-                      type="checkbox"
-                      name="filtro"
-                      value={id}
-                      defaultChecked={activeFilterSet.has(id)}
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            {result.activeFilters.length ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {result.activeFilters.map((filter) => (
-                  <span
-                    key={filter.id}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-600"
-                  >
-                    {filter.label}
-                  </span>
-                ))}
-                <Link
-                  href="/clientes"
-                  className="secondary-button min-h-9 px-3 py-1 text-xs"
-                >
-                  <Eraser size={15} />
-                  Limpiar
-                </Link>
-              </div>
-            ) : null}
-          </form>
-        </CompactFilterBar>
-      </PageHeader>
-
-      <ResultCount
-        shown={result.items.length}
-        total={result.total}
-        noun="clientes"
-        context={
-          <>
-            {query.archivo === "archivados" ? (
-              <span className="inline-flex items-center gap-2">
-                <Archive size={16} />
-                Mostrando clientes archivados
-              </span>
-            ) : (
-              `Página ${result.page} de ${result.totalPages}`
-            )}
-          </>
-        }
-      />
-
-      {result.items.length ? (
-        <>
-          <div className="hidden lg:block">
-            <TableShell label="Clientes">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">
-                      Cliente
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Tipo
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Contacto principal
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Obras
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Saldo
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Próxima acción
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Estado
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {result.items.map((client) => (
-                    <tr key={client.id} className="align-top">
-                      <td className="px-4 py-4">
-                        <ClientName client={client} />
-                      </td>
-                      <td className="px-4 py-4 font-bold text-slate-700">
-                        {client.typeLabel}
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-obra-ink">
-                          {client.primaryContact}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {(client.email ?? client.phone) ||
-                            "Sin contacto directo"}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-black text-obra-ink">
-                          {client.activeWorksCount}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {client.totalWorksCount} totales
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p
-                          className={`font-black ${client.pendingTotal > 0 ? "text-obra-red" : "text-obra-green"}`}
-                        >
-                          {formatCurrency(client.pendingTotal)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatCurrency(client.billedTotal)} facturado
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-700">
-                          {operationalContexts.get(client.id)?.nextStep ??
-                            client.nextAction}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Actividad: {formatDate(client.lastActivityAt)}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusPill status={client.status} />
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex justify-end gap-2">
-                          <Link
-                            href={`/clientes/${client.id}`}
-                            className="secondary-button min-h-10 px-3"
-                            aria-label={`Ver ficha de ${client.displayName}`}
-                          >
-                            <Eye size={17} />
-                            Ver
-                          </Link>
-                          <Link
-                            href={`/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(client.displayName)}&returnTo=/clientes`}
-                            className="icon-button"
-                            aria-label={`Crear seguimiento para ${client.displayName}`}
-                          >
-                            <FileClock size={17} />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableShell>
-          </div>
-
-          <div className="grid gap-3 lg:hidden">
-            {result.items.map((client) => (
-              <article key={client.id} className="card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <ClientName client={client} />
-                  <StatusPill status={client.status} />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <Mini
-                    icon={BriefcaseBusiness}
-                    label="Obras activas"
-                    value={String(client.activeWorksCount)}
-                  />
-                  <Mini
-                    icon={CircleDollarSign}
-                    label="Pendiente"
-                    value={formatCurrency(client.pendingTotal)}
-                    danger={client.pendingTotal > 0}
-                  />
-                  <Mini
-                    icon={FileClock}
-                    label="Última actividad"
-                    value={formatDate(client.lastActivityAt)}
-                  />
-                  <Mini
-                    icon={AlertTriangle}
-                    label="Datos pendientes"
-                    value={String(client.pendingFields.length)}
-                    danger={client.pendingFields.length > 0}
-                  />
-                </div>
-                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                  <p>
-                    <strong className="text-obra-ink">Contacto:</strong>{" "}
-                    {(client.email ?? client.phone) || "Sin contacto directo"}
-                  </p>
-                  <p className="mt-1">
-                    <strong className="text-obra-ink">Siguiente:</strong>{" "}
-                    {operationalContexts.get(client.id)?.nextStep ??
-                      client.nextAction}
-                  </p>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Link
-                    href={`/clientes/${client.id}`}
-                    className="primary-button flex-1"
-                  >
-                    <Eye size={18} />
-                    Ver ficha
-                  </Link>
-                  <Link
-                    href={`/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`}
-                    className="secondary-button"
-                  >
-                    Editar
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
-      ) : (
-        <EmptyState
-          title={
-            hasCriteria
-              ? "No hay clientes para estos filtros"
-              : "Todavía no hay clientes"
-          }
-          description={
-            hasCriteria
-              ? "Cambia la búsqueda o limpia los filtros activos."
-              : "Crea el primer cliente para empezar a relacionar obras, presupuestos y facturas."
-          }
-          icon={Search}
-          action={
+          canCreateClient ? (
             <DemoLimitButton
               href="/gestion?tipo=cliente&returnTo=/clientes"
               currentCount={result.total}
@@ -535,123 +164,291 @@ export default async function ClientsPage({
               <UserPlus size={18} />
               Añadir cliente
             </DemoLimitButton>
-          }
-          secondaryAction={
-            <Link href="/clientes" className="secondary-button">
-              Limpiar filtros
-            </Link>
-          }
+          ) : undefined
+        }
+      >
+        <ClientFilterBar
+          query={query}
+          typeOptions={result.typeOptions}
+          statusOptions={statusOptions}
+          filterOptions={filterOptions}
+          orderOptions={orderOptions}
+          activeFilterLabels={result.activeFilters.map(({ label }) => label)}
         />
-      )}
+      </PageHeader>
+
+      <ResultCount
+        shown={result.items.length}
+        total={result.total}
+        noun="clientes"
+        context={
+          query.archivo === "archivados"
+            ? "Mostrando archivados"
+            : `Página ${result.page} de ${result.totalPages}`
+        }
+      />
+
+      <div className="mt-4">
+        {items.length ? (
+          <ClientSplitView items={items} />
+        ) : (
+          <EmptyState
+            title={
+              hasCriteria
+                ? "No hay clientes para esta vista"
+                : "Todavía no hay clientes"
+            }
+            description={
+              hasCriteria
+                ? "Cambia la búsqueda, la vista inteligente o los filtros."
+                : "Crea el primer cliente para empezar a relacionar contactos y trabajo."
+            }
+            icon={Search}
+            action={
+              canCreateClient ? (
+                <DemoLimitButton
+                  href="/gestion?tipo=cliente&returnTo=/clientes"
+                  currentCount={result.total}
+                  limit={3}
+                >
+                  <UserPlus size={18} />
+                  Añadir cliente
+                </DemoLimitButton>
+              ) : undefined
+            }
+            secondaryAction={
+              <Link href="/clientes?vista=activos" className="secondary-button">
+                Ver clientes activos
+              </Link>
+            }
+          />
+        )}
+      </div>
 
       <Pagination
         query={query}
         page={result.page}
         totalPages={result.totalPages}
       />
-    </ListWorkspace>
+    </main>
   );
 }
 
-function ClientName({ client }: { client: ClientListItem }) {
+async function ScopedClientsPage({
+  companyId,
+  scopedClientIds,
+  query,
+  canCreateClient,
+}: {
+  companyId: string;
+  scopedClientIds: string[] | null;
+  query: ClientListQuery;
+  canCreateClient: boolean;
+}) {
+  const clients = await prisma.client.findMany({
+    where: {
+      companyId,
+      ...(scopedClientIds === null ? {} : { id: { in: scopedClientIds } }),
+      archivadoAt:
+        query.archivo === "archivados"
+          ? { not: null }
+          : query.archivo === "todos"
+            ? undefined
+            : null,
+      ...(query.buscar
+        ? {
+            OR: [
+              { nombre: { contains: query.buscar, mode: "insensitive" } },
+              { nombreComercial: { contains: query.buscar, mode: "insensitive" } },
+              { razonSocial: { contains: query.buscar, mode: "insensitive" } },
+              { email: { contains: query.buscar, mode: "insensitive" } },
+              { telefono: { contains: query.buscar, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+      ...(query.estado && query.estado !== "todos"
+        ? { estado: query.estado as (typeof actionStatuses)[number] }
+        : query.vista === "accion" || !query.vista
+          ? { estado: { in: [...actionStatuses] } }
+          : {}),
+      ...(query.tipo && query.tipo !== "todos"
+        ? { tipo: { equals: query.tipo, mode: "insensitive" } }
+        : {}),
+    },
+    select: {
+      id: true,
+      nombre: true,
+      nombreComercial: true,
+      razonSocial: true,
+      telefono: true,
+      email: true,
+      tipo: true,
+      estado: true,
+      ultimaInteraccion: true,
+    },
+    orderBy:
+      query.ordenar === "nombre_desc"
+        ? { nombre: "desc" }
+        : query.ordenar === "ultimaActividad_asc"
+          ? { ultimaInteraccion: "asc" }
+          : query.ordenar === "ultimaActividad_desc"
+            ? { ultimaInteraccion: "desc" }
+            : { nombre: "asc" },
+    take: 100,
+  });
+  const items: ClientWorkspaceItem[] = clients.map((client) => ({
+    id: client.id,
+    displayName:
+      client.nombreComercial ?? client.razonSocial ?? client.nombre,
+    typeLabel: client.tipo,
+    status: client.estado,
+    nextAction: scopedNextAction(client.estado),
+    risk: scopedRisk(client.estado),
+    activeWork: "Según tu alcance",
+    pendingBalance: null,
+    lastContact: formatDate(client.ultimaInteraccion),
+    primaryContact: client.telefono ?? client.email ?? "Sin contacto directo",
+    phone: client.telefono || null,
+    email: client.email,
+    actionHref: `/clientes/${client.id}`,
+    actionLabel: "Abrir ficha",
+    visitHref: null,
+  }));
+  const typeOptions = [
+    ...new Set(clients.map(({ tipo }) => tipo).filter(Boolean)),
+  ].sort();
+
   return (
-    <div className="min-w-0">
-      <Link
-        href={`/clientes/${client.id}`}
-        className="text-base font-black text-obra-ink hover:underline"
+    <main className="screen" data-workspace-family="list">
+      <PageHeader
+        eyebrow="Relaciones"
+        title="Clientes"
+        description="Contactos y próximos pasos dentro de tu alcance. Los importes restringidos no se muestran."
+        action={
+          canCreateClient ? (
+            <Link
+              href="/gestion?tipo=cliente&returnTo=/clientes"
+              className="primary-button"
+            >
+              <UserPlus size={18} />
+              Añadir cliente
+            </Link>
+          ) : undefined
+        }
       >
-        {client.displayName}
-      </Link>
-      <p className="mt-1 text-xs font-semibold text-slate-500">
-        {client.fiscalName}
-      </p>
-      <RecordPeek
-        title={client.displayName}
-        description={client.fiscalName || "Relación de cliente"}
-        href={`/clientes/${client.id}`}
-        meta="Resumen, actividad y próxima acción sin abandonar el listado."
-      />
-      <div className="mt-2 flex flex-wrap gap-1">
-        {client.fiscalId ? <Badge>{client.fiscalId}</Badge> : null}
-        {client.pendingFields.length ? (
-          <Badge tone="warning">{client.pendingFields.length} pendientes</Badge>
-        ) : null}
-        {client.overdueInvoicesCount ? (
-          <Badge tone="danger">{client.overdueInvoicesCount} vencidas</Badge>
-        ) : null}
+        <ClientFilterBar
+          query={query}
+          typeOptions={typeOptions}
+          statusOptions={statusOptions}
+          filterOptions={[]}
+          orderOptions={orderOptions.slice(0, 4)}
+          activeFilterLabels={[
+            query.buscar ? `Búsqueda: ${query.buscar}` : "",
+            query.estado && query.estado !== "todos"
+              ? `Estado: ${query.estado.replaceAll("_", " ")}`
+              : "",
+            query.tipo && query.tipo !== "todos" ? `Tipo: ${query.tipo}` : "",
+          ].filter(Boolean)}
+        />
+      </PageHeader>
+      <ResultCount shown={items.length} total={items.length} noun="clientes" />
+      <div className="mt-4">
+        {items.length ? (
+          <ClientSplitView items={items} />
+        ) : (
+          <EmptyState
+            title="No hay clientes en esta vista"
+            description="Cambia la búsqueda o abre la vista de clientes activos."
+            icon={Search}
+            secondaryAction={
+              <Link href="/clientes?vista=activos" className="secondary-button">
+                Ver activos
+              </Link>
+            }
+          />
+        )}
       </div>
-    </div>
+    </main>
   );
 }
 
-function Mini({
-  icon: Icon,
-  label,
-  value,
-  danger = false,
-}: {
-  icon: ComponentType<{ size?: number; className?: string }>;
-  label: string;
-  value: string;
-  danger?: boolean;
-}) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-2">
-      <p className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500">
-        <Icon size={14} />
-        {label}
-      </p>
-      <p
-        className={`mt-1 truncate font-black ${danger ? "text-obra-red" : "text-obra-ink"}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
+function toWorkspaceItem(
+  client: ClientListItem,
+  nextAction: string,
+): ClientWorkspaceItem {
+  const action = contextualAction(client, nextAction);
+  return {
+    id: client.id,
+    displayName: client.displayName,
+    typeLabel: client.typeLabel,
+    status: client.status,
+    nextAction,
+    risk: principalRisk(client),
+    activeWork: client.activeWorksCount
+      ? `${client.activeWorksCount} ${client.activeWorksCount === 1 ? "trabajo activo" : "trabajos activos"}`
+      : "Sin trabajo activo",
+    pendingBalance: formatCurrency(client.pendingTotal),
+    lastContact: formatDate(client.lastContactAt ?? client.lastActivityAt),
+    primaryContact: client.primaryContact,
+    phone: client.phone || null,
+    email: client.email,
+    actionHref: action.href,
+    actionLabel: action.label,
+    visitHref: `/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=visita&titulo=Visita%20con%20${encodeURIComponent(client.displayName)}&returnTo=/clientes`,
+  };
 }
 
-function Badge({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: "neutral" | "warning" | "danger";
-}) {
-  const className = {
-    neutral: "bg-slate-100 text-slate-600",
-    warning: "bg-amber-100 text-amber-900",
-    danger: "bg-red-50 text-obra-red",
-  }[tone];
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${className}`}>
-      {children}
-    </span>
-  );
+function contextualAction(client: ClientListItem, nextAction: string) {
+  const normalized = nextAction.toLocaleLowerCase("es");
+  if (normalized.includes("completar")) {
+    return {
+      href: `/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`,
+      label: "Completar datos",
+    };
+  }
+  if (normalized.includes("cobro") || normalized.includes("pago")) {
+    return {
+      href: `/clientes/${client.id}?vista=dinero`,
+      label: "Revisar dinero",
+    };
+  }
+  if (normalized.includes("seguimiento")) {
+    return {
+      href: `/gestion?tipo=recordatorio&clienteId=${client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=/clientes`,
+      label: "Crear seguimiento",
+    };
+  }
+  if (normalized.includes("obra") || normalized.includes("trabajo")) {
+    return {
+      href: `/clientes/${client.id}?vista=trabajos`,
+      label: "Abrir trabajo",
+    };
+  }
+  return { href: `/clientes/${client.id}`, label: "Abrir ficha" };
 }
 
-function Select({
-  name,
-  label,
-  value,
-  options,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: string[][];
-}) {
-  return (
-    <label>
-      <span className="label mb-1 block">{label}</span>
-      <select className="field" name={name} defaultValue={value}>
-        {options.map(([id, optionLabel]) => (
-          <option key={id} value={id}>
-            {optionLabel}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+function principalRisk(client: ClientListItem) {
+  if (client.overdueInvoicesCount) return "Cobro vencido";
+  if (client.pendingFields.length) return "Datos incompletos";
+  if (client.pendingTotal > 0) return "Saldo pendiente";
+  if (client.pendingBudgetsCount) return "Seguimiento pendiente";
+  return "Sin riesgo detectado";
+}
+
+function scopedNextAction(status: string) {
+  if (status === "pendiente_datos") return "Completar datos autorizados";
+  if (status === "visita_pendiente") return "Revisar próxima visita";
+  if (status === "seguimiento_pendiente") return "Abrir seguimiento";
+  if (status === "pendiente_cobro") return "Abrir ficha";
+  if (status === "nuevo") return "Registrar próxima acción";
+  return "Abrir ficha";
+}
+
+function scopedRisk(status: string) {
+  if (status === "pendiente_datos") return "Datos incompletos";
+  if (status === "pendiente_cobro") return "Revisión económica restringida";
+  if (status.includes("pendiente")) return "Acción pendiente";
+  return "Sin riesgo detectado";
 }
 
 function Pagination({
@@ -674,13 +471,12 @@ function Pagination({
           href={hrefWith(query, { pagina: String(page - 1) })}
           className="secondary-button"
         >
-          <ArrowLeft size={18} />
           Anterior
         </Link>
       ) : (
         <span />
       )}
-      <span className="text-sm font-bold text-slate-600">
+      <span className="text-sm font-semibold text-content-secondary">
         {page} / {totalPages}
       </span>
       {page < totalPages ? (
@@ -689,7 +485,6 @@ function Pagination({
           className="secondary-button"
         >
           Siguiente
-          <ArrowRight size={18} />
         </Link>
       ) : (
         <span />
@@ -700,22 +495,25 @@ function Pagination({
 
 function normalizeQuery(raw: RawSearchParams): ClientListQuery {
   const filters = arrayValue(raw.filtro);
+  const view = stringValue(raw.vista) ?? "accion";
   return {
     buscar: stringValue(raw.buscar),
+    vista: view,
     estado: stringValue(raw.estado),
     tipo: stringValue(raw.tipo),
-    archivo: stringValue(raw.archivo),
+    archivo:
+      stringValue(raw.archivo) ?? (view === "todos" ? "todos" : "activos"),
     ordenar: stringValue(raw.ordenar),
     pagina: stringValue(raw.pagina),
     filtros: filters.length ? filters.join(",") : stringValue(raw.filtros),
-  };
+  } satisfies ClientListQuery & ClientFilterQuery;
 }
 
 function hrefWith(query: ClientListQuery, changes: Partial<ClientListQuery>) {
   const next = { ...query, ...changes };
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(next)) {
-    if (!value || value === "todos" || value === "activos") continue;
+    if (!value || (value === "activos" && key === "archivo")) continue;
     params.set(key, value);
   }
   const suffix = params.toString();

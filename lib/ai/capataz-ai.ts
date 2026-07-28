@@ -1,3 +1,5 @@
+import { openAiHttpRequest } from "@/lib/ai/openai-transport";
+
 export const capatazAIIntents = [
   "crear_cliente",
   "crear_lead",
@@ -482,7 +484,7 @@ export async function requestCapatazStructuredResponse(input: {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? readTimeoutMs("fast"));
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await requestOpenAiResponses(apiKey, {
       method: "POST",
       signal: controller.signal,
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -535,7 +537,7 @@ async function runCompactExtraction({
   let response: Response;
 
   try {
-    response = await fetch("https://api.openai.com/v1/responses", {
+    response = await requestOpenAiResponses(apiKey, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -638,7 +640,7 @@ async function pingOpenAIModel(apiKey: string, model: string, lane: "fast" | "re
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await requestOpenAiResponses(apiKey, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -683,6 +685,16 @@ function readTimeoutMs(lane: "fast" | "reasoning") {
   const value = Number(process.env[envKey] ?? fallback);
   if (!Number.isFinite(value)) return lane === "fast" ? 10000 : 30000;
   return Math.min(lane === "fast" ? 15000 : 35000, Math.max(5000, value));
+}
+
+function requestOpenAiResponses(apiKey: string, init: RequestInit) {
+  return openAiHttpRequest({
+    path: "responses",
+    apiKey,
+    projectId: process.env.OPENAI_PROJECT_ID,
+    baseUrl: process.env.OPENAI_BASE_URL,
+    init,
+  });
 }
 
 export class CapatazAIRequestError extends Error {

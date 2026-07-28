@@ -47,7 +47,7 @@ try {
   assert.ok(Array.isArray(publicRules.allow) && publicRules.allow.includes("/producto"));
   assert.match(String(publicRobots.sitemap), /\/sitemap\.xml$/);
 
-  for (const path of ["/", "/producto", "/producto/agenda", "/soluciones", "/sectores", "/sectores/construccion", "/planes"]) {
+  for (const path of ["/", "/producto", "/producto/agenda", "/soluciones", "/soluciones/presupuestos-de-obra", "/sectores", "/sectores/construccion", "/planes", "/estado", "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida"]) {
     assert.equal(isPublicIndexablePath(path), true, `${path} must be publicly indexable after opt-in`);
     assert.equal(shouldSendNoIndexHeader(path), false, `${path} must not receive noindex after opt-in`);
   }
@@ -64,13 +64,19 @@ try {
   }
 
   const rootLayout = read("app/layout.tsx");
+  const marketingInternalLayout = read("app/marketing-internal/layout.tsx");
   const appLayout = read("app/(app)/layout.tsx");
   const authLayout = read("app/(auth)/layout.tsx");
+  const publicMatrix = read("scripts/design/validate-d10-public-matrix.mjs");
   const middleware = read("middleware.ts");
   const nextConfig = read("next.config.ts");
   assert.match(rootLayout, /robots:\s*getPublicRobotsMetadata\(\)/);
+  assert.match(marketingInternalLayout, /robots:\s*getPublicRobotsMetadata\(\)/);
+  assert.doesNotMatch(marketingInternalLayout, /robots:\s*{\s*index:\s*true/);
   assert.match(appLayout, /PRIVATE_ROBOTS_METADATA/);
   assert.match(authLayout, /PRIVATE_ROBOTS_METADATA/);
+  assert.match(publicMatrix, /normalizedEmail !== "hola@orqenatech\.com"/);
+  assert.doesNotMatch(publicMatrix, /(?:endsWith|includes)\("@orqenatech\.com"\)/);
   assert.match(middleware, /shouldSendNoIndexHeader/);
   assert.match(middleware, /X_ROBOTS_TAG_VALUE/);
   assert.doesNotMatch(nextConfig, /NEXT_PUBLIC_APP_ENV.*X-Robots-Tag/);

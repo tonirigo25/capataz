@@ -26,6 +26,8 @@ type CompanyLike = {
   textoLegal?: string | null;
   logoUrl?: string | null;
   selloUrl?: string | null;
+  logoStoredObjectId?: string | null;
+  sealStoredObjectId?: string | null;
   ivaDefecto?: number | null;
   seriePresupuestos?: string | null;
   serieFacturas?: string | null;
@@ -66,8 +68,8 @@ export function companyCompletion(company: CompanyLike): CompletionResult {
     { label: "IVA por defecto", ok: typeof company?.ivaDefecto === "number", required: true },
     { label: "serie y prefijo de presupuestos", ok: hasText(company?.seriePresupuestos) && hasText(company?.prefijoPresupuesto), required: true },
     { label: "serie y prefijo de facturas", ok: hasText(company?.serieFacturas) && hasText(company?.prefijoFactura), required: true },
-    { label: "logo", ok: hasText(company?.logoUrl), required: false },
-    { label: "sello", ok: hasText(company?.selloUrl), required: false },
+    { label: "logo", ok: hasText(company?.logoStoredObjectId), required: false },
+    { label: "sello", ok: hasText(company?.sealStoredObjectId), required: false },
     { label: "IBAN", ok: hasText(company?.iban), required: false },
     { label: "condiciones por defecto", ok: hasText(company?.condicionesPorDefecto), required: false },
     { label: "texto legal", ok: hasText(company?.textoLegal), required: false },

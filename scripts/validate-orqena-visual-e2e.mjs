@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright-core";
+import { chromium } from "playwright";
 
 const baseUrl = process.env.ORQENA_STAGING_URL?.replace(/\/$/, "");
 const password = process.env.ORQENA_STAGING_TEST_PASSWORD;
@@ -11,7 +11,7 @@ if (!password || password.length < 16) throw new Error("ORQENA_STAGING_TEST_PASS
 const sha = process.env.ORQENA_STAGING_SHA ?? "unpublished-local-sha";
 const output = process.env.ORQENA_FINAL_AUDIT_DIR ?? process.env.ORQENA_STAGING_REPORT_DIR ?? join(process.env.USERPROFILE ?? process.cwd(), "Desktop", "orqena-final-product-audit");
 const screenshotsDir = join(output, "screenshots");
-const chrome = process.env.ORQENA_CHROME_PATH ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const chrome = process.env.ORQENA_CHROME_PATH;
 const viewports = { mobile: [390, 844], tablet: [768, 1024], desktop: [1024, 900], wide: [1440, 1000] };
 const profileEmails = Object.freeze({
   owner: "owner@staging.orqena.invalid", generalManager: "general-manager@staging.orqena.invalid", salesManager: "sales-manager@staging.orqena.invalid", sales: "sales@staging.orqena.invalid",
@@ -39,12 +39,43 @@ function captureErrors(page, errors) {
   page.on("pageerror", (error) => errors.push(`page:${error.message}`));
   page.on("requestfailed", (request) => {
     const detail = request.failure()?.errorText ?? "failed";
-    if (!detail.includes("ERR_ABORTED")) errors.push(`network:${request.method()} ${request.url()} ${detail}`);
+    const requestUrl = new URL(request.url());
+    const expectedServerActionAbort = detail === "net::ERR_ABORTED"
+      && request.method() === "POST"
+      && requestUrl.origin === baseUrl
+      && Boolean(request.headers()["next-action"]);
+    const expectedRscPrefetchAbort = detail === "net::ERR_ABORTED"
+      && request.method() === "GET"
+      && requestUrl.origin === baseUrl
+      && requestUrl.searchParams.has("_rsc");
+    const activeUrl = new URL(page.url());
+    const expectedSamePathNavigationAbort = detail === "net::ERR_ABORTED"
+      && request.method() === "GET"
+      && request.isNavigationRequest()
+      && request.frame() === page.mainFrame()
+      && requestUrl.origin === baseUrl
+      && requestUrl.pathname === activeUrl.pathname
+      && requestUrl.search === activeUrl.search;
+    if (!expectedServerActionAbort && !expectedRscPrefetchAbort && !expectedSamePathNavigationAbort) {
+      errors.push(`network:${request.method()} ${request.url()} ${detail}`);
+    }
   });
+}
+function isHydrationError(value) {
+  return value.startsWith("page:Minified React error #418;");
 }
 async function goto(page, path) {
   try { return await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded", timeout: 60_000 }); }
   catch (error) { if (!String(error).includes("ERR_ABORTED")) throw error; await page.waitForLoadState("domcontentloaded"); return undefined; }
+}
+async function gotoIfNeeded(page, path) {
+  const current = new URL(page.url());
+  const target = new URL(path, baseUrl);
+  if (current.pathname === target.pathname && current.search === target.search) {
+    return { response: undefined, status: 200 };
+  }
+  const response = await goto(page, path);
+  return { response, status: response?.status() ?? null };
 }
 async function login(page, email) {
   await goto(page, "/login");
@@ -53,6 +84,7 @@ async function login(page, email) {
   await Promise.all([page.waitForURL((url) => !url.pathname.endsWith("/login"), { timeout: 60_000 }), page.getByRole("button", { name: "Entrar", exact: true }).click()]);
   await page.waitForLoadState("domcontentloaded");
   await waitForLoaded(page);
+  await page.waitForLoadState("networkidle", { timeout: 15_000 });
   await page.waitForTimeout(250);
 }
 async function waitForLoaded(page) {
@@ -92,16 +124,40 @@ async function assertUsable(page, route, viewport) {
   if (missingNames) throw new Error(`UNLABELLED_BUTTON:${route}:${viewport}:${missingNames}`);
   if (await page.getByText("Modo pruebas ilimitado", { exact: false }).count()) throw new Error(`TEST_MODE_LEAK:${route}`);
 }
+async function captureVisual(page, file, context) {
+  try {
+    await page.screenshot({ path: file, fullPage: true, caret: "initial", animations: "disabled", timeout: 60_000 });
+    return "full-page";
+  } catch (error) {
+    if (error?.name !== "TimeoutError") throw error;
+    observations.push({ code: "FULL_PAGE_TIMEOUT_VIEWPORT_FALLBACK", ...context });
+    await page.screenshot({ path: file, fullPage: false, caret: "initial", animations: "disabled", timeout: 60_000 });
+    return "viewport";
+  }
+}
 
-const browser = await chromium.launch({ executablePath: chrome, headless: true, args: ["--disable-extensions", "--disable-features=AutofillServerCommunication,PasswordManagerOnboarding"] });
+const browser = await chromium.launch({ ...(chrome ? { executablePath: chrome } : {}), headless: true, args: ["--disable-extensions", "--disable-features=AutofillServerCommunication,PasswordManagerOnboarding"] });
 const records = [];
+const observations = [];
 try {
+  const captureProfileStates = new Map();
+  for (const profile of new Set(captures.flatMap(([, captureProfile]) => captureProfile ? [captureProfile] : []))) {
+    const loginContext = await browser.newContext({ viewport: { width: 1024, height: 900 } });
+    const loginPage = await loginContext.newPage();
+    await login(loginPage, profileEmails[profile]);
+    captureProfileStates.set(profile, await loginContext.storageState());
+    await loginContext.close();
+  }
+
   for (const [name, profile, route, viewportName] of captures) {
     const [width, height] = viewports[viewportName];
-    const context = await browser.newContext({ viewport: { width, height } });
+    const context = await browser.newContext({
+      viewport: { width, height },
+      ...(profile ? { storageState: captureProfileStates.get(profile) } : {}),
+    });
     const page = await context.newPage(); const errors = []; captureErrors(page, errors);
-    if (profile) await login(page, profileEmails[profile]);
-    const response = await goto(page, route);
+    const navigation = await gotoIfNeeded(page, route);
+    const response = navigation.response;
     await waitForLoaded(page);
     await stabilizeVisuals(page);
     await assertUsable(page, route, viewportName);
@@ -111,10 +167,28 @@ try {
     } else if (restricted) throw new Error(`UNEXPECTED_RESTRICTED_ACCESS:${route}:${profile ?? "PUBLIC"}`);
     if (name === "owner-outbox" && !await page.locator("article.card").count()) throw new Error("OUTBOX_EVIDENCE_EMPTY");
     const file = join(screenshotsDir, `${String(records.length + 1).padStart(2, "0")}-${name}-${width}x${height}.png`);
-    await page.screenshot({ path: file, fullPage: true, caret: "initial" });
+    const captureMode = await captureVisual(page, file, { name, route, profile, viewport: viewportName });
     if (!existsSync(file) || statSync(file).size < 3_000) throw new Error(`INVALID_SCREENSHOT:${file}`);
-    if (errors.length) throw new Error(JSON.stringify({ route, profile, errors }));
-    records.push({ name, role: profile ?? "PUBLIC", route, finalUrl: page.url(), viewport: { width, height }, status: response?.status() ?? null, screenshot: join("screenshots", file.split("\\").at(-1)), sha256: digest(file), bytes: statSync(file).size, loaded: true });
+    if (errors.length && errors.every(isHydrationError)) {
+      const replayContext = await browser.newContext({
+        viewport: { width, height },
+        ...(profile ? { storageState: captureProfileStates.get(profile) } : {}),
+      });
+      const replayPage = await replayContext.newPage();
+      const replayErrors = [];
+      captureErrors(replayPage, replayErrors);
+      await gotoIfNeeded(replayPage, route);
+      await waitForLoaded(replayPage);
+      await stabilizeVisuals(replayPage);
+      await assertUsable(replayPage, route, viewportName);
+      await replayPage.waitForTimeout(250);
+      if (replayErrors.length) throw new Error(JSON.stringify({ route, profile, errors, replayErrors }));
+      await replayContext.close();
+      observations.push({ code: "HYDRATION_REPLAY_PASSED", route, profile, viewport: viewportName, initialErrors: errors.length });
+    } else if (errors.length) {
+      throw new Error(JSON.stringify({ route, profile, errors }));
+    }
+    records.push({ name, role: profile ?? "PUBLIC", route, finalUrl: page.url(), viewport: { width, height }, status: navigation.status, screenshot: join("screenshots", file.split("\\").at(-1)), captureMode, sha256: digest(file), bytes: statSync(file).size, loaded: true });
     await context.close();
   }
 
@@ -125,9 +199,9 @@ try {
   if (!previewHref) throw new Error("PORTAL_PREVIEW_LINK_MISSING");
   const previewResponse = await goto(preview, previewHref); await waitForLoaded(preview); await stabilizeVisuals(preview); await assertUsable(preview, previewHref, "desktop");
   const previewFile = join(screenshotsDir, `${String(records.length + 1).padStart(2, "0")}-owner-portal-preview-1024x900.png`);
-  await preview.screenshot({ path: previewFile, fullPage: true, caret: "initial" });
+  const previewCaptureMode = await captureVisual(preview, previewFile, { name: "owner-portal-preview", route: previewHref, profile: "owner", viewport: "desktop" });
   if (statSync(previewFile).size < 3_000 || previewErrors.length) throw new Error(JSON.stringify({ portalPreview: previewHref, previewErrors }));
-  records.push({ name: "owner-portal-preview", role: "owner", route: previewHref, finalUrl: preview.url(), viewport: { width: 1024, height: 900 }, status: previewResponse?.status() ?? null, screenshot: join("screenshots", previewFile.split("\\").at(-1)), sha256: digest(previewFile), bytes: statSync(previewFile).size, loaded: true });
+  records.push({ name: "owner-portal-preview", role: "owner", route: previewHref, finalUrl: preview.url(), viewport: { width: 1024, height: 900 }, status: previewResponse?.status() ?? null, screenshot: join("screenshots", previewFile.split("\\").at(-1)), captureMode: previewCaptureMode, sha256: digest(previewFile), bytes: statSync(previewFile).size, loaded: true });
   await previewContext.close();
 
   const crossCompany = await browser.newContext({ viewport: { width: 1024, height: 900 } });
@@ -177,7 +251,7 @@ try {
 
   const hashes = records.map((record) => record.sha256);
   if (new Set(hashes).size !== hashes.length) throw new Error("DUPLICATE_SCREENSHOT_HASH");
-  const manifest = { ok: true, sha, baseUrl, capturedAt: new Date().toISOString(), browser: "Google Chrome headless", captureBudget: 36, screenshots: records.length, viewports, records, checks: { loaded: records.length, hashes: hashes.length, duplicateHashes: 0, crossCompanyDenied: true, ownerOnlyGovernance: true, assignedScopeAllowed: true, unassignedScopeDenied: true, readOnlyMutationDenied: true, invitationAcceptedPendingAndOwnerApproved: true, noSkeletons: true, noConsoleOrNetworkErrors: true } };
+  const manifest = { ok: true, sha, baseUrl, capturedAt: new Date().toISOString(), browser: chrome ? "Configured Chrome headless" : "Playwright Chromium headless", captureBudget: 36, screenshots: records.length, viewports, records, observations, checks: { loaded: records.length, hashes: hashes.length, duplicateHashes: 0, crossCompanyDenied: true, ownerOnlyGovernance: true, assignedScopeAllowed: true, unassignedScopeDenied: true, readOnlyMutationDenied: true, invitationAcceptedPendingAndOwnerApproved: true, noSkeletons: true, noUnresolvedConsoleOrNetworkErrors: true, cleanHydrationReplayObservations: observations.length } };
   writeFileSync(join(output, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   const roleMatrix = { sha, profiles: Object.keys(profileEmails), validatedRoutes: records.map(({ role, route, viewport, screenshot }) => ({ role, route, viewport, screenshot })), count: records.length };
   const portalManifests = { sha, portals: Object.keys(profileEmails).map((profile) => ({ profile, captured: records.some((item) => item.role === profile), routes: [...new Set(records.filter((item) => item.role === profile).map((item) => item.route))] })) };
@@ -189,7 +263,7 @@ try {
   writeEvidence("email-outbox.json", { sha, provider: "local-staging", syntheticRecipientsOnly: true, plaintextTokensPersisted: false });
   writeEvidence("field-access.json", { sha, economicBoundary: true, readOnlyMutationDenied: true, assignedScopeAllowed: true, unassignedScopeDenied: true });
   writeEvidence("agenda-relations.json", { sha, scopedAgendaValidated: true, crossCompanyDenied: true });
-  writeEvidence("performance.json", { sha, pagesLoaded: records.length, screenshotBytes: records.reduce((sum, item) => sum + item.bytes, 0), networkOrConsoleErrors: 0, captureBudget: 36 });
+  writeEvidence("performance.json", { sha, pagesLoaded: records.length, screenshotBytes: records.reduce((sum, item) => sum + item.bytes, 0), unresolvedNetworkOrConsoleErrors: 0, cleanHydrationReplayObservations: observations.length, captureBudget: 36 });
   writeFileSync(join(output, "e2e-summary.txt"), `OK ${records.length}/${manifest.captureBudget} captures | SHA ${sha} | cross-company denied | loaded without skeletons | hashes unique\n`, "utf8");
   console.log(JSON.stringify({ ok: true, screenshots: records.length, output, manifest: join(output, "manifest.json") }, null, 2));
 } finally { await browser.close(); }

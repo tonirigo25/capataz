@@ -1,0 +1,87 @@
+{
+  "phase": "F6",
+  "verdict": "PASS_NON_LIVE_WITH_EXTERNAL_INPUT_GATES",
+  "branch": "feat/readiness-f6-ai",
+  "baseBranch": "program/orqena-production-readiness",
+  "baseCommit": "7a58a7a213dff4e2ca74824aee0a421c874d8fca",
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "databaseTarget": "ephemeral isolated loopback PostgreSQL only",
+    "externalProvidersCalled": false,
+    "realOpenAiCalls": 0,
+    "secretsCreated": false,
+    "secretsExposed": false,
+    "envLocalWritten": false
+  },
+  "requirements": {
+    "total": 18,
+    "pass": 15,
+    "readyForExternalInput": 3,
+    "pending": 0,
+    "blocked": 0,
+    "waived": 0,
+    "externalInputIds": ["AI-004", "AI-006", "AI-016"]
+  },
+  "supplementalLiveControls": {
+    "total": 6,
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "ids": ["AI-LIVE-001", "AI-LIVE-002", "AI-LIVE-003", "AI-LIVE-004", "AI-LIVE-005", "AI-LIVE-006"]
+  },
+  "credentialGate": {
+    "id": "OPENAI-KEY-SETUP-UI",
+    "status": "READY_FOR_EXTERNAL_INPUT",
+    "localApprovalAttempts": 3,
+    "keyCreated": false,
+    "fileWritten": false,
+    "secretExposed": false,
+    "alternateMethodUsed": false
+  },
+  "schema": {
+    "sha256": "01c585097fdb0c91ca241acbb44380e49fbcd87bb30e4ae9972f470f7e640ed2",
+    "models": 147,
+    "relations": 243,
+    "migration": "20260726180000_readiness_f6_ai_governance",
+    "totalMigrationsAppliedFromFresh": 41,
+    "additive": true,
+    "rollback": "global/company kill switches and provider mode off; retained evidence is hash-only after expiry"
+  },
+  "validation": {
+    "staticChecks": "36/36 PASS",
+    "pureFakeChecks": "44/44 PASS",
+    "isolatedPostgres": "8/8 PASS",
+    "structuredOutputStrict": true,
+    "piiAndSecretRedaction": true,
+    "promptInjectionBoundary": true,
+    "crossTenantExfiltrationRejected": true,
+    "budgetDimensions": ["company-month", "user-month", "operation"],
+    "limits": ["input-tokens", "output-tokens", "payload-bytes", "timeout", "concurrency"],
+    "retryStatuses": [408, 409, 429, 500, 502, 503, 504],
+    "circuitBreaker": true,
+    "idempotentReplay": true,
+    "sensitiveEffectsUseOutbox": true,
+    "retentionPurgePreservesHashes": true,
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "staticPagesGenerated": 73,
+    "productionDependencyAudit": "0 known vulnerabilities",
+    "secretScan": "835 files; 6 high-confidence rules; 0 findings",
+    "f1Regression": "56/56 PASS",
+    "f2Regression": "26/26 PASS",
+    "f3Regression": "12/12 PASS",
+    "f4Regression": "11/11 PASS",
+    "f5Regression": "18/18 PASS",
+    "providerContracts": "fake and injected production adapters PASS; zero external calls",
+    "actionBoundaries": "PASS",
+    "contextBoundaries": "33 actions, 23 routes, 6 jobs; positive and negative PASS",
+    "legacyAiFixtures": "3/3 PASS; live validation skipped",
+    "liveCalls": 0
+  },
+  "syntheticUsageEvidence": "docs/readiness/evidence/f6/synthetic-usage-summary.json",
+  "externalInput": {
+    "AI-004": "Current endpoint/region and approved ZDR/MAM/default data profile evidence",
+    "AI-006": "Real provider usage reconciliation for aggregate tokens, cost and latency",
+    "AI-016": "Authorized DPA, subprocessor, processing-location and transfer assessment facts",
+    "AI-LIVE-001..006": "Secure key workflow and six bounded live validations using only synthetic fixtures"
+  }
+}

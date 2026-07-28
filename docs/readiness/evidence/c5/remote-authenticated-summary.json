@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "orqena-c5-remote-authenticated-summary-v1",
+  "generatedAt": "2026-07-26T21:43:36.468Z",
+  "origin": "https://orqena-review-web-review.up.railway.app",
+  "auditedApplicationSha": "d22b42454d10baff0873e5a1afccf85db9bf49a5",
+  "syntheticOnly": true,
+  "credentialsPersisted": false,
+  "automatedVerdict": "PASS",
+  "phaseC5": "READY_FOR_EXTERNAL_INPUT",
+  "summary": {
+    "profiles": 11,
+    "profileViewportCases": 66,
+    "permissionCases": 21,
+    "distinctPortalSignatures": 10,
+    "ownerSurfaceFamilies": 46,
+    "stateCases": 6,
+    "stateCasesPassed": 6,
+    "loginP95Ms": 6117,
+    "authenticatedCapacityCases": 3,
+    "axeCases": 89,
+    "productObservations": 13,
+    "blockingFindings": 0
+  },
+  "automatedStates": [
+    "populated",
+    "responsive",
+    "read-only",
+    "restricted",
+    "privileged-mfa",
+    "empty",
+    "loading",
+    "error-with-recovery",
+    "offline-with-recovery",
+    "keyboard-representative",
+    "320px-reflow-equivalent"
+  ],
+  "externalInputStillRequired": [
+    "Safari on physical iOS",
+    "Chrome on physical Android",
+    "NVDA",
+    "VoiceOver",
+    "real 200% and 400% zoom",
+    "human visual-baseline approval"
+  ],
+  "productObservations": [
+    { "context": "/presupuestos/review-budget-1", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 3 },
+    { "context": "/presupuestos/plantillas", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 44 },
+    { "context": "/dinero/review-invoice-1", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 2 },
+    { "context": "/tesoreria", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 3 },
+    { "context": "/subcontratas", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 2 },
+    { "context": "/facturas-proveedor", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 2 },
+    { "context": "/facturas-subcontratas", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 2 },
+    { "context": "/tareas", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 2 },
+    { "context": "/tareas/review-task-1", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 6 },
+    { "context": "/recomendaciones", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 8 },
+    { "context": "/configuracion", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 2 },
+    { "context": "/configuracion/soporte", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 3 },
+    { "context": "/plataforma/salud", "code": "MULTIPLE_PRIMARY_ACTIONS", "count": 3 }
+  ],
+  "blockingFindings": []
+}

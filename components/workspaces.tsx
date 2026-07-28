@@ -13,12 +13,12 @@ export function ListWorkspace({
   contextualPanel?: ReactNode;
 }) {
   return (
-    <div className={clsx("screen list-workspace", className)} data-workspace-family="list">
+    <main className={clsx("screen list-workspace", className)} data-workspace-family="list">
       <div className={contextualPanel ? "list-workspace__layout" : undefined}>
         <div className="min-w-0">{children}</div>
         {contextualPanel ? <aside className="list-workspace__context" aria-label="Contexto de la selección">{contextualPanel}</aside> : null}
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -32,12 +32,33 @@ export function RecordWorkspace({
   context?: ReactNode;
 }) {
   return (
-    <div className={clsx("screen record-workspace", className)} data-workspace-family="record">
+    <main className={clsx("screen record-workspace", className)} data-workspace-family="record">
       <div className={context ? "record-workspace__layout" : undefined}>
         <div className="min-w-0">{children}</div>
         {context ? <aside className="record-workspace__context" aria-label="Contexto del registro">{context}</aside> : null}
       </div>
-    </div>
+    </main>
+  );
+}
+
+export function SplitWorkspace({
+  children,
+  className,
+  context,
+  contextLabel = "Contexto relacionado",
+}: {
+  children: ReactNode;
+  className?: string;
+  context: ReactNode;
+  contextLabel?: string;
+}) {
+  return (
+    <main className={clsx("screen split-workspace", className)} data-workspace-family="split">
+      <div className="split-workspace__layout">
+        <div className="min-w-0">{children}</div>
+        <aside className="split-workspace__context" aria-label={contextLabel}>{context}</aside>
+      </div>
+    </main>
   );
 }
 

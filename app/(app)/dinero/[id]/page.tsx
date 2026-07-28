@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarClock, Download, Eye, Pencil, Plus, Receipt, WalletCards } from "lucide-react";
+import { ArrowLeft, Bell, CalendarClock, CheckCircle2, Download, Eye, FileCheck2, Pencil, Plus, Receipt, WalletCards } from "lucide-react";
 import { markInvoicePaid } from "@/app/(app)/dinero/actions";
 import { ConfirmedPaymentForm } from "@/components/confirmed-payment-form";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
@@ -24,7 +24,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       include: {
         client: true,
         work: true,
-        payments: { orderBy: { fecha: "desc" } }
+        payments: { orderBy: { fecha: "desc" } },
+        reminders: { orderBy: { fechaProgramada: "desc" } },
+        agendaEvents: { orderBy: { fechaInicio: "desc" } },
+        fiscalDocuments: { orderBy: { createdAt: "desc" } }
       }
     }),
     prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } })
@@ -46,6 +49,36 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const liveStatus = invoice.estado === "borrador" ? "borrador" : deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento);
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length;
+  const collected = Math.max(0, invoice.total - invoice.pendiente);
+  const collectionPercent = invoice.total > 0 ? Math.min(100, Math.max(0, collected / invoice.total * 100)) : 0;
+  const overdue = invoice.pendiente > 0 && invoice.fechaVencimiento < new Date();
+  const latestFiscalDocument = invoice.fiscalDocuments[0] ?? null;
+  const collectionTimeline = [
+    ...invoice.payments.map((payment) => ({
+      key: `payment-${payment.id}`,
+      date: payment.fecha,
+      title: "Pago registrado",
+      detail: `${formatCurrency(payment.importe)} · ${payment.metodo} · ${payment.tipo.replaceAll("_", " ")}`,
+      kind: "payment" as const,
+      paymentId: payment.id,
+    })),
+    ...invoice.reminders.map((reminder) => ({
+      key: `reminder-${reminder.id}`,
+      date: reminder.fechaProgramada,
+      title: reminder.estado === "enviado" ? "Recordatorio enviado" : "Recordatorio preparado",
+      detail: `${reminder.canal} · ${reminder.estado.replaceAll("_", " ")} · ${reminder.mensaje}`,
+      kind: "reminder" as const,
+      paymentId: null,
+    })),
+    ...invoice.agendaEvents.map((event) => ({
+      key: `event-${event.id}`,
+      date: event.fechaInicio,
+      title: event.titulo,
+      detail: `${event.tipo.replaceAll("_", " ")} · ${event.estado.replaceAll("_", " ")}`,
+      kind: "promise" as const,
+      paymentId: null,
+    })),
+  ].sort((left, right) => right.date.getTime() - left.date.getTime());
 
   return (
     <main className="screen">
@@ -63,13 +96,25 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         secondaryActions={<ActionMenu>{canUpdate ? <Link href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/dinero/${invoice.id}`}><Pencil size={18} /> Editar factura</Link> : null}{canSchedule ? <Link href={`/gestion?tipo=eventoAgenda&clienteId=${invoice.clienteId}&obraId=${invoice.obraId ?? ""}&facturaId=${invoice.id}&tipoEvento=seguimiento_cobro&titulo=Seguimiento%20cobro%20${encodeURIComponent(invoice.numero)}&descripcion=${encodeURIComponent(invoice.concepto)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/dinero/${invoice.id}`}><CalendarClock size={18} /> Crear seguimiento</Link> : null}<Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista PDF</Link><Link href={`/dinero/${invoice.id}/pdf`}><Download size={18} /> Descargar PDF</Link></ActionMenu>}
       />
 
-      <MetricStrip className="mb-4 sm:grid-cols-3 xl:grid-cols-3">
-          <Mini label="Total" value={formatCurrency(invoice.total)} icon={Receipt} />
-          <Mini label="Pagado" value={formatCurrency(invoice.pagado)} icon={WalletCards} />
+      <section className="section-shell mb-4" aria-labelledby="collection-state">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="type-meta">Estado de cobro</p>
+            <h2 id="collection-state" className="type-section-title mt-1 text-content">{formatCurrency(invoice.pendiente)} pendientes</h2>
+          </div>
+          <strong className="tabular text-3xl text-content">{formatCurrency(invoice.total)}</strong>
+        </div>
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-label="Porcentaje cobrado" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(collectionPercent)}>
+          <div className="h-full rounded-full bg-success" style={{ width: `${collectionPercent}%` }} />
+        </div>
+        <MetricStrip className="mt-4 sm:grid-cols-3 xl:grid-cols-3">
+          <Mini label="Cobrado" value={formatCurrency(collected)} icon={WalletCards} />
           <Mini label="Pendiente" value={formatCurrency(invoice.pendiente)} icon={CalendarClock} />
-      </MetricStrip>
+          <Mini label="Vencimiento" value={formatDate(invoice.fechaVencimiento)} icon={Receipt} />
+        </MetricStrip>
+      </section>
 
-      <Notice className="mb-4" tone="warning" title="Revisión fiscal" description="Si esta factura sigue en borrador, revísala con tu gestoría antes de usarla como documento legal." />
+      <Notice className="mb-4" tone={overdue ? "danger" : "info"} title={overdue ? "Cobro vencido" : "Cobro y fiscalidad separados"} description={overdue ? "El saldo sigue abierto después del vencimiento. Prepara un seguimiento; el estado fiscal se mantiene en su bloque independiente." : "Registrar un cobro no modifica por sí solo el estado fiscal. Ambos historiales se muestran por separado."} />
       {companyMissing ? <Notice className="mb-4" tone="warning" title="Datos de empresa incompletos" description={`Falta ${companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes generar el PDF, pero quedará incompleto.`} /> : null}
 
       <DetailSection title="Estado, vencimiento y pago" description="Datos principales para revisar antes de registrar un cobro.">
@@ -83,6 +128,32 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </DetailSection>
 
       <EntityWorkflowSummary clientId={invoice.clienteId} workId={invoice.obraId ?? undefined} invoiceId={invoice.id} />
+      <DetailSection className="mt-4" title="Historial y compromisos" description="Pagos parciales, recordatorios y seguimientos vinculados a esta factura.">
+        {collectionTimeline.length ? <div className="divide-y divide-border">
+          {collectionTimeline.map((item) => (
+            <article key={item.key} className="grid min-h-16 gap-2 py-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-strong" aria-hidden="true">
+                {item.kind === "payment" ? <WalletCards size={17} /> : item.kind === "reminder" ? <Bell size={17} /> : <CalendarClock size={17} />}
+              </span>
+              <span>
+                <strong className="block text-content">{item.title}</strong>
+                <span className="type-meta mt-1 block">{item.detail}</span>
+              </span>
+              <span className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+                <span className="type-meta">{formatDate(item.date)}</span>
+                {item.paymentId && canCollect ? <Link href={`/gestion?tipo=pago&id=${item.paymentId}&returnTo=/dinero/${invoice.id}`} className="secondary-button"><Pencil size={16} /> Editar</Link> : null}
+              </span>
+            </article>
+          ))}
+        </div> : <p className="type-secondary">Todavía no hay pagos, recordatorios ni promesas de pago registradas.</p>}
+      </DetailSection>
+
+      {invoice.pendiente > 0 ? <section className="section-shell mt-4" aria-labelledby="collection-next-action">
+        <p className="type-meta">Siguiente acción</p>
+        <h2 id="collection-next-action" className="type-section-title mt-2 text-content">{overdue ? "Preparar seguimiento de cobro" : "Revisar el cobro antes del vencimiento"}</h2>
+        <p className="type-secondary mt-2">{overdue ? "Comprueba el último compromiso registrado antes de contactar de nuevo." : `El saldo documentado vence el ${formatDate(invoice.fechaVencimiento)}.`}</p>
+        {canSchedule ? <Link href={`/gestion?tipo=eventoAgenda&clienteId=${invoice.clienteId}&obraId=${invoice.obraId ?? ""}&facturaId=${invoice.id}&tipoEvento=seguimiento_cobro&titulo=Seguimiento%20cobro%20${encodeURIComponent(invoice.numero)}&descripcion=${encodeURIComponent(invoice.concepto)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/dinero/${invoice.id}`} className="secondary-button mt-4"><CalendarClock size={18} /> Programar seguimiento</Link> : null}
+      </section> : null}
       {invoice.pendiente > 0 && canCollect ? (
         <>
           <section className="mt-4">
@@ -92,6 +163,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               cliente={invoice.client.nombre}
               pendiente={invoice.pendiente}
               total={invoice.total}
+              triggerClassName="secondary-button"
             />
           </section>
           <form action={markInvoicePaid} className="card mt-4 grid gap-3 p-4">
@@ -110,29 +182,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <DetailSection className="mt-4" title="Cobros registrados" description="Historial real de pagos, incluidos los pagos parciales.">
-        <div className="grid gap-3">
-          {invoice.payments.map((payment) => (
-            <article key={payment.id} className="card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-obra-ink">{formatCurrency(payment.importe)}</p>
-                  <p className="mt-1 text-sm text-slate-500">{payment.metodo} · {payment.tipo.replaceAll("_", " ")}</p>
-                </div>
-                <span className="text-sm font-semibold text-slate-500">{formatDate(payment.fecha)}</span>
-              </div>
-              {payment.notas ? <p className="mt-3 text-sm leading-6 text-slate-600">{payment.notas}</p> : null}
-              {canCollect ? <Link href={`/gestion?tipo=pago&id=${payment.id}&returnTo=/dinero/${invoice.id}`} className="secondary-button mt-3">
-                <Pencil size={18} />
-                Editar pago
-              </Link> : null}
-            </article>
-          ))}
-          {invoice.payments.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-              Todavía no hay pagos registrados para esta factura.
-            </div>
-          ) : null}
+      <DetailSection className="mt-4" title="Documento y estado fiscal" description="La factura operativa, el PDF y la preparación fiscal permanecen separados del cobro.">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <FiscalItem icon={Receipt} label="Serie y número" value={invoice.numero} />
+          <FiscalItem icon={CheckCircle2} label="Estado operativo" value={liveStatus.replaceAll("_", " ")} />
+          <FiscalItem icon={FileCheck2} label="Estado fiscal" value={latestFiscalDocument?.status ?? "No preparado"} />
+          <FiscalItem icon={FileCheck2} label="Modo fiscal" value={latestFiscalDocument?.mode ?? "Desactivado"} />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href={`/dinero/${invoice.id}/pdf?preview=1`} target="_blank" className="secondary-button"><Eye size={18} /> Vista PDF</Link>
+          <Link href={`/dinero/${invoice.id}/pdf`} className="secondary-button"><Download size={18} /> Descargar PDF</Link>
         </div>
       </DetailSection>
     </main>
@@ -166,11 +225,20 @@ function Mini({
 }) {
   return (
     <div>
-      <p className="flex items-center gap-1 text-xs font-semibold uppercase text-slate-500">
+      <p className="flex items-center gap-1 text-xs font-semibold uppercase text-content-secondary">
         <Icon size={14} className="text-obra-graphite" />
         {label}
       </p>
       <p className="mt-1 font-black text-obra-ink">{value}</p>
+    </div>
+  );
+}
+
+function FiscalItem({ icon: Icon, label, value }: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-subtle p-4">
+      <p className="type-meta flex items-center gap-2"><Icon size={16} aria-hidden="true" />{label}</p>
+      <p className="mt-2 font-semibold text-content">{value}</p>
     </div>
   );
 }

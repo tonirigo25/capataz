@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "windowMinutes": 15,
+  "metrics": [
+    { "key": "http.errors.rate", "unit": "ratio", "warning": 0.01, "critical": 0.02, "direction": "above" },
+    { "key": "http.latency.p95", "unit": "ms", "warning": 1000, "critical": 2000, "direction": "above" },
+    { "key": "jobs.success.rate", "unit": "ratio", "warning": 0.99, "critical": 0.95, "direction": "below" },
+    { "key": "queue.depth", "unit": "count", "warning": 50, "critical": 100, "direction": "above" },
+    { "key": "database.latency.p95", "unit": "ms", "warning": 250, "critical": 500, "direction": "above" },
+    { "key": "provider.errors.rate", "unit": "ratio", "warning": 0.01, "critical": 0.03, "direction": "above" },
+    { "key": "dead_letters.count", "unit": "count", "warning": 1, "critical": 10, "direction": "above" }
+  ],
+  "jobs": [
+    { "key": "operational-monitor", "expectedEverySeconds": 300 },
+    { "key": "synthetic-smoke", "expectedEverySeconds": 900 },
+    { "key": "email-outbox", "expectedEverySeconds": 300 }
+  ]
+}

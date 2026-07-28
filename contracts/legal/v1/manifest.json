@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "locale": "es-ES",
+  "hashAlgorithm": "sha256",
+  "reviewStatus": "EXTERNAL_LEGAL_REVIEW_REQUIRED_BEFORE_PUBLICATION",
+  "documents": [
+    { "documentKey": "dpa", "version": "1.0-draft", "path": "docs/legal/templates/DPA.v1.md" },
+    { "documentKey": "terms", "version": "1.0-draft", "path": "docs/legal/templates/TERMS.v1.md" },
+    { "documentKey": "privacy", "version": "1.0-draft", "path": "docs/legal/templates/PRIVACY.v1.md" },
+    { "documentKey": "cookies", "version": "1.0-draft", "path": "docs/legal/templates/COOKIES.v1.md" }
+  ]
+}

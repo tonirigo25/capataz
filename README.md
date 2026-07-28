@@ -71,7 +71,7 @@ La entrega local deja `NEXT_PUBLIC_APP_MODE="test"` para que el propietario pued
 
 ## App móvil con Capacitor
 
-La app móvil no es un export estático de Next. Capataz usa Prisma/PostgreSQL y rutas server-side, así que esta primera versión nativa carga la interfaz desde un backend web configurado con Capacitor.
+La app móvil no es un export estático de Next. Orqena usa Prisma/PostgreSQL y rutas server-side, así que esta primera versión nativa carga la interfaz desde un backend web configurado con Capacitor.
 
 Configuración creada:
 
@@ -83,10 +83,10 @@ Configuración creada:
 
 Valores principales:
 
-- `appId`: `com.capataz.app`
-- `appName`: `Capataz`
+- `appId`: `com.orqena.app`
+- `appName`: `Orqena`
 - `webDir`: `mobile-web`
-- `server.url`: `CAPATAZ_MOBILE_SERVER_URL`, `NEXT_PUBLIC_WEB_BASE_URL` o, por defecto, `https://capataz.app`
+- `server.url`: `CAPATAZ_MOBILE_SERVER_URL` o `NEXT_PUBLIC_WEB_BASE_URL`; no existe un dominio público final acreditado en el repositorio
 
 Android emulador:
 
@@ -105,7 +105,7 @@ El emulador Android normalmente accede al ordenador host con `http://10.0.2.2:30
 
 Android físico por USB:
 
-1. Arranca Capataz escuchando en red local si lo necesitas: `npm run dev -- --hostname 0.0.0.0 --port 3000`.
+1. Arranca Orqena escuchando en red local si lo necesitas: `npm run dev -- --hostname 0.0.0.0 --port 3000`.
 2. Obtén la IP local del ordenador, por ejemplo `192.168.1.50`.
 3. Sincroniza apuntando a esa IP:
 
@@ -129,7 +129,7 @@ En Mac, antes de sincronizar:
 
 ```bash
 export CAPATAZ_MOBILE_MODE="staging"
-export CAPATAZ_MOBILE_SERVER_URL="https://staging.capataz.app"
+export CAPATAZ_MOBILE_SERVER_URL="https://staging.orqena.invalid"
 npx cap sync ios
 npx cap open ios
 ```
@@ -158,22 +158,22 @@ Limitaciones de esta fase móvil:
 
 ## Publicar en App Store y Google Play
 
-Capataz queda preparado para distribución de pruebas y publicación, pero no se publica automáticamente desde este repositorio.
+Orqena queda preparado para distribución de pruebas y publicación, pero no se publica automáticamente desde este repositorio.
 
 Entornos recomendados:
 
 - `development`: backend local, modo pruebas, `CAPATAZ_MOBILE_SERVER_URL=http://10.0.2.2:3000` en Android emulador.
-- `staging`: backend público de pruebas, modo demo/revisión, `CAPATAZ_MOBILE_SERVER_URL=https://staging.capataz.app`.
-- `production`: backend público real, `CAPATAZ_MOBILE_SERVER_URL=https://capataz.app`.
+- `staging`: backend aislado de pruebas, modo demo/revisión, con URL HTTPS aprobada externamente.
+- `production`: backend público real, sólo después de aprobar dominio y promoción.
 
 Variables:
 
 ```bash
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_MODE=production
-NEXT_PUBLIC_WEB_BASE_URL=https://capataz.app
-NEXT_PUBLIC_SUPPORT_EMAIL=soporte@capataz.app
-CAPATAZ_MOBILE_SERVER_URL=https://capataz.app
+NEXT_PUBLIC_WEB_BASE_URL=https://orqena.invalid
+NEXT_PUBLIC_SUPPORT_EMAIL=soporte@orqena.invalid
+CAPATAZ_MOBILE_SERVER_URL=https://orqena.invalid
 CAPATAZ_MOBILE_MODE=release
 ```
 
@@ -191,7 +191,7 @@ Android release para Google Play:
 2. Sincroniza:
 
 ```powershell
-$env:CAPATAZ_MOBILE_SERVER_URL="https://capataz.app"
+$env:CAPATAZ_MOBILE_SERVER_URL="https://orqena.invalid"
 $env:CAPATAZ_MOBILE_MODE="release"
 npm run build
 npx cap sync android
@@ -200,9 +200,9 @@ npx cap sync android
 3. Configura firma release mediante variables seguras:
 
 ```powershell
-$env:CAPATAZ_ANDROID_KEYSTORE_PATH="C:\ruta\capataz-release.jks"
+$env:CAPATAZ_ANDROID_KEYSTORE_PATH="C:\ruta\orqena-release.jks"
 $env:CAPATAZ_ANDROID_KEYSTORE_PASSWORD="..."
-$env:CAPATAZ_ANDROID_KEY_ALIAS="capataz"
+$env:CAPATAZ_ANDROID_KEY_ALIAS="orqena"
 $env:CAPATAZ_ANDROID_KEY_PASSWORD="..."
 ```
 
@@ -226,7 +226,7 @@ iOS release para App Store/TestFlight:
 
 ```bash
 export CAPATAZ_MOBILE_MODE="release"
-export CAPATAZ_MOBILE_SERVER_URL="https://capataz.app"
+export CAPATAZ_MOBILE_SERVER_URL="https://orqena.invalid"
 npm run build
 npx cap sync ios
 npx cap open ios
@@ -235,7 +235,7 @@ npx cap open ios
 2. En Xcode:
 
 - Seleccionar Team Apple Developer.
-- Revisar Bundle Identifier `com.capataz.app`.
+- Revisar Bundle Identifier `com.orqena.app`.
 - Revisar versión `1.0.0` y build `1`.
 - Product > Archive.
 - Distribute App.
@@ -316,7 +316,7 @@ El seed crea:
 - PDFs de presupuesto y factura/borrador con datos de empresa, cliente, importes, condiciones, observaciones, logo/sello como referencia configurada y marca de agua en modo demo.
 - Preparación de recordatorio de cobro sin envío automático.
 - Recordatorios con confirmación/cancelación de programación.
-- Chat de Capataz con OpenAI server-side, salida estructurada y acciones internas controladas.
+- Chat de Orqena con OpenAI server-side, salida estructurada y acciones internas controladas.
 - Agenda interna con vistas Hoy, Semana, Mes y Lista.
 - Eventos manuales editables asociados a cliente, obra, presupuesto, factura o recordatorio.
 - Recordatorios, vencimientos de factura, fechas de obra, materiales pendientes y presupuestos sin respuesta visibles en Agenda.
@@ -330,9 +330,9 @@ El seed crea:
 
 ## Gestión manual
 
-Capataz combina dos formas de trabajo:
+Orqena combina dos formas de trabajo:
 
-- Modo IA: el usuario habla o escribe y Capataz propone acciones.
+- Modo IA: el usuario habla o escribe y Orqena propone acciones.
 - Modo manual: el usuario entra en cada módulo y añade, edita o corrige datos directamente.
 
 El profesional siempre mantiene el control final. Desde la app se puede crear y editar manualmente clientes, obras, presupuestos, facturas, pagos, gastos, materiales, recordatorios y eventos de agenda, incluyendo cambios de estado. Los formularios manuales están disponibles desde los botones `Añadir` y `Editar` de cada módulo.
@@ -368,10 +368,10 @@ Crear una visita desde el asistente:
 
 1. Ve a `/capataz`.
 2. Escribe `Agenda visita con Marta mañana a las 10.`
-3. Capataz muestra una tarjeta editable de evento tipo visita.
+3. Orqena muestra una tarjeta editable de evento tipo visita.
 4. Revisa campos y pulsa `Guardar visita`.
 
-Frases de agenda que reconoce el asistente de Capataz:
+Frases de agenda que reconoce el asistente de Orqena:
 
 - `Agenda visita con Marta mañana a las 10.`
 - `Recuérdame llamar a Pedro el viernes.`
@@ -450,7 +450,7 @@ Configuración de empresa:
 - Edita datos fiscales, IBAN, logo URL, sello URL, color de marca, IVA y series.
 - Logo y sello se previsualizan y sus rutas se incluyen en los PDFs generados.
 
-Usar Capataz como app:
+Usar Orqena como app:
 
 - En `/configuracion` está la guía para instalar como PWA en iPhone y Android.
 
@@ -478,7 +478,7 @@ IA real controlada:
 
 ## Reglas de seguridad del producto
 
-Capataz no envía WhatsApp, email, presupuestos, facturas ni reclamaciones sin confirmación explícita del usuario. En este MVP, los recordatorios externos se guardan como `pendiente_confirmacion`; confirmar sólo los deja programados dentro de la app demo.
+Orqena no envía WhatsApp, email, presupuestos, facturas ni reclamaciones sin confirmación explícita del usuario. En este MVP, los recordatorios externos se guardan como `pendiente_confirmacion`; confirmar sólo los deja programados dentro de la app demo.
 
 ## Próximos pasos
 

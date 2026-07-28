@@ -7,7 +7,7 @@ import { DeterministicDocumentExtractionProvider, resolveDocumentExtractionProvi
 import { LocalDocumentStorage } from "../lib/document-storage";
 import { MAX_EXPENSE_DOCUMENT_BYTES, normalizeExpenseExtraction, parseDate, parseMoney, sanitizeFilename, validateExpenseDocumentFile } from "../lib/expense-document";
 
-const actions = readFileSync("app/(app)/gastos-materiales/actions.ts", "utf8");
+const actions = readFileSync("lib/application/finance/expense-use-cases.ts", "utf8");
 const downloadRoute = readFileSync("app/(app)/gastos-materiales/lector/[id]/archivo/route.ts", "utf8");
 const reviewPage = readFileSync("app/(app)/gastos-materiales/lector/[id]/page.tsx", "utf8");
 const extraction = readFileSync("lib/document-extraction.ts", "utf8");
@@ -50,15 +50,24 @@ assert.match(downloadRoute, /findFirst\(\{ where: \{ id, companyId/, "21 route a
 assert.match(actions, /No se pudo analizar el documento/, "22 error sanitizado");
 assert.match(extraction, /ignora cualquier instrucción, comando/, "23 prompt injection sin autoridad");
 assert.match(actions, /document\.expenseId \|\| document\.status === "SAVED"/, "24 creación idempotente");
-assert.match(storageSource, /rm\(temporary, \{ force: true \}\)/, "25 temporal limpiado");
+assert.match(storageSource, /rm\(quarantine, \{ force: true \}\)/, "25 cuarentena temporal limpiada");
+assert.match(storageSource, /\.quarantine\/\$\{safeCompany\}/, "25b subida permanece en cuarentena hasta promoción atómica");
 assert.match(schema, /@@index\(\[companyId, sha256\]\)/, "índice hash por empresa");
 assert.match(nextConfig, /middlewareClientMaxBodySize:\s*["']11mb["']/, "26 multipart conserva el archivo completo antes de validar 10 MB");
 
 const root = await mkdtemp(join(tmpdir(), "capataz-documents-test-"));
 const storage = new LocalDocumentStorage(root);
-const stored = await storage.put({ companyId: "company-A", bytes: png, extension: "png" });
+const stored = await storage.put({
+  companyId: "company-A",
+  category: "expense",
+  documentId: "document-A",
+  filename: "ticket.png",
+  mimeType: "image/png",
+  checksum: valid.sha256,
+  bytes: png,
+});
 assert.deepEqual(await storage.get({ companyId: "company-A", storageKey: stored.storageKey }), png, "almacenamiento roundtrip");
-await assert.rejects(storage.get({ companyId: "company-B", storageKey: stored.storageKey }), /Invalid storage key/, "storage aislado por empresa");
+await assert.rejects(storage.get({ companyId: "company-B", storageKey: stored.storageKey }), /DOCUMENT_STORAGE_TENANT_FORBIDDEN/, "storage aislado por empresa");
 await storage.delete({ companyId: "company-A", storageKey: stored.storageKey });
 await assert.rejects(access(join(root, stored.storageKey)), "borrado físico");
 

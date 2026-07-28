@@ -1,4 +1,5 @@
 import { sectorProfiles } from "@/lib/business-profile/sectors";
+import { brand } from "@/lib/brand";
 
 export type MarketingModule = {
   slug: string;
@@ -27,7 +28,7 @@ export const marketingProductCatalog: MarketingModule[] = [
   module("agenda", "Agenda", "Contexto diario", "Una cita sin relación obliga a reconstruir el contexto.", "Cliente, trabajo, contacto y responsable se seleccionan de forma coherente.", ["Comercial", "Responsable", "Empleado"], "ContextualAgendaDemo", ["Día, semana y lista", "Creación contextual", "Filtros persistentes"], ["Clientes", "Trabajo", "Equipo"], "Ver Agenda contextual", "brand"),
   module("documentos", "Documentos", "Trazabilidad", "Una carpeta no explica por qué existe un archivo.", "Cada documento aparece junto a la relación y actividad que lo justifican.", ["Todos los portales"], "Client360Demo", ["Clasificación", "Relaciones", "Acciones por permiso"], ["Clientes", "Trabajo", "Facturas"], "Conocer Documentos", "sand"),
   module("equipo", "Equipo", "Responsabilidad", "Una misma pantalla para todos oculta prioridades y confunde accesos.", "Cada persona recibe navegación, métricas y acciones según su portal.", ["Propietario", "Dirección", "Responsables"], "RolePortalStudio", ["Portal preview", "Invitaciones", "Aprobaciones"], ["Hoy", "Seguridad", "Configuración"], "Explorar portales", "blue"),
-  module("orqena", "Orqena", "Decisión asistida", "Buscar contexto y preparar el siguiente paso consume tiempo.", "Orqena explica fuentes, propone y espera confirmación antes de actuar.", ["Perfiles con acceso habilitado"], "OrqenaActionDemo", ["Fuentes visibles", "Edición", "Confirmar o cancelar"], ["Página activa", "Permisos", "Memoria"], "Ver Orqena en acción", "brand"),
+  module("orqena", brand.productName, "Decisión asistida", "Buscar contexto y preparar el siguiente paso consume tiempo.", `${brand.productName} explica fuentes, propone y espera confirmación antes de actuar.`, ["Perfiles con acceso habilitado"], "OrqenaActionDemo", ["Fuentes visibles", "Edición", "Confirmar o cancelar"], ["Página activa", "Permisos", "Memoria"], `Ver ${brand.productName} en acción`, "brand"),
   module("movil", "Móvil", "Continuidad", "El trabajo pierde ritmo cuando solo funciona en escritorio.", "Tareas, agenda, avance y evidencias se diseñan para la mano.", ["Responsable", "Empleado", "Comercial"], "MobileWorkDemo", ["Dock por perfil", "Safe areas", "Sincronización"], ["Hoy", "Tareas", "Agenda"], "Explorar la experiencia móvil", "sand"),
 ];
 
@@ -90,7 +91,7 @@ function moduleWorkflow(slug: string) {
 
 const sectorCopy: Record<string, { slug: string; lead: string; story: string; faq: string[] }> = {
   general_services: { slug: "servicios-generales", lead: "Clientes, servicios y equipo en una operación flexible.", story: "Desde la solicitud hasta la entrega, cada persona conserva el mismo contexto.", faq: ["¿Puedo adaptar los nombres?", "Sí, la terminología parte del perfil sectorial."] },
-  construction: { slug: "construccion", lead: "Obras, responsables y avances con trazabilidad.", story: "Planificación, ejecución y entrega se expresan con vocabulario propio del sector.", faq: ["¿Orqena es solo para construcción?", "No. Construcción es uno de los perfiles disponibles."] },
+  construction: { slug: "construccion", lead: "Obras y reformas, responsables y avances con trazabilidad.", story: "Planificación, ejecución y entrega se expresan con vocabulario de construcción y reformas.", faq: ["¿Cuál es el foco público de Orqena?", "Empresas de construcción, reformas e instalaciones de 1 a 20 personas."] },
   installations: { slug: "instalaciones-mantenimiento", lead: "Avisos, instalaciones y mantenimiento técnico coordinados.", story: "La agenda y el trabajo conectan oficina, responsable y técnico.", faq: ["¿Sirve para mantenimiento recurrente?", "El perfil admite servicios e intervenciones; el alcance concreto se revisa en la demo."] },
   professional_services: { slug: "servicios-profesionales", lead: "Clientes, proyectos y entregables en una relación continua.", story: "El proyecto mantiene actividad, agenda y documentos cerca de la decisión.", faq: ["¿Puedo trabajar por proyecto?", "Sí, el vocabulario visible usa proyectos y responsables."] },
   consulting: { slug: "consultoria", lead: "Diagnósticos, planes de acción y seguimiento compartido.", story: "Cada recomendación conserva sus fuentes, responsables y próximos pasos.", faq: ["¿Orqena sustituye el criterio profesional?", "No. Ayuda a preparar contexto y propuestas bajo revisión humana."] },
@@ -104,11 +105,15 @@ const sectorCopy: Record<string, { slug: string; lead: string; story: string; fa
   other: { slug: "otros", lead: "Una base neutral para actividades con un flujo propio.", story: "La configuración flexible conserva clientes, trabajos, agenda y documentos.", faq: ["¿Y si mi sector no aparece?", "El perfil Otros mantiene lenguaje neutral y puede revisarse en una demo."] },
 };
 
-export const marketingSectorCatalog = Object.entries(sectorProfiles).map(([key, profile]) => ({
+export const internalMarketingSectorCatalog = Object.entries(sectorProfiles).map(([key, profile]) => ({
   ...profile,
   ...sectorCopy[key],
   key,
 }));
+
+export const marketingSectorCatalog = internalMarketingSectorCatalog.filter(({ key }) =>
+  ["construction", "installations"].includes(key),
+);
 
 export function getMarketingModule(slug: string) {
   return marketingProductCatalog.find((item) => item.slug === slug);

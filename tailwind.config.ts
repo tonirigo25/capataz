@@ -4,6 +4,15 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      borderRadius: {
+        sm: "var(--fos-radius-sm)",
+        DEFAULT: "var(--fos-radius-sm)",
+        md: "var(--fos-radius-md)",
+        lg: "var(--fos-radius-md)",
+        xl: "var(--fos-radius-lg)",
+        "2xl": "var(--fos-radius-xl)",
+        full: "var(--fos-radius-pill)",
+      },
       colors: {
         canvas: "rgb(var(--cap-bg-rgb) / <alpha-value>)",
         subtle: "rgb(var(--cap-bg-subtle-rgb) / <alpha-value>)",
@@ -41,6 +50,10 @@ const config: Config = {
           surface: "rgb(var(--cap-surface-rgb) / <alpha-value>)",
           muted: "rgb(var(--cap-surface-muted-rgb) / <alpha-value>)"
         }
+      },
+      fontFamily: {
+        sans: ["var(--fos-font-sans)"],
+        mono: ["var(--fos-font-mono)"],
       },
       boxShadow: {
         card: "var(--cap-shadow-overlay)",

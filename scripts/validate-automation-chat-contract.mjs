@@ -6,6 +6,8 @@ assertIsolatedTestDatabase();
 const value = (module) => module.default ?? module;
 const { parseNaturalFollowUpDate } = value(contractModule);
 const actions = readFileSync(new URL("../app/(app)/capataz/actions.ts", import.meta.url), "utf8");
+const orchestration = readFileSync(new URL("../lib/orqena/application/capataz/orchestration.ts", import.meta.url), "utf8");
+const conversationUseCases = readFileSync(new URL("../lib/orqena/application/capataz/conversation-use-cases.ts", import.meta.url), "utf8");
 const contract = readFileSync(new URL("../lib/chat-workflow-contract.ts", import.meta.url), "utf8");
 const check = (condition, label) => { if (!condition) throw new Error(`CHAT_CONTRACT_FAILED:${label}`); };
 
@@ -30,6 +32,6 @@ for (const phrase of phrases) {
   const normalized = phrase.toLocaleLowerCase("es-ES").normalize("NFD").replace(/\p{Diacritic}/gu, "");
   check(normalized.length > 3, `mutation_phrase_fixture:${phrase}`);
 }
-check(actions.includes("looksLikeWorkflowContractMutation") && actions.includes("pendingDisambiguation"), "workflow_mutations_route_to_proposal");
-check(actions.includes("executePendingProposal") && actions.includes("beginPendingProposalExecutionForCompany"), "confirmed_gateway_present");
+check(orchestration.includes("looksLikeWorkflowContractMutation") && orchestration.includes("pendingDisambiguation"), "workflow_mutations_route_to_proposal");
+check(actions.includes("executePendingProposal") && conversationUseCases.includes("beginPendingProposalExecutionForCompany"), "confirmed_gateway_present");
 console.log(JSON.stringify({ ok: true, cases: 42, legacyExecutorReachable: false, proposalRequired: true }));

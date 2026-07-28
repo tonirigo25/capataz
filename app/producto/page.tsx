@@ -8,9 +8,9 @@ import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Producto",
-  description: "Descubre cómo Orqena conecta clientes, trabajo, ventas, compras, agenda, documentos, equipo y finanzas.",
+  description: `Descubre cómo ${brand.productName} conecta clientes, trabajo, ventas, compras, agenda, documentos, equipo y finanzas.`,
   alternates: { canonical: "/producto" },
-  openGraph: { title: "Producto Orqena", description: "Una operación conectada de principio a fin.", images: [brand.socialImage] },
+  openGraph: { title: `Producto ${brand.productName}`, description: "Una operación conectada de principio a fin.", images: [brand.socialImage] },
 };
 
 const journeys = [

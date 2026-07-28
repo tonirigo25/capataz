@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPublicConfig } from "@/lib/config/public";
 
 export const X_ROBOTS_TAG_VALUE = "noindex, nofollow, noarchive, nosnippet";
 
@@ -24,12 +25,15 @@ const PUBLIC_INDEXABLE_EXACT_PATHS = new Set([
   "/sectores",
   "/planes",
   "/seguridad",
+  "/estado",
   "/demo",
   "/contacto",
   "/privacidad",
   "/terminos",
   "/cookies",
   "/soporte",
+  "/recursos/calculadora-margen-obra",
+  "/recursos/checklist-factura-recibida",
 ]);
 
 export const PUBLIC_ROBOTS_ALLOW_PATHS = [
@@ -39,26 +43,27 @@ export const PUBLIC_ROBOTS_ALLOW_PATHS = [
   "/sectores",
   "/planes",
   "/seguridad",
+  "/estado",
   "/demo",
   "/contacto",
   "/privacidad",
   "/terminos",
   "/cookies",
   "/soporte",
+  "/recursos/calculadora-margen-obra",
+  "/recursos/checklist-factura-recibida",
 ] as const;
 
 export function isPublicIndexingEnabled(): boolean {
-  try {
-    return process.env.PUBLIC_INDEXING_ENABLED === "true";
-  } catch {
-    return false;
-  }
+  return getPublicConfig().publicIndexingEnabled;
 }
 
 export function isPublicIndexablePath(pathname: string): boolean {
   return PUBLIC_INDEXABLE_EXACT_PATHS.has(pathname)
     || pathname.startsWith("/producto/")
-    || pathname.startsWith("/sectores/");
+    || pathname.startsWith("/soluciones/")
+    || pathname.startsWith("/sectores/")
+    || pathname.startsWith("/recursos/");
 }
 
 export function shouldSendNoIndexHeader(

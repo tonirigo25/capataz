@@ -1,0 +1,16 @@
+{
+  "scope": "local-loopback-synthetic-browser",
+  "remoteEnvironment": false,
+  "database": "fresh ephemeral isolated PostgreSQL",
+  "routes": [
+    { "route": "/", "authenticated": false, "status": 200, "axeBlocking": 0, "keyboardFocus": true, "reducedMotionMaxSeconds": 0.00001, "TTFB": 50.5, "FCP": 924, "LCP": 924, "CLS": 0.011200668020994085, "INPUpperBound": 16 },
+    { "route": "/login", "authenticated": false, "status": 200, "axeBlocking": 0, "keyboardFocus": true, "reducedMotionMaxSeconds": 0.00001, "TTFB": 19.59999990463257, "FCP": 192, "LCP": 192, "CLS": 0, "INPUpperBound": 16 },
+    { "route": "/producto", "authenticated": false, "status": 200, "axeBlocking": 0, "keyboardFocus": true, "reducedMotionMaxSeconds": 0.00001, "TTFB": 24.5, "FCP": 272, "LCP": 272, "CLS": 0.008150459195360726, "INPUpperBound": 16 },
+    { "route": "/planes", "authenticated": false, "status": 200, "axeBlocking": 0, "keyboardFocus": true, "reducedMotionMaxSeconds": 0.00001, "TTFB": 52.10000002384186, "FCP": 256, "LCP": 256, "CLS": 0, "INPUpperBound": 16 },
+    { "route": "/hoy", "authenticated": true, "status": 200, "axeBlocking": 0, "keyboardFocus": true, "reducedMotionMaxSeconds": 0.00001, "TTFB": 50.299999952316284, "FCP": 708, "LCP": 708, "CLS": 0, "INPUpperBound": 16 },
+    { "route": "/configuracion/soporte", "authenticated": true, "status": 200, "axeBlocking": 0, "keyboardFocus": true, "reducedMotionMaxSeconds": 0.00001, "TTFB": 41.700000047683716, "FCP": 612, "LCP": 612, "CLS": 0, "INPUpperBound": 16 }
+  ],
+  "budgets": { "LCP": 2500, "CLS": 0.1, "INP": 200, "FCP": 1800, "TTFB": 800 },
+  "externalCalls": 0,
+  "productionWrites": 0
+}

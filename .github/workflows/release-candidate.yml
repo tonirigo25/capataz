@@ -1,0 +1,64 @@
+name: Release candidate evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        required: true
+        type: choice
+        options: [staging, production]
+      release_sha:
+        description: Full immutable commit SHA
+        required: true
+        type: string
+      approval_reference:
+        description: Non-secret approval/ticket reference
+        required: true
+        type: string
+      confirm_no_deploy:
+        description: Confirm this workflow only builds evidence and never deploys
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: ${{ inputs.target_environment }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.release_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Immutable SHA and approval gate
+        run: node scripts/readiness/validate-release-dispatch.mjs
+        env:
+          RELEASE_REQUESTED_SHA: ${{ inputs.release_sha }}
+          RELEASE_TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          RELEASE_APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+          RELEASE_CONFIRM_NO_DEPLOY: ${{ inputs.confirm_no_deploy }}
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          APP_ENV: test
+          NEXT_PUBLIC_APP_ENV: test
+          PUBLIC_INDEXING_ENABLED: "false"
+          PUBLIC_PRICING_ENABLED: "false"
+          AI_ENABLED: "false"
+          AI_PROVIDER_MODE: off
+      - run: mkdir -p artifacts && npm run readiness:release-manifest -- --output artifacts/release-manifest.json --sha ${{ inputs.release_sha }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-candidate-${{ inputs.release_sha }}
+          path: artifacts/release-manifest.json
+          if-no-files-found: error
+          retention-days: 90

@@ -1,6 +1,6 @@
 # Data Safety / Privacy Notes
 
-Capataz puede manejar estos tipos de datos:
+Orqena puede manejar estos tipos de datos:
 
 - Nombre, email y teléfono del usuario.
 - Datos de empresa.

@@ -1,7 +1,9 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
+import { createHash } from "node:crypto";
 import { notFound } from "next/navigation";
 import { parseBudgetLines } from "@/lib/budget-lines";
-import { createProfessionalDocumentPdf, documentMoney } from "@/lib/document-pdf";
-import { fillTemplatePlaceholders } from "@/lib/document-templates";
+import { createProfessionalDocumentPdf, professionalDocumentTemplateVersion } from "@/lib/document-pdf";
+import { loadCompanyPdfLogo } from "@/lib/document-pdf-assets";
 import { prisma } from "@/lib/prisma";
 import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/authorization";
 import { companyCore } from "@/lib/tenant/core";
@@ -9,6 +11,7 @@ import { companyCore } from "@/lib/tenant/core";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  return publicRequestContext("GET /presupuestos/[id]/pdf", request, async () => {
   const { id } = await context.params;
   const auth = await requireCapability("sales.budgets.view");
   const core = companyCore(prisma, auth.companyId);
@@ -21,25 +24,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   else await assertScopedEntityAccess(pricing, "sales.pricing.view", "Client", budget.clienteId);
 
   const company = await core.company();
+  const logo = await loadCompanyPdfLogo(auth.companyId, company.logoStoredObjectId);
   const preview = new URL(request.url).searchParams.get("preview") === "1";
   const lines = parseBudgetLines(budget.partidas);
   const taxable = Math.max(0, budget.subtotal - budget.descuento);
   const ivaPercent = taxable > 0 ? (budget.iva / taxable) * 100 : company.defaultVat;
-  const placeholderSummary = fillTemplatePlaceholders("[[DOCUMENTO_NUMERO]] [[CLIENTE_NOMBRE]] [[TOTAL]]", {
-    EMPRESA_NOMBRE: company?.nombreComercial ?? "Empresa sin configurar",
-    EMPRESA_NIF: company.taxId ?? "",
-    CLIENTE_NOMBRE: budget.client.nombre,
-    CLIENTE_NIF: "",
-    OBRA_DIRECCION: budget.work?.direccion ?? budget.client.direccion,
-    DOCUMENTO_NUMERO: budget.numero,
-    FECHA: new Intl.DateTimeFormat("es-ES").format(budget.fechaCreacion),
-    PARTIDAS: lines.map((line) => line.descripcion).join("; "),
-    BASE_IMPONIBLE: documentMoney(taxable),
-    "IVA_%": `${ivaPercent.toFixed(2)}%`,
-    IVA_TOTAL: documentMoney(budget.iva),
-    TOTAL: documentMoney(budget.total)
-  });
-
   const pdf = createProfessionalDocumentPdf({
     kind: "budget",
     documentNumber: budget.numero,
@@ -54,10 +43,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       address: [company.direccion, company.codigoPostal, company.ciudad, company.provincia, company.pais].filter(Boolean).join(", "),
       contact: [company?.telefono, company?.email, company?.web].filter(Boolean).join(" · "),
       iban: company?.iban,
-      logoUrl: company?.logoUrl,
-      sealUrl: company.sealUrl,
       brandColor: company.brandColor,
-      legalText: company.legalText
+      legalText: company.legalText,
+      logo
     },
     client: {
       name: budget.client.nombre,
@@ -82,7 +70,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${budget.numero}.pdf"`,
-      "X-Orqena-Template-Placeholders": encodeURIComponent(placeholderSummary)
+      "X-Orqena-Template-Version": professionalDocumentTemplateVersion,
+      "X-Orqena-PDF-SHA256": createHash("sha256").update(pdf).digest("hex")
     }
+  });
+
   });
 }

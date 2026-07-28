@@ -22,9 +22,19 @@ export function EconomicControlCenter({ data, recommendations = [] }: { data: Ec
         eyebrow="Control económico"
         title="Tesorería"
         description="Caja registrada, cobros, pagos, vencimientos y rentabilidad con acceso al documento que origina cada cifra."
-        action={<Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="primary-button">Nueva factura</Link>}
-        secondaryActions={<Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Registrar factura recibida</Link>}
+        action={<Link href="#treasury-registration" className="primary-button">Registrar movimiento</Link>}
+        secondaryActions={<><Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="secondary-button">Nueva factura</Link><Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Registrar factura recibida</Link></>}
       />
+
+      <Surface as="section" labelledBy="treasury-position-summary" className="mb-5 overflow-hidden p-0">
+        <h2 id="treasury-position-summary" className="sr-only">Posición de tesorería documentada</h2>
+        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+          <Metric label="Caja registrada" value={data.registeredBalance === null ? "Sin saldo" : formatCurrency(data.registeredBalance)} detail={data.registeredBalance === null ? "No se inventa posición bancaria" : `${data.accounts.length} cuentas activas`} />
+          <Metric href={economicHref(data, { vista: "cobros", estado: "pendiente" })} label="Por cobrar" value={formatCurrency(data.receivableSummary.pending)} detail={`${formatCurrency(data.receivableSummary.overdue)} vencidos`} />
+          <Metric href={economicHref(data, { vista: "pagos", estado: "pendiente" })} label="Por pagar" value={formatCurrency(data.payableSummary.pending)} detail={`${data.payableSummary.openCount} obligaciones abiertas`} />
+          <Metric href={economicHref(data, { vista: "prevision" })} label={`Flujo previsto ${periodLabel(data.period)}`} value={formatCurrency(data.forecast.net)} detail="Sólo vencimientos documentados" />
+        </div>
+      </Surface>
 
       <nav aria-label="Áreas de control económico" className="mb-5 flex gap-1 overflow-x-auto border-b border-border">
         {AREAS.map((area) => <Link key={area.id} href={economicHref(data, { vista: area.id })} aria-current={data.area === area.id ? "page" : undefined} className={`min-h-11 shrink-0 border-b-2 px-3 py-3 text-sm font-semibold ${data.area === area.id ? "border-brand text-brand-strong" : "border-transparent text-content-secondary hover:text-content"}`}>{area.label}</Link>)}
@@ -58,7 +68,7 @@ function EconomicFilters({ data }: { data: EconomicControlData }) {
         <Field label="Estado">
           <select className="field" name="estado" defaultValue={data.filters.status ?? "todos"}><option value="todos">Todos</option><option value="pendiente">Con saldo</option><option value="vencido">Vencido</option><option value="parcial">Pago parcial</option><option value="liquidado">Liquidado</option></select>
         </Field>
-        <button className="primary-button self-end" type="submit">Aplicar</button>
+        <button className="secondary-button self-end" type="submit">Aplicar</button>
       </form>
       <p className="type-meta mt-3">Previsión calculada con los vencimientos registrados.</p>
     </Surface>

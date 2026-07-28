@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "orqena-c3-review-runtime-pool-v1",
+  "environment": "persistent-isolated-review",
+  "origin": "https://orqena-review-web-review.up.railway.app",
+  "auditedApplicationSha": "2be6a99040c70c67fe2f91c0737f4c17bd116451",
+  "productionCapacityClaim": false,
+  "availabilityClaim": false,
+  "incident": {
+    "observedAt": "2026-07-26T21:21:48.836580Z",
+    "symptom": "Prisma reported too many database connections before the authenticated audit",
+    "maxConnections": 100,
+    "reservedConnections": 3,
+    "totalConnections": 107,
+    "activeConnections": 1,
+    "idleConnections": 98,
+    "idleInTransaction": 0,
+    "rootCause": "standalone route bundles only persisted the shared PrismaClient outside production"
+  },
+  "remediation": {
+    "runtimeSingleton": "process-global in every NODE_ENV",
+    "staticRegressionGate": "scripts/readiness/validate-runtime-pool-safety.mjs",
+    "reviewDatabaseParameters": {
+      "connection_limit": 10,
+      "pool_timeout": 10
+    },
+    "stagingChanged": false,
+    "productionChanged": false
+  },
+  "measurements": [
+    {
+      "name": "after-remediation-deploy",
+      "measuredAt": "2026-07-26T21:28:36.110986Z",
+      "totalConnections": 10,
+      "activeConnections": 1,
+      "idleConnections": 1,
+      "idleInTransaction": 0
+    },
+    {
+      "name": "after-public-burst",
+      "measuredAt": "2026-07-26T21:32:07.257181Z",
+      "totalConnections": 10,
+      "activeConnections": 1,
+      "idleConnections": 1,
+      "idleInTransaction": 0
+    },
+    {
+      "name": "during-authenticated-audit",
+      "measuredAt": "2026-07-26T21:36:00.928000Z",
+      "totalConnections": 20,
+      "activeConnections": 2,
+      "idleConnections": 10,
+      "idleInTransaction": 0
+    },
+    {
+      "name": "after-authenticated-audit",
+      "measuredAt": "2026-07-26T21:52:51.898000Z",
+      "totalConnections": 19,
+      "activeConnections": 1,
+      "idleConnections": 10,
+      "idleInTransaction": 0
+    }
+  ],
+  "publicBurst": {
+    "requestsPerPath": 30,
+    "concurrency": 10,
+    "paths": [
+      { "path": "/api/health/live", "failures": 0, "rateLimited": 0, "p95Ms": 497, "recoveryMs": 210 },
+      { "path": "/", "failures": 0, "rateLimited": 0, "p95Ms": 524, "recoveryMs": 217 },
+      { "path": "/demo", "failures": 0, "rateLimited": 0, "p95Ms": 334, "recoveryMs": 214 },
+      { "path": "/login", "failures": 0, "rateLimited": 0, "p95Ms": 302, "recoveryMs": 203 }
+    ]
+  },
+  "authenticatedBurst": {
+    "requestsPerPath": 15,
+    "concurrency": 5,
+    "paths": [
+      { "path": "/hoy", "failures": 0, "p95Ms": 724 },
+      { "path": "/dashboard", "failures": 0, "p95Ms": 534 },
+      { "path": "/clientes", "failures": 0, "p95Ms": 502 }
+    ],
+    "http5xxSinceSuccessfulAuditStart": 0
+  },
+  "remoteWebVitals": {
+    "budget": {
+      "LCP": 2500,
+      "CLS": 0.1,
+      "INP": 200
+    },
+    "review": {
+      "evidence": "docs/design/evidence/D10_REVIEW_EVIDENCE.json",
+      "samples": 3,
+      "median": {
+        "LCP": 2200,
+        "CLS": 0,
+        "INP": 24
+      }
+    },
+    "staging": {
+      "evidence": "docs/design/evidence/D11_STAGING_EVIDENCE.json",
+      "samples": 3,
+      "median": {
+        "LCP": 2180,
+        "CLS": 0,
+        "INP": 24
+      }
+    }
+  },
+  "verdict": "PASS_REVIEW_RUNTIME_AND_SYNTHETIC_CAPACITY",
+  "phaseC3": "PASS",
+  "phaseC3Reason": "Exact remote review and staging replays are below the versioned LCP, CLS and INP budgets; no production capacity or availability claim is made."
+}

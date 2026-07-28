@@ -1,9 +1,11 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { buildTreasuryCsvExport } from "@/lib/treasury";
 import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  return publicRequestContext("GET /tesoreria/export", request, async () => {
   const auth = await requireCapability("reports.export");
   const { companyId } = auth;
   const requiredCapabilities = ["treasury.view", "banking.view", "sales.invoices.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
@@ -29,5 +31,7 @@ export async function GET(request: Request) {
       "content-type": "text/csv; charset=utf-8",
       "content-disposition": `attachment; filename="orqena-tesoreria-${tipo}.csv"`
     }
+  });
+
   });
 }

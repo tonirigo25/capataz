@@ -1,11 +1,16 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { resolveAuthorization } from "@/lib/commercial/authorization";
 import { getOptionalSession, resolveActiveCompany, type CompanyContext } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
+import { consumeRateLimit, rateLimitHeaders } from "@/lib/platform/rate-limit";
+import { openAiHttpRequest } from "@/lib/ai/openai-transport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  return publicRequestContext("POST /api/capataz/transcribe", request, async () => {
   const session = await getOptionalSession();
   if (!session) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   const active = await resolveActiveCompany(session.userId);
@@ -14,6 +19,8 @@ export async function POST(request: Request) {
   const context: CompanyContext = { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
   const authorization = await resolveAuthorization(context, "orqena.use");
   if (!authorization.allowed) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+  const limit = await consumeRateLimit({ prisma, scope: "ai_transcription", subject: session.userId, companyId: membership.companyId, limit: 20, windowMs: 60_000 });
+  if (!limit.allowed) return NextResponse.json({ error: "Demasiadas solicitudes. Espera un minuto." }, { status: 429, headers: rateLimitHeaders(limit) });
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "Falta OPENAI_API_KEY en el backend." }, { status: 500 });
@@ -34,10 +41,12 @@ export async function POST(request: Request) {
   payload.append("language", "es");
   payload.append("file", audio, audio.name || "dictado.webm");
 
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: payload
+  const response = await openAiHttpRequest({
+    path: "audio/transcriptions",
+    apiKey,
+    projectId: process.env.OPENAI_PROJECT_ID,
+    baseUrl: process.env.OPENAI_BASE_URL,
+    init: { method: "POST", body: payload },
   }).catch((error) => {
     throw new Error(error instanceof Error ? error.message : "Error conectando con OpenAI");
   });
@@ -53,6 +62,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ text });
+
+  });
 }
 
 function sanitizeTranscriptionError(message: string) {

@@ -18,7 +18,6 @@ import {
 } from "@/lib/business-intelligence";
 import { invoiceBalance, round } from "@/lib/business-metrics";
 import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
-import { buildOperationalHealth, getOperationalIntelligence } from "@/lib/operational-intelligence/queries";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 
 export const dynamic = "force-dynamic";
@@ -45,15 +44,16 @@ export default async function DashboardPage({
     return <ProductPage layout="analytical"><EmptyState title="Dashboard restringido" description="Este panel combina información económica y operativa global. Tu portal mantiene disponibles únicamente los módulos y alcances autorizados." icon={ShieldAlert} action={<Link href="/hoy" className="secondary-button">Volver a Hoy</Link>} /></ProductPage>;
   }
   const requestedPeriod = supportedPeriods.has(query.periodo ?? "") ? query.periodo : "this_month";
-  const [summary, intelligence, economic] = await Promise.all([
+  const [summary, economic] = await Promise.all([
     getBusinessIntelligenceSummary({ companyId, period: requestedPeriod }),
-    getOperationalIntelligence(),
     getEconomicControl({ period: "30d" })
   ]);
-  const operationalHealth = buildOperationalHealth(intelligence.signals);
-  const kpis = summary.kpis.filter((item) => ["invoiced", "collected", "outstanding", "expenses", "profit_invoiced"].includes(item.id));
+  const initialKpiIds = ["invoiced", "collected", "profit_invoiced", "overdue"];
+  const initialKpis = initialKpiIds
+    .map((id) => summary.kpis.find((item) => item.id === id))
+    .filter((item): item is BusinessKpi => Boolean(item));
   const periodEnd = new Date(summary.period.end.getTime() - 1);
-  const hasEconomicData = kpis.some((item) => item.value !== 0) || summary.quotes.count > 0 || summary.works.byLowestMargin.some((work) => work.hasEnoughData);
+  const hasEconomicData = initialKpis.some((item) => item.value !== 0) || summary.quotes.count > 0 || summary.works.byLowestMargin.some((work) => work.hasEnoughData);
 
   return (
     <ProductPage layout="analytical">
@@ -94,25 +94,10 @@ export default async function DashboardPage({
         </Surface>
       </header>
 
-      <section aria-labelledby="dashboard-operational-health" className="section-shell mb-10">
-        <SectionHeading id="dashboard-operational-health" title="Salud operativa" description="Volumen de señales vigentes; cada cifra abre el detalle que la origina. No es una puntuación." action={<Link href="/hoy" className="secondary-button">Ver prioridades</Link>} />
-        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
-          <Metric href="/hoy" label="Urgentes" value={String(operationalHealth.urgent)} detail="Requieren decisión inmediata" />
-          <Metric href="/hoy?categoria=planificacion" label="Planificación" value={String(operationalHealth.planning)} detail="Tareas, seguimientos y agenda" />
-          <Metric href="/hoy?categoria=cobros" label="Cobros" value={String(operationalHealth.collections)} detail="Pendientes próximos o vencidos" />
-          <Metric href="/hoy?categoria=actividad" label="Obras inactivas" value={String(operationalHealth.inactiveWorks)} detail="Sin actividad objetiva reciente" />
-          <Metric href="/hoy?categoria=compras_documentacion" label="Compras y documentos" value={String(operationalHealth.documentation)} detail="Pagos y vigencias documentales" />
-        </div>
-      </section>
-
-      <section aria-labelledby="dashboard-economic-position" className="section-shell mb-10">
-        <SectionHeading id="dashboard-economic-position" title="Posición económica" description="Vista compacta y trazable de caja registrada, cobros, pagos y previsión a 30 días." action={<Link href="/tesoreria?vista=resumen&periodo=30d" className="secondary-button">Abrir control económico</Link>} />
-        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
-          <Metric href="/tesoreria?vista=resumen&periodo=30d" label="Caja registrada" value={economic.registeredBalance === null ? "Sin saldo registrado" : formatCurrency(economic.registeredBalance)} detail="Solo cuentas y movimientos existentes" />
-          <Metric href="/tesoreria?vista=cobros&periodo=30d&estado=pendiente" label="Pendiente de cobro" value={formatCurrency(economic.receivableSummary.pending)} detail={`${economic.receivableSummary.overdueCount} facturas vencidas`} />
-          <Metric href="/tesoreria?vista=pagos&periodo=30d&estado=pendiente" label="Pendiente de pago" value={formatCurrency(economic.payableSummary.pending)} detail={`${economic.payableSummary.overdueCount} obligaciones vencidas`} />
-          <Metric href="/tesoreria?vista=prevision&periodo=30d" label="Flujo previsto" value={formatCurrency(economic.forecast.net)} detail="Según vencimientos documentados" />
-          <Metric href="/tesoreria?vista=rentabilidad&periodo=30d" label="Obras con datos" value={String(economic.profitability.filter((row) => row.hasEnoughData).length)} detail="Beneficio y margen sin score global" />
+      <section aria-labelledby="dashboard-resumen" className="section-shell mb-6">
+        <SectionHeading id="dashboard-resumen" title="Cuatro cifras para empezar" description={`Todas usan ${summary.period.label.toLowerCase()} y abren el documento o listado que las origina.`} />
+        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4" data-dashboard-primary-kpis={initialKpis.length}>
+          {initialKpis.map((kpi) => <Kpi key={kpi.id} kpi={kpi} />)}
         </div>
       </section>
 
@@ -125,16 +110,26 @@ export default async function DashboardPage({
         />
       ) : (
         <>
-          <section aria-labelledby="dashboard-resumen" className="section-shell">
-            <SectionHeading id="dashboard-resumen" title="Resumen ejecutivo" description={`Todas las cifras usan ${summary.period.label.toLowerCase()} y el mismo periodo comparable.`} />
-            <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
-              {kpis.map((kpi) => <Kpi key={kpi.id} kpi={kpi} />)}
-            </div>
-          </section>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.65fr)]">
+            <section aria-labelledby="dashboard-tendencia" className="section-shell">
+              <SectionHeading id="dashboard-tendencia" title="Evolución del periodo" description="Facturación emitida, pagos registrados y gastos reales agrupados en intervalos legibles." />
+              <TrendChart points={summary.trend} />
+            </section>
 
-          <section aria-labelledby="dashboard-tendencia" className="section-shell mt-10">
-            <SectionHeading id="dashboard-tendencia" title="Evolución del periodo" description="Facturación emitida, pagos registrados y gastos reales agrupados en intervalos legibles." />
-            <TrendChart points={summary.trend} />
+            <section aria-labelledby="dashboard-excepciones" className="section-shell">
+              <SectionHeading id="dashboard-excepciones" title="Excepciones" description="Solo situaciones respaldadas por datos registrados; cada fila abre su origen." action={<Link href="/hoy" className="ghost-button">Ver prioridades</Link>} />
+              <RiskList alerts={summary.alerts.slice(0, 5)} />
+            </section>
+          </div>
+
+          <section aria-labelledby="dashboard-economic-position" className="section-shell mt-6">
+            <SectionHeading id="dashboard-economic-position" title="Posición económica" description="Vista compacta y trazable de caja registrada, cobros, pagos y previsión a 30 días." action={<Link href="/tesoreria?vista=resumen&periodo=30d" className="secondary-button">Abrir control económico</Link>} />
+            <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+              <Metric href="/tesoreria?vista=resumen&periodo=30d" label="Caja registrada" value={economic.registeredBalance === null ? "Sin saldo registrado" : formatCurrency(economic.registeredBalance)} detail="Solo cuentas y movimientos existentes" />
+              <Metric href="/tesoreria?vista=cobros&periodo=30d&estado=pendiente" label="Pendiente de cobro" value={formatCurrency(economic.receivableSummary.pending)} detail={`${economic.receivableSummary.overdueCount} facturas vencidas`} />
+              <Metric href="/tesoreria?vista=pagos&periodo=30d&estado=pendiente" label="Pendiente de pago" value={formatCurrency(economic.payableSummary.pending)} detail={`${economic.payableSummary.overdueCount} obligaciones vencidas`} />
+              <Metric href="/tesoreria?vista=prevision&periodo=30d" label="Flujo previsto" value={formatCurrency(economic.forecast.net)} detail="Según vencimientos documentados" />
+            </div>
           </section>
 
           <div className="mt-10 grid gap-10 xl:grid-cols-2">
@@ -172,9 +167,16 @@ export default async function DashboardPage({
               <Link href="/tesoreria" className="ghost-button mt-3">Abrir tesorería</Link>
             </section>
 
-            <section aria-labelledby="dashboard-riesgos" className="section-shell">
-              <SectionHeading id="dashboard-riesgos" title="Riesgos del negocio" description="Prioridades que requieren atención, ordenadas por urgencia e impacto." />
-              <RiskList alerts={summary.alerts.slice(0, 5)} />
+            <section aria-labelledby="dashboard-data-quality" className="section-shell">
+              <SectionHeading id="dashboard-data-quality" title="Lectura responsable" description="El segundo nivel conserva rentabilidad, pipeline y calidad de los datos sin crear un score de salud." action={<Link href="/inteligencia" className="secondary-button">Abrir inteligencia</Link>} />
+              <div className="rounded-xl bg-subtle p-4">
+                <p className="type-object-title text-content">Cada cifra mantiene su definición y origen.</p>
+                <p className="type-secondary mt-1">Los importes proceden de documentos y movimientos registrados. Las previsiones usan únicamente vencimientos documentados.</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href="/auditoria" className="ghost-button">Ver auditoría</Link>
+                  <Link href="/hoy" className="ghost-button">Volver a prioridades</Link>
+                </div>
+              </div>
             </section>
           </div>
 

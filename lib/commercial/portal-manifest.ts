@@ -5,6 +5,7 @@ import { getEffectiveCapabilities } from "@/lib/commercial/authorization";
 import { accessPackageKeys, capabilitiesForPackages, type AccessPackageKey } from "@/lib/commercial/access-packages";
 import { canHoldEconomicCapabilities, ECONOMIC_CAPABILITIES, functionalProfileCapabilities, functionalProfileLabels, profileDefaultPackages, resolveFunctionalProfile, sectorProfileLabels } from "@/lib/commercial/functional-profiles";
 import { createActions, primaryNavigation, secondaryNavigation, type ProductDestination, type ProductNavigationGroup } from "@/lib/product-navigation";
+import { brand } from "@/lib/brand";
 
 export type PortalManifest = {
   version: number;
@@ -56,7 +57,7 @@ export async function buildPortalManifest(context: CompanyContext): Promise<Port
   const allowed = (item: { capability?: string }) => !item.capability || capabilitySet.has(item.capability);
   const navigation = primaryNavigation.filter(allowed);
   const navigationGroups = secondaryNavigation.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter((group) => group.items.length);
-  const orqena = { href: "/capataz", label: "Orqena", icon: "bot" as const, capability: "orqena.use" };
+  const orqena = { href: "/capataz", label: brand.productName, icon: "bot" as const, capability: "orqena.use" };
   if (allowed(orqena)) navigation.push(orqena);
   const preferredMobile = mobileRoutes(profile);
   const allNavigation = [...navigation, ...navigationGroups.flatMap((group) => group.items)];

@@ -23,7 +23,7 @@ export function TreasuryRegistration({ accounts, returnTo }: { accounts: Account
             <Field label="Tipo"><select className="field" name="type" defaultValue="bank"><option value="bank">Cuenta bancaria manual</option><option value="cash">Caja</option><option value="other">Otra cuenta</option></select></Field>
             <div className="grid grid-cols-2 gap-3"><Field label="Saldo inicial"><input className="field" name="openingBalance" type="number" step="0.01" defaultValue="0" required /></Field><Field label="Saldo mínimo"><input className="field" name="minimumBalance" type="number" step="0.01" /></Field></div>
             <input type="hidden" name="currency" value="EUR" />
-            <button className="primary-button" type="submit">Guardar cuenta</button>
+            <button className="secondary-button" type="submit">Guardar cuenta</button>
           </form>
         </details>
 
@@ -35,7 +35,7 @@ export function TreasuryRegistration({ accounts, returnTo }: { accounts: Account
             <Field label="Tipo"><select className="field" name="type" defaultValue="inflow"><option value="inflow">Entrada</option><option value="outflow">Salida</option><option value="adjustment">Ajuste</option></select></Field>
             <div className="grid grid-cols-2 gap-3"><Field label="Importe"><input className="field" name="amount" type="number" step="0.01" required /></Field><Field label="Fecha"><input className="field" name="date" type="datetime-local" defaultValue={dateValue} required /></Field></div>
             <Field label="Descripción"><input className="field" name="description" required /></Field>
-            <button className="primary-button" type="submit">Registrar movimiento</button>
+            <button className="secondary-button" type="submit">Registrar movimiento</button>
           </form> : <p className="type-secondary mt-4">Crea primero una cuenta o caja.</p>}
         </details>
 
@@ -47,7 +47,7 @@ export function TreasuryRegistration({ accounts, returnTo }: { accounts: Account
             <Field label="Importe"><input className="field" name="amount" type="number" step="0.01" min="0.01" required /></Field>
             <Field label="Fecha"><input className="field" name="date" type="datetime-local" defaultValue={dateValue} required /></Field>
             <input type="hidden" name="description" value="Transferencia entre cuentas" />
-            <button className="primary-button" type="submit">Registrar transferencia</button>
+            <button className="secondary-button" type="submit">Registrar transferencia</button>
           </form> : <p className="type-secondary mt-4">Se necesitan al menos dos cuentas activas.</p>}
         </details>
       </div>

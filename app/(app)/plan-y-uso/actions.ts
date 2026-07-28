@@ -1,2 +1,17 @@
-"use server";import { revalidatePath } from "next/cache";import { prisma } from "@/lib/prisma";import { requireCapability } from "@/lib/commercial/authorization";import { getBillingProvider } from "@/lib/commercial/billing";import { planCatalog,type PlanKey } from "@/lib/commercial/plans";
-export async function changeLocalPlan(formData:FormData){const auth=await requireCapability("company.billing.manage");const planKey=String(formData.get("planKey")??"") as PlanKey;if(!(planKey in planCatalog)||String(formData.get("confirm"))!=="CAMBIAR")throw new Error("PLAN_CHANGE_INVALID");await getBillingProvider(prisma).changePlan({companyId:auth.companyId,planKey,actorId:auth.userId,reason:"Cambio confirmado en proveedor local"});revalidatePath("/plan-y-uso")}
+"use server";
+
+import { executeNextAction } from "@/lib/platform/next-action-boundary";
+import { changeLocalPlan as changeLocalPlanUseCase } from "@/lib/application/billing/plan-use-case";
+import { openStripeCustomerPortal as openStripeCustomerPortalUseCase, startStripeCheckout as startStripeCheckoutUseCase } from "@/lib/application/billing/stripe-use-cases";
+
+export async function changeLocalPlan(formData:FormData) {
+  return executeNextAction({ operation: "app/(app)/plan-y-uso/actions.ts#changeLocalPlan" }, () => changeLocalPlanUseCase(formData));
+}
+
+export async function startStripeCheckout(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plan-y-uso/actions.ts#startStripeCheckout" }, () => startStripeCheckoutUseCase(formData));
+}
+
+export async function openStripeCustomerPortal(formData: FormData) {
+  return executeNextAction({ operation: "app/(app)/plan-y-uso/actions.ts#openStripeCustomerPortal" }, () => openStripeCustomerPortalUseCase(formData));
+}

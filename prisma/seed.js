@@ -24,7 +24,7 @@ async function main() {
       {
         id: "client-juan",
         nombre: "Juan Perez",
-        telefono: "+34 600 111 222",
+        telefono: "+34 000 111 222",
         email: "juan.perez@example.com",
         direccion: "Calle Mayor 18, Getafe",
         tipo: "Particular",
@@ -37,7 +37,7 @@ async function main() {
       {
         id: "client-marta",
         nombre: "Marta López",
-        telefono: "+34 611 333 444",
+        telefono: "+34 000 333 444",
         email: "marta.lopez@example.com",
         direccion: "Avenida del Puerto 42, Valencia",
         tipo: "Particular",
@@ -50,7 +50,7 @@ async function main() {
       {
         id: "client-lozano",
         nombre: "Reformas Lozano",
-        telefono: "+34 622 555 666",
+        telefono: "+34 000 555 666",
         email: "obra@lozano.example.com",
         direccion: "Poligono Sur nave 7, Leganes",
         tipo: "Pyme",
@@ -63,7 +63,7 @@ async function main() {
       {
         id: "client-ana",
         nombre: "Ana Gomez",
-        telefono: "+34 633 777 888",
+        telefono: "+34 000 777 888",
         email: "ana.gomez@example.com",
         direccion: "Calle Olivo 5, Madrid",
         tipo: "Particular",
@@ -76,7 +76,7 @@ async function main() {
       {
         id: "client-cafe",
         nombre: "Cafe Norte",
-        telefono: "+34 644 999 000",
+        telefono: "+34 000 999 000",
         email: "admin@cafenorte.example.com",
         direccion: "Plaza Nueva 3, Alcobendas",
         tipo: "Negocio",
@@ -89,7 +89,7 @@ async function main() {
       {
         id: "client-pedro",
         nombre: "Pedro Sanchez",
-        telefono: "+34 655 444 222",
+        telefono: "+34 000 444 222",
         email: "pedro.sanchez@example.com",
         direccion: "Calle Rio 11, Madrid",
         tipo: "Particular",
@@ -102,7 +102,7 @@ async function main() {
       {
         id: "client-ruiz",
         nombre: "Construcciones Ruiz",
-        telefono: "+34 666 333 111",
+        telefono: "+34 000 333 111",
         email: "admin@ruiz.example.com",
         direccion: "Avenida Industria 22, Fuenlabrada",
         tipo: "Pyme",
@@ -126,7 +126,7 @@ async function main() {
       ciudad: "Madrid",
       provincia: "Madrid",
       pais: "España",
-      telefono: "+34 600 000 000",
+      telefono: "+34 000 000 000",
       email: "hola@reformasrigo.example",
       web: "https://reformasrigo.example",
       personaContacto: "Antonio Rigo",

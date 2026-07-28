@@ -1,0 +1,24 @@
+{
+  "registryVersion": 1,
+  "liveActivationRequiresExplicitSnapshotReview": true,
+  "lanes": {
+    "fast": {
+      "logicalModel": "orqena-fast-v1",
+      "provider": "openai",
+      "environmentVariable": "OPENAI_MODEL_FAST",
+      "defaultProviderModel": "gpt-4.1-mini",
+      "snapshotPolicy": "pin-and-approve-before-live",
+      "maxAttempts": 3,
+      "escalationAllowed": true
+    },
+    "reasoning": {
+      "logicalModel": "orqena-reasoning-v1",
+      "provider": "openai",
+      "environmentVariable": "OPENAI_MODEL_REASONING",
+      "defaultProviderModel": "gpt-5.5",
+      "snapshotPolicy": "pin-and-approve-before-live",
+      "maxAttempts": 2,
+      "escalationAllowed": false
+    }
+  }
+}

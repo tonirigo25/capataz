@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { ContextDrawer } from "@/components/context-drawer";
 import { RecordWorkspace } from "@/components/workspaces";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
@@ -51,25 +52,26 @@ type DetailSearchParams = { vista?: string; tab?: string };
 
 const tabs = [
   ["resumen", "Resumen"],
-  ["actividad", "Actividad"],
-  ["trabajos", "Trabajos"],
-  ["contactos", "Contactos"],
-  ["documentos", "Documentos"],
-  ["datos", "Datos"],
-  ["economia", "Economía"],
+  ["trabajos", "Trabajo/Obras"],
+  ["dinero", "Dinero"],
+  ["archivos", "Archivos"],
 ] as const;
 
 const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
   obras: "trabajos",
-  archivos: "documentos",
-  dinero: "economia",
-  presupuestos: "economia",
-  facturas: "economia",
-  pagos: "economia",
-  finanzas: "economia",
-  visitas: "actividad",
-  notas: "actividad",
-  documentos: "documentos",
+  actividad: "resumen",
+  contactos: "resumen",
+  datos: "resumen",
+  archivos: "archivos",
+  documentos: "archivos",
+  dinero: "dinero",
+  economia: "dinero",
+  presupuestos: "dinero",
+  facturas: "dinero",
+  pagos: "dinero",
+  finanzas: "dinero",
+  visitas: "resumen",
+  notas: "resumen",
 };
 
 export default async function ClientDetailPage({
@@ -156,8 +158,28 @@ export default async function ClientDetailPage({
   const client = summary.client;
   const returnTo = `/clientes/${client.id}`;
 
+  const nextActionHref =
+    operationalContext.principal?.entity.href ??
+    `/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=visita&titulo=Próximo%20paso%20con%20${encodeURIComponent(summary.listItem.displayName)}&returnTo=${encodeURIComponent(returnTo)}`;
+  const responsible =
+    summary.activeWorks.find((work) => work.responsable)?.responsable ??
+    "Sin responsable asignado";
+  const nextDate = summary.upcomingEvents[0]
+    ? formatDate(summary.upcomingEvents[0].fechaInicio)
+    : "Sin próxima fecha";
+
   return (
-    <RecordWorkspace>
+    <RecordWorkspace
+      context={
+        <ClientContextRail
+          summary={summary}
+          nextAction={operationalContext.nextStep}
+          responsible={responsible}
+          nextDate={nextDate}
+          returnTo={returnTo}
+        />
+      }
+    >
       <EntityHeader
         back={
           <ParentNavigation
@@ -168,7 +190,7 @@ export default async function ClientDetailPage({
         }
         context={`${summary.listItem.typeLabel} · ${client.origen}`}
         title={summary.listItem.displayName}
-        description={`${summary.listItem.fiscalName} · ${summary.listItem.primaryContact} · ${(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}`}
+        description={`${summary.listItem.primaryContact} · ${(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}`}
         status={
           <StatusPill
             status={client.archivadoAt ? "archivado" : client.estado}
@@ -176,21 +198,39 @@ export default async function ClientDetailPage({
         }
         action={
           <Link
-            href={`/gestion?tipo=obra&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-                className="secondary-button"
+            href={nextActionHref}
+            className="primary-button"
           >
-            <BriefcaseBusiness size={18} /> Crear obra
+            <CalendarClock size={18} /> Abrir siguiente acción
           </Link>
         }
         menu={
-          <ClientActions
-            clientId={client.id}
-            clientName={summary.listItem.displayName}
-            returnTo={returnTo}
-            archived={Boolean(client.archivadoAt)}
-          />
+          <>
+            <ContextDrawer
+              title={`Contexto de ${summary.listItem.displayName}`}
+              description="Contactos, datos fiscales, dirección, notas y configuración sin añadir más pestañas."
+              triggerLabel="Ver contexto"
+            >
+              <ContactsTab summary={summary} returnTo={returnTo} />
+              <DataTab summary={summary} returnTo={returnTo} />
+              <NotesTab summary={summary} returnTo={returnTo} />
+            </ContextDrawer>
+            <ClientActions
+              clientId={client.id}
+              clientName={summary.listItem.displayName}
+              returnTo={returnTo}
+              archived={Boolean(client.archivadoAt)}
+            />
+          </>
         }
       />
+
+      <section className="mb-4 grid gap-2 rounded-xl border border-border bg-subtle p-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Contexto principal del cliente">
+        <HeaderFact label="Tipo" value={summary.listItem.typeLabel} />
+        <HeaderFact label="Responsable" value={responsible} />
+        <HeaderFact label="Próxima fecha" value={nextDate} />
+        <HeaderFact label="Contacto" value={summary.listItem.primaryContact} />
+      </section>
 
       <ClientRelationshipRail summary={summary} />
 
@@ -246,32 +286,46 @@ export default async function ClientDetailPage({
         entityId={client.id}
       />
 
-      <Tabs label="Secciones de la ficha de cliente" className="mt-5">
-        {tabs.map(([tab, label]) => (
-          <Link
-            key={tab}
-            href={`/clientes/${client.id}?vista=${tab}`}
-            aria-current={activeTab === tab ? "page" : undefined}
-          >
-            {label}
-          </Link>
-        ))}
-      </Tabs>
+      <div data-client-detail-areas="4">
+        <Tabs label="Secciones de la ficha de cliente" className="mt-5">
+          {tabs.map(([tab, label]) => (
+            <Link
+              key={tab}
+              href={`/clientes/${client.id}?vista=${tab}`}
+              aria-current={activeTab === tab ? "page" : undefined}
+            >
+              {label}
+            </Link>
+          ))}
+        </Tabs>
+      </div>
 
       <div className="mt-4" id="client-360-content">
         {activeTab === "resumen" ? (
           <div className="client-360-layout grid gap-4">
+            <section className="surface-feature p-5" aria-labelledby="cliente-siguiente-accion">
+              <p className="type-label">Siguiente acción</p>
+              <h2 id="cliente-siguiente-accion" className="type-section-title mt-2 text-content">
+                {operationalContext.nextStep}
+              </h2>
+              <p className="type-secondary mt-2">
+                {operationalContext.phrase}
+              </p>
+              <Link href={nextActionHref} className="secondary-button mt-4">
+                Abrir origen
+              </Link>
+            </section>
             <SummaryTab summary={summary} returnTo={returnTo} />
             <EntityWorkflowSummary clientId={client.id} />
+            <ActivityTab summary={summary} />
+            <VisitsTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
         {activeTab === "trabajos" ? (
           <WorksTab summary={summary} returnTo={returnTo} />
         ) : null}
-        {activeTab === "contactos" ? <ContactsTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "documentos" ? <DocumentsTab summary={summary} /> : null}
-        {activeTab === "datos" ? <DataTab summary={summary} returnTo={returnTo} /> : null}
-        {activeTab === "economia" ? (
+        {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
+        {activeTab === "dinero" ? (
           <div className="grid gap-4">
             <section className="grid gap-3 sm:grid-cols-3" aria-label="Economía autorizada del cliente">
               <StatCard title="Facturado" value={formatCurrency(summary.kpis.billedTotal)} detail="Sin borradores" icon={Receipt} />
@@ -282,13 +336,6 @@ export default async function ClientDetailPage({
             <InvoicesTab summary={summary} returnTo={returnTo} />
             <PaymentsTab summary={summary} />
             <ClientFinanceTab treasury={treasury} clientId={client.id} />
-          </div>
-        ) : null}
-        {activeTab === "actividad" ? (
-          <div className="grid gap-4">
-            <ActivityTab summary={summary} />
-            <VisitsTab summary={summary} returnTo={returnTo} />
-            <NotesTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
       </div>
@@ -303,17 +350,96 @@ function ClientRelationshipRail({
 }) {
   const stages = [
     ["Cliente", "completada", "resumen", "Relación activa"],
-    ["Oportunidad", summary.recentBudgets.length ? "completada" : "activa", "actividad", summary.recentBudgets.length ? "Contexto creado" : "Siguiente paso"],
-    ["Presupuesto", summary.recentBudgets.length ? "completada" : "pendiente", "economia", `${summary.recentBudgets.length} propuestas`],
+    ["Oportunidad", summary.recentBudgets.length ? "completada" : "activa", "resumen", summary.recentBudgets.length ? "Contexto creado" : "Siguiente paso"],
+    ["Presupuesto", summary.recentBudgets.length ? "completada" : "pendiente", "dinero", `${summary.recentBudgets.length} propuestas`],
     ["Trabajo", summary.kpis.activeWorks ? "activa" : summary.kpis.totalWorks ? "completada" : "pendiente", "trabajos", `${summary.kpis.activeWorks} activos`],
-    ["Factura", summary.kpis.billedTotal ? "completada" : "pendiente", "economia", summary.kpis.billedTotal ? "Emitida" : "Pendiente"],
-    ["Cobro", summary.kpis.paidTotal ? "completada" : summary.kpis.billedTotal ? "activa" : "pendiente", "economia", summary.kpis.paidTotal ? "Registrado" : "Pendiente"],
+    ["Factura", summary.kpis.billedTotal ? "completada" : "pendiente", "dinero", summary.kpis.billedTotal ? "Emitida" : "Pendiente"],
+    ["Cobro", summary.kpis.paidTotal ? "completada" : summary.kpis.billedTotal ? "activa" : "pendiente", "dinero", summary.kpis.paidTotal ? "Registrado" : "Pendiente"],
   ] as const;
   return (
     <section className="client-relationship-rail mt-4" aria-label="Recorrido Cliente 360">
       <div><p className="type-label">Cliente 360</p><strong>Relación completa</strong><span>Selecciona una etapa sin abandonar la ficha.</span></div>
       <ol>{stages.map(([label, state, view, detail], index) => <li key={label} className={`is-${state}`}><Link href={`/clientes/${summary.client.id}?vista=${view}#client-360-content`}><i>{index + 1}</i><span><strong>{label}</strong><small>{detail}</small></span></Link></li>)}</ol>
     </section>
+  );
+}
+
+function HeaderFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-surface px-3 py-2">
+      <p className="type-label">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-content">{value}</p>
+    </div>
+  );
+}
+
+function ClientContextRail({
+  summary,
+  nextAction,
+  responsible,
+  nextDate,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  nextAction: string;
+  responsible: string;
+  nextDate: string;
+  returnTo: string;
+}) {
+  const risk = summary.kpis.overdueInvoices
+    ? `${summary.kpis.overdueInvoices} cobros vencidos`
+    : summary.listItem.pendingFields.length
+      ? `${summary.listItem.pendingFields.length} datos pendientes`
+      : summary.kpis.pendingTotal > 0
+        ? `${formatCurrency(summary.kpis.pendingTotal)} pendientes`
+        : "Sin riesgo principal detectado";
+  return (
+    <div className="grid gap-4">
+      <section className="rounded-xl bg-subtle p-4">
+        <p className="type-label">Siguiente acción</p>
+        <h2 className="type-object-title mt-2 text-content">{nextAction}</h2>
+        <p className="type-secondary mt-2">Próxima fecha: {nextDate}</p>
+      </section>
+      <dl className="divide-y divide-border border-y border-border">
+        <ContextFact label="Contacto" value={summary.listItem.primaryContact} />
+        <ContextFact label="Responsable" value={responsible} />
+        <ContextFact label="Riesgo" value={risk} />
+        <ContextFact
+          label="Trabajo abierto"
+          value={
+            summary.kpis.activeWorks
+              ? `${summary.kpis.activeWorks} activos`
+              : "Sin trabajo activo"
+          }
+        />
+        <ContextFact
+          label="Datos pendientes"
+          value={String(summary.listItem.pendingFields.length)}
+        />
+      </dl>
+      <Link
+        href={`/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+        className="secondary-button w-full"
+      >
+        Editar datos y configuración
+      </Link>
+      <Link
+        href={`/capataz?clienteId=${summary.client.id}`}
+        className="secondary-button w-full"
+      >
+        <Bot size={17} />
+        Preguntar a Orqena
+      </Link>
+    </div>
+  );
+}
+
+function ContextFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-3">
+      <dt className="type-label">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold text-content">{value}</dd>
+    </div>
   );
 }
 
@@ -1826,7 +1952,7 @@ function SectionList({
   const hasContent = childArray.some(Boolean);
   return (
     <section>
-      <SectionHeader title={title} description={description} />
+      <SectionHeader level={2} title={title} description={description} />
       {hasContent ? (
         <div className="grid gap-3">{children}</div>
       ) : (

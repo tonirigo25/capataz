@@ -57,7 +57,6 @@ export async function PurchaseInvoiceDirectory({
   const [allInvoices, partners, allWorks] = await Promise.all([
     getPurchaseInvoiceList(companyId, kind, {
       search: first(query.buscar),
-      status: first(query.estado),
     }),
     prisma.businessPartner.findMany({
       where: { companyId, kind, archivedAt: null, status: { not: "BLOCKED" } },
@@ -75,13 +74,19 @@ export async function PurchaseInvoiceDirectory({
       select: { id: true, titulo: true, clienteId: true },
     }),
   ]);
-  const invoices = allInvoices.filter((invoice) =>
+  const scopedInvoices = allInvoices.filter((invoice) =>
     purchaseRelationAllowed(
       access.read,
       invoice.workId,
       invoice.expense?.clienteId,
     ),
   );
+  const requestedStatus = first(query.estado);
+  const revisionOnly = first(query.revision) === "1";
+  const invoices = scopedInvoices.filter((invoice) => {
+    if (revisionOnly) return invoice.status !== "VOID" && invoice.documents.length === 0;
+    return !requestedStatus || invoice.status === requestedStatus;
+  });
   const works = allWorks.filter((work) =>
     purchaseRelationAllowed(access.manage, work.id, work.clienteId),
   );
@@ -89,35 +94,44 @@ export async function PurchaseInvoiceDirectory({
     access.manage.allowed &&
     (access.manage.scope === "COMPANY" || works.length > 0);
   const pending = sum(
-    invoices
+    scopedInvoices
       .filter((invoice) => invoice.status !== "VOID")
       .map((invoice) => invoice.pendingAmount),
   );
   const overdue = sum(
-    invoices
+    scopedInvoices
       .filter((invoice) => invoice.status === "OVERDUE")
       .map((invoice) => invoice.pendingAmount),
   );
+  const reviewCount = scopedInvoices.filter((invoice) => invoice.status !== "VOID" && invoice.documents.length === 0).length;
+  const activeInvoices = scopedInvoices.filter((invoice) => invoice.status !== "VOID");
+  const attributedPercent = activeInvoices.length
+    ? Math.round((activeInvoices.filter((invoice) => invoice.workId).length / activeInvoices.length) * 100)
+    : 0;
+  const pendingCount = scopedInvoices.filter((invoice) => invoice.status === "PENDING").length;
+  const overdueCount = scopedInvoices.filter((invoice) => invoice.status === "OVERDUE").length;
+  const paidCount = scopedInvoices.filter((invoice) => invoice.status === "PAID").length;
   return (
     <ListWorkspace>
       <PageHeader
-        eyebrow={subcontractor ? "Coste real de obra" : "Compras y pagos"}
+        eyebrow={subcontractor ? "Coste real de obra" : "Compras y costes"}
         title={
-          subcontractor ? "Facturas de subcontratas" : "Facturas de proveedor"
+          subcontractor ? "Facturas de subcontratas" : "Facturas recibidas"
         }
         description={
           subcontractor
             ? "Certificaciones, trabajos realizados, retenciones, pagos y vencimientos separados de las compras ordinarias."
-            : "Facturas recibidas, pagos parciales, vencimientos, adjuntos y gasto asociado sin duplicar datos."
+            : "Revisión documental, imputación, vencimiento y pago sin duplicar el gasto."
         }
         action={
           canCreate ? (
-            <Link href={`${base}?nuevo=1#factura`} className="primary-button">
+            <Link href="/gastos-materiales/lector" className={first(query.nuevo) === "1" ? "secondary-button" : "primary-button"}>
               <Plus size={18} />
-              Registrar factura
+              Subir factura
             </Link>
           ) : undefined
         }
+        secondaryActions={canCreate ? <Link href={`${base}?nuevo=1#factura`} className="secondary-button">Registrar manualmente</Link> : undefined}
       >
         <CompactFilterBar>
           <form
@@ -147,7 +161,7 @@ export async function PurchaseInvoiceDirectory({
                 ))}
               </select>
             </label>
-            <button className="primary-button self-end" type="submit">
+            <button className="secondary-button self-end" type="submit">
               <Search size={18} />
               Aplicar
             </button>
@@ -164,12 +178,12 @@ export async function PurchaseInvoiceDirectory({
       <section className="my-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           icon={FileCheck2}
-          label="Facturas"
-          value={String(invoices.length)}
+          label="Pendiente revisar"
+          value={String(reviewCount)}
         />
         <Metric
           icon={WalletCards}
-          label="Pendiente"
+          label="Pendiente pagar"
           value={formatCurrency(pending)}
           tone={pending ? "warning" : "neutral"}
         />
@@ -181,10 +195,8 @@ export async function PurchaseInvoiceDirectory({
         />
         <Metric
           icon={Banknote}
-          label="Pagado"
-          value={formatCurrency(
-            sum(invoices.map((invoice) => invoice.paidAmount)),
-          )}
+          label="Imputado a trabajos"
+          value={`${attributedPercent} %`}
         />
       </section>
       {first(query.nuevo) === "1" && canCreate ? (
@@ -207,6 +219,12 @@ export async function PurchaseInvoiceDirectory({
           />
         </section>
       ) : null}
+      <nav className="mb-4 flex gap-2 overflow-x-auto pb-1" aria-label="Vistas inteligentes de facturas recibidas">
+        <Link href={`${base}?revision=1`} aria-current={revisionOnly ? "page" : undefined} className={`toolbar-chip ${revisionOnly ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>Revisión · {reviewCount}</Link>
+        <Link href={`${base}?estado=PENDING`} aria-current={requestedStatus === "PENDING" ? "page" : undefined} className={`toolbar-chip ${requestedStatus === "PENDING" ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>Pendientes · {pendingCount}</Link>
+        <Link href={`${base}?estado=OVERDUE`} aria-current={requestedStatus === "OVERDUE" ? "page" : undefined} className={`toolbar-chip ${requestedStatus === "OVERDUE" ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>Vencidas · {overdueCount}</Link>
+        <Link href={`${base}?estado=PAID`} aria-current={requestedStatus === "PAID" ? "page" : undefined} className={`toolbar-chip ${requestedStatus === "PAID" ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>Pagadas · {paidCount}</Link>
+      </nav>
       <ResultCount
         shown={invoices.length}
         total={invoices.length}
@@ -285,42 +303,23 @@ export async function PurchaseInvoiceDirectory({
               </table>
             </TableShell>
           </div>
-          <div className="grid gap-3 lg:hidden">
+          <div className="card divide-y divide-slate-100 p-3 lg:hidden">
             {invoices.map((invoice) => (
-              <article key={invoice.id} className="card p-4">
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <Link href={`${base}/${invoice.id}`} className="font-black">
+              <Link key={invoice.id} href={`${base}/${invoice.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-2 py-4">
+                  <div className="min-w-0">
+                    <p className="font-black">
                       {invoice.invoiceNumber}
-                    </Link>
-                    <p className="text-sm text-slate-600">
+                    </p>
+                    <p className="mt-1 truncate text-xs text-slate-500">
                       {invoice.businessPartner.commercialName}
                     </p>
+                    <p className="mt-2 truncate text-xs font-bold text-slate-600">{invoice.work?.titulo || "Gasto general"} · {formatDate(invoice.dueDate)}</p>
                   </div>
-                  <InvoiceStatus status={invoice.status} />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Mini label="Total" value={formatCurrency(invoice.total)} />
-                  <Mini
-                    label="Pendiente"
-                    value={formatCurrency(invoice.pendingAmount)}
-                  />
-                  <Mini
-                    label="Vencimiento"
-                    value={formatDate(invoice.dueDate)}
-                  />
-                  <Mini
-                    label="Obra"
-                    value={invoice.work?.titulo || "General"}
-                  />
-                </div>
-                <Link
-                  className="primary-button mt-3 w-full"
-                  href={`${base}/${invoice.id}`}
-                >
-                  Abrir factura
-                </Link>
-              </article>
+                  <div className="text-right">
+                    <p className="font-black text-obra-ink">{formatCurrency(invoice.total)}</p>
+                    <div className="mt-2"><InvoiceStatus status={invoice.status} /></div>
+                  </div>
+              </Link>
             ))}
           </div>
         </>
@@ -335,7 +334,7 @@ export async function PurchaseInvoiceDirectory({
           }
           action={
             canCreate ? (
-              <Link className="primary-button" href={`${base}?nuevo=1#factura`}>
+              <Link className="secondary-button" href={`${base}?nuevo=1#factura`}>
                 <Plus size={18} />
                 Registrar factura
               </Link>
@@ -475,7 +474,15 @@ export async function PurchaseInvoiceProfile({
                 value={invoice.work?.titulo || "Gasto general"}
                 href={invoice.work ? `/obras/${invoice.work.id}` : undefined}
               />
+              <Info
+                label="Gasto enlazado"
+                value={invoice.expense ? `Registro único · ${invoice.expense.concepto}` : "Sin gasto enlazado"}
+                href={invoice.expense ? "/gastos-materiales" : undefined}
+              />
             </div>
+            <p className="mt-5 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
+              La factura y sus pagos alimentan tesorería mediante este gasto único enlazado. No se registra una segunda salida.
+            </p>
             {sub ? (
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Info
@@ -528,7 +535,7 @@ export async function PurchaseInvoiceProfile({
             <h2 className="font-black">Documentos y adjuntos</h2>
             {invoice.documents.length ? (
               <div className="mt-3 grid gap-2">
-                {invoice.documents.map((document) => (
+                {invoice.documents.map((document) => document.storageKey ? (
                   <Link
                     key={document.id}
                     href={`/gastos-materiales/lector/${document.id}/archivo`}
@@ -536,6 +543,11 @@ export async function PurchaseInvoiceProfile({
                   >
                     {document.name}
                   </Link>
+                ) : (
+                  <div key={document.id} className="rounded-xl border border-slate-200 p-3">
+                    <p className="font-bold">{document.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">Ficha documental sin binario disponible.</p>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -900,14 +912,6 @@ function Metric({
         <Icon size={18} />
       </div>
       <p className="mt-2 text-2xl font-black">{value}</p>
-    </div>
-  );
-}
-function Mini({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-2">
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate font-black">{value}</p>
     </div>
   );
 }

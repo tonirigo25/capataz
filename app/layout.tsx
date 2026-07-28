@@ -4,6 +4,8 @@ import { PwaRegister } from "@/app/pwa-register";
 import { brand } from "@/lib/brand";
 import { getPublicRobotsMetadata } from "@/lib/public-indexing";
 import { ThemeProvider, themeBootScript } from "@/components/theme/theme-provider";
+import { headers } from "next/headers";
+import { ConsentManager } from "@/components/consent-manager";
 
 export function generateMetadata(): Metadata {
   return {
@@ -38,14 +40,16 @@ export const viewport: Viewport = {
   ]
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
         {children}
+        <ConsentManager analyticsAvailable={process.env.ANALYTICS_ENABLED === "true"} />
         <ThemeProvider />
         <PwaRegister />
       </body>

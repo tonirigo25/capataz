@@ -24,6 +24,13 @@ Precios, periodos, política exacta de gracia, límites públicos y soporte cont
 
 Despliegue a production, migraciones de production, configuración comercial remota y publicación. Staging ya está desplegado y validado de forma independiente.
 
+El cierre externo actual mantiene un `review` Railway persistente y aislado. El
+dictamen vigente es **NO-GO** y se mantiene en
+`docs/readiness/C10_GO_NO_GO.md`: faltan el ensayo de 43 migraciones sobre una
+copia representativa autorizada, backup/PITR aplicable, gate completo del SHA
+exacto en staging y aprobación humana. El restore lógico remoto de review pasó,
+pero no sustituye esos gates.
+
 ## Pendiente de revisión jurídica
 
 Textos contractuales, privacidad, fiscalidad, tratamiento de soporte y condiciones de suscripción.

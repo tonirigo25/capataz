@@ -1,5 +1,5 @@
-import { Building2, Image as ImageIcon, Save, Smartphone, UserRound } from "lucide-react";
-import { saveCompanySettings, saveUserProfile } from "@/app/(app)/configuracion/actions";
+import { Building2, CheckCircle2, Save, Smartphone, UserRound } from "lucide-react";
+import { saveCompanySettings, saveUserProfile, uploadCompanyAsset } from "@/app/(app)/configuracion/actions";
 import { SectionHeader } from "@/components/section-header";
 import { companyCompletion, profileCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +9,13 @@ import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ area?: string }>;
+}) {
+  const query = await searchParams;
+  const area = query.area ?? "perfil";
   const auth = await requireCompanyContext();
   const owner = auth.role === "OWNER";
   const [companyRecord, legacyProfile] = await Promise.all([
@@ -29,13 +35,36 @@ export default async function SettingsPage() {
   return (
     <main className="screen">
       <SectionHeader title="Configuración" description="Tu trato personal, datos de empresa, app móvil, límites y planes." />
-      <nav aria-label="Secciones de configuración" className="sticky top-16 z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto border-y border-slate-200 bg-white/95 px-4 py-2 backdrop-blur sm:static sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0">
-        <a href="#perfil" className="secondary-button min-h-10 shrink-0 px-3">Perfil</a>
-        {owner ? <a href="#empresa" className="secondary-button min-h-10 shrink-0 px-3">Empresa</a> : null}
-        {owner ? <a href="#suscripcion" className="secondary-button min-h-10 shrink-0 px-3">Administración</a> : null}
-      </nav>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]" data-d8-settings-workspace>
+        <aside className="card h-fit p-3 lg:sticky lg:top-24">
+          <p className="type-label px-2">Áreas</p>
+          <nav aria-label="Secciones de configuración" className="mt-2 grid gap-1">
+            <a href="/configuracion?area=perfil#perfil" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Datos personales</a>
+            {owner ? <a href="/configuracion?area=empresa#empresa" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Empresa</a> : null}
+            {owner ? <a href="/configuracion?area=fiscal-documentos#fiscal-documentos" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Fiscal y documentos</a> : null}
+            {owner ? <a href="/equipo" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Equipo</a> : null}
+            <a href="/configuracion?area=integraciones#integraciones" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Integraciones</a>
+            <a href="/configuracion/seguridad" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Seguridad</a>
+            {owner ? <a href="/plan-y-uso" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Plan y uso</a> : null}
+            <a href="/configuracion?area=app#app" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">App móvil</a>
+            <a href="/configuracion?area=legal#legal" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Legal y soporte</a>
+            {owner ? <a href="/configuracion?area=zona-sensible#zona-sensible" className="rounded-lg px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Zona sensible</a> : null}
+          </nav>
+        </aside>
+        <div className="min-w-0">
+          <section className="card mb-5 p-4" data-settings-readiness>
+            <p className="type-label">Preparación</p>
+            <h2 className="type-section-title mt-2">Checklist de configuración</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ReadinessItem label="Perfil personal" detail={`${profileStatus.percent}% completo`} ready={profileStatus.missingRequired.length === 0} href="/configuracion?area=perfil#perfil" />
+              {owner && companyStatus ? <ReadinessItem label="Datos de empresa" detail={`${companyStatus.percent}% completo`} ready={companyStatus.missingRequired.length === 0} href="/configuracion?area=empresa#empresa" /> : null}
+              <ReadinessItem label="Seguridad y MFA" detail="Revisar acceso personal" ready={false} href="/configuracion/seguridad" />
+              {owner ? <ReadinessItem label="Equipo y permisos" detail="Perfiles, scopes y aprobación" ready href="/equipo" /> : null}
+              <ReadinessItem label="Modo manual" detail="Funciona sin providers live" ready href="/configuracion?area=integraciones#integraciones" />
+            </div>
+          </section>
 
-      <section id="perfil" className="card mb-5 scroll-mt-24 p-4">
+      {area === "perfil" ? <section id="perfil" className="card mb-5 scroll-mt-24 p-4">
         <div className="mb-4 flex items-start gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-obra-yellow/30 text-obra-yellowDark">
             <UserRound size={22} />
@@ -91,9 +120,9 @@ export default async function SettingsPage() {
             Guardar mi perfil
           </button>
         </form>
-      </section>
+      </section> : null}
 
-      {owner && company && companyStatus ? <section id="empresa" className="card mb-5 scroll-mt-24 p-4">
+      {owner && company && companyStatus && ["empresa", "fiscal-documentos"].includes(area) ? <section id="empresa" className="card mb-5 scroll-mt-24 p-4">
         <div className="mb-4 flex items-start gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-obra-yellow/30 text-obra-yellowDark">
             <Building2 size={22} />
@@ -113,19 +142,24 @@ export default async function SettingsPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field name="nombreComercial" label="Nombre comercial" value={company?.nombreComercial ?? ""} required />
             <Field name="razonSocial" label="Razón social" value={company?.razonSocial ?? ""} />
-            <Field name="nifCif" label="NIF/CIF" value={company?.nifCif ?? ""} />
             <Field name="telefono" label="Teléfono" value={company?.telefono ?? ""} />
             <Field name="email" label="Email" value={company?.email ?? ""} type="email" />
             <Field name="web" label="Web" value={company?.web ?? ""} />
+            <Field name="personaContacto" label="Persona contacto" value={company?.personaContacto ?? ""} />
+          </div>
+
+          <details id="fiscal-documentos" className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50 p-4" open={area === "fiscal-documentos"}>
+            <summary className="cursor-pointer font-black text-obra-ink">Fiscal y documentos</summary>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Dirección, impuestos, numeración y textos que aparecen en presupuestos, facturas y PDFs.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Field name="nifCif" label="NIF/CIF" value={company?.nifCif ?? ""} />
             <Field name="direccionFiscal" label="Dirección fiscal" value={company?.direccionFiscal ?? ""} />
             <Field name="codigoPostal" label="Código postal" value={company?.codigoPostal ?? ""} />
             <Field name="ciudad" label="Ciudad" value={company?.ciudad ?? ""} />
             <Field name="municipio" label="Municipio" value={company?.municipio ?? ""} />
             <Field name="provincia" label="Provincia" value={company?.provincia ?? ""} />
             <Field name="pais" label="País" value={company?.pais ?? "España"} />
-            <Field name="personaContacto" label="Persona contacto" value={company?.personaContacto ?? ""} />
             <Field name="iban" label="IBAN / datos bancarios" value={company?.iban ?? ""} />
-            <Field name="colorMarca" label="Color marca" value={company?.colorMarca ?? "#f6c945"} type="color" />
             <Field name="ivaDefecto" label="IVA por defecto" value={company?.ivaDefecto ?? 21} type="number" />
             <Field name="moneda" label="Moneda" value={company?.moneda ?? "EUR"} />
             <Field name="validezPresupuestoDias" label="Validez presupuestos (días)" value={company?.validezPresupuestoDias ?? 15} type="number" />
@@ -136,16 +170,19 @@ export default async function SettingsPage() {
             <Field name="prefijoPresupuesto" label="Prefijo presupuesto" value={company?.prefijoPresupuesto ?? "P"} />
             <Field name="prefijoFactura" label="Prefijo factura" value={company?.prefijoFactura ?? "F"} />
             <Field name="prefijoObra" label="Prefijo obra" value={company?.prefijoObra ?? "OB"} />
-          </div>
-          <Field name="logoUrl" label="Logo URL o ruta local" value={company?.logoUrl ?? ""} />
-          <Field name="selloUrl" label="Sello URL o ruta local" value={company?.selloUrl ?? ""} />
-          <Textarea name="condicionesPorDefecto" label="Condiciones por defecto" value={company?.condicionesPorDefecto ?? ""} />
-          <Textarea name="textoLegal" label="Texto legal" value={company?.textoLegal ?? ""} />
+            </div>
+            <div className="mt-3 grid gap-3">
+              <Textarea name="condicionesPorDefecto" label="Condiciones por defecto" value={company?.condicionesPorDefecto ?? ""} />
+              <Textarea name="textoLegal" label="Texto legal" value={company?.textoLegal ?? ""} />
+            </div>
+          </details>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PreviewAsset title="Logo" url={company?.logoUrl} />
-            <PreviewAsset title="Sello" url={company?.selloUrl} />
-          </div>
+          <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <summary className="cursor-pointer font-black text-obra-ink">Marca</summary>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Field name="colorMarca" label="Color marca" value={company?.colorMarca ?? "#f6c945"} type="color" />
+            </div>
+          </details>
 
           <div className="rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
             Previsualización documento: {company?.nombreComercial ?? "Mi empresa"} · {company?.nifCif ?? "NIF/CIF pendiente"} · serie presupuesto {company?.prefijoPresupuesto ?? "P"}-{company?.seriePresupuestos ?? "2026"}.
@@ -156,9 +193,28 @@ export default async function SettingsPage() {
             Guardar datos de empresa
           </button>
         </form>
+        <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <summary className="cursor-pointer font-black text-obra-ink">Archivos privados de marca</summary>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <AssetUpload kind="logo" label="Logo privado" configured={Boolean(company.logoStoredObjectId)} />
+            <AssetUpload kind="seal" label="Sello privado" configured={Boolean(company.sealStoredObjectId)} />
+          </div>
+        </details>
       </section> : null}
 
-      <section className="card mb-5 p-4">
+      {area === "integraciones" ? <section id="integraciones" className="card mb-5 scroll-mt-24 p-4">
+        <h2 className="text-lg font-black text-obra-ink">Privacidad e inteligencia artificial</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Consulta límites, coste agregado y revisa propuestas sin exponer prompts ni contenido.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a href="/configuracion/preferencias" className="secondary-button">Preferencias y opt-ins</a>
+          <a href="/configuracion/ia" className="secondary-button">IA, revisión y consumo</a>
+          <a href="/configuracion/privacidad" className="secondary-button">Centro de privacidad</a>
+          <a href="/configuracion/importar" className="secondary-button">Importar con vista previa</a>
+          <a href="/configuracion/soporte" className="secondary-button">Soporte autenticado</a>
+        </div>
+      </section> : null}
+
+      {area === "app" ? <section id="app" className="card mb-5 scroll-mt-24 p-4">
         <div className="mb-3 flex items-center gap-2">
           <Smartphone size={20} className="text-obra-graphite" />
           <h2 className="text-lg font-black text-obra-ink">Usar Orqena como app</h2>
@@ -183,9 +239,9 @@ export default async function SettingsPage() {
             </ol>
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="card mb-5 p-4">
+      {area === "legal" ? <section id="legal" className="card mb-5 scroll-mt-24 p-4">
         <h2 className="text-lg font-black text-obra-ink">Legal y soporte</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
           Información necesaria para usuarios, revisores de App Store y Google Play.
@@ -197,16 +253,45 @@ export default async function SettingsPage() {
           <a href="/politicas" className="secondary-button">Políticas</a>
           <a href="/soporte" className="secondary-button">Soporte</a>
         </div>
-      </section>
+      </section> : null}
 
-      {owner ? <section id="suscripcion" className="card scroll-mt-24 p-4">
+      {owner && area === "zona-sensible" ? <section id="suscripcion" className="card scroll-mt-24 p-4">
         <h2 className="text-lg font-black text-obra-ink">Administración empresarial</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">Cada área aplica permisos y capacidades comerciales en servidor. No se muestran precios sin aprobación comercial.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <a href="/equipo" className="secondary-button">Equipo y permisos</a><a href="/equipos" className="secondary-button">Equipos</a><a href="/plan-y-uso" className="secondary-button">Plan y uso</a><a href="/configuracion/memoria" className="secondary-button">Memoria de Orqena</a><a href="/auditoria" className="secondary-button">Auditoría</a><a href="#empresa" className="secondary-button">Zona sensible</a>
+          <a href="/equipo" className="secondary-button">Equipo y permisos</a><a href="/equipos" className="secondary-button">Equipos</a><a href="/plan-y-uso" className="secondary-button">Plan y uso</a><a href="/configuracion/memoria" className="secondary-button">Memoria de Orqena</a><a href="/configuracion/seguridad" className="secondary-button">Seguridad de acceso</a><a href="/configuracion/privacidad" className="secondary-button">Centro de privacidad</a><a href="/auditoria" className="secondary-button">Auditoría</a><a href="#empresa" className="secondary-button">Zona sensible</a>
+        </div>
+        <div id="zona-sensible" className="mt-5 scroll-mt-24 rounded-xl border border-red-200 bg-red-50 p-4">
+          <h3 className="font-black text-red-800">Zona sensible</h3>
+          <p className="mt-1 text-sm leading-6 text-red-800">Propiedad, revocaciones, fiscalidad e integraciones requieren sus controles y confirmaciones independientes.</p>
+          <div className="mt-3 flex flex-wrap gap-2"><a href="/equipo" className="secondary-button">Revisar accesos</a><a href="/auditoria" className="secondary-button">Abrir auditoría</a></div>
         </div>
       </section> : null}
+        </div>
+      </div>
     </main>
+  );
+}
+
+function ReadinessItem({
+  label,
+  detail,
+  ready,
+  href,
+}: {
+  label: string;
+  detail: string;
+  ready: boolean;
+  href: string;
+}) {
+  return (
+    <a href={href} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+      <CheckCircle2 className={ready ? "mt-0.5 text-emerald-600" : "mt-0.5 text-slate-400"} size={19} />
+      <span>
+        <strong className="block text-sm text-obra-ink">{label}</strong>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">{detail}</span>
+      </span>
+    </a>
   );
 }
 
@@ -278,19 +363,14 @@ function Textarea({ name, label, value }: { name: string; label: string; value: 
   );
 }
 
-function PreviewAsset({ title, url }: { title: string; url?: string | null }) {
+function AssetUpload({ kind, label, configured }: { kind: "logo" | "seal"; label: string; configured: boolean }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm font-black text-obra-ink">
-        <ImageIcon size={18} className="text-obra-yellowDark" aria-hidden="true" />
-        {title}
-      </div>
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={title} className="h-16 max-w-full rounded-lg border border-slate-100 object-contain p-2" />
-      ) : (
-        <p className="text-sm text-slate-500">Sin imagen configurada.</p>
-      )}
-    </div>
+    <form action={uploadCompanyAsset} className="rounded-lg border border-slate-200 bg-white p-3">
+      <input type="hidden" name="assetKind" value={kind} />
+      <p className="text-sm font-black text-obra-ink">{label}</p>
+      <p className="mt-1 text-xs text-slate-600">{configured ? "Archivo privado configurado." : "Sin archivo configurado."} PNG, JPEG o WebP; máximo 5 MB.</p>
+      <input aria-label={`Seleccionar ${label.toLowerCase()}`} className="field mt-3" type="file" name="asset" accept="image/png,image/jpeg,image/webp" required />
+      <button type="submit" className="secondary-button mt-3 w-full">Subir archivo privado</button>
+    </form>
   );
 }

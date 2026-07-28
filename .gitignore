@@ -11,6 +11,12 @@ prisma/dev.db
 prisma/dev.db-journal
 *.log
 *.tsbuildinfo
+artifacts/
+.lighthouseci/
+test-results/
+playwright-report/
+.vitest-reports/
+docs/data-room/private/
 .capataz-documents/
 *.keystore
 *.jks

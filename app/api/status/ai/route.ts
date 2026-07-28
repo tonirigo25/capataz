@@ -1,3 +1,4 @@
+import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { checkCapatazAIModels, getCapatazAIStatus } from "@/lib/ai/capataz-ai";
 import { getOptionalSession } from "@/lib/auth/session";
@@ -6,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  return publicRequestContext("GET /api/status/ai", request, async () => {
   const session = await getOptionalSession();
   const platform = session ? await prisma.platformAccount.findFirst({ where: { userId: session.userId, status: "ACTIVE" }, select: { id: true } }) : null;
   if (!platform) return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
@@ -29,4 +31,6 @@ export async function GET(request: Request) {
     },
     { status: check.ok ? 200 : 503 }
   );
+
+  });
 }

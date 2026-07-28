@@ -1,0 +1,102 @@
+{
+  "phase": "F2",
+  "verdict": "PASS",
+  "branch": "feat/readiness-f2-platform-core",
+  "baseBranch": "feat/readiness-f1-contract",
+  "baseCommit": "dbabd19e6a891042a674b6c0d3756b3b4eb91510",
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "databaseTarget": "ephemeral isolated PostgreSQL locally and one deleted temporary Railway PostgreSQL service",
+    "externalProvidersCalled": false
+  },
+  "requirements": {
+    "total": 19,
+    "pass": 19,
+    "readyForExternalInput": 0,
+    "pending": 0,
+    "blocked": 0,
+    "waived": 0
+  },
+  "schema": {
+    "sha256": "19faa2cbed2518c0b378fed8d7bc8a843a30c95ec6fd3f990b45ee04680f0f0e",
+    "models": 130,
+    "relations": 222,
+    "migration": "20260726100000_readiness_f2_observability_context",
+    "totalMigrationsAppliedFromFresh": 37
+  },
+  "validation": {
+    "platformCoreChecks": "26/26 PASS",
+    "isolatedPostgres": "PASS",
+    "authRegression": "PASS",
+    "healthStandalone": "PASS",
+    "otelExporter": "PASS",
+    "providerContracts": "fake and production 6/6 PASS",
+    "actionBoundaries": "30/30 files and 129/129 exports PASS; negative fixture PASS",
+    "contextBoundaries": "30 actions, 16 routes, 2 jobs PASS; negative fixture PASS",
+    "endToEndCorrelation": "action-service-audit-BusinessEvent-worker-fake provider PASS; replay one effect",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "staticPagesGenerated": 64,
+    "routeAccess": "52/52 PASS",
+    "publicIndexing": "PASS",
+    "singleMigrationOwner": "PASS",
+    "freshMigrationDeploy": "37/37 PASS; second deploy no pending migrations",
+    "crossPlatformSchemaHash": "PASS; CRLF normalized to LF in generator and validator",
+    "databaseSafety": "PASS",
+    "railwayCspReportOnly": "12/12 HTTP checks, 12 browser routes, 0 CSP findings and 0 violation logs PASS",
+    "railwayCspEnforce": "11/11 HTTP checks, 12 browser routes, interactions and PDF preview, 0 CSP findings and 0 violation logs PASS",
+    "temporaryRailwayTeardown": "PASS",
+    "persistentStagingAndProductionUnchanged": true
+  },
+  "isolatedPostgres": {
+    "loopbackOnly": true,
+    "dynamicPorts": true,
+    "runtimeCleanedUp": true,
+    "sessionOldTokenRevoked": true,
+    "idempotentOperationsForSameKey": 1,
+    "tenantARateLimitAllowed": 5,
+    "tenantBRateLimitAllowed": 3,
+    "outboxRollback": true,
+    "outboxClaimed": 1,
+    "webhookReplayDetected": true,
+    "actionServiceCrossTenantRejected": true,
+    "actionServiceTransactionRollback": true,
+    "correlationProbeTenantRejected": true,
+    "correlationSearchAuditRows": 2,
+    "correlationProviderEffects": 1,
+    "correlationReplayDetected": true,
+    "encryptedCredentialRoundTrip": true,
+    "crossSiteStatus": 403,
+    "crossSiteWrites": 0
+  },
+  "health": {
+    "publicMinimal": ["/api/health/live", "/api/health/ready", "/api/status"],
+    "internalProtected": "/api/internal/status",
+    "railwayHealthcheckPath": "/api/health/ready",
+    "releaseShaObserved": "f2-local-validation",
+    "migrationHeadObserved": "20260726100000_readiness_f2_observability_context"
+  },
+  "pending": {},
+  "externalInput": {},
+  "temporaryResources": {
+    "isolatedPostgresInstances": 9,
+    "localStandaloneInstances": 3,
+    "railwayEnvironmentId": "c2d804a0-e325-423f-ba71-9dd997449335",
+    "railwayWebServiceId": "d73d0a69-9cf8-4ba4-83cf-99021487025b",
+    "railwayPostgresServiceIds": ["4a7d7b7a-15f5-4628-a992-e3198622699e", "b647e58c-37bb-427c-8fb7-054b239d67ec"],
+    "attributableCostUsd": 0.0035905805364022424,
+    "unattributedDeletedVolumeCostUsd": 0.0018888763183602779,
+    "conservativeUpperBoundCostUsd": 0.00547945685476252,
+    "preTeardownValidationSeconds": 4212,
+    "teardown": "PASS",
+    "environmentAbsent": true,
+    "servicesAbsent": true,
+    "volumeInstancesAbsent": true
+  },
+  "persistentBaselines": {
+    "stagingDeploymentId": "dc3ce593-3bc8-4abb-9167-9b9d2f774549",
+    "productionDeploymentId": "2e266e66-be53-4008-a1b9-cbfaca21c750",
+    "bothSuccessfulAndUnchanged": true
+  }
+}

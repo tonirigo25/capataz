@@ -1,0 +1,99 @@
+{
+  "phase": "F1",
+  "verdict": "PASS",
+  "branch": "feat/readiness-f1-contract",
+  "baseBranch": "program/orqena-production-readiness",
+  "baseCommit": "9ad3bec5afb982af98d38fa343db989d1c7c40eb",
+  "scope": {
+    "productionModified": false,
+    "stagingModified": false,
+    "databaseTarget": "ephemeral isolated PostgreSQL only",
+    "externalEnginesEnabled": false
+  },
+  "schema": {
+    "sha256": "0f2bfa8d80a34f3c3821cc0800eaeb4f72ff19fd86a17c5ae1a870dcbadedbec",
+    "models": 130,
+    "relations": 222,
+    "newTargetTables": 38,
+    "decimalMirrorColumns": 32,
+    "legacyFloatColumnsRemoved": 0
+  },
+  "migrationTrain": {
+    "first": "20260725100000_readiness_m01_platform_contracts",
+    "last": "20260725190000_readiness_m10_money_decimal_transition",
+    "readinessMigrations": 10,
+    "totalMigrationsAppliedFromFresh": 35,
+    "secondDeployNoPending": true,
+    "destructiveStatements": 0,
+    "lockTimeout": "5s",
+    "statementTimeout": "60s"
+  },
+  "isolatedValidation": {
+    "databaseClass": "capataz_test*",
+    "loopbackOnly": true,
+    "dynamicPort": true,
+    "dryRunRows": 1,
+    "applyRows": 1,
+    "reconciliationPairs": 32,
+    "aggregateAbsoluteDifference": 0,
+    "runtimeCleanedUp": true
+  },
+  "validation": {
+    "structuralChecks": 56,
+    "prismaValidate": "PASS",
+    "prismaGenerate": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "staticPagesGenerated": 63,
+    "runtimeConfigNegativeTest": "PASS",
+    "generatedDocsFresh": true,
+    "regressionSuites": {
+      "mobileConfig": "22/22 PASS",
+      "publicIndexing": "PASS",
+      "commercialPlatform": "88/88 PASS",
+      "portalManifest": "PASS",
+      "databaseSafety": "PASS",
+      "singleMigrationOwner": "PASS"
+    }
+  },
+  "supplyChain": {
+    "npmCi": "PASS",
+    "productionAuditVulnerabilities": 0,
+    "next": "15.5.22",
+    "postcss": "8.5.23",
+    "sharp": "0.35.3",
+    "braceExpansion": "5.0.8"
+  },
+  "dependencyContract": {
+    "runtimeAdded": [
+      "@aws-sdk/client-s3@3.1095.0",
+      "@aws-sdk/s3-request-presigner@3.1095.0",
+      "@opentelemetry/api@1.9.1",
+      "@opentelemetry/exporter-trace-otlp-http@0.221.0",
+      "@opentelemetry/sdk-node@0.221.0",
+      "@sentry/nextjs@10.68.0",
+      "fast-xml-parser@5.10.1",
+      "otplib@13.4.1",
+      "qrcode@1.5.4",
+      "resend@6.18.0",
+      "stripe@22.3.2",
+      "zod@4.4.3"
+    ],
+    "developmentAdded": [
+      "@axe-core/playwright@4.12.1",
+      "@cyclonedx/cyclonedx-npm@6.0.0",
+      "@playwright/test@1.62.0",
+      "@types/qrcode@1.5.6",
+      "audit-ci@7.1.0",
+      "license-checker-rseidelsohn@5.0.1",
+      "vitest@4.1.10"
+    ]
+  },
+  "evidence": [
+    "docs/architecture/generated/schema-manifest.json",
+    "docs/architecture/generated/DATA_DICTIONARY.md",
+    "docs/architecture/generated/ERD.mmd",
+    "docs/architecture/generated/ERD.svg",
+    "docs/readiness/evidence/f1/generated-schema-diff.sql"
+  ]
+}

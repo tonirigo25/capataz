@@ -46,8 +46,8 @@ async function stagingUser(key: string, roleName: string, passwordHash: string) 
   const email = `${key}@staging.orqena.invalid`;
   return prisma.user.upsert({
     where: { emailNormalized: email },
-    update: { displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date() },
-    create: { email, emailNormalized: email, displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date() }
+    update: { displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null },
+    create: { email, emailNormalized: email, displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null }
   });
 }
 
@@ -56,6 +56,7 @@ async function main() {
   const password = process.env.ORQENA_STAGING_TEST_PASSWORD;
   if (!password || password.length < 16) throw new Error("ORQENA_STAGING_TEST_PASSWORD_REQUIRED");
   const passwordHash = await hashPassword(password);
+  await prisma.idempotencyRecord.deleteMany({ where: { companyId: null, namespace: "rate_limit:login" } });
   await ensureBasePlans(prisma);
 
   const users = new Map(await Promise.all(profileFixtures.map(async (fixture) => [fixture.key, await stagingUser(fixture.key, fixture.label, passwordHash)] as const)));
@@ -94,6 +95,16 @@ async function main() {
     const emailNormalized = `invite-${suffix}@staging.orqena.invalid`;
     await prisma.invitation.upsert({ where: { tokenHash: hashToken(`staging-${suffix}-stable-token`) }, update: { expiresAt, status: "PENDING" }, create: { ...invitationBase, emailNormalized, tokenHash: hashToken(`staging-${suffix}-stable-token`), expiresAt } });
   }
+  const approvalUser = await stagingUser("invite-approval", "Solicitante Staging", passwordHash);
+  const approvalMembership = await prisma.companyMembership.upsert({
+    where: { userId_companyId: { userId: approvalUser.id, companyId: business.id } },
+    update: { role: "MEMBER", functionalProfileKey: "WORKER", accessMode: "STANDARD", status: "pending_owner_approval", origin: "staging" },
+    create: { userId: approvalUser.id, companyId: business.id, role: "MEMBER", functionalProfileKey: "WORKER", accessMode: "STANDARD", status: "pending_owner_approval", origin: "staging" }
+  });
+  await prisma.membershipAccessPackage.deleteMany({ where: { membershipId: approvalMembership.id } });
+  await prisma.membershipAccessPackage.createMany({
+    data: profileDefaultPackages.WORKER.map((packageKey) => ({ companyId: business.id, membershipId: approvalMembership.id, packageKey, grantedById: owner.id }))
+  });
   await prisma.invitation.upsert({ where: { tokenHash: hashToken("staging-owner-approval-stable-token") }, update: { status: "PENDING_OWNER_APPROVAL", expiresAt: new Date(Date.now() + 7 * 86400000), functionalProfileKey: "WORKER" }, create: { ...invitationBase, emailNormalized: "invite-approval@staging.orqena.invalid", functionalProfileKey: "WORKER", status: "PENDING_OWNER_APPROVAL", tokenHash: hashToken("staging-owner-approval-stable-token"), expiresAt: new Date(Date.now() + 7 * 86400000) } });
   await prisma.emailOutbox.upsert({
     where: { id: "staging-outbox-1" },
@@ -118,7 +129,7 @@ async function main() {
   await prisma.subscription.updateMany({ where: { companyId: business.id }, data: { planId: businessPlan.id, status: "ACTIVE", provider: "local", trialEndsAt: null } });
   await prisma.usageRecord.upsert({ where: { companyId_metric_idempotencyKey: { companyId: single.id, metric: "members", idempotencyKey: "staging-limit-v1" } }, update: { quantity: 5 }, create: { companyId: single.id, metric: "members", quantity: 5, periodStart: new Date(Date.now() - 86400000), periodEnd: new Date(Date.now() + 29 * 86400000), idempotencyKey: "staging-limit-v1", origin: "staging" } });
 
-  const client = await prisma.client.upsert({ where: { id: "staging-client-1" }, update: { companyId: business.id }, create: { id: "staging-client-1", companyId: business.id, nombre: "Cliente Sintético Norte", telefono: "+34 600 000 101", email: "cliente@staging.orqena.invalid", direccion: "Calle Demo 1", tipo: "Empresa", origen: "staging" } });
+  const client = await prisma.client.upsert({ where: { id: "staging-client-1" }, update: { companyId: business.id }, create: { id: "staging-client-1", companyId: business.id, nombre: "Cliente Sintético Norte", telefono: "+34 000 000 101", email: "cliente@staging.orqena.invalid", direccion: "Calle Demo 1", tipo: "Empresa", origen: "staging" } });
   const work = await prisma.work.upsert({ where: { id: "staging-work-1" }, update: { companyId: business.id }, create: { id: "staging-work-1", companyId: business.id, clienteId: client.id, numeroInterno: "OB-STG-1", titulo: "Trabajo sintético", direccion: "Calle Demo 1", tipoTrabajo: "Validación", presupuestoAprobado: 2500 } });
   const task = await prisma.task.upsert({ where: { id: "staging-task-1" }, update: { companyId: business.id, clientId: client.id, workId: work.id }, create: { id: "staging-task-1", companyId: business.id, clientId: client.id, workId: work.id, title: "Revisión sintética asignada", description: "Recurso positivo de los perfiles operativos", createdById: owner.id, assigneeId: users.get("worker")!.id, dueAt: new Date(Date.now() + 86400000) } });
   await prisma.taskAssignment.deleteMany({ where: { taskId: task.id, userId: { in: [users.get("worker")!.id, users.get("external-collaborator")!.id, users.get("team-supervisor")!.id, users.get("project-manager")!.id] } } });

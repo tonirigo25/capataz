@@ -9,7 +9,7 @@ Capturas recomendadas para App Store y Google Play:
 5. Presupuestos.
 6. Facturas y cobros.
 7. PDF presupuesto/factura.
-8. Chat Capataz.
+8. Chat Orqena.
 9. Configuración empresa/logo.
 
 Textos sugeridos:
@@ -19,7 +19,7 @@ Textos sugeridos:
 - Presupuestos profesionales.
 - Facturas y cobros bajo control.
 - Tu empresa, tu logo y tus datos fiscales.
-- Capataz te ayuda, tú decides.
+- Orqena te ayuda, tú decides.
 
 Tamaños a preparar:
 
