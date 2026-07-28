@@ -28,7 +28,13 @@ assert.doesNotMatch(
 assert.equal(evidence.verdict, "PASS_REVIEW_RUNTIME_AND_SYNTHETIC_CAPACITY");
 assert.equal(evidence.productionCapacityClaim, false);
 assert.equal(evidence.availabilityClaim, false);
-assert.equal(evidence.phaseC3, "IN_PROGRESS");
+assert.equal(evidence.phaseC3, "PASS");
+assert.ok(evidence.remoteWebVitals.review.median.LCP <= evidence.remoteWebVitals.budget.LCP);
+assert.ok(evidence.remoteWebVitals.review.median.CLS <= evidence.remoteWebVitals.budget.CLS);
+assert.ok(evidence.remoteWebVitals.review.median.INP <= evidence.remoteWebVitals.budget.INP);
+assert.ok(evidence.remoteWebVitals.staging.median.LCP <= evidence.remoteWebVitals.budget.LCP);
+assert.ok(evidence.remoteWebVitals.staging.median.CLS <= evidence.remoteWebVitals.budget.CLS);
+assert.ok(evidence.remoteWebVitals.staging.median.INP <= evidence.remoteWebVitals.budget.INP);
 assert.ok(evidence.measurements.some(({ name, idleInTransaction }) => name === "after-authenticated-audit" && idleInTransaction === 0));
 
 process.stdout.write(`${JSON.stringify({

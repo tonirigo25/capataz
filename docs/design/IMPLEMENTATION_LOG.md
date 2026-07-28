@@ -478,3 +478,75 @@ Estado: `PASS` en Railway Review.
 - Staging y producción no se modificaron durante D10. Providers live, correo live, cobros live, transmisión fiscal live e indexación pública siguen desactivados.
 - Safari real, Chrome Android real, NVDA, VoiceOver, zoom real y validación con usuarios/datos/dispositivos reales quedan `READY_FOR_EXTERNAL_INPUT`.
 - Evidencia estructurada: `docs/design/evidence/D10_REVIEW_EVIDENCE.json`.
+
+## D11 — Review continuo, staging y frontera de producción
+
+Estado: `PASS_WITH_EXTERNAL_INPUT_GATES`.
+
+### Promoción ejecutada
+
+- El candidato funcional exacto
+  `2be6a99040c70c67fe2f91c0737f4c17bd116451` permanece verde en Railway
+  Review y fue promovido deliberadamente al proyecto de staging independiente.
+- Review sirve deployment `ce516232-0c3e-438f-b276-64773e07ac7d`, imagen
+  `sha256:a8fb22cee71d22284f4d3c7b158b9147872c5460224160cb4df82e442f20bbb1`.
+- Staging sirve deployment `b4603964-09a0-421a-9d09-f0e96fff7ceb`, imagen
+  `sha256:aae594e2be50c7fd2189df5cfeaf42049d48666ad99ad1ce219ebccfd0f03861`.
+- El primer despliegue D11 aplicó las 18 migraciones de readiness que faltaban
+  en el staging histórico. Los despliegues exactos siguientes encontraron 43
+  migraciones y ninguna pendiente, acreditando idempotencia del único
+  predeploy.
+- Review y staging devuelven 200 en live, ready y status, mantienen
+  `X-Robots-Tag: noindex`, `robots.txt` con `Disallow: /` y cero HTTP 5xx en la
+  ventana final.
+- Providers live: 0. Indexación pública: apagada. Producción no fue modificada.
+
+### Gate público de staging
+
+- 24 rutas × 8 viewports × Chromium/Firefox/WebKit: 576/576 casos y 576 Axe.
+- 24 capturas, 12 diffs visuales, 7 casos de medios y 3 muestras de
+  rendimiento; 0 bloqueadores.
+- Rendimiento mediano: LCP 2180 ms, CLS 0 e INP 24 ms, dentro del contrato
+  2500/0,1/200.
+- Diez avisos `target-size` de CTAs inicialmente fuera de pantalla pasaron el
+  replay después de desplazar el objetivo. Dos diagnósticos React #418
+  aislados pasaron su replay limpio. Se conservan como observaciones, no como
+  exenciones generales.
+
+### Gate autenticado y journey
+
+- Matriz multiengine: 4 perfiles focales, 8 viewports, 4 logins, 96 casos de
+  perfil, 11 rutas OWNER, 264 casos OWNER, 360 Axe y 60 capturas; 0
+  observaciones y 0 bloqueadores.
+- Las cuatro escrituras declaradas fueron exclusivamente sesiones de
+  autenticación sintética autorizadas en staging; no se persistieron
+  credenciales y producción recibió 0 escrituras.
+- Journey seleccionado: 25/25 superficies, 25 hashes únicos, aislamiento entre
+  tenants, gobierno OWNER, scope asignado/no asignado, denegación de mutación
+  read-only e invitación aceptada → pendiente → aprobada → activa.
+- Una captura completa de `/` agotó su timeout bajo carga concurrente y guardó
+  una captura de viewport. La ruta respondió 200 y la matriz pública
+  independiente la cubrió en los tres motores y ocho anchos sin bloqueo.
+
+### Cierre técnico
+
+- `npm run readiness:validate-all-static`: PASS completo.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS, 76/76.
+- `npm run readiness:scan-secrets`: PASS, 1056 archivos.
+- `.railwayignore` excluye `.codex-backup/`, `.worktrees/` y `artifacts/`; los
+  builds activos de Review y staging usan el contexto saneado.
+- No se añadió ninguna migración de diseño ni se cambió dominio, autorización,
+  tenant isolation, fiscalidad, importes, numeración, outbox, idempotencia,
+  confirmación humana, pagos, saldos o lógica de IA.
+- Evidencia estructurada:
+  `docs/design/evidence/D11_STAGING_EVIDENCE.json`.
+
+### Frontera externa
+
+Producción permanece `NO-GO`. El gate automatizado de staging sí pasa, pero el
+ensayo sobre datos representativos autorizados, backup/PITR nativo y restore,
+SHA/tag inmutable desde `main` y go/no-go humano firmado permanecen
+`READY_FOR_EXTERNAL_INPUT`. Safari real, Chrome Android real, NVDA, VoiceOver,
+zoom humano y validación con personas/dispositivos reales tampoco se presentan
+como PASS.

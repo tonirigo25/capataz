@@ -2,7 +2,7 @@
   "schemaVersion": "orqena-c3-review-runtime-pool-v1",
   "environment": "persistent-isolated-review",
   "origin": "https://orqena-review-web-review.up.railway.app",
-  "auditedApplicationSha": "d22b42454d10baff0873e5a1afccf85db9bf49a5",
+  "auditedApplicationSha": "2be6a99040c70c67fe2f91c0737f4c17bd116451",
   "productionCapacityClaim": false,
   "availabilityClaim": false,
   "incident": {
@@ -80,7 +80,32 @@
     ],
     "http5xxSinceSuccessfulAuditStart": 0
   },
+  "remoteWebVitals": {
+    "budget": {
+      "LCP": 2500,
+      "CLS": 0.1,
+      "INP": 200
+    },
+    "review": {
+      "evidence": "docs/design/evidence/D10_REVIEW_EVIDENCE.json",
+      "samples": 3,
+      "median": {
+        "LCP": 2200,
+        "CLS": 0,
+        "INP": 24
+      }
+    },
+    "staging": {
+      "evidence": "docs/design/evidence/D11_STAGING_EVIDENCE.json",
+      "samples": 3,
+      "median": {
+        "LCP": 2180,
+        "CLS": 0,
+        "INP": 24
+      }
+    }
+  },
   "verdict": "PASS_REVIEW_RUNTIME_AND_SYNTHETIC_CAPACITY",
-  "phaseC3": "IN_PROGRESS",
-  "phaseC3Reason": "the strict home Lighthouse LCP remains 2623 ms against the 2500 ms budget"
+  "phaseC3": "PASS",
+  "phaseC3Reason": "Exact remote review and staging replays are below the versioned LCP, CLS and INP budgets; no production capacity or availability claim is made."
 }

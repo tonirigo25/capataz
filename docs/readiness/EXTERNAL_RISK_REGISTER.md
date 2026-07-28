@@ -93,10 +93,14 @@ No organization, project, selector or other sensitive identifier is recorded in 
 ## REVIEW-PERFORMANCE-001
 
 - Phase/control: C3 / public experience budget
-- Status: `IN_PROGRESS`
-- Observation: la ráfaga pública y la recuperación del `review` pasan sin errores, 429 ni HTTP 5xx, pero el Lighthouse local reproducible de `/` registró LCP `2623 ms` frente al máximo `2500 ms`.
-- Containment: no se declara PASS de C3, disponibilidad ni capacidad de producción; el entorno sigue con noindex y providers live apagados.
-- Required resolution: reducir y volver a medir el LCP con el mismo presupuesto versionado, sin rebajar el umbral.
+- Status: `PASS` automatizado / riesgo productivo no asumido
+- Resolution: los replays remotos exactos midieron LCP mediano 2200 ms en
+  Review y 2180 ms en staging, con CLS 0 e INP 24 ms, frente a presupuestos
+  2500/0,1/200. El umbral no se rebajó.
+- Evidence: `docs/design/evidence/D10_REVIEW_EVIDENCE.json` y
+  `docs/design/evidence/D11_STAGING_EVIDENCE.json`.
+- Containment: el PASS es de experiencia automatizada del candidato; no es una
+  afirmación de capacidad, disponibilidad o rendimiento productivo.
 
 ## AUTHENTICATED-MANUAL-001
 

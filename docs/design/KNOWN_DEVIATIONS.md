@@ -24,3 +24,21 @@
 - D10 automatizó Chromium, Firefox y WebKit, 320–1920 px, forced colors, reducción de movimiento, reflow equivalente, Axe y rendimiento. Safari/Chrome Android en hardware real, NVDA, VoiceOver, zoom real y pruebas con personas, dispositivos o datos reales siguen `READY_FOR_EXTERNAL_INPUT`; no se declaran `PASS`.
 - Cuatro cierres de contexto Chromium abortaron un `POST` same-origin con cabecera `Next-Action`. El auditor endurecido los registra como esperados y mantiene cualquier otro aborto como bloqueo; el replay focal acabó con 0 diagnósticos no clasificados.
 - Axe observó objetivos offscreen en el CTA secundario final de `/` y `/marketing-v2`; el replay después de desplazar el objetivo pasó. Se conserva como observación técnica no bloqueante, no como exención general de `target-size`.
+- D11 repitió el patrón offscreen en diez combinaciones estrechas de `/` y
+  `/marketing-v2`; todos los replays con el objetivo visible pasaron. También
+  registró dos React #418 aislados en la matriz pública, ambos con replay limpio
+  en contexto nuevo. No existe una regresión reproducible, pero los eventos se
+  conservan en el informe.
+- Una de las 25 capturas del journey de staging usó fallback de viewport cuando
+  la captura completa de `/` agotó 60 segundos bajo tres runners concurrentes.
+  La navegación respondió 200, no dejó diagnóstico sin resolver y la matriz
+  pública independiente pasó la ruta en 24 combinaciones de motor/viewport.
+- Los logs de candidatos D11 revelaron que el contexto de `railway up` incluía
+  directorios auxiliares ignorados por Git. `.railwayignore` los excluye; los
+  candidatos no saneados se retiraron antes de activarse y los deployments
+  finales de Review/staging se construyeron con el contexto saneado. No se
+  representa como saneada ninguna imagen histórica anterior.
+- Producción conserva un SHA anterior que sólo expone `/api/status`; sus rutas
+  `/api/health/live` y `/api/health/ready` devuelven 404 por ausencia histórica,
+  no por caída. Producción no se actualizó para corregir una diferencia de
+  observabilidad sin el go/no-go requerido.

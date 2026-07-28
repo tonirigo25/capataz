@@ -59,3 +59,29 @@ Una petición fallida no se ignora por contener `ERR_ABORTED`. El auditor sólo 
 ## D-015 - Viewport adicional del addendum
 
 La matriz D10 conserva los siete viewports maestros y añade 320 px como cobertura focal obligatoria. La evidencia completa de 390, 430, 768, 1024, 1280, 1440 y 1920 no se sustituye: 320 px la amplía para detectar regresiones móviles estrechas.
+
+## D-016 - Frontera del contexto de build Railway
+
+Un fichero ignorado por Git no queda automáticamente fuera de un upload CLI.
+El contexto de despliegue excluye explícitamente `.codex-backup/`,
+`.worktrees/` y `artifacts/` mediante `.railwayignore`. Un candidato que
+muestre cualquiera de esas rutas no puede activarse; debe retirarse y
+reconstruirse desde el mismo SHA con el contexto saneado.
+
+## D-017 - Staging verde no equivale a autorización productiva
+
+La autorización del propietario permite promover el candidato cerrado a
+staging, pero la promoción productiva sigue condicionada al ensayo de
+migración con datos representativos, backup/PITR y restore verificados,
+artefacto inmutable desde `main` y go/no-go humano firmado. Providers live e
+indexación tienen gates independientes y permanecen apagados aunque la release
+visual sea verde.
+
+## D-018 - SHA funcional y commit de evidencia
+
+Las matrices D11 se ejecutan contra el SHA funcional exacto
+`2be6a99040c70c67fe2f91c0737f4c17bd116451`. Un commit descendiente que sólo
+versione evidencia o endurezca sus aserciones puede desplegarse y recibir smoke
+sin repetir 936 casos de navegador, siempre que `git diff` demuestre que no
+modifica runtime, estilos, rutas, datos ni contratos. El handoff identifica
+ambos SHAs sin presentarlos como idénticos.
