@@ -46,8 +46,8 @@ async function stagingUser(key: string, roleName: string, passwordHash: string) 
   const email = `${key}@staging.orqena.invalid`;
   return prisma.user.upsert({
     where: { emailNormalized: email },
-    update: { displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date() },
-    create: { email, emailNormalized: email, displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date() }
+    update: { displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null },
+    create: { email, emailNormalized: email, displayName: roleName, passwordHash, status: "active", emailVerifiedAt: new Date(), failedLoginCount: 0, lockedUntil: null }
   });
 }
 
@@ -56,6 +56,7 @@ async function main() {
   const password = process.env.ORQENA_STAGING_TEST_PASSWORD;
   if (!password || password.length < 16) throw new Error("ORQENA_STAGING_TEST_PASSWORD_REQUIRED");
   const passwordHash = await hashPassword(password);
+  await prisma.idempotencyRecord.deleteMany({ where: { companyId: null, namespace: "rate_limit:login" } });
   await ensureBasePlans(prisma);
 
   const users = new Map(await Promise.all(profileFixtures.map(async (fixture) => [fixture.key, await stagingUser(fixture.key, fixture.label, passwordHash)] as const)));
