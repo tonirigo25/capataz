@@ -29,7 +29,8 @@ const diffRoot = join(outputRoot, "diffs");
 mkdirSync(screenshotRoot, { recursive: true });
 mkdirSync(diffRoot, { recursive: true });
 
-const viewports = [
+const allViewports = [
+  { key: "320", width: 320, height: 720 },
   { key: "390", width: 390, height: 844 },
   { key: "430", width: 430, height: 932 },
   { key: "768", width: 768, height: 1024 },
@@ -38,6 +39,16 @@ const viewports = [
   { key: "1440", width: 1440, height: 900 },
   { key: "1920", width: 1920, height: 1080 },
 ];
+const requestedViewportKeys = (process.env.ORQENA_D10_VIEWPORT_KEYS ?? "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
+const viewports = requestedViewportKeys.length
+  ? allViewports.filter(({ key }) => requestedViewportKeys.includes(key))
+  : allViewports;
+if (!viewports.length || requestedViewportKeys.some((key) => !allViewports.some((viewport) => viewport.key === key))) {
+  throw new Error(`D10_VIEWPORT_SELECTION_INVALID:${requestedViewportKeys.join(",")}`);
+}
 const routes = [
   "/",
   "/demo",
@@ -484,7 +495,9 @@ for (const engine of engines) {
 }
 
 const baselineRoot = join(process.cwd(), "artifacts", "design", "baseline-4e397406");
-for (const viewport of ["390", "768", "1024", "1440"]) {
+const diffViewportKeys = ["390", "768", "1024", "1440"]
+  .filter((key) => viewports.some((viewport) => viewport.key === key));
+for (const viewport of diffViewportKeys) {
   for (const route of ["/", "/demo", "/login"]) {
     const name = `${slug(route)}-${viewport}.png`;
     const baselinePath = join(baselineRoot, name);

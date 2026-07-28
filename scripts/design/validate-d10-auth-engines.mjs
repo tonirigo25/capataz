@@ -4,24 +4,34 @@ import { join, relative } from "node:path";
 import { generate } from "otplib";
 import { chromium, firefox, webkit } from "playwright";
 
-const EXPECTED_ORIGIN = "https://orqena-review-web-review.up.railway.app";
+const target = process.env.ORQENA_D10_AUTH_TARGET ?? "review";
+const expectedOrigins = {
+  review: "https://orqena-review-web-review.up.railway.app",
+  staging: "https://orqena-web-staging.up.railway.app",
+};
+const EXPECTED_ORIGIN = expectedOrigins[target];
+if (!EXPECTED_ORIGIN) throw new Error(`D10_AUTH_TARGET_INVALID:${target}`);
 const origin = (process.env.ORQENA_REVIEW_BASE_URL ?? EXPECTED_ORIGIN).replace(/\/$/u, "");
-const password = process.env.ORQENA_REVIEW_QA_PASSWORD;
+const password = target === "staging"
+  ? process.env.ORQENA_STAGING_TEST_PASSWORD
+  : process.env.ORQENA_REVIEW_QA_PASSWORD;
 let ownerMfaSecret = process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
-const deployedSha = process.env.ORQENA_REVIEW_SHA ?? "";
-if (process.env.ORQENA_REVIEW_FOCUS_D10 !== "true") throw new Error("D10_AUTH_FOCUS_REQUIRED");
-if (origin !== EXPECTED_ORIGIN) throw new Error(`D10_AUTH_ORIGIN_MISMATCH:${origin}`);
-if (!password || password.length < 24) throw new Error("D10_AUTH_QA_PASSWORD_REQUIRED");
-if (!ownerMfaSecret) throw new Error("D10_AUTH_OWNER_MFA_REQUIRED");
+const deployedSha = process.env.ORQENA_REVIEW_SHA ?? process.env.ORQENA_STAGING_SHA ?? "";
+if (target === "review" && process.env.ORQENA_REVIEW_FOCUS_D10 !== "true") throw new Error("D10_AUTH_FOCUS_REQUIRED");
+if (target === "staging" && process.env.ORQENA_D11_STAGING_APPROVED !== "true") throw new Error("D11_STAGING_APPROVAL_REQUIRED");
+if (origin !== EXPECTED_ORIGIN) throw new Error(`D10_AUTH_${target.toUpperCase()}_ORIGIN_MISMATCH:${origin}`);
+if (!password || password.length < (target === "staging" ? 16 : 24)) throw new Error("D10_AUTH_QA_PASSWORD_REQUIRED");
+if (target === "review" && !ownerMfaSecret) throw new Error("D10_AUTH_OWNER_MFA_REQUIRED");
 if (!/^[0-9a-f]{40}$/u.test(deployedSha)) throw new Error("D10_AUTH_SHA_REQUIRED");
 delete process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 
 const outputRoot = process.env.ORQENA_D10_AUTH_ENGINE_DIR
-  ?? join(process.cwd(), "artifacts", `design-d10-auth-engines-${deployedSha.slice(0, 8)}`);
+  ?? join(process.cwd(), "artifacts", `design-d10-auth-engines-${target}-${deployedSha.slice(0, 8)}`);
 const screenshotRoot = join(outputRoot, "screenshots");
 mkdirSync(screenshotRoot, { recursive: true });
 
-const viewports = [
+const allViewports = [
+  { key: "320", width: 320, height: 720 },
   { key: "390", width: 390, height: 844 },
   { key: "430", width: 430, height: 932 },
   { key: "768", width: 768, height: 1024 },
@@ -30,26 +40,60 @@ const viewports = [
   { key: "1440", width: 1440, height: 900 },
   { key: "1920", width: 1920, height: 1080 },
 ];
-const profiles = [
-  { key: "owner", route: "/hoy", readOnly: false },
-  { key: "worker", route: "/tareas", readOnly: false },
-  { key: "external", route: "/obras", readOnly: false },
-  { key: "viewer", route: "/auditoria", readOnly: true },
+const requestedViewportKeys = (process.env.ORQENA_D10_VIEWPORT_KEYS ?? "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
+const viewports = requestedViewportKeys.length
+  ? allViewports.filter(({ key }) => requestedViewportKeys.includes(key))
+  : allViewports;
+if (!viewports.length || requestedViewportKeys.some((key) => !allViewports.some((viewport) => viewport.key === key))) {
+  throw new Error(`D10_AUTH_VIEWPORT_SELECTION_INVALID:${requestedViewportKeys.join(",")}`);
+}
+const allProfiles = [
+  { key: "owner", emailKey: "owner", route: "/hoy", readOnly: false },
+  { key: "worker", emailKey: "worker", route: "/tareas", readOnly: false },
+  { key: "external", emailKey: target === "staging" ? "external-collaborator" : "external", route: "/obras", readOnly: false },
+  { key: "viewer", emailKey: target === "staging" ? "advisor-auditor" : "viewer", route: "/auditoria", readOnly: true },
 ];
-const ownerRoutes = [
+const requestedProfileKeys = (process.env.ORQENA_D10_PROFILE_KEYS ?? "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
+const profiles = requestedProfileKeys.length
+  ? allProfiles.filter(({ key }) => requestedProfileKeys.includes(key))
+  : allProfiles;
+if (!profiles.length || requestedProfileKeys.some((key) => !allProfiles.some((profile) => profile.key === key))) {
+  throw new Error(`D10_AUTH_PROFILE_SELECTION_INVALID:${requestedProfileKeys.join(",")}`);
+}
+const fixturePrefix = target === "staging" ? "staging" : "review";
+const allOwnerRoutes = [
   "/hoy",
   "/dashboard",
-  "/clientes/review-client-1",
-  "/obras/review-work-1",
-  "/presupuestos/review-budget-1",
-  "/dinero/review-invoice-1",
+  `/clientes/${fixturePrefix}-client-1`,
+  `/obras/${fixturePrefix}-work-1`,
+  `/presupuestos/${fixturePrefix}-budget-1`,
+  `/dinero/${fixturePrefix}-invoice-1`,
   "/documentos",
   "/agenda",
   "/capataz",
   "/equipo",
   "/configuracion",
-  "/plataforma",
+  ...(target === "review" ? ["/plataforma"] : []),
 ];
+const requestedOwnerRoutes = (process.env.ORQENA_D10_OWNER_ROUTES ?? "")
+  .split(",")
+  .map((route) => route.trim())
+  .filter(Boolean);
+const ownerRoutes = requestedOwnerRoutes.length
+  ? allOwnerRoutes.filter((route) => requestedOwnerRoutes.includes(route))
+  : allOwnerRoutes;
+if (!ownerRoutes.length || requestedOwnerRoutes.some((route) => !allOwnerRoutes.includes(route))) {
+  throw new Error(`D10_AUTH_OWNER_ROUTE_SELECTION_INVALID:${requestedOwnerRoutes.join(",")}`);
+}
+if (ownerRoutes.length && !profiles.some(({ key }) => key === "owner")) {
+  throw new Error("D10_AUTH_OWNER_PROFILE_REQUIRED");
+}
 const engines = [
   { key: "chromium", launcher: chromium },
   { key: "firefox", launcher: firefox },
@@ -61,6 +105,7 @@ const ownerSurfaceCases = [];
 const loginCases = [];
 const screenshots = [];
 const observations = [];
+let loginAttempts = 0;
 
 function sanitize(value) {
   return String(value)
@@ -72,6 +117,7 @@ function sanitize(value) {
 function attachDiagnostics(page) {
   const events = [];
   const externalHosts = new Set();
+  const expectedServerActionAborts = [];
   page.on("console", (message) => {
     if (message.type() === "error") events.push(`console:${sanitize(message.text())}`);
   });
@@ -79,6 +125,12 @@ function attachDiagnostics(page) {
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText ?? "unknown";
     if (failure === "net::ERR_ABORTED" && request.url().includes("_rsc=")) return;
+    const requestOrigin = new URL(request.url()).origin;
+    const nextAction = request.headers()["next-action"];
+    if (failure === "net::ERR_ABORTED" && request.method() === "POST" && requestOrigin === origin && nextAction) {
+      expectedServerActionAborts.push(`POST:${sanitize(new URL(request.url()).pathname)}:NEXT_ACTION_STREAM_ABORTED`);
+      return;
+    }
     events.push(`request:${sanitize(request.method())}:${sanitize(request.url())}:${sanitize(failure)}`);
   });
   page.on("response", (response) => {
@@ -89,7 +141,7 @@ function attachDiagnostics(page) {
     const url = new URL(request.url());
     if (url.origin !== origin) externalHosts.add(url.host);
   });
-  return { events, externalHosts };
+  return { events, externalHosts, expectedServerActionAborts };
 }
 
 async function settle(page) {
@@ -162,6 +214,7 @@ async function loginProfiles() {
         mfa: profile.key === "owner",
         transientDiagnostics: replayed ? firstAttempt.diagnostics.events : [],
         diagnostics: audited.diagnostics.events,
+        expectedServerActionAborts: audited.diagnostics.expectedServerActionAborts,
         externalHosts: [...audited.diagnostics.externalHosts],
       });
       await firstAttempt.context.close();
@@ -175,6 +228,7 @@ async function loginProfiles() {
 }
 
 async function loginProfile(browser, profile) {
+  loginAttempts += 1;
   const context = await browser.newContext({
     viewport: { width: 1024, height: 768 },
     serviceWorkers: "block",
@@ -183,14 +237,14 @@ async function loginProfile(browser, profile) {
   const diagnostics = attachDiagnostics(page);
   const startedAt = Date.now();
   const response = await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  await page.getByLabel("Correo").fill(`${profile.key}@review.orqena.invalid`);
+  await page.getByLabel("Correo").fill(`${profile.emailKey}@${target}.orqena.invalid`);
   await page.getByLabel("Contraseña").fill(password);
   await Promise.all([
     page.waitForURL((url) => url.pathname !== "/login", { timeout: 60_000 }),
     page.getByRole("button", { name: "Entrar", exact: true }).click(),
   ]);
   await settle(page);
-  if (profile.key === "owner") {
+  if (profile.key === "owner" && target === "review") {
     await page.goto(`${origin}/configuracion/seguridad?required=platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await settle(page);
     const code = page.getByLabel("Código de seis cifras");
@@ -284,6 +338,20 @@ for (const engine of engines) {
         if (audited.response?.status() !== 200) findings.push(`${prefix}:HTTP_${audited.response?.status() ?? 0}`);
         if (new URL(audited.page.url()).pathname !== profile.route) findings.push(`${prefix}:FINAL_${new URL(audited.page.url()).pathname}`);
         collectFindings(prefix, audited.state, audited.diagnostics, profile);
+        let profileScreenshot = null;
+        if (["320", "390", "1440"].includes(viewport.key)) {
+          profileScreenshot = join(screenshotRoot, `${engine.key}-${viewport.key}-profile-${profile.key}.png`);
+          await audited.page.screenshot({ path: profileScreenshot, fullPage: true, animations: "disabled" });
+          screenshots.push({
+            kind: "profile",
+            engine: engine.key,
+            viewport: viewport.key,
+            profile: profile.key,
+            route: profile.route,
+            path: relative(process.cwd(), profileScreenshot),
+            bytes: statSync(profileScreenshot).size,
+          });
+        }
         profileCases.push({
           engine: engine.key,
           viewport: `${viewport.width}x${viewport.height}`,
@@ -293,7 +361,9 @@ for (const engine of engines) {
           finalPath: new URL(audited.page.url()).pathname,
           transientDiagnostics: audited.transientDiagnostics,
           diagnostics: audited.diagnostics.events,
+          expectedServerActionAborts: audited.diagnostics.expectedServerActionAborts,
           externalHosts: [...audited.diagnostics.externalHosts],
+          screenshot: profileScreenshot ? relative(process.cwd(), profileScreenshot) : null,
           ...audited.state,
         });
         await audited.replayContext?.close();
@@ -321,11 +391,12 @@ for (const engine of engines) {
         if (new URL(audited.page.url()).pathname !== route) findings.push(`${prefix}:FINAL_${new URL(audited.page.url()).pathname}`);
         collectFindings(prefix, audited.state, audited.diagnostics);
         let screenshot = null;
-        if (["390", "1440"].includes(viewport.key) && ["/hoy", "/clientes/review-client-1", "/obras/review-work-1", "/capataz"].includes(route)) {
+        if (["390", "1440"].includes(viewport.key) && ["/hoy", `/clientes/${fixturePrefix}-client-1`, `/obras/${fixturePrefix}-work-1`, "/capataz"].includes(route)) {
           const routeSlug = route.slice(1).replaceAll("/", "-").replaceAll("[", "").replaceAll("]", "");
           screenshot = join(screenshotRoot, `${engine.key}-${viewport.key}-${routeSlug}.png`);
           await audited.page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
           screenshots.push({
+            kind: "owner-surface",
             engine: engine.key,
             viewport: viewport.key,
             route,
@@ -341,6 +412,7 @@ for (const engine of engines) {
           finalPath: new URL(audited.page.url()).pathname,
           transientDiagnostics: audited.transientDiagnostics,
           diagnostics: audited.diagnostics.events,
+          expectedServerActionAborts: audited.diagnostics.expectedServerActionAborts,
           externalHosts: [...audited.diagnostics.externalHosts],
           screenshot: screenshot ? relative(process.cwd(), screenshot) : null,
           ...audited.state,
@@ -358,13 +430,15 @@ for (const engine of engines) {
 const report = {
   schemaVersion: 1,
   phase: "D10",
+  target,
   generatedAt: new Date().toISOString(),
   origin,
   deployedSha,
   syntheticOnly: true,
   credentialsPersisted: false,
   productionWrites: 0,
-  stagingWrites: 0,
+  stagingWrites: target === "staging" ? loginAttempts : 0,
+  stagingWriteScope: target === "staging" ? "authorized synthetic authentication sessions only" : "none",
   viewports,
   engines: engines.map(({ key }) => key),
   profiles: profiles.map(({ key }) => key),
@@ -383,6 +457,11 @@ report.summary = {
   ownerSurfaceCases: ownerSurfaceCases.length,
   axeCases: profileCases.length + ownerSurfaceCases.length,
   screenshotCases: screenshots.length,
+  expectedServerActionAborts: [
+    ...loginCases,
+    ...profileCases,
+    ...ownerSurfaceCases,
+  ].reduce((total, item) => total + (item.expectedServerActionAborts?.length ?? 0), 0),
   observations: observations.length,
   blockingFindings: report.findings.length,
 };
