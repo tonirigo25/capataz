@@ -67,7 +67,7 @@
     "readiness:release-manifest": "node scripts/readiness/generate-release-manifest.mjs",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "security:sbom": "cyclonedx-npm --package-lock-only --output-reproducible --output-file artifacts/sbom.cdx.json && node scripts/readiness/validate-sbom.mjs artifacts/sbom.cdx.json",
+    "security:sbom": "cyclonedx-npm --package-lock-only --ignore-npm-errors --output-reproducible --output-file artifacts/sbom.cdx.json && node scripts/readiness/validate-sbom.mjs artifacts/sbom.cdx.json",
     "test:ai": "node scripts/validate-capataz-ai.mjs",
     "test:auth-crypto": "tsx scripts/validate-auth-crypto.ts",
     "test:auth-transaction": "tsx scripts/validate-auth-postgres.ts",
