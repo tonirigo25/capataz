@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run security:secrets
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:launch-platform
+      - run: npm run test:stripe-billing
+      - run: npm run test:cloudflare-sync
+      - run: npm run test:deploy-migration-owner
+      - run: npm run build
