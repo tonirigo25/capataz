@@ -141,7 +141,10 @@ async function pageState(page) {
     brokenImages: [...document.images].filter((image) => image.complete && image.naturalWidth === 0).length,
     noindex: [...document.querySelectorAll('meta[name="robots"]')].some((element) => /noindex/iu.test(element.getAttribute("content") ?? "")),
     realLookingEmails: (document.body.innerText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu) ?? [])
-      .filter((email) => !email.toLowerCase().endsWith(".invalid")),
+      .filter((email) => {
+        const normalizedEmail = email.toLowerCase();
+        return !normalizedEmail.endsWith(".invalid") && normalizedEmail !== "hola@orqenatech.com";
+      }),
     secretMarkers: (document.body.innerText.match(/(?:sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]+PRIVATE KEY-----|password\s*=\s*\S+)/giu) ?? []),
   }));
 }

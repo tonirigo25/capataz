@@ -64,13 +64,19 @@ try {
   }
 
   const rootLayout = read("app/layout.tsx");
+  const marketingInternalLayout = read("app/marketing-internal/layout.tsx");
   const appLayout = read("app/(app)/layout.tsx");
   const authLayout = read("app/(auth)/layout.tsx");
+  const publicMatrix = read("scripts/design/validate-d10-public-matrix.mjs");
   const middleware = read("middleware.ts");
   const nextConfig = read("next.config.ts");
   assert.match(rootLayout, /robots:\s*getPublicRobotsMetadata\(\)/);
+  assert.match(marketingInternalLayout, /robots:\s*getPublicRobotsMetadata\(\)/);
+  assert.doesNotMatch(marketingInternalLayout, /robots:\s*{\s*index:\s*true/);
   assert.match(appLayout, /PRIVATE_ROBOTS_METADATA/);
   assert.match(authLayout, /PRIVATE_ROBOTS_METADATA/);
+  assert.match(publicMatrix, /normalizedEmail !== "hola@orqenatech\.com"/);
+  assert.doesNotMatch(publicMatrix, /(?:endsWith|includes)\("@orqenatech\.com"\)/);
   assert.match(middleware, /shouldSendNoIndexHeader/);
   assert.match(middleware, /X_ROBOTS_TAG_VALUE/);
   assert.doesNotMatch(nextConfig, /NEXT_PUBLIC_APP_ENV.*X-Robots-Tag/);
