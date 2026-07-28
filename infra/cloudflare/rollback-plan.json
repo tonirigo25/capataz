@@ -1,0 +1,26 @@
+{
+  "registrar": "Arsys",
+  "nameservers": [
+    "dns97.servidoresdns.net",
+    "dns98.servidoresdns.net"
+  ],
+  "steps": [
+    "Restore the two Arsys nameservers for the affected domain.",
+    "Wait for delegation to return before changing Cloudflare records.",
+    "Confirm app.orqenatech.com and human email resolve through Arsys."
+  ],
+  "previousPrimaryZoneInventory": [
+    { "name": "@", "type": "A", "content": "217.76.128.47" },
+    { "name": "www", "type": "A", "content": "217.76.128.47" },
+    { "name": "*", "type": "CNAME", "content": "www.orqenatech.com" },
+    { "name": "app", "type": "CNAME", "content": "u3rrm744.up.railway.app" },
+    { "name": "_railway-verify.app", "type": "TXT", "content": "railway-verify=ea773ca79a1d4e1f6cdba41afea14579df3407d02343a30361d4e68a29668ff9" },
+    { "name": "@", "type": "MX", "priority": 10, "content": "mx.serviciodecorreo.es" },
+    { "name": "@", "type": "TXT", "content": "v=spf1 include:_spf.serviciodecorreo.es ~all" },
+    { "name": "1785180342353._domainkey", "type": "TXT", "content": "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy86qZlb9GFnbRiC91sr1anvcdgPFT4L6zaU630+xvpRiejHf9+vAUENXk7NCkEtK3Yvtw79nkadxTEX31e+svYAmbi81AU+2n/1gESdgN4+pZJLhWlqBkIh+k+Z9fzLcfsCmX7uk6M2aFoPA0iQaAIdKLgajRN0xj0Vgxl5fRdzbcbvQMe6D362e4NYgbcjn6PhX+rFIjnGzlW05ikTiKJxEj2A6EA8R7dHmo0YyQPmiihZz9MTargTy5rbZKRLZHcfeFzWAUL5OJmoByQPeyeXi9stbHcjso4RFs26AD8P0UmmtrPHbXeR77O3nPwCIw1IPQFq01/n50nygQ5byLQIDAQAB" },
+    { "name": "autoconfig", "type": "CNAME", "content": "autoconfig.serviciodecorreo.es" },
+    { "name": "autodiscover", "type": "CNAME", "content": "autodiscover.serviciodecorreo.es" },
+    { "name": "control", "type": "CNAME", "content": "pdc.servidoresdns.net" },
+    { "name": "webmail", "type": "CNAME", "content": "serviciodecorreo.es" }
+  ]
+}

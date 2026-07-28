@@ -2337,6 +2337,8 @@ model Company {
   teams                   Team[]
   invitations             Invitation[]
   subscriptions           Subscription[]
+  billingCustomer         BillingCustomer?
+  billingEvents           BillingEvent[]
   entitlementOverrides    CompanyEntitlementOverride[]
   usageRecords            UsageRecord[]
   auditLogs               AuditLog[]
@@ -2360,8 +2362,6 @@ model Company {
   electronicArtifacts     ElectronicInvoiceArtifact[]
   electronicDeliveries    ElectronicInvoiceDelivery[]
   electronicStatusEvents  ElectronicInvoiceStatusEvent[]
-  billingCustomers        BillingCustomer[]
-  billingEvents           BillingEvent[]
   billingReconciliations  BillingReconciliationRun[]
   emailSuppressions       EmailSuppression[]
   emailWebhookEvents      EmailWebhookEvent[]
@@ -2864,6 +2864,8 @@ model Subscription {
   providerProductId      String?
   providerCheckoutId     String?
   providerVersion        String?
+  stripeSubscriptionId   String?               @unique
+  stripePriceId          String?
   startedAt              DateTime              @default(now())
   trialEndsAt            DateTime?
   currentPeriodStart     DateTime
@@ -3552,6 +3554,7 @@ model BillingCustomer {
   company            Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([provider, externalCustomerId])
+  @@index([createdAt])
 }
 
 model BillingPriceMapping {

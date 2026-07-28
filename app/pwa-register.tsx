@@ -18,7 +18,10 @@ export function PwaRegister() {
       window.location.reload();
     };
     navigator.serviceWorker?.addEventListener("controllerchange", controllerChanged);
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+    const hostname = window.location.hostname.toLowerCase();
+    const appHostname = process.env.NEXT_PUBLIC_APP_HOST?.trim().toLowerCase() || "app.orqenatech.com";
+    const platformHostname = hostname.endsWith(".up.railway.app");
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production" && (hostname === appHostname || platformHostname)) {
       navigator.serviceWorker.register("/service-worker.js").then((registration) => {
         if (registration.waiting && navigator.serviceWorker.controller) setUpdateWorker(registration.waiting);
         registration.addEventListener("updatefound", () => {

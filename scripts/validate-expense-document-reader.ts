@@ -57,9 +57,17 @@ assert.match(nextConfig, /middlewareClientMaxBodySize:\s*["']11mb["']/, "26 mult
 
 const root = await mkdtemp(join(tmpdir(), "capataz-documents-test-"));
 const storage = new LocalDocumentStorage(root);
-const stored = await storage.put({ companyId: "company-A", bytes: png, extension: "png" });
+const stored = await storage.put({
+  companyId: "company-A",
+  category: "expense",
+  documentId: "document-A",
+  filename: "ticket.png",
+  mimeType: "image/png",
+  checksum: valid.sha256,
+  bytes: png,
+});
 assert.deepEqual(await storage.get({ companyId: "company-A", storageKey: stored.storageKey }), png, "almacenamiento roundtrip");
-await assert.rejects(storage.get({ companyId: "company-B", storageKey: stored.storageKey }), /Invalid storage key/, "storage aislado por empresa");
+await assert.rejects(storage.get({ companyId: "company-B", storageKey: stored.storageKey }), /DOCUMENT_STORAGE_TENANT_FORBIDDEN/, "storage aislado por empresa");
 await storage.delete({ companyId: "company-A", storageKey: stored.storageKey });
 await assert.rejects(access(join(root, stored.storageKey)), "borrado físico");
 

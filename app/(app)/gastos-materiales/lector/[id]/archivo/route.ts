@@ -14,8 +14,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const document = await prisma.document.findFirst({ where: { id, companyId, ...purchaseDocumentWhere(access.read), archivedAt: null }, select: { storageKey: true, mimeType: true, originalName: true, name: true } });
   if (!document?.storageKey) return NextResponse.json({ error: "Documento no disponible" }, { status: 404 });
   try {
-    const bytes = await documentStorage.get({ companyId, storageKey: document.storageKey });
     const filename = sanitizeFilename(document.originalName || document.name).replace(/["\\]/g, "-");
+    const signed = await documentStorage.presignGet({ companyId, storageKey: document.storageKey, filename, mimeType: document.mimeType || "application/octet-stream" });
+    if (signed) return NextResponse.redirect(signed.url, { status: 307, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+    const bytes = await documentStorage.get({ companyId, storageKey: document.storageKey });
     return new NextResponse(new Uint8Array(bytes), { headers: { "Content-Type": document.mimeType || "application/octet-stream", "Content-Length": String(bytes.length), "Content-Disposition": `inline; filename="${filename}"`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
   } catch {
     return NextResponse.json({ error: "Documento no disponible" }, { status: 404 });

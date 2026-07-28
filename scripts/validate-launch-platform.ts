@@ -1,0 +1,163 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  APP_HOST,
+  MARKETING_HOST,
+  resolveHostRouting,
+} from "../lib/host-routing";
+import {
+  LocalDocumentStorage,
+  assertCompanyObjectKey,
+  buildDocumentObjectKey,
+  expirySeconds,
+  getDocumentStorage,
+} from "../lib/document-storage";
+import {
+  TestEmailProvider,
+  applicationLink,
+  createEmailProvider,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../lib/email";
+import { STRIPE_WEBHOOK_EVENTS, isBillingEnabled, stripePriceForPlan, stripeTrialDays } from "../lib/billing/config";
+import { paidAccessState } from "../lib/billing/service";
+import { getStripeClient, requireStripeWebhookSecret } from "../lib/billing/stripe-client";
+
+let cases = 0;
+function equal<T>(actual: T, expected: T, label: string) {
+  assert.deepEqual(actual, expected, label);
+  cases += 1;
+}
+function throws(run: () => unknown, pattern: RegExp, label: string) {
+  assert.throws(run, pattern, label);
+  cases += 1;
+}
+
+async function validateHosts() {
+  const sessionSource = readFileSync("lib/auth/session.ts", "utf8");
+  const pwaSource = readFileSync("app/pwa-register.tsx", "utf8");
+  equal(resolveHostRouting({ host: "www.orqenatech.com", pathname: "/precios", search: "?ref=1", nodeEnv: "production" }), {
+    action: "redirect",
+    location: "https://orqenatech.com/precios?ref=1",
+    status: 301,
+  }, "www canonical");
+  equal(resolveHostRouting({ host: "orqena.es", pathname: "/contacto", search: "?ref=2", nodeEnv: "production" }), {
+    action: "redirect",
+    location: "https://orqenatech.com/contacto?ref=2",
+    status: 301,
+  }, "defensive domain preserves path and query");
+  equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/api/private", nodeEnv: "production" }).action, "reject", "marketing blocks app API");
+  equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/precios", nodeEnv: "production" }), {
+    action: "rewrite",
+    pathname: "/marketing-internal/precios",
+    site: "marketing",
+  }, "marketing is internally isolated");
+  equal(resolveHostRouting({ host: APP_HOST, pathname: "/precios", nodeEnv: "production" }), {
+    action: "redirect",
+    location: "https://orqenatech.com/precios",
+    status: 307,
+  }, "app redirects public marketing route");
+  equal(resolveHostRouting({ host: APP_HOST, pathname: "/capataz", nodeEnv: "production" }).action, "pass", "app keeps private Capataz");
+  equal(resolveHostRouting({ host: "attacker.example", pathname: "/", nodeEnv: "production" }).action, "reject", "unknown production host fails closed");
+  equal(resolveHostRouting({ host: "preview.up.railway.app", pathname: "/api/health", nodeEnv: "production" }).action, "pass", "Railway health remains reachable");
+  assert.doesNotMatch(sessionSource, /domain\s*:/i, "session cookies remain host-only");
+  assert.match(sessionSource, /sameSite:\s*"lax"/, "session cookies keep SameSite protection");
+  assert.match(pwaSource, /hostname === appHostname \|\| platformHostname/, "private service worker is host-gated");
+  cases += 3;
+}
+
+async function validateDocuments() {
+  const bytes = Buffer.from("tenant-safe-document");
+  const checksum = createHash("sha256").update(bytes).digest("hex");
+  const input = {
+    companyId: "company_A",
+    category: "facturas",
+    documentId: "document_A",
+    filename: "../../Factura Julio.PDF",
+    mimeType: "application/pdf",
+    checksum,
+  };
+  equal(buildDocumentObjectKey(input), "companies/company_A/facturas/document_A/factura-julio.pdf", "R2 key is tenant scoped and normalized");
+  throws(() => assertCompanyObjectKey("company_B", buildDocumentObjectKey(input)), /TENANT_FORBIDDEN/, "cross-tenant object access fails");
+  equal(expirySeconds(5), 60, "presign lower bound");
+  equal(expirySeconds(600), 600, "presign default");
+  equal(expirySeconds(5_000), 900, "presign upper bound");
+  throws(() => getDocumentStorage({ NODE_ENV: "production" }), /DOCUMENT_STORAGE_NOT_CONFIGURED/, "production storage fails closed");
+
+  const root = await mkdtemp(join(tmpdir(), "orqena-launch-storage-"));
+  try {
+    const storage = new LocalDocumentStorage(root);
+    const stored = await storage.put({ ...input, bytes });
+    equal(await storage.get({ companyId: input.companyId, storageKey: stored.storageKey }), bytes, "local provider roundtrip");
+    await assert.rejects(
+      storage.put({ ...input, checksum: "0".repeat(64), bytes }),
+      /DOCUMENT_CHECKSUM_MISMATCH/,
+      "checksum mismatch fails closed",
+    );
+    cases += 1;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+async function validateEmail() {
+  throws(
+    () => createEmailProvider({ NODE_ENV: "production", NEXT_PUBLIC_APP_ENV: "production" }),
+    /EMAIL_PROVIDER_NOT_CONFIGURED/,
+    "production email fails closed",
+  );
+  equal(createEmailProvider({ NODE_ENV: "test" }).name, "local", "tests never send externally");
+  equal(applicationLink("/login"), "https://app.orqenatech.com/login", "absolute application link");
+  const provider = new TestEmailProvider();
+  await sendVerificationEmail("owner@example.test", "verify-token", provider);
+  await sendPasswordResetEmail("owner@example.test", "reset-token", provider);
+  equal(provider.messages.length, 2, "transactional messages captured by fake");
+  assert.match(provider.messages[0]?.text ?? "", /https:\/\/app\.orqenatech\.com\/verificar-email\?token=verify-token/);
+  assert.match(provider.messages[1]?.html ?? "", /https:\/\/app\.orqenatech\.com\/restablecer-contrasena\?token=reset-token/);
+  cases += 2;
+}
+
+async function validateBilling() {
+  const previous = {
+    enabled: process.env.BILLING_ENABLED,
+    grace: process.env.BILLING_PAST_DUE_GRACE_DAYS,
+  };
+  try {
+    process.env.BILLING_ENABLED = "false";
+    equal(isBillingEnabled(), false, "billing defaults fail closed");
+    equal(paidAccessState(null).reason, "billing_disabled", "disabled billing preserves basic access");
+    process.env.BILLING_ENABLED = "true";
+    process.env.BILLING_PAST_DUE_GRACE_DAYS = "7";
+    const now = new Date("2026-07-28T00:00:00.000Z");
+    equal(paidAccessState({ status: "ACTIVE", currentPeriodEnd: now }, now).paidAccess, true, "active subscription");
+    equal(paidAccessState({ status: "PAST_DUE", currentPeriodEnd: new Date("2026-07-25T00:00:00.000Z") }, now).reason, "past_due_grace", "past due grace");
+    equal(paidAccessState({ status: "PAST_DUE", currentPeriodEnd: new Date("2026-07-01T00:00:00.000Z") }, now).reason, "past_due_expired", "past due expiry");
+    equal(paidAccessState({ status: "CANCELED", currentPeriodEnd: now }, now).basicAccess, true, "inactive subscription never blocks basics");
+    throws(() => stripePriceForPlan("PROFESSIONAL", { NODE_ENV: "test" }), /STRIPE_PRICE_PRO/, "missing price is explicit");
+    throws(() => getStripeClient({ NODE_ENV: "test", STRIPE_SECRET_KEY: ["sk", "live", "forbidden"].join("_") }), /LIVE_KEY_FORBIDDEN/, "live Stripe keys are forbidden");
+    throws(() => requireStripeWebhookSecret({ NODE_ENV: "test" }), /STRIPE_WEBHOOK_SECRET/, "missing webhook secret is explicit");
+    equal(stripeTrialDays({ NODE_ENV: "test", STRIPE_TRIAL_DAYS: "14" }), 14, "optional Stripe trial is bounded");
+    throws(() => stripeTrialDays({ NODE_ENV: "test", STRIPE_TRIAL_DAYS: "365" }), /BILLING_TRIAL_DAYS_INVALID/, "invalid trial is rejected");
+    equal(STRIPE_WEBHOOK_EVENTS.length, 9, "documented Stripe event set");
+  } finally {
+    if (previous.enabled === undefined) delete process.env.BILLING_ENABLED; else process.env.BILLING_ENABLED = previous.enabled;
+    if (previous.grace === undefined) delete process.env.BILLING_PAST_DUE_GRACE_DAYS; else process.env.BILLING_PAST_DUE_GRACE_DAYS = previous.grace;
+  }
+}
+
+async function main() {
+  await validateHosts();
+  await validateDocuments();
+  await validateEmail();
+  await validateBilling();
+  console.log(`[launch-platform] OK ${cases} casos`);
+}
+
+main().catch((error) => {
+  console.error("[launch-platform] FAIL", error instanceof Error ? error.message : error);
+  process.exit(1);
+});
