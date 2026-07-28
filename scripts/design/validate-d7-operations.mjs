@@ -69,7 +69,7 @@ test("Tareas evita una CTA primaria por fila", () => {
   assert.match(tasks, /query\.nuevo === "1"/);
 });
 test("Tareas y seguimientos traducen estados y ocultan identificadores internos", () => {
-  for (const token of ["statusLabel(task.status)", "statusLabel(task.priority)", "statusLabel(task.origin)"]) assert.match(tasks, new RegExp(token.replace(/[().]/g, "\\$&")));
+  for (const token of ["statusLabel(task.status)", "statusLabel(task.priority)", "statusLabel(task.origin)"]) assert.ok(tasks.includes(token));
   assert.match(taskDetail, /<select className="field mt-1" name="assigneeId"/);
   assert.doesNotMatch(taskDetail, /<input[^>]+name="assigneeId"/);
   for (const token of ["planned: \"Planificada\"", "budget_followup: \"Seguimiento de presupuesto\"", "telefono: \"Teléfono\""]) assert.match(status, new RegExp(token));
