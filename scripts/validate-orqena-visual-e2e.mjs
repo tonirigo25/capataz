@@ -39,11 +39,16 @@ function captureErrors(page, errors) {
   page.on("pageerror", (error) => errors.push(`page:${error.message}`));
   page.on("requestfailed", (request) => {
     const detail = request.failure()?.errorText ?? "failed";
+    const requestUrl = new URL(request.url());
     const expectedServerActionAbort = detail === "net::ERR_ABORTED"
       && request.method() === "POST"
-      && new URL(request.url()).origin === baseUrl
+      && requestUrl.origin === baseUrl
       && Boolean(request.headers()["next-action"]);
-    if (!expectedServerActionAbort) errors.push(`network:${request.method()} ${request.url()} ${detail}`);
+    const expectedRscPrefetchAbort = detail === "net::ERR_ABORTED"
+      && request.method() === "GET"
+      && requestUrl.origin === baseUrl
+      && requestUrl.searchParams.has("_rsc");
+    if (!expectedServerActionAbort && !expectedRscPrefetchAbort) errors.push(`network:${request.method()} ${request.url()} ${detail}`);
   });
 }
 function isHydrationError(value) {
