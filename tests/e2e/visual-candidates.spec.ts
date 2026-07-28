@@ -13,7 +13,9 @@ for (const [name, route] of routes) {
     test.skip(browserName !== "chromium");
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
-    await page.goto(route, { waitUntil: "networkidle" });
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(200);
     if (approved) {
       await expect(page).toHaveScreenshot(`${name}-1440.png`, { fullPage: true, animations: "disabled" });
     } else {
