@@ -42,6 +42,8 @@ function throws(run: () => unknown, pattern: RegExp, label: string) {
 async function validateHosts() {
   const sessionSource = readFileSync("lib/auth/session.ts", "utf8");
   const pwaSource = readFileSync("app/pwa-register.tsx", "utf8");
+  const middlewareSource = readFileSync("middleware.ts", "utf8");
+  const playwrightSource = readFileSync("playwright.config.ts", "utf8");
   equal(resolveHostRouting({ host: "www.orqenatech.com", pathname: "/precios", search: "?ref=1", nodeEnv: "production" }), {
     action: "redirect",
     location: "https://orqenatech.com/precios?ref=1",
@@ -85,7 +87,10 @@ async function validateHosts() {
   assert.doesNotMatch(sessionSource, /domain\s*:/i, "session cookies remain host-only");
   assert.match(sessionSource, /sameSite:\s*"lax"/, "session cookies keep SameSite protection");
   assert.match(pwaSource, /hostname === appHostname \|\| platformHostname/, "private service worker is host-gated");
-  cases += 3;
+  assert.match(middlewareSource, /!process\.env\.RAILWAY_ENVIRONMENT_ID/, "local production-build routing is forbidden on Railway");
+  assert.match(middlewareSource, /nodeEnv:\s*isLocalProductionBuild\(\)\s*\?\s*"development"/, "local production build preserves platform routing");
+  assert.match(playwrightSource, /url:\s*`\$\{baseURL\}\/api\/health`/, "Playwright waits on the host-agnostic health endpoint");
+  cases += 5;
 }
 
 async function validateDocuments() {

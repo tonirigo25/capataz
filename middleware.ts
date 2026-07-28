@@ -66,7 +66,7 @@ export function middleware(request: NextRequest) {
     host: request.headers.get("host") ?? "",
     pathname,
     search,
-    nodeEnv: process.env.NODE_ENV,
+    nodeEnv: isLocalProductionBuild() ? "development" : process.env.NODE_ENV,
     developmentSite: resolveDevelopmentSite(request),
     hasSessionCookie: request.cookies.has(SESSION_COOKIE_NAME),
   });
@@ -164,11 +164,18 @@ function validRequestId(value: string | null) {
 }
 
 function resolveDevelopmentSite(request: NextRequest): "app" | "marketing" | undefined {
-  if (process.env.NODE_ENV === "production") return undefined;
+  if (process.env.NODE_ENV === "production" && !isLocalProductionBuild()) return undefined;
   const configured = process.env.CAPATAZ_DEV_HOST_MODE?.trim().toLowerCase();
   const requested = request.headers.get("x-orqena-host-mode")?.trim().toLowerCase();
   const mode = requested || configured;
   return mode === "app" || mode === "marketing" ? mode : undefined;
+}
+
+function isLocalProductionBuild() {
+  const applicationEnvironment = (process.env.APP_ENV || process.env.NEXT_PUBLIC_APP_ENV || "").trim().toLowerCase();
+  return process.env.NODE_ENV === "production"
+    && !process.env.RAILWAY_ENVIRONMENT_ID
+    && (applicationEnvironment === "development" || applicationEnvironment === "test");
 }
 
 export const config = {
