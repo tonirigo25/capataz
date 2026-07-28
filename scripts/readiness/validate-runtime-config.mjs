@@ -1,4 +1,6 @@
 import { validateEnvironmentIsolation } from "./environment-isolation.mjs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const TRUE = "true";
 
@@ -71,7 +73,7 @@ export function validateRuntimeConfig(phase = "runtime") {
   return { ok: true, environment, phase };
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replaceAll("\\", "/")}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const result = validateRuntimeConfig(process.argv[2] || "runtime");
   console.log(JSON.stringify(result));
 }
