@@ -27,7 +27,7 @@ o la mera creación de un fixture no convierten Checkout o Test Clock en PASS.
 | S08 | SEPA pagado | `invoice.paid` canónico | Sí | liquidación Sandbox |
 | S09 | SEPA fallido | fallo inicia gracia | Sí | fallo asíncrono Sandbox |
 | S10 | tax España | automatic tax, dirección y tax exclusive | Sí — PASS 2026-07-29 | cálculo Stripe Tax Sandbox |
-| S11 | tax ID español | campos B2B requeridos | Sí | Checkout con NIF test |
+| S11 | tax ID español | campos B2B requeridos | Sí — PASS 2026-07-29 | `es_cif` sintético en Customer Sandbox |
 | S12 | empresa UE con VAT ID válido | estado `verified` documentado | Sí | `000000000` y webhook |
 | S13 | VAT ID inválido | estado `unverified` fail-closed | Sí | `111111111` y webhook |
 | S14 | VAT ID pendiente | estado `pending` fail-closed | Sí — PASS 2026-07-29 | `222222222` observado pendiente |
@@ -57,8 +57,8 @@ Estado registrado:
 ```text
 CONTRACT_PASS
 REMOTE_SANDBOX_PARTIAL
-REMOTE_SANDBOX_PASS=S10,S14
-REMOTE_SANDBOX_NOT_RUN=20
+REMOTE_SANDBOX_PASS=S10,S11,S14
+REMOTE_SANDBOX_NOT_RUN=19
 LIVE_CHARGES_CREATED=0
 ```
 
@@ -70,10 +70,11 @@ S10 se ejecutó en Stripe Sandbox con `txcd_10103001`, importe exclusivo de
 
 El runner remoto con escritura explícita verificó 3 Products y 6 Prices, creó
 cuatro Checkout Sessions, una Portal Session, un Test Clock, un cálculo Tax y
-tres Tax IDs exclusivamente Sandbox. Expiró las sesiones y eliminó Customers y
-Test Clock sin errores de limpieza. S14 observó el estado `pending`. Los IDs
-mágicos destinados a S12 y S13 permanecieron `pending` durante la espera
-acotada; por tanto esos dos escenarios siguen `NOT_RUN` y no se sobredeclaran.
+cuatro Tax IDs exclusivamente Sandbox. Expiró las sesiones y eliminó Customers
+y Test Clock sin errores de limpieza. S11 aceptó un `es_cif` sintético y S14
+observó el estado `pending`. Los IDs mágicos destinados a S12 y S13
+permanecieron `pending` incluso tras la espera ampliada; por tanto esos dos
+escenarios siguen `NOT_RUN` y no se sobredeclaran.
 
 El inventario remoto confirmó además configuración de métodos de pago default
 Sandbox con Card, Link y SEPA Direct Debit disponibles y preference `on`;

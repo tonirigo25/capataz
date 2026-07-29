@@ -55,6 +55,14 @@
       },
       "taxCode": "txcd_10103001"
     },
+    "S11": {
+      "status": "PASS",
+      "evidence": "sandbox-customer-tax-id",
+      "idAbbreviated": "txi_1TyZ…80j2",
+      "livemode": false,
+      "type": "es_cif",
+      "syntheticCustomer": true
+    },
     "S12": {
       "status": "NOT_RUN",
       "cause": "The documented verified magic VAT ID remained pending during the bounded remote poll; no verified result was claimed."
@@ -78,10 +86,10 @@
     "portalSessionsCreated": 1,
     "testClocksCreatedAndDeleted": 1,
     "taxCalculationsCreated": 1,
-    "taxIdsCreated": 3,
+    "taxIdsCreated": 4,
     "cleanupErrors": 0,
     "liveObjectsCreated": 0,
-    "remoteScenarioPass": 2,
-    "remoteScenarioNotRun": 20
+    "remoteScenarioPass": 3,
+    "remoteScenarioNotRun": 19
   }
 }

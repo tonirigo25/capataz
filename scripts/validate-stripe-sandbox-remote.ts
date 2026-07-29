@@ -177,7 +177,7 @@ async function pollTaxId(
   taxIdId: string,
   expected: "verified" | "unverified" | "pending",
 ) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     const taxId = await stripe.customers.retrieveTaxId(customerId, taxIdId);
     const status = taxId.verification?.status ?? "pending";
     if (status === expected) return taxId;
@@ -316,6 +316,28 @@ async function runWriteSandboxFixtures(
       markNotRun(results, "S10", `Stripe Tax calculation failed: ${safeCause(error)}`);
     }
 
+    try {
+      const customer = await stripe.customers.create({
+        email: `capataz+nif-s11-${runId}@example.invalid`,
+        name: "Capataz NIF Sandbox Fixture",
+        address: { line1: "Calle Sandbox 1", postal_code: "28001", city: "Madrid", country: "ES" },
+        metadata: { run_id: runId, scenario: "S11", environment: "sandbox", synthetic: "true" },
+      });
+      assert.equal(customer.livemode, false, "Spanish NIF fixture Customer must be Sandbox");
+      cleanup.customers.push(customer.id);
+      const taxId = await stripe.customers.createTaxId(customer.id, { type: "es_cif", value: "B12345678" });
+      assert.equal(taxId.livemode, false, "Spanish NIF fixture must be Sandbox");
+      assert.equal(taxId.type, "es_cif", "Spanish NIF fixture type drift");
+      created.taxIds += 1;
+      markPass(
+        results,
+        "S11",
+        `Spanish es_cif ${abbreviated(taxId.id)} was accepted on a synthetic Sandbox customer.`,
+      );
+    } catch (error) {
+      markNotRun(results, "S11", `Spanish NIF fixture failed: ${safeCause(error)}`);
+    }
+
     for (const fixture of [
       { scenario: "S12", value: "DE000000000", expected: "verified" as const },
       { scenario: "S13", value: "DE111111111", expected: "unverified" as const },
@@ -349,7 +371,6 @@ async function runWriteSandboxFixtures(
     for (const id of ["S08", "S09"]) {
       markNotRun(results, id, "SEPA settlement/failure is asynchronous and was not simulated by fixture creation.");
     }
-    markNotRun(results, "S11", "Spanish Tax ID collection requires a completed hosted Checkout or a dedicated controlled es_cif fixture.");
     markNotRun(results, "S15", "Missing-address rejection requires hosted Checkout UI completion.");
   } finally {
     for (const sessionId of cleanup.checkoutSessions.reverse()) {

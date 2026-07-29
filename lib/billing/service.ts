@@ -99,7 +99,6 @@ export async function createCheckout(input: {
       const pending = await transaction.subscription.findFirst({
         where: {
           companyId: input.companyId,
-          status: { in: [...ACTIVE_LOCAL_STATUSES] },
           providerCheckoutId: { startsWith: "pending:" },
         },
         orderBy: { updatedAt: "desc" },
@@ -207,6 +206,10 @@ export async function createPortal(input: { companyId: string; idempotencyKey: s
   const customer = await resolveBillingCustomer(input.companyId);
   if (!customer) throw new Error("BILLING_CUSTOMER_NOT_FOUND");
   await ensureCustomerLink(customer.externalCustomerId, input.companyId);
+  const portalCustomerLinkCount = await countCustomerLinks(customer.externalCustomerId);
+  if (portalCustomerLinkCount !== 1) {
+    throw new Error("BILLING_SHARED_CUSTOMER_PORTAL_FORBIDDEN");
+  }
   const operation = await claimBillingOperation({
     companyId: input.companyId,
     operation: "portal",

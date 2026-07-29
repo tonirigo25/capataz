@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
+import { prisma as durableAuditDatabase } from "../prisma";
 import { getEntitlements } from "./authorization";
 import type { EntitlementKey } from "./catalog";
 import {
@@ -45,6 +47,8 @@ export async function assertEntitlementMutationAllowed(
       origin: string;
       targetType?: string;
       targetId?: string;
+      idempotencyKey?: string;
+      scopeKey?: string;
     };
   },
 ) {
@@ -61,14 +65,27 @@ export async function assertEntitlementMutationAllowed(
   const configured = commercial.values[input.limitKey];
   if (typeof configured !== "number")
     throw new Error(`USAGE_LIMIT_NOT_CONFIGURED:${input.limitKey}`);
-  const decision = assertUsageMutationAllowed(
-    evaluateUsageLimit({
-      used,
-      limit: configured,
-      quantity: input.quantity ?? 1,
-      operation: "CREATE",
-    }),
-  );
+  const decision = evaluateUsageLimit({
+    used,
+    limit: configured,
+    quantity: input.quantity ?? 1,
+    operation: "CREATE",
+  });
+  if (decision.blocked) {
+    await persistBlockedLimitAudit({
+      companyId: input.companyId,
+      limitKey: input.limitKey,
+      lockScope: input.lockScope,
+      actorId: input.audit?.actorId,
+      origin: input.audit?.origin,
+      targetType: input.audit?.targetType,
+      targetId: input.audit?.targetId,
+      idempotencyKey: input.audit?.idempotencyKey,
+      scopeKey: input.audit?.scopeKey,
+      decision,
+    });
+    assertUsageMutationAllowed(decision);
+  }
   if (input.audit)
     await transaction.auditLog.create({
       data: {
@@ -253,19 +270,119 @@ export async function recordLimitedUsage(prisma: PrismaClient, input: LimitedUsa
               origin: input.origin,
               targetType: "UsageRecord",
               targetId: input.reference,
+              idempotencyKey: input.idempotencyKey,
+              scopeKey: input.metric,
             },
           })
-        : assertUsageMutationAllowed(
-            evaluateUsageLimit({
-              used,
-              limit: input.limit!,
-              quantity: input.quantity,
-              operation: "CREATE",
-            }),
-          );
+        : await evaluateExplicitLimitedUsage(input, used);
     const record = await transaction.usageRecord.create({ data: { companyId: input.companyId, metric: input.metric, quantity: input.quantity, idempotencyKey: input.idempotencyKey, origin: input.origin, reference: input.reference, periodStart: input.periodStart, periodEnd: input.periodEnd } });
     return { record, replayed: false, decision };
   }, { isolationLevel: "Serializable" });
+}
+
+async function evaluateExplicitLimitedUsage(
+  input: LimitedUsageInput,
+  used: number,
+) {
+  const decision = evaluateUsageLimit({
+    used,
+    limit: input.limit!,
+    quantity: input.quantity,
+    operation: "CREATE",
+  });
+  if (!decision.blocked) return decision;
+  await persistBlockedLimitAudit({
+    companyId: input.companyId,
+    limitKey: "explicit",
+    lockScope: input.periodStart.toISOString(),
+    origin: input.origin,
+    targetType: "UsageRecord",
+    targetId: input.reference,
+    idempotencyKey: input.idempotencyKey,
+    scopeKey: input.metric,
+    decision,
+  });
+  assertUsageMutationAllowed(decision);
+  return decision;
+}
+
+async function persistBlockedLimitAudit(input: {
+  companyId: string;
+  limitKey: string;
+  lockScope?: string;
+  actorId?: string;
+  origin?: string;
+  targetType?: string;
+  targetId?: string;
+  idempotencyKey?: string;
+  scopeKey?: string;
+  decision: ReturnType<typeof evaluateUsageLimit>;
+}) {
+  const origin = safeAuditLabel(input.origin, "runtime_limit_guard");
+  const targetType = safeAuditLabel(input.targetType, "Entitlement");
+  const targetReferenceHash = input.targetId
+    ? shortHash(input.targetId)
+    : undefined;
+  const requestId = `limit-blocked:${shortHash(JSON.stringify({
+    companyId: input.companyId,
+    limitKey: input.limitKey,
+    lockScope: input.lockScope ?? "current",
+    actorId: input.actorId ?? null,
+    originHash: shortHash(input.origin ?? origin),
+    targetReferenceHash: targetReferenceHash ?? null,
+    idempotencyHash: input.idempotencyKey
+      ? shortHash(input.idempotencyKey)
+      : null,
+    scopeHash: input.scopeKey ? shortHash(input.scopeKey) : null,
+    used: input.decision.used,
+    requested: input.decision.requested,
+    projected: input.decision.projected,
+    limit: input.decision.limit,
+  }))}`;
+  await durableAuditDatabase.$transaction(async (transaction) => {
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`commercial-limit-audit:${requestId}`}, 0))`;
+    const existing = await transaction.auditLog.findFirst({
+      where: {
+        companyId: input.companyId,
+        action: "commercial.limit_evaluated",
+        requestId,
+      },
+      select: { id: true },
+    });
+    if (existing) return;
+    await transaction.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userActorId: input.actorId,
+        action: "commercial.limit_evaluated",
+        targetType,
+        requestId,
+        metadata: {
+          origin,
+          limitKey: input.limitKey,
+          used: input.decision.used,
+          requested: input.decision.requested,
+          projected: input.decision.projected,
+          limit: input.decision.limit,
+          warning: input.decision.warning,
+          outcome: "blocked",
+          automaticCharge: false,
+          ...(targetReferenceHash ? { targetReferenceHash } : {}),
+        },
+      },
+    });
+  }, { isolationLevel: "Serializable" });
+}
+
+function safeAuditLabel(value: string | undefined, fallback: string) {
+  const normalized = value?.trim();
+  return normalized && /^[A-Za-z0-9._:-]{1,80}$/.test(normalized)
+    ? normalized
+    : fallback;
+}
+
+function shortHash(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 32);
 }
 
 async function resolveLimitedUsageLimit(

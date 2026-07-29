@@ -103,6 +103,19 @@ describe("Stripe billing P1 guards", () => {
     expect(checkoutReservationIsFresh({}, createdAt)).toBe(false);
   });
 
+  it("protects inactive reservations, past-due state, and shared-customer portals", () => {
+    const service = readFileSync("lib/billing/service.ts", "utf8");
+    const webhook = readFileSync("lib/billing/webhook.ts", "utf8");
+    expect(service).toMatch(
+      /const pending = await transaction\.subscription\.findFirst\(\{\s*where:\s*\{\s*companyId:\s*input\.companyId,\s*providerCheckoutId:\s*\{\s*startsWith:\s*"pending:"\s*\}/,
+    );
+    expect(service).toContain("portalCustomerLinkCount !== 1");
+    expect(service).toContain("BILLING_SHARED_CUSTOMER_PORTAL_FORBIDDEN");
+    expect(webhook).toContain(
+      'mappedStatus === "PAST_DUE" || current.status === "PAST_DUE"',
+    );
+  });
+
   it("keeps invoice.paid canonical and canceled access through current_period_end", () => {
     expect(commercialAccessPolicy({
       status: "CANCELED",

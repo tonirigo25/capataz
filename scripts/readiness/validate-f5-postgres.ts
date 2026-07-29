@@ -9,8 +9,13 @@ import type { EncryptionKeyring } from "../../lib/platform/encryption";
 import { endSupportAccess, startSupportAccess } from "../../lib/commercial/platform-service";
 import { resolveSupportAccess } from "../../lib/commercial/platform";
 import { FakeStorageProvider } from "../../lib/platform/providers/fake";
-import { PrivateStorageService } from "../../lib/private-storage";
-import { LocalDeterministicMalwareScanner } from "../../lib/security/malware-scanner";
+import {
+  cleanupExpiredPresignedUploads,
+  presignedUploadReservationData,
+  PrivateStorageService,
+} from "../../lib/private-storage";
+import { LocalDeterministicMalwareScanner, type MalwareScanner } from "../../lib/security/malware-scanner";
+import type { DocumentStorage } from "../../lib/document-storage";
 import { getConversationForCompany } from "../../lib/orqena/conversation-repository";
 import { globalSearch } from "../../lib/search";
 import { createAuthenticatedCustomerPortal } from "../../lib/commercial/subscription-service";
@@ -143,6 +148,117 @@ async function main() {
     assert(invoiceA.id);
   });
 
+  await check("presigned upload reservations avoid quota and clean abandoned objects", async () => {
+    const staleCreatedAt = new Date(now.getTime() - 16 * 60_000);
+    const recentCreatedAt = new Date(now.getTime() - 5 * 60_000);
+    const staleReservation = presignedUploadReservationData({
+      companyId: companyA.id,
+      userId: userA.id,
+      filename: "stale.pdf",
+      mimeType: "application/pdf",
+      checksum: "a".repeat(64),
+      now: staleCreatedAt,
+    });
+    assert.equal(staleReservation.status, "PROCESSING");
+    assert.equal(staleReservation.size, null);
+    const [stale, recent, otherTenant] = await Promise.all([
+      prisma.document.create({
+        data: {
+          ...staleReservation,
+          size: 4_096,
+          storageKey: `companies/${companyA.id}/documentos/stale/stale.pdf`,
+          createdAt: staleCreatedAt,
+        },
+      }),
+      prisma.document.create({
+        data: {
+          ...presignedUploadReservationData({
+            companyId: companyA.id,
+            userId: userA.id,
+            filename: "recent.pdf",
+            mimeType: "application/pdf",
+            checksum: "b".repeat(64),
+            now: recentCreatedAt,
+          }),
+          storageKey: `companies/${companyA.id}/documentos/recent/recent.pdf`,
+          createdAt: recentCreatedAt,
+        },
+      }),
+      prisma.document.create({
+        data: {
+          ...presignedUploadReservationData({
+            companyId: companyB.id,
+            userId: userB.id,
+            filename: "other.pdf",
+            mimeType: "application/pdf",
+            checksum: "c".repeat(64),
+            now: staleCreatedAt,
+          }),
+          size: 8_192,
+          storageKey: `companies/${companyB.id}/documentos/other/other.pdf`,
+          createdAt: staleCreatedAt,
+        },
+      }),
+    ]);
+    const deletedStorageKeys: string[] = [];
+    const cleanupStorage: DocumentStorage = {
+      kind: "local",
+      async put() { throw new Error("unused"); },
+      async get() { throw new Error("unused"); },
+      async delete(input) { deletedStorageKeys.push(input.storageKey); },
+      async presignPut() { throw new Error("unused"); },
+      async presignGet() { return null; },
+      async verify() {},
+    };
+    const cleanup = await cleanupExpiredPresignedUploads(
+      prisma,
+      cleanupStorage,
+      { companyId: companyA.id, now },
+    );
+    assert.deepEqual(cleanup, {
+      expiredReservations: 1,
+      storageObjectsDeleted: 1,
+    });
+    assert.deepEqual(deletedStorageKeys, [
+      `companies/${companyA.id}/documentos/stale/stale.pdf`,
+    ]);
+    const [cleaned, preservedRecent, preservedOtherTenant] = await Promise.all([
+      prisma.document.findUniqueOrThrow({ where: { id: stale.id } }),
+      prisma.document.findUniqueOrThrow({ where: { id: recent.id } }),
+      prisma.document.findUniqueOrThrow({ where: { id: otherTenant.id } }),
+    ]);
+    assert.equal(cleaned.status, "CANCELLED");
+    assert(cleaned.archivedAt);
+    assert.equal(cleaned.size, null);
+    assert.equal(cleaned.storageKey, null);
+    assert.equal(preservedRecent.status, "PROCESSING");
+    assert.equal(preservedRecent.archivedAt, null);
+    assert.equal(preservedRecent.size, null);
+    assert.equal(preservedOtherTenant.status, "PROCESSING");
+    assert.equal(preservedOtherTenant.archivedAt, null);
+    assert.equal(preservedOtherTenant.size, 8_192);
+    assert.equal(
+      await prisma.document.count({
+        where: {
+          id: { in: [stale.id, recent.id] },
+          companyId: companyA.id,
+          archivedAt: null,
+        },
+      }),
+      1,
+    );
+    const storageUsage = await prisma.document.aggregate({
+      where: {
+        id: { in: [stale.id, recent.id] },
+        companyId: companyA.id,
+        archivedAt: null,
+        storedObjectId: null,
+      },
+      _sum: { size: true },
+    });
+    assert.equal(storageUsage._sum.size, null);
+  });
+
   const storageProvider = new FakeStorageProvider();
   const storage = new PrivateStorageService(prisma, storageProvider, "f5-private", "f5-storage-signing-secret-32-bytes!!", new LocalDeterministicMalwareScanner());
   const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
@@ -156,6 +272,122 @@ async function main() {
     const blocked = await prisma.storedObject.findFirstOrThrow({ where: { companyId: companyA.id, status: "BLOCKED" } });
     await assert.rejects(() => storage.readVerified({ companyId: companyA.id, objectId: blocked.id }));
     assert.equal((await prisma.uploadScan.findFirstOrThrow({ where: { storedObjectId: blocked.id } })).status, "INFECTED");
+  });
+
+  await check("quarantined replay resumes scanning while blocked replay stays denied", async () => {
+    let recoveryScans = 0;
+    const recoveringScanner: MalwareScanner = {
+      async scan(input) {
+        recoveryScans += 1;
+        if (recoveryScans === 1) throw new Error("TRANSIENT_SCANNER_FAILURE");
+        return {
+          status: "CLEAN",
+          engine: "f5-recovery-scanner",
+          engineVersion: "1",
+          reference: input.sha256.slice(0, 24),
+        };
+      },
+    };
+    const recoveringStorage = new PrivateStorageService(
+      prisma,
+      storageProvider,
+      "f5-private",
+      "f5-storage-signing-secret-32-bytes!!",
+      recoveringScanner,
+    );
+    const recoveryInput = {
+      companyId: companyA.id,
+      bytes: png,
+      originalName: "resume.png",
+      mimeType: "image/png",
+      classification: "CONFIDENTIAL",
+      idempotencyKey: `resume-${suffix}`,
+    };
+    await assert.rejects(
+      () => recoveringStorage.put(recoveryInput),
+      /STORAGE_OBJECT_QUARANTINED/u,
+    );
+    const quarantined = await prisma.storedObject.findFirstOrThrow({
+      where: {
+        companyId: companyA.id,
+        safeName: "resume.png",
+        status: "QUARANTINED",
+      },
+    });
+    const recovered = await recoveringStorage.put(recoveryInput);
+    assert.equal(recovered.id, quarantined.id);
+    assert.equal(recovered.status, "READY");
+    assert.equal(recoveryScans, 2);
+    const replayedReady = await recoveringStorage.put(recoveryInput);
+    assert.equal(replayedReady.id, recovered.id);
+    assert.equal(recoveryScans, 2);
+    assert.deepEqual(
+      new Set(
+        (
+          await prisma.uploadScan.findMany({
+            where: { storedObjectId: recovered.id },
+            select: { status: true },
+          })
+        ).map((scan) => scan.status),
+      ),
+      new Set(["ERROR", "CLEAN"]),
+    );
+
+    let blockedScans = 0;
+    const blockedScanner: MalwareScanner = {
+      async scan(input) {
+        blockedScans += 1;
+        return new LocalDeterministicMalwareScanner().scan(input);
+      },
+    };
+    const blockedStorage = new PrivateStorageService(
+      prisma,
+      storageProvider,
+      "f5-private",
+      "f5-storage-signing-secret-32-bytes!!",
+      blockedScanner,
+    );
+    const infected = new Uint8Array([
+      ...png,
+      ...new TextEncoder().encode(
+        "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE",
+      ),
+    ]);
+    const blockedInput = {
+      companyId: companyA.id,
+      bytes: infected,
+      originalName: "blocked-replay.png",
+      mimeType: "image/png",
+      classification: "RESTRICTED",
+      idempotencyKey: `blocked-replay-${suffix}`,
+    };
+    await assert.rejects(
+      () => blockedStorage.put(blockedInput),
+      /STORAGE_OBJECT_QUARANTINED/u,
+    );
+    const blocked = await prisma.storedObject.findFirstOrThrow({
+      where: {
+        companyId: companyA.id,
+        safeName: "blocked-replay.png",
+        status: "BLOCKED",
+      },
+    });
+    await assert.rejects(
+      () => blockedStorage.put(blockedInput),
+      new RegExp(`STORAGE_OBJECT_BLOCKED:${blocked.id}`, "u"),
+    );
+    assert.equal(blockedScans, 1);
+    for (const fixtureObject of [recovered, blocked]) {
+      await storageProvider.delete({
+        companyId: companyA.id,
+        objectKey: fixtureObject.objectKey,
+        idempotencyKey: `cleanup-${fixtureObject.id}`,
+      });
+      await prisma.storedObject.update({
+        where: { id: fixtureObject.id },
+        data: { status: "DELETED", deletedAt: now },
+      });
+    }
   });
 
   await check("storage and grants deny cross-tenant reads", async () => {

@@ -278,6 +278,7 @@ async function synchronizeSubscription(
     else if (eventType === "invoice.payment_failed") nextStatus = "PAST_DUE";
     else if (validTrial) nextStatus = "TRIALING";
     else if (["CANCELED", "PAUSED", "EXPIRED"].includes(mappedStatus)) nextStatus = mappedStatus;
+    else if (mappedStatus === "PAST_DUE" || current.status === "PAST_DUE") nextStatus = "PAST_DUE";
     else nextStatus = current.status === "ACTIVE" ? "ACTIVE" : "EXPIRED";
 
     const previousMetadata = jsonObject(current.metadata);
