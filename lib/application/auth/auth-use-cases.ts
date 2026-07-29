@@ -7,6 +7,7 @@ import { createSession, getAvailableCompanies, revokeCurrentSession } from "@/li
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
+import { acceptEmployeeInvitationDuringRegistration } from "@/lib/commercial/invitation-service";
 import { queueEmailEvent } from "@/lib/email/outbox";
 import { isPublicRegistrationEnabled } from "@/lib/public-registration";
 import { consumeRateLimit } from "@/lib/platform/rate-limit";
@@ -45,10 +46,12 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
       const created = await tx.user.create({ data: { email, emailNormalized, passwordHash, displayName } });
       let companyId: string;
       if (invitationValid && invitation) {
-        companyId = invitation.companyId;
-        await tx.companyMembership.create({ data: { userId: created.id, companyId: invitation.companyId, status: "pending_owner_approval", role: invitation.role, functionalProfileKey: invitation.functionalProfileKey, accessMode: invitation.accessMode, invitedAt: invitation.createdAt, acceptedAt: new Date(), invitedById: invitation.inviterId, origin: "invitation" } });
-        await tx.invitation.update({ where: { id: invitation.id }, data: { status: "PENDING_OWNER_APPROVAL", acceptedAt: new Date(), employeeAcceptedAt: new Date() } });
-        await queueEmailEvent(tx, { companyId, invitationId: invitation.id, eventKey: "owner_approval_requested", recipient: "owner-notification@orqena.invalid", createdById: created.id, idempotencyKey: `owner-approval:${invitation.id}` });
+        const membership = await acceptEmployeeInvitationDuringRegistration(tx, {
+          token: invitationToken,
+          userId: created.id,
+          email,
+        });
+        companyId = membership.companyId;
       } else {
         const company = await provisionCompanyInTransaction(tx, { userId: created.id, name: companyName, organizationType: "COMPANY", sectorKey: "general_services", planKey: "STARTER", idempotencyKey: `registration:${created.id}` });
         companyId = company.id;

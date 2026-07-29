@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { documentStorage } from "@/lib/document-storage";
 import {
@@ -9,6 +10,11 @@ import {
 } from "@/lib/expense-document";
 import { prisma } from "@/lib/prisma";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
+import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
+import {
+  cleanupExpiredPresignedUploads,
+  presignedUploadReservationData,
+} from "@/lib/private-storage";
 
 const CATEGORIES = new Set(["documentos", "facturas", "tickets"]);
 
@@ -40,21 +46,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "INVALID_DOCUMENT" }, { status: 400 });
     }
 
-    const document = await prisma.document.create({
-      data: {
-        companyId: context.companyId,
-        uploadedById: context.userId,
-        name: filename,
-        originalName: filename,
-        mimeType,
-        size: sizeBytes,
-        sha256: checksum,
-        category: mimeType === "application/pdf" ? "factura" : "otro",
-        status: "UPLOADED",
-        extractionStatus: "PENDING",
-        metadata: { source: "presigned_upload", uploadPending: true },
-      },
+    const now = new Date();
+    await cleanupExpiredPresignedUploads(prisma, documentStorage, {
+      companyId: context.companyId,
+      now,
     });
+    const document = await prisma.$transaction(
+      async (transaction) => {
+        await assertDocumentCreationAllowed(transaction, {
+          companyId: context.companyId,
+          sizeBytes,
+          actorId: context.userId,
+          origin: "presigned_upload",
+          targetId: checksum.slice(0, 16),
+        });
+        return transaction.document.create({
+          data: presignedUploadReservationData({
+            companyId: context.companyId,
+            userId: context.userId,
+            filename,
+            mimeType,
+            checksum,
+            now,
+          }),
+        });
+      },
+      { isolationLevel: "Serializable" },
+    );
 
     try {
       const signed = await documentStorage.presignPut({
@@ -66,7 +84,16 @@ export async function POST(request: Request) {
         sizeBytes,
         checksum,
       });
-      await prisma.document.update({ where: { id: document.id }, data: { storageKey: signed.storageKey } });
+      await prisma.document.update({
+        where: { id: document.id },
+        data: {
+          storageKey: signed.storageKey,
+          metadata: {
+            ...jsonObject(document.metadata),
+            uploadExpiresAt: signed.expiresAt.toISOString(),
+          },
+        },
+      });
       return NextResponse.json({
         documentId: document.id,
         uploadUrl: signed.url,
@@ -78,4 +105,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "DOCUMENT_STORAGE_UNAVAILABLE" }, { status: 503 });
     }
   });
+}
+
+function jsonObject(value: Prisma.JsonValue | null) {
+  if (!value || Array.isArray(value) || typeof value !== "object")
+    return {} satisfies Prisma.InputJsonObject;
+  return value as Prisma.InputJsonObject;
 }

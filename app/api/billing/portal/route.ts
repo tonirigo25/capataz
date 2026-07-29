@@ -3,11 +3,13 @@ import { BillingAccessError, requireBillingContext } from "@/lib/billing/auth";
 import { createPortal } from "@/lib/billing/service";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
 
-export async function POST() {
-  return publicRequestContext("POST /api/billing/portal", undefined, async () => {
+export async function POST(request: Request) {
+  return publicRequestContext("POST /api/billing/portal", request, async () => {
     try {
       const context = await requireBillingContext();
-      const session = await createPortal({ companyId: context.companyId });
+      const input = await request.json().catch(() => ({})) as { idempotencyKey?: string };
+      const idempotencyKey = request.headers.get("idempotency-key") || input.idempotencyKey || "";
+      const session = await createPortal({ companyId: context.companyId, idempotencyKey });
       return NextResponse.json({ portalUrl: session.url });
     } catch (error) {
       if (error instanceof BillingAccessError) return NextResponse.json({ error: error.message }, { status: error.status });

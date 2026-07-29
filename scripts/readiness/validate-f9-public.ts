@@ -52,11 +52,29 @@ check("pdf-branding-is-company-configurable", source("lib/document-pdf.ts").incl
 check("public-metadata-uses-brand-config", ["contacto", "soporte", "seguridad", "planes", "producto", "sectores"].every((route) => source(`app/${route}/page.tsx`).includes("brand.productName")));
 
 const pricing = source("lib/commercial/unit-economics.ts");
-check("public-pricing-default-off", source(".env.example").includes("PUBLIC_PRICING_ENABLED=false"));
+const environmentExample = source(".env.example");
+check("public-pricing-default-off", environmentExample.includes("PUBLIC_PRICING_ENABLED=false"));
 for (const gate of ["PUBLIC_PRICING_APPROVAL_REF", "PUBLIC_PRICE_CATALOG_VERSION", "STRIPE_PRICE_KEYS"]) check(`pricing-gate-${gate.toLowerCase()}`, pricing.includes(gate));
 check("pricing-fail-closed-conjunction", pricing.includes("publicPricingRequested && publicPricingApproval && publicPricingCatalogVersion && mappedPriceKeys.length > 0"));
 check("plan-ui-has-no-subscription-amount", !/[0-9]+(?:[.,][0-9]+)?\s*(?:€|EUR)/.test(source("app/planes/page.tsx")));
 check("plan-catalog-prices-null", (source("lib/commercial/plans.ts").match(/price: null/g) ?? []).length === 1);
+for (const variable of [
+  "STRIPE_PRICE_STARTER_MONTHLY",
+  "STRIPE_PRICE_STARTER_ANNUAL",
+  "STRIPE_PRICE_PRO_MONTHLY",
+  "STRIPE_PRICE_PRO_ANNUAL",
+  "STRIPE_PRICE_BUSINESS_MONTHLY",
+  "STRIPE_PRICE_BUSINESS_ANNUAL",
+]) {
+  check(`stripe-canonical-${variable.toLowerCase()}`, environmentExample.includes(`${variable}=`));
+}
+check("stripe-legacy-aliases-deprecated", environmentExample.includes("Deprecated compatibility aliases"));
+check("stripe-live-billing-default-off", environmentExample.includes("BILLING_ENABLED=false"));
+check("stripe-spain-only-default", environmentExample.includes("BILLING_ALLOWED_COUNTRIES=ES"));
+check("stripe-cross-border-default-off", environmentExample.includes("EU_B2B_CROSS_BORDER_ENABLED=false"));
+check("stripe-trial-and-grace-three-days", environmentExample.includes("STRIPE_TRIAL_DAYS=3") && environmentExample.includes("BILLING_PAST_DUE_GRACE_DAYS=3"));
+check("stripe-portal-configuration-is-environment-specific", environmentExample.includes("STRIPE_PORTAL_CONFIGURATION_ID="));
+check("stripe-remote-sandbox-default-off", environmentExample.includes("STRIPE_REMOTE_SANDBOX_ENABLED=false") && environmentExample.includes("STRIPE_SANDBOX_REMOTE_ALLOW_WRITES=false"));
 
 const layout = source("app/layout.tsx");
 const consent = source("components/consent-manager.tsx");

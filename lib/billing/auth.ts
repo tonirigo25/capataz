@@ -26,6 +26,6 @@ export async function requireBillingContext(): Promise<CompanyContext> {
     commercialStatus: membership.company.commercialStatus ?? "ACTIVE",
   };
   const decision = await resolveAuthorization(context, "company.billing.manage");
-  if (!decision.allowed) throw new BillingAccessError(403, "BILLING_FORBIDDEN");
+  if (!decision.allowed || context.role !== "OWNER") throw new BillingAccessError(403, "BILLING_FORBIDDEN");
   return context;
 }

@@ -12,6 +12,7 @@ import { confirmAutomationStep } from "@/lib/automations/automation-confirmation
 import { executeAutomationAction } from "@/lib/automations/automation-actions";
 import type { Prisma } from "@prisma/client";
 import { requireCapability } from "@/lib/commercial/authorization";
+import { assertEntitlementMutationAllowed } from "@/lib/commercial/usage";
 const refresh = () => revalidatePath("/automatizaciones");
 
 async function automationAuth() {
@@ -28,35 +29,53 @@ export async function createAutomationAction(data: FormData) {
   const auth = await automationAuth();
   const name = String(data.get("name") ?? "").trim();
   if (!name) return;
-  await prisma.automationDefinition.create({
-    data: {
-      name,
-      companyId: auth.companyId,
-      createdById: auth.userId,
-      description: String(data.get("description") ?? "") || undefined,
-      versions: {
-        create: {
-          version: 1,
-          status: "draft",
-          triggerMode: "manual",
-          retryPolicy: DEFAULT_RETRY_POLICY,
-          definitionHash: createHash("sha256")
-            .update(randomUUID())
-            .digest("hex"),
-          triggers: {
-            create: { type: "manual", configuration: { source: "user" } },
-          },
-          actions: {
+  await prisma.$transaction(
+    async (transaction) => {
+      await assertEntitlementMutationAllowed(transaction, {
+        companyId: auth.companyId,
+        limitKey: "max_automations",
+        audit: {
+          actorId: auth.userId,
+          origin: "automation_create",
+          targetType: "AutomationDefinition",
+        },
+        measure: (tx) =>
+          tx.automationDefinition.count({
+            where: { companyId: auth.companyId, archivedAt: null },
+          }),
+      });
+      await transaction.automationDefinition.create({
+        data: {
+          name,
+          companyId: auth.companyId,
+          createdById: auth.userId,
+          description: String(data.get("description") ?? "") || undefined,
+          versions: {
             create: {
-              actionType: "generate_internal_summary",
-              order: 1,
-              configuration: { title: name },
+              version: 1,
+              status: "draft",
+              triggerMode: "manual",
+              retryPolicy: DEFAULT_RETRY_POLICY,
+              definitionHash: createHash("sha256")
+                .update(randomUUID())
+                .digest("hex"),
+              triggers: {
+                create: { type: "manual", configuration: { source: "user" } },
+              },
+              actions: {
+                create: {
+                  actionType: "generate_internal_summary",
+                  order: 1,
+                  configuration: { title: name },
+                },
+              },
             },
           },
         },
-      },
+      });
     },
-  });
+    { isolationLevel: "Serializable" },
+  );
   refresh();
 }
 export async function publishAutomationAction(data: FormData) {
@@ -100,15 +119,34 @@ export async function duplicateAutomationAction(data: FormData) {
       },
     },
   });
-  const copy = await prisma.automationDefinition.create({
-    data: {
-      name: `${source.name} (copia)`,
-      description: source.description,
-      category: source.category,
-      companyId: auth.companyId,
-      createdById: auth.userId,
+  const copy = await prisma.$transaction(
+    async (transaction) => {
+      await assertEntitlementMutationAllowed(transaction, {
+        companyId: auth.companyId,
+        limitKey: "max_automations",
+        audit: {
+          actorId: auth.userId,
+          origin: "automation_duplicate",
+          targetType: "AutomationDefinition",
+          targetId: source.id,
+        },
+        measure: (tx) =>
+          tx.automationDefinition.count({
+            where: { companyId: auth.companyId, archivedAt: null },
+          }),
+      });
+      return transaction.automationDefinition.create({
+        data: {
+          name: `${source.name} (copia)`,
+          description: source.description,
+          category: source.category,
+          companyId: auth.companyId,
+          createdById: auth.userId,
+        },
+      });
     },
-  });
+    { isolationLevel: "Serializable" },
+  );
   if (source.currentVersion)
     await cloneVersion(source.currentVersion, copy.id, 1);
   refresh();

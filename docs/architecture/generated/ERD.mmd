@@ -1550,6 +1550,14 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  BillingCustomerCompanyLink {
+    String id
+    String provider
+    String externalCustomerId
+    String companyId
+    DateTime createdAt
+    DateTime updatedAt
+  }
   BillingPriceMapping {
     String id
     String provider
@@ -2413,6 +2421,7 @@ erDiagram
   ElectronicInvoiceArtifact }o--o{ ElectronicInvoiceDelivery : relates
   ElectronicInvoiceArtifact }o--o{ ElectronicInvoiceStatusEvent : relates
   BillingCustomer }o--o{ Company : relates
+  BillingCustomerCompanyLink }o--o{ Company : relates
   BillingEvent }o--o{ Company : relates
   BillingEvent }o--o{ Subscription : relates
   BillingReconciliationRun }o--o{ Company : relates

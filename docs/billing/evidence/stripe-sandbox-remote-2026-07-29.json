@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-07-29",
+  "mode": "sandbox",
+  "liveObjectsCreated": 0,
+  "inventoryBeforeDisposableRunner": {
+    "customers": 0,
+    "subscriptions": 0,
+    "checkoutSessions": 0
+  },
+  "paymentMethodConfiguration": {
+    "idAbbreviated": "pmc_…",
+    "default": true,
+    "livemode": false,
+    "card": {
+      "available": true,
+      "preference": "on"
+    },
+    "link": {
+      "available": true,
+      "preference": "on"
+    },
+    "sepaDebit": {
+      "available": true,
+      "preference": "on"
+    }
+  },
+  "tax": {
+    "settingsStatus": "active",
+    "headOfficePresent": true,
+    "registration": {
+      "idAbbreviated": "taxreg_…",
+      "country": "ES",
+      "status": "active",
+      "livemode": false,
+      "type": "standard",
+      "placeOfSupplyScheme": "standard"
+    }
+  },
+  "remoteScenarios": {
+    "S10": {
+      "status": "PASS",
+      "evidence": "stripe-tax-calculation",
+      "idAbbreviated": "taxcalc_1TyY9…",
+      "livemode": false,
+      "currency": "eur",
+      "amountExclusive": 3900,
+      "taxExclusive": 819,
+      "total": 4719,
+      "effectiveRate": 0.21,
+      "location": {
+        "country": "ES",
+        "city": "Madrid",
+        "postalCode": "28001"
+      },
+      "taxCode": "txcd_10103001"
+    },
+    "S11": {
+      "status": "PASS",
+      "evidence": "sandbox-customer-tax-id",
+      "idAbbreviated": "txi_1TyZ…80j2",
+      "livemode": false,
+      "type": "es_cif",
+      "syntheticCustomer": true
+    },
+    "S12": {
+      "status": "NOT_RUN",
+      "cause": "The documented verified magic VAT ID remained pending during the bounded remote poll; no verified result was claimed."
+    },
+    "S13": {
+      "status": "NOT_RUN",
+      "cause": "The documented invalid magic VAT ID remained pending during the bounded remote poll; no unverified result was claimed."
+    },
+    "S14": {
+      "status": "PASS",
+      "evidence": "sandbox-customer-tax-id",
+      "livemode": false,
+      "verificationStatus": "pending"
+    }
+  },
+  "disposableRunner": {
+    "mode": "sandbox-writes",
+    "catalogProductsVerified": 3,
+    "catalogPricesVerified": 6,
+    "checkoutFixturesCreatedAndExpired": 4,
+    "portalSessionsCreated": 1,
+    "testClocksCreatedAndDeleted": 1,
+    "taxCalculationsCreated": 1,
+    "taxIdsCreated": 4,
+    "cleanupErrors": 0,
+    "liveObjectsCreated": 0,
+    "remoteScenarioPass": 3,
+    "remoteScenarioNotRun": 19
+  }
+}

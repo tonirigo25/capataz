@@ -14,6 +14,13 @@ import {
   functionalProfileKeys,
   type FunctionalProfileKey,
 } from "@/lib/commercial/functional-profiles";
+import {
+  type UsageLimitDecision,
+} from "@/lib/commercial/limits";
+import {
+  acquireEntitlementLimitLock,
+  assertEntitlementMutationAllowed,
+} from "@/lib/commercial/usage";
 import { invalidateMembershipAccess } from "@/lib/commercial/owner-governance";
 import { queueEmailEvent } from "@/lib/email/outbox";
 
@@ -48,6 +55,7 @@ export async function createEmployeeInvitation(input: {
       ? ("VIEWER" as const)
       : ("MEMBER" as const);
   return prisma.$transaction(async (tx) => {
+    await acquireMemberLimitLock(tx, input.companyId);
     await assertActiveOwner(tx, input.companyId, input.ownerId);
     const duplicate = await tx.companyMembership.findFirst({
       where: {
@@ -65,6 +73,7 @@ export async function createEmployeeInvitation(input: {
       },
       data: { status: "REVOKED", revokedAt: new Date() },
     });
+    const capacity = await assertMemberCapacity(tx, input.companyId);
     const invitation = await tx.invitation.create({
       data: {
         companyId: input.companyId,
@@ -106,11 +115,12 @@ export async function createEmployeeInvitation(input: {
           profile: input.access.profile,
           packages: input.access.packages,
           accessMode: input.access.accessMode,
+          memberLimit: capacityAudit(capacity),
         },
       },
     });
     return invitation;
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
 export async function acceptEmployeeInvitation(input: {
@@ -118,18 +128,53 @@ export async function acceptEmployeeInvitation(input: {
   userId: string;
   email: string;
 }) {
-  const now = new Date();
-  const invitation = await prisma.invitation.findUnique({
-    where: { tokenHash: hashToken(input.token) },
+  const tokenHash = hashToken(input.token);
+  const preview = await prisma.invitation.findUnique({
+    where: { tokenHash },
+    select: { companyId: true },
   });
-  if (
-    !invitation ||
-    !["PENDING", "PENDING_EMPLOYEE"].includes(invitation.status) ||
-    invitation.expiresAt <= now ||
-    invitation.emailNormalized !== normalizeEmail(input.email)
-  )
-    throw new Error("INVITATION_NOT_AVAILABLE");
+  if (!preview) throw new Error("INVITATION_NOT_AVAILABLE");
   return prisma.$transaction(async (tx) => {
+    await acquireMemberLimitLock(tx, preview.companyId);
+    const acceptedAt = new Date();
+    const invitation = await tx.invitation.findUnique({
+      where: { tokenHash },
+    });
+    if (
+      !invitation ||
+      invitation.expiresAt <= acceptedAt ||
+      invitation.emailNormalized !== normalizeEmail(input.email)
+    )
+      throw new Error("INVITATION_NOT_AVAILABLE");
+    const existingMembership = await tx.companyMembership.findUnique({
+      where: {
+        userId_companyId: {
+          userId: input.userId,
+          companyId: invitation.companyId,
+        },
+      },
+    });
+    if (
+      invitation.status === "PENDING_OWNER_APPROVAL" &&
+      existingMembership?.status === "pending_owner_approval"
+    )
+      return existingMembership;
+    if (
+      invitation.status === "OWNER_APPROVED" &&
+      existingMembership?.status === "active"
+    )
+      return existingMembership;
+    if (!["PENDING", "PENDING_EMPLOYEE"].includes(invitation.status))
+      throw new Error("INVITATION_NOT_AVAILABLE");
+    if (existingMembership?.status === "active")
+      throw new Error("MEMBERSHIP_EXISTS");
+    const capacity = await assertMemberCapacity(tx, invitation.companyId, {
+      excludeInvitationId: invitation.id,
+      excludeMembershipId:
+        existingMembership?.status === "invited"
+          ? existingMembership.id
+          : undefined,
+    });
     const membership = await tx.companyMembership.upsert({
       where: {
         userId_companyId: {
@@ -142,7 +187,7 @@ export async function acceptEmployeeInvitation(input: {
         role: invitation.role,
         functionalProfileKey: invitation.functionalProfileKey,
         accessMode: invitation.accessMode,
-        acceptedAt: now,
+        acceptedAt,
         invitedById: invitation.inviterId,
         approvedAt: null,
         approvedById: null,
@@ -154,7 +199,7 @@ export async function acceptEmployeeInvitation(input: {
         role: invitation.role,
         functionalProfileKey: invitation.functionalProfileKey,
         accessMode: invitation.accessMode,
-        acceptedAt: now,
+        acceptedAt,
         invitedAt: invitation.createdAt,
         invitedById: invitation.inviterId,
         origin: "invitation",
@@ -164,8 +209,8 @@ export async function acceptEmployeeInvitation(input: {
       where: { id: invitation.id },
       data: {
         status: "PENDING_OWNER_APPROVAL",
-        acceptedAt: now,
-        employeeAcceptedAt: now,
+        acceptedAt,
+        employeeAcceptedAt: acceptedAt,
       },
     });
     const owner = await tx.companyMembership.findFirstOrThrow({
@@ -188,11 +233,98 @@ export async function acceptEmployeeInvitation(input: {
         action: "invitation.employee_accepted",
         targetType: "Invitation",
         targetId: invitation.id,
-        metadata: { membershipId: membership.id },
+        metadata: {
+          membershipId: membership.id,
+          memberLimit: capacityAudit(capacity),
+        },
       },
     });
     return membership;
+  }, { isolationLevel: "Serializable" });
+}
+
+export async function acceptEmployeeInvitationDuringRegistration(
+  tx: Prisma.TransactionClient,
+  input: {
+    token: string;
+    userId: string;
+    email: string;
+  },
+) {
+  const tokenHash = hashToken(input.token);
+  const preview = await tx.invitation.findUnique({
+    where: { tokenHash },
+    select: { companyId: true },
   });
+  if (!preview) throw new Error("INVITATION_NOT_AVAILABLE");
+  await acquireMemberLimitLock(tx, preview.companyId);
+  const acceptedAt = new Date();
+  const invitation = await tx.invitation.findUnique({ where: { tokenHash } });
+  if (
+    !invitation ||
+    !["PENDING", "PENDING_EMPLOYEE"].includes(invitation.status) ||
+    invitation.expiresAt <= acceptedAt ||
+    invitation.emailNormalized !== normalizeEmail(input.email)
+  )
+    throw new Error("INVITATION_NOT_AVAILABLE");
+  const capacity = await assertMemberCapacity(tx, invitation.companyId, {
+    excludeInvitationId: invitation.id,
+  });
+  const membership = await tx.companyMembership.create({
+    data: {
+      userId: input.userId,
+      companyId: invitation.companyId,
+      status: "pending_owner_approval",
+      role: invitation.role,
+      functionalProfileKey: invitation.functionalProfileKey,
+      accessMode: invitation.accessMode,
+      acceptedAt,
+      invitedAt: invitation.createdAt,
+      invitedById: invitation.inviterId,
+      origin: "invitation",
+    },
+  });
+  await tx.invitation.update({
+    where: { id: invitation.id },
+    data: {
+      status: "PENDING_OWNER_APPROVAL",
+      acceptedAt,
+      employeeAcceptedAt: acceptedAt,
+    },
+  });
+  const owner = await tx.companyMembership.findFirstOrThrow({
+    where: {
+      companyId: invitation.companyId,
+      role: "OWNER",
+      status: "active",
+    },
+    include: { user: { select: { emailNormalized: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  await queueEmailEvent(tx as typeof prisma, {
+    companyId: invitation.companyId,
+    invitationId: invitation.id,
+    eventKey: "owner_approval_requested",
+    recipient: owner.user.emailNormalized,
+    createdById: input.userId,
+    payload: { membershipId: membership.id },
+    idempotencyKey: `owner-approval:${invitation.id}`,
+  });
+  await tx.auditLog.create({
+    data: {
+      companyId: invitation.companyId,
+      userActorId: input.userId,
+      action: "invitation.employee_accepted",
+      targetType: "Invitation",
+      targetId: invitation.id,
+      metadata: {
+        membershipId: membership.id,
+        memberLimit: capacityAudit(capacity),
+        registrationFlow: true,
+      },
+    },
+  });
+  return membership;
 }
 
 export async function approveEmployeeMembership(input: {
@@ -200,8 +332,9 @@ export async function approveEmployeeMembership(input: {
   ownerId: string;
   invitationId: string;
 }) {
-  const now = new Date();
   return prisma.$transaction(async (tx) => {
+    await acquireMemberLimitLock(tx, input.companyId);
+    const approvedAt = new Date();
     await assertActiveOwner(tx, input.companyId, input.ownerId);
     const invitation = await tx.invitation.findFirstOrThrow({
       where: { id: input.invitationId, companyId: input.companyId },
@@ -225,6 +358,9 @@ export async function approveEmployeeMembership(input: {
         userId: user.id,
         status: "pending_owner_approval",
       },
+    });
+    const capacity = await assertMemberCapacity(tx, input.companyId, {
+      excludeMembershipId: membership.id,
     });
     await tx.membershipAccessPackage.deleteMany({
       where: { membershipId: membership.id },
@@ -369,8 +505,8 @@ export async function approveEmployeeMembership(input: {
       where: { id: membership.id },
       data: {
         status: "active",
-        joinedAt: now,
-        approvedAt: now,
+        joinedAt: approvedAt,
+        approvedAt,
         approvedById: input.ownerId,
         accessVersion: { increment: 1 },
       },
@@ -379,7 +515,7 @@ export async function approveEmployeeMembership(input: {
       where: { id: invitation.id },
       data: {
         status: "OWNER_APPROVED",
-        ownerApprovedAt: now,
+        ownerApprovedAt: approvedAt,
         ownerApprovedById: input.ownerId,
       },
     });
@@ -397,11 +533,14 @@ export async function approveEmployeeMembership(input: {
         action: "membership.owner_approved",
         targetType: "CompanyMembership",
         targetId: membership.id,
-        metadata: { packages },
+        metadata: {
+          packages,
+          memberLimit: capacityAudit(capacity),
+        },
       },
     });
     return approvedMembership;
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
 export async function revokeEmployeeInvitation(input: {
@@ -546,6 +685,62 @@ function decimal(value: unknown) {
     (typeof value === "string" && value.trim())
     ? String(value)
     : null;
+}
+
+async function acquireMemberLimitLock(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+) {
+  await acquireEntitlementLimitLock(tx, companyId, "max_members");
+}
+
+async function assertMemberCapacity(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+  options: {
+    excludeInvitationId?: string;
+    excludeMembershipId?: string;
+  } = {},
+) {
+  return assertEntitlementMutationAllowed(tx, {
+    companyId,
+    limitKey: "max_members",
+    measure: async (transaction) => {
+      const [membershipCount, invitationCount] = await Promise.all([
+        transaction.companyMembership.count({
+          where: {
+            companyId,
+            status: { in: ["active", "invited", "pending_owner_approval"] },
+            id: options.excludeMembershipId
+              ? { not: options.excludeMembershipId }
+              : undefined,
+          },
+        }),
+        transaction.invitation.count({
+          where: {
+            companyId,
+            status: { in: ["PENDING", "PENDING_EMPLOYEE"] },
+            id: options.excludeInvitationId
+              ? { not: options.excludeInvitationId }
+              : undefined,
+          },
+        }),
+      ]);
+      return membershipCount + invitationCount;
+    },
+  });
+}
+
+function capacityAudit(decision: UsageLimitDecision) {
+  return {
+    limitKey: "max_members",
+    used: decision.used,
+    projected: decision.projected,
+    limit: decision.limit,
+    warning: decision.warning,
+    status: decision.status,
+    automaticCharge: false,
+  };
 }
 
 async function assertActiveOwner(

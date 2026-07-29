@@ -12,7 +12,7 @@ async function main() {
     FROM "_prisma_migrations"
     WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
   `;
-  assert.equal(migrations[0]?.count, 44);
+  assert.equal(migrations[0]?.count, 45);
 
   const base = {
     email: "synthetic-lead@example.invalid",

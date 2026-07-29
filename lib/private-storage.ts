@@ -2,13 +2,135 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { S3Client } from "@aws-sdk/client-s3";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { DocumentStorage } from "@/lib/document-storage";
 import type { ProviderReceipt, StorageProvider } from "@/lib/platform/providers/contracts";
 import { S3StorageProvider } from "@/lib/platform/providers/production";
 import { FailClosedMalwareScanner, HttpMalwareScanner, LocalDeterministicMalwareScanner, type MalwareScanner, type MalwareScanVerdict } from "@/lib/security/malware-scanner";
+import {
+  acquireEntitlementLimitLock,
+  assertStorageMutationAllowed,
+} from "@/lib/commercial/usage";
 
 export const companyAssetMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
+const PRESIGNED_UPLOAD_MAX_AGE_MS = 15 * 60 * 1_000;
+const PRESIGNED_UPLOAD_CLEANUP_BATCH_SIZE = 50;
+
+export function presignedUploadReservationData(input: {
+  companyId: string;
+  userId: string;
+  filename: string;
+  mimeType: string;
+  checksum: string;
+  now: Date;
+}) {
+  return {
+    companyId: input.companyId,
+    uploadedById: input.userId,
+    name: input.filename,
+    originalName: input.filename,
+    mimeType: input.mimeType,
+    size: null,
+    sha256: input.checksum,
+    category: input.mimeType === "application/pdf" ? ("factura" as const) : ("otro" as const),
+    status: "PROCESSING" as const,
+    extractionStatus: "PENDING" as const,
+    metadata: {
+      source: "presigned_upload",
+      uploadPending: true,
+      reservationCreatedAt: input.now.toISOString(),
+    } satisfies Prisma.InputJsonObject,
+  };
+}
+
+export async function cleanupExpiredPresignedUploads(
+  db: PrismaClient,
+  storage: DocumentStorage,
+  input: { companyId: string; now?: Date },
+) {
+  const now = input.now ?? new Date();
+  const cutoff = new Date(now.getTime() - PRESIGNED_UPLOAD_MAX_AGE_MS);
+  const stale = await db.document.findMany({
+    where: {
+      companyId: input.companyId,
+      status: "PROCESSING",
+      archivedAt: null,
+      createdAt: { lt: cutoff },
+      AND: [
+        { metadata: { path: ["source"], equals: "presigned_upload" } },
+        { metadata: { path: ["uploadPending"], equals: true } },
+      ],
+    },
+    select: { id: true, metadata: true },
+    take: PRESIGNED_UPLOAD_CLEANUP_BATCH_SIZE,
+  });
+
+  let expiredReservations = 0;
+  for (const candidate of stale) {
+    const claimed = await db.document.updateMany({
+      where: {
+        id: candidate.id,
+        companyId: input.companyId,
+        status: "PROCESSING",
+        archivedAt: null,
+        createdAt: { lt: cutoff },
+        AND: [
+          { metadata: { path: ["source"], equals: "presigned_upload" } },
+          { metadata: { path: ["uploadPending"], equals: true } },
+        ],
+      },
+      data: {
+        size: null,
+        status: "CANCELLED",
+        extractionStatus: "FAILED",
+        archivedAt: now,
+        metadata: {
+          ...jsonObject(candidate.metadata),
+          uploadPending: false,
+          uploadAbandoned: true,
+          uploadAbandonedAt: now.toISOString(),
+        },
+      },
+    });
+    expiredReservations += claimed.count;
+  }
+
+  const abandoned = await db.document.findMany({
+    where: {
+      companyId: input.companyId,
+      status: "CANCELLED",
+      archivedAt: { not: null },
+      storageKey: { not: null },
+      metadata: { path: ["uploadAbandoned"], equals: true },
+    },
+    select: { id: true, storageKey: true },
+    take: PRESIGNED_UPLOAD_CLEANUP_BATCH_SIZE,
+  });
+  let storageObjectsDeleted = 0;
+  for (const candidate of abandoned) {
+    if (!candidate.storageKey) continue;
+    try {
+      await storage.delete({
+        companyId: input.companyId,
+        storageKey: candidate.storageKey,
+      });
+    } catch {
+      continue;
+    }
+    const cleared = await db.document.updateMany({
+      where: {
+        id: candidate.id,
+        companyId: input.companyId,
+        status: "CANCELLED",
+        storageKey: candidate.storageKey,
+      },
+      data: { storageKey: null },
+    });
+    storageObjectsDeleted += cleared.count;
+  }
+  return { expiredReservations, storageObjectsDeleted };
+}
 
 export class PrivateStorageService {
   constructor(private readonly db: PrismaClient, private readonly provider: StorageProvider, private readonly bucket: string, private readonly signingSecret: string, private readonly scanner: MalwareScanner = new LocalDeterministicMalwareScanner()) {
@@ -21,24 +143,149 @@ export class PrivateStorageService {
     if (!matchesImageSignature(input.bytes, input.mimeType)) throw new Error("STORAGE_ASSET_CONTENT_MISMATCH");
     const safeName = sanitizeFilename(input.originalName);
     const extension = input.mimeType === "image/png" ? "png" : input.mimeType === "image/jpeg" ? "jpg" : "webp";
-    const objectKey = `assets/${randomUUID()}.${extension}`;
     const expectedHash = createHash("sha256").update(input.bytes).digest("hex");
-    const receipt = await this.provider.put({ companyId: input.companyId, objectKey, bytes: input.bytes, contentType: input.mimeType, idempotencyKey: input.idempotencyKey });
-    if (receipt.sha256 !== expectedHash) throw new Error("STORAGE_PROVIDER_HASH_MISMATCH");
-    const object = await this.db.storedObject.create({ data: {
-      companyId: input.companyId, provider: this.provider.name, bucket: this.bucket, objectKey, versionId: receipt.reference,
-      providerVersion: receipt.reference, originalName: input.originalName.slice(0, 255), safeName, mimeType: input.mimeType,
-      sizeBytes: BigInt(input.bytes.byteLength), sha256: expectedHash, classification: input.classification, encryption: "provider-managed",
-      contentDisposition: `attachment; filename=\"${safeName}\"`, status: "QUARANTINED",
-    } });
-    const scan = await this.db.uploadScan.create({ data: { companyId: input.companyId, storedObjectId: object.id, engine: "pending", status: "SCANNING" } });
+    const objectKey = `assets/${createHash("sha256").update(`${input.companyId}:${input.idempotencyKey}`).digest("hex").slice(0, 40)}.${extension}`;
+    const stored = await this.db.$transaction(
+      async (transaction) => {
+        await acquireEntitlementLimitLock(
+          transaction,
+          input.companyId,
+          "storage_bytes",
+        );
+        const existing = await transaction.storedObject.findFirst({
+          where: {
+            companyId: input.companyId,
+            provider: this.provider.name,
+            bucket: this.bucket,
+            objectKey,
+            deletedAt: null,
+          },
+        });
+        if (existing) {
+          if (
+            existing.sha256 !== expectedHash ||
+            existing.sizeBytes !== BigInt(input.bytes.byteLength) ||
+            existing.mimeType !== input.mimeType
+          )
+            throw new Error("STORAGE_IDEMPOTENCY_CONFLICT");
+          return { object: existing, replayed: true };
+        }
+        await assertStorageMutationAllowed(transaction, {
+          companyId: input.companyId,
+          sizeBytes: input.bytes.byteLength,
+          origin: "private_storage",
+          targetId: objectKey,
+        });
+        const receipt = await this.provider.put({
+          companyId: input.companyId,
+          objectKey,
+          bytes: input.bytes,
+          contentType: input.mimeType,
+          idempotencyKey: input.idempotencyKey,
+        });
+        if (receipt.sha256 !== expectedHash)
+          throw new Error("STORAGE_PROVIDER_HASH_MISMATCH");
+        const created = await transaction.storedObject.create({
+          data: {
+            companyId: input.companyId,
+            provider: this.provider.name,
+            bucket: this.bucket,
+            objectKey,
+            versionId: receipt.reference,
+            providerVersion: receipt.reference,
+            originalName: input.originalName.slice(0, 255),
+            safeName,
+            mimeType: input.mimeType,
+            sizeBytes: BigInt(input.bytes.byteLength),
+            sha256: expectedHash,
+            classification: input.classification,
+            encryption: "provider-managed",
+            contentDisposition: `attachment; filename=\"${safeName}\"`,
+            status: "QUARANTINED",
+          },
+        });
+        return { object: created, replayed: false };
+      },
+      { isolationLevel: "Serializable" },
+    );
+    const { object } = stored;
+    if (stored.replayed) {
+      if (object.status === "READY") return object;
+      if (object.status === "BLOCKED")
+        throw new Error(`STORAGE_OBJECT_BLOCKED:${object.id}`);
+      if (object.status !== "QUARANTINED")
+        throw new Error(`STORAGE_OBJECT_QUARANTINED:${object.id}`);
+    }
+    const scan = await this.db.uploadScan.upsert({
+      where: {
+        storedObjectId_engine: {
+          storedObjectId: object.id,
+          engine: "pending",
+        },
+      },
+      create: {
+        companyId: input.companyId,
+        storedObjectId: object.id,
+        engine: "pending",
+        status: "SCANNING",
+      },
+      update: { status: "SCANNING", scannedAt: null },
+    });
     const verdict: MalwareScanVerdict = await this.scanner.scan({ bytes: input.bytes, sha256: expectedHash, mimeType: input.mimeType, filename: safeName }).catch(() => ({ status: "ERROR", engine: "scanner-error", engineVersion: "unknown", reference: expectedHash.slice(0, 24) }));
     const ready = verdict.status === "CLEAN";
     const updated = await this.db.$transaction(async (transaction) => {
-      await transaction.uploadScan.update({ where: { id: scan.id }, data: { engine: verdict.engine, engineVersion: verdict.engineVersion, status: verdict.status, result: { reference: verdict.reference, signature: verdict.signature ?? null }, scannedAt: new Date() } });
-      return transaction.storedObject.update({ where: { id: object.id }, data: { status: ready ? "READY" : verdict.status === "INFECTED" ? "BLOCKED" : "QUARANTINED", quarantineReason: ready ? null : verdict.status } });
+      const scanResult = {
+        engineVersion: verdict.engineVersion,
+        status: verdict.status,
+        result: {
+          reference: verdict.reference,
+          signature: verdict.signature ?? null,
+        },
+        scannedAt: new Date(),
+      };
+      if (verdict.engine === "pending") {
+        await transaction.uploadScan.update({
+          where: { id: scan.id },
+          data: scanResult,
+        });
+      } else {
+        await transaction.uploadScan.upsert({
+          where: {
+            storedObjectId_engine: {
+              storedObjectId: object.id,
+              engine: verdict.engine,
+            },
+          },
+          create: {
+            companyId: input.companyId,
+            storedObjectId: object.id,
+            engine: verdict.engine,
+            ...scanResult,
+          },
+          update: scanResult,
+        });
+        await transaction.uploadScan.deleteMany({ where: { id: scan.id } });
+      }
+      const current = await transaction.storedObject.findUniqueOrThrow({
+        where: { id: object.id },
+      });
+      if (current.status === "BLOCKED") return current;
+      if (verdict.status === "INFECTED")
+        return transaction.storedObject.update({
+          where: { id: object.id },
+          data: { status: "BLOCKED", quarantineReason: verdict.status },
+        });
+      if (current.status === "READY") return current;
+      return transaction.storedObject.update({
+        where: { id: object.id },
+        data: {
+          status: ready ? "READY" : "QUARANTINED",
+          quarantineReason: ready ? null : verdict.status,
+        },
+      });
     });
-    if (!ready) throw new Error(`STORAGE_OBJECT_QUARANTINED:${object.id}`);
+    if (updated.status !== "READY")
+      throw new Error(`STORAGE_OBJECT_QUARANTINED:${object.id}`);
     return updated;
   }
 
@@ -130,4 +377,10 @@ export function matchesImageSignature(bytes: Uint8Array, mimeType: string) {
   if (mimeType === "image/jpeg") return bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
   if (mimeType === "image/webp") return bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
   return false;
+}
+
+function jsonObject(value: Prisma.JsonValue | null) {
+  if (!value || Array.isArray(value) || typeof value !== "object")
+    return {} satisfies Prisma.InputJsonObject;
+  return value as Prisma.InputJsonObject;
 }

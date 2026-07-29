@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { runProactiveEvaluation, type ProactiveEvaluationType } from "@/lib/proactive-evaluation";
 import { processAutomationMaintenance } from "@/lib/automations/automation-scheduler";
+import { enforceExpiredBillingGrace } from "@/lib/billing/grace-job";
+import { processPendingStripeEvents } from "@/lib/billing/webhook";
 import { pruneExpiredDemoRequests } from "@/lib/commercial/demo-retention";
 import { prisma } from "@/lib/prisma";
 
@@ -25,12 +27,14 @@ export async function POST(request: Request) {
   try {
     const retentionEnabled = process.env.DEMO_LEAD_RETENTION_ENABLED === "true";
     const retentionDays = parseRetentionDays(process.env.DEMO_LEAD_RETENTION_DAYS);
-    const [result,automations,leadRetention] = await Promise.all([runProactiveEvaluation({
+    const [result,automations,leadRetention,billingGrace,billingEvents] = await Promise.all([runProactiveEvaluation({
       type: "scheduled" satisfies ProactiveEvaluationType,
       triggeredBy: "railway_cron"
     }),processAutomationMaintenance(), retentionEnabled
       ? pruneExpiredDemoRequests(prisma, { retentionDays, dryRun: false })
-      : Promise.resolve({ dryRun: true, candidates: 0, deleted: 0, disabled: true })]);
+      : Promise.resolve({ dryRun: true, candidates: 0, deleted: 0, disabled: true }),
+    enforceExpiredBillingGrace(),
+    processPendingStripeEvents()]);
     return NextResponse.json({
       ok: result.ok,
       locked: result.locked,
@@ -40,7 +44,9 @@ export async function POST(request: Request) {
       summary: result.summary,
       proactive: result.summary,
       automations,
-      leadRetention
+      leadRetention,
+      billingGrace,
+      billingEvents
     }, { status: result.locked ? 423 : 200 });
   } catch {
     return NextResponse.json({ ok: false, error: "La reevaluación proactiva falló. Revisa el centro de control interno." }, { status: 500 });

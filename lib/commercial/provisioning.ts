@@ -1,12 +1,16 @@
 import type { PrismaClient, Prisma } from "@prisma/client";
 import { createOpaqueToken } from "@/lib/auth/crypto";
 import { defaultPlanKey } from "./plans";
+import { assertEntitlementMutationAllowed } from "./usage";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 export type ProvisionCompanyInput = { userId: string; name: string; organizationType: "SELF_EMPLOYED" | "COMPANY"; sectorKey: string; country?: string; mainGoal?: string; teamSize?: string; planKey?: string; idempotencyKey: string; isDemo?: boolean; demoScenarioKey?: string };
 
 export async function provisionCompany(prisma: PrismaClient, input: ProvisionCompanyInput) {
-  return prisma.$transaction((tx) => provisionCompanyInTransaction(tx, input));
+  return prisma.$transaction(
+    (tx) => provisionCompanyInTransaction(tx, input),
+    { isolationLevel: "Serializable" },
+  );
 }
 
 export async function provisionCompanyInTransaction(tx: Prisma.TransactionClient, input: ProvisionCompanyInput) {
@@ -14,6 +18,46 @@ export async function provisionCompanyInTransaction(tx: Prisma.TransactionClient
     if (existing) {
       if (!existing.memberships.some((item) => item.userId === input.userId)) throw new Error("PROVISIONING_KEY_CONFLICT");
       return existing;
+    }
+    const entitlementSource = input.isDemo
+      ? null
+      : await tx.companyMembership.findFirst({
+          where: {
+            userId: input.userId,
+            role: "OWNER",
+            status: "active",
+            company: {
+              status: "active",
+              archivedAt: null,
+              isDemo: false,
+            },
+          },
+          select: { companyId: true },
+          orderBy: { createdAt: "asc" },
+        });
+    if (entitlementSource) {
+      await assertEntitlementMutationAllowed(tx, {
+        companyId: entitlementSource.companyId,
+        limitKey: "max_companies",
+        lockScope: input.userId,
+        audit: {
+          actorId: input.userId,
+          origin: "company_provisioning",
+          targetType: "Company",
+        },
+        measure: (transaction) =>
+          transaction.companyMembership.count({
+            where: {
+              userId: input.userId,
+              status: "active",
+              company: {
+                status: "active",
+                archivedAt: null,
+                isDemo: false,
+              },
+            },
+          }),
+      });
     }
     const plan = await tx.plan.findUnique({ where: { key: input.planKey ?? defaultPlanKey } });
     if (!plan) throw new Error("COMMERCIAL_PLANS_NOT_CONFIGURED");

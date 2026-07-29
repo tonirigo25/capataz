@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext, type CompanyContext } from "@/lib/auth/session";
 import { capabilityCatalog, roleCapabilities, scopeAssignableCapabilityKeys, type CapabilityKey, type EntitlementKey } from "@/lib/commercial/catalog";
@@ -6,18 +7,32 @@ import { defaultPlanKey, planCatalog, type EntitlementValue } from "@/lib/commer
 import { canHoldEconomicCapabilities, ECONOMIC_CAPABILITIES, functionalProfileCapabilities, profileDefaultPackages, resolveFunctionalProfile } from "@/lib/commercial/functional-profiles";
 import { accessPackageCapabilities, accessPackageKeys, capabilitiesForPackages, type AccessPackageKey } from "@/lib/commercial/access-packages";
 import { commercialAccessPolicy } from "@/lib/commercial/access-policy";
+import { applyApprovedMemberLimitOverlay } from "@/lib/commercial/limits";
 
 export type AuthorizationDecision = { allowed: boolean; reason: "allowed" | "permission" | "entitlement" | "membership" | "company" | "subscription"; scope: string };
 
-export async function getEntitlements(companyId: string) {
+type EntitlementStore = Pick<
+  Prisma.TransactionClient,
+  "subscription" | "companyEntitlementOverride"
+>;
+
+export async function getEntitlements(
+  companyId: string,
+  store: EntitlementStore = prisma,
+) {
   const now = new Date();
-  const subscription = await prisma.subscription.findFirst({ where: { companyId }, orderBy: { createdAt: "desc" }, include: { plan: { include: { entitlements: true } } } });
+  const subscription = await store.subscription.findFirst({ where: { companyId }, orderBy: { createdAt: "desc" }, include: { plan: { include: { entitlements: true } } } });
   const fallback = planCatalog[defaultPlanKey].entitlements;
   const values: Record<string, EntitlementValue> = { ...fallback };
   if (subscription) for (const item of subscription.plan.entitlements) values[item.key] = jsonValue(item.value);
-  const overrides = await prisma.companyEntitlementOverride.findMany({ where: { companyId, active: true, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] } });
+  const overrides = await store.companyEntitlementOverride.findMany({ where: { companyId, active: true, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] } });
   for (const item of overrides) values[item.key] = jsonValue(item.value);
-  return { planKey: subscription?.plan.key ?? defaultPlanKey, subscription, values };
+  const planKey = subscription?.plan.key ?? defaultPlanKey;
+  return {
+    planKey,
+    subscription,
+    values: applyApprovedMemberLimitOverlay(planKey, values),
+  };
 }
 
 export async function resolveAuthorization(context: CompanyContext, capability: CapabilityKey): Promise<AuthorizationDecision> {
@@ -41,7 +56,11 @@ export async function resolveAuthorization(context: CompanyContext, capability: 
   if (membership.accessMode === "READ_ONLY" && mutating) return { allowed: false, reason: "permission", scope: "COMPANY" };
   const commercial = await getEntitlements(context.companyId);
   const isReadOperation = capability.endsWith(".view") || capability.endsWith(".export") || capability === "orqena.use" || capability === "company.billing.manage";
-  if (commercial.subscription && commercialAccessPolicy({ status: commercial.subscription.status, graceEndsAt: commercial.subscription.graceEndsAt }).access !== "FULL" && !isReadOperation) return { allowed: false, reason: "subscription", scope: "COMPANY" };
+  if (commercial.subscription && commercialAccessPolicy({
+    status: commercial.subscription.status,
+    graceEndsAt: commercial.subscription.graceEndsAt,
+    currentPeriodEnd: commercial.subscription.currentPeriodEnd,
+  }).access !== "FULL" && !isReadOperation) return { allowed: false, reason: "subscription", scope: "COMPANY" };
   const entitlement = capabilityCatalog[capability].requiredEntitlement;
   if (entitlement) {
     if (!Boolean(commercial.values[entitlement])) return { allowed: false, reason: "entitlement", scope: "COMPANY" };
