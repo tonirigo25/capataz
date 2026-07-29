@@ -1,22 +1,18 @@
-# Responsible disclosure launch gate
+# Responsible disclosure
 
-Status: `READY_FOR_EXTERNAL_INPUT`.
+Status: `PASS`.
 
-Orqena does not currently publish `/.well-known/security.txt`. Publishing a
-contact that is not monitored would create a false operational promise.
+Orqena publishes `/.well-known/security.txt` on the marketing and application
+hosts. The verified private intake is GitHub Private Vulnerability Reporting:
 
-Before publication, an authorized security owner must provide and test:
+`https://github.com/tonirigo25/capataz/security/advisories/new`
 
-- a dedicated monitored mailbox or intake system;
-- ownership, backup coverage and an escalation rota;
-- safe-harbour and scope wording approved by counsel;
-- supported languages, encryption key, expected acknowledgement window and
-  disclosure policy;
-- an end-to-end synthetic report showing receipt, triage, acknowledgement,
-  severity assignment, remediation owner and closure;
-- expiry and review dates for the `security.txt` content.
+Public issues and general contact/demo forms must not be used for vulnerability
+reports. The bilingual policy is in `SECURITY.md`; it defines supported
+versions, requested evidence, prohibited testing, non-contractual
+acknowledgement language and coordinated disclosure. `security.txt` publishes
+Contact, Canonical, Policy, Preferred-Languages and an expiry under one year.
 
-Only after that evidence exists may the route be added. The security page must
-then link to it, and monitoring must alert when the channel cannot receive or
-assign reports. Until then, general contact and demo forms must not be
-represented as vulnerability-reporting channels.
+A dedicated `security@orqenatech.com` mailbox, legal safe-harbour wording and a
+human escalation rota remain `READY_FOR_EXTERNAL_INPUT`. They do not invalidate
+the active private GitHub intake and must not be claimed until tested.

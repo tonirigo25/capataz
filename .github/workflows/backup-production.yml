@@ -1,0 +1,73 @@
+name: Production snapshot backup
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-backup-repository
+  cancel-in-progress: false
+
+jobs:
+  production-backup:
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: backup-production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install restic
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends restic
+          restic version
+      - name: Create and validate encrypted PostgreSQL snapshot
+        id: backup
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_R2_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          BACKUP_R2_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          BACKUP_R2_ENDPOINT: ${{ secrets.BACKUP_R2_ENDPOINT }}
+          BACKUP_R2_BUCKET: ${{ secrets.BACKUP_R2_BUCKET }}
+          RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
+        run: bash scripts/operations/backup-postgres.sh
+      - name: Record safe execution summary
+        env:
+          SNAPSHOT_ID: ${{ steps.backup.outputs.snapshot_id }}
+          DUMP_BYTES: ${{ steps.backup.outputs.dump_bytes }}
+          CHECKSUM_PREFIX: ${{ steps.backup.outputs.checksum_prefix }}
+          MIGRATION_COUNT: ${{ steps.backup.outputs.migration_count }}
+          MIGRATION_HEAD: ${{ steps.backup.outputs.migration_head }}
+          TIMESTAMP_UTC: ${{ steps.backup.outputs.timestamp_utc }}
+        run: |
+          {
+            echo "### Encrypted production snapshot"
+            echo
+            echo "- Timestamp: ${TIMESTAMP_UTC}"
+            echo "- Snapshot: ${SNAPSHOT_ID}"
+            echo "- Dump bytes: ${DUMP_BYTES}"
+            echo "- SHA-256 prefix: ${CHECKSUM_PREFIX}"
+            echo "- Migrations: ${MIGRATION_COUNT}"
+            echo "- Migration head: ${MIGRATION_HEAD}"
+            echo "- Recovery model: snapshot without PITR"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Update success state
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/operations/update-backup-alert.mjs success production-snapshot-backup
+      - name: Open or refresh a generic failure alert
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/operations/update-backup-alert.mjs failure production-snapshot-backup

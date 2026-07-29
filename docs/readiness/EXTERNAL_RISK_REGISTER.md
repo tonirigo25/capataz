@@ -1,5 +1,12 @@
 # External risk register
 
+> **HISTORICAL SNAPSHOT / SUPERSEDED AS CANONICAL REGISTER — 2026-07-29.**
+> Las entradas se conservan sin borrado para auditoría y no se consideran
+> cerradas por la mera promoción de código. El registro canónico de decisiones
+> y gates externos posteriores está en
+> `docs/operations/EXTERNAL_DECISIONS_REGISTER.md`; el estado productivo está
+> en `docs/readiness/PRODUCTION_STATE.md`.
+
 ## OPENAI-KEY-SETUP-UI
 
 - Phase/control: F6 / AI-LIVE-001 through AI-LIVE-006

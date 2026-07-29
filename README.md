@@ -8,6 +8,17 @@ La arquitectura comercial se documenta en `docs/ORQENA_MULTI_COMPANY_ARCHITECTUR
 
 Descriptor: **Tu negocio, en orden.** `/capataz`, `CAPATAZ_*` y determinados nombres históricos se conservan como aliases técnicos compatibles durante la transición.
 
+## Estado operativo actual
+
+Production está desplegada en `orqenatech.com` y `app.orqenatech.com`.
+Registro público, billing, IA live, fiscal live, analytics e indexación
+permanecen apagados. El estado canónico y la recuperación por snapshots sin
+PITR están en:
+
+- `docs/readiness/PRODUCTION_STATE.md`;
+- `docs/operations/POST_LAUNCH_CLOSURE.md`;
+- `docs/operations/BACKUP_AND_RESTORE_WITHOUT_PITR.md`.
+
 ## Compras, proveedores y subcontratas
 
 El área de compras incorpora módulos separados para:
@@ -86,7 +97,9 @@ Valores principales:
 - `appId`: `com.orqena.app`
 - `appName`: `Orqena`
 - `webDir`: `mobile-web`
-- `server.url`: `CAPATAZ_MOBILE_SERVER_URL` o `NEXT_PUBLIC_WEB_BASE_URL`; no existe un dominio público final acreditado en el repositorio
+- `server.url`: `CAPATAZ_MOBILE_SERVER_URL` o `NEXT_PUBLIC_WEB_BASE_URL`; el
+  backend productivo acreditado es `https://app.orqenatech.com`, pero la
+  distribución móvil sigue sujeta a aceptación humana en dispositivos reales.
 
 Android emulador:
 
@@ -164,7 +177,8 @@ Entornos recomendados:
 
 - `development`: backend local, modo pruebas, `CAPATAZ_MOBILE_SERVER_URL=http://10.0.2.2:3000` en Android emulador.
 - `staging`: backend aislado de pruebas, modo demo/revisión, con URL HTTPS aprobada externamente.
-- `production`: backend público real, sólo después de aprobar dominio y promoción.
+- `production`: backend público real ya desplegado; la publicación móvil
+  requiere todavía firma y aceptación humana de dispositivos.
 
 Variables:
 
@@ -182,6 +196,9 @@ Hay ejemplos en:
 - `.env.example`
 - `.env.staging.example`
 - `.env.production.example`
+
+Los hostnames `.invalid` de los ejemplos son placeholders deliberados y no
+describen el estado productivo actual.
 
 Las credenciales de revisión, si llegan a existir, deben aprovisionarse fuera de Git y entregarse mediante el canal seguro de cada tienda. No hay credenciales incrustadas ni acceso demo anónimo.
 

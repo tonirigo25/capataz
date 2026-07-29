@@ -20,18 +20,21 @@ const required = [
   "docs/data-room/public/SUPPORT_MATRIX.md", "docs/data-room/public/TRANSITION_PACKAGE.md",
   "docs/adr/0009-privacy-governance.md", "docs/adr/0010-release-and-supply-chain-governance.md",
   ".github/workflows/ci.yml", ".github/workflows/security.yml", ".github/workflows/railway-preview.yml",
-  ".github/workflows/release-candidate.yml", "vitest.config.ts", "playwright.config.ts",
+  ".github/workflows/release-candidate.yml", ".github/workflows/backup-production.yml",
+  ".github/workflows/backup-maintenance.yml", "vitest.config.ts", "playwright.config.ts",
 ];
 
 for (const path of required) check(`required:${path}`, () => assert.ok(existsSync(join(root, path)), path));
 
 const workflows = readdirSync(join(root, ".github/workflows")).filter((name) => name.endsWith(".yml"));
-check("workflow-count", () => assert.equal(workflows.length, 4));
+check("workflow-count", () => assert.equal(workflows.length, 6));
 for (const name of workflows) {
   const source = read(`.github/workflows/${name}`);
   check(`${name}:minimum-permissions`, () => {
-    assert.match(source, /^permissions:\n  contents: read$/mu);
+    assert.match(source, /^permissions:\n  contents: read(?:\n|$)/mu);
     assert.doesNotMatch(source, /write-all/u);
+    if (name.startsWith("backup-")) assert.match(source, /^  issues: write$/mu);
+    else assert.doesNotMatch(source, /^  [a-z-]+: write$/mu);
   });
   check(`${name}:actions-pinned`, () => {
     for (const line of source.match(/^\s*- uses:.+$/gmu) ?? []) assert.match(line, /@[a-f0-9]{40}\s*$/u, line);

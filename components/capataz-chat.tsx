@@ -4,6 +4,10 @@ import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { brand } from "@/lib/brand";
+import {
+  extractInternalPdfPreviewPath,
+  sanitizeInternalPdfPath,
+} from "@/lib/internal-pdf-path";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
@@ -907,15 +911,15 @@ function MessageText({ text }: { text: string }) {
   return (
     <span className="whitespace-pre-wrap">
       {parts.map((part, index) => {
-        if (urlPattern.test(part)) {
-          urlPattern.lastIndex = 0;
+        const safePdfPath = sanitizeInternalPdfPath(part);
+        urlPattern.lastIndex = 0;
+        if (safePdfPath) {
           return (
-            <a key={`${part}-${index}`} href={part} target="_blank" rel="noreferrer" className="font-bold text-obra-blue underline underline-offset-2">
-              {part}
+            <a key={`${safePdfPath}-${index}`} href={safePdfPath} target="_blank" rel="noreferrer" className="font-bold text-obra-blue underline underline-offset-2">
+              {safePdfPath}
             </a>
           );
         }
-        urlPattern.lastIndex = 0;
         return <span key={`${index}-${part.slice(0, 8)}`}>{part}</span>;
       })}
     </span>
@@ -923,7 +927,7 @@ function MessageText({ text }: { text: string }) {
 }
 
 function pdfPreviewPathFromText(text: string) {
-  return text.match(/\/[^\s]+?\/pdf\?preview=1/)?.[0] ?? null;
+  return extractInternalPdfPreviewPath(text);
 }
 
 function PdfInlinePreview({ path }: { path: string }) {

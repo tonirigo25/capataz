@@ -46,8 +46,15 @@ export default function SecurityPage() {
 
       <section className="marketing-container security-close">
         <CheckCircle2 />
-        <div><h2>Sin certificaciones ni canales inventados.</h2><p>El alcance actual describe controles reales del producto. No se publica todavía un canal responsable de vulnerabilidades: necesita propietario, monitorización y prueba de extremo a extremo. Cualquier certificación futura se comunicará solo después de obtenerla.</p></div>
-        <Link href="/contacto">Hablar con el equipo <ArrowRight size={16} /></Link>
+        <div>
+          <h2>Divulgación coordinada, sin canales inventados.</h2>
+          <p>La política cubre orqenatech.com y app.orqenatech.com. Envía los reportes mediante Private Vulnerability Reporting de GitHub; no uses issues públicas.</p>
+          <p>No se autoriza pentesting intrusivo, denegación de servicio, ingeniería social ni pruebas sobre datos ajenos. Consulta la política completa antes de investigar.</p>
+        </div>
+        <div>
+          <a href="https://github.com/tonirigo25/capataz/security/advisories/new" target="_blank" rel="noreferrer">Reportar de forma privada <ArrowRight size={16} /></a>
+          <a href="https://github.com/tonirigo25/capataz/security/policy" target="_blank" rel="noreferrer">Leer política completa <ArrowRight size={16} /></a>
+        </div>
       </section>
     </MarketingPage>
   );

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0",
+  "capturedOn": "2026-07-29",
+  "environment": "production",
+  "status": "PASS_WITH_SNAPSHOT_RECOVERY",
+  "provider": "Railway",
+  "storage": {
+    "type": "private-r2-bucket",
+    "region": "EU",
+    "access": "private",
+    "githubDestinationCredential": "OBJECT_READ_WRITE_DESTINATION_ONLY",
+    "githubSourceCredential": "OBJECT_READ_ONLY_SOURCE_ONLY",
+    "separateFromApplicationCredentials": true,
+    "rotatedCredentialsValidated": true
+  },
+  "recoveryModel": {
+    "pitrEnabled": false,
+    "snapshotSchedule": "every-6-hours",
+    "mainPushSnapshot": true,
+    "railwayWaitForCiEnabled": true,
+    "sharedResticConcurrency": true,
+    "manifestMetadataSource": "PG_DUMP_ARCHIVE",
+    "restorePinsValidatedSnapshotId": true,
+    "rpoTargetHours": 6,
+    "retention": {
+      "keepLast": 28,
+      "keepDaily": 14,
+      "keepWeekly": 8,
+      "keepMonthly": 12
+    }
+  },
+  "documents": {
+    "schedule": "daily",
+    "currentReplica": true,
+    "versionedCopies": true,
+    "versionRetentionDays": 365,
+    "canaryStatus": "PASS_EMPTY_SOURCE",
+    "versionCanaryRestore": {
+      "status": "PASS",
+      "restoredBytes": 32,
+      "sha256Prefix": "cff1296b0077",
+      "temporaryRemoved": true
+    },
+    "canaryLimitation": "Validates the empty-source contract, not a non-empty production corpus."
+  },
+  "alerting": {
+    "failureChannel": "github-issue",
+    "closeAfterConsecutiveSuccesses": 2
+  },
+  "localFallback": {
+    "credentialProtection": "DPAPI_CURRENT_USER",
+    "runtime": "POWERSHELL_7",
+    "customCredentialPathPropagated": true,
+    "applicationShaSource": "RAILWAY_CURRENT_SUCCESS_OR_EXPLICIT_LAST_KNOWN",
+    "scheduleLocalTime": "04:53",
+    "taskState": "Ready"
+  },
+  "verification": {
+    "firstBackup": "PASS",
+    "restoreDrill": "PASS_LOCAL_EPHEMERAL",
+    "resticKeyCount": 2,
+    "githubEnvironmentSecretCount": 10,
+    "repositorySecretCopies": 0,
+    "productionMutatedByDrill": false
+  },
+  "safety": {
+    "secretValuesRecorded": false,
+    "privateObjectNamesRecorded": false,
+    "fullChecksumsRecorded": false
+  }
+}
