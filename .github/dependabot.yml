@@ -16,6 +16,11 @@ updates:
         update-types:
           - minor
           - patch
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
 
   - package-ecosystem: github-actions
     directory: /
@@ -33,3 +38,8 @@ updates:
         update-types:
           - minor
           - patch
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
