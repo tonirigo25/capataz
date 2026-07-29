@@ -28,6 +28,8 @@ import { STRIPE_WEBHOOK_EVENTS, isBillingEnabled, stripePriceForPlan, stripeTria
 import { paidAccessState } from "../lib/billing/service";
 import { getStripeClient, requireStripeWebhookSecret } from "../lib/billing/stripe-client";
 import { parseServerConfig } from "../lib/config/server";
+import { validateBrowserRequest } from "../lib/security/browser-request";
+import { NextRequest } from "next/server";
 
 let cases = 0;
 function equal<T>(actual: T, expected: T, label: string) {
@@ -70,6 +72,23 @@ async function validateHosts() {
   equal(resolveHostRouting({ host: "preview.up.railway.app", pathname: "/api/health", nodeEnv: "production" }).action, "pass", "Railway health remains reachable");
   equal(resolveHostRouting({ host: "orqena-review-web.railway.internal", pathname: "/api/health/live", nodeEnv: "production" }).action, "pass", "Railway internal liveness remains reachable");
   equal(resolveHostRouting({ host: "orqena-review-web.railway.internal", pathname: "/api/health/ready", nodeEnv: "production" }).action, "pass", "Railway internal readiness remains reachable");
+  const previousAppEnvironment = process.env.NEXT_PUBLIC_APP_ENV;
+  const previousAppBaseUrl = process.env.APP_BASE_URL;
+  process.env.NEXT_PUBLIC_APP_ENV = "production";
+  process.env.APP_BASE_URL = "https://app.orqenatech.com";
+  try {
+    equal(validateBrowserRequest(new NextRequest("https://orqena-review-web.railway.internal/api/health/ready", {
+      headers: { host: "orqena-review-web.railway.internal" },
+    })), { allowed: true }, "browser security permits Railway internal readiness");
+    equal(validateBrowserRequest(new NextRequest("https://attacker.example/api/private", {
+      headers: { host: "attacker.example" },
+    })), { allowed: false, code: "HOST_NOT_ALLOWED" }, "browser security still rejects unknown production hosts");
+  } finally {
+    if (previousAppEnvironment === undefined) delete process.env.NEXT_PUBLIC_APP_ENV;
+    else process.env.NEXT_PUBLIC_APP_ENV = previousAppEnvironment;
+    if (previousAppBaseUrl === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = previousAppBaseUrl;
+  }
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/precios", nodeEnv: "production" }), {
     action: "rewrite",
     pathname: "/marketing-internal/precios",

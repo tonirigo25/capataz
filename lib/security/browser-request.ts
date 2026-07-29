@@ -1,6 +1,12 @@
 import type { NextRequest } from "next/server";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const HOST_AGNOSTIC_HEALTH_PATHS = new Set([
+  "/api/status",
+  "/api/health",
+  "/api/health/live",
+  "/api/health/ready",
+]);
 
 export type BrowserRequestVerdict = { allowed: true } | { allowed: false; code: "HOST_NOT_ALLOWED" | "ORIGIN_REQUIRED" | "ORIGIN_NOT_ALLOWED" };
 
@@ -9,6 +15,12 @@ export function validateBrowserRequest(request: NextRequest): BrowserRequestVerd
   const requestOrigin = request.nextUrl.origin;
   const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "").split(",")[0].trim().toLowerCase();
   const environment = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase();
+
+  // Railway probes the container through an internal hostname. These endpoints
+  // are public, read-only and explicitly host-agnostic in host-routing.ts.
+  if (SAFE_METHODS.has(request.method) && HOST_AGNOSTIC_HEALTH_PATHS.has(request.nextUrl.pathname)) {
+    return { allowed: true };
+  }
 
   if (environment === "production" && configuredOrigins.size > 0) {
     const allowedHosts = new Set([...configuredOrigins].map((origin) => new URL(origin).host.toLowerCase()));
