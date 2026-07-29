@@ -1,7 +1,12 @@
 # Latest continuous review
 
-Status: `SUCCESS` for the persistent isolated review service. The exact D11
-candidate also passes staging; production promotion remains `NO-GO`.
+> **HISTORICAL / SUPERSEDED — 2026-07-29.** This is the last pre-production
+> Review/Staging snapshot. Current Production truth is recorded in
+> `docs/readiness/PRODUCTION_STATE.md`.
+
+Historical status: `SUCCESS` for the persistent isolated review service. The
+exact D11 candidate also passed staging; production promotion was still
+`NO-GO` when this snapshot was written.
 
 - Stable Review URL: `https://orqena-review-web-review.up.railway.app`
 - Last fully audited functional SHA:

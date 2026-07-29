@@ -1200,7 +1200,6 @@ function shortPendingLabel(label: string) {
     .replace(/^Confirmar si /, "")
     .replace(/^Dirección exacta /, "dirección ")
     .replace(/^Teléfono o email /, "contacto ")
-    .replace(/^CIF /, "CIF ")
     .replace(/^Dirección fiscal /, "dirección fiscal ");
 }
 

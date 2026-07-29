@@ -1,5 +1,43 @@
 # Orqena production readiness execution log
 
+> **HISTORICAL CHRONOLOGY / SUPERSEDED AS CURRENT STATE — 2026-07-29.**
+> Se conserva íntegramente para trazabilidad. El estado productivo canónico
+> posterior está en `docs/readiness/PRODUCTION_STATE.md` y la release en
+> `docs/releases/2026-07-28-production-release.md`.
+
+## Production release closure — 2026-07-29
+
+- La release integrada se promovió a `main`; el estado canónico de `main`, el
+  tag `production-2026-07-28` y Railway Production es
+  `6b96f7c5004f4066b7b3167c6d2fe9ee76a4cdae`.
+- Railway Production deployment
+  `daaef968-b01a-4896-9208-74b498e7be51` terminó `SUCCESS`.
+- El propietario único de migraciones encontró 44 migraciones, con head
+  `20260728180000_add_stripe_billing_foundation`, y cero pendientes.
+- Los workflows de `main` CI `30409864258` y Security
+  `30409864259` terminaron `SUCCESS`.
+- `/`, `/login`, `/api/health/live` y `/api/health/ready` devolvieron HTTP 200
+  con certificado TLS válido.
+- Registro público, pricing, billing, email live, IA live, fiscal live,
+  analytics e indexación permanecieron desactivados. El dominio de Resend está
+  verificado, pero la entrega live continúa apagada.
+- El primer snapshot al bucket R2 privado UE terminó `PASS` el
+  `2026-07-29T07:28:10Z`: 1.155.255 bytes, prefijo SHA-256
+  `ae61715af3aa`, snapshot abreviado `8d412d8df4e9`, `restic check` PASS,
+  44 migraciones y cero pendientes.
+- El restore drill local efímero terminó `PASS` en 226 s:
+  `pg_restore`, checksum y `restic check` completo PASS; 7 tablas, cero
+  huérfanos y agregados no PII `5|6|10|18|5|3`. Production no cambió y los
+  temporales fueron eliminados. No existe PITR.
+- El gate de rendimiento ejecutó 60/60 respuestas HTTP 200 sin regresión CSS
+  o Railway. Lighthouse midió home 93/LCP 1809 ms y login 81/LCP 3410 ms con
+  observación de arranque JavaScript; no se abrió una PR de rendimiento.
+- Resend quedó `verified`, con claves de envío scoped en Staging/Production,
+  webhook deshabilitado mientras `EMAIL_LIVE_ENABLED=false`, pruebas oficiales
+  delivered/bounced/complained/suppressed PASS y credencial bootstrap revocada.
+- `proactive-evaluator` se recuperó de `HOST_NOT_ALLOWED` usando el custom
+  domain de la aplicación; deployment abreviado `0ee88832…`, `SUCCESS`.
+
 ## Continuous review and C0-C5 integrated block — 2026-07-26
 
 - Created persistent Railway project `orqena-review-continuous`

@@ -1,10 +1,15 @@
 # C10 — Go/no-go de promoción
 
-Estado actual: **NO-GO para producción**.
+> **HISTORICAL / SUPERSEDED — 2026-07-29.** Este documento conserva la
+> decisión previa a la promoción. Ya no es la fuente del estado vigente.
+> Consultar `docs/readiness/PRODUCTION_STATE.md`.
 
-Este documento es la decisión operativa vigente. No autoriza una promoción y
-no sustituye la aprobación humana final. El SHA servido por `review`, su
-despliegue y la matriz de revisión se mantienen en `LATEST_REVIEW.md`.
+Estado histórico en el momento de esta decisión: **NO-GO para producción**.
+
+Este documento fue la decisión operativa previa a la promoción. No sustituye
+el registro productivo posterior ni la aprobación humana final. El SHA servido
+por `review`, su despliegue y la matriz de revisión de aquel momento se
+mantienen en `LATEST_REVIEW.md`.
 
 ## Review → staging
 
