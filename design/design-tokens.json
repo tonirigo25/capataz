@@ -1,25 +1,29 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
   "meta": {
-    "name": "Orqena Field OS",
-    "version": "1.0.0",
-    "date": "2026-07-26",
-    "intent": "Editorial-industrial public brand + calm operational SaaS"
+    "name": "Orqena Field OS V2",
+    "version": "2.0.0",
+    "date": "2026-07-30",
+    "intent": "Premium dark public brand + calm, compact operational SaaS"
   },
   "color": {
     "ink": {
-      "value": "#111A16",
+      "value": "#101814",
       "role": "Primary text, dark surfaces"
+    },
+    "dark2": {
+      "value": "#17212C",
+      "role": "Elevated dark surfaces"
     },
     "inkMuted": {
       "value": "#66736C"
     },
     "stone": {
-      "value": "#F3F0E7",
-      "role": "Public background"
+      "value": "#F5F7F6",
+      "role": "Application canvas"
     },
     "paper": {
-      "value": "#FBFAF7"
+      "value": "#F5F7F6"
     },
     "surface": {
       "value": "#FFFFFF"
@@ -28,15 +32,19 @@
       "value": "#D8DED7"
     },
     "lime": {
-      "value": "#C9F36B",
-      "role": "Confirmation and primary field accent"
+      "value": "#20B862",
+      "role": "Primary action and confirmation accent"
+    },
+    "greenSoft": {
+      "value": "#E7F7EE",
+      "role": "Soft success and selected surface"
     },
     "blue": {
       "value": "#2D5DE0",
       "role": "Information and commercial flow"
     },
     "orange": {
-      "value": "#E96B3D",
+      "value": "#D58A1F",
       "role": "Attention"
     },
     "red": {
@@ -44,7 +52,7 @@
       "role": "Risk"
     },
     "green": {
-      "value": "#157B59",
+      "value": "#168C55",
       "role": "Success"
     }
   },
@@ -73,10 +81,12 @@
     "size": {
       "xs": "11px",
       "sm": "13px",
-      "base": "15px",
+      "base": "16px",
       "lg": "18px",
       "xl": "24px",
-      "display": "clamp(48px, 6.2vw, 84px)"
+      "h3": "clamp(24px, 2.4vw, 28px)",
+      "h2": "clamp(36px, 4vw, 42px)",
+      "display": "clamp(38px, 5vw, 64px)"
     },
     "weight": {
       "regular": 450,
@@ -110,9 +120,9 @@
     "pill": "999px"
   },
   "shadow": {
-    "small": "0 8px 24px rgba(17,26,22,.08)",
-    "card": "0 18px 55px rgba(17,26,22,.11)",
-    "hero": "0 34px 90px rgba(17,26,22,.24)"
+    "small": "0 8px 24px rgba(16,24,20,.08)",
+    "card": "0 18px 55px rgba(16,24,20,.12)",
+    "hero": "0 34px 90px rgba(16,24,20,.26)"
   },
   "layout": {
     "sidebar": "248px",

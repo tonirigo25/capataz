@@ -90,9 +90,9 @@ for (const [name, expected] of [...tokenMappings, ...semanticTokenMappings]) {
 }
 
 pass(
-  "semantic muted text meets AA on stone and lime",
+  "semantic muted text meets AA on application canvases",
   contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.stone.value) >= 4.5
-    && contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.lime.value) >= 4.5,
+    && contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.greenSoft.value) >= 4.5,
 );
 pass(
   "semantic warning and danger text meet AA on paper",

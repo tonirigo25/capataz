@@ -1,8 +1,15 @@
 {
   "schemaVersion": 1,
-  "program": "Orqena Field OS",
+  "program": "Orqena Field OS V2",
   "baselineSha": "21412ff4a500394ea97939fd604374612b44dcda",
-  "branch": "feat/orqena-field-os-design-system",
+  "branch": "design/orqena-field-os-v2",
+  "v2": {
+    "codeBaselineSha": "c08ff92f30b8464302ff90760b2c3d28d57fc206",
+    "reviewBaselineSha": "2076a52a7bab4dcc077f0ef63943e9da1e846c24",
+    "packageSha256": "2A5015EBDE4AE0DB14AB956BBE7B7B9E0FDBEA5A40ACC2330CDE64F6579A600B",
+    "visualDirection": "Embat order and financial clarity plus Holded product visibility and modular interaction",
+    "productionPromotionAuthorized": false
+  },
   "sources": {
     "prompt": {
       "path": "PROMPT_MAESTRO_IMPLEMENTACION_DISENO_ORQENA.md",

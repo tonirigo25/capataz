@@ -168,7 +168,7 @@ function runChatChecks() {
     const result = classifyChatIntent(text);
     expect(result.action === action, `[proactive] bad chat classification for ${text}`, result);
   }
-  const actions = read("app/(app)/capataz/actions.ts");
+  const actions = read("lib/orqena/application/capataz/orchestration.ts");
   for (const [, action] of cases) {
     expect(actions.includes(`case "${action}"`), `[proactive] missing chat case ${action}`);
   }

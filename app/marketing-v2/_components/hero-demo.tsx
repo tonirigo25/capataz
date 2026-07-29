@@ -63,28 +63,27 @@ export function HeroDemo() {
     <section className={styles.hero} aria-labelledby="public-hero-title">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Sistema operativo para obra y reformas</p>
-          <h1 id="public-hero-title">Del audio en la obra al cobro.</h1>
+          <p className={styles.eyebrow}>Capataz, by Orqena · Field OS</p>
+          <h1 id="public-hero-title">Lo que ocurre en obra se convierte en control.</h1>
           <p className={styles.heroSubtitle}>
-            {brand.productName} conecta lo que ocurre en visitas, presupuestos, trabajos,
-            compras y facturas. Sin repetir datos, sin perder de vista el margen y siempre
-            bajo tu confirmación.
+            Clientes, presupuestos, costes, documentos, facturas y cobros conectados.
+            {` ${brand.productName} prepara. Tú revisas y confirmas.`}
           </p>
 
           <div className={styles.heroActions} aria-label="Acciones principales">
             <a
               className={styles.primaryAction}
+              href="#solicitar-acceso"
+              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "access_request" })}
+            >
+              Solicitar demo
+            </a>
+            <Link
+              className={styles.secondaryAction}
               href="#como-funciona"
               onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "how_it_works" })}
             >
               Ver cómo funciona
-            </a>
-            <Link
-              className={styles.secondaryAction}
-              href="#solicitar-acceso"
-              onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "access_request" })}
-            >
-              Solicitar acceso
             </Link>
           </div>
 

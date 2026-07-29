@@ -24,17 +24,20 @@ const check = (label, condition) => {
 };
 
 check(
-  "header exacto",
-  ["Cómo funciona", "Resultados", "Para quién", "Confianza", "Entrar", "Ver demo"].every((label) => header.includes(label)),
+  "header V2 orientado a resultados",
+  ["Producto", "Soluciones", "Precios", "Recursos", "Empresa", "Iniciar sesión", "Solicitar demo"].every((label) => header.includes(label))
+    && header.includes('onMouseEnter={() => setOpenMenu("product")}')
+    && header.includes("aria-expanded={openMenu ===")
+    && header.includes("onBlur={closeWhenFocusLeaves}"),
 );
 check(
-  "hero exacto",
-  hero.includes("Sistema operativo para obra y reformas")
-    && hero.includes("Del audio en la obra al cobro.")
-    && hero.includes("visitas, presupuestos, trabajos")
-    && hero.includes("compras y facturas"),
+  "hero V2 exacto",
+  hero.includes("Capataz, by Orqena · Field OS")
+    && hero.includes("Lo que ocurre en obra se convierte en control.")
+    && hero.includes("Clientes, presupuestos, costes, documentos, facturas y cobros conectados.")
+    && hero.includes("prepara. Tú revisas y confirmas."),
 );
-check("CTA exactas", hero.includes("Ver cómo funciona") && hero.includes("Solicitar acceso"));
+check("CTA V2 exactas", hero.includes("Solicitar demo") && hero.includes("Ver cómo funciona"));
 check(
   "audio a extracción y presupuesto",
   ["Audio", "Extracción", "Presupuesto"].every((label) => hero.includes(`<li>${label}</li>`)),
