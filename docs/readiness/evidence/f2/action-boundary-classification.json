@@ -1891,6 +1891,48 @@
       }
     },
     {
+      "id": "app/(app)/plan-y-uso/actions.ts#scheduleStripeDowngrade",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "scheduleStripeDowngrade",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/stripe-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/plan-y-uso/actions.ts#changeStripeSubscription",
+      "actionFile": "app/(app)/plan-y-uso/actions.ts",
+      "exportName": "changeStripeSubscription",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "requireCapability:company.billing.manage"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/billing/stripe-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
       "id": "app/(app)/plataforma/actions.ts#createSupportGrant",
       "actionFile": "app/(app)/plataforma/actions.ts",
       "exportName": "createSupportGrant",

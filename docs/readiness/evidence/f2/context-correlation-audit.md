@@ -4,9 +4,9 @@ Date: 2026-07-26
 
 ## Boundary coverage
 
-- Server Actions: **32/32 files**, **140/140 exports**, through `executeNextAction` and `withActionOperationContext`.
-- Route handlers: **22/22** through `publicRequestContext`, `internalRequestContext`, or `internalJobRequestContext`.
-- Scheduled/internal job routes: **5/5** with a generated or propagated job ID.
+- Server Actions: **36/36 files** through `executeNextAction` and `withActionOperationContext`.
+- Route handlers: **40/40** through `publicRequestContext`, `internalRequestContext`, `internalJobRequestContext`, or `webhookRequestContext`.
+- Scheduled/internal job routes: **7/7** with a generated or propagated job ID.
 - Webhooks: canonical `webhookRequestContext` plus context-aware verified-webhook persistence.
 - Outbox workers: canonical `withOutboxEventContext`, preserving correlation and assigning event causation/job identity.
 - Platform operations: platform actor and temporary support tenant are bound after server-side authorization.
