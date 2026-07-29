@@ -4,20 +4,22 @@ Plataforma SaaS multiempresa para autónomos y pymes de distintos sectores.
 
 Orqena es un sistema operativo empresarial con asistencia conversacional para organizar clientes, trabajo, ventas, compras, tesorería, agenda, documentos y equipo. Dispone de registro, sesiones opacas, empresa activa persistente validada, capacidades, alcances, planes y entitlements. Las acciones sensibles son revisables y requieren confirmación.
 
-La arquitectura comercial se documenta en `docs/ORQENA_MULTI_COMPANY_ARCHITECTURE.md` y `docs/ORQENA_LAUNCH_READINESS.md`. Billing y correo reales permanecen desacoplados y desactivados.
+La arquitectura comercial se documenta en `docs/ORQENA_MULTI_COMPANY_ARCHITECTURE.md` y `docs/ORQENA_LAUNCH_READINESS.md`. Billing permanece desacoplado y desactivado. La IA real y el correo transaccional se habilitan de forma controlada, con kill switches, allowlist y validación por entorno.
 
 Descriptor: **Tu negocio, en orden.** `/capataz`, `CAPATAZ_*` y determinados nombres históricos se conservan como aliases técnicos compatibles durante la transición.
 
 ## Estado operativo actual
 
 Production está desplegada en `orqenatech.com` y `app.orqenatech.com`.
-Registro público, billing, IA live, fiscal live, analytics e indexación
-permanecen apagados. El estado canónico y la recuperación por snapshots sin
-PITR están en:
+Registro público, billing, fiscal live, analytics e indexación permanecen
+apagados. La IA live está limitada a empresas autorizadas y el correo live a
+recuperación, invitaciones y contacto; no hay campañas ni tracking. El estado
+canónico y la recuperación por snapshots sin PITR están en:
 
 - `docs/readiness/PRODUCTION_STATE.md`;
 - `docs/operations/POST_LAUNCH_CLOSURE.md`;
 - `docs/operations/BACKUP_AND_RESTORE_WITHOUT_PITR.md`.
+- `docs/operations/AI_AND_TRANSACTIONAL_EMAIL_LIVE_CONTROLLED_2026-07-29.md`.
 
 ## Compras, proveedores y subcontratas
 
@@ -406,7 +408,7 @@ La Agenda conecta con:
 - Facturas: vencimientos y seguimientos de cobro.
 - Recordatorios: aparecen como eventos derivados.
 
-No hay integración todavía con Google Calendar, Outlook, WhatsApp ni email. En una fase posterior habrá que añadir sincronización externa, gestión de permisos, resolución de conflictos, webhooks y confirmaciones antes de enviar avisos reales.
+No hay integración todavía con Google Calendar, Outlook ni WhatsApp. El email transaccional se limita a recuperación, invitaciones y contacto; los avisos operativos generales siguen sin envío externo. Cualquier ampliación exige permisos, resolución de conflictos, webhooks y confirmaciones específicas.
 
 ## Fase 4 UX/Productividad
 
@@ -473,9 +475,11 @@ Usar Orqena como app:
 
 IA real controlada:
 
-- `lib/ai/capataz-ai.ts` llama a OpenAI desde servidor, valida JSON estructurado y devuelve intención, entidades, plan de acción, campos pendientes y confirmación.
+- Un único gateway de servidor aplica allowlist por empresa, límites de coste y uso, minimización, redacción, `store=false`, idempotencia y circuit breaker antes de llamar a OpenAI.
+- Los límites iniciales autorizados son 25 EUR al mes globales, 5 EUR al mes por empresa y 50 solicitudes diarias por usuario; los topes de tokens se fijan por entorno.
+- El texto, el razonamiento estructurado y la transcripción usan snapshots aprobados por entorno. La extracción de documentos permanece apagada hasta disponer de un contrato de minimización para bytes.
 - La UI mantiene tarjetas editables para acciones sensibles antes de guardar.
-- El chat guarda mensajes en PostgreSQL antes de interpretar, usa `idempotencyKey` para evitar duplicados y registra tiempos internos por fase en `ChatActionLog`.
+- El chat guarda mensajes en PostgreSQL antes de interpretar, usa `idempotencyKey` para evitar duplicados y registra sólo metadatos operativos seguros.
 - No se ejecutan acciones sensibles sin confirmación explícita.
 
 ## Recorrido demo recomendado
@@ -495,13 +499,13 @@ IA real controlada:
 
 ## Reglas de seguridad del producto
 
-Orqena no envía WhatsApp, email, presupuestos, facturas ni reclamaciones sin confirmación explícita del usuario. En este MVP, los recordatorios externos se guardan como `pendiente_confirmacion`; confirmar sólo los deja programados dentro de la app demo.
+Orqena no envía WhatsApp, presupuestos, facturas ni reclamaciones sin confirmación explícita del usuario. El correo live se limita a recuperación, invitaciones y contacto mediante plantillas transaccionales; los recordatorios externos se guardan como `pendiente_confirmacion` y no se convierten en campañas ni avisos generales.
 
 ## Próximos pasos
 
 - Completar gestión administrativa de miembros y permisos por rol.
 - Preparar storage externo para logos, sellos y uploads reales.
-- Integrar WhatsApp Business y email transaccional.
+- Integrar WhatsApp Business y ampliar el correo transaccional sólo tras nuevos gates explícitos.
 - Integrar Google Calendar y Outlook con consentimiento explícito.
 - Mejorar el motor PDF con plantillas visuales avanzadas y cumplimiento legal definitivo.
 - Añadir Stripe y planes de suscripción.
