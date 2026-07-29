@@ -195,7 +195,7 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
         } });
       }
       return { kind: "acquired" };
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 5_000, timeout: 20_000 });
   }
 
   async completeOperation(input: {

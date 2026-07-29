@@ -34,6 +34,7 @@
     "readiness:validate-f6-static": "node scripts/readiness/validate-f6-static.mjs",
     "readiness:validate-ai-runtime": "tsx scripts/readiness/validate-ai-runtime-smoke.ts",
     "readiness:validate-ai-live": "tsx scripts/readiness/validate-ai-live-smoke.ts",
+    "readiness:validate-email-live": "tsx scripts/readiness/validate-email-live-smoke.ts",
     "readiness:configure-ai-policy": "tsx scripts/readiness/configure-controlled-ai-policy.ts",
     "readiness:validate-f7": "tsx scripts/readiness/validate-f7-product.ts && node scripts/validate-document-pdf.mjs",
     "readiness:validate-f7-postgres": "node scripts/readiness/run-f7-postgres-isolated.mjs",
