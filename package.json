@@ -285,7 +285,7 @@
     "audit-ci": "^7.1.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^10.8.0",
-    "iconv-lite": "0.6.3",
+    "iconv-lite": "0.7.3",
     "license-checker-rseidelsohn": "^5.0.1",
     "playwright-core": "^1.61.1",
     "postcss": "8.5.24",
