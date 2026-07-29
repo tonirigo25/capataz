@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   return publicRequestContext("GET /api/health", undefined, async () => {
-    const commit = process.env.RAILWAY_GIT_COMMIT_SHA?.trim()
+    const commit = process.env.APP_RELEASE_SHA?.trim()
+      || process.env.RAILWAY_GIT_COMMIT_SHA?.trim()
       || process.env.GIT_COMMIT_SHA?.trim()
       || process.env.VERCEL_GIT_COMMIT_SHA?.trim()
       || "unknown";

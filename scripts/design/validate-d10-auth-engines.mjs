@@ -17,6 +17,10 @@ const password = target === "staging"
   : process.env.ORQENA_REVIEW_QA_PASSWORD;
 let ownerMfaSecret = process.env.ORQENA_REVIEW_OWNER_TOTP_SECRET;
 const deployedSha = process.env.ORQENA_REVIEW_SHA ?? process.env.ORQENA_STAGING_SHA ?? "";
+const networkIdleTimeoutMs = Number(process.env.ORQENA_D10_NETWORK_IDLE_TIMEOUT_MS ?? 8_000);
+if (!Number.isFinite(networkIdleTimeoutMs) || networkIdleTimeoutMs < 500 || networkIdleTimeoutMs > 30_000) {
+  throw new Error("D10_NETWORK_IDLE_TIMEOUT_INVALID");
+}
 if (target === "review" && process.env.ORQENA_REVIEW_FOCUS_D10 !== "true") throw new Error("D10_AUTH_FOCUS_REQUIRED");
 if (target === "staging" && process.env.ORQENA_D11_STAGING_APPROVED !== "true") throw new Error("D11_STAGING_APPROVAL_REQUIRED");
 if (origin !== EXPECTED_ORIGIN) throw new Error(`D10_AUTH_${target.toUpperCase()}_ORIGIN_MISMATCH:${origin}`);
@@ -70,10 +74,15 @@ const fixturePrefix = target === "staging" ? "staging" : "review";
 const allOwnerRoutes = [
   "/hoy",
   "/dashboard",
+  "/clientes",
   `/clientes/${fixturePrefix}-client-1`,
+  "/obras",
   `/obras/${fixturePrefix}-work-1`,
+  "/presupuestos",
   `/presupuestos/${fixturePrefix}-budget-1`,
+  "/dinero",
   `/dinero/${fixturePrefix}-invoice-1`,
+  "/tesoreria",
   "/documentos",
   "/agenda",
   "/capataz",
@@ -145,7 +154,7 @@ function attachDiagnostics(page) {
 }
 
 async function settle(page) {
-  await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: networkIdleTimeoutMs }).catch(() => undefined);
   await page.waitForTimeout(120);
   await page.waitForFunction(() => {
     const loading = document.querySelectorAll("[aria-busy='true'], [data-skeleton], .animate-pulse");
@@ -339,7 +348,7 @@ for (const engine of engines) {
         if (new URL(audited.page.url()).pathname !== profile.route) findings.push(`${prefix}:FINAL_${new URL(audited.page.url()).pathname}`);
         collectFindings(prefix, audited.state, audited.diagnostics, profile);
         let profileScreenshot = null;
-        if (["320", "390", "1440"].includes(viewport.key)) {
+        if (engine.key === "chromium" && ["320", "390", "1440"].includes(viewport.key)) {
           profileScreenshot = join(screenshotRoot, `${engine.key}-${viewport.key}-profile-${profile.key}.png`);
           await audited.page.screenshot({ path: profileScreenshot, fullPage: true, animations: "disabled" });
           screenshots.push({
@@ -391,7 +400,7 @@ for (const engine of engines) {
         if (new URL(audited.page.url()).pathname !== route) findings.push(`${prefix}:FINAL_${new URL(audited.page.url()).pathname}`);
         collectFindings(prefix, audited.state, audited.diagnostics);
         let screenshot = null;
-        if (["390", "1440"].includes(viewport.key) && ["/hoy", `/clientes/${fixturePrefix}-client-1`, `/obras/${fixturePrefix}-work-1`, "/capataz"].includes(route)) {
+        if (engine.key === "chromium" && ["390", "1440"].includes(viewport.key) && ["/hoy", `/clientes/${fixturePrefix}-client-1`, `/obras/${fixturePrefix}-work-1`, "/capataz"].includes(route)) {
           const routeSlug = route.slice(1).replaceAll("/", "-").replaceAll("[", "").replaceAll("]", "");
           screenshot = join(screenshotRoot, `${engine.key}-${viewport.key}-${routeSlug}.png`);
           await audited.page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });

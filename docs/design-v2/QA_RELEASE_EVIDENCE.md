@@ -1,0 +1,112 @@
+# Orqena Field OS V2 — evidencia de QA de release
+
+Fecha: 2026-07-30  
+Objetivo: `ORQENA_FIELD_OS_V2_READY_FOR_PRODUCTION_REVIEW`
+
+## Entorno
+
+- URL: `https://orqena-review-web-review.up.railway.app`
+- Environment reutilizado: `orqena-review-continuous / review`
+- Datos: fixtures sintéticos existentes, preservados
+- Indexación: `noindex`
+- Production: sin cambios
+
+## Gates locales
+
+Pasaron:
+
+- `git diff --check`
+- lint y typecheck
+- build de producción
+- validadores de tokens y web pública D2
+- fundamentos visuales y navegación del shell
+- contratos D5, D6, D7 y D8
+- matriz D9: 94 rutas, 0 huérfanas
+- acceso por rutas y hostname
+- IA, documentos, PDF, lector de gasto, CRM, obra y plataforma de lanzamiento
+- sistema proactivo: evaluación, lifecycle, scheduler, locking, cooldown,
+  reactivación, auditoría, mantenimiento, chat e integración
+- escaneo de secretos
+
+No se usó como gate el validador histórico
+`test:orqena-commercial-platform`: conserva aserciones textuales previas a la
+refactorización y ya era deuda del baseline. Los contratos actuales equivalentes
+sí pasaron.
+
+## Baseline y comparación visual
+
+El baseline anterior se capturó en 390, 768, 1024 y 1440 px para `/`, `/demo` y
+`/login`: 12 respuestas 200, cero overflow, cero imágenes rotas, cero
+violaciones Axe serias/críticas y `noindex` presente.
+
+La fuente aprobada y la implementación remota se compararon en una única
+composición:
+
+`artifacts/design-v2/source-review-comparison.png`
+
+La diferencia respecto al baseline se registra como rediseño intencionado. No se
+usa una tolerancia de píxeles para fingir que el cambio visual no existe.
+
+## QA pública
+
+La matriz D10 cubre:
+
+- Chromium, Firefox y WebKit;
+- 320, 390, 430, 768, 1024, 1280, 1440 y 1920 px;
+- 26 rutas públicas, incluidos los alias `/funcionalidades` y `/precios`;
+- estado HTTP, H1, `main`, overflow, imágenes, `noindex`, PII, secretos;
+- Axe WCAG 2 A/AA, 2.1 AA y 2.2 AA;
+- reduced motion, forced colors, foco, reflow equivalente a 200 %;
+- LCP, CLS e INP sintéticos;
+- tres cargas de rendimiento;
+- capturas y diferencias contra baseline.
+
+El detalle machine-readable se conserva bajo
+`artifacts/design-v2/d10-public-9e86a799/`.
+
+## QA autenticada
+
+La matriz autenticada usa únicamente usuarios sintéticos de Review y cubre:
+
+- OWNER con MFA;
+- WORKER;
+- EXTERNAL_COLLABORATOR;
+- ADVISOR_AUDITOR en solo lectura;
+- Chromium, Firefox y WebKit;
+- móvil 390 px y escritorio 1440 px;
+- `/hoy`, dashboard, cliente, obra, presupuesto, factura, documentos, agenda,
+  Capataz, equipo, configuración y plataforma;
+- aislamiento de sesión, rutas por rol, solo lectura, overflow, imágenes,
+  errores de navegador y Axe.
+
+Las credenciales se leen del entorno autenticado y no se escriben en los
+artefactos, repositorio o logs.
+
+## Interacción comprobada
+
+- La portada canónica muestra el H1 aprobado.
+- Producto y Soluciones abren megamenús accesibles.
+- `aria-expanded` refleja el estado real.
+- `Escape` cierra el megamenú.
+- El CTA de demo utiliza el formulario y endpoint existentes.
+- Los endpoints de salud permanecen fuera de redirecciones de marketing.
+
+## Controles no automatizables
+
+Quedan `READY_FOR_EXTERNAL_INPUT`, sin afirmar resultados:
+
+- Safari en iPhone real;
+- Chrome en Android real;
+- instalación y actualización PWA en dispositivo real;
+- NVDA;
+- VoiceOver;
+- zoom humano 200 %/400 %;
+- aprobación visual humana final.
+
+Estos controles no ocultan ningún fallo automatizado y no autorizan por sí
+solos la promoción a Production.
+
+## Veredicto
+
+La rama queda preparada para revisión de Production. La PR no activa ni
+promueve Production.

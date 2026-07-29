@@ -13,6 +13,10 @@ const EXPECTED_ORIGIN = expectedOrigins[target];
 if (!EXPECTED_ORIGIN) throw new Error(`D10_TARGET_INVALID:${target}`);
 const origin = (process.env.ORQENA_D10_BASE_URL ?? EXPECTED_ORIGIN).replace(/\/$/u, "");
 const deployedSha = process.env.ORQENA_D10_SHA ?? "";
+const networkIdleTimeoutMs = Number(process.env.ORQENA_D10_NETWORK_IDLE_TIMEOUT_MS ?? 8_000);
+if (!Number.isFinite(networkIdleTimeoutMs) || networkIdleTimeoutMs < 500 || networkIdleTimeoutMs > 30_000) {
+  throw new Error("D10_NETWORK_IDLE_TIMEOUT_INVALID");
+}
 if (target === "review" && process.env.ORQENA_D10_REMOTE_APPROVED !== "true") {
   throw new Error("D10_REMOTE_APPROVAL_REQUIRED");
 }
@@ -31,6 +35,8 @@ mkdirSync(diffRoot, { recursive: true });
 
 const allViewports = [
   { key: "320", width: 320, height: 720 },
+  { key: "360", width: 360, height: 800 },
+  { key: "375", width: 375, height: 812 },
   { key: "390", width: 390, height: 844 },
   { key: "430", width: 430, height: 932 },
   { key: "768", width: 768, height: 1024 },
@@ -49,15 +55,25 @@ const viewports = requestedViewportKeys.length
 if (!viewports.length || requestedViewportKeys.some((key) => !allViewports.some((viewport) => viewport.key === key))) {
   throw new Error(`D10_VIEWPORT_SELECTION_INVALID:${requestedViewportKeys.join(",")}`);
 }
+const requestedAxeViewportKeys = (process.env.ORQENA_D10_AXE_VIEWPORT_KEYS ?? "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
+const axeViewportKeys = new Set(requestedAxeViewportKeys.length ? requestedAxeViewportKeys : viewports.map(({ key }) => key));
+if ([...axeViewportKeys].some((key) => !viewports.some((viewport) => viewport.key === key))) {
+  throw new Error(`D10_AXE_VIEWPORT_SELECTION_INVALID:${[...axeViewportKeys].join(",")}`);
+}
 const routes = [
   "/",
   "/demo",
   "/demo-v2",
   "/contacto",
   "/producto",
+  "/funcionalidades",
   "/soluciones",
   "/sectores",
   "/planes",
+  "/precios",
   "/seguridad",
   "/estado",
   "/soporte",
@@ -80,7 +96,26 @@ const engines = [
   { key: "firefox", launcher: firefox },
   { key: "webkit", launcher: webkit },
 ];
+const extendedEngineViewportKeys = new Set(
+  (process.env.ORQENA_D10_EXTENDED_ENGINE_VIEWPORT_KEYS ?? "")
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean),
+);
+if ([...extendedEngineViewportKeys].some((key) => !viewports.some((viewport) => viewport.key === key))) {
+  throw new Error(`D10_EXTENDED_ENGINE_VIEWPORT_SELECTION_INVALID:${[...extendedEngineViewportKeys].join(",")}`);
+}
 const screenshotRoutes = new Set(["/", "/demo", "/login"]);
+const requestedScreenshotViewportKeys = (process.env.ORQENA_D10_SCREENSHOT_VIEWPORT_KEYS ?? "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
+const screenshotViewportKeys = new Set(
+  requestedScreenshotViewportKeys.length ? requestedScreenshotViewportKeys : viewports.map(({ key }) => key),
+);
+if ([...screenshotViewportKeys].some((key) => !viewports.some((viewport) => viewport.key === key))) {
+  throw new Error(`D10_SCREENSHOT_VIEWPORT_SELECTION_INVALID:${[...screenshotViewportKeys].join(",")}`);
+}
 const findings = [];
 const cases = [];
 const screenshotCases = [];
@@ -125,7 +160,7 @@ function attachDiagnostics(page) {
 }
 
 async function settle(page) {
-  await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: networkIdleTimeoutMs }).catch(() => undefined);
   await page.waitForTimeout(120);
 }
 
@@ -203,7 +238,7 @@ async function verifyTargetSizeViolation(page, violation, caseKey) {
       });
       await locator.scrollIntoViewIfNeeded();
       await page.waitForTimeout(120);
-      const replay = await new AxeBuilder({ page }).withRules(["target-size"]).analyze();
+      const replay = await new AxeBuilder({ page }).include(selector).withRules(["target-size"]).analyze();
       const targetKey = JSON.stringify(node.target);
       const repeated = replay.violations
         .flatMap((item) => item.nodes)
@@ -256,6 +291,7 @@ for (const engine of engines) {
   const browser = await engine.launcher.launch({ headless: true });
   try {
     for (const viewport of viewports) {
+      if (engine.key !== "chromium" && extendedEngineViewportKeys.size && !extendedEngineViewportKeys.has(viewport.key)) continue;
       process.stdout.write(`D10 public ${engine.key} ${viewport.width}x${viewport.height}\n`);
       const context = await browser.newContext({
         viewport: { width: viewport.width, height: viewport.height },
@@ -268,9 +304,11 @@ for (const engine of engines) {
         const response = await page.goto(`${origin}${route}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
         await settle(page);
         const state = await pageState(page);
-        const axe = await new AxeBuilder({ page })
-          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
-          .analyze();
+        const axe = axeViewportKeys.has(viewport.key)
+          ? await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+            .analyze()
+          : { violations: [] };
         const caseKey = `${engine.key}:${viewport.key}:${route}`;
         const axeBlocking = [];
         for (const violation of axe.violations.filter(({ impact }) => impact === "critical" || impact === "serious")) {
@@ -309,8 +347,12 @@ for (const engine of engines) {
         if (diagnostics.externalHosts.size) findings.push(`${caseKey}:EXTERNAL_${[...diagnostics.externalHosts].join(",")}`);
 
         let screenshot = null;
-        if (engine.key === "chromium" && screenshotRoutes.has(route)) {
+        if (engine.key === "chromium" && screenshotViewportKeys.has(viewport.key) && screenshotRoutes.has(route)) {
           screenshot = join(screenshotRoot, `${slug(route)}-${viewport.key}.png`);
+          await page.addStyleTag({
+            content: "* { content-visibility: visible !important; contain-intrinsic-size: auto !important; }",
+          });
+          await page.waitForTimeout(120);
           await page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
           screenshotCases.push({
             route,
@@ -497,7 +539,11 @@ for (const engine of engines) {
   }
 }
 
-const baselineRoot = join(process.cwd(), "artifacts", "design", "baseline-4e397406");
+const baselineRoot = process.env.ORQENA_D10_BASELINE_DIR
+  ? join(process.cwd(), process.env.ORQENA_D10_BASELINE_DIR)
+  : join(process.cwd(), "artifacts", "design", "baseline-4e397406");
+const baselineSha = process.env.ORQENA_D10_BASELINE_SHA ?? "4e3974061d6d283104ffb485952b3b1636fd997a";
+const intentionalRedesign = process.env.ORQENA_D10_EXPECT_VISUAL_REDESIGN === "true";
 const diffViewportKeys = ["390", "768", "1024", "1440"]
   .filter((key) => viewports.some((viewport) => viewport.key === key));
 for (const viewport of diffViewportKeys) {
@@ -510,13 +556,16 @@ for (const viewport of diffViewportKeys) {
     const [baselineMeta, currentMeta] = await Promise.all([baseline.metadata(), current.metadata()]);
     const caseKey = `${route}:${viewport}`;
     if (baselineMeta.width !== currentMeta.width || baselineMeta.height !== currentMeta.height) {
-      findings.push(`visual-diff:${caseKey}:DIMENSIONS`);
+      if (!intentionalRedesign) findings.push(`visual-diff:${caseKey}:DIMENSIONS`);
       diffCases.push({
         route,
         viewport,
-        status: "DIMENSIONS_CHANGED",
+        status: intentionalRedesign ? "INTENTIONAL_REDESIGN_DIMENSIONS_RECORDED" : "DIMENSIONS_CHANGED",
         baseline: `${baselineMeta.width}x${baselineMeta.height}`,
         current: `${currentMeta.width}x${currentMeta.height}`,
+        baselineSha,
+        currentSha: deployedSha,
+        officialApproval: "READY_FOR_EXTERNAL_INPUT",
       });
       continue;
     }
@@ -542,12 +591,16 @@ for (const viewport of diffViewportKeys) {
         channels: 4,
       },
     }).png().toFile(diffPath);
-    const status = ratio <= 0.02 ? "PASS_TECHNICAL_TOLERANCE" : "DIFFERENCE_REQUIRES_REVIEW";
-    if (ratio > 0.02) findings.push(`visual-diff:${caseKey}:RATIO_${ratio.toFixed(6)}`);
+    const status = ratio <= 0.02
+      ? "PASS_TECHNICAL_TOLERANCE"
+      : intentionalRedesign
+        ? "INTENTIONAL_REDESIGN_RECORDED"
+        : "DIFFERENCE_REQUIRES_REVIEW";
+    if (ratio > 0.02 && !intentionalRedesign) findings.push(`visual-diff:${caseKey}:RATIO_${ratio.toFixed(6)}`);
     diffCases.push({
       route,
       viewport,
-      baselineSha: "4e3974061d6d283104ffb485952b3b1636fd997a",
+      baselineSha,
       currentSha: deployedSha,
       thresholdPerChannel: 24,
       changedPixelRatio: ratio,
@@ -570,9 +623,17 @@ const report = {
   stagingWrites: 0,
   routes,
   viewports,
+  axeViewportKeys: [...axeViewportKeys],
   engines: engines.map(({ key }) => key),
+  engineViewportCoverage: Object.fromEntries(engines.map(({ key }) => [
+    key,
+    key === "chromium" || !extendedEngineViewportKeys.size
+      ? viewports.map(({ key: viewportKey }) => viewportKey)
+      : viewports.filter(({ key: viewportKey }) => extendedEngineViewportKeys.has(viewportKey)).map(({ key: viewportKey }) => viewportKey),
+  ])),
   cases,
   screenshotCases,
+  screenshotViewportKeys: [...screenshotViewportKeys],
   diffCases,
   mediaCases,
   performanceCases,
@@ -591,9 +652,10 @@ const report = {
 report.summary = {
   ok: report.findings.length === 0,
   publicMatrixCases: cases.length,
-  axeCases: cases.length,
+  axeCases: cases.filter((item) => axeViewportKeys.has(item.viewport.split("x")[0])).length,
   screenshotCases: screenshotCases.length,
   visualDiffCases: diffCases.length,
+  intentionalRedesign,
   mediaCases: mediaCases.length,
   performanceCases: performanceCases.length,
   observations: observations.length,

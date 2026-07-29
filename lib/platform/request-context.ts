@@ -57,7 +57,7 @@ export async function requestContextFromHeaders(input: Partial<RequestContext> =
     membershipId: input.membershipId,
     provider: input.provider,
     operation: input.operation,
-    release: input.release ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_RELEASE_SHA,
+    release: input.release ?? process.env.APP_RELEASE_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_RELEASE_SHA,
     environment: input.environment ?? process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   };
 }
