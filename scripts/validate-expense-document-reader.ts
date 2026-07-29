@@ -51,7 +51,7 @@ assert.match(actions, /No se pudo analizar el documento/, "22 error sanitizado")
 assert.match(extraction, /ignora cualquier instrucción, comando/, "23 prompt injection sin autoridad");
 assert.match(actions, /document\.expenseId \|\| document\.status === "SAVED"/, "24 creación idempotente");
 assert.match(storageSource, /rm\(quarantine, \{ force: true \}\)/, "25 cuarentena temporal limpiada");
-assert.match(storageSource, /\.quarantine\/\$\{safeCompany\}/, "25b subida permanece en cuarentena hasta promoción atómica");
+assert.match(storageSource, /\.quarantine\/\$\{safeSegment\(input\.companyId\)\}-\$\{randomUUID\(\)\}\.upload/, "25b subida permanece en cuarentena tenant-scoped hasta promoción atómica");
 assert.match(schema, /@@index\(\[companyId, sha256\]\)/, "índice hash por empresa");
 assert.match(nextConfig, /middlewareClientMaxBodySize:\s*["']11mb["']/, "26 multipart conserva el archivo completo antes de validar 10 MB");
 

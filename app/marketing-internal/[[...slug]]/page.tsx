@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
@@ -8,11 +7,8 @@ import {
   Check,
   FileCheck2,
   HardHat,
-  LockKeyhole,
-  MessageSquareText,
   ReceiptText,
   Route,
-  ShieldCheck,
   Sparkles,
   UsersRound,
   Wrench,
@@ -20,6 +16,10 @@ import {
 import { LaunchContactForm } from "@/components/marketing/launch-contact-form";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { getLegalConfiguration } from "@/lib/marketing/legal";
+import { HeroDemo } from "@/app/marketing-v2/_components/hero-demo";
+import { LandingSections, MarketingFooter as FieldOsMarketingFooter } from "@/app/marketing-v2/_components/landing-sections";
+import { MarketingHeader as FieldOsMarketingHeader } from "@/app/marketing-v2/_components/marketing-header";
+import fieldOsStyles from "@/app/marketing-v2/page.module.css";
 
 const MARKETING_URL = "https://orqenatech.com";
 const APP_URL = "https://app.orqenatech.com";
@@ -106,40 +106,16 @@ function HomePage() {
     { "@type": "SoftwareApplication", name: "Capataz", applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${MARKETING_URL}/capataz` },
   ].filter(Boolean);
   return (
-    <MarketingPage>
+    <div className={fieldOsStyles.page} id="top">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": structuredData }) }} />
-      <section className="launch-hero">
-        <div className="marketing-container launch-hero-grid">
-          <div>
-            <p className="marketing-eyebrow">Capataz, by Orqena</p>
-            <h1>El trabajo real, conectado de principio a fin.</h1>
-            <p className="launch-lede">Clientes, trabajos, documentos, agenda y control económico comparten contexto. Capataz prepara; tú revisas y confirmas.</p>
-            <div className="launch-actions">
-              <a className="marketing-button" href={`${APP_URL}/login`}>Acceder a Capataz <ArrowRight size={18} /></a>
-              <a className="marketing-outline-button" href={`${APP_URL}/registro`}>Solicitar alta</a>
-            </div>
-            <small>Acceso por invitación o disponibilidad configurada en la aplicación.</small>
-          </div>
-          <div className="launch-hero-panel" aria-label="Flujo conectado de Capataz">
-            <div><UsersRound /><span><strong>Cliente</strong><small>Historia y siguiente paso</small></span></div>
-            <div><HardHat /><span><strong>Trabajo</strong><small>Equipo, agenda y avance</small></span></div>
-            <div><FileCheck2 /><span><strong>Documento</strong><small>Origen y relación visibles</small></span></div>
-            <div><ReceiptText /><span><strong>Control económico</strong><small>Importes registrados, no inventados</small></span></div>
-          </div>
-        </div>
-      </section>
-      <Principles />
-      <section className="marketing-container launch-section">
-        <SectionHeading eyebrow="Capataz" title="Una sola operación, sin reconstruir el contexto en cada pantalla." description="La información se relaciona por empresa, responsabilidad y permiso. Las acciones sensibles siguen bajo confirmación humana." />
-        <div className="launch-feature-grid">
-          <Feature icon={Route} title="Recorrido conectado" text="Cliente, oportunidad, trabajo, documento y cobro conservan sus relaciones." />
-          <Feature icon={ShieldCheck} title="Empresa aislada" text="El contexto activo y los permisos se comprueban en el servidor." />
-          <Feature icon={Sparkles} title="Asistencia controlada" text="Capataz propone y explica fuentes antes de una acción sensible." />
-        </div>
-      </section>
-      <AudienceBand />
-      <FinalCta />
-    </MarketingPage>
+      <a className={fieldOsStyles.skipLink} href="#main-content">Saltar al contenido</a>
+      <FieldOsMarketingHeader />
+      <main id="main-content" className={fieldOsStyles.mainContent} tabIndex={-1}>
+        <HeroDemo />
+        <LandingSections />
+      </main>
+      <FieldOsMarketingFooter />
+    </div>
   );
 }
 
@@ -281,30 +257,6 @@ function StatusPage() {
   );
 }
 
-function Principles() {
-  return (
-    <section className="launch-principles" aria-label="Principios de Capataz">
-      <div className="marketing-container">
-        <span><LockKeyhole />Sesión host-only</span>
-        <span><ShieldCheck />Aislamiento por empresa</span>
-        <span><MessageSquareText />Confirmación humana</span>
-        <span><FileCheck2 />Trazabilidad real</span>
-      </div>
-    </section>
-  );
-}
-
-function AudienceBand() {
-  return (
-    <section className="launch-audience-band">
-      <div className="marketing-container">
-        <Link href="/para-autonomos"><span>Para autónomos</span><strong>Conservar el hilo sin añadir más herramientas.</strong><ArrowRight /></Link>
-        <Link href="/para-empresas"><span>Para empresas</span><strong>Coordinar responsabilidades sin mezclar accesos.</strong><ArrowRight /></Link>
-      </div>
-    </section>
-  );
-}
-
 function FinalCta() {
   return (
     <section className="marketing-container launch-final-cta">
@@ -316,10 +268,6 @@ function FinalCta() {
 
 function PageHero({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return <section className="launch-page-hero"><div className="marketing-container"><p className="marketing-eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div></section>;
-}
-
-function SectionHeading({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
-  return <div className="launch-section-heading"><p className="marketing-eyebrow">{eyebrow}</p><h2>{title}</h2><p>{description}</p></div>;
 }
 
 function Feature({ icon: Icon, title, text }: { icon: typeof Route; title: string; text: string }) {

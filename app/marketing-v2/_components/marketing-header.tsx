@@ -39,7 +39,7 @@ const mobileNavigation = [
   ["Precios", "/precios"],
   ["Demo", "/demo"],
   ["Seguridad", "/seguridad"],
-  ["Empresa", "/empresa"],
+  ["Empresa", "/contacto"],
 ] as const;
 
 type OpenMenu = "product" | "solutions" | null;
@@ -126,8 +126,8 @@ export function MarketingHeader() {
             ) : null}
           </div>
           <Link href="/precios">Precios</Link>
-          <Link href="/recursos">Recursos</Link>
-          <Link href="/empresa">Empresa</Link>
+          <Link href="/seguridad">Recursos</Link>
+          <Link href="/contacto">Empresa</Link>
         </nav>
 
         <div className={styles.headerActions}>

@@ -7,6 +7,8 @@ const landing = read("app/marketing-v2/_components/landing-sections.tsx");
 const story = read("app/marketing-v2/_components/immersive-journey.tsx");
 const demo = read("app/demo-v2/_components/guided-demo.tsx");
 const homePage = read("app/page.tsx");
+const canonicalMarketingHome = read("app/marketing-internal/[[...slug]]/page.tsx");
+const hostRouting = read("lib/host-routing.ts");
 const demoPage = read("app/demo/page.tsx");
 const form = read("components/marketing/demo-request-form.tsx");
 const budget = JSON.parse(read("contracts/observability/v1/web-performance-budget.json"));
@@ -82,6 +84,13 @@ check(
     && homePage.includes('"@type": "WebApplication"')
     && demoPage.includes('type="application/ld+json"')
     && demoPage.includes('"@type": "SoftwareApplication"'),
+);
+check(
+  "host público canónico usa Field OS V2 y acepta captación protegida",
+  canonicalMarketingHome.includes("<FieldOsMarketingHeader />")
+    && canonicalMarketingHome.includes("<HeroDemo />")
+    && canonicalMarketingHome.includes("<LandingSections />")
+    && hostRouting.includes('"/api/demo-requests"'),
 );
 check("sin imágenes sin dimensiones", ![hero, landing, story, demo].some((source) => /<img\b/iu.test(source)));
 check(

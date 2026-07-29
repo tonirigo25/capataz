@@ -94,7 +94,7 @@ const SHARED_HEALTH_PATHS = new Set([
   "/api/health/live",
   "/api/health/ready",
 ]);
-const MARKETING_API_PATHS = new Set(["/api/marketing/contact"]);
+const MARKETING_API_PATHS = new Set(["/api/marketing/contact", "/api/demo-requests"]);
 
 export type HostRoutingDecision =
   | { action: "pass"; site: "app" | "marketing" | "platform" }
