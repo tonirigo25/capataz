@@ -6,11 +6,13 @@ const root = process.cwd();
 const securityPolicyPath = join(root, "SECURITY.md");
 const routePath = join(root, "app", ".well-known", "security.txt", "route.ts");
 const hostRoutingPath = join(root, "lib", "host-routing.ts");
+const requestHostPath = join(root, "lib", "security", "request-host.ts");
 const publicPolicyPath = join(root, "app", "seguridad", "page.tsx");
 
 const securityPolicy = readFileSync(securityPolicyPath, "utf8");
 const route = readFileSync(routePath, "utf8");
 const hostRouting = readFileSync(hostRoutingPath, "utf8");
+const requestHost = readFileSync(requestHostPath, "utf8");
 const publicPolicy = readFileSync(publicPolicyPath, "utf8");
 
 function stringConstant(name) {
@@ -60,6 +62,9 @@ for (const [hostname, canonical] of canonicalEntries) {
 }
 assert.ok(!allowedHosts.includes("untrusted.example"), "UNTRUSTED_HOST_ALLOWED");
 assert.match(hostRouting, /\/\.well-known\/security\.txt/u, "SECURITY_TXT_NOT_SHARED_BY_HOST_ROUTING");
+assert.match(route, /headers\.get\("x-forwarded-host"\)/u, "SECURITY_TXT_FORWARDED_HOST_MISSING");
+assert.match(route, /resolveExternalRequestHost/u, "SECURITY_TXT_EXTERNAL_HOST_RESOLVER_MISSING");
+assert.match(requestHost, /normalizeRequestHost/u, "SECURITY_TXT_HOST_NORMALIZATION_MISSING");
 
 const policyUrl = new URL(policy);
 if (policyUrl.hostname === "orqenatech.com") {

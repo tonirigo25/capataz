@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveExternalRequestHost } from "@/lib/security/request-host";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,11 @@ export function buildSecurityText(canonical: string) {
 
 export function GET(request: NextRequest) {
   return publicRequestContext("GET /.well-known/security.txt", request, async () => {
-    const hostname = request.nextUrl.hostname.toLowerCase();
+    const hostname = resolveExternalRequestHost({
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      host: request.headers.get("host"),
+      urlHostname: request.nextUrl.hostname,
+    });
     const canonical = SECURITY_CANONICALS[hostname as keyof typeof SECURITY_CANONICALS];
     if (!canonical) {
       return new NextResponse("Not found\n", {
