@@ -57,7 +57,7 @@ docker run --rm \
   --mount "type=bind,source=${payload_dir},target=/backup,readonly" \
   "${postgres_image}" \
   pg_restore --list /backup/database.dump >"${archive_list}"
-server_version="$(sed -n 's/^; Dumped from database version: //p' "${archive_list}" | head -n 1 | tr -d '\r\n')"
+server_version="$(sed -n 's/^;[[:space:]]*Dumped from database version:[[:space:]]*//p' "${archive_list}" | head -n 1 | tr -d '\r\n')"
 if [[ -z "${server_version}" ]]; then
   echo "::error::Unable to derive the PostgreSQL server version from the dump archive."
   exit 1

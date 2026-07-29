@@ -34,11 +34,20 @@ for (const script of [backup, fallback]) {
   assert.match(script, /PG_DUMP_ARCHIVE/u);
   assert.match(script, /Dumped from database version/u);
 }
+assert.match(backup, /\^;\[\[:space:\]\]\*Dumped from database version:/u);
+assert.match(fallback, /\^;\\s\*Dumped from database version:/u);
 assert.match(restore, /restic restore "\$\{snapshot_id\}"/u);
 assert.doesNotMatch(restore, /restic restore latest/u);
 for (const workflow of [backupWorkflow, maintenanceWorkflow]) {
   assert.match(workflow, /group: production-backup-repository/u);
 }
+assert.match(backupWorkflow, /^\s+pull_request:$/mu);
+assert.match(backupWorkflow, /^\s+backup-contract:$/mu);
+assert.match(backupWorkflow, /^\s+encrypted-production-snapshot:$/mu);
+assert.match(backupWorkflow, /^\s+production-backup:$/mu);
+assert.match(backupWorkflow, /needs:\s*\n\s+- backup-contract\s*\n\s+- encrypted-production-snapshot/u);
+assert.match(backupWorkflow, /EVENT_NAME: \$\{\{ github\.event_name \}\}/u);
+assert.doesNotMatch(backupWorkflow, /pull_request_target/u);
 
 const temporaryDirectory = mkdtempSync(join(tmpdir(), "orqena-migration-metadata-"));
 try {

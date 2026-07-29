@@ -35,8 +35,9 @@ referencia circular falsa.
 
 - CI de `main` run `30409864258`: `SUCCESS`.
 - Security and supply chain run `30409864259`: `SUCCESS`.
-- Railway Production `Wait for CI`: activado el 2026-07-29; el flujo espera
-  los workflows de `main`, incluido el snapshot previo al deploy.
+- Railway Production `Wait for CI`: activado el 2026-07-29; el ruleset exige
+  el check agregador `production-backup`, que en `main` sólo pasa después del
+  snapshot cifrado previo al deploy.
 - `/`, `/login`, `/api/health/live` y `/api/health/ready`: HTTP 200.
 - Certificado TLS del hostname productivo: válido.
 - Railway ejecutó `npm run db:deploy` como predeploy; encontró 44 migraciones

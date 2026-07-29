@@ -117,7 +117,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "pg_restore validation failed."
     }
-    $serverVersionMatch = [regex]::Match($archiveList, "(?m)^; Dumped from database version: (.+)\r?$")
+    $serverVersionMatch = [regex]::Match($archiveList, "(?m)^;\s*Dumped from database version:\s*(.+)\r?$")
     if (-not $serverVersionMatch.Success) {
         throw "Unable to derive the PostgreSQL server version from the dump archive."
     }
