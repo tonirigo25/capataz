@@ -34,6 +34,15 @@ async function main() {
     prisma.user.create({ data: { email: `f6-a-${suffix}@example.invalid`, emailNormalized: `f6-a-${suffix}@example.invalid`, passwordHash: "synthetic-only", displayName: "F6 Alpha", status: "active" } }),
     prisma.user.create({ data: { email: `f6-b-${suffix}@example.invalid`, emailNormalized: `f6-b-${suffix}@example.invalid`, passwordHash: "synthetic-only", displayName: "F6 Beta", status: "active" } }),
   ]);
+  await prisma.companyEntitlementOverride.create({
+    data: {
+      companyId: companyA.id,
+      key: "monthly_orqena_actions",
+      type: "INTEGER",
+      value: 500,
+      reason: "isolated F6 AI governance validation",
+    },
+  });
   for (const company of [companyA, companyB]) await prisma.companyAiPolicy.create({
     data: {
       companyId: company.id,
@@ -41,7 +50,7 @@ async function main() {
       killSwitch: false,
       allowedPurposes: ["chat-command"],
       prohibitedData: ["rawDocument", "bankAccount"],
-      approvedModels: ["gpt-4.1-mini", "gpt-5.5"],
+      approvedModels: ["gpt-5-mini", "gpt-5.1", "gpt-4o-mini-transcribe"],
       allowedRoles: ["OWNER"],
       allowedScopes: ["orqena.use"],
       allowedFields: { "chat-command": ["message", "context"] },

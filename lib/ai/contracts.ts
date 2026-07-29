@@ -1,4 +1,4 @@
-export type AiLane = "fast" | "reasoning";
+export type AiLane = "fast" | "reasoning" | "transcription";
 export type AiClassification = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

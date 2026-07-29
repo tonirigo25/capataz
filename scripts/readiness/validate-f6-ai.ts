@@ -92,8 +92,8 @@ async function main() {
 }
 
 {
-  const fast = resolveAiModel({ lane: "fast", approvedModels: ["gpt-4.1-mini"], live: false });
-  const reasoning = resolveAiModel({ lane: "reasoning", approvedModels: ["gpt-5.5"], live: false });
+  const fast = resolveAiModel({ lane: "fast", approvedModels: ["gpt-5-mini"], live: false });
+  const reasoning = resolveAiModel({ lane: "reasoning", approvedModels: ["gpt-5.1"], live: false });
   check("central-model-selection", fast.logicalModel === "orqena-fast-v1" && reasoning.logicalModel === "orqena-reasoning-v1");
   check("explicit-reasoning-escalation", shouldEscalateToReasoning({ lane: "fast", ambiguityScore: 0.8 }) && !shouldEscalateToReasoning({ lane: "reasoning", requested: true }));
 }
@@ -238,7 +238,7 @@ for (const [name, mutate, code] of [
   const dataset = JSON.parse(await readFile(datasetPath, "utf8")) as { datasetVersion: string; classification: string; fixtures: SyntheticEvalFixture[] };
   const first = runSyntheticEvaluation(dataset.fixtures);
   const second = runSyntheticEvaluation(dataset.fixtures);
-  check("versioned-synthetic-dataset", dataset.datasetVersion === "1.0.0" && dataset.classification === "SYNTHETIC_ONLY");
+  check("versioned-synthetic-dataset", dataset.datasetVersion === "1.1.0" && dataset.classification === "SYNTHETIC_ONLY");
   check("reproducible-evaluation", first.datasetHash === second.datasetHash && first.failed === 0 && first.total >= 9);
   check("adversarial-corpus", dataset.fixtures.some((fixture) => fixture.kind === "adversarial") && dataset.fixtures.some((fixture) => fixture.kind === "ambiguous"));
 }

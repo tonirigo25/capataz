@@ -41,6 +41,7 @@ export type ChatCommandResult = {
   text: string;
   result?: ChatActionResult;
   diagnostics?: ChatRouteDiagnostics;
+  aiDisclosure?: AiDisclosure;
   created?: {
     clientId?: string;
     workId?: string;
@@ -51,6 +52,14 @@ export type ChatCommandResult = {
   };
   context?: ChatCommandContext | null;
   clearContext?: boolean;
+};
+
+export type AiDisclosure = {
+  prepared: true;
+  caseUse: string;
+  model: string;
+  dataUsed: string[];
+  reviewRequired: true;
 };
 
 type ChatRouteDiagnostics = {
@@ -98,6 +107,7 @@ export type ChatHistoryMessage = {
   createdAt: string;
   metadata?: unknown;
   result?: ChatActionResult;
+  aiDisclosure?: AiDisclosure;
 };
 
 export type ChatHistoryConversation = {

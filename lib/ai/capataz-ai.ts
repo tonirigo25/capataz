@@ -1,4 +1,6 @@
-import { openAiHttpRequest } from "@/lib/ai/openai-transport";
+import { AiGatewayError, type StrictJsonSchema } from "@/lib/ai/contracts";
+import { stableReference } from "@/lib/ai/redaction";
+import { executeRuntimeAiRequest, readRuntimeAiControl, runtimeAiStatus } from "@/lib/ai/runtime-gateway";
 
 export const capatazAIIntents = [
   "crear_cliente",
@@ -118,6 +120,16 @@ export type CapatazAIInterpretInput = {
   message: string;
   context?: unknown;
   data?: CapatazAIContext;
+  governance: {
+    companyId: string;
+    actorId: string;
+    role: string;
+    scopes: string[];
+    requestId: string;
+    correlationId: string;
+    causationId?: string;
+    idempotencyKey: string;
+  };
 };
 
 export type CapatazAIDiagnostics = {
@@ -131,6 +143,7 @@ export type CapatazAIDiagnostics = {
   reasoningEffort?: string;
   escalated?: boolean;
   escalationReason?: string;
+  usageEventId?: string;
 };
 
 type CompactIntent = CapatazAIIntent;
@@ -387,7 +400,8 @@ const extractionProfiles: Record<ExtractionProfile["id"], ExtractionProfile> = {
 };
 
 export function isCapatazAIConfigured() {
-  return Boolean(process.env.OPENAI_API_KEY);
+  const status = runtimeAiStatus();
+  return status.configured && status.enabled && status.liveConfigurationComplete;
 }
 
 export function getCapatazAIModel() {
@@ -395,11 +409,11 @@ export function getCapatazAIModel() {
 }
 
 export function getCapatazAIFastModel() {
-  return process.env.OPENAI_MODEL_FAST || "gpt-4.1-mini";
+  return process.env.OPENAI_MODEL_FAST || "gpt-5-mini";
 }
 
 export function getCapatazAIReasoningModel() {
-  return process.env.OPENAI_MODEL_REASONING || process.env.OPENAI_MODEL || "gpt-5.5";
+  return process.env.OPENAI_MODEL_REASONING || process.env.OPENAI_MODEL || "gpt-5.1";
 }
 
 export function getCapatazAIReasoningEffort() {
@@ -407,8 +421,11 @@ export function getCapatazAIReasoningEffort() {
 }
 
 export function getCapatazAIStatus() {
+  const runtime = runtimeAiStatus();
   return {
-    configured: isCapatazAIConfigured(),
+    configured: runtime.configured,
+    enabled: runtime.enabled,
+    liveConfigurationComplete: runtime.liveConfigurationComplete,
     model: getCapatazAIReasoningModel(),
     fastModel: getCapatazAIFastModel(),
     reasoningModel: getCapatazAIReasoningModel(),
@@ -419,36 +436,19 @@ export function getCapatazAIStatus() {
 }
 
 export async function checkCapatazAIModels() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return {
-      ok: false,
-      fast: { model: getCapatazAIFastModel(), ok: false, error: "missing_OPENAI_API_KEY" },
-      reasoning: { model: getCapatazAIReasoningModel(), ok: false, error: "missing_OPENAI_API_KEY" }
-    };
-  }
-
-  const [fast, reasoning] = await Promise.all([
-    pingOpenAIModel(apiKey, getCapatazAIFastModel(), "fast"),
-    pingOpenAIModel(apiKey, getCapatazAIReasoningModel(), "reasoning")
-  ]);
-
+  const status = runtimeAiStatus();
   return {
-    ok: fast.ok && reasoning.ok,
-    fast,
-    reasoning
+    ok: status.liveConfigurationComplete,
+    checkMode: "configuration-only",
+    fast: { model: status.fastModel, ok: status.liveConfigurationComplete },
+    reasoning: { model: status.reasoningModel, ok: status.liveConfigurationComplete },
+    transcription: { model: status.transcriptionModel, ok: status.liveConfigurationComplete },
   };
 }
 
 export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInput): Promise<CapatazAIResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY no esta configurada");
-  }
-
   const fast = await runCompactExtraction({
     input,
-    apiKey,
     lane: "fast",
     profile: selectExtractionProfile(input.message)
   });
@@ -458,7 +458,6 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
 
   const reasoning = await runCompactExtraction({
     input,
-    apiKey,
     lane: "reasoning",
     profile: selectExtractionProfile(input.message),
     previous: fast.data,
@@ -471,105 +470,55 @@ export async function interpretCapatazMessageWithAI(input: CapatazAIInterpretInp
   });
 }
 
-export async function requestCapatazStructuredResponse(input: {
-  model: string;
-  system: string;
-  content: Array<Record<string, unknown>>;
-  schemaName: string;
-  schema: Record<string, unknown>;
-  timeoutMs?: number;
-}) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY no esta configurada");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? readTimeoutMs("fast"));
-  try {
-    const response = await requestOpenAiResponses(apiKey, {
-      method: "POST",
-      signal: controller.signal,
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: input.model,
-        input: [
-          { role: "system", content: input.system },
-          { role: "user", content: input.content }
-        ],
-        text: { format: { type: "json_schema", name: input.schemaName, strict: true, schema: input.schema } }
-      })
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(extractOpenAIError(payload) || `OpenAI API devolvio HTTP ${response.status}`);
-    const content = extractResponseText(payload);
-    if (!content) throw new Error("OpenAI no devolvio contenido estructurado");
-    return JSON.parse(content) as unknown;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 async function runCompactExtraction({
   input,
-  apiKey,
   lane,
   profile,
   previous,
   escalationReason
 }: {
   input: CapatazAIInterpretInput;
-  apiKey: string;
   lane: "fast" | "reasoning";
   profile: ExtractionProfile;
   previous?: CompactExtraction;
   escalationReason?: string;
 }) {
-  const model = lane === "fast" ? getCapatazAIFastModel() : getCapatazAIReasoningModel();
+  const control = readRuntimeAiControl();
+  const model = lane === "fast" ? control.fastModel : control.reasoningModel;
   const timeoutMs = readTimeoutMs(lane);
   const prompt = compactPrompt(profile, lane, escalationReason);
   const compactContext = compactAIContext(input.data, input.context);
-  const userPayload = JSON.stringify({
-    m: input.message,
-    ctx: compactContext,
-    prev: previous ? compactForRetry(previous) : null
-  });
+  const governedPayload = {
+    message: { instruction: prompt, content: input.message },
+    context: { business: compactContext, previous: previous ? compactForRetry(previous) : null },
+  };
+  const userPayload = JSON.stringify(governedPayload);
   const startedAt = Date.now();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  let response: Response;
-
   try {
-    response = await requestOpenAiResponses(apiKey, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        input: [
-          {
-            role: "system",
-            content: prompt
-          },
-          {
-            role: "user",
-            content: userPayload
-          }
-        ],
-        ...(lane === "reasoning" ? { reasoning: { effort: getCapatazAIReasoningEffort() } } : {}),
-        text: {
-          format: {
-            type: "json_schema",
-            name: profile.schemaName,
-            strict: true,
-            schema: compactExtractionSchema
-          }
-        }
-      })
+    const result = await executeRuntimeAiRequest({
+      companyId: input.governance.companyId,
+      actorId: input.governance.actorId,
+      role: input.governance.role,
+      scopes: input.governance.scopes,
+      purpose: "chat-command",
+      classification: "CONFIDENTIAL",
+      operationKey: `capataz.extract.${lane}`,
+      idempotencyKey: `capataz-${stableReference(`${input.governance.idempotencyKey}:${lane}`)}`,
+      requestId: `${input.governance.requestId}-${lane}`.slice(0, 128),
+      correlationId: input.governance.correlationId,
+      causationId: input.governance.causationId,
+      lane,
+      promptVersion: "capataz-compact-v1",
+      schemaVersion: 1,
+      payload: governedPayload,
+      outputSchema: compactExtractionSchema as unknown as StrictJsonSchema,
+      maxOutputTokens: Math.min(control.maxOutputTokens, lane === "fast" ? 640 : 1024),
+      estimatedCostCeilingEur: lane === "fast" ? 0.05 : 0.2,
     });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new CapatazAIRequestError(`OpenAI ha superado el timeout de ${timeoutMs}ms`, {
+    if (result.status !== "COMPLETED") throw new AiGatewayError(result.reasonCode ?? "AI_DEGRADED");
+    return {
+      data: validateCompactExtraction(result.output),
+      diagnostics: {
         lane,
         model,
         schemaName: profile.schemaName,
@@ -578,104 +527,21 @@ async function runCompactExtraction({
         timeoutMs,
         durationMs: Date.now() - startedAt,
         reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined,
-        errorType: "timeout"
-      });
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = extractOpenAIError(payload) || `OpenAI API devolvio HTTP ${response.status}`;
-    throw new CapatazAIRequestError(message, {
-      lane,
-      model,
-      schemaName: profile.schemaName,
-      promptBytes: byteLength(prompt),
-      contextBytes: byteLength(userPayload),
-      timeoutMs,
-      durationMs: Date.now() - startedAt,
-      reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined,
-      status: response.status,
-      errorType: classifyOpenAIError(response.status, message)
-    });
-  }
-
-  const content = extractResponseText(payload);
-  if (!content) {
-    throw new CapatazAIRequestError("OpenAI no devolvio contenido estructurado", {
-      lane,
-      model,
-      schemaName: profile.schemaName,
-      promptBytes: byteLength(prompt),
-      contextBytes: byteLength(userPayload),
-      timeoutMs,
-      durationMs: Date.now() - startedAt,
-      reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined,
-      errorType: "empty_response"
-    });
-  }
-
-  const parsed = JSON.parse(content) as unknown;
-  return {
-    data: validateCompactExtraction(parsed),
-    diagnostics: {
-      lane,
-      model,
-      schemaName: profile.schemaName,
-      promptBytes: byteLength(prompt),
-      contextBytes: byteLength(userPayload),
-      timeoutMs,
-      durationMs: Date.now() - startedAt,
-      reasoningEffort: lane === "reasoning" ? getCapatazAIReasoningEffort() : undefined
-    } satisfies CapatazAIDiagnostics
-  };
-}
-
-async function pingOpenAIModel(apiKey: string, model: string, lane: "fast" | "reasoning") {
-  const timeoutMs = lane === "fast" ? 5000 : 8000;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const startedAt = Date.now();
-  try {
-    const response = await requestOpenAiResponses(apiKey, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        input: "Responde solo OK.",
-        max_output_tokens: 16
-      })
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      return {
-        model,
-        ok: false,
-        durationMs: Date.now() - startedAt,
-        error: extractOpenAIError(payload) || `HTTP ${response.status}`
-      };
-    }
-    return {
-      model,
-      ok: true,
-      durationMs: Date.now() - startedAt
+        usageEventId: result.usageEventId,
+      } satisfies CapatazAIDiagnostics,
     };
   } catch (error) {
-    return {
+    const code = error instanceof AiGatewayError ? error.code : "AI_PROVIDER_FAILURE";
+    throw new CapatazAIRequestError("La ayuda automática no está disponible; continúa manualmente.", {
+      lane,
       model,
-      ok: false,
+      schemaName: profile.schemaName,
+      promptBytes: byteLength(prompt),
+      contextBytes: byteLength(userPayload),
+      timeoutMs,
       durationMs: Date.now() - startedAt,
-      error: error instanceof Error && error.name === "AbortError" ? `timeout_${timeoutMs}ms` : error instanceof Error ? error.message : "unknown"
-    };
-  } finally {
-    clearTimeout(timeout);
+      errorType: code,
+    });
   }
 }
 
@@ -685,16 +551,6 @@ function readTimeoutMs(lane: "fast" | "reasoning") {
   const value = Number(process.env[envKey] ?? fallback);
   if (!Number.isFinite(value)) return lane === "fast" ? 10000 : 30000;
   return Math.min(lane === "fast" ? 15000 : 35000, Math.max(5000, value));
-}
-
-function requestOpenAiResponses(apiKey: string, init: RequestInit) {
-  return openAiHttpRequest({
-    path: "responses",
-    apiKey,
-    projectId: process.env.OPENAI_PROJECT_ID,
-    baseUrl: process.env.OPENAI_BASE_URL,
-    init,
-  });
 }
 
 export class CapatazAIRequestError extends Error {
@@ -912,16 +768,6 @@ function normalizeBasic(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
-function classifyOpenAIError(status: number, message: string) {
-  const normalized = normalizeBasic(message);
-  if (status === 401 || normalized.includes("incorrect api key")) return "auth";
-  if (status === 404 || normalized.includes("model")) return "model";
-  if (status === 429 || normalized.includes("rate")) return "rate_limit";
-  if (status >= 500) return "openai_server";
-  if (normalized.includes("schema") || normalized.includes("json")) return "validation";
-  return "api_error";
-}
-
 export function validateCapatazAIResult(raw: unknown): CapatazAIResult {
   if (!isRecord(raw)) throw new Error("Respuesta IA invalida: no es un objeto");
   if (!isIntent(raw.intent)) throw new Error("Respuesta IA invalida: intent desconocido");
@@ -1010,30 +856,6 @@ function normalizeActionPlanItem(value: unknown): CapatazAIActionPlanItem | null
     reason: asCleanString(value.reason) ?? "Acción propuesta por Orqena",
     target: asCleanString(value.target)
   };
-}
-
-function extractResponseText(payload: unknown): string | null {
-  if (!isRecord(payload)) return null;
-  if (typeof payload.output_text === "string") return payload.output_text;
-
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  const parts: string[] = [];
-  for (const item of output) {
-    if (!isRecord(item) || !Array.isArray(item.content)) continue;
-    for (const content of item.content) {
-      if (!isRecord(content)) continue;
-      if (typeof content.text === "string") parts.push(content.text);
-    }
-  }
-
-  return parts.join("").trim() || null;
-}
-
-function extractOpenAIError(payload: unknown) {
-  if (!isRecord(payload)) return null;
-  const error = payload.error;
-  if (!isRecord(error)) return null;
-  return asCleanString(error.message);
 }
 
 function isIntent(value: unknown): value is CapatazAIIntent {

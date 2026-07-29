@@ -36,8 +36,10 @@ class DeliveryProviderAdapter implements EmailProvider {
       recipient: message.to,
       subject: message.subject,
       text: message.text,
+      html: message.html,
+      replyTo: message.replyTo,
       idempotencyKey,
-    });
+    } as Parameters<EmailDeliveryProvider["send"]>[0] & { html: string; replyTo?: string });
     return { id: receipt.reference };
   }
 }
@@ -65,7 +67,8 @@ export class TestEmailProvider implements EmailProvider {
 }
 
 export function getEmailProviderStatus(environment = process.env) {
-  if (environment.RESEND_API_KEY && (environment.RESEND_FROM_EMAIL || environment.EMAIL_FROM)) return "resend" as const;
+  const liveEnabled = environment.EMAIL_LIVE_ENABLED?.trim().toLowerCase() === "true";
+  if (liveEnabled && environment.RESEND_API_KEY && (environment.RESEND_FROM_EMAIL || environment.EMAIL_FROM)) return "resend" as const;
   if (
     environment.NODE_ENV === "test"
     || environment.NODE_ENV === "development"
@@ -81,6 +84,7 @@ function createDeliveryProvider(environment: NodeJS.ProcessEnv): EmailDeliveryPr
     return new ResendEmailProvider(new Resend(environment.RESEND_API_KEY!), from);
   }
   if (status === "local") return new FakeEmailProvider();
+  if (environment.EMAIL_LIVE_ENABLED?.trim().toLowerCase() !== "true") throw new Error("EMAIL_LIVE_DISABLED");
   throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED:RESEND_API_KEY");
 }
 
@@ -91,6 +95,7 @@ export function getEmailDeliveryProvider(): EmailDeliveryProvider {
 export function createEmailProvider(environment: NodeJS.ProcessEnv = process.env): EmailProvider {
   const status = getEmailProviderStatus(environment);
   if (status === "local") return new SafeLocalProvider();
+  if (environment.EMAIL_LIVE_ENABLED?.trim().toLowerCase() !== "true") throw new Error("EMAIL_LIVE_DISABLED");
   return new DeliveryProviderAdapter(createDeliveryProvider(environment));
 }
 

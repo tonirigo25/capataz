@@ -71,6 +71,7 @@ export async function requestProductDemo(input: DemoRequestInput) {
         eventKey: "demo_requested",
         recipient: "demo-requests@orqena.invalid",
         payload: { demoRequestId: demo.id, source },
+        idempotencyKey: `demo-request:${demo.id}`,
       });
     }
     return { ...demo, replayed };

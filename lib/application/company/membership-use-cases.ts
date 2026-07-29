@@ -232,6 +232,7 @@ export async function changeFunctionalProfile(formData: FormData) {
         await tx.user.findUniqueOrThrow({ where: { id: target.userId } })
       ).emailNormalized,
       createdById: owner.userId,
+      idempotencyKey: `profile-changed:${target.id}:${profile}`,
     });
   });
   revalidatePath("/equipo");
@@ -290,6 +291,7 @@ export async function setAccessPackage(formData: FormData) {
       ).emailNormalized,
       createdById: owner.userId,
       payload: { packageKey, enabled },
+      idempotencyKey: `permissions-package:${target.id}:${packageKey}:${enabled}`,
     });
   });
   revalidatePath("/equipo");
@@ -636,6 +638,7 @@ export async function setScopeAssignment(formData: FormData) {
       ).emailNormalized,
       createdById: owner.userId,
       payload: { capabilityKey, scope },
+      idempotencyKey: `permissions-scope:${target.id}:${capabilityKey}:${scope}:${entityType ?? "none"}:${entityId ?? "none"}:${teamId ?? "none"}`,
     });
   });
   revalidatePath("/equipo");
@@ -816,6 +819,7 @@ export async function processOutbox(
   const result = await processEmailOutboxItem(
     String(formData.get("outboxId") ?? ""),
     owner.companyId,
+    owner.userId,
   );
   revalidatePath("/equipo/outbox");
   return { previewHtml: result.previewHtml };
@@ -872,6 +876,7 @@ export async function changeMembershipState(formData: FormData) {
             : "permissions_changed",
       recipient: target.user.emailNormalized,
       createdById: owner.userId,
+      idempotencyKey: `membership-state:${target.id}:${status}`,
     });
     await tx.auditLog.create({
       data: {

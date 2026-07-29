@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { normalizeChatContext, planChatMessage, type ChatEntities } from "@/lib/capataz-chat-engine";
 import { normalizeName } from "@/lib/capataz-chat-parser";
 import { getCapatazAIErrorMeta, interpretCapatazMessageWithAI, isCapatazAIConfigured, type CapatazAIResult } from "@/lib/ai/capataz-ai";
@@ -302,6 +303,9 @@ export async function runAIChatCommand(text: string, context: ChatCommandContext
 
   const aiStarted = nowMs();
   try {
+    const actor = await requireCompanyContext();
+    const capability = await resolveAuthorization(actor, "orqena.use");
+    if (!capability.allowed) return { handled: true, text: "La ayuda automática no está disponible para este perfil. Continúa manualmente.", context };
     const contextStarted = nowMs();
     const data = await buildAIContext(context, text);
     await logChatPerf(trace, "db:ai_context", contextStarted, "ok", {
@@ -310,24 +314,49 @@ export async function runAIChatCommand(text: string, context: ChatCommandContext
       budgets: data.budgets.length,
       invoices: data.invoices.length
     });
-    const ai = await interpretCapatazMessageWithAI({ message: text, context: safeAIChatContext(context), data });
+    const requestId = trace.messageId ?? randomUUID();
+    const correlationId = trace.conversationId ?? randomUUID();
+    const ai = await interpretCapatazMessageWithAI({
+      message: text,
+      context: safeAIChatContext(context),
+      data,
+      governance: {
+        companyId: actor.companyId,
+        actorId: actor.userId,
+        role: actor.role,
+        scopes: ["orqena.use"],
+        requestId,
+        correlationId,
+        causationId: trace.messageId,
+        idempotencyKey: trace.idempotencyKey ?? requestId,
+      },
+    });
     await logChatPerf(trace, "ai:interpret", aiStarted, "ok", {
       intent: ai.intent,
       confidence: ai.confidence,
       ...(ai.diagnostics ?? {})
     });
-    debugChat("ai_result", ai);
+    debugChat("ai_result", { intent: ai.intent, confidence: ai.confidence, lane: ai.diagnostics?.lane, usageEventId: ai.diagnostics?.usageEventId });
     const executeStarted = nowMs();
     const result = await executeAIChatCommand(ai, context);
     await logChatPerf(trace, "ai:execute_plan", executeStarted, result?.handled ? "ok" : "no_result", {
       intent: ai.intent,
       created: result?.created ? Object.keys(result.created).filter((key) => result.created?.[key as keyof typeof result.created]) : []
     });
-    return result;
+    return result ? {
+      ...result,
+      aiDisclosure: {
+        prepared: true,
+        caseUse: ai.intent,
+        model: ai.diagnostics?.model ?? "modelo aprobado",
+        dataUsed: ["mensaje actual", "contexto mínimo autorizado de la empresa"],
+        reviewRequired: true,
+      },
+    } : null;
   } catch (error) {
     const aiMeta = getCapatazAIErrorMeta(error);
     await logChatPerf(trace, "ai:interpret", aiStarted, "error", error instanceof Error ? { message: sanitizeAIError(error.message), ...(aiMeta ?? {}) } : aiMeta ?? undefined);
-    debugChat("ai_error", error instanceof Error ? { message: error.message, stack: error.stack } : error);
+    debugChat("ai_error", { code: typeof aiMeta?.errorType === "string" ? aiMeta.errorType : "AI_REQUEST_FAILED" });
     const detail = process.env.NEXT_PUBLIC_APP_ENV !== "production" && error instanceof Error
       ? `\n\nDetalle técnico staging: ${sanitizeAIError(error.message)}`
       : "";

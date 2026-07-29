@@ -17,7 +17,7 @@ async function main() {
     billing: new StripeBillingProvider({ checkout: { sessions: { async create() { return { id: "cs_contract" }; } } }, billingPortal: { sessions: { async create() { return { id: "bps_contract" }; } } } }, () => new Date(0)),
     email: new ResendEmailProvider({ emails: { async send() { return { data: { id: "email_contract" } }; } } }, "sender@example.invalid", () => new Date(0)),
     storage: new S3StorageProvider(s3Client, "private-contract-bucket", () => new Date(0)),
-    ai: new OpenAiGatewayProvider("test-key-never-sent", "test-model", okFetch, () => new Date(0)),
+    ai: new OpenAiGatewayProvider(async () => ({ reference: "resp_contract", output: "contract output" }), () => new Date(0)),
     fiscal: new HttpFiscalProvider(new URL("https://fiscal.example.invalid/transmit"), "test-authorization-never-sent", okFetch, () => new Date(0)),
     observability: new OtelObservabilityProvider(() => undefined),
   });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { commercialAccessPolicy, overusePolicy } from "../../lib/commercial/access-policy";
 import { validateEmailDomainConfiguration } from "../../lib/email/outbox";
+import { getEmailProviderStatus } from "../../lib/email";
 import { FakeBillingProvider, FakeEmailProvider, FakeStorageProvider } from "../../lib/platform/providers/fake";
 import { runProviderContractSuite } from "../../lib/platform/providers/contract-suite";
 import { FakeAiProvider, FakeFiscalProvider, FakeObservabilityProvider } from "../../lib/platform/providers/fake";
@@ -35,6 +36,14 @@ async function main() {
   });
   await check("live email configuration requires tracking disabled", () => {
     assert.throws(() => validateEmailDomainConfiguration({ EMAIL_PROVIDER: "resend", EMAIL_FROM: "mail@example.invalid", EMAIL_REPLY_TO: "reply@example.invalid", EMAIL_SENDING_DOMAIN: "mail.example.invalid", RESEND_API_KEY: "test", RESEND_WEBHOOK_SECRET: "test", EMAIL_DKIM_STATUS: "verified", EMAIL_SPF_STATUS: "verified", EMAIL_DMARC_POLICY: "reject", EMAIL_TRACKING_ENABLED: "true" }), /TRACKING/u);
+  });
+  await check("transactional email accepts monitored DMARC without overstating enforcement", () => {
+    assert.deepEqual(validateEmailDomainConfiguration({ EMAIL_PROVIDER: "resend", EMAIL_FROM: "Capataz <mail@updates.example.invalid>", EMAIL_REPLY_TO: "reply@example.invalid", EMAIL_SENDING_DOMAIN: "updates.example.invalid", RESEND_API_KEY: "test", RESEND_WEBHOOK_SECRET: "test", EMAIL_DKIM_STATUS: "verified", EMAIL_SPF_STATUS: "verified", EMAIL_DMARC_POLICY: "none", EMAIL_TRACKING_ENABLED: "false" }), { ready: true, mode: "resend" });
+  });
+  await check("EMAIL_LIVE_ENABLED is the real outbound kill switch", () => {
+    const credentials = { NODE_ENV: "production", NEXT_PUBLIC_APP_ENV: "production", EMAIL_FROM: "sender@example.invalid", RESEND_API_KEY: "synthetic" } as NodeJS.ProcessEnv;
+    assert.equal(getEmailProviderStatus({ ...credentials, EMAIL_LIVE_ENABLED: "false" }), "missing");
+    assert.equal(getEmailProviderStatus({ ...credentials, EMAIL_LIVE_ENABLED: "true" }), "resend");
   });
   await check("safe filename removes traversal and markup", () => {
     assert.equal(sanitizeFilename("../../Mi <logo> final.png"), "Mi-logo-final.png");
@@ -74,6 +83,31 @@ async function main() {
     assert.match(outbox, /htmlBody:\s*null/u);
     assert.match(outbox, /textBody:\s*null/u);
     assert.match(outbox, /deriveActionToken/u);
+    assert.match(outbox, /status" = 'PROCESSING'[\s\S]*availableAt/u);
+    assert.match(outbox, /EMAIL_IDEMPOTENCY_KEY_REQUIRED/u);
+  });
+  await check("contact email is queued and delivery is webhook-confirmed", async () => {
+    const [contact, outbox, provider, worker] = await Promise.all([
+      readFile("app/api/marketing/contact/route.ts", "utf8"),
+      readFile("lib/email/outbox.ts", "utf8"),
+      readFile("lib/platform/providers/production.ts", "utf8"),
+      readFile("app/api/jobs/email-outbox/route.ts", "utf8"),
+    ]);
+    assert.match(contact, /eventKey:\s*["']contact_requested/u);
+    assert.match(contact, /delivery:\s*["']queued/u);
+    assert.doesNotMatch(contact, /sendContactNotification|marketing\.contact\.delivered/u);
+    assert.match(outbox, /eventType === ["']email\.delivered["'][\s\S]*marketing\.contact\.delivered/u);
+    assert.match(provider, /reply_to/u);
+    assert.match(worker, /EMAIL_LIVE_ENABLED[\s\S]*const provider = getEmailDeliveryProvider\(\)[\s\S]*const claimed = await claimEmailBatch/u);
+  });
+  await check("password changes enqueue an idempotent security notice", async () => {
+    const [auth, outbox] = await Promise.all([
+      readFile("lib/application/auth/auth-use-cases.ts", "utf8"),
+      readFile("lib/email/outbox.ts", "utf8"),
+    ]);
+    assert.match(auth, /eventKey:\s*["']password_changed/u);
+    assert.match(auth, /idempotencyKey:\s*`password-changed:/u);
+    assert.match(outbox, /password_changed:\s*staticTemplate/u);
   });
 
   process.stdout.write(`${JSON.stringify({ ok: true, passed, externalInput: ["EMAIL-010"], hiddenCharges: false, publicAssetUrlsAccepted: false }, null, 2)}\n`);

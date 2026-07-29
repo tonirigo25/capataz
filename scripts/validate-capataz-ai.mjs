@@ -15,9 +15,16 @@ function compileModule(path) {
   }).outputText;
   const sandbox = {
     exports: {},
-    require: (specifier) => specifier === "@/lib/ai/openai-transport"
-      ? { openAiHttpRequest: async () => { throw new Error("Legacy VM live transport is disabled; use the governed AI live gate."); } }
-      : nativeRequire(specifier),
+    require: (specifier) => {
+      if (specifier === "@/lib/ai/contracts") return { AiGatewayError: class AiGatewayError extends Error { constructor(code) { super(code); this.code = code; } } };
+      if (specifier === "@/lib/ai/redaction") return { stableReference: (value) => String(value).replace(/[^a-z0-9]/gi, "").slice(0, 24) || "synthetic" };
+      if (specifier === "@/lib/ai/runtime-gateway") return {
+        executeRuntimeAiRequest: async () => { throw new Error("Live AI is disabled in the fixture validator."); },
+        readRuntimeAiControl: () => ({ fastModel: "gpt-5-mini", reasoningModel: "gpt-5.1", maxOutputTokens: 1024 }),
+        runtimeAiStatus: () => ({ configured: false, enabled: false, liveConfigurationComplete: false, fastModel: "gpt-5-mini", reasoningModel: "gpt-5.1", transcriptionModel: "gpt-4o-mini-transcribe" }),
+      };
+      return nativeRequire(specifier);
+    },
     console,
     process,
     fetch,
@@ -250,7 +257,19 @@ if (process.env.CAPATAZ_RUN_LIVE_AI_TESTS === "true") {
   }
 
   for (const item of cases) {
-    const result = await interpretCapatazMessageWithAI({ message: item.text, data: { currentDate: new Date().toISOString() } });
+    const result = await interpretCapatazMessageWithAI({
+      message: item.text,
+      data: { currentDate: new Date().toISOString() },
+      governance: {
+        companyId: "company-synthetic-live-smoke",
+        actorId: "user-synthetic-live-smoke",
+        role: "OWNER",
+        scopes: ["orqena.use"],
+        requestId: `capataz-live-${item.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
+        correlationId: "capataz-live-correlation",
+        idempotencyKey: `capataz-live-${item.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
+      },
+    });
     const failed = checkExpected(result, item.expected);
     if (failed.length) {
       failures += 1;

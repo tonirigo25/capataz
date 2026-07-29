@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 export const emailEventKeys = [
   "employee_invited", "employee_accepted", "owner_approval_requested", "employee_approved", "employee_rejected", "invitation_revoked", "invitation_expiring",
   "profile_changed", "permissions_changed", "membership_suspended", "membership_reactivated", "security_alert", "demo_requested", "email_verification",
-  "password_reset", "billing_payment_failed", "support_update", "alert",
+  "password_reset", "password_changed", "contact_requested", "billing_payment_failed", "support_update", "alert",
 ] as const;
 export type EmailEventKey = (typeof emailEventKeys)[number];
 
@@ -20,6 +20,8 @@ const templates: Record<EmailEventKey, TemplateDefinition> = {
   employee_invited: actionTemplate("Te han invitado a Orqena", "Tu empresa te ha invitado. Abre el enlace seguro para continuar.", "Aceptar invitación"),
   email_verification: actionTemplate("Verifica tu correo en Orqena", "Confirma tu correo para activar tu cuenta.", "Verificar correo"),
   password_reset: actionTemplate("Restablece tu contraseña de Orqena", "Se ha solicitado un cambio de contraseña. Si no fuiste tú, ignora este mensaje.", "Restablecer contraseña"),
+  password_changed: staticTemplate("Tu contraseña de Orqena ha cambiado", "La contraseña de tu cuenta se ha actualizado y las sesiones anteriores se han cerrado. Si no fuiste tú, contacta con soporte."),
+  contact_requested: contactTemplate(),
   employee_accepted: staticTemplate("Invitación aceptada", "La persona invitada ha aceptado la invitación."),
   owner_approval_requested: staticTemplate("Acceso pendiente de aprobación", "Hay una solicitud de acceso pendiente de tu aprobación."),
   employee_approved: staticTemplate("Tu acceso a Orqena está activo", "El propietario ha aprobado tu acceso profesional."),
@@ -39,13 +41,15 @@ const templates: Record<EmailEventKey, TemplateDefinition> = {
 
 type QueueDb = Pick<Prisma.TransactionClient, "emailTemplateVersion" | "emailOutbox">;
 
-export async function queueEmailEvent(tx: QueueDb, input: { companyId?: string; invitationId?: string; eventKey: EmailEventKey; recipient: string; createdById?: string; payload?: Record<string, unknown>; idempotencyKey?: string }) {
+export async function queueEmailEvent(tx: QueueDb, input: { companyId?: string; invitationId?: string; eventKey: EmailEventKey; recipient: string; createdById?: string; payload?: Record<string, unknown>; idempotencyKey: string }) {
   const definition = templates[input.eventKey];
   if (!definition) throw new Error("EMAIL_TEMPLATE_UNKNOWN");
   assertNoSecretMaterial(input.payload);
   const recipient = normalizeEmail(input.recipient);
-  if (input.idempotencyKey) {
-    const existing = await tx.emailOutbox.findFirst({ where: { companyId: input.companyId ?? null, idempotencyKey: input.idempotencyKey } });
+  const idempotencyKey = input.idempotencyKey.trim();
+  if (!idempotencyKey) throw new Error("EMAIL_IDEMPOTENCY_KEY_REQUIRED");
+  if (idempotencyKey) {
+    const existing = await tx.emailOutbox.findFirst({ where: { companyId: input.companyId ?? null, idempotencyKey } });
     if (existing) {
       if (existing.eventKey !== input.eventKey || existing.recipientHash !== emailHash(recipient) || hashCanonical(existing.payload) !== hashCanonical(input.payload ?? null)) throw new Error("EMAIL_IDEMPOTENCY_CONFLICT");
       return existing;
@@ -59,7 +63,7 @@ export async function queueEmailEvent(tx: QueueDb, input: { companyId?: string; 
   });
   return tx.emailOutbox.create({ data: {
     companyId: input.companyId, invitationId: input.invitationId, eventKey: input.eventKey, templateKey: input.eventKey, templateVersion: 1,
-    idempotencyKey: input.idempotencyKey, recipient, recipientHash: emailHash(recipient), subject: definition.subject, htmlBody: null, textBody: null,
+    idempotencyKey, recipient, recipientHash: emailHash(recipient), subject: definition.subject, htmlBody: null, textBody: null,
     payload: (input.payload ?? {}) as Prisma.InputJsonValue, createdById: input.createdById, trackingEnabled: false,
   } });
 }
@@ -67,22 +71,38 @@ export async function queueEmailEvent(tx: QueueDb, input: { companyId?: string; 
 export async function claimEmailBatch(db: PrismaClient, input: { batchSize?: number; now?: Date } = {}) {
   const batchSize = Math.max(1, Math.min(input.batchSize ?? 25, 100));
   const now = input.now ?? new Date();
+  const leaseUntil = new Date(now.getTime() + 10 * 60_000);
   return db.$transaction(async (transaction) => {
-    const rows = await transaction.$queryRaw<EmailOutbox[]>`
-      SELECT * FROM "EmailOutbox"
-      WHERE "status" IN ('PENDING', 'RETRYING') AND "availableAt" <= ${now}
-      ORDER BY "availableAt", "createdAt"
-      FOR UPDATE SKIP LOCKED
-      LIMIT ${batchSize}
+    // One SQL statement owns selection, row locks, lease assignment and the
+    // returned snapshot. Concurrent workers can therefore only observe rows
+    // that this transaction did not lock, while expired PROCESSING leases are
+    // still recoverable after a crash.
+    return transaction.$queryRaw<EmailOutbox[]>`
+      WITH candidates AS (
+        SELECT "id"
+        FROM "EmailOutbox"
+        WHERE (
+          ("status" IN ('PENDING', 'RETRYING') AND "availableAt" <= ${now})
+          OR ("status" = 'PROCESSING' AND "availableAt" <= ${now})
+        )
+        ORDER BY "availableAt", "createdAt"
+        FOR UPDATE SKIP LOCKED
+        LIMIT ${batchSize}
+      )
+      UPDATE "EmailOutbox" AS outbox
+      SET "status" = 'PROCESSING',
+          "availableAt" = ${leaseUntil},
+          "attempts" = outbox."attempts" + 1
+      FROM candidates
+      WHERE outbox."id" = candidates."id"
+      RETURNING outbox.*
     `;
-    if (!rows.length) return [];
-    await transaction.emailOutbox.updateMany({ where: { id: { in: rows.map((row) => row.id) }, status: { in: ["PENDING", "RETRYING"] } }, data: { status: "PROCESSING", attempts: { increment: 1 } } });
-    return transaction.emailOutbox.findMany({ where: { id: { in: rows.map((row) => row.id) } }, orderBy: { createdAt: "asc" } });
   });
 }
 
 export async function claimEmailItem(db: PrismaClient, input: { id: string; companyId: string; now?: Date }) {
   const now = input.now ?? new Date();
+  const leaseUntil = new Date(now.getTime() + 10 * 60_000);
   return db.$transaction(async (transaction) => {
     const rows = await transaction.$queryRaw<EmailOutbox[]>`
       SELECT * FROM "EmailOutbox"
@@ -92,7 +112,7 @@ export async function claimEmailItem(db: PrismaClient, input: { id: string; comp
       LIMIT 1
     `;
     if (!rows[0]) return null;
-    return transaction.emailOutbox.update({ where: { id: input.id }, data: { status: "PROCESSING", attempts: { increment: 1 } } });
+    return transaction.emailOutbox.update({ where: { id: input.id }, data: { status: "PROCESSING", availableAt: leaseUntil, attempts: { increment: 1 } } });
   });
 }
 
@@ -114,6 +134,18 @@ export async function processClaimedEmail(db: PrismaClient, item: EmailOutbox, p
     const definition = await db.emailTemplateVersion.findUniqueOrThrow({ where: { templateKey_version: { templateKey: item.templateKey, version: item.templateVersion } } });
     const allowed = asStringArray(definition.allowedVariables);
     const variables: Record<string, string> = {};
+    let replyTo = process.env.EMAIL_REPLY_TO?.trim();
+    if (item.eventKey === "contact_requested") {
+      const contactRequestId = String(asObject(item.payload).demoRequestId ?? "");
+      if (!contactRequestId) throw new Error("EMAIL_CONTACT_REQUEST_REQUIRED");
+      const contact = await db.demoRequest.findUniqueOrThrow({ where: { id: contactRequestId } });
+      variables.contactName = contact.displayName;
+      variables.contactEmail = contact.emailNormalized;
+      variables.companyName = contact.companyName;
+      variables.reason = String(asObject(item.payload).reason ?? "informacion");
+      variables.message = contact.message ?? "Sin mensaje";
+      replyTo = contact.emailNormalized;
+    }
     if (allowed.includes("actionUrl")) {
       const token = deriveActionToken(item.id);
       variables.actionUrl = actionUrl(item.eventKey as EmailEventKey, token);
@@ -125,7 +157,7 @@ export async function processClaimedEmail(db: PrismaClient, item: EmailOutbox, p
       }
     }
     const rendered = renderTemplate({ subject: definition.subject, text: definition.textSource ?? "", html: definition.htmlSource, allowed }, variables);
-    const receipt = await provider.send({ recipient: item.recipient, subject: rendered.subject, text: rendered.text, idempotencyKey: item.idempotencyKey ?? `outbox:${item.id}` });
+    const receipt = await sendWithHeaders(provider, { recipient: item.recipient, subject: rendered.subject, text: rendered.text, html: rendered.html, replyTo, idempotencyKey: item.idempotencyKey ?? `outbox:${item.id}` });
     await db.$transaction(async (transaction) => {
       if (tokenHashUpdate?.kind === "invitation") await transaction.invitation.update({ where: { id: tokenHashUpdate.id }, data: { tokenHash: tokenHashUpdate.tokenHash } });
       if (tokenHashUpdate?.kind === "verification") {
@@ -138,27 +170,41 @@ export async function processClaimedEmail(db: PrismaClient, item: EmailOutbox, p
       }
       await transaction.emailDeliveryAttempt.create({ data: { outboxId: item.id, attempt: item.attempts, provider: provider.name, status: "SENT", providerMessageId: receipt.reference, latencyMs: Math.max(0, Date.now() - startedAt) } });
       await transaction.emailOutbox.update({ where: { id: item.id }, data: { status: "SENT", processedAt: now, lastError: null, providerMessageId: receipt.reference } });
+      if (item.eventKey === "contact_requested") {
+        const contactRequestId = String(asObject(item.payload).demoRequestId ?? "");
+        await transaction.demoRequest.update({ where: { id: contactRequestId }, data: { status: "EMAIL_ACCEPTED" } });
+        await transaction.auditLog.create({ data: { action: "marketing.contact.accepted", targetType: "DemoRequest", targetId: contactRequestId, metadata: { provider: provider.name } } });
+      }
     });
     return { status: "SENT" as const, previewHtml: provider.mode === "fake" ? rendered.html : null };
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "EMAIL_DELIVERY_FAILED";
     const dead = item.attempts >= maxAttempts;
     const retryAt = new Date(now.getTime() + Math.min(24 * 60, 2 ** Math.min(item.attempts, 10)) * 60_000);
-    await db.$transaction([
+    const failureUpdates: Prisma.PrismaPromise<unknown>[] = [
       db.emailDeliveryAttempt.create({ data: { outboxId: item.id, attempt: item.attempts, provider: provider.name, status: "FAILED", errorCode: "EMAIL_DELIVERY_FAILED", errorDetail: message, retryAt: dead ? null : retryAt } }),
       db.emailOutbox.update({ where: { id: item.id }, data: { status: dead ? "FAILED" : "RETRYING", lastError: message, availableAt: retryAt, deadLetteredAt: dead ? now : null } }),
-    ]);
+    ];
+    if (item.eventKey === "contact_requested") {
+      const contactRequestId = String(asObject(item.payload).demoRequestId ?? "");
+      if (contactRequestId) failureUpdates.push(db.demoRequest.update({ where: { id: contactRequestId }, data: { status: dead ? "EMAIL_FAILED" : "EMAIL_RETRYING" } }));
+    }
+    await db.$transaction(failureUpdates);
     return { status: dead ? "FAILED" as const : "RETRYING" as const, previewHtml: null as string | null };
   }
 }
 
-export async function processEmailOutboxItem(id: string, companyId: string) {
+export async function processEmailOutboxItem(id: string, companyId: string, adminUserId?: string) {
+  const provider = getEmailDeliveryProvider();
   const selected = await prisma.emailOutbox.findFirstOrThrow({ where: { id, companyId } });
   if (!["PENDING", "FAILED", "RETRYING"].includes(selected.status)) return { item: selected, previewHtml: null as string | null };
-  if (selected.status === "FAILED") await prisma.emailOutbox.update({ where: { id }, data: { status: "RETRYING", availableAt: new Date(), deadLetteredAt: null } });
+  if (selected.status === "FAILED") {
+    if (!adminUserId) throw new Error("EMAIL_DEAD_LETTER_REPLAY_REQUIRES_ADMIN");
+    await replayDeadLetter(prisma, { outboxId: id, companyId, adminUserId });
+  }
   const claimed = await claimEmailItem(prisma, { id, companyId });
   if (!claimed) return { item: await prisma.emailOutbox.findUniqueOrThrow({ where: { id } }), previewHtml: null as string | null };
-  const result = await processClaimedEmail(prisma, claimed, getEmailDeliveryProvider());
+  const result = await processClaimedEmail(prisma, claimed, provider);
   return { item: await prisma.emailOutbox.findUniqueOrThrow({ where: { id } }), previewHtml: result.previewHtml };
 }
 
@@ -192,6 +238,16 @@ export async function ingestResendWebhook(db: PrismaClient, input: { rawBody: st
         if (existing) await transaction.emailSuppression.update({ where: { id: existing.id }, data: { active: true, reason: eventType, source: "resend_webhook" } });
         else await transaction.emailSuppression.create({ data: { companyId: outbox?.companyId, emailHash: digest, reason: eventType, source: "resend_webhook" } });
       }
+      if (outbox?.eventKey === "contact_requested") {
+        const contactRequestId = String(asObject(outbox.payload).demoRequestId ?? "");
+        if (contactRequestId && eventType === "email.delivered") {
+          await transaction.demoRequest.update({ where: { id: contactRequestId }, data: { status: "DELIVERED" } });
+          await transaction.auditLog.create({ data: { action: "marketing.contact.delivered", targetType: "DemoRequest", targetId: contactRequestId, metadata: { provider: "resend" } } });
+        }
+        if (contactRequestId && ["email.failed", "email.bounced", "email.complained", "email.suppressed"].includes(eventType)) {
+          await transaction.demoRequest.update({ where: { id: contactRequestId }, data: { status: "EMAIL_FAILED" } });
+        }
+      }
       return created;
     });
     return { event, replayed: false };
@@ -208,7 +264,9 @@ export function validateEmailDomainConfiguration(env: Record<string, string | un
   const missing: string[] = required.filter((key) => !env[key]);
   if (env.EMAIL_DKIM_STATUS !== "verified") missing.push("EMAIL_DKIM_STATUS");
   if (env.EMAIL_SPF_STATUS !== "verified") missing.push("EMAIL_SPF_STATUS");
-  if (!["quarantine", "reject"].includes(env.EMAIL_DMARC_POLICY ?? "")) missing.push("EMAIL_DMARC_POLICY");
+  if (!["none", "quarantine", "reject"].includes(env.EMAIL_DMARC_POLICY ?? "")) missing.push("EMAIL_DMARC_POLICY");
+  const senderAddress = env.EMAIL_FROM?.match(/<([^<>]+)>$/)?.[1] ?? env.EMAIL_FROM;
+  if (senderAddress && env.EMAIL_SENDING_DOMAIN && !senderAddress.toLowerCase().endsWith(`@${env.EMAIL_SENDING_DOMAIN.toLowerCase()}`)) missing.push("EMAIL_FROM");
   if (env.EMAIL_TRACKING_ENABLED === "true") throw new Error("EMAIL_TRACKING_MUST_REMAIN_DISABLED_BY_DEFAULT");
   if (missing.length) throw new Error(`EMAIL_DOMAIN_CONFIGURATION_INCOMPLETE:${[...new Set(missing)].join(",")}`);
   return { ready: true, mode: "resend" as const };
@@ -225,6 +283,7 @@ function renderTemplate(template: { subject: string; text: string; html: string;
 
 function actionTemplate(subject: string, text: string, action: string): TemplateDefinition { return { subject, text: `${text}\n\n{{actionUrl}}`, html: `<p>${text}</p><p><a href="{{actionUrl}}">${action}</a></p>`, allowedVariables: ["actionUrl"], trackingEnabled: false }; }
 function staticTemplate(subject: string, text: string): TemplateDefinition { return { subject, text, html: `<p>${text}</p>`, allowedVariables: [], trackingEnabled: false }; }
+function contactTemplate(): TemplateDefinition { return { subject: "Nueva solicitud de contacto", text: "Nombre: {{contactName}}\nCorreo: {{contactEmail}}\nEmpresa: {{companyName}}\nMotivo: {{reason}}\n\n{{message}}", html: "<p><strong>Nombre:</strong> {{contactName}}</p><p><strong>Correo:</strong> {{contactEmail}}</p><p><strong>Empresa:</strong> {{companyName}}</p><p><strong>Motivo:</strong> {{reason}}</p><hr><p>{{message}}</p>", allowedVariables: ["contactName", "contactEmail", "companyName", "reason", "message"], trackingEnabled: false }; }
 function normalizeEmail(value: string) {
   const email = value.trim().toLowerCase();
   const at = email.indexOf("@");
@@ -240,5 +299,7 @@ function asObject(value: unknown): Record<string, unknown> { return value && typ
 function asStringArray(value: unknown) { return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : []; }
 function escapeTemplateValue(value: string) { return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function deriveActionToken(outboxId: string) { const secret = process.env.EMAIL_TOKEN_DERIVATION_SECRET ?? (process.env.NODE_ENV === "production" ? "" : "orqena-local-email-token-secret-change-me"); if (secret.length < 32) throw new Error("EMAIL_TOKEN_DERIVATION_SECRET_REQUIRED"); return createHmac("sha256", secret).update(`email-action:v1:${outboxId}`).digest("base64url"); }
-function actionUrl(event: EmailEventKey, token: string) { const base = process.env.APP_BASE_URL?.replace(/\/$/, "") ?? (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000"); if (!base) throw new Error("APP_BASE_URL_NOT_CONFIGURED"); const path = event === "employee_invited" ? "/aceptar-invitacion" : event === "email_verification" ? "/verificar-email" : "/restablecer-contrasena"; return `${base}${path}?token=${encodeURIComponent(token)}`; }
+function actionUrl(event: EmailEventKey, token: string) { const base = canonicalEmailBaseUrl(); const path = event === "employee_invited" ? "/aceptar-invitacion" : event === "email_verification" ? "/verificar-email" : "/restablecer-contrasena"; return `${base}${path}?token=${encodeURIComponent(token)}`; }
+function canonicalEmailBaseUrl() { const configured = process.env.APP_BASE_URL?.trim() ?? (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000"); if (!configured) throw new Error("APP_BASE_URL_NOT_CONFIGURED"); const url = new URL(configured); if (url.pathname !== "/" || url.search || url.hash) throw new Error("APP_BASE_URL_INVALID"); const environment = (process.env.NEXT_PUBLIC_APP_ENV ?? process.env.APP_ENV ?? "development").trim().toLowerCase(); if (environment === "production" && (url.protocol !== "https:" || url.hostname !== "app.orqenatech.com")) throw new Error("APP_BASE_URL_INVALID"); if (!["development", "test"].includes(environment) && url.protocol !== "https:") throw new Error("APP_BASE_URL_INVALID"); return url.origin; }
+async function sendWithHeaders(provider: EmailDeliveryProvider, input: { recipient: string; subject: string; text: string; html: string; replyTo?: string; idempotencyKey: string }) { return (provider as EmailDeliveryProvider & { send(message: typeof input): ReturnType<EmailDeliveryProvider["send"]> }).send(input); }
 function assertNoSecretMaterial(value: unknown, path = "payload") { if (value === null || value === undefined) return; if (Array.isArray(value)) return value.forEach((item, index) => assertNoSecretMaterial(item, `${path}.${index}`)); if (typeof value !== "object") return; for (const [key, item] of Object.entries(value as Record<string, unknown>)) { if (/(^|_)(token|secret|password|authorization|html|actionurl)(_|$)/i.test(key)) throw new Error(`EMAIL_SECRET_MATERIAL_FORBIDDEN:${path}.${key}`); assertNoSecretMaterial(item, `${path}.${key}`); } }

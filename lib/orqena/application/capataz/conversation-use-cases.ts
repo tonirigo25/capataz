@@ -26,7 +26,7 @@ export async function completeChatMessage(messageId: string | undefined, result:
         role: "assistant",
         content: result.text,
         status: "completed",
-        metadata: toJsonValue({ replyTo: messageId, created: result.created ?? null, result: result.result ?? null })
+        metadata: toJsonValue({ replyTo: messageId, created: result.created ?? null, result: result.result ?? null, aiDisclosure: result.aiDisclosure ?? null })
     });
   }
   if (result.result) {
@@ -141,7 +141,8 @@ function chatConversationToHistory(conversation: {
         status: message.status,
         createdAt: message.createdAt.toISOString(),
         metadata: message.metadata ?? undefined,
-        result: actionResultFromMessageMetadata(message.metadata)
+        result: actionResultFromMessageMetadata(message.metadata),
+        aiDisclosure: aiDisclosureFromMessageMetadata(message.metadata),
       }))
   };
 }
@@ -360,7 +361,8 @@ function cleanConversationTitle(title: string) {
 
 export async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt: number, status: string, metadata?: Record<string, unknown>) {
   const durationMs = Math.max(0, Math.round(nowMs() - startedAt));
-  const payload = { stage, status, durationMs, messageId: trace.messageId, conversationId: trace.conversationId, ...(metadata ?? {}) };
+  const safeMetadata = sanitizeChatPerfMetadata(metadata);
+  const payload = { stage, status, durationMs, messageId: trace.messageId, conversationId: trace.conversationId, ...safeMetadata };
   if (process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production") {
     console.info("[capataz-chat-perf]", JSON.stringify(payload));
   }
@@ -373,11 +375,24 @@ export async function logChatPerf(trace: ChatPerfTrace, stage: string, startedAt
       actionType: stage,
       status,
       idempotencyKey: trace.idempotencyKey,
-      summary: typeof metadata?.action === "string" ? metadata.action : stage,
+      summary: typeof safeMetadata.action === "string" ? safeMetadata.action : stage,
       durationMs,
       payload: toJsonValue({ stage, status }),
-      metadata: toJsonValue(metadata ?? {})
+      metadata: toJsonValue(safeMetadata)
   }).catch(() => undefined);
+}
+
+function sanitizeChatPerfMetadata(metadata?: Record<string, unknown>): Record<string, string | number | boolean> {
+  if (!metadata) return {};
+  const allowed = new Set(["action", "source", "kind", "intent", "intentKind", "classifiedKind", "classifiedAction", "routedKind", "routedAction", "confidence", "classifiedConfidence", "rule", "handler", "resultCount", "responseLength", "noMutation", "handled", "duplicate", "clients", "works", "budgets", "invoices", "created", "lane", "model", "schemaName", "promptBytes", "contextBytes", "timeoutMs", "durationMs", "reasoningEffort", "errorType"]);
+  const result: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!allowed.has(key)) continue;
+    if (typeof value === "number" && Number.isFinite(value)) result[key] = value;
+    else if (typeof value === "boolean") result[key] = value;
+    else if (typeof value === "string" && /^[a-z0-9_.:-]{1,128}$/i.test(value)) result[key] = value;
+  }
+  return result;
 }
 
 export function resultFromChatMetadata(value: unknown): ChatCommandResult | null {
@@ -393,6 +408,14 @@ function actionResultFromMessageMetadata(value: unknown): ChatActionResult | und
   if (isChatActionResult(result)) return result;
   const commandResult = isRecord(result?.result) ? result.result : null;
   return isChatActionResult(commandResult) ? commandResult : undefined;
+}
+
+function aiDisclosureFromMessageMetadata(value: unknown): ChatCommandResult["aiDisclosure"] {
+  const metadata = isRecord(value) ? value : null;
+  const disclosure = isRecord(metadata?.aiDisclosure) ? metadata.aiDisclosure : null;
+  if (!disclosure || disclosure.prepared !== true || disclosure.reviewRequired !== true || typeof disclosure.caseUse !== "string" || typeof disclosure.model !== "string" || !Array.isArray(disclosure.dataUsed)) return undefined;
+  const dataUsed = disclosure.dataUsed.filter((item): item is string => typeof item === "string").slice(0, 4);
+  return { prepared: true, caseUse: disclosure.caseUse.slice(0, 80), model: disclosure.model.slice(0, 120), dataUsed, reviewRequired: true };
 }
 
 function isChatActionResult(value: unknown): value is ChatActionResult {

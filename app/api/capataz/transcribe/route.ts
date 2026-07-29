@@ -1,10 +1,12 @@
+import { createHash, randomUUID } from "node:crypto";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { NextResponse } from "next/server";
 import { resolveAuthorization } from "@/lib/commercial/authorization";
 import { getOptionalSession, resolveActiveCompany, type CompanyContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/platform/rate-limit";
-import { openAiHttpRequest } from "@/lib/ai/openai-transport";
+import { OpenAiTranscriptionTransport } from "@/lib/ai/openai-transport";
+import { executeRuntimeAiRequest, readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,10 +23,7 @@ export async function POST(request: Request) {
   if (!authorization.allowed) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   const limit = await consumeRateLimit({ prisma, scope: "ai_transcription", subject: session.userId, companyId: membership.companyId, limit: 20, windowMs: 60_000 });
   if (!limit.allowed) return NextResponse.json({ error: "Demasiadas solicitudes. Espera un minuto." }, { status: 429, headers: rateLimitHeaders(limit) });
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "Falta OPENAI_API_KEY en el backend." }, { status: 500 });
-  }
+  if (process.env.AI_VOICE_ENABLED !== "true") return NextResponse.json({ error: "La transcripción está desactivada. Puedes escribir el mensaje manualmente." }, { status: 503 });
 
   const formData = await request.formData().catch(() => null);
   const audio = formData?.get("audio");
@@ -36,27 +35,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "El audio es demasiado grande. Prueba con un dictado más corto." }, { status: 413 });
   }
 
-  const payload = new FormData();
-  payload.append("model", process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe");
-  payload.append("language", "es");
-  payload.append("file", audio, audio.name || "dictado.webm");
-
-  const response = await openAiHttpRequest({
-    path: "audio/transcriptions",
-    apiKey,
-    projectId: process.env.OPENAI_PROJECT_ID,
-    baseUrl: process.env.OPENAI_BASE_URL,
-    init: { method: "POST", body: payload },
-  }).catch((error) => {
-    throw new Error(error instanceof Error ? error.message : "Error conectando con OpenAI");
-  });
-
-  const result = await response.json().catch(() => null) as { text?: string; error?: { message?: string } } | null;
-  if (!response.ok) {
-    return NextResponse.json({ error: sanitizeTranscriptionError(result?.error?.message || `OpenAI devolvió HTTP ${response.status}`) }, { status: response.status });
+  const control = readRuntimeAiControl();
+  const digest = createHash("sha256").update(Buffer.from(await audio.arrayBuffer())).digest("hex");
+  const operationDigest = createHash("sha256").update(JSON.stringify({
+    companyId: membership.companyId,
+    actorId: session.userId,
+    audioDigest: digest,
+    modelSnapshot: control.transcriptionSnapshot,
+    promptVersion: "transcription-es-v1",
+    schemaVersion: 1,
+  })).digest("hex");
+  const requestId = request.headers.get("x-request-id")?.match(/^[A-Za-z0-9._:-]{1,96}$/)?.[0] ?? randomUUID();
+  const result = await executeRuntimeAiRequest({
+    companyId: membership.companyId,
+    actorId: session.userId,
+    role: membership.role,
+    scopes: ["orqena.use"],
+    purpose: "transcription",
+    classification: "CONFIDENTIAL",
+    operationKey: "capataz.voice.transcribe",
+    idempotencyKey: `transcription-${operationDigest}`,
+    requestId,
+    correlationId: requestId,
+    lane: "transcription",
+    promptVersion: "transcription-es-v1",
+    schemaVersion: 1,
+    payload: { audioRef: digest, mimeType: audio.type || "application/octet-stream", sizeBytes: audio.size },
+    outputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["text"],
+      properties: { text: { type: "string", minLength: 1, maxLength: 12_000 } },
+    },
+    maxOutputTokens: Math.min(control.maxOutputTokens, 512),
+    estimatedCostCeilingEur: 0.1,
+  }, {
+    transport: new OpenAiTranscriptionTransport({
+      apiKey: process.env.OPENAI_API_KEY ?? "",
+      audio,
+      baseUrl: process.env.OPENAI_BASE_URL,
+      projectId: process.env.OPENAI_PROJECT_ID,
+      language: "es",
+    }),
+  }).catch(() => null);
+  if (!result || result.status !== "COMPLETED" || result.output === null || Array.isArray(result.output) || typeof result.output !== "object") {
+    return NextResponse.json({ error: "No he podido transcribir el audio. Puedes escribir el mensaje manualmente." }, { status: 503 });
   }
-
-  const text = result?.text?.trim();
+  const text = typeof result.output.text === "string" ? result.output.text.trim() : "";
   if (!text) {
     return NextResponse.json({ error: "La transcripción ha llegado vacía." }, { status: 422 });
   }
@@ -64,11 +89,4 @@ export async function POST(request: Request) {
   return NextResponse.json({ text });
 
   });
-}
-
-function sanitizeTranscriptionError(message: string) {
-  return message
-    .replace(/sk-[A-Za-z0-9_*.-]+/g, "[OPENAI_API_KEY]")
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
-    .slice(0, 500);
 }

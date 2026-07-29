@@ -3,7 +3,7 @@
 import { executeNextAction } from "@/lib/platform/next-action-boundary";
 import { runChatCommand as runChatCommandUseCase, loadChatConversations as loadChatConversationsUseCase, getOrCreateInitialConversation as getOrCreateInitialConversationUseCase, createChatConversation as createChatConversationUseCase, renameChatConversation as renameChatConversationUseCase, archiveChatConversation as archiveChatConversationUseCase, deleteChatConversation as deleteChatConversationUseCase, preparePendingProposal as preparePendingProposalUseCase, cancelPendingProposal as cancelPendingProposalUseCase, executePendingProposal as executePendingProposalUseCase } from "@/lib/orqena/application/capataz-use-cases";
 import type { ChatCommandContext, ChatCommandOptions, PendingProposalOperation } from "@/lib/orqena/application/capataz-use-cases";
-export type { ChatCommandContext, ChatCommandResult, ChatCommandOptions, ChatActionButton, ChatActionResult, ChatHistoryMessage, ChatHistoryConversation, PendingProposalOperation } from "@/lib/orqena/application/capataz-use-cases";
+export type { ChatCommandContext, ChatCommandResult, ChatCommandOptions, ChatActionButton, ChatActionResult, ChatHistoryMessage, ChatHistoryConversation, PendingProposalOperation, AiDisclosure } from "@/lib/orqena/application/capataz-use-cases";
 
 export async function runChatCommand(text: string, context?: ChatCommandContext | null, options: ChatCommandOptions = {}) {
   return executeNextAction({ operation: "app/(app)/capataz/actions.ts#runChatCommand" }, () => runChatCommandUseCase(text, context, options));

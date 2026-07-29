@@ -4,6 +4,11 @@ import { readAppEnvironment, readBoolean, readCsv } from "./environment";
 const optionalSecret = z.string().trim().min(1).optional();
 const optionalUrl = z.string().trim().url().optional();
 const optionalIntegerString = z.string().trim().regex(/^\d+$/).optional();
+const optionalDecimalString = z.string().trim().regex(/^\d+(?:\.\d{1,6})?$/).optional();
+const mailbox = z.string().trim().refine((value) => {
+  const address = value.match(/<([^<>]+)>$/)?.[1] ?? value;
+  return /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(address);
+}, "must be an email address or a display name with an email address").optional();
 
 const canonicalStripePriceVariables = [
   "STRIPE_PRICE_STARTER_MONTHLY",
@@ -20,12 +25,12 @@ const rawSchema = z.object({
   PRODUCT_NAME: z.string().trim().min(1).default("Orqena"),
   LEGAL_ENTITY_NAME: z.string().trim().min(1).optional(),
   LEGAL_TAX_ID: z.string().trim().min(1).optional(),
-  EMAIL_FROM: z.string().trim().email().optional(),
+  EMAIL_FROM: mailbox,
   EMAIL_REPLY_TO: z.string().trim().email().optional(),
   EMAIL_SENDING_DOMAIN: z.string().trim().min(1).optional(),
   EMAIL_DKIM_STATUS: z.enum(["verified"]).optional(),
   EMAIL_SPF_STATUS: z.enum(["verified"]).optional(),
-  EMAIL_DMARC_POLICY: z.enum(["quarantine", "reject"]).optional(),
+  EMAIL_DMARC_POLICY: z.enum(["none", "quarantine", "reject"]).optional(),
   EMAIL_TRACKING_ENABLED: z.enum(["false"]).default("false"),
   EMAIL_TOKEN_DERIVATION_SECRET: optionalSecret,
   RESEND_API_KEY: optionalSecret,
@@ -52,11 +57,23 @@ const rawSchema = z.object({
   OPENAI_BASE_URL: optionalUrl,
   OPENAI_PROJECT_ID: optionalSecret,
   OPENAI_DATA_PROFILE: z.string().trim().min(1).optional(),
+  OPENAI_MODEL_FAST: z.string().trim().min(1).optional(),
+  OPENAI_MODEL_REASONING: z.string().trim().min(1).optional(),
+  OPENAI_MODEL_TRANSCRIPTION: z.string().trim().min(1).optional(),
   OPENAI_MODEL_FAST_SNAPSHOT: z.string().trim().min(1).optional(),
   OPENAI_MODEL_REASONING_SNAPSHOT: z.string().trim().min(1).optional(),
+  OPENAI_MODEL_TRANSCRIPTION_SNAPSHOT: z.string().trim().min(1).optional(),
   OPENAI_STORE: z.enum(["false"]).default("false"),
   AI_PROVIDER_MODE: z.enum(["off", "fake", "openai"]).default("off"),
-  AI_LIVE_APPROVAL: z.enum(["approved-local", "approved-staging", "approved-production"]).optional(),
+  AI_PROVIDER_CONFIGURED: z.enum(["true", "false"]).default("false"),
+  AI_GLOBAL_ENABLED: z.enum(["true", "false"]).default("false"),
+  AI_LIVE_APPROVAL: z.enum(["approved-local", "approved-review", "approved-staging", "approved-production"]).optional(),
+  AI_COMPANY_ALLOWLIST: z.string().trim().optional(),
+  AI_GLOBAL_MONTHLY_BUDGET_EUR: optionalDecimalString,
+  AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR: optionalDecimalString,
+  AI_DEFAULT_USER_DAILY_REQUEST_LIMIT: optionalIntegerString,
+  AI_MAX_INPUT_TOKENS_PER_REQUEST: optionalIntegerString,
+  AI_MAX_OUTPUT_TOKENS_PER_REQUEST: optionalIntegerString,
   STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
   S3_ENDPOINT: optionalUrl,
   S3_REGION: z.string().trim().min(1).optional(),
@@ -80,6 +97,14 @@ export type ServerConfig = ReturnType<typeof parseServerConfig>;
 
 function safeIssue(path: string, message: string) {
   return { path: [path], message, code: z.ZodIssueCode.custom } as const;
+}
+
+function expectedAiLiveApproval(env: NodeJS.ProcessEnv): string {
+  const name = (env.NEXT_PUBLIC_APP_ENV ?? env.APP_ENV ?? "development").trim().toLowerCase();
+  if (name === "production") return "approved-production";
+  if (name === "staging") return "approved-staging";
+  if (name === "review" || name === "preview") return "approved-review";
+  return "approved-local";
 }
 
 export function parseServerConfig(
@@ -124,6 +149,12 @@ export function parseServerConfig(
     billingPastDueGraceDays: Number(parsed.data.BILLING_PAST_DUE_GRACE_DAYS),
     billingAllowedCountries: readCsv(parsed.data.BILLING_ALLOWED_COUNTRIES).map((country) => country.toUpperCase()),
     euB2bCrossBorderEnabled: readBoolean(parsed.data.EU_B2B_CROSS_BORDER_ENABLED),
+    aiCompanyAllowlist: readCsv(parsed.data.AI_COMPANY_ALLOWLIST),
+    aiGlobalMonthlyBudgetEur: parsed.data.AI_GLOBAL_MONTHLY_BUDGET_EUR === undefined ? undefined : Number(parsed.data.AI_GLOBAL_MONTHLY_BUDGET_EUR),
+    aiDefaultCompanyMonthlyBudgetEur: parsed.data.AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR === undefined ? undefined : Number(parsed.data.AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR),
+    aiUserDailyRequestLimit: parsed.data.AI_DEFAULT_USER_DAILY_REQUEST_LIMIT === undefined ? undefined : Number(parsed.data.AI_DEFAULT_USER_DAILY_REQUEST_LIMIT),
+    aiMaxInputTokens: parsed.data.AI_MAX_INPUT_TOKENS_PER_REQUEST === undefined ? undefined : Number(parsed.data.AI_MAX_INPUT_TOKENS_PER_REQUEST),
+    aiMaxOutputTokens: parsed.data.AI_MAX_OUTPUT_TOKENS_PER_REQUEST === undefined ? undefined : Number(parsed.data.AI_MAX_OUTPUT_TOKENS_PER_REQUEST),
   };
 
   const issues: Array<ReturnType<typeof safeIssue>> = [];
@@ -167,7 +198,7 @@ export function parseServerConfig(
   }
   if (environment === "production") {
     const baseUrl = new URL(config.APP_BASE_URL);
-    if (baseUrl.protocol !== "https:" || /localhost|127\.0\.0\.1|railway\.app$/i.test(baseUrl.hostname)) {
+    if (baseUrl.origin !== "https://app.orqenatech.com") {
       issues.push(safeIssue("APP_BASE_URL", "must be the approved HTTPS production domain"));
     }
     if (phase !== "build" && !config.DATABASE_URL) issues.push(safeIssue("DATABASE_URL", "is required"));
@@ -177,6 +208,12 @@ export function parseServerConfig(
   }
   if (config.flags.emailLive && (!config.EMAIL_FROM || !config.EMAIL_REPLY_TO || !config.EMAIL_SENDING_DOMAIN || !config.RESEND_API_KEY || !config.RESEND_WEBHOOK_SECRET || !config.EMAIL_DKIM_STATUS || !config.EMAIL_SPF_STATUS || !config.EMAIL_DMARC_POLICY || !config.EMAIL_TOKEN_DERIVATION_SECRET)) {
     issues.push(safeIssue("EMAIL_LIVE_ENABLED", "requires verified sender domain, reply-to, webhook, DMARC and token derivation secret"));
+  }
+  if (config.flags.emailLive && config.EMAIL_FROM && config.EMAIL_SENDING_DOMAIN) {
+    const address = config.EMAIL_FROM.match(/<([^<>]+)>$/)?.[1] ?? config.EMAIL_FROM;
+    if (!address.toLowerCase().endsWith(`@${config.EMAIL_SENDING_DOMAIN.toLowerCase()}`)) {
+      issues.push(safeIssue("EMAIL_FROM", "must use the verified sending domain"));
+    }
   }
   if (config.flags.billing && (
     !config.STRIPE_SECRET_KEY
@@ -189,11 +226,32 @@ export function parseServerConfig(
   if (config.flags.fiscal && config.FISCAL_MODE === "live" && (!config.FISCAL_PROVIDER || !config.FISCAL_CERTIFICATE_REF || !config.FISCAL_SOFTWARE_VERSION)) {
     issues.push(safeIssue("FISCAL_ENGINE_ENABLED", "requires provider, certificate reference, and software version"));
   }
-  if (config.flags.ai && config.AI_PROVIDER_MODE !== "openai") {
-    issues.push(safeIssue("AI_PROVIDER_MODE", "must be openai when live AI is enabled"));
+  if (config.flags.ai && config.AI_PROVIDER_CONFIGURED !== "true") {
+    issues.push(safeIssue("AI_PROVIDER_CONFIGURED", "must be true when AI is enabled"));
   }
-  if (config.flags.ai && (!config.OPENAI_API_KEY || !config.OPENAI_PROJECT_ID || !config.OPENAI_DATA_PROFILE || !config.OPENAI_MODEL_FAST_SNAPSHOT || !config.OPENAI_MODEL_REASONING_SNAPSHOT || config.OPENAI_STORE !== "false" || !config.AI_LIVE_APPROVAL)) {
-    issues.push(safeIssue("AI_ENABLED", "requires a scoped project key, approved data profile, pinned model snapshots, store=false and explicit environment approval"));
+  if (config.flags.ai && config.AI_GLOBAL_ENABLED !== "true") {
+    issues.push(safeIssue("AI_GLOBAL_ENABLED", "must be true when AI is enabled"));
+  }
+  if (config.AI_GLOBAL_ENABLED === "true" && !config.flags.ai) {
+    issues.push(safeIssue("AI_ENABLED", "must be true when AI_GLOBAL_ENABLED is true"));
+  }
+  if (config.flags.ai && config.AI_PROVIDER_MODE === "off") {
+    issues.push(safeIssue("AI_PROVIDER_MODE", "must be fake or openai when AI is enabled"));
+  }
+  if (config.flags.ai && (!config.AI_GLOBAL_MONTHLY_BUDGET_EUR || !config.AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR || !config.AI_DEFAULT_USER_DAILY_REQUEST_LIMIT || !config.AI_MAX_INPUT_TOKENS_PER_REQUEST || !config.AI_MAX_OUTPUT_TOKENS_PER_REQUEST)) {
+    issues.push(safeIssue("AI_ENABLED", "requires explicit global, company, daily request and token limits"));
+  }
+  if (config.flags.ai && ((config.aiGlobalMonthlyBudgetEur ?? Infinity) > 25 || (config.aiDefaultCompanyMonthlyBudgetEur ?? Infinity) > 5 || (config.aiUserDailyRequestLimit ?? Infinity) > 50 || (config.aiMaxInputTokens ?? Infinity) > 4096 || (config.aiMaxOutputTokens ?? Infinity) > 1024)) {
+    issues.push(safeIssue("AI_GLOBAL_MONTHLY_BUDGET_EUR", "exceeds the authorized initial AI limits"));
+  }
+  if (config.AI_PROVIDER_CONFIGURED === "true" && config.AI_PROVIDER_MODE === "openai" && (!config.OPENAI_API_KEY || !config.OPENAI_DATA_PROFILE || !config.OPENAI_MODEL_FAST || !config.OPENAI_MODEL_REASONING || !config.OPENAI_MODEL_TRANSCRIPTION || !config.OPENAI_MODEL_FAST_SNAPSHOT || !config.OPENAI_MODEL_REASONING_SNAPSHOT || !config.OPENAI_MODEL_TRANSCRIPTION_SNAPSHOT || config.OPENAI_STORE !== "false" || !config.AI_LIVE_APPROVAL)) {
+    issues.push(safeIssue("AI_ENABLED", "live AI requires an environment-scoped key, approved data profile, pinned models, store=false and explicit environment approval"));
+  }
+  if (config.flags.ai && config.AI_PROVIDER_MODE === "openai" && config.AI_LIVE_APPROVAL !== expectedAiLiveApproval(env)) {
+    issues.push(safeIssue("AI_LIVE_APPROVAL", "must match the current application environment"));
+  }
+  if (environment === "production" && config.flags.ai && (config.aiCompanyAllowlist.length === 0 || config.aiCompanyAllowlist.includes("*"))) {
+    issues.push(safeIssue("AI_COMPANY_ALLOWLIST", "production AI requires an explicit company allowlist"));
   }
   if (environment === "production" && config.flags.ai && config.AI_LIVE_APPROVAL !== "approved-production") {
     issues.push(safeIssue("AI_LIVE_APPROVAL", "must explicitly approve production"));

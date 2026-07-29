@@ -28,5 +28,13 @@
   "correlation": ["requestId", "correlationId", "causationId", "companyId", "actorIdHash"],
   "providerMetadataAllowlist": ["purpose", "prompt_version", "schema_version", "company_ref", "actor_ref", "correlation_ref"],
   "providerContentRetention": "store=false",
-  "applicationContentRetention": "policy.retentionDays; payload and output bodies are never written to usage logs"
+  "applicationContentRetention": "policy.retentionDays; payload and output bodies are never written to usage logs",
+  "runtimeGates": ["AI_PROVIDER_CONFIGURED", "AI_ENABLED", "AI_GLOBAL_ENABLED", "AI_COMPANY_ALLOWLIST", "companyPolicy.enabled", "companyPolicy.killSwitch"],
+  "hardCaps": {
+    "globalMonthlyBudgetEnvironmentVariable": "AI_GLOBAL_MONTHLY_BUDGET_EUR",
+    "companyMonthlyBudgetEnvironmentVariable": "AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR",
+    "userDailyRequestLimitEnvironmentVariable": "AI_DEFAULT_USER_DAILY_REQUEST_LIMIT",
+    "reservationBeforeProviderCall": true,
+    "alerts": [50, 80, 100]
+  }
 }

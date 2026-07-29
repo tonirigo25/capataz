@@ -10,8 +10,9 @@ export async function POST(request: Request) {
   const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   const left = Buffer.from(expected); const right = Buffer.from(provided);
   if (!expected || left.length !== right.length || !timingSafeEqual(left, right)) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const claimed = await claimEmailBatch(prisma, { batchSize: 50 });
+  if (process.env.EMAIL_LIVE_ENABLED !== "true") return Response.json({ error: "email_disabled" }, { status: 503 });
   const provider = getEmailDeliveryProvider();
+  const claimed = await claimEmailBatch(prisma, { batchSize: 50 });
   const results = [];
   for (const item of claimed) results.push(await processClaimedEmail(prisma, item, provider));
   return Response.json({ claimed: claimed.length, sent: results.filter((item) => item.status === "SENT").length, retrying: results.filter((item) => item.status === "RETRYING").length, failed: results.filter((item) => item.status === "FAILED").length });

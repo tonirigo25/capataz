@@ -1,7 +1,5 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import type { AiGatewayProvider, BillingProvider, EmailDeliveryProvider, FiscalTransmissionProvider, ObservabilityProvider, ProviderReceipt, StorageProvider } from "./contracts";
-import { openAiHttpRequest } from "@/lib/ai/openai-transport";
-import { stableReference } from "@/lib/ai/redaction";
 
 type Clock = () => Date;
 
@@ -36,8 +34,8 @@ export class ResendEmailProvider implements EmailDeliveryProvider {
   readonly name = "resend";
   readonly mode = "live" as const;
   constructor(private readonly client: { emails: { send(input: object, options: { idempotencyKey: string }): Promise<{ data?: { id?: string } | null; error?: unknown }> } }, private readonly from: string, private readonly clock: Clock = () => new Date()) {}
-  async send(input: { recipient: string; subject: string; text: string; idempotencyKey: string }) {
-    const response = await this.client.emails.send({ from: this.from, to: input.recipient, subject: input.subject, text: input.text }, { idempotencyKey: input.idempotencyKey });
+  async send(input: { recipient: string; subject: string; text: string; html?: string; replyTo?: string; idempotencyKey: string }) {
+    const response = await this.client.emails.send({ from: this.from, to: input.recipient, subject: input.subject, text: input.text, ...(input.html ? { html: input.html } : {}), ...(input.replyTo ? { reply_to: input.replyTo } : {}) }, { idempotencyKey: input.idempotencyKey });
     if (response.error) throw new Error("EMAIL_PROVIDER_REJECTED");
     return receipt(this.name, response.data?.id ?? "", input.idempotencyKey, this.clock);
   }
@@ -71,13 +69,14 @@ export class S3StorageProvider implements StorageProvider {
 export class OpenAiGatewayProvider implements AiGatewayProvider {
   readonly name = "openai";
   readonly mode = "live" as const;
-  constructor(private readonly apiKey: string, private readonly model: string, private readonly fetcher: typeof fetch = fetch, private readonly clock: Clock = () => new Date()) {}
+  constructor(
+    private readonly governedComplete: (input: { companyId: string; purpose: string; promptVersion: string; input: string; idempotencyKey: string; store: false }) => Promise<{ reference: string; output: string }>,
+    private readonly clock: Clock = () => new Date(),
+  ) {}
   async complete(input: { companyId: string; purpose: string; promptVersion: string; input: string; idempotencyKey: string; store: false }) {
     if (input.store !== false) throw new Error("AI_STORE_MUST_BE_FALSE");
-    const response = await openAiHttpRequest({ path: "responses", apiKey: this.apiKey, fetcher: this.fetcher, init: { method: "POST", headers: { "content-type": "application/json", "idempotency-key": input.idempotencyKey }, body: JSON.stringify({ model: this.model, input: input.input, store: false, metadata: { company_ref: stableReference(input.companyId), purpose: input.purpose, prompt_version: input.promptVersion } }) } });
-    const body = await response.json() as { id?: string; output_text?: string; error?: unknown };
-    if (!response.ok || body.error) throw new Error("AI_PROVIDER_REJECTED");
-    return { ...receipt(this.name, body.id ?? "", input.idempotencyKey, this.clock), output: body.output_text ?? "" };
+    const result = await this.governedComplete(input);
+    return { ...receipt(this.name, result.reference, input.idempotencyKey, this.clock), output: result.output };
   }
 }
 

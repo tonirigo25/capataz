@@ -892,7 +892,8 @@ export function isParsedActivityCommand(command: { intent: string }): command is
 export function debugChat(step: string, payload: unknown) {
   const enabled = process.env.CAPATAZ_CHAT_DEBUG === "true" || process.env.NEXT_PUBLIC_APP_ENV !== "production";
   if (!enabled) return;
-  console.info(`[capataz-chat] ${step}`, JSON.stringify(payload, null, 2));
+  void payload;
+  console.info("[capataz-chat]", JSON.stringify({ event: step, content: "redacted" }));
 }
 
 export async function persistIncomingChatMessage(text: string, context: ChatCommandContext | null, options: ChatCommandOptions) {

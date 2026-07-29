@@ -28,8 +28,9 @@ class CountingEmailProvider implements EmailDeliveryProvider {
   readonly name = "fake-email-counting";
   readonly mode = "fake" as const;
   calls = 0;
+  lastInput: { recipient: string; subject: string; text: string; html?: string; replyTo?: string; idempotencyKey: string } | null = null;
   constructor(private readonly failUntil = 0) {}
-  async send(input: { recipient: string; subject: string; text: string; idempotencyKey: string }) { this.calls += 1; if (this.calls <= this.failUntil) throw new Error("FAKE_EMAIL_TRANSIENT"); return receipt(this.name, `message-${createHash("sha256").update(input.idempotencyKey).digest("hex").slice(0, 16)}`, input.idempotencyKey); }
+  async send(input: { recipient: string; subject: string; text: string; html?: string; replyTo?: string; idempotencyKey: string }) { this.calls += 1; this.lastInput = structuredClone(input); if (this.calls <= this.failUntil) throw new Error("FAKE_EMAIL_TRANSIENT"); return receipt(this.name, `message-${createHash("sha256").update(input.idempotencyKey).digest("hex").slice(0, 16)}`, input.idempotencyKey); }
 }
 
 class MutableStorageProvider implements StorageProvider {
@@ -121,12 +122,23 @@ async function main() {
 
   await prisma.$transaction(async (transaction) => { await queueEmailEvent(transaction, { companyId: companyA, eventKey: "support_update", recipient: "rollback@example.invalid", idempotencyKey: "rollback" }); throw new Error("ROLLBACK_EXPECTED"); }).catch(() => undefined);
   assert.equal(await prisma.emailOutbox.count({ where: { idempotencyKey: "rollback" } }), 0);
+  assert.equal(await rejected(() => queueEmailEvent(prisma, { companyId: companyA, eventKey: "support_update", recipient: "missing-key@example.invalid", idempotencyKey: "" }), /IDEMPOTENCY_KEY_REQUIRED/u), true);
   for (let index = 0; index < 10; index += 1) await queueEmailEvent(prisma, { companyId: companyA, eventKey: "demo_requested", recipient: `worker-${index}@example.invalid`, idempotencyKey: `worker-${index}` });
   const [workerOne, workerTwo] = await Promise.all([claimEmailBatch(prisma, { batchSize: 6 }), claimEmailBatch(prisma, { batchSize: 6 })]);
-  assert.equal(new Set([...workerOne, ...workerTwo].map((item) => item.id)).size, workerOne.length + workerTwo.length);
+  const concurrentClaims = [...workerOne, ...workerTwo];
+  assert.equal(new Set(concurrentClaims.map((item) => item.id)).size, concurrentClaims.length, JSON.stringify({ workerOne: workerOne.map((item) => ({ id: item.id, eventKey: item.eventKey })), workerTwo: workerTwo.map((item) => ({ id: item.id, eventKey: item.eventKey })) }));
   assert.equal(workerOne.length + workerTwo.length >= 10, true);
   const workerProvider = new CountingEmailProvider();
   for (const item of [...workerOne, ...workerTwo]) await processClaimedEmail(prisma, item, workerProvider);
+
+  const abandoned = await queueEmailEvent(prisma, { companyId: companyA, eventKey: "support_update", recipient: "abandoned@example.invalid", idempotencyKey: "abandoned" });
+  const leaseNow = new Date();
+  const abandonedClaim = (await claimEmailBatch(prisma, { batchSize: 20, now: leaseNow })).find((item) => item.id === abandoned.id)!;
+  assert.equal(abandonedClaim.status, "PROCESSING");
+  await prisma.emailOutbox.update({ where: { id: abandoned.id }, data: { availableAt: new Date(leaseNow.getTime() - 1) } });
+  const reclaimed = (await claimEmailBatch(prisma, { batchSize: 20, now: leaseNow })).find((item) => item.id === abandoned.id)!;
+  assert.equal(reclaimed.attempts, 2);
+  await processClaimedEmail(prisma, reclaimed, workerProvider);
 
   const verification = await queueEmailEvent(prisma, { companyId: companyA, eventKey: "email_verification", recipient: "member-f4@example.invalid", payload: { userId: memberId }, idempotencyKey: "verification-worker" });
   const verificationClaim = (await claimEmailBatch(prisma, { batchSize: 20 })).find((item) => item.id === verification.id)!;
@@ -172,6 +184,36 @@ async function main() {
   assert.equal(await prisma.emailSuppression.count({ where: { emailHash: createHash("sha256").update(sentForWebhook.recipient).digest("hex"), active: true } }) > 0, true);
   assert.equal(await rejected(() => ingestResendWebhook(prisma, { rawBody: webhookBody, id: "invalid", timestamp: Math.floor(webhookTimestamp.getTime() / 1000).toString(), signature: "v1,invalid", secret: webhookSecret }), /signature|No matching|Invalid/i), true);
 
+  for (const [index, eventType] of ["email.delivered", "email.delivery_delayed", "email.failed", "email.complained", "email.suppressed"].entries()) {
+    const recipient = `webhook-${index}@example.invalid`;
+    const queued = await queueEmailEvent(prisma, { companyId: companyA, eventKey: "support_update", recipient, idempotencyKey: `webhook-${index}` });
+    const claimed = (await claimEmailBatch(prisma, { batchSize: 20 })).find((item) => item.id === queued.id)!;
+    await processClaimedEmail(prisma, claimed, workerProvider);
+    const sent = await prisma.emailOutbox.findUniqueOrThrow({ where: { id: queued.id } });
+    const eventId = `resend-event-${index}`;
+    const eventBody = JSON.stringify({ type: eventType, created_at: webhookTimestamp.toISOString(), data: { email_id: sent.providerMessageId, to: [recipient] } });
+    const eventSignature = new Webhook(webhookSecret).sign(eventId, webhookTimestamp, eventBody);
+    await ingestResendWebhook(prisma, { rawBody: eventBody, id: eventId, timestamp: Math.floor(webhookTimestamp.getTime() / 1000).toString(), signature: eventSignature, secret: webhookSecret });
+    assert.ok(await prisma.emailWebhookEvent.findUnique({ where: { provider_externalEventId: { provider: "resend", externalEventId: eventId } } }));
+    const projected = await prisma.emailOutbox.findUniqueOrThrow({ where: { id: queued.id } });
+    if (eventType === "email.delivered") assert.equal(projected.lastError, null);
+    if (eventType === "email.delivery_delayed") assert.equal(projected.lastError, eventType);
+    if (["email.failed", "email.complained", "email.suppressed"].includes(eventType)) assert.equal(projected.status, "FAILED");
+  }
+
+  const contact = await prisma.demoRequest.create({ data: { emailNormalized: "contact@example.invalid", displayName: "Contacto sintético", companyName: "Empresa sintética", message: "Mensaje sintético de contacto", consentAt: now, source: "f4", requestHash: "f4-contact-request", status: "PENDING" } });
+  const contactOutbox = await queueEmailEvent(prisma, { eventKey: "contact_requested", recipient: "hola@orqenatech.com", payload: { demoRequestId: contact.id, reason: "soporte" }, idempotencyKey: `contact-request:${contact.id}` });
+  const contactProvider = new CountingEmailProvider();
+  await processClaimedEmail(prisma, (await claimEmailBatch(prisma, { batchSize: 20 })).find((item) => item.id === contactOutbox.id)!, contactProvider);
+  assert.equal(contactProvider.lastInput?.replyTo, "contact@example.invalid");
+  assert.match(contactProvider.lastInput?.text ?? "", /Contacto sintético/u);
+  assert.equal((await prisma.demoRequest.findUniqueOrThrow({ where: { id: contact.id } })).status, "EMAIL_ACCEPTED");
+  const contactSent = await prisma.emailOutbox.findUniqueOrThrow({ where: { id: contactOutbox.id } });
+  const contactEventId = "resend-event-contact-delivered";
+  const contactBody = JSON.stringify({ type: "email.delivered", created_at: webhookTimestamp.toISOString(), data: { email_id: contactSent.providerMessageId, to: [contactSent.recipient] } });
+  await ingestResendWebhook(prisma, { rawBody: contactBody, id: contactEventId, timestamp: Math.floor(webhookTimestamp.getTime() / 1000).toString(), signature: new Webhook(webhookSecret).sign(contactEventId, webhookTimestamp, contactBody), secret: webhookSecret });
+  assert.equal((await prisma.demoRequest.findUniqueOrThrow({ where: { id: contact.id } })).status, "DELIVERED");
+
   const mutable = new MutableStorageProvider();
   const storage = new PrivateStorageService(prisma, mutable, "f4-private", "s".repeat(32));
   const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4]);
@@ -186,7 +228,7 @@ async function main() {
   mutable.values.set(`${companyA}/${object.objectKey}`, new TextEncoder().encode("tampered"));
   assert.equal(await rejected(() => storage.readVerified({ companyId: companyA, objectId: object.id }), /INTEGRITY/u), true);
 
-  process.stdout.write(`${JSON.stringify({ ok: true, migrations: migrations[0].count, checkoutProviderCalls: billing.checkoutCalls, portalProviderCalls: billing.portalCalls, stripeStatusMatrix: matrix.length, stripeReplay: replay.replayed, staleIgnored: true, dunningDeduplicated: true, usageNegativeMetrics: 3, emailWorkerDistinctClaims: workerOne.length + workerTwo.length, emailTokenPlaintextPersisted: false, resendReplay: resendReplay.replayed, privateStorageTenantIsolation: true, storageIntegrityTamperDetected: true, externalInput: ["EMAIL-010"] }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ ok: true, migrations: migrations[0].count, checkoutProviderCalls: billing.checkoutCalls, portalProviderCalls: billing.portalCalls, stripeStatusMatrix: matrix.length, stripeReplay: replay.replayed, staleIgnored: true, dunningDeduplicated: true, usageNegativeMetrics: 3, emailWorkerDistinctClaims: workerOne.length + workerTwo.length, emailLeaseRecovery: true, emailTokenPlaintextPersisted: false, resendEventTypes: 6, resendReplay: resendReplay.replayed, contactDeliveryConfirmedByWebhook: true, privateStorageTenantIsolation: true, storageIntegrityTamperDetected: true, externalInput: ["EMAIL-010"] }, null, 2)}\n`);
 }
 
 main().finally(() => prisma.$disconnect()).catch((error) => { console.error(error instanceof Error ? error.stack : error); process.exitCode = 1; });

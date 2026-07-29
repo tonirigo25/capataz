@@ -11,6 +11,9 @@ const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1/";
 function baseUrl(value?: string): URL {
   const url = new URL(value?.trim() || DEFAULT_OPENAI_BASE_URL);
   if (url.protocol !== "https:") throw new AiTransportError("AI_PROVIDER_ENDPOINT_MUST_BE_HTTPS", { retryable: false });
+  if (url.hostname !== "api.openai.com" || url.port || url.username || url.password) {
+    throw new AiTransportError("AI_PROVIDER_ENDPOINT_NOT_APPROVED", { retryable: false });
+  }
   if (!url.pathname.endsWith("/")) url.pathname += "/";
   return url;
 }
@@ -131,6 +134,125 @@ export class OpenAiResponsesTransport implements AiTransport {
       inputTokens: numericUsage(payload, "input_tokens"),
       outputTokens: numericUsage(payload, "output_tokens"),
       usageIsSyntheticOrEstimated: false,
+    };
+  }
+}
+
+export class OpenAiTranscriptionTransport implements AiTransport {
+  readonly name = "openai-transcription";
+  readonly mode = "live" as const;
+
+  constructor(private readonly options: {
+    apiKey: string;
+    audio: File;
+    baseUrl?: string;
+    projectId?: string;
+    language?: string;
+    fetcher?: typeof fetch;
+  }) {}
+
+  async complete(input: AiTransportInput): Promise<AiTransportResult> {
+    if (input.store !== false) throw new AiTransportError("AI_STORE_MUST_BE_FALSE", { retryable: false });
+    const form = new FormData();
+    form.append("model", input.modelSnapshot);
+    form.append("language", this.options.language ?? "es");
+    form.append("file", this.options.audio, this.options.audio.name || "dictado.webm");
+    let response: Response;
+    try {
+      response = await openAiHttpRequest({
+        path: "audio/transcriptions",
+        apiKey: this.options.apiKey,
+        baseUrl: this.options.baseUrl,
+        projectId: this.options.projectId,
+        fetcher: this.options.fetcher,
+        init: { method: "POST", signal: input.signal, headers: { "idempotency-key": input.idempotencyKey }, body: form },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw new AiTransportError("AI_PROVIDER_TIMEOUT", { retryable: true, cause: error });
+      throw new AiTransportError("AI_PROVIDER_NETWORK_ERROR", { retryable: true, cause: error });
+    }
+    const payload = await response.json().catch(() => null) as { text?: unknown; id?: unknown } | null;
+    if (!response.ok) throw new AiTransportError(`AI_PROVIDER_HTTP_${response.status}`, { retryable: response.status === 408 || response.status === 409 || response.status === 429 || response.status >= 500, status: response.status });
+    const text = typeof payload?.text === "string" ? payload.text.trim() : "";
+    if (!text) throw new AiTransportError("AI_PROVIDER_EMPTY_RESPONSE", { retryable: false });
+    return {
+      provider: this.name,
+      providerReference: typeof payload?.id === "string" ? payload.id : undefined,
+      model: input.model,
+      modelSnapshot: input.modelSnapshot,
+      output: { text },
+      usageIsSyntheticOrEstimated: true,
+    };
+  }
+}
+
+export class OpenAiDocumentExtractionTransport implements AiTransport {
+  readonly name = "openai-document-extraction";
+  readonly mode = "live" as const;
+
+  constructor(private readonly options: {
+    apiKey: string;
+    bytes: Buffer;
+    filename: string;
+    mimeType: string;
+    system: string;
+    baseUrl?: string;
+    projectId?: string;
+    fetcher?: typeof fetch;
+  }) {}
+
+  async complete(input: AiTransportInput): Promise<AiTransportResult> {
+    if (input.store !== false) throw new AiTransportError("AI_STORE_MUST_BE_FALSE", { retryable: false });
+    const base64 = this.options.bytes.toString("base64");
+    const fileContent = this.options.mimeType === "application/pdf"
+      ? { type: "input_file", filename: this.options.filename, file_data: `data:${this.options.mimeType};base64,${base64}` }
+      : { type: "input_image", image_url: `data:${this.options.mimeType};base64,${base64}`, detail: "high" };
+    let response: Response;
+    try {
+      response = await openAiHttpRequest({
+        path: "responses",
+        apiKey: this.options.apiKey,
+        baseUrl: this.options.baseUrl,
+        projectId: this.options.projectId,
+        fetcher: this.options.fetcher,
+        init: {
+          method: "POST",
+          signal: input.signal,
+          headers: { "content-type": "application/json", "idempotency-key": input.idempotencyKey },
+          body: JSON.stringify({
+            model: input.modelSnapshot,
+            input: [
+              { role: "system", content: this.options.system },
+              { role: "user", content: [{ type: "input_text", text: `Archivo ${this.options.filename}. Extrae sólo una propuesta para revisión humana.` }, fileContent] },
+            ],
+            text: { format: { type: "json_schema", name: `orqena_document_v${input.schemaVersion}`, strict: true, schema: input.outputSchema } },
+            max_output_tokens: input.maxOutputTokens,
+            store: false,
+            metadata: input.metadata,
+          }),
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw new AiTransportError("AI_PROVIDER_TIMEOUT", { retryable: true, cause: error });
+      throw new AiTransportError("AI_PROVIDER_NETWORK_ERROR", { retryable: true, cause: error });
+    }
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new AiTransportError(`AI_PROVIDER_HTTP_${response.status}`, { retryable: response.status === 408 || response.status === 409 || response.status === 429 || response.status >= 500, status: response.status });
+    const text = extractOutputText(payload);
+    if (!text) throw new AiTransportError("AI_PROVIDER_EMPTY_RESPONSE", { retryable: false });
+    let output: JsonValue;
+    try { output = JSON.parse(text) as JsonValue; }
+    catch (error) { throw new AiTransportError("AI_PROVIDER_INVALID_JSON", { retryable: false, cause: error }); }
+    const record = payload as Record<string, unknown> | null;
+    return {
+      provider: this.name,
+      providerReference: record && typeof record.id === "string" ? record.id : undefined,
+      model: input.model,
+      modelSnapshot: input.modelSnapshot,
+      output,
+      inputTokens: numericUsage(payload, "input_tokens"),
+      outputTokens: numericUsage(payload, "output_tokens"),
+      usageIsSyntheticOrEstimated: true,
     };
   }
 }

@@ -117,11 +117,18 @@ export async function resetPasswordAction(_previous: AuthActionState, form: Form
   const reset = token ? await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(token) } }) : null;
   if (!reset || reset.usedAt || reset.expiresAt <= new Date()) return { status: "error", message: "El enlace ya no es válido. Solicita uno nuevo." };
   const passwordHash = await hashPassword(password);
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: reset.userId }, data: { passwordHash, passwordChangedAt: new Date(), failedLoginCount: 0, lockedUntil: null } }),
-    prisma.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
-    prisma.session.updateMany({ where: { userId: reset.userId, revokedAt: null }, data: { revokedAt: new Date() } })
-  ]);
+  await prisma.$transaction(async (transaction) => {
+    const user = await transaction.user.update({ where: { id: reset.userId }, data: { passwordHash, passwordChangedAt: new Date(), failedLoginCount: 0, lockedUntil: null }, select: { email: true, activeCompanyId: true } });
+    await transaction.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } });
+    await transaction.session.updateMany({ where: { userId: reset.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await queueEmailEvent(transaction, {
+      companyId: user.activeCompanyId ?? undefined,
+      eventKey: "password_changed",
+      recipient: user.email,
+      payload: { userId: reset.userId },
+      idempotencyKey: `password-changed:${reset.id}`,
+    });
+  });
   await recordSecurityEvent({ type: "password_reset_completed", outcome: "success", userId: reset.userId });
   return { status: "success", message: "Contraseña actualizada. Ya puedes iniciar sesión." };
 }
