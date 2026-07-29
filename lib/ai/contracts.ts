@@ -36,6 +36,7 @@ export type GovernedAiRequest = AiCorrelation & {
   idempotencyKey: string;
   lane: AiLane;
   promptVersion: string;
+  trustedInstruction?: string;
   schemaVersion: number;
   payload: Record<string, unknown>;
   outputSchema: StrictJsonSchema;
@@ -56,6 +57,7 @@ export type AiTransportInput = {
   lane: AiLane;
   purpose: string;
   promptVersion: string;
+  trustedInstruction?: string;
   schemaVersion: number;
   payload: JsonValue;
   outputSchema: StrictJsonSchema;

@@ -318,10 +318,103 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
     });
   }
 
-  async failOperation(input: { companyId: string; idempotencyKey: string; requestHash: string; errorCode: string; attemptCount: number }) {
-    await this.prisma.aiGatewayOperation.updateMany({
-      where: { companyId: input.companyId, idempotencyKey: input.idempotencyKey, requestHash: input.requestHash, status: "IN_PROGRESS" },
-      data: { status: "FAILED", errorCode: input.errorCode, attemptCount: input.attemptCount, lockedUntil: null, completedAt: new Date() },
+  async failOperation(input: {
+    companyId: string;
+    idempotencyKey: string;
+    requestHash: string;
+    errorCode: string;
+    attemptCount: number;
+    evidence?: {
+      request: GovernedAiRequest;
+      actorIdHash: string;
+      provider: string;
+      model: string;
+      modelSnapshot: string;
+      estimatedCostCeilingEur: number;
+      latencyMs: number;
+      contentExpiresAt: Date;
+      providerAttempted: boolean;
+    };
+  }) {
+    await this.prisma.$transaction(async (transaction) => {
+      const failed = await transaction.aiGatewayOperation.updateMany({
+        where: {
+          companyId: input.companyId,
+          idempotencyKey: input.idempotencyKey,
+          requestHash: input.requestHash,
+          status: "IN_PROGRESS",
+        },
+        data: {
+          status: "FAILED",
+          errorCode: input.errorCode,
+          attemptCount: input.attemptCount,
+          lockedUntil: null,
+          completedAt: new Date(),
+        },
+      });
+      if (failed.count !== 1) return;
+      if (!input.evidence) return;
+      const evidence = input.evidence;
+
+      const modelVersion = await transaction.aiModelVersion.upsert({
+        where: { provider_model_version: { provider: evidence.provider, model: evidence.model, version: evidence.modelSnapshot } },
+        create: {
+          provider: evidence.provider,
+          model: evidence.model,
+          version: evidence.modelSnapshot,
+          capabilities: { structuredOutputs: true, storeFalse: true },
+          active: true,
+        },
+        update: { active: true },
+      });
+      const promptVersion = await transaction.aiPromptVersion.upsert({
+        where: { promptKey_version: { promptKey: evidence.request.purpose, version: evidence.request.promptVersion } },
+        create: {
+          promptKey: evidence.request.purpose,
+          version: evidence.request.promptVersion,
+          contentHash: hashJson({ promptKey: evidence.request.purpose, version: evidence.request.promptVersion }),
+          template: "Versioned prompt content is deployed from the reviewed application contract.",
+          schemaVersion: evidence.request.schemaVersion,
+          active: true,
+        },
+        update: { active: true, schemaVersion: evidence.request.schemaVersion },
+      });
+      const conservativeCost = evidence.providerAttempted ? evidence.estimatedCostCeilingEur : 0;
+      await transaction.aiUsageEvent.create({
+        data: {
+          companyId: evidence.request.companyId,
+          modelVersionId: modelVersion.id,
+          promptVersionId: promptVersion.id,
+          purpose: evidence.request.purpose,
+          actorIdHash: evidence.actorIdHash,
+          requestId: evidence.request.requestId,
+          correlationId: evidence.request.correlationId,
+          causationId: evidence.request.causationId,
+          operationKey: evidence.request.operationKey,
+          idempotencyKey: evidence.request.idempotencyKey,
+          lane: evidence.request.lane,
+          modelSnapshot: evidence.modelSnapshot,
+          schemaVersion: evidence.request.schemaVersion,
+          requestHash: input.requestHash,
+          costAmount: conservativeCost,
+          storeRequested: false,
+          humanReviewed: false,
+          escalated: evidence.request.lane === "reasoning",
+          retryCount: Math.max(0, input.attemptCount - 1),
+          latencyMs: evidence.latencyMs,
+          errorCode: input.errorCode,
+          estimatedUsage: true,
+          contentExpiresAt: evidence.contentExpiresAt,
+          outcome: "FAILED",
+          metadata: {
+            contractVersion: 1,
+            dataProfile: "minimized-redacted-v1",
+            transportMode: evidence.provider === "fake-ai-governed" ? "fake" : "live",
+            providerAttempted: evidence.providerAttempted,
+            accounting: evidence.providerAttempted ? "conservative-cost-ceiling" : "zero-cost-no-provider-call",
+          },
+        },
+      });
     });
   }
 

@@ -1,5 +1,8 @@
 import { AiGatewayError, type AiLane } from "@/lib/ai/contracts";
 
+export const DEFAULT_OPENAI_FAST_MODEL = "gpt-4.1-mini-2025-04-14";
+export const DEFAULT_OPENAI_REASONING_MODEL = "gpt-4.1-2025-04-14";
+
 export type ResolvedAiModel = {
   lane: AiLane;
   logicalModel: string;
@@ -15,8 +18,8 @@ export function resolveAiModel(input: {
   live: boolean;
 }): ResolvedAiModel {
   const env = input.environment ?? process.env;
-  const fast = env.OPENAI_MODEL_FAST?.trim() || "gpt-5-mini";
-  const reasoning = env.OPENAI_MODEL_REASONING?.trim() || "gpt-5.1";
+  const fast = env.OPENAI_MODEL_FAST?.trim() || DEFAULT_OPENAI_FAST_MODEL;
+  const reasoning = env.OPENAI_MODEL_REASONING?.trim() || DEFAULT_OPENAI_REASONING_MODEL;
   const transcription = env.OPENAI_MODEL_TRANSCRIPTION?.trim() || env.OPENAI_TRANSCRIPTION_MODEL?.trim() || "gpt-4o-mini-transcribe";
   const model = input.lane === "fast" ? fast : input.lane === "reasoning" ? reasoning : transcription;
   if (!input.approvedModels.includes(model)) throw new AiGatewayError("AI_MODEL_NOT_APPROVED");

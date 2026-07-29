@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { commercialAccessPolicy, overusePolicy } from "../../lib/commercial/access-policy";
-import { validateEmailDomainConfiguration } from "../../lib/email/outbox";
+import { controlledLiveEmailEventKeys, validateEmailDomainConfiguration } from "../../lib/email/outbox";
 import { getEmailProviderStatus } from "../../lib/email";
 import { FakeBillingProvider, FakeEmailProvider, FakeStorageProvider } from "../../lib/platform/providers/fake";
 import { runProviderContractSuite } from "../../lib/platform/providers/contract-suite";
@@ -97,8 +97,29 @@ async function main() {
     assert.match(contact, /delivery:\s*["']queued/u);
     assert.doesNotMatch(contact, /sendContactNotification|marketing\.contact\.delivered/u);
     assert.match(outbox, /eventType === ["']email\.delivered["'][\s\S]*marketing\.contact\.delivered/u);
-    assert.match(provider, /reply_to/u);
-    assert.match(worker, /EMAIL_LIVE_ENABLED[\s\S]*const provider = getEmailDeliveryProvider\(\)[\s\S]*const claimed = await claimEmailBatch/u);
+    assert.match(provider, /replyTo/u);
+    assert.doesNotMatch(provider, /reply_to/u);
+    assert.match(worker, /EMAIL_LIVE_ENABLED[\s\S]*const provider = getEmailDeliveryProvider\(\)[\s\S]*claimEmailBatch\(prisma, \{ batchSize: 50, eventKeys: controlledLiveEmailEventKeys \}\)/u);
+  });
+  await check("controlled live worker only admits recovery, invitation and contact events", async () => {
+    assert.deepEqual([...controlledLiveEmailEventKeys], [
+      "employee_invited", "employee_accepted", "owner_approval_requested", "employee_approved", "employee_rejected", "invitation_revoked", "invitation_expiring",
+      "email_verification", "password_reset", "password_changed", "contact_requested",
+    ]);
+    for (const eventKey of ["billing_payment_failed", "support_update", "security_alert", "alert", "demo_requested", "profile_changed", "permissions_changed", "membership_suspended", "membership_reactivated"]) {
+      assert.equal((controlledLiveEmailEventKeys as readonly string[]).includes(eventKey), false);
+    }
+    const smoke = await readFile("scripts/readiness/validate-email-live-smoke.ts", "utf8");
+    assert.match(smoke, /eventKey:\s*["']password_changed["']/u);
+    assert.match(smoke, /claimEmailItem\([\s\S]*eventKeys:\s*controlledLiveEmailEventKeys/u);
+    assert.doesNotMatch(smoke, /eventKey:\s*["']support_update["']/u);
+    const outbox = await readFile("lib/email/outbox.ts", "utf8");
+    assert.match(outbox, /provider\.mode === ["']live["'] \? controlledLiveEmailEventKeys : undefined/u);
+  });
+  await check("membership notification keys include tenant mutation and access version", async () => {
+    const membership = await readFile("lib/application/company/membership-use-cases.ts", "utf8");
+    assert.match(membership, /membership-email:\$\{input\.companyId\}:\$\{input\.membershipId\}:\$\{input\.mutation\}:\$\{input\.eventKey\}:v\$\{input\.accessVersion\}/u);
+    for (const mutation of ["profile", "package", "scope", "state"]) assert.match(membership, new RegExp(`mutation: ["']${mutation}["'][\\s\\S]{0,160}accessVersion: mutation\\.accessVersion`, "u"));
   });
   await check("password changes enqueue an idempotent security notice", async () => {
     const [auth, outbox] = await Promise.all([

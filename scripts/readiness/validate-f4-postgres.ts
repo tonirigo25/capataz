@@ -5,7 +5,7 @@ import { Webhook } from "standardwebhooks";
 import type { BillingProvider, EmailDeliveryProvider, ProviderReceipt, StorageProvider } from "../../lib/platform/providers/contracts";
 import { cancellationMetrics, createAuthenticatedCheckout, createAuthenticatedCustomerPortal, ingestStripeBillingWebhook, reconcileBillingSubscription } from "../../lib/commercial/subscription-service";
 import { recordLimitedUsage } from "../../lib/commercial/usage";
-import { claimEmailBatch, ingestResendWebhook, processClaimedEmail, queueEmailEvent, replayDeadLetter } from "../../lib/email/outbox";
+import { claimEmailBatch, claimEmailItem, controlledLiveEmailEventKeys, ingestResendWebhook, processClaimedEmail, queueEmailEvent, replayDeadLetter } from "../../lib/email/outbox";
 import { PrivateStorageService } from "../../lib/private-storage";
 
 const prisma = new PrismaClient();
@@ -130,6 +130,16 @@ async function main() {
   assert.equal(workerOne.length + workerTwo.length >= 10, true);
   const workerProvider = new CountingEmailProvider();
   for (const item of [...workerOne, ...workerTwo]) await processClaimedEmail(prisma, item, workerProvider);
+
+  const liveAllowed = await queueEmailEvent(prisma, { companyId: companyA, eventKey: "password_changed", recipient: "live-allowed@example.invalid", idempotencyKey: "live-allowlist-allowed" });
+  const liveRetained = await queueEmailEvent(prisma, { companyId: companyA, eventKey: "support_update", recipient: "live-retained@example.invalid", idempotencyKey: "live-allowlist-retained" });
+  assert.equal(await claimEmailItem(prisma, { id: liveAllowed.id, companyId: companyA, eventKeys: [] }), null);
+  assert.equal(await claimEmailItem(prisma, { id: liveRetained.id, companyId: companyA, eventKeys: controlledLiveEmailEventKeys }), null);
+  const controlledClaims = await claimEmailBatch(prisma, { batchSize: 50, eventKeys: controlledLiveEmailEventKeys });
+  assert.equal(controlledClaims.some((item) => item.id === liveAllowed.id), true);
+  assert.equal(controlledClaims.some((item) => item.id === liveRetained.id), false);
+  assert.equal((await prisma.emailOutbox.findUniqueOrThrow({ where: { id: liveRetained.id } })).status, "PENDING");
+  for (const item of controlledClaims) await processClaimedEmail(prisma, item, workerProvider);
 
   const abandoned = await queueEmailEvent(prisma, { companyId: companyA, eventKey: "support_update", recipient: "abandoned@example.invalid", idempotencyKey: "abandoned" });
   const leaseNow = new Date();

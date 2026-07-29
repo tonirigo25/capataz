@@ -21,9 +21,12 @@ export async function POST(request: Request) {
   const context: CompanyContext = { ...session, companyId: membership.companyId, membershipId: membership.id, role: membership.role, isDemo: membership.company.isDemo, companyName: membership.company.nombreComercial, companyStatus: membership.company.status, commercialStatus: membership.company.commercialStatus ?? "ACTIVE" };
   const authorization = await resolveAuthorization(context, "orqena.use");
   if (!authorization.allowed) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+  const control = (() => {
+    try { return readRuntimeAiControl(); } catch { return null; }
+  })();
+  if (!control?.voiceEnabled || !control.companyAllowlist.includes(membership.companyId)) return NextResponse.json({ error: "La transcripción está desactivada. Puedes escribir el mensaje manualmente." }, { status: 503 });
   const limit = await consumeRateLimit({ prisma, scope: "ai_transcription", subject: session.userId, companyId: membership.companyId, limit: 20, windowMs: 60_000 });
   if (!limit.allowed) return NextResponse.json({ error: "Demasiadas solicitudes. Espera un minuto." }, { status: 429, headers: rateLimitHeaders(limit) });
-  if (process.env.AI_VOICE_ENABLED !== "true") return NextResponse.json({ error: "La transcripción está desactivada. Puedes escribir el mensaje manualmente." }, { status: 503 });
 
   const formData = await request.formData().catch(() => null);
   const audio = formData?.get("audio");
@@ -35,7 +38,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "El audio es demasiado grande. Prueba con un dictado más corto." }, { status: 413 });
   }
 
-  const control = readRuntimeAiControl();
   const digest = createHash("sha256").update(Buffer.from(await audio.arrayBuffer())).digest("hex");
   const operationDigest = createHash("sha256").update(JSON.stringify({
     companyId: membership.companyId,

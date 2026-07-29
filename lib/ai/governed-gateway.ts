@@ -98,6 +98,17 @@ export interface AiGovernanceStore {
     requestHash: string;
     errorCode: string;
     attemptCount: number;
+    evidence?: {
+      request: GovernedAiRequest;
+      actorIdHash: string;
+      provider: string;
+      model: string;
+      modelSnapshot: string;
+      estimatedCostCeilingEur: number;
+      latencyMs: number;
+      contentExpiresAt: Date;
+      providerAttempted: boolean;
+    };
   }): Promise<void>;
   getCircuit(environment: string, provider: string): Promise<AiCircuitRecord>;
   circuitSucceeded(environment: string, provider: string): Promise<void>;
@@ -222,8 +233,11 @@ export async function executeGovernedAiRequest(
     allowedFields: policy.allowedFields[request.purpose] ?? [],
     companyId: request.companyId,
   });
+  const trustedInstruction = request.trustedInstruction?.trim();
+  if (request.trustedInstruction !== undefined && !trustedInstruction) throw new AiGatewayError("AI_TRUSTED_INSTRUCTION_INVALID");
+  if (trustedInstruction && Buffer.byteLength(trustedInstruction) > 16_384) throw new AiGatewayError("AI_TRUSTED_INSTRUCTION_TOO_LARGE");
   const serializedBytes = Buffer.byteLength(JSON.stringify(minimizedPayload));
-  const approximateInputTokens = Math.ceil(serializedBytes / 4);
+  const approximateInputTokens = Math.ceil((serializedBytes + Buffer.byteLength(trustedInstruction ?? "")) / 4);
   const companyMonthlyBudgetEur = Math.min(
     policy.companyMonthlyBudget,
     asPositiveFinite(dependencies.companyMonthlyBudgetEur ?? policy.companyMonthlyBudget, "AI_COMPANY_BUDGET_INVALID"),
@@ -268,6 +282,7 @@ export async function executeGovernedAiRequest(
     purpose: request.purpose,
     lane: request.lane,
     promptVersion: request.promptVersion,
+    trustedInstructionHash: trustedInstruction ? hashJson(trustedInstruction) : undefined,
     schemaVersion: request.schemaVersion,
     outputSchema: request.outputSchema,
     providerModel: model.providerModel,
@@ -297,7 +312,24 @@ export async function executeGovernedAiRequest(
   const circuit = await dependencies.store.getCircuit(dependencies.environment, dependencies.transport.name);
   if (circuit.state === "OPEN" && circuit.openedUntil && circuit.openedUntil > now) {
     const fallback = deterministicFallback("AI_CIRCUIT_OPEN", request.schemaVersion);
-    await dependencies.store.failOperation({ companyId: request.companyId, idempotencyKey: request.idempotencyKey, requestHash, errorCode: "AI_CIRCUIT_OPEN", attemptCount: 0 });
+    await dependencies.store.failOperation({
+      companyId: request.companyId,
+      idempotencyKey: request.idempotencyKey,
+      requestHash,
+      errorCode: "AI_CIRCUIT_OPEN",
+      attemptCount: 0,
+      evidence: {
+        request,
+        actorIdHash,
+        provider: dependencies.transport.name,
+        model: model.providerModel,
+        modelSnapshot: model.modelSnapshot,
+        estimatedCostCeilingEur: request.estimatedCostCeilingEur,
+        latencyMs: 0,
+        contentExpiresAt,
+        providerAttempted: false,
+      },
+    });
     return fallback;
   }
 
@@ -316,6 +348,7 @@ export async function executeGovernedAiRequest(
           lane: request.lane,
           purpose: request.purpose,
           promptVersion: request.promptVersion,
+          trustedInstruction,
           schemaVersion: request.schemaVersion,
           payload: minimizedPayload,
           outputSchema: request.outputSchema,
@@ -347,7 +380,24 @@ export async function executeGovernedAiRequest(
 
   if (!transportResult) {
     const code = lastError?.code ?? "AI_PROVIDER_FAILURE";
-    await dependencies.store.failOperation({ companyId: request.companyId, idempotencyKey: request.idempotencyKey, requestHash, errorCode: code, attemptCount: attempts });
+    await dependencies.store.failOperation({
+      companyId: request.companyId,
+      idempotencyKey: request.idempotencyKey,
+      requestHash,
+      errorCode: code,
+      attemptCount: attempts,
+      evidence: {
+        request,
+        actorIdHash,
+        provider: dependencies.transport.name,
+        model: model.providerModel,
+        modelSnapshot: model.modelSnapshot,
+        estimatedCostCeilingEur: request.estimatedCostCeilingEur,
+        latencyMs: Math.max(0, Math.round(monotonicNow() - startedAt)),
+        contentExpiresAt,
+        providerAttempted: attempts > 0,
+      },
+    });
     await dependencies.store.circuitFailed({
       environment: dependencies.environment,
       provider: dependencies.transport.name,

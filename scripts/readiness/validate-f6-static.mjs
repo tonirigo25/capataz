@@ -60,12 +60,17 @@ check("transport-forces-store-false", /store:\s*false/.test(transport) && /input
 check("transport-supports-endpoint", /OPENAI_BASE_URL/.test(await readFile(path.join(root, ".env.example"), "utf8")) && /baseUrl/.test(transport));
 const gateway = await readFile(path.join(root, "lib", "ai", "governed-gateway.ts"), "utf8");
 const runtimeGateway = await readFile(path.join(root, "lib", "ai", "runtime-gateway.ts"), "utf8");
+const modelPolicy = await readFile(path.join(root, "lib", "ai", "model-policy.ts"), "utf8");
+const environmentTemplate = await readFile(path.join(root, ".env.example"), "utf8");
 const capatazAi = await readFile(path.join(root, "lib", "ai", "capataz-ai.ts"), "utf8");
 const transcription = await readFile(path.join(root, "app", "api", "capataz", "transcribe", "route.ts"), "utf8");
+const capatazChat = await readFile(path.join(root, "components", "capataz-chat.tsx"), "utf8");
 const documentExtraction = await readFile(path.join(root, "lib", "document-extraction.ts"), "utf8");
 check("runtime-facade-global-gate", /AI_GLOBAL_ENABLED/.test(runtimeGateway) && /AI_PROVIDER_CONFIGURED/.test(runtimeGateway));
 check("runtime-facade-company-allowlist", /AI_COMPANY_ALLOWLIST/.test(runtimeGateway) && /AI_COMPANY_NOT_ALLOWLISTED/.test(runtimeGateway));
 check("runtime-facade-hard-caps", /AI_GLOBAL_MONTHLY_BUDGET_EUR/.test(runtimeGateway) && /AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR/.test(runtimeGateway) && /AI_DEFAULT_USER_DAILY_REQUEST_LIMIT/.test(runtimeGateway));
+check("voice-kill-switch-is-configured-and-visible", /AI_VOICE_ENABLED=false/.test(environmentTemplate) && /AI_VOICE_ENABLED/.test(runtimeGateway) && /voiceEnabled/.test(transcription) && /data\.voiceAvailable\s*\?\s*<button/.test(capatazChat));
+check("validated-model-snapshot-defaults", /gpt-4\.1-mini-2025-04-14/.test(environmentTemplate) && /gpt-4\.1-2025-04-14/.test(environmentTemplate) && /gpt-4\.1-mini-2025-04-14/.test(modelPolicy) && /gpt-4\.1-2025-04-14/.test(modelPolicy));
 check("capataz-uses-runtime-facade", /executeRuntimeAiRequest/.test(capatazAi) && !/openAiHttpRequest/.test(capatazAi));
 check("transcription-uses-runtime-facade", /executeRuntimeAiRequest/.test(transcription) && !/openAiHttpRequest/.test(transcription));
 check("document-extraction-uses-runtime-facade", /executeRuntimeAiRequest/.test(documentExtraction) && !/requestCapatazStructuredResponse|openAiHttpRequest/.test(documentExtraction));

@@ -1,4 +1,5 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import type { CreateEmailOptions, CreateEmailRequestOptions, CreateEmailResponse } from "resend";
 import type { AiGatewayProvider, BillingProvider, EmailDeliveryProvider, FiscalTransmissionProvider, ObservabilityProvider, ProviderReceipt, StorageProvider } from "./contracts";
 
 type Clock = () => Date;
@@ -33,9 +34,9 @@ export class StripeBillingProvider implements BillingProvider {
 export class ResendEmailProvider implements EmailDeliveryProvider {
   readonly name = "resend";
   readonly mode = "live" as const;
-  constructor(private readonly client: { emails: { send(input: object, options: { idempotencyKey: string }): Promise<{ data?: { id?: string } | null; error?: unknown }> } }, private readonly from: string, private readonly clock: Clock = () => new Date()) {}
+  constructor(private readonly client: { emails: { send(input: CreateEmailOptions, options?: CreateEmailRequestOptions): Promise<CreateEmailResponse> } }, private readonly from: string, private readonly clock: Clock = () => new Date()) {}
   async send(input: { recipient: string; subject: string; text: string; html?: string; replyTo?: string; idempotencyKey: string }) {
-    const response = await this.client.emails.send({ from: this.from, to: input.recipient, subject: input.subject, text: input.text, ...(input.html ? { html: input.html } : {}), ...(input.replyTo ? { reply_to: input.replyTo } : {}) }, { idempotencyKey: input.idempotencyKey });
+    const response = await this.client.emails.send({ from: this.from, to: input.recipient, subject: input.subject, text: input.text, ...(input.html ? { html: input.html } : {}), ...(input.replyTo ? { replyTo: input.replyTo } : {}) }, { idempotencyKey: input.idempotencyKey });
     if (response.error) throw new Error("EMAIL_PROVIDER_REJECTED");
     return receipt(this.name, response.data?.id ?? "", input.idempotencyKey, this.clock);
   }

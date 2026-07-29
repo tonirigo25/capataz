@@ -14,12 +14,16 @@ const baseEnvironment: NodeJS.ProcessEnv = {
   AI_ENABLED: "true",
   AI_GLOBAL_ENABLED: "true",
   AI_PROVIDER_MODE: "fake",
+  AI_VOICE_ENABLED: "false",
   AI_COMPANY_ALLOWLIST: companyId,
   AI_GLOBAL_MONTHLY_BUDGET_EUR: "25",
   AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR: "5",
   AI_DEFAULT_USER_DAILY_REQUEST_LIMIT: "50",
   AI_MAX_INPUT_TOKENS_PER_REQUEST: "4096",
   AI_MAX_OUTPUT_TOKENS_PER_REQUEST: "1024",
+  OPENAI_MODEL_FAST: "gpt-5-mini",
+  OPENAI_MODEL_REASONING: "gpt-5.1",
+  OPENAI_MODEL_TRANSCRIPTION: "gpt-4o-mini-transcribe",
 };
 const outputSchema: StrictJsonSchema = { type: "object", additionalProperties: false, required: ["answer", "confidence"], properties: { answer: { type: "string", minLength: 1 }, confidence: { type: "number", minimum: 0, maximum: 1 } } };
 let serial = 0;

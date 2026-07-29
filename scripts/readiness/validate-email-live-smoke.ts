@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { prisma } from "../../lib/prisma";
-import { claimEmailItem, processClaimedEmail, queueEmailEvent } from "../../lib/email/outbox";
+import { claimEmailItem, controlledLiveEmailEventKeys, processClaimedEmail, queueEmailEvent } from "../../lib/email/outbox";
 import { getEmailDeliveryProvider } from "../../lib/email";
 
 if (process.env.EMAIL_LIVE_SMOKE !== "true") throw new Error("EMAIL_LIVE_SMOKE_EXPLICIT_OPT_IN_REQUIRED");
@@ -38,12 +38,12 @@ async function main() {
   for (const scenario of scenarios) {
     const item = await queueEmailEvent(prisma, {
       companyId: controlledCompanyId,
-      eventKey: "support_update",
+      eventKey: "password_changed",
       recipient: scenario.recipient,
       payload: { fixture: "synthetic-live-smoke", scenario: scenario.key },
       idempotencyKey: `email-live-smoke:${runId}:${scenario.key}`,
     });
-    const claimed = await claimEmailItem(prisma, { id: item.id, companyId: controlledCompanyId });
+    const claimed = await claimEmailItem(prisma, { id: item.id, companyId: controlledCompanyId, eventKeys: controlledLiveEmailEventKeys });
     if (!claimed) throw new Error("EMAIL_LIVE_SMOKE_CLAIM_FAILED");
     const result = await processClaimedEmail(prisma, claimed, provider);
     if (result.status !== "SENT") throw new Error(`EMAIL_LIVE_SMOKE_SEND_FAILED:${scenario.key}`);

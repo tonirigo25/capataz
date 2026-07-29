@@ -67,6 +67,7 @@ const rawSchema = z.object({
   AI_PROVIDER_MODE: z.enum(["off", "fake", "openai"]).default("off"),
   AI_PROVIDER_CONFIGURED: z.enum(["true", "false"]).default("false"),
   AI_GLOBAL_ENABLED: z.enum(["true", "false"]).default("false"),
+  AI_VOICE_ENABLED: z.enum(["true", "false"]).default("false"),
   AI_LIVE_APPROVAL: z.enum(["approved-local", "approved-review", "approved-staging", "approved-production"]).optional(),
   AI_COMPANY_ALLOWLIST: z.string().trim().optional(),
   AI_GLOBAL_MONTHLY_BUDGET_EUR: optionalDecimalString,
@@ -126,6 +127,7 @@ export function parseServerConfig(
       billing: readBoolean(env.BILLING_ENABLED),
       emailLive: readBoolean(env.EMAIL_LIVE_ENABLED),
       ai: readBoolean(env.AI_ENABLED),
+      aiVoice: readBoolean(env.AI_VOICE_ENABLED),
       analytics: readBoolean(env.ANALYTICS_ENABLED),
       publicIndexing: readBoolean(env.PUBLIC_INDEXING_ENABLED),
       publicRegistration: readBoolean(env.ORQENA_PUBLIC_REGISTRATION_ENABLED),
@@ -234,6 +236,15 @@ export function parseServerConfig(
   }
   if (config.AI_GLOBAL_ENABLED === "true" && !config.flags.ai) {
     issues.push(safeIssue("AI_ENABLED", "must be true when AI_GLOBAL_ENABLED is true"));
+  }
+  if (config.flags.ai && !env.AI_VOICE_ENABLED?.trim()) {
+    issues.push(safeIssue("AI_VOICE_ENABLED", "must explicitly enable or disable voice when AI is enabled"));
+  }
+  if (config.flags.aiVoice && !config.flags.ai) {
+    issues.push(safeIssue("AI_VOICE_ENABLED", "requires AI_ENABLED=true"));
+  }
+  if (config.flags.aiVoice && config.AI_PROVIDER_MODE !== "openai") {
+    issues.push(safeIssue("AI_VOICE_ENABLED", "requires the governed OpenAI provider"));
   }
   if (config.flags.ai && config.AI_PROVIDER_MODE === "off") {
     issues.push(safeIssue("AI_PROVIDER_MODE", "must be fake or openai when AI is enabled"));

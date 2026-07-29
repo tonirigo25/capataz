@@ -1,6 +1,7 @@
 import { AiGatewayError, type AiTransport, type GovernedAiRequest } from "@/lib/ai/contracts";
 import { FakeGovernedAiTransport } from "@/lib/ai/fake-transport";
 import { executeGovernedAiRequest, type AiGovernanceStore, type GovernedAiDependencies } from "@/lib/ai/governed-gateway";
+import { DEFAULT_OPENAI_FAST_MODEL, DEFAULT_OPENAI_REASONING_MODEL } from "@/lib/ai/model-policy";
 import { OpenAiResponsesTransport } from "@/lib/ai/openai-transport";
 import { PrismaAiGovernanceStore } from "@/lib/ai/prisma-store";
 import { prisma } from "@/lib/prisma";
@@ -45,8 +46,8 @@ export function readRuntimeAiControl(environment: NodeJS.ProcessEnv = process.en
   const providerMode = (environment.AI_PROVIDER_MODE?.trim().toLowerCase() || "off") as "off" | "fake" | "openai";
   if (!(["off", "fake", "openai"] as const).includes(providerMode)) throw new AiGatewayError("AI_PROVIDER_MODE_INVALID");
   const companyAllowlist = [...new Set((environment.AI_COMPANY_ALLOWLIST ?? "").split(",").map((value) => value.trim()).filter(Boolean))];
-  const fastModel = environment.OPENAI_MODEL_FAST?.trim() || "gpt-5-mini";
-  const reasoningModel = environment.OPENAI_MODEL_REASONING?.trim() || "gpt-5.1";
+  const fastModel = environment.OPENAI_MODEL_FAST?.trim() || DEFAULT_OPENAI_FAST_MODEL;
+  const reasoningModel = environment.OPENAI_MODEL_REASONING?.trim() || DEFAULT_OPENAI_REASONING_MODEL;
   const transcriptionModel = environment.OPENAI_MODEL_TRANSCRIPTION?.trim()
     || environment.OPENAI_TRANSCRIPTION_MODEL?.trim()
     || "gpt-4o-mini-transcribe";
@@ -61,6 +62,7 @@ export function readRuntimeAiControl(environment: NodeJS.ProcessEnv = process.en
     && Boolean(transcriptionSnapshot)
     && (environment.OPENAI_STORE?.trim().toLowerCase() || "false") === "false"
     && environment.AI_LIVE_APPROVAL?.trim() === expectedLiveApproval(environment);
+  const voiceEnabled = enabled(environment.AI_VOICE_ENABLED) && globalEnabled && liveConfigurationComplete;
   return Object.freeze({
     providerMode,
     providerConfigured,
@@ -75,6 +77,7 @@ export function readRuntimeAiControl(environment: NodeJS.ProcessEnv = process.en
     reasoningModel,
     transcriptionModel,
     transcriptionSnapshot,
+    voiceEnabled,
     liveConfigurationComplete,
   });
 }
@@ -94,6 +97,7 @@ export function runtimeAiStatus(environment: NodeJS.ProcessEnv = process.env) {
     fastModel: control.fastModel,
     reasoningModel: control.reasoningModel,
     transcriptionModel: control.transcriptionModel,
+    voiceEnabled: control.voiceEnabled,
     liveConfigurationComplete: control.liveConfigurationComplete,
   };
 }

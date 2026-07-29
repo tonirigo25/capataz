@@ -8,6 +8,7 @@ import { companySettingsView } from "@/lib/tenant/company-settings";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import { getEffectiveCapabilities, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { brand } from "@/lib/brand";
+import { readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,12 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
   const scopedWork = query.obraId ? works.find((work) => work.id === query.obraId) ?? null : null;
   const scopedClient = query.clienteId ? clients.find((client) => client.id === query.clienteId) ?? null : scopedWork ? clients.find((client) => client.id === scopedWork.clienteId) ?? null : null;
   const economic = canSeeEconomy ? await getEconomicControl({ clientId: scopedClient?.id, workId: scopedWork?.id, period: "30d" }) : null;
+  const voiceAvailable = (() => {
+    try {
+      const control = readRuntimeAiControl();
+      return control.voiceEnabled && control.companyAllowlist.includes(auth.companyId);
+    } catch { return false; }
+  })();
 
   return (
     <main className="screen">
@@ -71,6 +78,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
       <CapatazChat
         userId={auth.userId}
         data={{
+          voiceAvailable,
           capabilities,
           userProfile: profile
             ? {

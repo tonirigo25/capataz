@@ -122,9 +122,10 @@ export function validateRuntimeConfig(phase = "runtime") {
   }
   if (enabled("AI_ENABLED")) {
     const mode = process.env.AI_PROVIDER_MODE?.trim().toLowerCase();
-    requireNames(errors, "AI control plane is incomplete", ["AI_PROVIDER_CONFIGURED", "AI_GLOBAL_ENABLED"]);
+    requireNames(errors, "AI control plane is incomplete", ["AI_PROVIDER_CONFIGURED", "AI_GLOBAL_ENABLED", "AI_VOICE_ENABLED"]);
     if (!enabled("AI_PROVIDER_CONFIGURED")) errors.push("AI_PROVIDER_CONFIGURED must be true when AI is enabled");
     if (!enabled("AI_GLOBAL_ENABLED")) errors.push("AI_GLOBAL_ENABLED must be true when AI is enabled");
+    if (!new Set(["true", "false"]).has(value("AI_VOICE_ENABLED").toLowerCase())) errors.push("AI_VOICE_ENABLED must be true or false");
     requireNames(errors, "AI limits are incomplete", ["AI_GLOBAL_MONTHLY_BUDGET_EUR", "AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR", "AI_DEFAULT_USER_DAILY_REQUEST_LIMIT", "AI_MAX_INPUT_TOKENS_PER_REQUEST", "AI_MAX_OUTPUT_TOKENS_PER_REQUEST"]);
     if (!new Set(["fake", "openai"]).has(mode)) errors.push("AI_PROVIDER_MODE must be fake or openai when AI_ENABLED=true");
     if (mode === "openai") requireNames(errors, "AI live gate is incomplete", ["OPENAI_API_KEY", "OPENAI_DATA_PROFILE", "OPENAI_MODEL_FAST", "OPENAI_MODEL_REASONING", "OPENAI_MODEL_TRANSCRIPTION", "OPENAI_MODEL_FAST_SNAPSHOT", "OPENAI_MODEL_REASONING_SNAPSHOT", "OPENAI_MODEL_TRANSCRIPTION_SNAPSHOT", "AI_LIVE_APPROVAL"]);
@@ -136,6 +137,8 @@ export function validateRuntimeConfig(phase = "runtime") {
     if (Number(process.env.AI_GLOBAL_MONTHLY_BUDGET_EUR) > 25 || Number(process.env.AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR) > 5 || Number(process.env.AI_DEFAULT_USER_DAILY_REQUEST_LIMIT) > 50 || Number(process.env.AI_MAX_INPUT_TOKENS_PER_REQUEST) > 4096 || Number(process.env.AI_MAX_OUTPUT_TOKENS_PER_REQUEST) > 1024) errors.push("AI limits exceed the authorized initial caps");
   }
   if (enabled("AI_GLOBAL_ENABLED") && !enabled("AI_ENABLED")) errors.push("AI_ENABLED must be true when AI_GLOBAL_ENABLED=true");
+  if (enabled("AI_VOICE_ENABLED") && !enabled("AI_ENABLED")) errors.push("AI_VOICE_ENABLED requires AI_ENABLED=true");
+  if (enabled("AI_VOICE_ENABLED") && process.env.AI_PROVIDER_MODE?.trim().toLowerCase() !== "openai") errors.push("AI_VOICE_ENABLED requires AI_PROVIDER_MODE=openai");
   if (environment === "production" && process.env.AI_PROVIDER_MODE?.trim().toLowerCase() === "fake") {
     errors.push("fake AI provider is forbidden in production runtime");
   }

@@ -15,6 +15,11 @@ export const emailEventKeys = [
 ] as const;
 export type EmailEventKey = (typeof emailEventKeys)[number];
 
+export const controlledLiveEmailEventKeys = [
+  "employee_invited", "employee_accepted", "owner_approval_requested", "employee_approved", "employee_rejected", "invitation_revoked", "invitation_expiring",
+  "email_verification", "password_reset", "password_changed", "contact_requested",
+] as const satisfies readonly EmailEventKey[];
+
 type TemplateDefinition = { subject: string; text: string; html: string; allowedVariables: readonly string[]; trackingEnabled: false };
 const templates: Record<EmailEventKey, TemplateDefinition> = {
   employee_invited: actionTemplate("Te han invitado a Orqena", "Tu empresa te ha invitado. Abre el enlace seguro para continuar.", "Aceptar invitación"),
@@ -68,10 +73,15 @@ export async function queueEmailEvent(tx: QueueDb, input: { companyId?: string; 
   } });
 }
 
-export async function claimEmailBatch(db: PrismaClient, input: { batchSize?: number; now?: Date } = {}) {
+export async function claimEmailBatch(db: PrismaClient, input: { batchSize?: number; now?: Date; eventKeys?: readonly EmailEventKey[] } = {}) {
   const batchSize = Math.max(1, Math.min(input.batchSize ?? 25, 100));
   const now = input.now ?? new Date();
   const leaseUntil = new Date(now.getTime() + 10 * 60_000);
+  const eventFilter = input.eventKeys === undefined
+    ? Prisma.empty
+    : input.eventKeys.length
+      ? Prisma.sql`AND "eventKey" IN (${Prisma.join(input.eventKeys)})`
+      : Prisma.sql`AND FALSE`;
   return db.$transaction(async (transaction) => {
     // One SQL statement owns selection, row locks, lease assignment and the
     // returned snapshot. Concurrent workers can therefore only observe rows
@@ -85,6 +95,7 @@ export async function claimEmailBatch(db: PrismaClient, input: { batchSize?: num
           ("status" IN ('PENDING', 'RETRYING') AND "availableAt" <= ${now})
           OR ("status" = 'PROCESSING' AND "availableAt" <= ${now})
         )
+        ${eventFilter}
         ORDER BY "availableAt", "createdAt"
         FOR UPDATE SKIP LOCKED
         LIMIT ${batchSize}
@@ -100,14 +111,20 @@ export async function claimEmailBatch(db: PrismaClient, input: { batchSize?: num
   });
 }
 
-export async function claimEmailItem(db: PrismaClient, input: { id: string; companyId: string; now?: Date }) {
+export async function claimEmailItem(db: PrismaClient, input: { id: string; companyId: string; now?: Date; eventKeys?: readonly EmailEventKey[] }) {
   const now = input.now ?? new Date();
   const leaseUntil = new Date(now.getTime() + 10 * 60_000);
+  const eventFilter = input.eventKeys === undefined
+    ? Prisma.empty
+    : input.eventKeys.length
+      ? Prisma.sql`AND "eventKey" IN (${Prisma.join(input.eventKeys)})`
+      : Prisma.sql`AND FALSE`;
   return db.$transaction(async (transaction) => {
     const rows = await transaction.$queryRaw<EmailOutbox[]>`
       SELECT * FROM "EmailOutbox"
       WHERE "id" = ${input.id} AND "companyId" = ${input.companyId}
         AND "status" IN ('PENDING', 'RETRYING') AND "availableAt" <= ${now}
+        ${eventFilter}
       FOR UPDATE SKIP LOCKED
       LIMIT 1
     `;
@@ -202,7 +219,11 @@ export async function processEmailOutboxItem(id: string, companyId: string, admi
     if (!adminUserId) throw new Error("EMAIL_DEAD_LETTER_REPLAY_REQUIRES_ADMIN");
     await replayDeadLetter(prisma, { outboxId: id, companyId, adminUserId });
   }
-  const claimed = await claimEmailItem(prisma, { id, companyId });
+  const claimed = await claimEmailItem(prisma, {
+    id,
+    companyId,
+    eventKeys: provider.mode === "live" ? controlledLiveEmailEventKeys : undefined,
+  });
   if (!claimed) return { item: await prisma.emailOutbox.findUniqueOrThrow({ where: { id } }), previewHtml: null as string | null };
   const result = await processClaimedEmail(prisma, claimed, provider);
   return { item: await prisma.emailOutbox.findUniqueOrThrow({ where: { id } }), previewHtml: result.previewHtml };

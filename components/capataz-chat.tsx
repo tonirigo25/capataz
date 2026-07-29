@@ -56,6 +56,7 @@ import { canApplyConversationLoad } from "@/lib/chat-conversation-rules";
 import { formatCurrency } from "@/lib/format";
 
 type ChatData = {
+  voiceAvailable: boolean;
   capabilities: string[];
   userProfile: {
     id: string;
@@ -570,6 +571,11 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
   }
 
   async function toggleDictation() {
+    if (!data.voiceAvailable) {
+      setVoiceStatus("error");
+      setVoiceError("El dictado por voz está desactivado. Puedes seguir escribiendo el mensaje.");
+      return;
+    }
     if (voiceStatus === "recording") {
       recorderRef.current?.stop();
       return;
@@ -827,7 +833,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
               {voiceStatus === "transcribing" ? "Transcribiendo audio..." : null}
               {voiceStatus === "error" ? voiceError : null}
               </span>
-              {voiceStatus === "error" ? <button type="button" className="secondary-button min-h-11" onClick={() => { setVoiceError(""); setVoiceStatus("idle"); void toggleDictation(); }}>Reintentar</button> : null}
+              {voiceStatus === "error" && data.voiceAvailable ? <button type="button" className="secondary-button min-h-11" onClick={() => { setVoiceError(""); setVoiceStatus("idle"); void toggleDictation(); }}>Reintentar</button> : null}
             </div>
           ) : null}
           <div className="flex gap-2">
@@ -838,7 +844,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
               aria-label="Mensaje para Orqena"
               placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Orqena..."}
             />
-            <button
+            {data.voiceAvailable ? <button
               type="button"
               className="icon-button shrink-0 disabled:opacity-50"
               aria-label={voiceStatus === "recording" ? "Parar dictado" : "Dictar por voz"}
@@ -846,7 +852,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
               disabled={isSending || voiceStatus === "transcribing"}
             >
               {voiceStatus === "recording" ? <Square size={18} /> : <Mic size={20} />}
-            </button>
+            </button> : null}
             <button type="submit" className="icon-button shrink-0 disabled:opacity-50" aria-label="Enviar mensaje" disabled={isSending || chatState === "booting" || !conversationId}>
               <Send size={20} />
             </button>

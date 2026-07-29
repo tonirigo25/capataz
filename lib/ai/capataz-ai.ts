@@ -489,7 +489,7 @@ async function runCompactExtraction({
   const prompt = compactPrompt(profile, lane, escalationReason);
   const compactContext = compactAIContext(input.data, input.context);
   const governedPayload = {
-    message: { instruction: prompt, content: input.message },
+    message: input.message,
     context: { business: compactContext, previous: previous ? compactForRetry(previous) : null },
   };
   const userPayload = JSON.stringify(governedPayload);
@@ -509,6 +509,7 @@ async function runCompactExtraction({
       causationId: input.governance.causationId,
       lane,
       promptVersion: "capataz-compact-v1",
+      trustedInstruction: prompt,
       schemaVersion: 1,
       payload: governedPayload,
       outputSchema: compactExtractionSchema as unknown as StrictJsonSchema,
