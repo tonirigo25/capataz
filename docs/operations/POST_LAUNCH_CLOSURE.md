@@ -24,8 +24,9 @@ de rendimiento porque no se detectó una regresión justificante.
 
 - Snapshot PostgreSQL cada 6 horas; RPO objetivo 6 horas.
 - Snapshot adicional en cada `push` a `main`; Railway Production
-  `Wait for CI` está activado y convierte ese snapshot en gate previo al
-  despliegue.
+  `Wait for CI` está activado y el ruleset exige el check agregador
+  `production-backup`. En PR valida contratos sin secretos; en `main` sólo
+  pasa después del snapshot cifrado real.
 - Retención `28/14/8/12`: últimos/diarios/semanales/mensuales.
 - Documentos diarios con `current` y `versions`.
 - Retención de versiones de documentos: 365 días.
@@ -33,6 +34,10 @@ de rendimiento porque no se detectó una regresión justificante.
   `backup-production`, sin copias de repositorio.
 - Issue automática en fallo y cierre tras dos éxitos consecutivos.
 - Fallback DPAPI local diario a las 04:53, estado `Ready`.
+
+El primer push del cierre detectó y rechazó una cabecera indentada de
+`pg_restore` antes de subir el snapshot. La PR fix-forward #55 acepta
+whitespace variable manteniendo el fallo cerrado si la cabecera no existe.
 
 ## Pendientes externos
 

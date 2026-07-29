@@ -1,6 +1,7 @@
 name: Production snapshot backup
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -17,8 +18,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  production-backup:
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+  backup-contract:
+    name: backup-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate backup contracts without secrets
+        run: |
+          node scripts/operations/validate-backup-automation.mjs
+          bash -n scripts/operations/backup-postgres.sh
+          bash -n scripts/operations/backup-documents.sh
+          bash -n scripts/operations/restore-drill.sh
+
+  encrypted-production-snapshot:
+    name: encrypted-production-snapshot
+    if: github.event_name != 'pull_request' && (github.event_name != 'push' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: backup-production
@@ -71,3 +90,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/operations/update-backup-alert.mjs failure production-snapshot-backup
+
+  production-backup:
+    name: production-backup
+    if: always()
+    needs:
+      - backup-contract
+      - encrypted-production-snapshot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce the event-specific backup gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CONTRACT_RESULT: ${{ needs.backup-contract.result }}
+          SNAPSHOT_RESULT: ${{ needs.encrypted-production-snapshot.result }}
+        run: |
+          if [[ "${CONTRACT_RESULT}" != "success" ]]; then
+            echo "::error::Backup contract validation failed."
+            exit 1
+          fi
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            [[ "${SNAPSHOT_RESULT}" == "skipped" ]]
+            exit
+          fi
+          if [[ "${SNAPSHOT_RESULT}" != "success" ]]; then
+            echo "::error::The encrypted Production snapshot did not complete."
+            exit 1
+          fi
