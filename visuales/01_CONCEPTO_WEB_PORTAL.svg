@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<defs>
+ <linearGradient id="hero" x1="0" x2="1"><stop stop-color="#0d1411"/><stop offset="1" stop-color="#10221a"/></linearGradient>
+ <filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-opacity=".18"/></filter>
+ <style>
+ .t{font-family:Inter,Arial,sans-serif;fill:#101814}.w{fill:#f7faf8}.m{fill:#66736c}.g{fill:#20b862}.h1{font-size:44px;font-weight:800}.h2{font-size:24px;font-weight:750}.b{font-size:15px}.s{font-size:12px}.k{font-size:25px;font-weight:800}.nav{font-size:12px;font-weight:600}
+ </style>
+</defs>
+<rect width="1600" height="900" fill="#eef2ef"/>
+<text x="40" y="40" class="t h2">ORQENA FIELD OS V2 — WEB PÚBLICA + PORTAL</text>
+<text x="40" y="65" class="m b">Concepto aprobado: Embat + Holded, adaptado a Capataz</text>
+<!-- Public web -->
+<rect x="40" y="90" width="720" height="720" rx="22" fill="url(#hero)" filter="url(#shadow)"/>
+<rect x="40" y="90" width="720" height="62" rx="22" fill="#111821"/>
+<text x="68" y="128" class="w h2">ORQENA <tspan class="g">TECH</tspan></text>
+<text x="310" y="126" class="w nav">Producto</text><text x="380" y="126" class="w nav">Soluciones</text><text x="465" y="126" class="w nav">Precios</text><text x="525" y="126" class="w nav">Recursos</text>
+<rect x="642" y="105" width="92" height="34" rx="8" fill="#20b862"/><text x="663" y="127" class="t nav">Solicitar demo</text>
+<text x="76" y="232" class="w h1">Lo que ocurre en obra</text>
+<text x="76" y="282" class="w h1">se convierte en <tspan class="g">control.</tspan></text>
+<text x="76" y="322" class="w b">Clientes, presupuestos, costes, documentos,</text><text x="76" y="345" class="w b">facturas y cobros conectados.</text>
+<rect x="76" y="380" width="132" height="45" rx="9" fill="#20b862"/><text x="98" y="408" class="t b">Solicitar demo</text>
+<rect x="220" y="380" width="142" height="45" rx="9" fill="none" stroke="#82928a"/><text x="244" y="408" class="w b">Ver cómo funciona</text>
+<!-- product mockup -->
+<rect x="405" y="190" width="310" height="292" rx="18" fill="#101814" stroke="#3b4a42" filter="url(#shadow)"/>
+<rect x="425" y="214" width="58" height="52" rx="8" fill="#17212c"/><text x="434" y="233" class="w s">Ingresos</text><text x="434" y="254" class="w b">42.560 €</text>
+<rect x="491" y="214" width="58" height="52" rx="8" fill="#17212c"/><text x="500" y="233" class="w s">Gastos</text><text x="500" y="254" class="w b">18.240 €</text>
+<rect x="557" y="214" width="58" height="52" rx="8" fill="#17212c"/><text x="566" y="233" class="w s">Margen</text><text x="566" y="254" class="w b">24.320 €</text>
+<rect x="623" y="214" width="72" height="52" rx="8" fill="#17212c"/><text x="632" y="233" class="w s">Pendiente</text><text x="632" y="254" class="w b">8.750 €</text>
+<rect x="425" y="278" width="270" height="130" rx="10" fill="#17212c"/><polyline points="445,378 478,355 515,365 550,330 585,340 620,295 675,310" fill="none" stroke="#20b862" stroke-width="4"/>
+<rect x="425" y="420" width="128" height="42" rx="8" fill="#17212c"/><rect x="567" y="420" width="128" height="42" rx="8" fill="#17212c"/>
+<!-- features -->
+<text x="76" y="540" class="w h2">Una plataforma. Todo el flujo.</text>
+<g><rect x="76" y="568" width="150" height="115" rx="12" fill="#f7faf8"/><text x="94" y="598" class="t b">Clientes y ventas</text><text x="94" y="624" class="m s">Relación, seguimiento</text><text x="94" y="643" class="m s">y presupuestos.</text></g>
+<g><rect x="238" y="568" width="150" height="115" rx="12" fill="#f7faf8"/><text x="256" y="598" class="t b">Trabajo y obra</text><text x="256" y="624" class="m s">Avance, tareas,</text><text x="256" y="643" class="m s">evidencia y margen.</text></g>
+<g><rect x="400" y="568" width="150" height="115" rx="12" fill="#f7faf8"/><text x="418" y="598" class="t b">Dinero</text><text x="418" y="624" class="m s">Facturas, cobros</text><text x="418" y="643" class="m s">y tesorería.</text></g>
+<g><rect x="562" y="568" width="150" height="115" rx="12" fill="#f7faf8"/><text x="580" y="598" class="t b">Capataz IA</text><text x="580" y="624" class="m s">Recomendaciones con</text><text x="580" y="643" class="m s">control humano.</text></g>
+<rect x="76" y="713" width="636" height="67" rx="13" fill="#17212c"/><text x="100" y="745" class="w h2">Producto visible, copy contenido y CTA real</text><text x="100" y="766" class="m s">Sin cifras, clientes o funcionalidades inventadas.</text>
+<!-- Portal -->
+<rect x="790" y="90" width="770" height="720" rx="22" fill="#f7faf8" filter="url(#shadow)"/>
+<rect x="790" y="90" width="190" height="720" rx="22" fill="#111821"/>
+<text x="818" y="130" class="w h2">ORQENA <tspan class="g">TECH</tspan></text>
+<g class="w b"><rect x="810" y="163" width="150" height="38" rx="8" fill="#17422e"/><text x="832" y="187" class="w b">Inicio</text><text x="832" y="230">Clientes</text><text x="832" y="270">Trabajo</text><text x="832" y="310">Ventas</text><text x="832" y="350">Dinero</text><text x="832" y="390">Compras</text><text x="832" y="430">Documentos</text><text x="832" y="470">Agenda</text><text x="832" y="510">Capataz IA</text><text x="832" y="550">Configuración</text></g>
+<rect x="1000" y="112" width="340" height="38" rx="9" fill="#fff" stroke="#d8ded7"/><text x="1018" y="136" class="m b">Buscar clientes, trabajos, facturas…</text><rect x="1432" y="112" width="95" height="38" rx="9" fill="#20b862"/><text x="1453" y="136" class="t b">+ Nuevo</text>
+<text x="1010" y="191" class="t h2">Buenos días, Demo</text>
+<!-- kpis -->
+<g><rect x="1010" y="212" width="126" height="92" rx="11" fill="#fff" stroke="#d8ded7"/><text x="1026" y="238" class="m s">Ingresos</text><text x="1026" y="270" class="t k">42.560 €</text><text x="1026" y="291" class="g s">+18,2 %</text></g>
+<g><rect x="1148" y="212" width="126" height="92" rx="11" fill="#fff" stroke="#d8ded7"/><text x="1164" y="238" class="m s">Gastos</text><text x="1164" y="270" class="t k">18.240 €</text><text x="1164" y="291" fill="#c8453b" class="s">-7,1 %</text></g>
+<g><rect x="1286" y="212" width="126" height="92" rx="11" fill="#fff" stroke="#d8ded7"/><text x="1302" y="238" class="m s">Beneficio</text><text x="1302" y="270" class="t k">24.320 €</text><text x="1302" y="291" class="g s">+22,4 %</text></g>
+<g><rect x="1424" y="212" width="112" height="92" rx="11" fill="#fff" stroke="#d8ded7"/><text x="1440" y="238" class="m s">Pendiente</text><text x="1440" y="270" class="t k">8.750 €</text></g>
+<!-- charts -->
+<rect x="1010" y="320" width="340" height="245" rx="13" fill="#fff" stroke="#d8ded7"/><text x="1030" y="350" class="t b">Evolución de ingresos</text><polyline points="1040,520 1080,478 1120,490 1160,442 1200,460 1240,392 1320,414" fill="none" stroke="#20b862" stroke-width="4"/>
+<rect x="1363" y="320" width="173" height="245" rx="13" fill="#111821" stroke="#2a362f"/><text x="1382" y="350" class="w b">Capataz IA</text><text x="1382" y="378" class="m s">Tres oportunidades</text><rect x="1381" y="399" width="137" height="54" rx="8" fill="#17212c"/><text x="1392" y="420" class="w s">3 facturas vencidas</text><text x="1392" y="438" class="m s">Revisar ahora</text><rect x="1381" y="463" width="137" height="54" rx="8" fill="#17212c"/><text x="1392" y="484" class="w s">1 presupuesto parado</text><text x="1392" y="502" class="m s">Crear seguimiento</text><rect x="1381" y="527" width="137" height="25" rx="6" fill="#20b862"/><text x="1400" y="544" class="t s">Ver recomendaciones</text>
+<rect x="1010" y="580" width="250" height="196" rx="13" fill="#fff" stroke="#d8ded7"/><text x="1030" y="610" class="t b">Facturas pendientes</text><line x1="1030" y1="637" x2="1240" y2="637" stroke="#e3e8e5"/><text x="1030" y="660" class="t s">FAC-2026-0012</text><text x="1188" y="660" fill="#c8453b" class="s">Vencida</text><line x1="1030" y1="677" x2="1240" y2="677" stroke="#e3e8e5"/><text x="1030" y="700" class="t s">FAC-2026-0011</text><text x="1195" y="700" class="t s">1.200 €</text><line x1="1030" y1="717" x2="1240" y2="717" stroke="#e3e8e5"/><text x="1030" y="740" class="t s">FAC-2026-0010</text><text x="1195" y="740" class="t s">950 €</text>
+<rect x="1274" y="580" width="262" height="196" rx="13" fill="#fff" stroke="#d8ded7"/><text x="1294" y="610" class="t b">Acciones rápidas</text><rect x="1294" y="630" width="222" height="32" rx="7" fill="#f5f7f6"/><text x="1308" y="651" class="t s">Nueva factura</text><rect x="1294" y="670" width="222" height="32" rx="7" fill="#f5f7f6"/><text x="1308" y="691" class="t s">Nuevo presupuesto</text><rect x="1294" y="710" width="222" height="32" rx="7" fill="#f5f7f6"/><text x="1308" y="731" class="t s">Subir documento</text>
+<text x="40" y="860" class="t h2">Principios: información jerarquizada · IA contextual · navegación clara · móvil real · control humano</text>
+</svg>
