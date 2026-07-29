@@ -37,6 +37,7 @@ export default function PrivacyPage() {
         </Block>
         <Block title="Compartición de datos">
           Railway presta el alojamiento, el almacenamiento privado conserva los documentos, OpenAI actúa como proveedor de las funciones de IA controladas y Resend entrega el correo transaccional. Stripe y los proveedores de fiscalidad, analítica no esencial o marketing no están activos. Cada integración se limita a su finalidad y debe mantener minimización, contrato, ubicación y salvaguardas documentadas.
+          No se presenta ningún proveedor externo como activo por defecto: OpenAI y Resend sólo operan en los casos autorizados y bajo los controles descritos en esta política.
         </Block>
       </section>
     </main>
