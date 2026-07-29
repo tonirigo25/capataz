@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "requiredMetadata": ["artifactType", "format", "formatVersion", "contentHash", "storageKey", "generatedAt"],
-  "privateByDefault": true,
-  "integrityAlgorithm": "sha256",
-  "permanentPublicUrlsAllowed": false
-}

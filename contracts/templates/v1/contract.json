@@ -1,6 +1,0 @@
-{
-  "schemaVersion": 1,
-  "requiredMetadata": ["templateKey", "version", "locale", "contentHash", "channel", "owner"],
-  "immutableAfterDelivery": true,
-  "allowedChannels": ["email", "pdf", "electronic_invoice"]
-}

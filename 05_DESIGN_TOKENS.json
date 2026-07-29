@@ -1,0 +1,103 @@
+{
+  "meta": {
+    "name": "Orqena Field OS V2",
+    "version": "2.0.0",
+    "description": "Sistema visual inspirado en la claridad estructural de Embat y la experiencia product-led de Holded, adaptado a Capataz."
+  },
+  "color": {
+    "ink": "#101814",
+    "ink2": "#17211B",
+    "surfaceDark": "#111821",
+    "surfaceDark2": "#17212C",
+    "paper": "#FFFFFF",
+    "canvas": "#F5F7F6",
+    "line": "#D8DED7",
+    "muted": "#66736C",
+    "green": "#20B862",
+    "greenDark": "#168C55",
+    "greenSoft": "#E7F7EE",
+    "blue": "#2D5DE0",
+    "amber": "#D58A1F",
+    "red": "#C8453B"
+  },
+  "typography": {
+    "family": "Inter, Geist, ui-sans-serif, system-ui, sans-serif",
+    "heroDesktop": "clamp(3.5rem, 5vw, 4rem)",
+    "heroTablet": "clamp(2.875rem, 6vw, 3.25rem)",
+    "heroMobile": "clamp(2.35rem, 10vw, 2.65rem)",
+    "h2": "clamp(2rem, 3.5vw, 2.625rem)",
+    "h3": "clamp(1.5rem, 2vw, 1.75rem)",
+    "body": "1rem",
+    "bodyLarge": "1.125rem",
+    "nav": "0.875rem",
+    "label": "0.8125rem",
+    "lineHeightBody": 1.55,
+    "lineHeightHeading": 1.08
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "20px",
+    "6": "24px",
+    "8": "32px",
+    "10": "40px",
+    "12": "48px",
+    "16": "64px",
+    "20": "80px",
+    "24": "96px"
+  },
+  "radius": {
+    "sm": "8px",
+    "md": "12px",
+    "lg": "18px",
+    "xl": "24px",
+    "pill": "999px"
+  },
+  "shadow": {
+    "small": "0 8px 24px rgba(16,24,20,.08)",
+    "card": "0 18px 50px rgba(16,24,20,.10)",
+    "hero": "0 30px 90px rgba(0,0,0,.25)"
+  },
+  "layout": {
+    "sidebar": "248px",
+    "previewPane": "440px",
+    "actionRail": "320px",
+    "contentMax": "1280px",
+    "contentWide": "1440px",
+    "pagePaddingMobile": "16px",
+    "pagePaddingDesktop": "32px"
+  },
+  "motion": {
+    "fast": "120ms",
+    "base": "180ms",
+    "slow": "320ms",
+    "easing": "cubic-bezier(.2,.8,.2,1)",
+    "rules": [
+      "Native scroll",
+      "Decorative motion uses transform and opacity",
+      "Reduced motion renders final state",
+      "No global scroll snap",
+      "No wheel hijacking"
+    ]
+  },
+  "breakpoints": {
+    "mobileSmall": "320px",
+    "mobile": "390px",
+    "tablet": "768px",
+    "desktop": "1024px",
+    "wide": "1440px",
+    "ultrawide": "1920px"
+  },
+  "touchTarget": "44px",
+  "patterns": [
+    "work-queue",
+    "list-preview",
+    "record-action-rail",
+    "editor-live-preview",
+    "inbox-review",
+    "analytical-canvas",
+    "guided-setup"
+  ]
+}

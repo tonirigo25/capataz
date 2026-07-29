@@ -1,0 +1,27 @@
+ruta,area,patron_objetivo,accion_primaria,guardas
+/,Publico,Hero split + demo interactiva,Solicitar demo,No claims ficticios
+/producto,Publico,Outcomes + screenshots,Explorar flujo,Preservar catalogo
+/funcionalidades,Publico,Modulos agrupados,Ver detalle,No prometer funciones inexistentes
+/demo,Publico,Recorrido sintetico,Solicitar demo privada,Cero persistencia empresarial
+/contacto,Publico,Formulario real,Enviar solicitud,Rate limit e idempotencia
+/precios,Publico,Comparador de planes,Acceso anticipado,Flags billing y pricing
+/login,Auth,Card compacta,Iniciar sesion,Registro publico cerrado
+/hoy,App,Work queue + agenda + IA,Abrir accion,Adaptado por perfil
+/dashboard,App,Canvas analitico,Abrir origen,Datos trazables
+/clientes,CRM,Smart views + lista + preview,Abrir o actuar,Filtros avanzados en drawer
+/clientes/[id],CRM,Resumen + Relacion + Operacion + Dinero + Archivos,Siguiente accion,Reagrupar sin eliminar
+/obras,Trabajo,Lista + preview,Registrar avance,Responsive real
+/obras/[id],Trabajo,Cockpit + action rail,Registrar avance,Preservar margen y costes
+/presupuestos,Ventas,Pipeline por estado,Crear presupuesto,Estados actuales
+/presupuestos/[id],Ventas,Editor + PDF + margen,Revisar,Totales intactos
+/dinero,Finanzas,Queue de facturas y cobros,Registrar pago,Pagos parciales
+/tesoreria,Finanzas,Calendario de caja,Registrar movimiento,No afirmar conciliacion bancaria
+/proveedores,Compras,Lista + preview,Nuevo proveedor,Permisos
+/subcontratas,Compras,Compliance + caducidades,Pedir documento,No duplicar proveedor
+/documentos,Documentos,Inbox + preview + datos,Subir o revisar,R2 OCR y tenant
+/agenda,Planificacion,Semana + prioridades,Nueva visita,Lista movil
+/tareas,Operacion,Mias + equipo + bloqueadas,Nueva tarea,No mega kanban
+/capataz,IA,Historial + chat + propuesta,Confirmar borrador,No autoacciones sensibles
+/equipo,Equipo,Lista + permisos,Invitar,Role packages
+/configuracion,Config,Sidebar + secciones,Guardar,No megaform
+/plataforma,Interno,Control center,Revisar solicitud,PLATFORM_OWNER + MFA

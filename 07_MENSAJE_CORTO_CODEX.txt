@@ -1,0 +1,31 @@
+Lee y ejecuta íntegramente el paquete ORQENA_PAQUETE_CODEX_REDISENO_TOTAL_2026-07-29.zip.
+
+Empieza por:
+
+00_LEEME_PRIMERO.md
+01_PROMPT_MAESTRO_CODEX.md
+02_ESPECIFICACION_VISUAL_Y_RUTAS.md
+04_QA_RELEASE_CHECKLIST.md
+06_VISUAL_ATLAS.html
+
+La dirección visual aprobada es una mezcla de Embat y Holded adaptada a Orqena / Capataz.
+
+No trabajes directamente en main.
+No elimines funcionalidades.
+No alteres reglas de negocio, tenant isolation, permisos, fiscalidad, importes, saldos, numeración, proveedores, idempotencia, outbox, auditoría o confirmación humana por motivos visuales.
+
+Reutiliza el entorno Railway Review existente:
+
+orqena-review-continuous
+
+No crees otro Review.
+Despliega allí cada bloque verde.
+No promociones a Production sin completar todos los gates.
+
+Trabaja de forma continua de D0 a D13.
+No te detengas entre fases.
+Entrega sólo al final o ante un bloqueador duro demostrable.
+
+Resultado esperado:
+
+ORQENA_FIELD_OS_V2_READY_FOR_PRODUCTION_REVIEW
