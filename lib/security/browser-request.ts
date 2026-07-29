@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { resolveExternalRequestHost } from "./request-host";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const HOST_AGNOSTIC_HEALTH_PATHS = new Set([
@@ -13,7 +14,11 @@ export type BrowserRequestVerdict = { allowed: true } | { allowed: false; code: 
 export function validateBrowserRequest(request: NextRequest): BrowserRequestVerdict {
   const configuredOrigins = allowedOrigins(process.env);
   const requestOrigin = request.nextUrl.origin;
-  const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "").split(",")[0].trim().toLowerCase();
+  const host = resolveExternalRequestHost({
+    forwardedHost: request.headers.get("x-forwarded-host"),
+    host: request.headers.get("host"),
+    urlHostname: request.nextUrl.hostname,
+  });
   const environment = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase();
 
   // Railway probes the container through an internal hostname. These endpoints
