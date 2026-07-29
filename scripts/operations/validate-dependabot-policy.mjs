@@ -18,7 +18,8 @@ for (const ecosystem of ["npm", "github-actions"]) {
   assert.ok(block, `DEPENDABOT_${ecosystem.toUpperCase()}_MISSING`);
   assert.match(block, /interval: weekly/u, `DEPENDABOT_${ecosystem.toUpperCase()}_NOT_WEEKLY`);
   assert.match(block, /update-types:\s*\n\s+- minor\s*\n\s+- patch/u, `DEPENDABOT_${ecosystem.toUpperCase()}_MINOR_PATCH_GROUP_MISSING`);
-  assert.match(block, /ignore:\s*\n\s+- dependency-name: "\*"\s*\n\s+update-types:\s*\n\s+- version-update:semver-major/u, `DEPENDABOT_${ecosystem.toUpperCase()}_MAJOR_IGNORE_MISSING`);
+  assert.match(block, /allow:\s*\n\s+- dependency-name: "\*"\s*\n\s+update-types:\s*\n\s+- version-update:semver-minor\s*\n\s+- version-update:semver-patch/u, `DEPENDABOT_${ecosystem.toUpperCase()}_VERSION_ALLOWLIST_MISSING`);
+  assert.doesNotMatch(block, /ignore:/u, `DEPENDABOT_${ecosystem.toUpperCase()}_SECURITY_IGNORE_FORBIDDEN`);
 }
 
 assert.doesNotMatch(source, /auto-?merge/iu, "DEPENDABOT_AUTOMERGE_FORBIDDEN");

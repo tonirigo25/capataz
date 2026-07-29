@@ -16,10 +16,11 @@ updates:
         update-types:
           - minor
           - patch
-    ignore:
+    allow:
       - dependency-name: "*"
         update-types:
-          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
 
   - package-ecosystem: github-actions
     directory: /
@@ -37,7 +38,8 @@ updates:
         update-types:
           - minor
           - patch
-    ignore:
+    allow:
       - dependency-name: "*"
         update-types:
-          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
