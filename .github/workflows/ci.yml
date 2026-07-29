@@ -34,6 +34,7 @@ jobs:
       - run: npm run operations:validate-drift
       - run: npm run operations:validate-security-contact
       - run: npm run operations:validate-backup
+      - run: npm run operations:validate-dependabot
       - run: npm run readiness:validate-all-static
       - run: npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=artifacts/vitest.xml
       - run: npm run typecheck
