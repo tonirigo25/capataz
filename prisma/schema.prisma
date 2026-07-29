@@ -2338,6 +2338,7 @@ model Company {
   invitations             Invitation[]
   subscriptions           Subscription[]
   billingCustomer         BillingCustomer?
+  billingCustomerLinks    BillingCustomerCompanyLink[]
   billingEvents           BillingEvent[]
   entitlementOverrides    CompanyEntitlementOverride[]
   usageRecords            UsageRecord[]
@@ -3555,6 +3556,20 @@ model BillingCustomer {
 
   @@unique([provider, externalCustomerId])
   @@index([createdAt])
+}
+
+model BillingCustomerCompanyLink {
+  id                 String   @id @default(cuid())
+  provider           String   @default("stripe")
+  externalCustomerId String
+  companyId          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, externalCustomerId, companyId])
+  @@index([companyId])
+  @@index([provider, externalCustomerId])
 }
 
 model BillingPriceMapping {

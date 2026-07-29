@@ -9,6 +9,7 @@ import {
 } from "@/lib/expense-document";
 import { prisma } from "@/lib/prisma";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
+import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
 
 const CATEGORIES = new Set(["documentos", "facturas", "tickets"]);
 
@@ -40,21 +41,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "INVALID_DOCUMENT" }, { status: 400 });
     }
 
-    const document = await prisma.document.create({
-      data: {
-        companyId: context.companyId,
-        uploadedById: context.userId,
-        name: filename,
-        originalName: filename,
-        mimeType,
-        size: sizeBytes,
-        sha256: checksum,
-        category: mimeType === "application/pdf" ? "factura" : "otro",
-        status: "UPLOADED",
-        extractionStatus: "PENDING",
-        metadata: { source: "presigned_upload", uploadPending: true },
+    const document = await prisma.$transaction(
+      async (transaction) => {
+        await assertDocumentCreationAllowed(transaction, {
+          companyId: context.companyId,
+          sizeBytes,
+          actorId: context.userId,
+          origin: "presigned_upload",
+          targetId: checksum.slice(0, 16),
+        });
+        return transaction.document.create({
+          data: {
+            companyId: context.companyId,
+            uploadedById: context.userId,
+            name: filename,
+            originalName: filename,
+            mimeType,
+            size: sizeBytes,
+            sha256: checksum,
+            category: mimeType === "application/pdf" ? "factura" : "otro",
+            status: "UPLOADED",
+            extractionStatus: "PENDING",
+            metadata: { source: "presigned_upload", uploadPending: true },
+          },
+        });
       },
-    });
+      { isolationLevel: "Serializable" },
+    );
 
     try {
       const signed = await documentStorage.presignPut({

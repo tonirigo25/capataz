@@ -24,7 +24,18 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "../lib/email";
-import { STRIPE_WEBHOOK_EVENTS, isBillingEnabled, stripePriceForPlan, stripeTrialDays } from "../lib/billing/config";
+import {
+  STRIPE_WEBHOOK_EVENTS,
+  assertBillingCountryAllowed,
+  billingAllowedCountries,
+  billingEnvironment,
+  billingPlanForStripePrice,
+  isBillingEnabled,
+  normalizeBillingInterval,
+  normalizeBillingPlanKey,
+  stripePriceForPlan,
+  stripeTrialDays,
+} from "../lib/billing/config";
 import { paidAccessState } from "../lib/billing/service";
 import { getStripeClient, requireStripeWebhookSecret } from "../lib/billing/stripe-client";
 import { parseServerConfig } from "../lib/config/server";
@@ -173,18 +184,61 @@ async function validateBilling() {
     equal(isBillingEnabled(), false, "billing defaults fail closed");
     equal(paidAccessState(null).reason, "billing_disabled", "disabled billing preserves basic access");
     process.env.BILLING_ENABLED = "true";
-    process.env.BILLING_PAST_DUE_GRACE_DAYS = "7";
+    process.env.BILLING_PAST_DUE_GRACE_DAYS = "3";
     const now = new Date("2026-07-28T00:00:00.000Z");
     equal(paidAccessState({ status: "ACTIVE", currentPeriodEnd: now }, now).paidAccess, true, "active subscription");
-    equal(paidAccessState({ status: "PAST_DUE", currentPeriodEnd: new Date("2026-07-25T00:00:00.000Z") }, now).reason, "past_due_grace", "past due grace");
-    equal(paidAccessState({ status: "PAST_DUE", currentPeriodEnd: new Date("2026-07-01T00:00:00.000Z") }, now).reason, "past_due_expired", "past due expiry");
+    equal(paidAccessState({
+      status: "PAST_DUE",
+      currentPeriodEnd: new Date("2026-07-26T00:00:00.000Z"),
+      graceEndsAt: new Date("2026-07-29T00:00:00.000Z"),
+    }, now).reason, "past_due_grace", "past due grace");
+    equal(paidAccessState({
+      status: "PAST_DUE",
+      currentPeriodEnd: new Date("2026-07-24T00:00:00.000Z"),
+      graceEndsAt: new Date("2026-07-27T00:00:00.000Z"),
+    }, now).reason, "past_due_expired", "past due expiry");
     equal(paidAccessState({ status: "CANCELED", currentPeriodEnd: now }, now).basicAccess, true, "inactive subscription never blocks basics");
     throws(() => stripePriceForPlan("PROFESSIONAL", { NODE_ENV: "test" }), /STRIPE_PRICE_PRO/, "missing price is explicit");
-    throws(() => getStripeClient({ NODE_ENV: "test", STRIPE_SECRET_KEY: ["sk", "live", "forbidden"].join("_") }), /LIVE_KEY_FORBIDDEN/, "live Stripe keys are forbidden");
+    const priceEnvironment = {
+      NODE_ENV: "test",
+      STRIPE_PRICE_STARTER_MONTHLY: "price_test_starter_month",
+      STRIPE_PRICE_STARTER_ANNUAL: "price_test_starter_year",
+      STRIPE_PRICE_PRO_MONTHLY: "price_test_pro_month",
+      STRIPE_PRICE_PRO_ANNUAL: "price_test_pro_year",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_test_business_month",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_test_business_year",
+      BILLING_ALLOWED_COUNTRIES: "ES",
+      EU_B2B_CROSS_BORDER_ENABLED: "false",
+    };
+    equal(normalizeBillingPlanKey("pro"), "PROFESSIONAL", "public pro key maps to the internal plan");
+    equal(normalizeBillingInterval("annual"), "year", "annual interval is canonicalized");
+    equal(stripePriceForPlan("PRO", "year", priceEnvironment), "price_test_pro_year", "plan and interval resolve one price");
+    equal(billingPlanForStripePrice("price_test_business_month", priceEnvironment), {
+      planKey: "BUSINESS",
+      interval: "month",
+    }, "price maps back to exactly one plan and interval");
+    equal(billingEnvironment({ NEXT_PUBLIC_APP_ENV: "staging" }), "staging", "billing environment is explicit");
+    equal([...billingAllowedCountries(priceEnvironment)], ["ES"], "Live country allowlist is explicit");
+    equal(assertBillingCountryAllowed("DE", { livemode: false, environment: priceEnvironment }), "DE", "Sandbox exercises another EU country");
+    equal(assertBillingCountryAllowed("ES", { livemode: true, environment: priceEnvironment }), "ES", "Live permits Spain");
+    throws(() => assertBillingCountryAllowed("DE", { livemode: true, environment: priceEnvironment }), /BILLING_COUNTRY_NOT_ALLOWED/, "Live rejects cross-border EU");
+    throws(
+      () => stripePriceForPlan("STARTER", "month", {
+        ...priceEnvironment,
+        STRIPE_PRICE_STARTER: "price_test_conflicting_legacy",
+      }),
+      /BILLING_PRICE_CONFIGURATION_AMBIGUOUS/,
+      "legacy and canonical price ambiguity fails closed",
+    );
+    throws(
+      () => getStripeClient({ NODE_ENV: "test", STRIPE_SECRET_KEY: ["sk", "live", "forbidden"].join("_") }),
+      /STRIPE_LIVE_KEY.*FORBIDDEN/,
+      "live Stripe keys are forbidden",
+    );
     throws(() => requireStripeWebhookSecret({ NODE_ENV: "test" }), /STRIPE_WEBHOOK_SECRET/, "missing webhook secret is explicit");
-    equal(stripeTrialDays({ NODE_ENV: "test", STRIPE_TRIAL_DAYS: "14" }), 14, "optional Stripe trial is bounded");
+    equal(stripeTrialDays({ NODE_ENV: "test", STRIPE_TRIAL_DAYS: "3" }), 3, "approved Stripe trial is three days");
     throws(() => stripeTrialDays({ NODE_ENV: "test", STRIPE_TRIAL_DAYS: "365" }), /BILLING_TRIAL_DAYS_INVALID/, "invalid trial is rejected");
-    equal(STRIPE_WEBHOOK_EVENTS.length, 9, "documented Stripe event set");
+    equal(STRIPE_WEBHOOK_EVENTS.length, 18, "documented Stripe event set");
   } finally {
     if (previous.enabled === undefined) delete process.env.BILLING_ENABLED; else process.env.BILLING_ENABLED = previous.enabled;
     if (previous.grace === undefined) delete process.env.BILLING_PAST_DUE_GRACE_DAYS; else process.env.BILLING_PAST_DUE_GRACE_DAYS = previous.grace;
@@ -231,6 +285,72 @@ async function validateProductionStartupGates() {
     encoding: "utf8",
   }));
   equal(runtimeResult.ok, true, "missing live malware provider remains fail-closed per operation");
+
+  const canonicalBillingEnvironment: NodeJS.ProcessEnv = {
+    NODE_ENV: "test",
+    NEXT_PUBLIC_APP_ENV: "test",
+    APP_BASE_URL: "https://app.orqenatech.com",
+    BILLING_ENABLED: "false",
+    ORQENA_PUBLIC_REGISTRATION_ENABLED: "false",
+    STRIPE_PRICE_STARTER_MONTHLY: "price_test_starter_month",
+    STRIPE_PRICE_STARTER_ANNUAL: "price_test_starter_year",
+    STRIPE_PRICE_PRO_MONTHLY: "price_test_pro_month",
+    STRIPE_PRICE_PRO_ANNUAL: "price_test_pro_year",
+    STRIPE_PRICE_BUSINESS_MONTHLY: "price_test_business_month",
+    STRIPE_PRICE_BUSINESS_ANNUAL: "price_test_business_year",
+    STRIPE_PORTAL_CONFIGURATION_ID: "bpc_test_capataz_v1",
+    STRIPE_TRIAL_DAYS: "3",
+    BILLING_PAST_DUE_GRACE_DAYS: "3",
+    BILLING_ALLOWED_COUNTRIES: "ES",
+    EU_B2B_CROSS_BORDER_ENABLED: "false",
+  };
+  const billingConfig = parseServerConfig(canonicalBillingEnvironment, "ready");
+  equal(billingConfig.stripePrices.pro.annual, "price_test_pro_year", "server config exposes canonical plan and interval prices");
+  equal(billingConfig.billingAllowedCountries, ["ES"], "server config keeps Live limited to Spain");
+  equal(billingConfig.euB2bCrossBorderEnabled, false, "server config keeps EU cross-border disabled");
+  throws(
+    () => parseServerConfig({
+      ...canonicalBillingEnvironment,
+      STRIPE_PRICE_STARTER: "price_test_conflicting_legacy",
+    }, "ready"),
+    /STRIPE_PRICE_STARTER/,
+    "server config rejects conflicting legacy prices",
+  );
+  throws(
+    () => parseServerConfig({
+      ...canonicalBillingEnvironment,
+      STRIPE_PRICE_STARTER_ANNUAL: undefined,
+    }, "ready"),
+    /STRIPE_PRICE_STARTER_MONTHLY/,
+    "server config rejects a partial canonical catalog",
+  );
+  throws(
+    () => parseServerConfig({
+      ...canonicalBillingEnvironment,
+      STRIPE_PRICE_STARTER_ANNUAL: canonicalBillingEnvironment.STRIPE_PRICE_STARTER_MONTHLY,
+    }, "ready"),
+    /STRIPE_PRICE_STARTER_MONTHLY/,
+    "server config rejects one Price ID mapped to multiple plan and interval entries",
+  );
+  throws(
+    () => parseServerConfig({
+      ...canonicalBillingEnvironment,
+      EU_B2B_CROSS_BORDER_ENABLED: "true",
+    }, "ready"),
+    /EU_B2B_CROSS_BORDER_ENABLED/,
+    "server config rejects unauthorized EU cross-border billing",
+  );
+  throws(
+    () => parseServerConfig({
+      ...canonicalBillingEnvironment,
+      BILLING_ENABLED: "true",
+      STRIPE_SECRET_KEY: "sk_test_runtime_only",
+      STRIPE_WEBHOOK_SECRET: "whsec_runtime_only",
+      STRIPE_PORTAL_CONFIGURATION_ID: undefined,
+    }, "ready"),
+    /BILLING_ENABLED/,
+    "enabled billing requires an environment-specific Portal configuration",
+  );
 }
 
 async function main() {

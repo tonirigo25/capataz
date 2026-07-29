@@ -3,6 +3,7 @@ import type { BillingProvider } from "@/lib/platform/providers/contracts";
 import { executeIdempotent, hashCanonical } from "@/lib/platform/idempotency";
 import { verifyStripeWebhook } from "@/lib/platform/webhooks";
 import { queueEmailEvent } from "@/lib/email/outbox";
+import { stripePriceForPlan } from "@/lib/billing/config";
 import type { PlanKey } from "./plans";
 
 type OwnerContext = { companyId: string; userId: string; role: string };
@@ -52,21 +53,26 @@ export async function createAuthenticatedCheckout(prisma: PrismaClient, input: {
 }) {
   requireOwner(input.context);
   const returnUrl = httpsReturnUrl(input.returnUrl);
-  const mapping = await prisma.billingPriceMapping.findUniqueOrThrow({
-    where: { provider_planKey_interval_currency: { provider: input.provider.name === "stripe" ? "stripe" : input.provider.name, planKey: input.planKey, interval: input.interval, currency: input.currency } },
-  });
-  if (!mapping.active) throw new Error("BILLING_PRICE_MAPPING_INACTIVE");
+  // Compatibility adapter for isolated provider-contract tests. Live Stripe
+  // prices are resolved exclusively from the canonical environment catalog.
+  const mapping = input.provider.mode === "live" && input.provider.name === "stripe"
+    ? null
+    : await prisma.billingPriceMapping.findUniqueOrThrow({
+        where: { provider_planKey_interval_currency: { provider: input.provider.name, planKey: input.planKey, interval: input.interval, currency: input.currency } },
+      });
+  if (mapping && !mapping.active) throw new Error("BILLING_PRICE_MAPPING_INACTIVE");
+  const priceId = mapping?.externalPriceId ?? stripePriceForPlan(input.planKey, input.interval);
   const customer = await prisma.billingCustomer.findUnique({ where: { companyId: input.context.companyId } });
   const result = await executeIdempotent({
     prisma,
     companyId: input.context.companyId,
     namespace: "billing.checkout",
     key: input.idempotencyKey,
-    request: { planKey: input.planKey, interval: input.interval, currency: input.currency, mappingId: mapping.id, returnUrl, provider: input.provider.name, customerId: customer?.externalCustomerId ?? null },
+    request: { planKey: input.planKey, interval: input.interval, currency: input.currency, priceSource: mapping ? "legacy-test-adapter" : "canonical-environment", returnUrl, provider: input.provider.name, customerId: customer?.externalCustomerId ?? null },
     operation: async (transaction) => {
-      const receipt = await input.provider.createCheckout({ companyId: input.context.companyId, customerId: customer?.externalCustomerId, priceKey: mapping.externalPriceId, returnUrl, idempotencyKey: input.idempotencyKey });
+      const receipt = await input.provider.createCheckout({ companyId: input.context.companyId, customerId: customer?.externalCustomerId, priceKey: priceId, returnUrl, idempotencyKey: input.idempotencyKey });
       const subscription = await transaction.subscription.findFirstOrThrow({ where: { companyId: input.context.companyId }, orderBy: { createdAt: "desc" } });
-      await transaction.subscription.update({ where: { id: subscription.id }, data: { providerCheckoutId: receipt.reference, providerPriceId: mapping.externalPriceId, provider: input.provider.name } });
+      await transaction.subscription.update({ where: { id: subscription.id }, data: { providerCheckoutId: receipt.reference, providerPriceId: priceId, provider: input.provider.name } });
       await transaction.auditLog.create({ data: { companyId: input.context.companyId, userActorId: input.context.userId, action: "billing.checkout.created", targetType: "Subscription", targetId: subscription.id, metadata: { planKey: input.planKey, interval: input.interval, provider: input.provider.name, checkoutReference: receipt.reference } } });
       return receipt;
     },
@@ -140,6 +146,9 @@ export async function ingestStripeBillingWebhook(prisma: PrismaClient, input: {
   now?: number;
   graceDays?: number;
 }) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("LEGACY_STRIPE_WEBHOOK_RETIRED_USE_CANONICAL_ENDPOINT");
+  }
   verifyStripeWebhook({ rawBody: input.rawBody, signatureHeader: input.signatureHeader, secret: input.webhookSecret }, input.now);
   const event = JSON.parse(input.rawBody) as StripeEvent;
   if (!event.id || !event.type || !event.data?.object?.id || !Number.isInteger(event.created)) throw new Error("STRIPE_EVENT_INVALID");

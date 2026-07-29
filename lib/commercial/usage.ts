@@ -1,6 +1,191 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { getEntitlements } from "./authorization";
 import type { EntitlementKey } from "./catalog";
+import {
+  assertUsageMutationAllowed,
+  evaluateUsageLimit,
+  runtimeUsageLimitKeys,
+  type RuntimeUsageLimitKey,
+} from "./limits";
+
+type UsageTransaction = Prisma.TransactionClient;
+
+export function currentUsagePeriod(now = new Date()) {
+  return {
+    periodStart: new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    ),
+    periodEnd: new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    ),
+  };
+}
+
+export async function acquireEntitlementLimitLock(
+  transaction: UsageTransaction,
+  companyId: string,
+  limitKey: RuntimeUsageLimitKey,
+  lockScope = "current",
+) {
+  if (!runtimeUsageLimitKeys.includes(limitKey))
+    throw new Error("USAGE_LIMIT_KEY_NOT_APPROVED");
+  await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`commercial:${limitKey}:${companyId}:${lockScope}`}, 0))`;
+}
+
+export async function assertEntitlementMutationAllowed(
+  transaction: UsageTransaction,
+  input: {
+    companyId: string;
+    limitKey: RuntimeUsageLimitKey;
+    quantity?: number;
+    lockScope?: string;
+    measure: (transaction: UsageTransaction) => Promise<number>;
+    audit?: {
+      actorId?: string;
+      origin: string;
+      targetType?: string;
+      targetId?: string;
+    };
+  },
+) {
+  await acquireEntitlementLimitLock(
+    transaction,
+    input.companyId,
+    input.limitKey,
+    input.lockScope,
+  );
+  const [commercial, used] = await Promise.all([
+    getEntitlements(input.companyId, transaction),
+    input.measure(transaction),
+  ]);
+  const configured = commercial.values[input.limitKey];
+  if (typeof configured !== "number")
+    throw new Error(`USAGE_LIMIT_NOT_CONFIGURED:${input.limitKey}`);
+  const decision = assertUsageMutationAllowed(
+    evaluateUsageLimit({
+      used,
+      limit: configured,
+      quantity: input.quantity ?? 1,
+      operation: "CREATE",
+    }),
+  );
+  if (input.audit)
+    await transaction.auditLog.create({
+      data: {
+        companyId: input.companyId,
+        userActorId: input.audit.actorId,
+        action: "commercial.limit_evaluated",
+        targetType: input.audit.targetType ?? "Entitlement",
+        targetId: input.audit.targetId,
+        metadata: {
+          origin: input.audit.origin,
+          limitKey: input.limitKey,
+          used: decision.used,
+          requested: decision.requested,
+          projected: decision.projected,
+          limit: decision.limit,
+          warning: decision.warning,
+          outcome: decision.audit.outcome,
+          automaticCharge: false,
+        },
+      },
+    });
+  return decision;
+}
+
+export async function assertDocumentCreationAllowed(
+  transaction: UsageTransaction,
+  input: {
+    companyId: string;
+    quantity?: number;
+    sizeBytes?: number;
+    now?: Date;
+    actorId?: string;
+    origin?: string;
+    targetId?: string;
+  },
+) {
+  const { periodStart, periodEnd } = currentUsagePeriod(input.now);
+  const documentDecision = await assertEntitlementMutationAllowed(transaction, {
+    companyId: input.companyId,
+    limitKey: "max_documents",
+    lockScope: periodStart.toISOString(),
+    quantity: input.quantity ?? 1,
+    audit: input.origin
+      ? {
+          actorId: input.actorId,
+          origin: input.origin,
+          targetType: "Document",
+          targetId: input.targetId,
+        }
+      : undefined,
+    measure: (tx) =>
+      tx.document.count({
+        where: {
+          companyId: input.companyId,
+          archivedAt: null,
+          createdAt: { gte: periodStart, lt: periodEnd },
+        },
+      }),
+  });
+  const sizeBytes = input.sizeBytes ?? 0;
+  const storageDecision =
+    sizeBytes > 0
+      ? await assertStorageMutationAllowed(transaction, {
+          companyId: input.companyId,
+          sizeBytes,
+          actorId: input.actorId,
+          origin: input.origin,
+          targetId: input.targetId,
+        })
+      : null;
+  return { documentDecision, storageDecision };
+}
+
+export async function assertStorageMutationAllowed(
+  transaction: UsageTransaction,
+  input: {
+    companyId: string;
+    sizeBytes: number;
+    actorId?: string;
+    origin?: string;
+    targetId?: string;
+  },
+) {
+  return assertEntitlementMutationAllowed(transaction, {
+    companyId: input.companyId,
+    limitKey: "storage_bytes",
+    quantity: input.sizeBytes,
+    audit: input.origin
+      ? {
+          actorId: input.actorId,
+          origin: input.origin,
+          targetType: "StoredObject",
+          targetId: input.targetId,
+        }
+      : undefined,
+    measure: async (tx) => {
+      const [documents, objects] = await Promise.all([
+        tx.document.aggregate({
+          where: {
+            companyId: input.companyId,
+            archivedAt: null,
+            storedObjectId: null,
+          },
+          _sum: { size: true },
+        }),
+        tx.storedObject.aggregate({
+          where: { companyId: input.companyId, deletedAt: null },
+          _sum: { sizeBytes: true },
+        }),
+      ]);
+      return (
+        Number(documents._sum.size ?? 0) +
+        Number(objects._sum.sizeBytes ?? 0)
+      );
+    },
+  });
+}
 
 export async function recordUsage(prisma: PrismaClient, input: { companyId: string; metric: string; quantity: number; idempotencyKey: string; origin: string; reference?: string; periodStart: Date; periodEnd: Date }) {
   if (!Number.isFinite(input.quantity) || input.quantity <= 0) throw new Error("USAGE_QUANTITY_MUST_BE_POSITIVE");
@@ -16,25 +201,97 @@ export async function recordUsage(prisma: PrismaClient, input: { companyId: stri
   }, { isolationLevel: "Serializable" });
 }
 
-export async function recordLimitedUsage(prisma: PrismaClient, input: { companyId: string; metric: string; limit: number; quantity: number; idempotencyKey: string; origin: string; reference?: string; periodStart: Date; periodEnd: Date }) {
-  if (!Number.isFinite(input.limit) || input.limit < 0) throw new Error("USAGE_LIMIT_INVALID");
+type LimitedUsageInput = {
+  companyId: string;
+  metric: string;
+  quantity: number;
+  idempotencyKey: string;
+  origin: string;
+  reference?: string;
+  periodStart: Date;
+  periodEnd: Date;
+} & (
+  | { limitKey: RuntimeUsageLimitKey; limit?: never }
+  | { limit: number; limitKey?: never }
+);
+
+export async function recordLimitedUsage(prisma: PrismaClient, input: LimitedUsageInput) {
+  if ("limit" in input && (!Number.isFinite(input.limit) || input.limit! < 0))
+    throw new Error("USAGE_LIMIT_INVALID");
   if (!Number.isFinite(input.quantity) || input.quantity <= 0) throw new Error("USAGE_QUANTITY_MUST_BE_POSITIVE");
   return prisma.$transaction(async (transaction) => {
     await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`usage:${input.companyId}:${input.metric}:${input.periodStart.toISOString()}`}, 0))`;
     const existing = await transaction.usageRecord.findUnique({ where: { companyId_metric_idempotencyKey: { companyId: input.companyId, metric: input.metric, idempotencyKey: input.idempotencyKey } } });
-    if (existing) {
-      if (Number(existing.quantity) !== input.quantity) throw new Error("USAGE_IDEMPOTENCY_CONFLICT");
-      return { record: existing, replayed: true };
-    }
     const aggregate = await transaction.usageRecord.aggregate({ where: { companyId: input.companyId, metric: input.metric, periodStart: { gte: input.periodStart }, periodEnd: { lte: input.periodEnd } }, _sum: { quantity: true } });
     const used = Number(aggregate._sum.quantity ?? 0);
-    if (used + input.quantity > input.limit) throw new Error("USAGE_LIMIT_REACHED_NO_AUTOMATIC_CHARGE");
+    if (existing) {
+      if (
+        Number(existing.quantity) !== input.quantity ||
+        existing.periodStart.getTime() !== input.periodStart.getTime() ||
+        existing.periodEnd.getTime() !== input.periodEnd.getTime() ||
+        existing.origin !== input.origin ||
+        (existing.reference ?? undefined) !== input.reference
+      )
+        throw new Error("USAGE_IDEMPOTENCY_CONFLICT");
+      const configured = await resolveLimitedUsageLimit(transaction, input);
+      const replayDecision = evaluateUsageLimit({
+        used,
+        limit: configured,
+        operation: "READ",
+      });
+      return { record: existing, replayed: true, decision: replayDecision };
+    }
+    const decision =
+      "limitKey" in input && input.limitKey
+        ? await assertEntitlementMutationAllowed(transaction, {
+            companyId: input.companyId,
+            limitKey: input.limitKey,
+            lockScope: input.periodStart.toISOString(),
+            quantity: input.quantity,
+            measure: async () => used,
+            audit: {
+              origin: input.origin,
+              targetType: "UsageRecord",
+              targetId: input.reference,
+            },
+          })
+        : assertUsageMutationAllowed(
+            evaluateUsageLimit({
+              used,
+              limit: input.limit!,
+              quantity: input.quantity,
+              operation: "CREATE",
+            }),
+          );
     const record = await transaction.usageRecord.create({ data: { companyId: input.companyId, metric: input.metric, quantity: input.quantity, idempotencyKey: input.idempotencyKey, origin: input.origin, reference: input.reference, periodStart: input.periodStart, periodEnd: input.periodEnd } });
-    return { record, replayed: false };
+    return { record, replayed: false, decision };
   }, { isolationLevel: "Serializable" });
 }
+
+async function resolveLimitedUsageLimit(
+  transaction: UsageTransaction,
+  input: LimitedUsageInput,
+) {
+  if ("limit" in input && typeof input.limit === "number") return input.limit;
+  const commercial = await getEntitlements(input.companyId, transaction);
+  const configured = commercial.values[input.limitKey!];
+  if (typeof configured !== "number")
+    throw new Error(`USAGE_LIMIT_NOT_CONFIGURED:${input.limitKey}`);
+  return configured;
+}
+
 export async function getRemainingUsage(prisma: PrismaClient, companyId: string, metric: string, limitKey: EntitlementKey, periodStart: Date, periodEnd: Date) {
   const [aggregate, commercial] = await Promise.all([prisma.usageRecord.aggregate({ where: { companyId, metric, periodStart: { gte: periodStart }, periodEnd: { lte: periodEnd } }, _sum: { quantity: true } }), getEntitlements(companyId)]);
   const used = Number(aggregate._sum.quantity ?? new Prisma.Decimal(0)); const limit = Number(commercial.values[limitKey] ?? 0);
-  return { used, limit, remaining: Math.max(0, limit - used), reached: used >= limit };
+  const decision = evaluateUsageLimit({ used, limit, operation: "READ" });
+  return {
+    used,
+    limit,
+    remaining: decision.remaining,
+    reached: used >= limit,
+    warning: decision.warning,
+    canCreate: used < limit,
+    readAllowed: decision.allowed,
+    nextAction: decision.nextAction,
+  };
 }

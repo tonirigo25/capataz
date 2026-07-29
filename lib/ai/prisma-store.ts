@@ -7,6 +7,11 @@ import type {
   AiPolicyRecord,
 } from "@/lib/ai/governed-gateway";
 import { hashJson } from "@/lib/ai/redaction";
+import {
+  acquireEntitlementLimitLock,
+  assertEntitlementMutationAllowed,
+  currentUsagePeriod,
+} from "@/lib/commercial/usage";
 
 function stringArray(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -79,21 +84,59 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
     lockedUntil: Date;
     contentExpiresAt: Date;
   }): Promise<AcquiredAiOperation> {
-    try {
-      await this.prisma.aiGatewayOperation.create({ data: input });
-      return { kind: "acquired" };
-    } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
-      const existing = await this.prisma.aiGatewayOperation.findUniqueOrThrow({
+    return this.prisma.$transaction(async (transaction) => {
+      const { periodStart, periodEnd } = currentUsagePeriod();
+      await acquireEntitlementLimitLock(
+        transaction,
+        input.companyId,
+        "monthly_orqena_actions",
+        periodStart.toISOString(),
+      );
+      const existing = await transaction.aiGatewayOperation.findUnique({
         where: { companyId_idempotencyKey: { companyId: input.companyId, idempotencyKey: input.idempotencyKey } },
       });
-      if (existing.requestHash !== input.requestHash) return { kind: "conflict", code: "AI_IDEMPOTENCY_KEY_REUSED" };
-      if (existing.status === "COMPLETED") {
-        const response = replayEnvelope(existing.responseEnvelope);
-        if (response) return { kind: "replay", response };
+      if (existing) {
+        if (existing.requestHash !== input.requestHash)
+          return {
+            kind: "conflict",
+            code: "AI_IDEMPOTENCY_KEY_REUSED",
+          };
+        if (existing.status === "COMPLETED") {
+          const response = replayEnvelope(existing.responseEnvelope);
+          if (response) return { kind: "replay", response };
+        }
+        return { kind: "conflict", code: "AI_OPERATION_IN_PROGRESS" };
       }
-      return { kind: "conflict", code: "AI_OPERATION_IN_PROGRESS" };
-    }
+      await assertEntitlementMutationAllowed(transaction, {
+        companyId: input.companyId,
+        limitKey: "monthly_orqena_actions",
+        lockScope: periodStart.toISOString(),
+        audit: {
+          origin: "ai_gateway",
+          targetType: "AiGatewayOperation",
+        },
+        measure: async (tx) => {
+          const [completedUsage, operationsInFlight] = await Promise.all([
+            tx.aiUsageEvent.count({
+              where: {
+                companyId: input.companyId,
+                createdAt: { gte: periodStart, lt: periodEnd },
+              },
+            }),
+            tx.aiGatewayOperation.count({
+              where: {
+                companyId: input.companyId,
+                status: "IN_PROGRESS",
+                createdAt: { gte: periodStart, lt: periodEnd },
+              },
+            }),
+          ]);
+          return completedUsage + operationsInFlight;
+        },
+      });
+      await transaction.aiGatewayOperation.create({ data: input });
+      return { kind: "acquired" };
+    }, { isolationLevel: "Serializable" });
   }
 
   async completeOperation(input: {

@@ -2,8 +2,16 @@ import type { SubscriptionStatus } from "@prisma/client";
 
 export type CommercialAccess = "FULL" | "READ_ONLY" | "BLOCKED";
 
-export function commercialAccessPolicy(input: { status: SubscriptionStatus; graceEndsAt: Date | null; now?: Date }): { access: CommercialAccess; reason: string } {
+export function commercialAccessPolicy(input: {
+  status: SubscriptionStatus;
+  graceEndsAt: Date | null;
+  currentPeriodEnd?: Date | null;
+  now?: Date;
+}): { access: CommercialAccess; reason: string } {
   const now = input.now ?? new Date();
+  if (input.status === "CANCELED" && input.currentPeriodEnd && input.currentPeriodEnd > now) {
+    return { access: "FULL", reason: "canceled_period_remaining" };
+  }
   if (["CANCELED", "EXPIRED"].includes(input.status)) return { access: "READ_ONLY", reason: "subscription_ended" };
   if (input.status === "PAUSED") return { access: "READ_ONLY", reason: "subscription_paused" };
   if (input.status === "PAST_DUE") {

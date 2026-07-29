@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { stableReference } from "@/lib/ai/redaction";
 import { appendSensitiveAuditLog } from "@/lib/security/audit-chain";
+import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
 
 export type ImportKind = "CLIENTS" | "DOCUMENTS";
 const CLIENT_HEADERS = ["nombre", "telefono", "direccion", "tipo", "email", "nifCif"] as const;
@@ -137,6 +138,12 @@ export async function applyCompanyImport(prisma: PrismaClient, input: { companyI
       } else {
         const duplicate = await transaction.document.findFirst({ where: { companyId: input.companyId, archivedAt: null, name: data.name, ...(data.sha256 ? { sha256: data.sha256.toLowerCase() } : {}) }, select: { id: true } });
         if (duplicate) { await transaction.companyImportRow.update({ where: { id: row.id }, data: { status: "DUPLICATE_AT_APPLY", errorCodes: ["DUPLICATE_AT_APPLY"] } }); continue; }
+        await assertDocumentCreationAllowed(transaction, {
+          companyId: input.companyId,
+          actorId: input.actorId,
+          origin: "company_import",
+          targetId: row.id,
+        });
         const created = await transaction.document.create({ data: { companyId: input.companyId, name: data.name, originalName: data.originalName || data.name, mimeType: data.mimeType || null, sha256: data.sha256?.toLowerCase() || null, category: data.category as never, classification: data.classification as never, uploadedById: input.actorId, status: "UPLOADED", metadata: { importBatchId: batch.id, metadataOnly: true } } });
         entityId = created.id;
       }
@@ -146,7 +153,7 @@ export async function applyCompanyImport(prisma: PrismaClient, input: { companyI
     await transaction.companyImportBatch.update({ where: { id: batch.id }, data: { status: "APPLIED", appliedRows, appliedAt: new Date() } });
     await appendSensitiveAuditLog(transaction, { companyId: input.companyId, userActorId: input.actorId, action: "import.batch.applied", targetType: "CompanyImportBatch", targetId: batch.id, metadata: { kind: batch.kind, totalRows: batch.totalRows, appliedRows, invalidRows: batch.invalidRows, duplicateRows: batch.duplicateRows } });
     return { batchId: batch.id, appliedRows };
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
 export async function rollbackCompanyImport(prisma: PrismaClient, input: { companyId: string; actorId: string; batchId: string; confirmation: string }) {

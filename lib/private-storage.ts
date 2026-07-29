@@ -7,6 +7,10 @@ import { prisma } from "@/lib/prisma";
 import type { ProviderReceipt, StorageProvider } from "@/lib/platform/providers/contracts";
 import { S3StorageProvider } from "@/lib/platform/providers/production";
 import { FailClosedMalwareScanner, HttpMalwareScanner, LocalDeterministicMalwareScanner, type MalwareScanner, type MalwareScanVerdict } from "@/lib/security/malware-scanner";
+import {
+  acquireEntitlementLimitLock,
+  assertStorageMutationAllowed,
+} from "@/lib/commercial/usage";
 
 export const companyAssetMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 
@@ -21,16 +25,77 @@ export class PrivateStorageService {
     if (!matchesImageSignature(input.bytes, input.mimeType)) throw new Error("STORAGE_ASSET_CONTENT_MISMATCH");
     const safeName = sanitizeFilename(input.originalName);
     const extension = input.mimeType === "image/png" ? "png" : input.mimeType === "image/jpeg" ? "jpg" : "webp";
-    const objectKey = `assets/${randomUUID()}.${extension}`;
     const expectedHash = createHash("sha256").update(input.bytes).digest("hex");
-    const receipt = await this.provider.put({ companyId: input.companyId, objectKey, bytes: input.bytes, contentType: input.mimeType, idempotencyKey: input.idempotencyKey });
-    if (receipt.sha256 !== expectedHash) throw new Error("STORAGE_PROVIDER_HASH_MISMATCH");
-    const object = await this.db.storedObject.create({ data: {
-      companyId: input.companyId, provider: this.provider.name, bucket: this.bucket, objectKey, versionId: receipt.reference,
-      providerVersion: receipt.reference, originalName: input.originalName.slice(0, 255), safeName, mimeType: input.mimeType,
-      sizeBytes: BigInt(input.bytes.byteLength), sha256: expectedHash, classification: input.classification, encryption: "provider-managed",
-      contentDisposition: `attachment; filename=\"${safeName}\"`, status: "QUARANTINED",
-    } });
+    const objectKey = `assets/${createHash("sha256").update(`${input.companyId}:${input.idempotencyKey}`).digest("hex").slice(0, 40)}.${extension}`;
+    const stored = await this.db.$transaction(
+      async (transaction) => {
+        await acquireEntitlementLimitLock(
+          transaction,
+          input.companyId,
+          "storage_bytes",
+        );
+        const existing = await transaction.storedObject.findFirst({
+          where: {
+            companyId: input.companyId,
+            provider: this.provider.name,
+            bucket: this.bucket,
+            objectKey,
+            deletedAt: null,
+          },
+        });
+        if (existing) {
+          if (
+            existing.sha256 !== expectedHash ||
+            existing.sizeBytes !== BigInt(input.bytes.byteLength) ||
+            existing.mimeType !== input.mimeType
+          )
+            throw new Error("STORAGE_IDEMPOTENCY_CONFLICT");
+          return { object: existing, replayed: true };
+        }
+        await assertStorageMutationAllowed(transaction, {
+          companyId: input.companyId,
+          sizeBytes: input.bytes.byteLength,
+          origin: "private_storage",
+          targetId: objectKey,
+        });
+        const receipt = await this.provider.put({
+          companyId: input.companyId,
+          objectKey,
+          bytes: input.bytes,
+          contentType: input.mimeType,
+          idempotencyKey: input.idempotencyKey,
+        });
+        if (receipt.sha256 !== expectedHash)
+          throw new Error("STORAGE_PROVIDER_HASH_MISMATCH");
+        const created = await transaction.storedObject.create({
+          data: {
+            companyId: input.companyId,
+            provider: this.provider.name,
+            bucket: this.bucket,
+            objectKey,
+            versionId: receipt.reference,
+            providerVersion: receipt.reference,
+            originalName: input.originalName.slice(0, 255),
+            safeName,
+            mimeType: input.mimeType,
+            sizeBytes: BigInt(input.bytes.byteLength),
+            sha256: expectedHash,
+            classification: input.classification,
+            encryption: "provider-managed",
+            contentDisposition: `attachment; filename=\"${safeName}\"`,
+            status: "QUARANTINED",
+          },
+        });
+        return { object: created, replayed: false };
+      },
+      { isolationLevel: "Serializable" },
+    );
+    const { object } = stored;
+    if (stored.replayed) {
+      if (object.status !== "READY")
+        throw new Error(`STORAGE_OBJECT_QUARANTINED:${object.id}`);
+      return object;
+    }
     const scan = await this.db.uploadScan.create({ data: { companyId: input.companyId, storedObjectId: object.id, engine: "pending", status: "SCANNING" } });
     const verdict: MalwareScanVerdict = await this.scanner.scan({ bytes: input.bytes, sha256: expectedHash, mimeType: input.mimeType, filename: safeName }).catch(() => ({ status: "ERROR", engine: "scanner-error", engineVersion: "unknown", reference: expectedHash.slice(0, 24) }));
     const ready = verdict.status === "CLEAN";

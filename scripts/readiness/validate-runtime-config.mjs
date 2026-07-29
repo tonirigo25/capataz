@@ -3,6 +3,14 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const TRUE = "true";
+const CANONICAL_STRIPE_PRICES = [
+  "STRIPE_PRICE_STARTER_MONTHLY",
+  "STRIPE_PRICE_STARTER_ANNUAL",
+  "STRIPE_PRICE_PRO_MONTHLY",
+  "STRIPE_PRICE_PRO_ANNUAL",
+  "STRIPE_PRICE_BUSINESS_MONTHLY",
+  "STRIPE_PRICE_BUSINESS_ANNUAL",
+];
 
 function enabled(name) {
   return process.env[name]?.trim().toLowerCase() === TRUE;
@@ -12,9 +20,71 @@ function present(name) {
   return Boolean(process.env[name]?.trim());
 }
 
+function value(name) {
+  return process.env[name]?.trim() ?? "";
+}
+
 function requireNames(errors, reason, names) {
   const missing = names.filter((name) => !present(name));
   if (missing.length) errors.push(`${reason}: ${missing.join(", ")}`);
+}
+
+function validateStripeBilling(errors) {
+  const configuredCanonical = CANONICAL_STRIPE_PRICES.filter(present);
+  const hasCanonical = configuredCanonical.length > 0;
+  if (hasCanonical && configuredCanonical.length !== CANONICAL_STRIPE_PRICES.length) {
+    requireNames(errors, "canonical Stripe price configuration is incomplete", CANONICAL_STRIPE_PRICES);
+  }
+  if (
+    configuredCanonical.length === CANONICAL_STRIPE_PRICES.length
+    && new Set(configuredCanonical.map(value)).size !== CANONICAL_STRIPE_PRICES.length
+  ) {
+    errors.push("canonical Stripe plan and interval prices must be unique");
+  }
+  if (hasCanonical && present("STRIPE_PRICE_KEYS")) {
+    errors.push("deprecated STRIPE_PRICE_KEYS conflicts with canonical plan and interval prices");
+  }
+  for (const [legacy, canonical] of [
+    ["STRIPE_PRICE_STARTER", "STRIPE_PRICE_STARTER_MONTHLY"],
+    ["STRIPE_PRICE_PRO", "STRIPE_PRICE_PRO_MONTHLY"],
+    ["STRIPE_PRICE_BUSINESS", "STRIPE_PRICE_BUSINESS_MONTHLY"],
+  ]) {
+    if (present(legacy) && present(canonical) && value(legacy) !== value(canonical)) {
+      errors.push(`deprecated ${legacy} conflicts with ${canonical}`);
+    }
+  }
+
+  const validatesReadiness = enabled("BILLING_ENABLED") || hasCanonical;
+  if (validatesReadiness) {
+    if (value("STRIPE_TRIAL_DAYS") !== "3") errors.push("STRIPE_TRIAL_DAYS must be 3");
+    if (value("BILLING_PAST_DUE_GRACE_DAYS") !== "3") errors.push("BILLING_PAST_DUE_GRACE_DAYS must be 3");
+    const allowedCountries = value("BILLING_ALLOWED_COUNTRIES")
+      .split(",")
+      .map((country) => country.trim().toUpperCase())
+      .filter(Boolean);
+    if (allowedCountries.length !== 1 || allowedCountries[0] !== "ES") {
+      errors.push("BILLING_ALLOWED_COUNTRIES must remain ES until cross-border authorization");
+    }
+    if (value("EU_B2B_CROSS_BORDER_ENABLED") !== "false") {
+      errors.push("EU_B2B_CROSS_BORDER_ENABLED must remain false until ROI/VIES and fiscal gates are approved");
+    }
+    if (enabled("ORQENA_PUBLIC_REGISTRATION_ENABLED")) {
+      errors.push("ORQENA_PUBLIC_REGISTRATION_ENABLED must remain false while Stripe v1 awaits final authorization");
+    }
+  }
+
+  if (enabled("BILLING_ENABLED")) {
+    requireNames(errors, "billing gate is incomplete", [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "STRIPE_PORTAL_CONFIGURATION_ID",
+      ...CANONICAL_STRIPE_PRICES,
+      "STRIPE_TRIAL_DAYS",
+      "BILLING_PAST_DUE_GRACE_DAYS",
+      "BILLING_ALLOWED_COUNTRIES",
+      "EU_B2B_CROSS_BORDER_ENABLED",
+    ]);
+  }
 }
 
 export function validateRuntimeConfig(phase = "runtime") {
@@ -43,9 +113,7 @@ export function validateRuntimeConfig(phase = "runtime") {
   if (enabled("EMAIL_LIVE_ENABLED")) {
     requireNames(errors, "live email gate is incomplete", ["EMAIL_FROM", "EMAIL_SENDING_DOMAIN", "RESEND_API_KEY", "RESEND_WEBHOOK_SECRET"]);
   }
-  if (enabled("BILLING_ENABLED")) {
-    requireNames(errors, "billing gate is incomplete", ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_KEYS"]);
-  }
+  validateStripeBilling(errors);
   if (enabled("FISCAL_ENGINE_ENABLED") && process.env.FISCAL_MODE?.trim().toLowerCase() === "live") {
     requireNames(errors, "live fiscal gate is incomplete", ["FISCAL_PROVIDER", "FISCAL_CERTIFICATE_REF", "FISCAL_SOFTWARE_VERSION"]);
   }

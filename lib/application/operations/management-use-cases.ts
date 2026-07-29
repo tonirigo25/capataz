@@ -42,6 +42,7 @@ import {
   resolveAuthorization,
   resolveScopedEntityIds,
 } from "@/lib/commercial/authorization";
+import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { managementCapability } from "@/lib/commercial/management-capabilities";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
@@ -994,7 +995,20 @@ async function saveDocument(
   )
     throw new Error("El documento debe estar asociado a una entidad.");
   if (id) await prisma.document.updateMany({ where: { id, companyId }, data });
-  else await prisma.document.create({ data });
+  else
+    await prisma.$transaction(
+      async (transaction) => {
+        if (!data.archivedAt)
+          await assertDocumentCreationAllowed(transaction, {
+            companyId,
+            sizeBytes: data.size ?? 0,
+            actorId: userId,
+            origin: "management_document",
+          });
+        await transaction.document.create({ data });
+      },
+      { isolationLevel: "Serializable" },
+    );
 }
 
 async function savePhoto(formData: FormData, id: string | null) {

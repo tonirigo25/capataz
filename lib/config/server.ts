@@ -3,6 +3,16 @@ import { readAppEnvironment, readBoolean, readCsv } from "./environment";
 
 const optionalSecret = z.string().trim().min(1).optional();
 const optionalUrl = z.string().trim().url().optional();
+const optionalIntegerString = z.string().trim().regex(/^\d+$/).optional();
+
+const canonicalStripePriceVariables = [
+  "STRIPE_PRICE_STARTER_MONTHLY",
+  "STRIPE_PRICE_STARTER_ANNUAL",
+  "STRIPE_PRICE_PRO_MONTHLY",
+  "STRIPE_PRICE_PRO_ANNUAL",
+  "STRIPE_PRICE_BUSINESS_MONTHLY",
+  "STRIPE_PRICE_BUSINESS_ANNUAL",
+] as const;
 
 const rawSchema = z.object({
   APP_BASE_URL: z.string().trim().url().default("http://localhost:3000"),
@@ -22,6 +32,20 @@ const rawSchema = z.object({
   RESEND_WEBHOOK_SECRET: optionalSecret,
   STRIPE_SECRET_KEY: optionalSecret,
   STRIPE_WEBHOOK_SECRET: optionalSecret,
+  STRIPE_PRICE_STARTER_MONTHLY: optionalSecret,
+  STRIPE_PRICE_STARTER_ANNUAL: optionalSecret,
+  STRIPE_PRICE_PRO_MONTHLY: optionalSecret,
+  STRIPE_PRICE_PRO_ANNUAL: optionalSecret,
+  STRIPE_PRICE_BUSINESS_MONTHLY: optionalSecret,
+  STRIPE_PRICE_BUSINESS_ANNUAL: optionalSecret,
+  STRIPE_PORTAL_CONFIGURATION_ID: optionalSecret,
+  STRIPE_PRICE_STARTER: optionalSecret,
+  STRIPE_PRICE_PRO: optionalSecret,
+  STRIPE_PRICE_BUSINESS: optionalSecret,
+  STRIPE_TRIAL_DAYS: optionalIntegerString.default("3"),
+  BILLING_PAST_DUE_GRACE_DAYS: optionalIntegerString.default("3"),
+  BILLING_ALLOWED_COUNTRIES: z.string().trim().min(1).default("ES"),
+  EU_B2B_CROSS_BORDER_ENABLED: z.enum(["true", "false"]).default("false"),
   APP_ENCRYPTION_KEYS: optionalSecret,
   APP_ACTIVE_KEY_VERSION: optionalSecret,
   OPENAI_API_KEY: optionalSecret,
@@ -82,9 +106,65 @@ export function parseServerConfig(
       publicRegistration: readBoolean(env.ORQENA_PUBLIC_REGISTRATION_ENABLED),
     },
     stripePriceKeys: readCsv(env.STRIPE_PRICE_KEYS),
+    stripePrices: {
+      starter: {
+        monthly: parsed.data.STRIPE_PRICE_STARTER_MONTHLY,
+        annual: parsed.data.STRIPE_PRICE_STARTER_ANNUAL,
+      },
+      pro: {
+        monthly: parsed.data.STRIPE_PRICE_PRO_MONTHLY,
+        annual: parsed.data.STRIPE_PRICE_PRO_ANNUAL,
+      },
+      business: {
+        monthly: parsed.data.STRIPE_PRICE_BUSINESS_MONTHLY,
+        annual: parsed.data.STRIPE_PRICE_BUSINESS_ANNUAL,
+      },
+    },
+    stripeTrialDays: Number(parsed.data.STRIPE_TRIAL_DAYS),
+    billingPastDueGraceDays: Number(parsed.data.BILLING_PAST_DUE_GRACE_DAYS),
+    billingAllowedCountries: readCsv(parsed.data.BILLING_ALLOWED_COUNTRIES).map((country) => country.toUpperCase()),
+    euB2bCrossBorderEnabled: readBoolean(parsed.data.EU_B2B_CROSS_BORDER_ENABLED),
   };
 
   const issues: Array<ReturnType<typeof safeIssue>> = [];
+  const configuredCanonicalPrices = canonicalStripePriceVariables.filter((name) => Boolean(config[name]));
+  const hasCanonicalStripePrices = configuredCanonicalPrices.length > 0;
+  if (hasCanonicalStripePrices && configuredCanonicalPrices.length !== canonicalStripePriceVariables.length) {
+    issues.push(safeIssue("STRIPE_PRICE_STARTER_MONTHLY", "all six canonical plan and interval prices must be configured together"));
+  }
+  if (
+    configuredCanonicalPrices.length === canonicalStripePriceVariables.length
+    && new Set(configuredCanonicalPrices.map((name) => config[name])).size !== canonicalStripePriceVariables.length
+  ) {
+    issues.push(safeIssue("STRIPE_PRICE_STARTER_MONTHLY", "each canonical plan and interval must resolve to one unique Stripe Price"));
+  }
+  if (hasCanonicalStripePrices && config.stripePriceKeys.length > 0) {
+    issues.push(safeIssue("STRIPE_PRICE_KEYS", "deprecated aggregate price source conflicts with canonical plan and interval prices"));
+  }
+  for (const [legacy, canonical] of [
+    ["STRIPE_PRICE_STARTER", "STRIPE_PRICE_STARTER_MONTHLY"],
+    ["STRIPE_PRICE_PRO", "STRIPE_PRICE_PRO_MONTHLY"],
+    ["STRIPE_PRICE_BUSINESS", "STRIPE_PRICE_BUSINESS_MONTHLY"],
+  ] as const) {
+    if (config[legacy] && config[canonical] && config[legacy] !== config[canonical]) {
+      issues.push(safeIssue(legacy, `deprecated alias conflicts with ${canonical}`));
+    }
+  }
+
+  const validatesStripeReadiness = config.flags.billing || hasCanonicalStripePrices;
+  if (validatesStripeReadiness) {
+    if (config.stripeTrialDays !== 3) issues.push(safeIssue("STRIPE_TRIAL_DAYS", "must be 3 for the approved Capataz v1 trial"));
+    if (config.billingPastDueGraceDays !== 3) issues.push(safeIssue("BILLING_PAST_DUE_GRACE_DAYS", "must be 3 for the approved Capataz v1 grace period"));
+    if (config.billingAllowedCountries.length !== 1 || config.billingAllowedCountries[0] !== "ES") {
+      issues.push(safeIssue("BILLING_ALLOWED_COUNTRIES", "must remain ES until cross-border authorization"));
+    }
+    if (config.euB2bCrossBorderEnabled) {
+      issues.push(safeIssue("EU_B2B_CROSS_BORDER_ENABLED", "must remain false until ROI/VIES and fiscal gates are approved"));
+    }
+    if (config.flags.publicRegistration) {
+      issues.push(safeIssue("ORQENA_PUBLIC_REGISTRATION_ENABLED", "must remain false while Stripe v1 awaits final authorization"));
+    }
+  }
   if (environment === "production") {
     const baseUrl = new URL(config.APP_BASE_URL);
     if (baseUrl.protocol !== "https:" || /localhost|127\.0\.0\.1|railway\.app$/i.test(baseUrl.hostname)) {
@@ -98,8 +178,13 @@ export function parseServerConfig(
   if (config.flags.emailLive && (!config.EMAIL_FROM || !config.EMAIL_REPLY_TO || !config.EMAIL_SENDING_DOMAIN || !config.RESEND_API_KEY || !config.RESEND_WEBHOOK_SECRET || !config.EMAIL_DKIM_STATUS || !config.EMAIL_SPF_STATUS || !config.EMAIL_DMARC_POLICY || !config.EMAIL_TOKEN_DERIVATION_SECRET)) {
     issues.push(safeIssue("EMAIL_LIVE_ENABLED", "requires verified sender domain, reply-to, webhook, DMARC and token derivation secret"));
   }
-  if (config.flags.billing && (!config.STRIPE_SECRET_KEY || !config.STRIPE_WEBHOOK_SECRET || config.stripePriceKeys.length === 0)) {
-    issues.push(safeIssue("BILLING_ENABLED", "requires Stripe credentials and price mappings"));
+  if (config.flags.billing && (
+    !config.STRIPE_SECRET_KEY
+    || !config.STRIPE_WEBHOOK_SECRET
+    || !config.STRIPE_PORTAL_CONFIGURATION_ID
+    || configuredCanonicalPrices.length !== canonicalStripePriceVariables.length
+  )) {
+    issues.push(safeIssue("BILLING_ENABLED", "requires Stripe credentials, Portal configuration, and all six canonical plan and interval prices"));
   }
   if (config.flags.fiscal && config.FISCAL_MODE === "live" && (!config.FISCAL_PROVIDER || !config.FISCAL_CERTIFICATE_REF || !config.FISCAL_SOFTWARE_VERSION)) {
     issues.push(safeIssue("FISCAL_ENGINE_ENABLED", "requires provider, certificate reference, and software version"));

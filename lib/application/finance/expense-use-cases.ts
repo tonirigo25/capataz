@@ -8,6 +8,7 @@ import { documentStorage } from "@/lib/document-storage";
 import { EXPENSE_DOCUMENT_TYPES, normalizeExpenseExtraction, parseDate, parseMoney, validateExpenseDocumentFile } from "@/lib/expense-document";
 import { DocumentExtractionNotConfiguredError, resolveDocumentExtractionProvider } from "@/lib/document-extraction";
 import { getPartnerSuggestion, updatePartnerLearning } from "@/lib/procurement";
+import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
 
 export async function updateMaterialStatus(formData: FormData) {
   const id = text(formData, "id");
@@ -39,20 +40,37 @@ export async function uploadExpenseDocument(formData: FormData) {
   let stored: Awaited<ReturnType<typeof documentStorage.put>> | null = null;
   let createdDocumentId: string | null = null;
   try {
-    const document = await prisma.document.create({
-      data: {
-        companyId: context.companyId,
-        uploadedById: context.userId,
-        name: validated!.filename,
-        originalName: validated!.filename,
-        mimeType: validated!.mimeType,
-        sha256: validated!.sha256,
-        category: validated!.mimeType === "application/pdf" ? "factura" : "ticket",
-        status: "UPLOADED",
-        extractionStatus: "PENDING",
-        metadata: { source: "expense_document_reader", uploadedAt: new Date().toISOString() }
-      }
-    });
+    const document = await prisma.$transaction(
+      async (transaction) => {
+        await assertDocumentCreationAllowed(transaction, {
+          companyId: context.companyId,
+          sizeBytes: bytes!.byteLength,
+          actorId: context.userId,
+          origin: "expense_document_reader",
+          targetId: validated!.sha256.slice(0, 16),
+        });
+        return transaction.document.create({
+          data: {
+            companyId: context.companyId,
+            uploadedById: context.userId,
+            name: validated!.filename,
+            originalName: validated!.filename,
+            mimeType: validated!.mimeType,
+            size: bytes!.byteLength,
+            sha256: validated!.sha256,
+            category:
+              validated!.mimeType === "application/pdf" ? "factura" : "ticket",
+            status: "UPLOADED",
+            extractionStatus: "PENDING",
+            metadata: {
+              source: "expense_document_reader",
+              uploadedAt: new Date().toISOString(),
+            },
+          },
+        });
+      },
+      { isolationLevel: "Serializable" },
+    );
     createdDocumentId = document.id;
     stored = await documentStorage.put({
       companyId: context.companyId,
