@@ -144,6 +144,7 @@
     "operations:validate-drift": "node scripts/operations/validate-production-docs.mjs",
     "operations:validate-security-contact": "node scripts/operations/validate-security-contact.mjs",
     "operations:validate-backup": "node scripts/operations/validate-backup-automation.mjs",
+    "operations:validate-dependabot": "node scripts/operations/validate-dependabot-policy.mjs",
     "test:procurement": "tsx scripts/validate-procurement.ts",
     "test:internal-notes": "node scripts/validate-internal-notes.mjs",
     "test:agenda": "node scripts/validate-agenda.mjs",
