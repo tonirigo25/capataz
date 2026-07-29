@@ -28,7 +28,7 @@ export function validateBrowserRequest(request: NextRequest): BrowserRequestVerd
   }
 
   if (environment === "production" && configuredOrigins.size > 0) {
-    const allowedHosts = new Set([...configuredOrigins].map((origin) => new URL(origin).host.toLowerCase()));
+    const allowedHosts = new Set([...configuredOrigins].map((origin) => new URL(origin).hostname.toLowerCase()));
     if (!host || !allowedHosts.has(host)) return { allowed: false, code: "HOST_NOT_ALLOWED" };
   }
   if (SAFE_METHODS.has(request.method)) return { allowed: true };

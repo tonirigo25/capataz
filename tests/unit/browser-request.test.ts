@@ -35,6 +35,18 @@ describe("browser request host validation", () => {
     expect(validateBrowserRequest(request)).toEqual({ allowed: true });
   });
 
+  it("compares normalized hostnames while preserving full origins for mutations", () => {
+    process.env.APP_BASE_URL = "https://app.orqenatech.com:8443";
+    const request = new NextRequest("http://railway.internal/login", {
+      headers: {
+        host: "capataz-production.up.railway.app",
+        "x-forwarded-host": "app.orqenatech.com:8443",
+      },
+    });
+
+    expect(validateBrowserRequest(request)).toEqual({ allowed: true });
+  });
+
   it("rejects an untrusted forwarded host instead of falling through", () => {
     const request = new NextRequest("http://railway.internal/.well-known/security.txt", {
       headers: {
