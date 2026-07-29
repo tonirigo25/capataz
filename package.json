@@ -277,7 +277,7 @@
     "@cyclonedx/cyclonedx-npm": "^6.0.0",
     "@lhci/cli": "0.15.1",
     "@playwright/test": "^1.62.0",
-    "@next/eslint-plugin-next": "^15.5.22",
+    "@next/eslint-plugin-next": "^16.2.12",
     "@types/node": "^22.10.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
