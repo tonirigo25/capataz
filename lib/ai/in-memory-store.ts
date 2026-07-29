@@ -1,4 +1,4 @@
-import type { AiGatewayResponse, GovernedAiRequest } from "@/lib/ai/contracts";
+import { AiGatewayError, type AiGatewayResponse, type GovernedAiRequest } from "@/lib/ai/contracts";
 import type {
   AcquiredAiOperation,
   AiCircuitRecord,
@@ -14,6 +14,9 @@ type Operation = {
   lockedUntil?: Date;
   response?: AiGatewayResponse;
   errorCode?: string;
+  actorIdHash?: string;
+  estimatedCostCeilingEur?: number;
+  createdAt?: Date;
 };
 
 export class InMemoryAiGovernanceStore implements AiGovernanceStore {
@@ -32,6 +35,7 @@ export class InMemoryAiGovernanceStore implements AiGovernanceStore {
     estimated: boolean;
     retries: number;
     latencyMs: number;
+    createdAt: Date;
   }> = [];
   readonly outbox: Array<{ companyId: string; idempotencyKey: string; outputHash: string }> = [];
   readonly circuits = new Map<string, AiCircuitRecord>();
@@ -44,10 +48,12 @@ export class InMemoryAiGovernanceStore implements AiGovernanceStore {
     return Promise.resolve(this.policies.get(companyId) ?? null);
   }
 
-  getMonthlySpend(companyId: string, actorIdHash: string) {
+  getUsage(input: { companyId: string; actorIdHash: string; monthStart: Date; dayStart: Date }) {
     return Promise.resolve({
-      company: this.usage.filter((item) => item.companyId === companyId).reduce((sum, item) => sum + item.cost, 0),
-      actor: this.usage.filter((item) => item.companyId === companyId && item.actorIdHash === actorIdHash).reduce((sum, item) => sum + item.cost, 0),
+      global: this.usage.filter((item) => item.createdAt >= input.monthStart).reduce((sum, item) => sum + item.cost, 0),
+      company: this.usage.filter((item) => item.companyId === input.companyId && item.createdAt >= input.monthStart).reduce((sum, item) => sum + item.cost, 0),
+      actor: this.usage.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash && item.createdAt >= input.monthStart).reduce((sum, item) => sum + item.cost, 0),
+      actorDailyRequests: this.usage.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash && item.createdAt >= input.dayStart).length,
     });
   }
 
@@ -63,15 +69,40 @@ export class InMemoryAiGovernanceStore implements AiGovernanceStore {
     requestHash: string;
     lockedUntil: Date;
     contentExpiresAt: Date;
+    monthStart: Date;
+    dayStart: Date;
+    estimatedCostCeilingEur: number;
+    globalMonthlyBudgetEur: number;
+    companyMonthlyBudgetEur: number;
+    userMonthlyBudgetEur: number;
+    userDailyRequestLimit: number;
   }): Promise<AcquiredAiOperation> {
     const key = `${input.companyId}:${input.idempotencyKey}`;
     const existing = this.operations.get(key);
     if (!existing) {
-      this.operations.set(key, { companyId: input.companyId, idempotencyKey: input.idempotencyKey, requestHash: input.requestHash, status: "IN_PROGRESS", lockedUntil: input.lockedUntil });
+      const active = [...this.operations.values()].filter((item) => item.status === "IN_PROGRESS");
+      const reservedGlobal = active.filter((item) => (item.createdAt ?? new Date(0)) >= input.monthStart).reduce((sum, item) => sum + (item.estimatedCostCeilingEur ?? 0), 0);
+      const reservedCompany = active.filter((item) => item.companyId === input.companyId && (item.createdAt ?? new Date(0)) >= input.monthStart).reduce((sum, item) => sum + (item.estimatedCostCeilingEur ?? 0), 0);
+      const reservedActor = active.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash && (item.createdAt ?? new Date(0)) >= input.monthStart).reduce((sum, item) => sum + (item.estimatedCostCeilingEur ?? 0), 0);
+      const actorDailyInFlight = active.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash && (item.createdAt ?? new Date(0)) >= input.dayStart).length;
+      const usage = this.usage.filter((item) => item.createdAt >= input.monthStart);
+      const globalSpend = usage.reduce((sum, item) => sum + item.cost, 0);
+      const companySpend = usage.filter((item) => item.companyId === input.companyId).reduce((sum, item) => sum + item.cost, 0);
+      const actorSpend = usage.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash).reduce((sum, item) => sum + item.cost, 0);
+      const actorDaily = this.usage.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash && item.createdAt >= input.dayStart).length;
+      if (globalSpend + reservedGlobal + input.estimatedCostCeilingEur > input.globalMonthlyBudgetEur) throw new AiGatewayError("AI_GLOBAL_BUDGET_EXCEEDED");
+      if (companySpend + reservedCompany + input.estimatedCostCeilingEur > input.companyMonthlyBudgetEur) throw new AiGatewayError("AI_COMPANY_BUDGET_EXCEEDED");
+      if (actorSpend + reservedActor + input.estimatedCostCeilingEur > input.userMonthlyBudgetEur) throw new AiGatewayError("AI_USER_BUDGET_EXCEEDED");
+      if (actorDaily + actorDailyInFlight >= input.userDailyRequestLimit) throw new AiGatewayError("AI_USER_DAILY_REQUEST_LIMIT_EXCEEDED");
+      this.operations.set(key, { companyId: input.companyId, actorIdHash: input.actorIdHash, idempotencyKey: input.idempotencyKey, requestHash: input.requestHash, status: "IN_PROGRESS", lockedUntil: input.lockedUntil, estimatedCostCeilingEur: input.estimatedCostCeilingEur, createdAt: new Date() });
       return Promise.resolve({ kind: "acquired" });
     }
     if (existing.requestHash !== input.requestHash) return Promise.resolve({ kind: "conflict", code: "AI_IDEMPOTENCY_KEY_REUSED" });
     if (existing.status === "COMPLETED" && existing.response) return Promise.resolve({ kind: "replay", response: existing.response });
+    if (existing.status === "FAILED") {
+      this.operations.delete(key);
+      return this.acquireOperation(input);
+    }
     return Promise.resolve({ kind: "conflict", code: "AI_OPERATION_IN_PROGRESS" });
   }
 
@@ -109,6 +140,7 @@ export class InMemoryAiGovernanceStore implements AiGovernanceStore {
       estimated: input.estimatedUsage,
       retries: input.retryCount,
       latencyMs: input.latencyMs,
+      createdAt: new Date(),
     });
     const key = `${input.request.companyId}:${input.request.idempotencyKey}`;
     this.operations.set(key, {
@@ -159,12 +191,12 @@ export function syntheticAiPolicy(companyId = "company-synthetic-a"): AiPolicyRe
     companyId,
     enabled: true,
     killSwitch: false,
-    allowedPurposes: ["chat-command", "document-extraction"],
+    allowedPurposes: ["chat-command", "document-extraction", "transcription"],
     prohibitedData: ["rawDocument", "bankAccount"],
-    approvedModels: ["gpt-4.1-mini", "gpt-5.5"],
+    approvedModels: ["gpt-5-mini", "gpt-5.1", "gpt-4o-mini-transcribe"],
     allowedRoles: ["OWNER", "ADMIN"],
     allowedScopes: ["orqena.use", "documents.extract"],
-    allowedFields: { "chat-command": ["message", "context"], "document-extraction": ["documentRef", "mimeType"] },
+    allowedFields: { "chat-command": ["message", "context"], "document-extraction": ["documentRef", "mimeType"], transcription: ["audioRef", "mimeType", "sizeBytes"] },
     approvedClassifications: ["PUBLIC", "INTERNAL", "CONFIDENTIAL"],
     dataProfile: "synthetic-minimized-v1",
     companyMonthlyBudget: 2,

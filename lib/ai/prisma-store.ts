@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import type { AiGatewayResponse, GovernedAiRequest } from "@/lib/ai/contracts";
+import { AiGatewayError, type AiGatewayResponse, type GovernedAiRequest } from "@/lib/ai/contracts";
 import type {
   AcquiredAiOperation,
   AiCircuitRecord,
@@ -29,6 +29,12 @@ function replayEnvelope(value: Prisma.JsonValue | null): AiGatewayResponse | nul
   if (!(["fake", "openai", "deterministic-fallback", "idempotent-replay"] as const).includes(record.source as never)) return null;
   if (typeof record.reviewRequired !== "boolean" || typeof record.schemaVersion !== "number" || !("output" in record)) return null;
   return record as unknown as AiGatewayResponse;
+}
+
+function reservedCost(value: Prisma.JsonValue | null): number {
+  if (value === null || Array.isArray(value) || typeof value !== "object") return 0;
+  const amount = (value as Record<string, Prisma.JsonValue>).budgetReservationEur;
+  return typeof amount === "number" && Number.isFinite(amount) && amount > 0 ? amount : 0;
 }
 
 export class PrismaAiGovernanceStore implements AiGovernanceStore {
@@ -63,12 +69,14 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
     };
   }
 
-  async getMonthlySpend(companyId: string, actorIdHash: string, from: Date) {
-    const [company, actor] = await Promise.all([
-      this.prisma.aiUsageEvent.aggregate({ where: { companyId, createdAt: { gte: from } }, _sum: { costAmount: true } }),
-      this.prisma.aiUsageEvent.aggregate({ where: { companyId, actorIdHash, createdAt: { gte: from } }, _sum: { costAmount: true } }),
+  async getUsage(input: { companyId: string; actorIdHash: string; monthStart: Date; dayStart: Date }) {
+    const [global, company, actor, actorDailyRequests] = await Promise.all([
+      this.prisma.aiUsageEvent.aggregate({ where: { createdAt: { gte: input.monthStart } }, _sum: { costAmount: true } }),
+      this.prisma.aiUsageEvent.aggregate({ where: { companyId: input.companyId, createdAt: { gte: input.monthStart } }, _sum: { costAmount: true } }),
+      this.prisma.aiUsageEvent.aggregate({ where: { companyId: input.companyId, actorIdHash: input.actorIdHash, createdAt: { gte: input.monthStart } }, _sum: { costAmount: true } }),
+      this.prisma.aiUsageEvent.count({ where: { companyId: input.companyId, actorIdHash: input.actorIdHash, createdAt: { gte: input.dayStart } } }),
     ]);
-    return { company: Number(company._sum.costAmount ?? 0), actor: Number(actor._sum.costAmount ?? 0) };
+    return { global: Number(global._sum.costAmount ?? 0), company: Number(company._sum.costAmount ?? 0), actor: Number(actor._sum.costAmount ?? 0), actorDailyRequests };
   }
 
   countActiveOperations(companyId: string, now: Date) {
@@ -83,6 +91,13 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
     requestHash: string;
     lockedUntil: Date;
     contentExpiresAt: Date;
+    monthStart: Date;
+    dayStart: Date;
+    estimatedCostCeilingEur: number;
+    globalMonthlyBudgetEur: number;
+    companyMonthlyBudgetEur: number;
+    userMonthlyBudgetEur: number;
+    userDailyRequestLimit: number;
   }): Promise<AcquiredAiOperation> {
     return this.prisma.$transaction(async (transaction) => {
       const { periodStart, periodEnd } = currentUsagePeriod();
@@ -105,8 +120,27 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
           const response = replayEnvelope(existing.responseEnvelope);
           if (response) return { kind: "replay", response };
         }
-        return { kind: "conflict", code: "AI_OPERATION_IN_PROGRESS" };
+        if (existing.status !== "FAILED") return { kind: "conflict", code: "AI_OPERATION_IN_PROGRESS" };
       }
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(178527291)`;
+      const [global, company, actor, actorDailyRequests, activeOperations] = await Promise.all([
+        transaction.aiUsageEvent.aggregate({ where: { createdAt: { gte: input.monthStart } }, _sum: { costAmount: true } }),
+        transaction.aiUsageEvent.aggregate({ where: { companyId: input.companyId, createdAt: { gte: input.monthStart } }, _sum: { costAmount: true } }),
+        transaction.aiUsageEvent.aggregate({ where: { companyId: input.companyId, actorIdHash: input.actorIdHash, createdAt: { gte: input.monthStart } }, _sum: { costAmount: true } }),
+        transaction.aiUsageEvent.count({ where: { companyId: input.companyId, actorIdHash: input.actorIdHash, createdAt: { gte: input.dayStart } } }),
+        transaction.aiGatewayOperation.findMany({
+          where: { status: "IN_PROGRESS", lockedUntil: { gt: new Date() }, createdAt: { gte: input.monthStart } },
+          select: { companyId: true, actorIdHash: true, responseEnvelope: true, createdAt: true },
+        }),
+      ]);
+      const globalReserved = activeOperations.reduce((sum, item) => sum + reservedCost(item.responseEnvelope), 0);
+      const companyReserved = activeOperations.filter((item) => item.companyId === input.companyId).reduce((sum, item) => sum + reservedCost(item.responseEnvelope), 0);
+      const actorReserved = activeOperations.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash).reduce((sum, item) => sum + reservedCost(item.responseEnvelope), 0);
+      const actorDailyInFlight = activeOperations.filter((item) => item.companyId === input.companyId && item.actorIdHash === input.actorIdHash && item.createdAt >= input.dayStart).length;
+      if (Number(global._sum.costAmount ?? 0) + globalReserved + input.estimatedCostCeilingEur > input.globalMonthlyBudgetEur) throw new AiGatewayError("AI_GLOBAL_BUDGET_EXCEEDED");
+      if (Number(company._sum.costAmount ?? 0) + companyReserved + input.estimatedCostCeilingEur > input.companyMonthlyBudgetEur) throw new AiGatewayError("AI_COMPANY_BUDGET_EXCEEDED");
+      if (Number(actor._sum.costAmount ?? 0) + actorReserved + input.estimatedCostCeilingEur > input.userMonthlyBudgetEur) throw new AiGatewayError("AI_USER_BUDGET_EXCEEDED");
+      if (actorDailyRequests + actorDailyInFlight >= input.userDailyRequestLimit) throw new AiGatewayError("AI_USER_DAILY_REQUEST_LIMIT_EXCEEDED");
       await assertEntitlementMutationAllowed(transaction, {
         companyId: input.companyId,
         limitKey: "monthly_orqena_actions",
@@ -134,9 +168,34 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
           return completedUsage + operationsInFlight;
         },
       });
-      await transaction.aiGatewayOperation.create({ data: input });
+      const operationData = {
+        actorIdHash: input.actorIdHash,
+        purpose: input.purpose,
+        requestHash: input.requestHash,
+        status: "IN_PROGRESS",
+        lockedUntil: input.lockedUntil,
+        contentExpiresAt: input.contentExpiresAt,
+        contentPurgedAt: null,
+        responseEnvelope: { budgetReservationEur: input.estimatedCostCeilingEur },
+        responseHash: null,
+        errorCode: null,
+        attemptCount: 0,
+        completedAt: null,
+      };
+      if (existing?.status === "FAILED") {
+        await transaction.aiGatewayOperation.update({
+          where: { companyId_idempotencyKey: { companyId: input.companyId, idempotencyKey: input.idempotencyKey } },
+          data: operationData,
+        });
+      } else {
+        await transaction.aiGatewayOperation.create({ data: {
+          companyId: input.companyId,
+          idempotencyKey: input.idempotencyKey,
+          ...operationData,
+        } });
+      }
       return { kind: "acquired" };
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 5_000, timeout: 20_000 });
   }
 
   async completeOperation(input: {
@@ -259,10 +318,103 @@ export class PrismaAiGovernanceStore implements AiGovernanceStore {
     });
   }
 
-  async failOperation(input: { companyId: string; idempotencyKey: string; requestHash: string; errorCode: string; attemptCount: number }) {
-    await this.prisma.aiGatewayOperation.updateMany({
-      where: { companyId: input.companyId, idempotencyKey: input.idempotencyKey, requestHash: input.requestHash, status: "IN_PROGRESS" },
-      data: { status: "FAILED", errorCode: input.errorCode, attemptCount: input.attemptCount, lockedUntil: null, completedAt: new Date() },
+  async failOperation(input: {
+    companyId: string;
+    idempotencyKey: string;
+    requestHash: string;
+    errorCode: string;
+    attemptCount: number;
+    evidence?: {
+      request: GovernedAiRequest;
+      actorIdHash: string;
+      provider: string;
+      model: string;
+      modelSnapshot: string;
+      estimatedCostCeilingEur: number;
+      latencyMs: number;
+      contentExpiresAt: Date;
+      providerAttempted: boolean;
+    };
+  }) {
+    await this.prisma.$transaction(async (transaction) => {
+      const failed = await transaction.aiGatewayOperation.updateMany({
+        where: {
+          companyId: input.companyId,
+          idempotencyKey: input.idempotencyKey,
+          requestHash: input.requestHash,
+          status: "IN_PROGRESS",
+        },
+        data: {
+          status: "FAILED",
+          errorCode: input.errorCode,
+          attemptCount: input.attemptCount,
+          lockedUntil: null,
+          completedAt: new Date(),
+        },
+      });
+      if (failed.count !== 1) return;
+      if (!input.evidence) return;
+      const evidence = input.evidence;
+
+      const modelVersion = await transaction.aiModelVersion.upsert({
+        where: { provider_model_version: { provider: evidence.provider, model: evidence.model, version: evidence.modelSnapshot } },
+        create: {
+          provider: evidence.provider,
+          model: evidence.model,
+          version: evidence.modelSnapshot,
+          capabilities: { structuredOutputs: true, storeFalse: true },
+          active: true,
+        },
+        update: { active: true },
+      });
+      const promptVersion = await transaction.aiPromptVersion.upsert({
+        where: { promptKey_version: { promptKey: evidence.request.purpose, version: evidence.request.promptVersion } },
+        create: {
+          promptKey: evidence.request.purpose,
+          version: evidence.request.promptVersion,
+          contentHash: hashJson({ promptKey: evidence.request.purpose, version: evidence.request.promptVersion }),
+          template: "Versioned prompt content is deployed from the reviewed application contract.",
+          schemaVersion: evidence.request.schemaVersion,
+          active: true,
+        },
+        update: { active: true, schemaVersion: evidence.request.schemaVersion },
+      });
+      const conservativeCost = evidence.providerAttempted ? evidence.estimatedCostCeilingEur : 0;
+      await transaction.aiUsageEvent.create({
+        data: {
+          companyId: evidence.request.companyId,
+          modelVersionId: modelVersion.id,
+          promptVersionId: promptVersion.id,
+          purpose: evidence.request.purpose,
+          actorIdHash: evidence.actorIdHash,
+          requestId: evidence.request.requestId,
+          correlationId: evidence.request.correlationId,
+          causationId: evidence.request.causationId,
+          operationKey: evidence.request.operationKey,
+          idempotencyKey: evidence.request.idempotencyKey,
+          lane: evidence.request.lane,
+          modelSnapshot: evidence.modelSnapshot,
+          schemaVersion: evidence.request.schemaVersion,
+          requestHash: input.requestHash,
+          costAmount: conservativeCost,
+          storeRequested: false,
+          humanReviewed: false,
+          escalated: evidence.request.lane === "reasoning",
+          retryCount: Math.max(0, input.attemptCount - 1),
+          latencyMs: evidence.latencyMs,
+          errorCode: input.errorCode,
+          estimatedUsage: true,
+          contentExpiresAt: evidence.contentExpiresAt,
+          outcome: "FAILED",
+          metadata: {
+            contractVersion: 1,
+            dataProfile: "minimized-redacted-v1",
+            transportMode: evidence.provider === "fake-ai-governed" ? "fake" : "live",
+            providerAttempted: evidence.providerAttempted,
+            accounting: evidence.providerAttempted ? "conservative-cost-ceiling" : "zero-cost-no-provider-call",
+          },
+        },
+      });
     });
   }
 

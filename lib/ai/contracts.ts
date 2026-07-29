@@ -1,4 +1,4 @@
-export type AiLane = "fast" | "reasoning";
+export type AiLane = "fast" | "reasoning" | "transcription";
 export type AiClassification = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -36,6 +36,7 @@ export type GovernedAiRequest = AiCorrelation & {
   idempotencyKey: string;
   lane: AiLane;
   promptVersion: string;
+  trustedInstruction?: string;
   schemaVersion: number;
   payload: Record<string, unknown>;
   outputSchema: StrictJsonSchema;
@@ -56,6 +57,7 @@ export type AiTransportInput = {
   lane: AiLane;
   purpose: string;
   promptVersion: string;
+  trustedInstruction?: string;
   schemaVersion: number;
   payload: JsonValue;
   outputSchema: StrictJsonSchema;

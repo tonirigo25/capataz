@@ -6,7 +6,7 @@
       "logicalModel": "orqena-fast-v1",
       "provider": "openai",
       "environmentVariable": "OPENAI_MODEL_FAST",
-      "defaultProviderModel": "gpt-4.1-mini",
+      "defaultProviderModel": "gpt-5-mini",
       "snapshotPolicy": "pin-and-approve-before-live",
       "maxAttempts": 3,
       "escalationAllowed": true
@@ -15,8 +15,17 @@
       "logicalModel": "orqena-reasoning-v1",
       "provider": "openai",
       "environmentVariable": "OPENAI_MODEL_REASONING",
-      "defaultProviderModel": "gpt-5.5",
+      "defaultProviderModel": "gpt-5.1",
       "snapshotPolicy": "pin-and-approve-before-live",
+      "maxAttempts": 2,
+      "escalationAllowed": false
+    },
+    "transcription": {
+      "logicalModel": "orqena-transcription-v1",
+      "provider": "openai",
+      "environmentVariable": "OPENAI_MODEL_TRANSCRIPTION",
+      "defaultProviderModel": "gpt-4o-mini-transcribe",
+      "snapshotPolicy": "approved-stable-model-before-live",
       "maxAttempts": 2,
       "escalationAllowed": false
     }

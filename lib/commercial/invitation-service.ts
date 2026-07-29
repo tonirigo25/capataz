@@ -103,6 +103,7 @@ export async function createEmployeeInvitation(input: {
         packages: input.access.packages,
         accessMode: input.access.accessMode,
       },
+      idempotencyKey: `employee-invited:${invitation.id}`,
     });
     await tx.auditLog.create({
       data: {
@@ -225,6 +226,7 @@ export async function acceptEmployeeInvitation(input: {
       recipient: owner.user.emailNormalized,
       createdById: input.userId,
       payload: { membershipId: membership.id },
+      idempotencyKey: `owner-approval:${invitation.id}`,
     });
     await tx.auditLog.create({
       data: {
@@ -525,6 +527,7 @@ export async function approveEmployeeMembership(input: {
       eventKey: "employee_approved",
       recipient: invitation.emailNormalized,
       createdById: input.ownerId,
+      idempotencyKey: `employee-approved:${invitation.id}`,
     });
     await tx.auditLog.create({
       data: {
@@ -598,6 +601,7 @@ export async function revokeEmployeeInvitation(input: {
       eventKey: "invitation_revoked",
       recipient: invitation.emailNormalized,
       createdById: input.ownerId,
+      idempotencyKey: `invitation-revoked:${invitation.id}`,
     });
     await tx.auditLog.create({
       data: {
@@ -657,6 +661,7 @@ export async function rejectEmployeeMembership(input: {
       eventKey: "employee_rejected",
       recipient: invitation.emailNormalized,
       createdById: input.ownerId,
+      idempotencyKey: `employee-rejected:${invitation.id}`,
     });
     return rejectedMembership;
   });

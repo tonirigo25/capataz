@@ -42,12 +42,16 @@ check("store-default-false", /^OPENAI_STORE=false$/m.test(envExample));
 
 const files = [...await sourceFiles(path.join(root, "app")), ...await sourceFiles(path.join(root, "lib"))];
 const endpointOwners = [];
+const directTransportConsumers = [];
 const openAiApiHostLiteral = ["api", "openai", "com"].join(".");
 for (const file of files) {
   const source = await readFile(file, "utf8");
   if (source.includes(openAiApiHostLiteral)) endpointOwners.push(path.relative(root, file).replaceAll("\\", "/"));
+  const relative = path.relative(root, file).replaceAll("\\", "/");
+  if (relative !== "lib/ai/openai-transport.ts" && source.includes("openAiHttpRequest")) directTransportConsumers.push(relative);
 }
 check("single-openai-endpoint-owner", endpointOwners.length === 1 && endpointOwners[0] === "lib/ai/openai-transport.ts", endpointOwners.join(","));
+check("no-openai-transport-bypass", directTransportConsumers.length === 0, directTransportConsumers.join(","));
 
 const middleware = await readFile(path.join(root, "middleware.ts"), "utf8");
 check("browser-csp-does-not-allow-openai", !middleware.includes(openAiApiHostLiteral));
@@ -55,6 +59,23 @@ const transport = await readFile(path.join(root, "lib", "ai", "openai-transport.
 check("transport-forces-store-false", /store:\s*false/.test(transport) && /input\.store\s*!==\s*false/.test(transport));
 check("transport-supports-endpoint", /OPENAI_BASE_URL/.test(await readFile(path.join(root, ".env.example"), "utf8")) && /baseUrl/.test(transport));
 const gateway = await readFile(path.join(root, "lib", "ai", "governed-gateway.ts"), "utf8");
+const runtimeGateway = await readFile(path.join(root, "lib", "ai", "runtime-gateway.ts"), "utf8");
+const modelPolicy = await readFile(path.join(root, "lib", "ai", "model-policy.ts"), "utf8");
+const environmentTemplate = await readFile(path.join(root, ".env.example"), "utf8");
+const capatazAi = await readFile(path.join(root, "lib", "ai", "capataz-ai.ts"), "utf8");
+const transcription = await readFile(path.join(root, "app", "api", "capataz", "transcribe", "route.ts"), "utf8");
+const capatazChat = await readFile(path.join(root, "components", "capataz-chat.tsx"), "utf8");
+const documentExtraction = await readFile(path.join(root, "lib", "document-extraction.ts"), "utf8");
+check("runtime-facade-global-gate", /AI_GLOBAL_ENABLED/.test(runtimeGateway) && /AI_PROVIDER_CONFIGURED/.test(runtimeGateway));
+check("runtime-facade-company-allowlist", /AI_COMPANY_ALLOWLIST/.test(runtimeGateway) && /AI_COMPANY_NOT_ALLOWLISTED/.test(runtimeGateway));
+check("runtime-facade-hard-caps", /AI_GLOBAL_MONTHLY_BUDGET_EUR/.test(runtimeGateway) && /AI_DEFAULT_COMPANY_MONTHLY_BUDGET_EUR/.test(runtimeGateway) && /AI_DEFAULT_USER_DAILY_REQUEST_LIMIT/.test(runtimeGateway));
+check("voice-kill-switch-is-configured-and-visible", /AI_VOICE_ENABLED=false/.test(environmentTemplate) && /AI_VOICE_ENABLED/.test(runtimeGateway) && /voiceEnabled/.test(transcription) && /data\.voiceAvailable\s*\?\s*<button/.test(capatazChat));
+check("validated-model-snapshot-defaults", /gpt-4\.1-mini-2025-04-14/.test(environmentTemplate) && /gpt-4\.1-2025-04-14/.test(environmentTemplate) && /gpt-4\.1-mini-2025-04-14/.test(modelPolicy) && /gpt-4\.1-2025-04-14/.test(modelPolicy));
+check("capataz-uses-runtime-facade", /executeRuntimeAiRequest/.test(capatazAi) && !/openAiHttpRequest/.test(capatazAi));
+check("transcription-uses-runtime-facade", /executeRuntimeAiRequest/.test(transcription) && !/openAiHttpRequest/.test(transcription));
+check("document-extraction-uses-runtime-facade", /executeRuntimeAiRequest/.test(documentExtraction) && !/requestCapatazStructuredResponse|openAiHttpRequest/.test(documentExtraction));
+check("canonical-transcription-model", /OPENAI_MODEL_TRANSCRIPTION/.test(runtimeGateway));
+check("ten-synthetic-runtime-smokes", (await readFile(path.join(root, "scripts", "readiness", "validate-ai-runtime-smoke.ts"), "utf8")).match(/A6-\d{2}-/g)?.length === 10);
 for (const [name, pattern] of [
   ["gateway-budget", /AI_COMPANY_BUDGET_EXCEEDED/],
   ["gateway-timeout", /AbortController/],

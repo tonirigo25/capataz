@@ -49,7 +49,12 @@ export type AcquiredAiOperation =
 
 export interface AiGovernanceStore {
   getPolicy(companyId: string): Promise<AiPolicyRecord | null>;
-  getMonthlySpend(companyId: string, actorIdHash: string, from: Date): Promise<{ company: number; actor: number }>;
+  getUsage(input: {
+    companyId: string;
+    actorIdHash: string;
+    monthStart: Date;
+    dayStart: Date;
+  }): Promise<{ global: number; company: number; actor: number; actorDailyRequests: number }>;
   countActiveOperations(companyId: string, now: Date): Promise<number>;
   acquireOperation(input: {
     companyId: string;
@@ -59,6 +64,13 @@ export interface AiGovernanceStore {
     requestHash: string;
     lockedUntil: Date;
     contentExpiresAt: Date;
+    monthStart: Date;
+    dayStart: Date;
+    estimatedCostCeilingEur: number;
+    globalMonthlyBudgetEur: number;
+    companyMonthlyBudgetEur: number;
+    userMonthlyBudgetEur: number;
+    userDailyRequestLimit: number;
   }): Promise<AcquiredAiOperation>;
   completeOperation(input: {
     request: GovernedAiRequest;
@@ -86,6 +98,17 @@ export interface AiGovernanceStore {
     requestHash: string;
     errorCode: string;
     attemptCount: number;
+    evidence?: {
+      request: GovernedAiRequest;
+      actorIdHash: string;
+      provider: string;
+      model: string;
+      modelSnapshot: string;
+      estimatedCostCeilingEur: number;
+      latencyMs: number;
+      contentExpiresAt: Date;
+      providerAttempted: boolean;
+    };
   }): Promise<void>;
   getCircuit(environment: string, provider: string): Promise<AiCircuitRecord>;
   circuitSucceeded(environment: string, provider: string): Promise<void>;
@@ -97,7 +120,14 @@ export type GovernedAiDependencies = {
   transport: AiTransport;
   environment: string;
   globalEnabled: boolean;
+  companyAllowlist?: readonly string[];
+  globalMonthlyBudgetEur?: number;
+  companyMonthlyBudgetEur?: number;
+  userDailyRequestLimit?: number;
+  maxInputTokensPerRequest?: number;
+  maxOutputTokensPerRequest?: number;
   liveConfigurationComplete?: boolean;
+  modelEnvironment?: NodeJS.ProcessEnv;
   now?: () => Date;
   monotonicNow?: () => number;
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
@@ -109,6 +139,10 @@ const RETRYABLE_STATUS = new Set([408, 409, 429, 500, 502, 503, 504]);
 
 function monthStart(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function dayStart(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
 function asPositiveFinite(value: number, code: string): number {
@@ -186,6 +220,7 @@ export async function executeGovernedAiRequest(
   const actorIdHash = stableReference(request.actorId);
   const policy = await dependencies.store.getPolicy(request.companyId);
   if (!dependencies.globalEnabled || !policy?.enabled || policy.killSwitch) throw new AiGatewayError("AI_DISABLED_FAIL_CLOSED");
+  if (dependencies.companyAllowlist && !dependencies.companyAllowlist.includes(request.companyId)) throw new AiGatewayError("AI_COMPANY_NOT_ALLOWLISTED");
   if (dependencies.transport.mode === "live" && !dependencies.liveConfigurationComplete) throw new AiGatewayError("AI_LIVE_CONFIGURATION_INCOMPLETE");
   if (!policy.allowedPurposes.includes(request.purpose)) throw new AiGatewayError("AI_PURPOSE_NOT_ALLOWED");
   if (!policy.allowedRoles.includes(request.role)) throw new AiGatewayError("AI_ROLE_NOT_ALLOWED");
@@ -198,21 +233,44 @@ export async function executeGovernedAiRequest(
     allowedFields: policy.allowedFields[request.purpose] ?? [],
     companyId: request.companyId,
   });
+  const trustedInstruction = request.trustedInstruction?.trim();
+  if (request.trustedInstruction !== undefined && !trustedInstruction) throw new AiGatewayError("AI_TRUSTED_INSTRUCTION_INVALID");
+  if (trustedInstruction && Buffer.byteLength(trustedInstruction) > 16_384) throw new AiGatewayError("AI_TRUSTED_INSTRUCTION_TOO_LARGE");
   const serializedBytes = Buffer.byteLength(JSON.stringify(minimizedPayload));
-  const approximateInputTokens = Math.ceil(serializedBytes / 4);
+  const approximateInputTokens = Math.ceil((serializedBytes + Buffer.byteLength(trustedInstruction ?? "")) / 4);
+  const companyMonthlyBudgetEur = Math.min(
+    policy.companyMonthlyBudget,
+    asPositiveFinite(dependencies.companyMonthlyBudgetEur ?? policy.companyMonthlyBudget, "AI_COMPANY_BUDGET_INVALID"),
+  );
+  const maxInputTokens = Math.min(
+    policy.maxInputTokens,
+    asPositiveFinite(dependencies.maxInputTokensPerRequest ?? policy.maxInputTokens, "AI_INPUT_LIMIT_INVALID"),
+  );
+  const maxOutputTokens = Math.min(
+    policy.maxOutputTokens,
+    asPositiveFinite(dependencies.maxOutputTokensPerRequest ?? policy.maxOutputTokens, "AI_OUTPUT_LIMIT_INVALID"),
+  );
   if (serializedBytes > policy.maxPayloadBytes) throw new AiGatewayError("AI_PAYLOAD_LIMIT_EXCEEDED");
-  if (approximateInputTokens > policy.maxInputTokens) throw new AiGatewayError("AI_INPUT_TOKEN_LIMIT_EXCEEDED");
-  if (request.maxOutputTokens > policy.maxOutputTokens) throw new AiGatewayError("AI_OUTPUT_TOKEN_LIMIT_EXCEEDED");
+  if (approximateInputTokens > maxInputTokens) throw new AiGatewayError("AI_INPUT_TOKEN_LIMIT_EXCEEDED");
+  if (request.maxOutputTokens > maxOutputTokens) throw new AiGatewayError("AI_OUTPUT_TOKEN_LIMIT_EXCEEDED");
   if (request.estimatedCostCeilingEur > policy.operationBudget) throw new AiGatewayError("AI_OPERATION_BUDGET_EXCEEDED");
 
-  const spend = await dependencies.store.getMonthlySpend(request.companyId, actorIdHash, monthStart(now));
-  if (spend.company + request.estimatedCostCeilingEur > policy.companyMonthlyBudget) throw new AiGatewayError("AI_COMPANY_BUDGET_EXCEEDED");
+  const globalMonthlyBudgetEur = asPositiveFinite(dependencies.globalMonthlyBudgetEur ?? 25, "AI_GLOBAL_BUDGET_INVALID");
+  const userDailyRequestLimit = asPositiveFinite(dependencies.userDailyRequestLimit ?? 50, "AI_USER_DAILY_LIMIT_INVALID");
+  if (!Number.isInteger(userDailyRequestLimit)) throw new AiGatewayError("AI_USER_DAILY_LIMIT_INVALID");
+  const currentMonth = monthStart(now);
+  const currentDay = dayStart(now);
+  const spend = await dependencies.store.getUsage({ companyId: request.companyId, actorIdHash, monthStart: currentMonth, dayStart: currentDay });
+  if (spend.global + request.estimatedCostCeilingEur > globalMonthlyBudgetEur) throw new AiGatewayError("AI_GLOBAL_BUDGET_EXCEEDED");
+  if (spend.company + request.estimatedCostCeilingEur > companyMonthlyBudgetEur) throw new AiGatewayError("AI_COMPANY_BUDGET_EXCEEDED");
   if (spend.actor + request.estimatedCostCeilingEur > policy.userMonthlyBudget) throw new AiGatewayError("AI_USER_BUDGET_EXCEEDED");
+  if (spend.actorDailyRequests >= userDailyRequestLimit) throw new AiGatewayError("AI_USER_DAILY_REQUEST_LIMIT_EXCEEDED");
   if (await dependencies.store.countActiveOperations(request.companyId, now) >= policy.maxConcurrency) throw new AiGatewayError("AI_CONCURRENCY_LIMIT_EXCEEDED");
 
   const model = resolveAiModel({
     lane: request.lane,
     approvedModels: policy.approvedModels,
+    environment: dependencies.modelEnvironment,
     live: dependencies.transport.mode === "live",
   });
   const timeoutMs = Math.min(MAX_TIMEOUT_MS, asPositiveFinite(policy.timeoutMs, "AI_INVALID_TIMEOUT"));
@@ -224,7 +282,11 @@ export async function executeGovernedAiRequest(
     purpose: request.purpose,
     lane: request.lane,
     promptVersion: request.promptVersion,
+    trustedInstructionHash: trustedInstruction ? hashJson(trustedInstruction) : undefined,
     schemaVersion: request.schemaVersion,
+    outputSchema: request.outputSchema,
+    providerModel: model.providerModel,
+    modelSnapshot: model.modelSnapshot,
     maxOutputTokens: request.maxOutputTokens,
     payload: minimizedPayload,
   });
@@ -236,6 +298,13 @@ export async function executeGovernedAiRequest(
     requestHash,
     lockedUntil: new Date(now.getTime() + timeoutMs * model.maxAttempts),
     contentExpiresAt,
+    monthStart: currentMonth,
+    dayStart: currentDay,
+    estimatedCostCeilingEur: request.estimatedCostCeilingEur,
+    globalMonthlyBudgetEur,
+    companyMonthlyBudgetEur,
+    userMonthlyBudgetEur: policy.userMonthlyBudget,
+    userDailyRequestLimit,
   });
   if (acquired.kind === "conflict") throw new AiGatewayError(acquired.code);
   if (acquired.kind === "replay") return { ...acquired.response, source: "idempotent-replay", replayed: true };
@@ -243,7 +312,24 @@ export async function executeGovernedAiRequest(
   const circuit = await dependencies.store.getCircuit(dependencies.environment, dependencies.transport.name);
   if (circuit.state === "OPEN" && circuit.openedUntil && circuit.openedUntil > now) {
     const fallback = deterministicFallback("AI_CIRCUIT_OPEN", request.schemaVersion);
-    await dependencies.store.failOperation({ companyId: request.companyId, idempotencyKey: request.idempotencyKey, requestHash, errorCode: "AI_CIRCUIT_OPEN", attemptCount: 0 });
+    await dependencies.store.failOperation({
+      companyId: request.companyId,
+      idempotencyKey: request.idempotencyKey,
+      requestHash,
+      errorCode: "AI_CIRCUIT_OPEN",
+      attemptCount: 0,
+      evidence: {
+        request,
+        actorIdHash,
+        provider: dependencies.transport.name,
+        model: model.providerModel,
+        modelSnapshot: model.modelSnapshot,
+        estimatedCostCeilingEur: request.estimatedCostCeilingEur,
+        latencyMs: 0,
+        contentExpiresAt,
+        providerAttempted: false,
+      },
+    });
     return fallback;
   }
 
@@ -262,6 +348,7 @@ export async function executeGovernedAiRequest(
           lane: request.lane,
           purpose: request.purpose,
           promptVersion: request.promptVersion,
+          trustedInstruction,
           schemaVersion: request.schemaVersion,
           payload: minimizedPayload,
           outputSchema: request.outputSchema,
@@ -293,7 +380,24 @@ export async function executeGovernedAiRequest(
 
   if (!transportResult) {
     const code = lastError?.code ?? "AI_PROVIDER_FAILURE";
-    await dependencies.store.failOperation({ companyId: request.companyId, idempotencyKey: request.idempotencyKey, requestHash, errorCode: code, attemptCount: attempts });
+    await dependencies.store.failOperation({
+      companyId: request.companyId,
+      idempotencyKey: request.idempotencyKey,
+      requestHash,
+      errorCode: code,
+      attemptCount: attempts,
+      evidence: {
+        request,
+        actorIdHash,
+        provider: dependencies.transport.name,
+        model: model.providerModel,
+        modelSnapshot: model.modelSnapshot,
+        estimatedCostCeilingEur: request.estimatedCostCeilingEur,
+        latencyMs: Math.max(0, Math.round(monotonicNow() - startedAt)),
+        contentExpiresAt,
+        providerAttempted: attempts > 0,
+      },
+    });
     await dependencies.store.circuitFailed({
       environment: dependencies.environment,
       provider: dependencies.transport.name,
@@ -318,6 +422,7 @@ export async function executeGovernedAiRequest(
     reviewRequired: policy.humanReviewRequired || Boolean(request.sensitiveEffect),
     schemaVersion: request.schemaVersion,
   };
+  const conservativelyEstimatedCost = transportResult.estimatedCostEur ?? request.estimatedCostCeilingEur;
   const usageEventId = await dependencies.store.completeOperation({
     request,
     requestHash,
@@ -330,8 +435,8 @@ export async function executeGovernedAiRequest(
     modelSnapshot: transportResult.modelSnapshot,
     inputTokens: transportResult.inputTokens,
     outputTokens: transportResult.outputTokens,
-    costAmount: transportResult.estimatedCostEur,
-    estimatedUsage: transportResult.usageIsSyntheticOrEstimated,
+    costAmount: conservativelyEstimatedCost,
+    estimatedUsage: transportResult.usageIsSyntheticOrEstimated || transportResult.estimatedCostEur === undefined,
     latencyMs: Math.max(0, Math.round(monotonicNow() - startedAt)),
     retryCount: attempts - 1,
     escalated: request.lane === "reasoning",

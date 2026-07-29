@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { normalizeEmail } from "@/lib/auth/crypto";
-import { sendContactNotification } from "@/lib/email";
+import { queueEmailEvent } from "@/lib/email/outbox";
 import { prisma } from "@/lib/prisma";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
 
@@ -51,49 +51,51 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "RATE_LIMITED" }, { status: 429 });
   }
 
-  const contact = await prisma.demoRequest.upsert({
-    where: { requestHash },
-    update: {},
-    create: {
-      emailNormalized: email,
-      displayName: name,
-      companyName: company || "No indicada",
-      message,
-      consentAt: new Date(),
-      source: "orqenatech-contact",
-      requestHash,
-    },
-  });
-
     try {
-      await sendContactNotification({ name, email, company, reason, message });
-    await prisma.$transaction([
-      prisma.demoRequest.update({ where: { id: contact.id }, data: { status: "DELIVERED" } }),
-      prisma.auditLog.create({
+      const contact = await prisma.$transaction(async (transaction) => {
+        const saved = await transaction.demoRequest.upsert({
+          where: { requestHash },
+          update: {},
+          create: {
+            emailNormalized: email,
+            displayName: name,
+            companyName: company || "No indicada",
+            message,
+            consentAt: new Date(),
+            source: "orqenatech-contact",
+            requestHash,
+            status: "PENDING",
+          },
+        });
+        await queueEmailEvent(transaction, {
+          eventKey: "contact_requested",
+          recipient: "hola@orqenatech.com",
+          payload: { demoRequestId: saved.id, reason },
+          idempotencyKey: `contact-request:${requestHash}`,
+        });
+        await transaction.auditLog.create({
+          data: {
+            action: "marketing.contact.queued",
+            targetType: "DemoRequest",
+            targetId: saved.id,
+            metadata: { source: "orqenatech.com", reason },
+            ipHash: hash(forwarded),
+          },
+        });
+        return saved;
+      });
+      return NextResponse.json({ ok: true, requestId: contact.id, delivery: "queued" }, { status: 202 });
+    } catch (error) {
+      const code = error instanceof Error ? error.message.split(":")[0].slice(0, 120) : "EMAIL_QUEUE_FAILED";
+      await prisma.auditLog.create({
         data: {
-          action: "marketing.contact.delivered",
+          action: "marketing.contact.queue_failed",
           targetType: "DemoRequest",
-          targetId: contact.id,
-          metadata: { source: "orqenatech.com", reason },
-          ipHash: hash(forwarded),
-        },
-      }),
-    ]);
-    return NextResponse.json({ ok: true, requestId: contact.id }, { status: 201 });
-  } catch (error) {
-    const code = error instanceof Error ? error.message.split(":")[0].slice(0, 120) : "EMAIL_DELIVERY_FAILED";
-    await prisma.$transaction([
-      prisma.demoRequest.update({ where: { id: contact.id }, data: { status: "EMAIL_FAILED" } }),
-      prisma.auditLog.create({
-        data: {
-          action: "marketing.contact.failed",
-          targetType: "DemoRequest",
-          targetId: contact.id,
+          targetId: requestHash,
           metadata: { source: "orqenatech.com", reason, code },
           ipHash: hash(forwarded),
         },
-      }),
-    ]);
+      });
       return NextResponse.json({ ok: false, error: code }, { status: 503 });
     }
   });

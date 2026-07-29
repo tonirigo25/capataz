@@ -23,6 +23,11 @@ const states = [
     items: ["Clientes, presupuestos y trabajos", "Compras, documentos y control económico", "Permisos, aislamiento y confirmación humana"],
   },
   {
+    status: "Activación controlada",
+    icon: CheckCircle2,
+    items: ["IA real sólo para empresas autorizadas", "Voz y transcripción con revisión humana", "Correo transaccional: recuperación, invitaciones y contacto"],
+  },
+  {
     status: "Beta privada",
     icon: Clock3,
     items: ["Incorporación acompañada", "Pilotos y métricas todavía no reales", "Registro autónomo cerrado por defecto"],
@@ -30,7 +35,7 @@ const states = [
   {
     status: "Gate externo",
     icon: ShieldAlert,
-    items: ["Dominio e indexación pública", "Providers live y transmisión fiscal", "SLA, backup/PITR y distribución móvil firmada"],
+    items: ["Indexación y registro público", "Billing, precios y transmisión fiscal", "SLA, PITR nativo y distribución móvil firmada"],
   },
 ] as const;
 
@@ -45,7 +50,7 @@ export default function StatusPage() {
           certificación. El health endpoint informa del proceso actual, no sustituye
           un historial de incidentes.
         </p>
-        <div className="mt-12 grid gap-4 lg:grid-cols-3">
+        <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {states.map(({ status, icon: Icon, items }) => (
             <article className="card p-6" key={status}>
               <Icon aria-hidden="true" />

@@ -103,6 +103,18 @@ const invitationClientScopeCapabilities = [
   "orqena.use",
   "orqena.execute",
 ] as const;
+
+type MembershipEmailMutation = "profile" | "package" | "scope" | "state";
+
+function membershipEmailIdempotencyKey(input: {
+  companyId: string;
+  membershipId: string;
+  mutation: MembershipEmailMutation;
+  eventKey: "profile_changed" | "permissions_changed" | "membership_suspended" | "membership_reactivated";
+  accessVersion: number;
+}) {
+  return `membership-email:${input.companyId}:${input.membershipId}:${input.mutation}:${input.eventKey}:v${input.accessVersion}`;
+}
 const invitationFieldKeys = [
   "purchase_cost",
   "internal_cost",
@@ -215,6 +227,10 @@ export async function changeFunctionalProfile(formData: FormData) {
       actorId: owner.userId,
       reason: "profile_changed",
     });
+    const mutation = await tx.companyMembership.findUniqueOrThrow({
+      where: { id: target.id },
+      select: { accessVersion: true },
+    });
     await tx.auditLog.create({
       data: {
         companyId: owner.companyId,
@@ -232,6 +248,8 @@ export async function changeFunctionalProfile(formData: FormData) {
         await tx.user.findUniqueOrThrow({ where: { id: target.userId } })
       ).emailNormalized,
       createdById: owner.userId,
+      payload: { profile, mutationVersion: mutation.accessVersion },
+      idempotencyKey: membershipEmailIdempotencyKey({ companyId: owner.companyId, membershipId: target.id, mutation: "profile", eventKey: "profile_changed", accessVersion: mutation.accessVersion }),
     });
   });
   revalidatePath("/equipo");
@@ -282,6 +300,10 @@ export async function setAccessPackage(formData: FormData) {
       actorId: owner.userId,
       reason: "packages_changed",
     });
+    const mutation = await tx.companyMembership.findUniqueOrThrow({
+      where: { id: target.id },
+      select: { accessVersion: true },
+    });
     await queueEmailEvent(tx as typeof prisma, {
       companyId: owner.companyId,
       eventKey: "permissions_changed",
@@ -289,7 +311,8 @@ export async function setAccessPackage(formData: FormData) {
         await tx.user.findUniqueOrThrow({ where: { id: target.userId } })
       ).emailNormalized,
       createdById: owner.userId,
-      payload: { packageKey, enabled },
+      payload: { packageKey, enabled, mutationVersion: mutation.accessVersion },
+      idempotencyKey: membershipEmailIdempotencyKey({ companyId: owner.companyId, membershipId: target.id, mutation: "package", eventKey: "permissions_changed", accessVersion: mutation.accessVersion }),
     });
   });
   revalidatePath("/equipo");
@@ -628,6 +651,10 @@ export async function setScopeAssignment(formData: FormData) {
       actorId: owner.userId,
       reason: "scope_changed",
     });
+    const mutation = await tx.companyMembership.findUniqueOrThrow({
+      where: { id: target.id },
+      select: { accessVersion: true },
+    });
     await queueEmailEvent(tx as typeof prisma, {
       companyId: owner.companyId,
       eventKey: "permissions_changed",
@@ -635,7 +662,8 @@ export async function setScopeAssignment(formData: FormData) {
         await tx.user.findUniqueOrThrow({ where: { id: target.userId } })
       ).emailNormalized,
       createdById: owner.userId,
-      payload: { capabilityKey, scope },
+      payload: { capabilityKey, scope, mutationVersion: mutation.accessVersion },
+      idempotencyKey: membershipEmailIdempotencyKey({ companyId: owner.companyId, membershipId: target.id, mutation: "scope", eventKey: "permissions_changed", accessVersion: mutation.accessVersion }),
     });
   });
   revalidatePath("/equipo");
@@ -816,6 +844,7 @@ export async function processOutbox(
   const result = await processEmailOutboxItem(
     String(formData.get("outboxId") ?? ""),
     owner.companyId,
+    owner.userId,
   );
   revalidatePath("/equipo/outbox");
   return { previewHtml: result.previewHtml };
@@ -862,16 +891,23 @@ export async function changeMembershipState(formData: FormData) {
         actorId: owner.userId,
         reason: `membership_${action}`,
       });
+    const mutation = await tx.companyMembership.findUniqueOrThrow({
+      where: { id: target.id },
+      select: { accessVersion: true },
+    });
+    const eventKey =
+      action === "suspend"
+        ? "membership_suspended"
+        : action === "reactivate"
+          ? "membership_reactivated"
+          : "permissions_changed";
     await queueEmailEvent(tx as typeof prisma, {
       companyId: owner.companyId,
-      eventKey:
-        action === "suspend"
-          ? "membership_suspended"
-          : action === "reactivate"
-            ? "membership_reactivated"
-            : "permissions_changed",
+      eventKey,
       recipient: target.user.emailNormalized,
       createdById: owner.userId,
+      payload: { status, mutationVersion: mutation.accessVersion },
+      idempotencyKey: membershipEmailIdempotencyKey({ companyId: owner.companyId, membershipId: target.id, mutation: "state", eventKey, accessVersion: mutation.accessVersion }),
     });
     await tx.auditLog.create({
       data: {

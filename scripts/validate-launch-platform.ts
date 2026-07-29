@@ -160,7 +160,7 @@ async function validateDocuments() {
 async function validateEmail() {
   throws(
     () => createEmailProvider({ NODE_ENV: "production", NEXT_PUBLIC_APP_ENV: "production" }),
-    /EMAIL_PROVIDER_NOT_CONFIGURED/,
+    /EMAIL_LIVE_DISABLED/,
     "production email fails closed",
   );
   equal(createEmailProvider({ NODE_ENV: "test" }).name, "local", "tests never send externally");

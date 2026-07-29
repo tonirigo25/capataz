@@ -3,8 +3,11 @@
 Updated for readiness F11. These are release gates, not hidden assurances.
 
 - Public indexing remains disabled until brand/domain clearance and final legal approval.
-- OpenAI live validation remains `READY_FOR_EXTERNAL_INPUT`; only fake/injected transports are evidenced.
-- Email domain, billing, fiscal public transmission, private storage providers and recurring remote observability retain their existing external activation gates.
+- GPT-5 no está accesible todavía para la organización del proveedor. La activación controlada usa snapshots compatibles de GPT-4.1 y mantiene el cambio de modelo dentro de la configuración gobernada; no se degrada a un modelo no aprobado de forma silenciosa.
+- La extracción IA de documentos sigue apagada: enviar bytes requiere un contrato específico de minimización y redacción. Texto, respuesta estructurada y transcripción sí tienen evidencia live sintética en Staging.
+- El límite de gasto de la aplicación es fail-closed, pero la alerta presupuestaria del proveedor sigue siendo un control externo complementario y no sustituye los límites por empresa y usuario.
+- El correo live se limita a recuperación, invitaciones y contacto. No están autorizados campañas, tracking ni avisos generales, y una clave de envío de mínimo privilegio no permite consultar por API el estado detallado de cada mensaje.
+- Billing, transmisión fiscal pública, analytics, indexación y los providers no mencionados conservan sus gates de activación.
 - Existe un `review` Railway persistente y aislado; el preview efímero por PR
   anterior sigue sin existir y no se usa como sustituto.
 - El presupuesto estricto C3 todavía no cierra: la medición Lighthouse local
@@ -31,4 +34,4 @@ Updated for readiness F11. These are release gates, not hidden assurances.
 - Brand, contributor assignments, asset title and transition hours require legal/commercial records outside this repository.
 - On the Windows validation host, `npm ls` reports platform/tooling optional packages as extraneous after a clean `npm ci`; audit remains clean and the SBOM intentionally uses the reproducible lockfile-only graph. CycloneDX-npm emits unresolved nested graph references from that lockfile while retaining every component record; the validator records the count instead of deleting those references. Linux CI still installs from the same lockfile before all gates.
 
-No item above is represented as a completed live validation.
+Ningún elemento pendiente anterior se representa como una validación completada. Las validaciones live autorizadas de IA y correo se documentan por separado en `docs/operations/AI_AND_TRANSACTIONAL_EMAIL_LIVE_CONTROLLED_2026-07-29.md`.

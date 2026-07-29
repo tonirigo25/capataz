@@ -21,8 +21,8 @@ automáticamente DNS, proveedores live ni lanzamiento público.
 | EXT-REG-001 | Abrir registro público | `NOT_AUTHORIZED` | `ORQENA_PUBLIC_REGISTRATION_ENABLED=false` |
 | EXT-STRIPE-001 | Activar pricing, Stripe o billing live | `NOT_AUTHORIZED` | `PUBLIC_PRICING_ENABLED=false`; `BILLING_ENABLED=false` |
 | EXT-FISCAL-001 | Activar emisión/transmisión fiscal live | `NOT_AUTHORIZED` | `FISCAL_ENGINE_ENABLED=false` |
-| EXT-EMAIL-LIVE-001 | Activar email live y webhook | `NOT_AUTHORIZED` | `EMAIL_LIVE_ENABLED=false`; webhook deshabilitado |
-| EXT-AI-001 | Activar IA live | `NOT_AUTHORIZED` | `AI_ENABLED=false` |
+| EXT-EMAIL-LIVE-001 | Activar email live y webhook | `APPROVED_CONTROLLED` | recuperación, invitaciones y contacto; webhook firmado y replay-safe; sin campañas ni tracking |
+| EXT-AI-001 | Activar IA live | `APPROVED_CONTROLLED` | allowlist de empresa; 25 EUR/mes global, 5 EUR/mes por empresa, 50 solicitudes/día por usuario; kill switch y fallback manual |
 | EXT-ANALYTICS-001 | Activar analytics | `NOT_AUTHORIZED` | `ANALYTICS_ENABLED=false` |
 | EXT-QA-001 | Aceptación humana | `READY_FOR_EXTERNAL_INPUT` | sin firma |
 | EXT-QA-002 | Dispositivos reales | `READY_FOR_EXTERNAL_INPUT` | matriz abierta |
@@ -35,5 +35,6 @@ en el sistema privado, fecha, alcance, entorno, rollback, evidencia no sensible
 y SHA/deployment aplicable.
 
 No registrar secretos, datos personales, credenciales, URLs firmadas ni
-documentos legales privados. Tener una clave scoped o un dominio verificado no
-autoriza `EMAIL_LIVE_ENABLED=true`.
+documentos legales privados. La autorización controlada de IA o correo no
+autoriza campañas, registro público, billing, fiscalidad live, analytics ni
+indexación, y puede revocarse con sus kill switches sin alterar datos.

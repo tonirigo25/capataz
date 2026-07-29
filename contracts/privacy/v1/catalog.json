@@ -20,9 +20,9 @@
   "subprocessors": [
     { "key": "railway", "name": "Railway", "purpose": "Application and database hosting", "dataCategories": ["encrypted_application_data", "technical_metadata"], "processingLocations": ["contract_to_confirm"], "activation": "REQUIRED" },
     { "key": "aws_s3_compatible", "name": "Private S3-compatible storage", "purpose": "Private document storage", "dataCategories": ["customer_documents"], "processingLocations": ["deployment_specific"], "activation": "REQUIRED_FOR_PRODUCTION" },
-    { "key": "resend", "name": "Resend", "purpose": "Transactional email delivery", "dataCategories": ["email_address", "delivery_metadata"], "processingLocations": ["contract_to_confirm"], "activation": "DISABLED" },
+    { "key": "resend", "name": "Resend", "purpose": "Transactional email delivery", "dataCategories": ["email_address", "delivery_metadata"], "processingLocations": ["contract_to_confirm"], "activation": "CONTROLLED_TRANSACTIONAL" },
     { "key": "stripe", "name": "Stripe", "purpose": "SaaS subscription billing", "dataCategories": ["billing_contact", "subscription_metadata"], "processingLocations": ["contract_to_confirm"], "activation": "DISABLED" },
-    { "key": "openai", "name": "OpenAI", "purpose": "Optional AI assistance through the governed gateway", "dataCategories": ["minimized_business_context"], "processingLocations": ["contract_to_confirm"], "activation": "DISABLED" },
+    { "key": "openai", "name": "OpenAI", "purpose": "Controlled AI assistance through the governed gateway", "dataCategories": ["minimized_business_context"], "processingLocations": ["contract_to_confirm"], "activation": "CONTROLLED_ALLOWLIST" },
     { "key": "sentry", "name": "Sentry", "purpose": "Optional PII-redacted error tracking", "dataCategories": ["pseudonymous_technical_metadata"], "processingLocations": ["contract_to_confirm"], "activation": "DISABLED" }
   ]
 }
