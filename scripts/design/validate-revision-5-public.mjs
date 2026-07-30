@@ -163,7 +163,8 @@ check("SEO stays canonical, fail-closed and covered on the requested public rout
     assertIncludes(lighthouse, `http://127.0.0.1:3210${route}`, `Lighthouse route ${route}`);
   }
   assertIncludes(lighthouse, '"largest-contentful-paint": ["error", { "maxNumericValue": 2500 }]', "LCP 2.5-second gate");
-  assertIncludes(lighthouse, '"categories:seo"', "Lighthouse SEO gate");
+  assertIncludes(lighthouse, 'onlyCategories: ["performance", "accessibility", "best-practices", "seo"]', "Lighthouse SEO audit");
+  assertIncludes(lighthouse, "Review is intentionally noindex", "Review SEO score exception");
   for (const route of ["/recursos", "/empresa"]) assertIncludes(publicMatrix, `"${route}"`, `D10 route ${route}`);
   for (const token of ["x-nonce", "BreadcrumbList", "FAQPage", "SoftwareApplication", "\\u003c"]) {
     assertIncludes(structuredData, token, `safe structured data token ${token}`);

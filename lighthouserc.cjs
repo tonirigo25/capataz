@@ -22,10 +22,10 @@ module.exports = {
     },
     assert: {
       assertions: {
+        // Review is intentionally noindex, so Lighthouse records SEO without gating its aggregate score.
         "categories:performance": ["error", { "minScore": 0.7 }],
         "categories:accessibility": ["error", { "minScore": 0.95 }],
         "categories:best-practices": ["error", { "minScore": 0.9 }],
-        "categories:seo": ["error", { "minScore": 0.9 }],
         "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
         "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }]
       }

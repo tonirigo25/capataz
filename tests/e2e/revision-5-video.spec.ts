@@ -29,7 +29,7 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "Reproducir vídeo de Orqena" }).click();
     await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).paused)).toBe(false);
 
-    await page.locator("header").first().scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).paused), { timeout: 4_000 }).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   });
