@@ -66,7 +66,7 @@ function SalesFlow({ onAction }: { onAction: (action: string) => void }) {
   return (
     <div className={styles.flowProduct} aria-label="Flujo comercial de ejemplo">
       <FlowHeader icon={Users} label="Cliente · Grupo Norte" status="Oportunidad activa" />
-      <div className={styles.flowSteps}>
+      <div className={styles.flowSteps} role="region" aria-label="Etapas del flujo comercial" tabIndex={0}>
         <FlowStep icon={Mic} label="Entrada" value="Llamada registrada" state="09:42" />
         <ChevronRight />
         <FlowStep icon={FileText} label="Propuesta" value="PR-104 · 24.600 €" state="Borrador" />
@@ -82,7 +82,7 @@ function WorkFlow({ onAction }: { onAction: (action: string) => void }) {
   return (
     <div className={styles.flowProduct} aria-label="Flujo de trabajo de ejemplo">
       <FlowHeader icon={BriefcaseBusiness} label="Obra · Costa Norte" status="78 % completado" />
-      <div className={styles.workBoard}>
+      <div className={styles.workBoard} role="region" aria-label="Panel del trabajo en marcha" tabIndex={0}>
         <article><span>Hoy</span><strong>Instalación eléctrica</strong><small>3 tareas · Carlos y Marta</small><i><b style={{ width: "72%" }} /></i></article>
         <article><span>Incidencia</span><strong>Material incompleto</strong><small>Proveedor avisado · respuesta 13:00</small><em>Prioridad alta</em></article>
         <article><span>Siguiente hito</span><strong>Certificación parcial</strong><small>Viernes · 8.450 €</small><button type="button" onClick={() => onAction("Revisión del hito preparada")}>Preparar revisión</button></article>
@@ -95,7 +95,7 @@ function DocumentFlow({ onAction }: { onAction: (action: string) => void }) {
   return (
     <div className={styles.flowProduct} aria-label="Flujo documental de ejemplo">
       <FlowHeader icon={ReceiptText} label="Factura recibida · FR-882" status="Pendiente de revisión" />
-      <div className={styles.documentFlow}>
+      <div className={styles.documentFlow} role="region" aria-label="Etapas del flujo documental" tabIndex={0}>
         <article><ReceiptText /><span><small>Documento</small><strong>Suministros Norte</strong><em>PDF · 2 páginas</em></span></article>
         <ArrowRight />
         <article><ScanText /><span><small>Extracción</small><strong>1.840,50 € · IVA 21 %</strong><em>Confianza 98 %</em></span></article>

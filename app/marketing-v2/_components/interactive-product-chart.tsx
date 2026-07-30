@@ -189,7 +189,7 @@ function BarSeries({ kind, data, activeIndex, activate, onKey }: SeriesProps & {
 }
 
 function ChartPoint({ point, label, active, onActivate, onKey }: { point: Point; label: string; active: boolean; onActivate: () => void; onKey: (event: KeyboardEvent<SVGElement>) => void }) {
-  return <circle className={styles.chartPoint} data-active={active} cx={point.x} cy={point.y} r={active ? 6 : 4} tabIndex={0} aria-label={label} onFocus={onActivate} onMouseEnter={onActivate} onKeyDown={onKey} />;
+  return <circle className={styles.chartPoint} data-active={active} cx={point.x} cy={point.y} r={active ? 6 : 4} tabIndex={0} role="img" aria-label={label} onFocus={onActivate} onMouseEnter={onActivate} onKeyDown={onKey} />;
 }
 
 type Point = { x: number; y: number };

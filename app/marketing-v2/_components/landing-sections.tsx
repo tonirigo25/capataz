@@ -82,7 +82,7 @@ function CapabilityOverview() {
         <h2 id="capability-title">Las cuatro áreas que deben trabajar juntas.</h2>
         <p>Menos menús y más continuidad: cada dato aparece donde ayuda a vender, ejecutar o decidir.</p>
       </div>
-      <div className={styles.capabilityGrid}>
+      <div className={styles.capabilityGrid} role="region" aria-label="Áreas principales de Capataz" tabIndex={0}>
         {capabilityCards.map(({ id, aliases, eyebrow, title, text, icon: Icon, proof }, index) => (
           <article id={id} key={id} className={styles.capabilityCard}>
             {aliases.map((alias) => <span className={styles.anchorAlias} id={alias} key={alias} aria-hidden="true" />)}

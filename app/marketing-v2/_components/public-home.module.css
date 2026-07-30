@@ -1062,7 +1062,7 @@
 .footerIdentity span { display: block; margin-top: 1rem; color: #819188; font-size: 0.64rem; }
 .footer nav { display: grid; align-content: start; gap: 0.7rem; }
 .footer nav strong { margin-bottom: 0.25rem; color: #f5f2e8; font-size: 0.76rem; }
-.footer nav a { min-height: 1.3rem; color: #aebcb4; font-size: 0.71rem; text-decoration: none; }
+.footer nav a { min-height: 1.5rem; display: flex; align-items: center; color: #aebcb4; font-size: 0.71rem; text-decoration: none; }
 .footer nav a:hover { color: var(--home-lime); }
 .footerBottom { min-height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid #2a3a32; color: #829188; font-size: 0.63rem; }
 .footerBottom a { color: #c7d1cb; font-weight: 760; text-decoration: none; }
@@ -1272,7 +1272,7 @@
 .finalCtaCopy { display: flex; flex-direction: column; justify-content: center; }
 .finalCtaCopy h2 { max-width: 11ch; font-size: clamp(2.4rem, 3.55vw, 3.25rem); line-height: 1.01; }
 .finalCtaCopy > small { margin-top: 0.85rem; color: #9eaea4; font-size: 0.61rem; line-height: 1.5; }
-.finalCtaCopy > small a { color: #d4e4da; }
+.finalCtaCopy > small a { color: #d4e4da; text-decoration: underline; text-decoration-thickness: 0.08em; text-underline-offset: 0.16em; }
 .finalCtaButtons { margin-top: 1.15rem; display: flex; flex-wrap: wrap; gap: 0.55rem; }
 .finalPrimary, .finalSecondary { min-height: 2.9rem; }
 .finalCtaModule { min-width: 0; border: 1px solid #395046; border-radius: 0.85rem; background: #172a21; padding: clamp(1rem, 2.2vw, 1.65rem); }
@@ -1291,7 +1291,7 @@
 .footerIdentity { max-width: 22rem; }
 .footerIdentity > div { margin-top: 1rem; display: grid; gap: 0.42rem; }
 .footerIdentity > div a, .footerIdentity > div span { margin: 0; color: #aebcb4; font-size: 0.62rem; text-decoration: none; }
-.footerIdentity > div a { display: flex; align-items: center; gap: 0.35rem; }
+.footerIdentity > div a { min-height: 1.5rem; display: flex; align-items: center; gap: 0.35rem; }
 .footerIdentity > div i { width: 0.5rem; height: 0.5rem; display: inline-block; border-radius: 50%; background: var(--home-lime); box-shadow: 0 0 0 3px rgb(201 243 106 / 12%); }
 .footerColumn { min-width: 0; }
 .footerColumn summary { color: #f5f2e8; cursor: default; font-size: 0.72rem; font-weight: 820; list-style: none; }
