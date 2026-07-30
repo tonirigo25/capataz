@@ -71,11 +71,13 @@ for (const route of detailedRoutes) {
   });
 }
 
-test("reduced motion exposes the full canonical journey without scroll control", async ({ page, browserName }) => {
+test("reduced motion keeps the compact guided demo usable without scroll control", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium");
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/demo", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("[data-canonical-journey]")).toHaveAttribute("data-canonical-journey", "lead-visita-presupuesto-trabajo-gasto-factura-cobro");
+  await expect(page.getByRole("heading", { name: "Prueba una decisión completa." })).toBeVisible();
+  await expect(page.locator('button[aria-pressed]')).toHaveCount(3);
+  await expect(page.getByRole("navigation", { name: "Pasos de la demostración" }).getByRole("button")).toHaveCount(6);
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollSnapType)).not.toContain("mandatory");
 });

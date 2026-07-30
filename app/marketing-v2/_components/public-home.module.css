@@ -842,6 +842,9 @@
 
 .flowSection .sectionHeading h2 { color: #f4f1e7; }
 .flowSection .sectionHeading p { color: #aebcb4; }
+.flowSection .sectionHeading > span,
+.flowNarrative > span,
+.finalCtaCopy > span { color: var(--home-lime); }
 
 .flowTabs {
   display: grid;
