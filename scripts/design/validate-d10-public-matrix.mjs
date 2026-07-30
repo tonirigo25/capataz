@@ -3,6 +3,7 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { chromium, firefox, webkit } from "playwright";
 import sharp from "sharp";
+import { selectDiffViewportKeys } from "./public-matrix-config.mjs";
 
 const target = process.env.ORQENA_D10_TARGET ?? "review";
 const expectedOrigins = {
@@ -547,8 +548,7 @@ const baselineRoot = process.env.ORQENA_D10_BASELINE_DIR
   : join(process.cwd(), "artifacts", "design", "baseline-4e397406");
 const baselineSha = process.env.ORQENA_D10_BASELINE_SHA ?? "4e3974061d6d283104ffb485952b3b1636fd997a";
 const intentionalRedesign = process.env.ORQENA_D10_EXPECT_VISUAL_REDESIGN === "true";
-const diffViewportKeys = ["390", "768", "1024", "1440"]
-  .filter((key) => viewports.some((viewport) => viewport.key === key));
+const diffViewportKeys = selectDiffViewportKeys({ viewports, screenshotViewportKeys });
 for (const viewport of diffViewportKeys) {
   for (const route of ["/", "/demo", "/login"]) {
     const name = `${slug(route)}-${viewport}.png`;

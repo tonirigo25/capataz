@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRight,
+  Bot,
   BriefcaseBusiness,
   CalendarDays,
   Camera,
@@ -13,9 +14,11 @@ import {
   MessageSquareText,
   Mic,
   ReceiptText,
+  ScanText,
   ShieldCheck,
   TrendingUp,
   UserCheck,
+  Users,
   WalletCards,
   Wrench,
   type LucideIcon,
@@ -48,9 +51,27 @@ const mobileActions: readonly [LucideIcon, string, string][] = [
   [ClipboardSignature, "Completar parte", "Dejar el trabajo listo para revisión"],
 ] as const;
 
+const capabilityCards: ReadonlyArray<{
+  id: string;
+  title: string;
+  text: string;
+  icon: LucideIcon;
+}> = [
+  { id: "clientes-y-ventas", title: "Clientes y ventas", text: "Seguimientos, oportunidades y conversaciones en una historia común.", icon: Users },
+  { id: "presupuestos", title: "Presupuestos", text: "Partidas, margen y condiciones listos para revisar y confirmar.", icon: ClipboardSignature },
+  { id: "trabajo-y-obra", title: "Trabajo y obra", text: "Agenda, tareas, equipo y evidencias conectadas a cada trabajo.", icon: BriefcaseBusiness },
+  { id: "costes-y-compras", title: "Costes y compras", text: "Gastos, proveedores y rentabilidad visibles antes de decidir.", icon: TrendingUp },
+  { id: "facturas-y-cobros", title: "Facturas y cobros", text: "Vencimientos y caja sin perder el contexto comercial.", icon: WalletCards },
+  { id: "documentos-y-ocr", title: "Documentos y OCR", text: "Facturas y tickets ordenados con extracción preparada para revisar.", icon: ScanText },
+  { id: "equipo-y-agenda", title: "Equipo y agenda", text: "Responsables, prioridades y próximos pasos claramente asignados.", icon: CalendarDays },
+  { id: "capataz-ia", title: "Capataz IA", text: "Propuestas útiles con trazabilidad y confirmación humana.", icon: Bot },
+] as const;
+
 export function LandingSections() {
   return (
     <>
+      <CapabilityOverview />
+
       <section id="producto" className={`${styles.section} ${styles.anchorTarget}`}>
         <SectionHeading
           eyebrow="Entradas admitidas"
@@ -357,6 +378,53 @@ export function LandingSections() {
         </div>
       </section>
     </>
+  );
+}
+
+function CapabilityOverview() {
+  return (
+    <section className={`${styles.capabilitySection} ${styles.anchorTarget}`} aria-labelledby="capability-title">
+      <div className={styles.capabilityIntro}>
+        <span>Un sistema. Todo el negocio.</span>
+        <h2 id="capability-title">Todo lo que necesitas para llevar el control</h2>
+        <p>Capataz conecta la actividad comercial, el trabajo diario y el dinero para que cada decisión parta de información clara.</p>
+      </div>
+
+      <div className={styles.capabilityGrid}>
+        {capabilityCards.map(({ id, title, text, icon: Icon }) => (
+          <article id={id} key={id} className={styles.capabilityCard}>
+            <span><Icon aria-hidden="true" /></span>
+            <h3>{title}</h3>
+            <p>{text}</p>
+            <a href={`#${id}`} aria-label={`Ver ${title}`}>Conocer el área <ArrowRight aria-hidden="true" /></a>
+          </article>
+        ))}
+      </div>
+
+      <div id="producto-por-dentro" className={styles.insideProduct}>
+        <div className={styles.insideProductCopy}>
+          <span>Producto real</span>
+          <h2>Así funciona Capataz por dentro</h2>
+          <p>Una vista clara para saber qué ocurre hoy, qué requiere atención y qué decisión viene después.</p>
+          <Link href="/demo#quick-demo">Ver demo interactiva <ArrowRight aria-hidden="true" /></Link>
+        </div>
+        <div className={styles.insideProductScreen} aria-label="Vista de ejemplo del espacio de trabajo de Capataz">
+          <aside aria-hidden="true">
+            <strong>C</strong>
+            <span /><span /><span /><span />
+          </aside>
+          <div>
+            <header><span>Hoy</span><strong>Jueves, 30 de julio</strong></header>
+            <section>
+              <div><small>Prioridad</small><strong>Revisar presupuesto PR-104</strong><p>Margen previsto del 28 %</p></div>
+              <div><small>Trabajo</small><strong>4 obras activas</strong><p>Sin bloqueos críticos</p></div>
+              <div><small>Dinero</small><strong>8.750 € por cobrar</strong><p>4 facturas pendientes</p></div>
+            </section>
+            <footer><Bot aria-hidden="true" /><span><strong>Capataz IA</strong> Dos propuestas esperan tu confirmación.</span><em>Revisar</em></footer>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

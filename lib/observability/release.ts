@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { resolveReleaseSha } from "@/lib/observability/release-sha";
 
 export function releaseMetadata() {
   return {
-    releaseSha: process.env.APP_RELEASE_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA ?? "unknown",
+    releaseSha: resolveReleaseSha(),
     deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? "local",
     environment: process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV ?? "unknown",
     serviceId: process.env.RAILWAY_SERVICE_ID ?? "local",

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authorizeInternalJob } from "@/lib/platform/job-auth";
 import { internalJobRequestContext } from "@/lib/platform/request-boundary";
+import { resolveReleaseSha } from "@/lib/observability/release-sha";
 import { recordJobHeartbeat, runSyntheticSmoke } from "@/lib/observability/operations";
 
 export async function POST(request: Request) {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
       const result = await runSyntheticSmoke(prisma, {
         baseUrl,
         environment,
-        release: process.env.APP_RELEASE_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA,
+        release: resolveReleaseSha(),
       });
       await recordJobHeartbeat(prisma, { jobKey: "synthetic-smoke", environment, outcome: "SUCCEEDED", expectedEverySeconds: 900 });
       return Response.json({ status: result.record.status, assertions: result.record.assertionCount });

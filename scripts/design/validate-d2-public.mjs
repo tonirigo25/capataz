@@ -6,6 +6,7 @@ const hero = read("app/marketing-v2/_components/hero-demo.tsx");
 const landing = read("app/marketing-v2/_components/landing-sections.tsx");
 const story = read("app/marketing-v2/_components/immersive-journey.tsx");
 const demo = read("app/demo-v2/_components/guided-demo.tsx");
+const css = read("app/marketing-v2/page.module.css");
 const homePage = read("app/page.tsx");
 const canonicalMarketingHome = read("app/marketing-internal/[[...slug]]/page.tsx");
 const hostRouting = read("lib/host-routing.ts");
@@ -28,26 +29,51 @@ const check = (label, condition) => {
 check(
   "header V2 orientado a resultados",
   ["Producto", "Soluciones", "Precios", "Recursos", "Empresa", "Iniciar sesión", "Solicitar demo"].every((label) => header.includes(label))
-    && header.includes('onMouseEnter={() => setOpenMenu("product")}')
-    && header.includes("aria-expanded={openMenu ===")
-    && header.includes("onBlur={closeWhenFocusLeaves}"),
+    && header.includes("onMouseEnter={onOpen}")
+    && header.includes("aria-expanded={open}")
+    && header.includes("onBlur={onBlur}"),
 );
 check(
   "hero V2 exacto",
-  hero.includes("brand.productSignature")
-    && hero.includes("· Field OS")
-    && hero.includes("Lo que ocurre en obra se convierte en control.")
-    && hero.includes("Clientes, presupuestos, costes, documentos, facturas y cobros conectados.")
-    && hero.includes("prepara. Tú revisas y confirmas."),
+  hero.includes("CAPATAZ · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS")
+    && hero.includes("Gestiona tu empresa.")
+    && hero.includes("Ahorra tiempo.")
+    && hero.includes("Toma el control.")
+    && hero.includes("Clientes, presupuestos, obras, costes, documentos, facturas, cobros e IA conectados en un único sistema. Capataz prepara; tú revisas y confirmas."),
 );
 check("CTA V2 exactas", hero.includes("Solicitar demo") && hero.includes("Ver cómo funciona"));
 check(
-  "audio a extracción y presupuesto",
-  ["Audio", "Extracción", "Presupuesto"].every((label) => hero.includes(`<li>${label}</li>`)),
+  "producto visible e interactivo",
+  ["Hoy", "Clientes", "Trabajo", "Dinero", "Capataz IA"].every((label) => hero.includes(`label: "${label}"`))
+    && hero.includes('role="tablist"')
+    && hero.includes("onKeyDown"),
 );
 check(
   "franja de valor",
-  ["Una sola historia", "Control del margen", "Trabajo desde el móvil", "Confirmación humana"].every((label) => hero.includes(label)),
+  ["Todo conectado", "IA con control humano", "Datos aislados y seguros", "Acceso web y móvil"].every((label) => hero.includes(label)),
+);
+check(
+  "menús claros con puente de hover y drawer seguro",
+  css.includes(".megaMenuRoot::after")
+    && css.includes("overflow: visible")
+    && header.includes('document.body.style.overflow = "hidden"')
+    && header.includes("MobileAccordion")
+    && header.includes("closeDrawer"),
+);
+const publicAnchorIds = new Set([
+  ...[...landing.matchAll(/id="([^"]+)"/gu)].map((match) => match[1]),
+  ...[...landing.matchAll(/id:\s*"([^"]+)"/gu)].map((match) => match[1]),
+]);
+const menuAnchorTargets = [...header.matchAll(/href:\s*"\/#([^"]+)"/gu)].map((match) => match[1]);
+check(
+  "enlaces del mega menú resuelven a anclas existentes",
+  menuAnchorTargets.length >= 28 && menuAnchorTargets.every((target) => publicAnchorIds.has(target)),
+);
+check(
+  "CTA de demo usa una ruta pública real",
+  (header.match(/href="\/contacto\?motivo=demo"/gu)?.length ?? 0) >= 3
+    && hero.includes('href="/contacto?motivo=demo"')
+    && !header.includes("/demo#solicitar-acceso"),
 );
 check(
   "sticky story de cinco etapas",

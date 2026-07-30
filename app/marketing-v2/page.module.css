@@ -3791,6 +3791,1346 @@
   color: var(--fos-color-ink);
 }
 
+/* PR63 Gate 1 — canonical public header, hero and first light section */
+.page {
+  padding-top: 4.5rem;
+  background: #101814;
+}
+
+.header {
+  border-bottom-color: rgba(231, 238, 230, 0.12);
+  background: rgba(16, 24, 20, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.headerInner {
+  width: min(100% - 2rem, 80rem);
+  min-height: 4.5rem;
+  gap: clamp(0.8rem, 2vw, 1.75rem);
+}
+
+.wordmark {
+  gap: 0.65rem;
+  color: #f6f3e9;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.headerBrandMark {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.58rem;
+  background: #c9f36a;
+  color: #101814;
+}
+
+.headerBrandMark svg {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.headerBrandName {
+  white-space: nowrap;
+}
+
+.desktopNav {
+  gap: 0.05rem;
+}
+
+.desktopNav a,
+.desktopNav button,
+.loginLink {
+  border-radius: 0.5rem;
+  color: rgba(246, 243, 233, 0.78);
+  font-size: 0.82rem;
+  padding-inline: 0.62rem;
+}
+
+.megaMenuRoot::after {
+  position: absolute;
+  inset: 100% -0.8rem auto;
+  height: 0.85rem;
+  content: "";
+}
+
+.megaMenu {
+  position: fixed;
+  top: 4.95rem;
+  left: 50%;
+  width: min(71rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 6rem);
+  overflow: visible;
+  border: 1px solid #d9dfd7;
+  border-radius: 1rem;
+  background: #fbfaf5;
+  box-shadow: 0 28px 80px rgba(5, 18, 12, 0.26);
+  color: #15211b;
+  transform: translateX(-50%);
+}
+
+.megaMenu::before {
+  inset: -0.8rem 0 auto;
+  height: 0.8rem;
+}
+
+.megaMenuHeading {
+  gap: 0.22rem;
+  border-bottom-color: #e3e7df;
+  padding: 1.2rem 1.4rem 1rem;
+}
+
+.megaMenuHeading span {
+  color: #087a68;
+  font-size: 0.66rem;
+}
+
+.megaMenuHeading strong {
+  color: #15211b;
+  font-size: 1.15rem;
+}
+
+.megaMenuGrid {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0;
+  padding: 1.15rem 0.75rem 1rem;
+}
+
+.megaMenuColumn {
+  min-width: 0;
+  padding: 0 0.75rem;
+}
+
+.megaMenuColumn + .megaMenuColumn {
+  border-left: 1px solid #e3e7df;
+}
+
+.megaMenuColumn h2,
+.megaMenuColumn p,
+.megaMenuColumn ul {
+  margin: 0;
+}
+
+.megaMenuColumn h2 {
+  color: #17251e;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.megaMenuColumn > p {
+  min-height: 2.2rem;
+  margin-top: 0.3rem;
+  color: #68756d;
+  font-size: 0.67rem;
+  line-height: 1.45;
+}
+
+.megaMenuColumn ul {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.65rem;
+  padding: 0;
+  list-style: none;
+}
+
+.desktopNav .megaMenuColumn .megaMenuItem {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.58rem;
+  border-radius: 0.5rem;
+  color: #29372f;
+  padding: 0.52rem 0.55rem;
+}
+
+.desktopNav .megaMenuColumn .megaMenuItem:hover,
+.desktopNav .megaMenuColumn .megaMenuItem:focus-visible {
+  background: #edf4e9;
+  color: #075f50;
+}
+
+.megaMenuItem svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: #087a68;
+}
+
+.megaMenuItem span {
+  color: inherit;
+  font-size: 0.74rem;
+  font-weight: 740;
+}
+
+.desktopNav .megaMenuFooter {
+  min-height: 3.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #e3e7df;
+  border-radius: 0 0 1rem 1rem;
+  background: #f2f4ed;
+  padding: 0.45rem 1rem;
+}
+
+.desktopNav .megaMenuFooter a {
+  min-height: 2.75rem;
+  color: #075f50;
+  font-size: 0.74rem;
+  font-weight: 820;
+}
+
+.desktopNav .megaMenuFooter a:last-child {
+  background: #15211b;
+  color: #f7f5ec;
+  padding-inline: 0.85rem;
+}
+
+.headerCta,
+.mobileNavCta {
+  border-color: #c9f36a;
+  border-radius: 0.52rem;
+  background: #c9f36a;
+  color: #101814;
+}
+
+.mobileNav {
+  position: fixed;
+  inset: 4.5rem 0 0;
+  z-index: 40;
+  width: 100%;
+  height: calc(100svh - 4.5rem);
+  margin: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  border-top: 1px solid #dfe4dc;
+  background: #fbfaf5;
+  color: #15211b;
+  padding: 0;
+}
+
+.mobileNavScroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
+}
+
+.mobileNavScroll > a,
+.mobileAccordion > button {
+  width: 100%;
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-bottom: 1px solid #e3e7df;
+  border-radius: 0;
+  background: transparent;
+  color: #17251e;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 0.72rem 0.25rem;
+  text-decoration: none;
+}
+
+.mobileAccordion > button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: transform 180ms ease;
+}
+
+.mobileAccordion > button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.mobileAccordionPanel {
+  display: grid;
+  gap: 1rem;
+  border-bottom: 1px solid #e3e7df;
+  background: #f3f5ef;
+  padding: 1rem;
+}
+
+.mobileAccordionPanel > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.mobileAccordionPanel strong {
+  margin-bottom: 0.35rem;
+  color: #087a68;
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.mobileAccordionPanel a {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  color: #29372f;
+  font-size: 0.85rem;
+  font-weight: 720;
+  padding: 0.5rem 0.25rem;
+  text-decoration: none;
+}
+
+.mobileNavFooter {
+  border-top: 1px solid #dfe4dc;
+  background: #fbfaf5;
+  padding: 0.85rem max(1rem, env(safe-area-inset-right)) calc(0.85rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
+
+.mobileNavFooter .mobileNavCta {
+  width: 100%;
+  min-height: 3.25rem;
+  color: #101814;
+  font-weight: 850;
+}
+
+.hero {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 73% 28%, rgba(101, 188, 107, 0.13), transparent 30rem),
+    linear-gradient(135deg, #101814 0%, #14231c 56%, #0e1713 100%);
+}
+
+.heroGrid {
+  width: min(100% - 2rem, 80rem);
+  min-height: 42rem;
+  grid-template-columns: minmax(0, 0.44fr) minmax(36rem, 0.56fr);
+  gap: clamp(2.3rem, 4vw, 4.5rem);
+  padding: 4.35rem 0 3.5rem;
+}
+
+.eyebrow {
+  max-width: 39rem;
+  margin-bottom: 1.15rem;
+  color: #c9f36a;
+  font-size: 0.67rem;
+  letter-spacing: 0.115em;
+  line-height: 1.5;
+}
+
+.heroCopy h1 {
+  max-width: none;
+  color: #f8f5ec;
+  font-size: clamp(3.35rem, 4.1vw, 3.7rem);
+  font-weight: 820;
+  letter-spacing: -0.06em;
+  line-height: 0.98;
+}
+
+.heroCopy h1 span,
+.heroCopy h1 strong {
+  display: block;
+  white-space: nowrap;
+}
+
+.heroCopy h1 strong {
+  color: #b8ed72;
+  font-weight: inherit;
+}
+
+.heroSubtitle {
+  max-width: 34rem;
+  margin-top: 1.35rem;
+  color: rgba(240, 244, 236, 0.74);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.heroActions {
+  margin-top: 1.65rem;
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 3.15rem;
+  border-radius: 0.58rem;
+  font-size: 0.88rem;
+  padding-inline: 1.05rem;
+}
+
+.heroTrust {
+  margin: 1.1rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+  color: rgba(240, 244, 236, 0.66);
+  font-size: 0.71rem;
+  font-weight: 650;
+  list-style: none;
+  padding: 0;
+}
+
+.heroTrust li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.heroTrust svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  color: #b8ed72;
+}
+
+.productShowcase {
+  min-width: 0;
+  position: relative;
+  padding: 0.4rem 1.75rem 1.8rem 0;
+}
+
+.productTabs {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.2rem;
+  margin: 0 2.4rem -1px 1.3rem;
+  border: 1px solid rgba(231, 238, 230, 0.16);
+  border-bottom: 0;
+  border-radius: 0.8rem 0.8rem 0 0;
+  background: #17251f;
+  padding: 0.25rem;
+}
+
+.productTabs button {
+  min-width: 0;
+  min-height: 2.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: 0.52rem;
+  background: transparent;
+  color: rgba(239, 244, 236, 0.62);
+  font-size: 0.67rem;
+  font-weight: 760;
+  padding: 0.45rem;
+}
+
+.productTabs button[aria-selected="true"] {
+  background: #c9f36a;
+  color: #101814;
+}
+
+.productTabs svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.productFrame {
+  min-width: 0;
+  min-height: 27rem;
+  display: grid;
+  grid-template-columns: 3.6rem minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(231, 238, 230, 0.2);
+  border-radius: 1rem;
+  background: #eef1eb;
+  box-shadow: 0 38px 80px rgba(0, 0, 0, 0.34);
+}
+
+.productSidebar {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: #1b2b24;
+  padding: 0.75rem 0.5rem;
+}
+
+.productSidebar > span {
+  width: 2.3rem;
+  height: 2.3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.55rem;
+  color: rgba(240, 244, 236, 0.55);
+}
+
+.productSidebar > span[data-active="true"] {
+  background: rgba(201, 243, 106, 0.14);
+  color: #c9f36a;
+}
+
+.productSidebar svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.productSidebar .productBrand {
+  margin-bottom: 0.5rem;
+  background: #c9f36a;
+  color: #101814;
+}
+
+.productWorkspace {
+  min-width: 0;
+  padding: 0.95rem;
+}
+
+.productTopbar {
+  min-height: 3.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.productTopbar > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.productTopbar span,
+.productTopbar small {
+  color: #65746b;
+  font-size: 0.61rem;
+  font-weight: 680;
+}
+
+.productTopbar strong {
+  color: #17251e;
+  font-size: 1rem;
+}
+
+.productTopbar > span {
+  border: 1px solid #d3dbd2;
+  border-radius: 999px;
+  background: #fff;
+  color: #087a68;
+  padding: 0.35rem 0.55rem;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.metricCard {
+  min-width: 0;
+  border: 1px solid #dce2da;
+  border-radius: 0.65rem;
+  background: #fff;
+  padding: 0.62rem;
+}
+
+.metricCard div {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.metricCard div > span {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.4rem;
+  background: #eff7ea;
+  color: #087a68;
+}
+
+.metricCard svg {
+  width: 0.78rem;
+  height: 0.78rem;
+}
+
+.metricCard small {
+  overflow: hidden;
+  color: #718077;
+  font-size: 0.55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricCard > strong,
+.metricCard > em {
+  display: block;
+}
+
+.metricCard > strong {
+  margin-top: 0.48rem;
+  color: #17251e;
+  font-size: 0.88rem;
+}
+
+.metricCard > em {
+  margin-top: 0.15rem;
+  color: #087a68;
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 720;
+}
+
+.productMainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.revenueCard,
+.activityCard {
+  min-width: 0;
+  border: 1px solid #dce2da;
+  border-radius: 0.7rem;
+  background: #fff;
+  padding: 0.7rem;
+}
+
+.revenueCard > div:first-child,
+.activityCard > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #17251e;
+  font-size: 0.62rem;
+}
+
+.revenueCard > div:first-child strong,
+.activityCard > div:first-child strong {
+  color: #76827b;
+  font-size: 0.5rem;
+}
+
+.revenueChart {
+  height: 7.6rem;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.42rem;
+  margin-top: 0.7rem;
+  border-bottom: 1px solid #dce2da;
+  background: repeating-linear-gradient(to bottom, transparent 0 1.85rem, #edf0ea 1.9rem 1.95rem);
+  padding: 0 0.3rem;
+}
+
+.revenueChart > span {
+  height: 100%;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 0.16rem;
+}
+
+.revenueChart i,
+.revenueChart b {
+  width: 0.42rem;
+  display: block;
+  border-radius: 0.18rem 0.18rem 0 0;
+  background: #087a68;
+}
+
+.revenueChart b {
+  background: #c9f36a;
+}
+
+.chartLegend {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 0.4rem;
+  color: #6f7c74;
+  font-size: 0.5rem;
+}
+
+.activityCard ul {
+  margin: 0.65rem 0 0;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0;
+  list-style: none;
+}
+
+.activityCard li {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) 0.7rem;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.5rem;
+  background: #f4f6f1;
+  padding: 0.42rem;
+}
+
+.activityCard li > svg:first-child {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 0.42rem;
+  background: #e9f4e5;
+  color: #087a68;
+  padding: 0.36rem;
+}
+
+.activityCard li > svg:last-child {
+  width: 0.65rem;
+  height: 0.65rem;
+  color: #8d9891;
+}
+
+.activityCard li span,
+.activityCard li strong,
+.activityCard li small {
+  min-width: 0;
+  display: block;
+}
+
+.activityCard li strong {
+  overflow: hidden;
+  color: #243229;
+  font-size: 0.51rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityCard li small {
+  margin-top: 0.14rem;
+  color: #748179;
+  font-size: 0.45rem;
+}
+
+.aiRecommendation {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+  border: 1px solid #cfe0c9;
+  border-radius: 0.65rem;
+  background: #eef7e9;
+  padding: 0.55rem;
+}
+
+.aiRecommendation > span {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.52rem;
+  background: #17251e;
+  color: #c9f36a;
+}
+
+.aiRecommendation svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.aiRecommendation strong,
+.aiRecommendation p {
+  margin: 0;
+  display: block;
+}
+
+.aiRecommendation strong {
+  color: #1d2b23;
+  font-size: 0.55rem;
+}
+
+.aiRecommendation p {
+  margin-top: 0.15rem;
+  color: #617068;
+  font-size: 0.46rem;
+  line-height: 1.35;
+}
+
+.aiRecommendation button {
+  min-height: 2.3rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: #17251e;
+  color: #fff;
+  font-size: 0.52rem;
+  font-weight: 800;
+  padding: 0.5rem 0.65rem;
+}
+
+.productPhone {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 10.4rem;
+  min-height: 20rem;
+  overflow: hidden;
+  border: 0.42rem solid #17251e;
+  border-radius: 1.55rem;
+  background: #f7f8f4;
+  box-shadow: 0 24px 52px rgba(0, 0, 0, 0.32);
+  color: #17251e;
+  padding: 0.72rem;
+}
+
+.productPhone > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #536159;
+  font-size: 0.45rem;
+}
+
+.productPhone > p {
+  margin: 1.3rem 0 0;
+  color: #637068;
+  font-size: 0.52rem;
+}
+
+.productPhone > h2 {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  letter-spacing: -0.03em;
+}
+
+.productPhone ul {
+  margin: 0.9rem 0 0;
+  display: grid;
+  gap: 0.42rem;
+  padding: 0;
+  list-style: none;
+}
+
+.productPhone li {
+  min-height: 2.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid #dce2da;
+  border-radius: 0.55rem;
+  background: #fff;
+  font-size: 0.5rem;
+  font-weight: 740;
+  padding: 0.45rem;
+}
+
+.productPhone li svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.4rem;
+  background: #eef7e9;
+  color: #087a68;
+  padding: 0.3rem;
+}
+
+.phoneAction {
+  width: 2.45rem;
+  height: 2.45rem;
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.9rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #c9f36a;
+  font-size: 1.4rem;
+  font-weight: 400;
+}
+
+.heroValueBand {
+  width: min(100% - 2rem, 80rem);
+  margin: 0 auto;
+  border: 0;
+  border-top: 1px solid rgba(231, 238, 230, 0.15);
+  border-radius: 0;
+  background: transparent;
+}
+
+.heroValueBand li {
+  min-height: 6.4rem;
+  justify-content: center;
+  padding: 1.2rem 1.3rem;
+}
+
+.heroValueBand li + li {
+  border-left-color: rgba(231, 238, 230, 0.13);
+}
+
+.heroValueBand strong {
+  color: #f5f2e8;
+  font-size: 0.82rem;
+}
+
+.heroValueBand span {
+  color: rgba(240, 244, 236, 0.59);
+  font-size: 0.68rem;
+}
+
+.capabilitySection {
+  width: 100%;
+  scroll-margin-top: 5.5rem;
+  background: #f6f4ec;
+  color: #17251e;
+  padding: clamp(5.5rem, 8vw, 7.5rem) 1rem;
+}
+
+.capabilityIntro,
+.capabilityGrid,
+.insideProduct {
+  width: min(100%, 80rem);
+  margin-inline: auto;
+}
+
+.capabilityIntro {
+  max-width: 48rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.capabilityIntro > span,
+.insideProductCopy > span {
+  color: #087a68;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.capabilityIntro h2,
+.insideProductCopy h2 {
+  margin: 0.85rem 0 0;
+  color: #17251e;
+  font-size: clamp(2.65rem, 4.5vw, 4.55rem);
+  font-weight: 860;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.capabilityIntro p,
+.insideProductCopy p {
+  margin: 1.1rem auto 0;
+  color: #5d6c63;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.capabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 3.25rem;
+}
+
+.capabilityCard {
+  min-width: 0;
+  min-height: 14.5rem;
+  scroll-margin-top: 6rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dbe1d8;
+  border-radius: 0.9rem;
+  background: #fff;
+  box-shadow: 0 13px 32px rgba(24, 47, 35, 0.045);
+  padding: 1.25rem;
+}
+
+.capabilityCard > span {
+  width: 2.55rem;
+  height: 2.55rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.65rem;
+  background: #edf5e9;
+  color: #087a68;
+}
+
+.capabilityCard svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.capabilityCard h3 {
+  margin: 1.35rem 0 0;
+  color: #17251e;
+  font-size: 1.05rem;
+}
+
+.capabilityCard p {
+  margin: 0.65rem 0 0;
+  color: #64736a;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.capabilityCard a {
+  min-height: 2.75rem;
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: #087a68;
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-decoration: none;
+}
+
+.capabilityCard a svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.insideProduct {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.36fr) minmax(0, 0.64fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  margin-top: clamp(5rem, 8vw, 8rem);
+  border-top: 1px solid #dbe1d8;
+  padding-top: clamp(4rem, 7vw, 6.5rem);
+}
+
+.insideProductCopy h2 {
+  font-size: clamp(2.55rem, 4vw, 4rem);
+}
+
+.insideProductCopy a {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  border-radius: 0.55rem;
+  background: #17251e;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 820;
+  padding: 0.7rem 0.9rem;
+  text-decoration: none;
+}
+
+.insideProductCopy a svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.insideProductScreen {
+  min-width: 0;
+  min-height: 24rem;
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #d1d9cf;
+  border-radius: 1rem;
+  background: #edf1eb;
+  box-shadow: 0 28px 65px rgba(22, 45, 33, 0.13);
+}
+
+.insideProductScreen > aside {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 0.8rem;
+  background: #17251e;
+  padding: 0.75rem;
+}
+
+.insideProductScreen > aside strong {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: #c9f36a;
+  color: #17251e;
+}
+
+.insideProductScreen > aside span {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.insideProductScreen > div {
+  min-width: 0;
+  padding: 1.2rem;
+}
+
+.insideProductScreen header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #6b786f;
+  font-size: 0.68rem;
+}
+
+.insideProductScreen header span {
+  color: #17251e;
+  font-size: 1.15rem;
+  font-weight: 850;
+}
+
+.insideProductScreen section {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 1.2rem;
+}
+
+.insideProductScreen section > div {
+  min-width: 0;
+  min-height: 9rem;
+  display: grid;
+  align-content: end;
+  border: 1px solid #dbe1d8;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.9rem;
+}
+
+.insideProductScreen small {
+  color: #087a68;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.insideProductScreen section strong {
+  margin-top: 0.45rem;
+  color: #203027;
+  font-size: 0.8rem;
+}
+
+.insideProductScreen section p {
+  margin: 0.3rem 0 0;
+  color: #6d7972;
+  font-size: 0.6rem;
+}
+
+.insideProductScreen footer {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+  border: 1px solid #cfe0c9;
+  border-radius: 0.7rem;
+  background: #eef7e9;
+  padding: 0.7rem;
+}
+
+.insideProductScreen footer > svg {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.55rem;
+  background: #17251e;
+  color: #c9f36a;
+  padding: 0.55rem;
+}
+
+.insideProductScreen footer span,
+.insideProductScreen footer strong {
+  display: block;
+}
+
+.insideProductScreen footer span {
+  color: #637068;
+  font-size: 0.61rem;
+}
+
+.insideProductScreen footer strong {
+  margin-bottom: 0.12rem;
+  color: #17251e;
+  font-size: 0.7rem;
+}
+
+.insideProductScreen footer em {
+  border-radius: 0.42rem;
+  background: #17251e;
+  color: #fff;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 800;
+  padding: 0.55rem;
+}
+
+@media (max-width: 68rem) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    gap: 3rem;
+    padding: 4rem 0 3.5rem;
+  }
+
+  .heroCopy {
+    max-width: 44rem;
+  }
+
+  .heroCopy h1 {
+    max-width: none;
+  }
+
+  .productShowcase {
+    max-width: 46rem;
+  }
+
+  .capabilityGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .insideProduct {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 68.001rem) {
+  .mobileNav {
+    display: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .headerInner {
+    width: min(100% - 1.25rem, 80rem);
+  }
+
+  .headerBrandName {
+    font-size: 0.9rem;
+  }
+
+  .heroGrid {
+    width: min(100% - 1.5rem, 80rem);
+    gap: 2.4rem;
+    padding: 3.2rem 0 2.75rem;
+  }
+
+  .eyebrow {
+    font-size: 0.61rem;
+  }
+
+  .heroCopy h1 {
+    max-width: 11ch;
+    font-size: clamp(2.4rem, 11vw, 2.65rem);
+    line-height: 1.02;
+  }
+
+  .heroCopy h1 span,
+  .heroCopy h1 strong {
+    white-space: normal;
+  }
+
+  .heroSubtitle {
+    font-size: 0.96rem;
+    line-height: 1.58;
+  }
+
+  .heroActions {
+    gap: 0.6rem;
+  }
+
+  .heroTrust {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .productShowcase {
+    padding: 0 0 1.2rem;
+  }
+
+  .productTabs {
+    margin: 0 0.25rem -1px;
+    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(4.5rem, 1fr));
+  }
+
+  .productTabs button {
+    flex-direction: column;
+    font-size: 0.58rem;
+  }
+
+  .productFrame {
+    min-height: 23rem;
+    grid-template-columns: 2.8rem minmax(0, 1fr);
+  }
+
+  .productSidebar {
+    padding-inline: 0.25rem;
+  }
+
+  .productSidebar > span {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .productWorkspace {
+    padding: 0.65rem;
+  }
+
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .productMainGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .activityCard,
+  .aiRecommendation {
+    display: none;
+  }
+
+  .productPhone {
+    display: none;
+  }
+
+  .heroValueBand {
+    width: min(100% - 1.5rem, 80rem);
+  }
+
+  .capabilitySection {
+    padding: 4.5rem 0.75rem;
+  }
+
+  .capabilityIntro h2,
+  .insideProductCopy h2 {
+    font-size: clamp(2.35rem, 11vw, 3.2rem);
+  }
+
+  .capabilityGrid {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 2.25rem;
+  }
+
+  .capabilityCard {
+    min-height: 12rem;
+  }
+
+  .insideProductScreen {
+    grid-template-columns: 2.8rem minmax(0, 1fr);
+  }
+
+  .insideProductScreen > div {
+    padding: 0.75rem;
+  }
+
+  .insideProductScreen section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .insideProductScreen section > div:nth-child(n + 2) {
+    display: none;
+  }
+
+  .insideProductScreen footer {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+  }
+
+  .insideProductScreen footer em {
+    display: none;
+  }
+}
+
 .immersiveRail button em {
   color: inherit;
   font-size: 0.72rem;

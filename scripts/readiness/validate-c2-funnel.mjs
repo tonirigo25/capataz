@@ -30,14 +30,14 @@ check("private-beta-capture-targets-contact", () => {
 check("header-mobile-and-final-demo-cta", () => {
   const header = read("app/marketing-v2/_components/marketing-header.tsx");
   for (const label of ["Producto", "Soluciones", "Precios", "Recursos", "Empresa", "Iniciar sesión", "Solicitar demo"]) assert.ok(header.includes(label), label);
-  assert.ok(header.match(/href="\/demo#solicitar-acceso"/gu)?.length >= 2);
+  assert.ok((header.match(/href="\/contacto\?motivo=demo"/gu)?.length ?? 0) >= 3);
   assert.ok(landing.includes('href="#solicitar-acceso">Solicitar acceso'));
 });
 check("audio-copy-is-honest", () => {
   const hero = read("app/marketing-v2/_components/hero-demo.tsx");
-  assert.ok(hero.includes("Lo que ocurre en obra se convierte en control."));
-  assert.ok(hero.includes("La persona confirma siempre"));
-  assert.ok(hero.includes("Demo con datos de ejemplo. Nada se guarda ni se envía."));
+  assert.ok(hero.includes("Gestiona tu empresa."));
+  assert.ok(hero.includes("Capataz prepara; tú revisas y confirmas."));
+  assert.ok(hero.includes("Datos aislados"));
 });
 check("quick-and-deep-demo-preserved", () => {
   assert.ok(landing.includes("<ImmersiveJourney />"));

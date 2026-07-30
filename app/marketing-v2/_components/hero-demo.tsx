@@ -1,83 +1,91 @@
 "use client";
 
-import { Camera, FileText, MessageSquareText, Mic, RotateCcw, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle2,
+  ChevronRight,
+  CircleDollarSign,
+  FileText,
+  LayoutDashboard,
+  ReceiptText,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { demoScenarios, type DemoId } from "./demo-data";
 import styles from "../page.module.css";
-import { brand } from "@/lib/brand";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { trackPublicFunnel } from "@/lib/product/public-analytics";
 
-type LocalAction = "idle" | "reviewing" | "editing" | "discarded";
+type WorkspaceId = "hoy" | "clientes" | "trabajo" | "dinero" | "ia";
 
-const actionLabels: Record<Exclude<LocalAction, "idle">, string> = {
-  reviewing: "Revisando",
-  editing: "Editando",
-  discarded: "Descartado",
-};
+const workspaceTabs: ReadonlyArray<{ id: WorkspaceId; label: string; icon: LucideIcon }> = [
+  { id: "hoy", label: "Hoy", icon: LayoutDashboard },
+  { id: "clientes", label: "Clientes", icon: Users },
+  { id: "trabajo", label: "Trabajo", icon: BriefcaseBusiness },
+  { id: "dinero", label: "Dinero", icon: WalletCards },
+  { id: "ia", label: "Capataz IA", icon: Bot },
+];
 
-const icons = {
-  audio: Mic,
-  foto: Camera,
-  factura: FileText,
-  mensaje: MessageSquareText,
-} as const;
-
-const initialActions: Record<DemoId, LocalAction> = {
-  audio: "idle",
-  foto: "idle",
-  factura: "idle",
-  mensaje: "idle",
+const workspaceCopy: Record<WorkspaceId, { title: string; detail: string; status: string }> = {
+  hoy: { title: "Tu empresa, hoy", detail: "5 prioridades ordenadas", status: "Todo conectado" },
+  clientes: { title: "Clientes activos", detail: "3 seguimientos para hoy", status: "Ventas al día" },
+  trabajo: { title: "Trabajo en marcha", detail: "4 obras sin bloqueos", status: "Equipo coordinado" },
+  dinero: { title: "Control económico", detail: "Margen previsto del 28 %", status: "Caja visible" },
+  ia: { title: "Capataz IA", detail: "2 propuestas para revisar", status: "Confirmación humana" },
 };
 
 export function HeroDemo() {
-  const [activeId, setActiveId] = useState<DemoId>("audio");
-  const [actions, setActions] = useState(initialActions);
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("hoy");
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  const activeAction = actions[activeId];
+  const active = workspaceCopy[activeWorkspace];
 
   const selectTab = (index: number, focus = false) => {
-    const next = demoScenarios[index];
+    const next = workspaceTabs[index];
     if (!next) return;
-    setActiveId(next.id);
+    setActiveWorkspace(next.id);
     if (focus) tabRefs.current[index]?.focus();
   };
 
   const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let nextIndex: number | null = null;
-    if (event.key === "ArrowRight") nextIndex = (index + 1) % demoScenarios.length;
-    if (event.key === "ArrowLeft") nextIndex = (index - 1 + demoScenarios.length) % demoScenarios.length;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % workspaceTabs.length;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + workspaceTabs.length) % workspaceTabs.length;
     if (event.key === "Home") nextIndex = 0;
-    if (event.key === "End") nextIndex = demoScenarios.length - 1;
+    if (event.key === "End") nextIndex = workspaceTabs.length - 1;
     if (nextIndex === null) return;
     event.preventDefault();
     selectTab(nextIndex, true);
-  };
-
-  const setLocalAction = (action: LocalAction) => {
-    setActions((current) => ({ ...current, [activeId]: action }));
   };
 
   return (
     <section className={styles.hero} aria-labelledby="public-hero-title">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>{brand.productSignature} · Field OS</p>
-          <h1 id="public-hero-title">Lo que ocurre en obra se convierte en control.</h1>
+          <p className={styles.eyebrow}>CAPATAZ · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS</p>
+          <h1 id="public-hero-title">
+            <span>Gestiona tu empresa.</span>
+            <strong>Ahorra tiempo.</strong>
+            <strong>Toma el control.</strong>
+          </h1>
           <p className={styles.heroSubtitle}>
-            Clientes, presupuestos, costes, documentos, facturas y cobros conectados.
-            {` ${brand.productName} prepara. Tú revisas y confirmas.`}
+            Clientes, presupuestos, obras, costes, documentos, facturas, cobros e IA conectados en un único sistema. Capataz prepara; tú revisas y confirmas.
           </p>
 
           <div className={styles.heroActions} aria-label="Acciones principales">
-            <a
+            <Link
               className={styles.primaryAction}
-              href="#solicitar-acceso"
+              href="/contacto?motivo=demo"
               onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "access_request" })}
             >
-              Solicitar demo
-            </a>
+              Solicitar demo <ArrowRight aria-hidden="true" />
+            </Link>
             <Link
               className={styles.secondaryAction}
               href="#como-funciona"
@@ -87,137 +95,116 @@ export function HeroDemo() {
             </Link>
           </div>
 
-          <p className={styles.demoNote}>
-            <ShieldCheck aria-hidden="true" />
-            Demo con datos de ejemplo. Nada se guarda ni se envía.
-          </p>
+          <ul className={styles.heroTrust} aria-label="Condiciones de la demo">
+            <li><CheckCircle2 aria-hidden="true" />Sin tarjeta</li>
+            <li><CheckCircle2 aria-hidden="true" />Demo privada de 7 días</li>
+            <li><ShieldCheck aria-hidden="true" />Datos aislados</li>
+          </ul>
         </div>
 
-        <div className={styles.demoShell}>
-          <div className={styles.demoTopline}>
-            <div>
-              <span>{brand.productName} · Preparar presupuesto</span>
-              <strong>La persona confirma siempre</strong>
-            </div>
-            <span className={styles.localBadge}>Sin conexión</span>
-          </div>
-
-          <div id="public-demo" className={styles.tabs} data-active-tab={activeId}>
-            <ol className={styles.heroFlow} aria-label="De audio a presupuesto">
-              <li>Audio</li>
-              <li>Extracción</li>
-              <li>Presupuesto</li>
-            </ol>
-            <div className={styles.tabList} role="tablist" aria-label="Tipo de entrada para la demostración">
-              {demoScenarios.map((scenario, index) => {
-                const Icon = icons[scenario.id];
-                const selected = activeId === scenario.id;
-                return (
-                  <button
-                    key={scenario.id}
-                    ref={(element) => { tabRefs.current[index] = element; }}
-                    id={`demo-tab-${scenario.id}`}
-                    role="tab"
-                    type="button"
-                    aria-selected={selected}
-                    aria-controls={`demo-panel-${scenario.id}`}
-                    tabIndex={selected ? 0 : -1}
-                    onClick={() => selectTab(index)}
-                    onKeyDown={(event) => handleTabKey(event, index)}
-                  >
-                    <Icon aria-hidden="true" />
-                    <span>{scenario.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {demoScenarios.map((scenario) => {
-              const selected = activeId === scenario.id;
+        <div className={styles.productShowcase} aria-label="Vista interactiva del producto con datos de ejemplo">
+          <div className={styles.productTabs} role="tablist" aria-label="Áreas de Capataz">
+            {workspaceTabs.map(({ id, label, icon: Icon }, index) => {
+              const selected = activeWorkspace === id;
               return (
-                <div
-                  key={scenario.id}
-                  id={`demo-panel-${scenario.id}`}
-                  className={styles.tabPanel}
-                  role="tabpanel"
-                  aria-labelledby={`demo-tab-${scenario.id}`}
-                  hidden={!selected}
-                  tabIndex={0}
+                <button
+                  key={id}
+                  ref={(element) => { tabRefs.current[index] = element; }}
+                  id={`workspace-tab-${id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-controls="workspace-panel"
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => selectTab(index)}
+                  onKeyDown={(event) => handleTabKey(event, index)}
                 >
-                  {selected ? (
-                    <>
-                      <div className={styles.inputCard}>
-                        <span>{scenario.inputLabel}</span>
-                        {scenario.fictitiousVisual ? <FictitiousReceipt /> : null}
-                        <p>{scenario.input}</p>
-                      </div>
-
-                      <div className={activeAction === "discarded" ? styles.proposalDiscarded : styles.proposalCard}>
-                        <div className={styles.proposalHeading}>
-                          <span>Propuesta preparada</span>
-                          {activeAction !== "idle" ? <strong>{actionLabels[activeAction]}</strong> : null}
-                        </div>
-
-                        {activeAction === "discarded" ? (
-                          <div className={styles.discardedState}>
-                            <p>Este ejemplo se ha descartado solo en la demostración.</p>
-                            <button type="button" onClick={() => setLocalAction("idle")}>
-                              <RotateCcw aria-hidden="true" />
-                              Restaurar ejemplo
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <dl className={styles.resultList}>
-                              {scenario.details.map((detail) => (
-                                <div key={detail.label}>
-                                  <dt>{detail.label}</dt>
-                                  <dd data-emphasis={detail.emphasis}>{detail.value}</dd>
-                                </div>
-                              ))}
-                            </dl>
-
-                            <div className={styles.proposalActions}>
-                              <button className={styles.reviewAction} type="button" onClick={() => setLocalAction("reviewing")}>
-                                {scenario.primaryAction}
-                              </button>
-                              <button type="button" onClick={() => setLocalAction("editing")}>Editar</button>
-                              <button type="button" onClick={() => setLocalAction("discarded")}>Descartar</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {activeAction !== "idle" ? (
-                        <p className={styles.localMessage} role="status" aria-live="polite">
-                          Demostración local. No se ha guardado ni enviado ningún dato.
-                        </p>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
+                  <Icon aria-hidden="true" /><span>{label}</span>
+                </button>
               );
             })}
           </div>
+
+          <div id="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${activeWorkspace}`} className={styles.productFrame}>
+            <aside className={styles.productSidebar} aria-hidden="true">
+              <span className={styles.productBrand}><BrandMark /></span>
+              {[LayoutDashboard, Users, BriefcaseBusiness, ReceiptText, CircleDollarSign].map((Icon, index) => (
+                <span key={index} data-active={index === 0}><Icon /></span>
+              ))}
+            </aside>
+
+            <div className={styles.productWorkspace}>
+              <div className={styles.productTopbar}>
+                <div><span>Buenos días, Toni</span><strong>{active.title}</strong></div>
+                <span>{active.status}</span>
+              </div>
+
+              <div className={styles.metricGrid}>
+                <Metric icon={TrendingUp} label="Ingresos" value="48.260 €" delta="+12,4 %" />
+                <Metric icon={CircleDollarSign} label="Gastos" value="31.840 €" delta="Controlados" />
+                <Metric icon={WalletCards} label="Beneficio" value="16.420 €" delta="Margen 28 %" />
+                <Metric icon={ReceiptText} label="Pendiente" value="8.750 €" delta="4 facturas" />
+              </div>
+
+              <div className={styles.productMainGrid}>
+                <section className={styles.revenueCard} aria-label="Evolución de ingresos y gastos de ejemplo">
+                  <div><span>Evolución del negocio</span><strong>Últimos 6 meses</strong></div>
+                  <div className={styles.revenueChart}>
+                    {[44, 62, 53, 72, 66, 86].map((height, index) => (
+                      <span key={index}><i style={{ height: `${height}%` }} /><b style={{ height: `${Math.max(20, height - 22)}%` }} /></span>
+                    ))}
+                  </div>
+                  <div className={styles.chartLegend}><span>Ingresos</span><span>Gastos</span></div>
+                </section>
+
+                <section className={styles.activityCard} aria-label="Actividad reciente de ejemplo">
+                  <div><span>Actividad reciente</span><strong>{active.detail}</strong></div>
+                  <ul>
+                    <li><FileText /><span><strong>Presupuesto PR-104</strong><small>Listo para revisar</small></span><ChevronRight /></li>
+                    <li><Building2 /><span><strong>Obra Costa Norte</strong><small>Avance actualizado</small></span><ChevronRight /></li>
+                    <li><ReceiptText /><span><strong>Factura F-2031</strong><small>Cobro previsto mañana</small></span><ChevronRight /></li>
+                  </ul>
+                </section>
+              </div>
+
+              <div className={styles.aiRecommendation}>
+                <span><Bot aria-hidden="true" /></span>
+                <div><strong>Capataz IA ha preparado una recomendación</strong><p>Revisa el margen de la obra Costa Norte antes de confirmar la siguiente compra.</p></div>
+                <button type="button">Revisar</button>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.productPhone} aria-hidden="true">
+            <div><span>9:41</span><strong>Capataz</strong></div>
+            <p>Hola, Toni</p>
+            <h2>¿Qué necesitas hacer?</h2>
+            <ul>
+              <li><BriefcaseBusiness />Añadir avance</li>
+              <li><ReceiptText />Escanear factura</li>
+              <li><Bot />Hablar con Capataz</li>
+            </ul>
+            <span className={styles.phoneAction}>+</span>
+          </div>
         </div>
       </div>
-      <ul className={styles.heroValueBand} aria-label="Valor del sistema operativo de obra">
-        <li><strong>Una sola historia</strong><span>Cliente, obra, dinero y documentos conectados.</span></li>
-        <li><strong>Control del margen</strong><span>Costes y desviaciones antes de que sea tarde.</span></li>
-        <li><strong>Trabajo desde el móvil</strong><span>Audio, foto, ticket o avance desde la obra.</span></li>
-        <li><strong>Confirmación humana</strong><span>{brand.productName} prepara; tú decides y autorizas.</span></li>
+
+      <ul className={styles.heroValueBand} aria-label="Beneficios principales">
+        <li><strong>Todo conectado</strong><span>Cliente, trabajo, documentos y dinero.</span></li>
+        <li><strong>IA con control humano</strong><span>Capataz prepara; tú confirmas.</span></li>
+        <li><strong>Datos aislados y seguros</strong><span>Cada empresa trabaja en su espacio.</span></li>
+        <li><strong>Acceso web y móvil</strong><span>Oficina y obra siempre coordinadas.</span></li>
       </ul>
     </section>
   );
 }
 
-function FictitiousReceipt() {
+function Metric({ icon: Icon, label, value, delta }: { icon: LucideIcon; label: string; value: string; delta: string }) {
   return (
-    <div className={styles.fictitiousReceipt} aria-label="Representación ficticia de un ticket, no es una imagen subida">
-      <span />
-      <span />
-      <span />
-      <small>Ejemplo</small>
-    </div>
+    <article className={styles.metricCard}>
+      <div><span><Icon aria-hidden="true" /></span><small>{label}</small></div>
+      <strong>{value}</strong>
+      <em>{delta}</em>
+    </article>
   );
 }

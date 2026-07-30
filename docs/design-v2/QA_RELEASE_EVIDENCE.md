@@ -1,5 +1,26 @@
 # Orqena Field OS V2 — evidencia de QA de release
 
+> **ESTADO ACTUAL — GATE 1 ÚNICAMENTE.** El objetivo histórico de producción
+> que aparece más abajo queda superseded. La entrega activa es una revisión de
+> portada y navegación en Railway Review; requiere aprobación visual humana y
+> no autoriza merge ni Production.
+
+## Evidencia activa — corrección PR #63
+
+- Rama: `design/orqena-field-os-v2`.
+- PR existente: `#63` (Draft).
+- Entorno a reutilizar: `orqena-review-continuous`.
+- Capturas: ocho archivos en
+  `artifacts/design-v2/correction-pr63/gate-1/`.
+- Contratos focales: origen canónico, release SHA, subset D10, rutas CTA,
+  enlaces de megamenús y puente de interacción.
+- Portal autenticado, base de datos, migraciones y Production: fuera de alcance
+  y sin cambios.
+- Estado de propietario: `READY_FOR_EXTERNAL_INPUT` hasta recibir
+  `PORTADA_Y_MENU_APROBADOS`.
+
+## Evidencia histórica / superseded
+
 Fecha: 2026-07-30  
 Objetivo: `ORQENA_FIELD_OS_V2_READY_FOR_PRODUCTION_REVIEW`
 

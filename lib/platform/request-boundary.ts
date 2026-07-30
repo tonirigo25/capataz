@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { log, safeErrorCode } from "@/lib/observability/logger";
+import { resolveReleaseSha } from "@/lib/observability/release-sha";
 import { normalizeTraceId, type RequestActor, type RequestContext, withRequestContext } from "@/lib/platform/request-context";
 
 type RequestOperationInput = {
@@ -29,7 +30,7 @@ export function requestContextFromRequest(request: Request | undefined, input: R
     jobId: input.jobId ?? optionalTraceId(request?.headers.get("x-job-id")),
     provider: input.provider,
     operation: input.operation,
-    release: process.env.APP_RELEASE_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_RELEASE_SHA,
+    release: resolveReleaseSha(),
     environment: process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV,
   };
 }
@@ -63,7 +64,7 @@ export function withJobContext<T>(input: JobContextInput, handler: () => Promise
     jobId: input.jobId ?? randomUUID(),
     provider: input.provider,
     operation: input.operation,
-    release: process.env.APP_RELEASE_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_RELEASE_SHA,
+    release: resolveReleaseSha(),
     environment: process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV,
   }, handler);
 }

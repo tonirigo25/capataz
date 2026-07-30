@@ -1,5 +1,25 @@
 # Orqena Field OS V2 — registro de implementación
 
+> **ESTADO ACTUAL — CORRECCIÓN PR #63, GATE 1.** La portada y los megamenús de
+> la implementación anterior fueron rechazados visualmente por el propietario.
+> Todo el registro D0–D13 que sigue se conserva como evidencia histórica y no
+> constituye aprobación visual ni autorización para Production.
+
+## Corrección visual PR #63 — Gate 1
+
+- Fuente canónica: cuatro PNG del paquete
+  `ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30`.
+- Alcance: header, logo, megamenús Producto/Soluciones, menú móvil, hero,
+  mockup del producto, banda inferior, primera sección clara, enlaces y CTA.
+- Seis observaciones técnicas de la PR corregidas con tests focales.
+- Ocho capturas en `artifacts/design-v2/correction-pr63/gate-1/`.
+- Portal autenticado, reglas de negocio, Prisma, migraciones, providers,
+  `main` y Production: sin cambios.
+- Estado: pendiente de aprobación visual explícita del propietario mediante
+  `PORTADA_Y_MENU_APROBADOS`.
+
+## Registro histórico / superseded
+
 Fecha de ejecución: 2026-07-30  
 Rama: `design/orqena-field-os-v2`  
 Base de código: `c08ff92f30b8464302ff90760b2c3d28d57fc206`  
@@ -92,4 +112,3 @@ migración nueva ni se modificaron datos para el rediseño.
 El rollback de código consiste en retirar la rama/PR o redeplegar en el mismo
 servicio el SHA anterior `2076a52a7bab4dcc077f0ef63943e9da1e846c24`. No
 requiere rollback de base de datos, volúmenes, DNS o proveedores.
-
