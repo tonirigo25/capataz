@@ -154,5 +154,5 @@ export function MarketingFooter() {
 }
 
 function FooterColumn({ title, links }: { title: string; links: readonly (readonly [string, string])[] }) {
-  return <details className={styles.footerColumn} open><summary>{title}</summary><nav aria-label={title}>{links.map(([label, href]) => <Link href={href} key={label}>{label}</Link>)}</nav></details>;
+  return <details className={styles.footerColumn}><summary>{title}</summary><nav aria-label={title}>{links.map(([label, href]) => <Link href={href} key={label}>{label}</Link>)}</nav></details>;
 }
