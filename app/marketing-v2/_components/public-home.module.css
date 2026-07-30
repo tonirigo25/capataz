@@ -1366,7 +1366,7 @@
   .heroGrid { gap: 1.75rem; padding: 2.6rem 0 2rem; }
   .eyebrowDesktop { display: none; }
   .eyebrowMobile { display: inline; }
-  .eyebrow { max-width: 27ch; font-size: 0.56rem; letter-spacing: 0.085em; line-height: 1.4; }
+  .eyebrow { max-width: none; font-size: clamp(0.5rem, 2.45vw, 0.56rem); letter-spacing: 0.07em; line-height: 1.35; white-space: nowrap; }
   .heroCopy h1 { font-size: clamp(2.55rem, 12vw, 3.25rem); }
   .heroValueBand { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .heroValueBand li { min-height: 4.25rem; }
