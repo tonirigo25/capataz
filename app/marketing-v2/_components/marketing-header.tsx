@@ -72,7 +72,7 @@ const productColumns: readonly MenuColumn[] = [
       { label: "Tesorería", href: "/#facturas-y-cobros", icon: Landmark },
       { label: "Rentabilidad", href: "/#costes-y-compras", icon: BarChart3 },
       { label: "Alertas", href: "/#capataz-ia", icon: Sparkles },
-      { label: "Capataz IA", href: "/#capataz-ia", icon: Bot },
+      { label: `${brand.productName} IA`, href: "/#capataz-ia", icon: Bot },
       { label: "Automatizaciones", href: "/#capataz-ia", icon: Sparkles },
     ],
   },
@@ -96,7 +96,7 @@ const solutionColumns: readonly MenuColumn[] = [
       { label: "Controlar costes y margen", href: "/#costes-y-compras", icon: BarChart3 },
       { label: "Facturar y cobrar", href: "/#facturas-y-cobros", icon: WalletCards },
       { label: "Ordenar documentos", href: "/#documentos-y-ocr", icon: FileSearch },
-      { label: "Trabajar con Capataz IA", href: "/#capataz-ia", icon: Bot },
+      { label: `Trabajar con ${brand.productName} IA`, href: "/#capataz-ia", icon: Bot },
     ],
   },
 ] as const;
@@ -159,7 +159,7 @@ export function MarketingHeader() {
           <DesktopMenu
             id="product-mega-menu"
             label="Producto"
-            eyebrow="Capataz, by Orqena"
+            eyebrow={`${brand.productName}, by ${brand.wordmark}`}
             title="Todo el negocio conectado"
             columns={productColumns}
             open={openMenu === "product"}

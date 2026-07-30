@@ -44,7 +44,8 @@ check(
 check("CTA V2 exactas", hero.includes("Solicitar demo") && hero.includes("Ver cómo funciona"));
 check(
   "producto visible e interactivo",
-  ["Hoy", "Clientes", "Trabajo", "Dinero", "Capataz IA"].every((label) => hero.includes(`label: "${label}"`))
+  ["Hoy", "Clientes", "Trabajo", "Dinero"].every((label) => hero.includes(`label: "${label}"`))
+    && hero.includes('label: `${brand.productName} IA`')
     && hero.includes('role="tablist"')
     && hero.includes("onKeyDown"),
 );

@@ -64,7 +64,7 @@ const capabilityCards: ReadonlyArray<{
   { id: "facturas-y-cobros", title: "Facturas y cobros", text: "Vencimientos y caja sin perder el contexto comercial.", icon: WalletCards },
   { id: "documentos-y-ocr", title: "Documentos y OCR", text: "Facturas y tickets ordenados con extracción preparada para revisar.", icon: ScanText },
   { id: "equipo-y-agenda", title: "Equipo y agenda", text: "Responsables, prioridades y próximos pasos claramente asignados.", icon: CalendarDays },
-  { id: "capataz-ia", title: "Capataz IA", text: "Propuestas útiles con trazabilidad y confirmación humana.", icon: Bot },
+  { id: "capataz-ia", title: `${brand.productName} IA`, text: "Propuestas útiles con trazabilidad y confirmación humana.", icon: Bot },
 ] as const;
 
 export function LandingSections() {
@@ -420,7 +420,7 @@ function CapabilityOverview() {
               <div><small>Trabajo</small><strong>4 obras activas</strong><p>Sin bloqueos críticos</p></div>
               <div><small>Dinero</small><strong>8.750 € por cobrar</strong><p>4 facturas pendientes</p></div>
             </section>
-            <footer><Bot aria-hidden="true" /><span><strong>Capataz IA</strong> Dos propuestas esperan tu confirmación.</span><em>Revisar</em></footer>
+            <footer><Bot aria-hidden="true" /><span><strong>{brand.productName} IA</strong> Dos propuestas esperan tu confirmación.</span><em>Revisar</em></footer>
           </div>
         </div>
       </div>

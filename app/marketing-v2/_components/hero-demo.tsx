@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import styles from "../page.module.css";
 import { BrandMark } from "@/components/brand/brand-mark";
+import { brand } from "@/lib/brand";
 import { trackPublicFunnel } from "@/lib/product/public-analytics";
 
 type WorkspaceId = "hoy" | "clientes" | "trabajo" | "dinero" | "ia";
@@ -30,7 +31,7 @@ const workspaceTabs: ReadonlyArray<{ id: WorkspaceId; label: string; icon: Lucid
   { id: "clientes", label: "Clientes", icon: Users },
   { id: "trabajo", label: "Trabajo", icon: BriefcaseBusiness },
   { id: "dinero", label: "Dinero", icon: WalletCards },
-  { id: "ia", label: "Capataz IA", icon: Bot },
+  { id: "ia", label: `${brand.productName} IA`, icon: Bot },
 ];
 
 const workspaceCopy: Record<WorkspaceId, { title: string; detail: string; status: string }> = {
@@ -38,7 +39,7 @@ const workspaceCopy: Record<WorkspaceId, { title: string; detail: string; status
   clientes: { title: "Clientes activos", detail: "3 seguimientos para hoy", status: "Ventas al día" },
   trabajo: { title: "Trabajo en marcha", detail: "4 obras sin bloqueos", status: "Equipo coordinado" },
   dinero: { title: "Control económico", detail: "Margen previsto del 28 %", status: "Caja visible" },
-  ia: { title: "Capataz IA", detail: "2 propuestas para revisar", status: "Confirmación humana" },
+  ia: { title: `${brand.productName} IA`, detail: "2 propuestas para revisar", status: "Confirmación humana" },
 };
 
 export function HeroDemo() {
@@ -169,7 +170,7 @@ export function HeroDemo() {
 
               <div className={styles.aiRecommendation}>
                 <span><Bot aria-hidden="true" /></span>
-                <div><strong>Capataz IA ha preparado una recomendación</strong><p>Revisa el margen de la obra Costa Norte antes de confirmar la siguiente compra.</p></div>
+                <div><strong>{brand.productName} IA ha preparado una recomendación</strong><p>Revisa el margen de la obra Costa Norte antes de confirmar la siguiente compra.</p></div>
                 <button type="button">Revisar</button>
               </div>
             </div>
