@@ -1358,6 +1358,9 @@
 @media (max-width: 52rem) {
   .connectedFlowTrack { grid-template-columns: repeat(6, minmax(6.8rem, 1fr)); overflow-x: auto; }
   .connectedFlowPanel { grid-template-columns: minmax(0, 1fr); }
+  .guidedSection { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .guidedIntro { position: static; }
+  .guidedConsole { min-width: 0; width: 100%; }
   .guidedPanel { grid-template-columns: minmax(0, 1fr); }
   .footerTop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -1391,13 +1394,16 @@
   .flowTabs { grid-template-columns: repeat(3, minmax(9.8rem, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; }
   .flowTabs button { min-height: 3rem; scroll-snap-align: start; }
   .flowNarrative h3 { font-size: 1.6rem; }
-  .guidedNav { grid-template-columns: repeat(5, minmax(5.2rem, 1fr)); }
-  .guidedNav button { min-height: 3.8rem; }
-  .guidedPanel { padding: 0.45rem; }
-  .guidedConsole { border-radius: .72rem; }
+  .guidedNav { grid-template-columns: repeat(5, minmax(5.2rem, 1fr)); overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; }
+  .guidedNav button { min-height: 3.8rem; scroll-snap-align: start; }
+  .guidedPanel { min-width: 0; min-height: 0; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 0.55rem; }
+  .guidedStory, .stagePreview { min-width: 0; }
+  .guidedConsole { min-width: 0; width: 100%; overflow: hidden; border-radius: .72rem; }
   .guidedTopbar { align-items: flex-start; }
   .guidedSceneDots button { min-height: 2.8rem; }
-  .guidedFooter > div { width: 100%; justify-content: stretch; }
+  .guidedFooter { min-width: 0; padding: 0.75rem; }
+  .guidedFooter > span { min-width: 0; line-height: 1.4; }
+  .guidedFooter > div { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
   .guidedFooter button { min-width: 0; flex: 1 1 7rem; justify-content: center; }
   .previewRows { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .previewRows span { min-height: 4.3rem; }
