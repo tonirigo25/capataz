@@ -1262,7 +1262,7 @@
 @keyframes chart-grow-x { from { transform: scaleX(0); opacity: 0.25; } to { transform: scaleX(1); opacity: 1; } }
 
 .capabilitySection, .flowSection, .guidedSection { padding-block: clamp(3.5rem, 5vw, 4.75rem); }
-.connectedFlow { margin-top: 1.75rem; overflow: hidden; border: 1px solid #cfd9d0; border-radius: 1rem; background: #fff; box-shadow: 0 1.5rem 3.5rem rgb(22 40 31 / 8%); }
+.connectedFlow { margin-top: 1.75rem; overflow: hidden; overflow-anchor: none; border: 1px solid #cfd9d0; border-radius: 1rem; background: #fff; box-shadow: 0 1.5rem 3.5rem rgb(22 40 31 / 8%); }
 .connectedFlowTrack { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid #d7dfd6; background: #edf2eb; padding: 0.55rem; }
 .connectedFlowTrack button { min-width: 0; min-height: 4.8rem; position: relative; display: grid; place-items: center; align-content: center; gap: 0.42rem; border: 0; border-radius: 0.58rem; background: transparent; color: #65746c; cursor: pointer; padding: 0.45rem; }
 .connectedFlowTrack button[aria-current="step"] { background: var(--home-ink); color: #fff; }

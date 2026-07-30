@@ -209,7 +209,7 @@ export function ImmersiveJourney() {
             loop
             muted
             playsInline
-            poster="/media/orqena-marketing/scene-01-site.png"
+            poster="/media/orqena-marketing/scene-01-site.webp"
             preload="metadata"
           >
             <source src="/media/orqena-marketing/orqena-field-os-film-v1.mp4" type="video/mp4" />

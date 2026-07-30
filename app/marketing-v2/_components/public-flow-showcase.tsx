@@ -47,6 +47,7 @@ export function PublicFlowShowcase() {
   const [inViewport, setInViewport] = useState(false);
   const [playing, setPlaying] = useState(true);
   const sectionRef = useRef<HTMLElement | null>(null);
+  const trackRef = useRef<HTMLElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const active = stages[activeIndex];
 
@@ -78,10 +79,12 @@ export function PublicFlowShowcase() {
   }, [activeIndex, cycle, inViewport, playing, reducedMotion]);
 
   useEffect(() => {
-    buttonRefs.current[activeIndex]?.scrollIntoView({
+    const track = trackRef.current;
+    const button = buttonRefs.current[activeIndex];
+    if (!track || !button) return;
+    track.scrollTo({
       behavior: reducedMotion ? "auto" : "smooth",
-      block: "nearest",
-      inline: "center",
+      left: button.offsetLeft - (track.clientWidth - button.clientWidth) / 2,
     });
   }, [activeIndex, reducedMotion]);
 
@@ -107,7 +110,7 @@ export function PublicFlowShowcase() {
         </button>
       </div>
       <div className={styles.connectedFlow}>
-        <nav className={styles.connectedFlowTrack} aria-label="Recorrido de producto">
+        <nav ref={trackRef} className={styles.connectedFlowTrack} aria-label="Recorrido de producto">
           {stages.map(({ label, status, icon: Icon }, index) => (
             <button ref={(node) => { buttonRefs.current[index] = node; }} key={label} type="button" aria-current={index === activeIndex ? "step" : undefined} onClick={() => select(index)}>
               <span>{index < activeIndex || confirmed && index === activeIndex ? <CheckCircle2 /> : <Icon />}</span>
