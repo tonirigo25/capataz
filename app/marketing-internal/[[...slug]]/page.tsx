@@ -2,19 +2,18 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
-  BadgeCheck,
   Building2,
   Check,
   FileCheck2,
   HardHat,
   ReceiptText,
-  Route,
   Sparkles,
   UsersRound,
   Wrench,
 } from "lucide-react";
 import { LaunchContactForm } from "@/components/marketing/launch-contact-form";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PublicCTA, PublicFeatureGrid, PublicPageHero, PublicProductPreview, PublicSection } from "@/components/marketing/public-ui";
 import { getLegalConfiguration } from "@/lib/marketing/legal";
 import { HeroDemo } from "@/app/marketing-v2/_components/hero-demo";
 import { LandingSections, MarketingFooter as FieldOsMarketingFooter } from "@/app/marketing-v2/_components/landing-sections";
@@ -122,16 +121,16 @@ function HomePage() {
 function ProductPage() {
   return (
     <MarketingPage>
-      <PageHero eyebrow="Producto" title="Capataz mantiene cada decisión cerca de su origen." description="Un sistema de trabajo para organizar relaciones, ejecución, documentos y control económico sin perder trazabilidad." />
-      <section className="marketing-container launch-section">
+      <PublicPageHero eyebrow="Producto" title="Capataz mantiene cada decisión cerca de su origen." description="Clientes, ejecución, documentos y control económico comparten el mismo contexto, sin reconstruir lo que pasó." actions={<><a href="/demo">Explorar la demo <ArrowRight size={16} /></a><a href="/contacto?motivo=demo">Solicitar acceso</a></>} visual={<PublicProductPreview title="Hoy · Control operativo" state="Actualizado" metrics={[["Ingresos", "48.200 €"], ["Margen", "28,4 %"], ["Pendientes", "7"]]} />} />
+      <PublicSection eyebrow="Un recorrido conectado" title="Cuatro pasos. Un único hilo." description="La información entra una vez y reaparece donde ayuda a avanzar.">
         <div className="launch-story-grid">
           <Story number="01" title="Captura" text="Registra información desde formularios, documentos y actividad del equipo." />
           <Story number="02" title="Relaciona" text="Cada elemento queda vinculado a la empresa, cliente, trabajo y responsable correctos." />
           <Story number="03" title="Decide" text="Los estados y fuentes ayudan a revisar; el usuario conserva la confirmación final." />
           <Story number="04" title="Continúa" text="Agenda, tareas, documentos y dinero mantienen el hilo de trabajo." />
         </div>
-      </section>
-      <FinalCta />
+      </PublicSection>
+      <PublicCTA />
     </MarketingPage>
   );
 }
@@ -147,13 +146,11 @@ function FeaturesPage() {
   ] as const;
   return (
     <MarketingPage>
-      <PageHero eyebrow="Funcionalidades" title="Capacidades conectadas, con límites explícitos." description="Capataz no inventa saldos, progreso ni previsiones. Cada cifra y estado parte de información registrada." />
-      <section className="marketing-container launch-section">
-        <div className="launch-feature-grid launch-feature-grid--wide">
-          {items.map(([title, text, Icon]) => <Feature key={title} icon={Icon} title={title} text={text} />)}
-        </div>
-      </section>
-      <FinalCta />
+      <PublicPageHero eyebrow="Funcionalidades" title="Capacidades conectadas, con límites explícitos." description="Capataz no inventa saldos, progreso ni previsiones. Cada cifra y estado parte de información registrada." />
+      <PublicSection eyebrow="Áreas del producto" title="La misma verdad operativa, en cada función.">
+        <PublicFeatureGrid items={items.map(([title, text, icon]) => ({ title, text, icon }))} />
+      </PublicSection>
+      <PublicCTA />
     </MarketingPage>
   );
 }
@@ -165,18 +162,18 @@ function AudiencePage({ kind }: { kind: "self-employed" | "company" }) {
     : ["Portales según responsabilidad", "Permisos y alcances por empresa", "Actividad y auditoría", "Clientes, trabajos y finanzas conectados"];
   return (
     <MarketingPage>
-      <PageHero
+      <PublicPageHero
         eyebrow={selfEmployed ? "Para autónomos" : "Para empresas"}
         title={selfEmployed ? "Menos tiempo reconstruyendo qué pasó." : "Cada persona ve lo necesario para hacer avanzar el trabajo."}
         description={selfEmployed ? "Capataz reúne operación y contexto para que puedas continuar sin depender de notas dispersas." : "Dirección, comercial, compras, finanzas y ejecución trabajan sobre relaciones comunes con accesos diferenciados."}
       />
-      <section className="marketing-container launch-section">
+      <PublicSection eyebrow="Una experiencia enfocada" title={selfEmployed ? "Lo necesario para avanzar cada día." : "Coordinación sin perder responsabilidad."}>
         <div className="launch-audience-card">
           <div><Wrench /><h2>{selfEmployed ? "Operación clara" : "Coordinación responsable"}</h2></div>
           <ul>{points.map((point) => <li key={point}><Check size={17} />{point}</li>)}</ul>
         </div>
-      </section>
-      <FinalCta />
+      </PublicSection>
+      <PublicCTA />
     </MarketingPage>
   );
 }
@@ -190,8 +187,8 @@ function PricingPage() {
   ] as const;
   return (
     <MarketingPage>
-      <PageHero eyebrow="Planes" title="Preparados para elegir por capacidad, no por cifras inventadas." description="La contratación online permanece desactivada hasta que precios, impuestos y configuración Stripe estén aprobados." />
-      <section className="marketing-container launch-section">
+      <PublicPageHero eyebrow="Planes" title="Preparados para elegir por capacidad, sin activar cobros." description="La contratación online permanece desactivada. Puedes comparar el encaje y solicitar una demo controlada." />
+      <PublicSection eyebrow="Acceso controlado" title="Tres niveles para tres ritmos de operación.">
         <div className="launch-pricing-grid" data-billing-enabled={String(billingEnabled)}>
           {plans.map(([key, name, description]) => (
             <article key={key}>
@@ -199,12 +196,12 @@ function PricingPage() {
               <h2>{name}</h2>
               <p>{description}</p>
               <strong>{billingEnabled ? "Configuración disponible en la aplicación" : "Acceso anticipado"}</strong>
-              <button type="button" disabled={!billingEnabled}>{billingEnabled ? "Continuar en Capataz" : "Cobro no disponible"}</button>
+              {billingEnabled ? <a href={`${APP_URL}/billing`}>Continuar en Capataz</a> : <a href="/contacto?motivo=planes">Consultar disponibilidad</a>}
             </article>
           ))}
         </div>
         <p className="launch-pricing-note">No se muestran importes porque todavía no existe una configuración comercial aprobada. Stripe y la factura fiscal son procesos separados.</p>
-      </section>
+      </PublicSection>
     </MarketingPage>
   );
 }
@@ -212,15 +209,16 @@ function PricingPage() {
 function ContactPage() {
   return (
     <MarketingPage>
-      <section className="marketing-container launch-contact-layout">
+      <PublicPageHero eyebrow="Contacto" title="Cuéntanos qué necesitas ordenar." description="Responderemos personalmente. No incluyas contraseñas, tokens ni datos especialmente sensibles." />
+      <PublicSection eyebrow="Solicitud privada" title="Prepara tu demo o consulta.">
+      <div className="launch-contact-layout">
         <div>
-          <p className="marketing-eyebrow">Contacto</p>
-          <h1>Cuéntanos qué necesitas ordenar.</h1>
-          <p>El formulario envía la solicitud a hola@orqenatech.com cuando Resend está configurado. No incluyas contraseñas, tokens ni datos especialmente sensibles.</p>
+          <p>El formulario envía la solicitud al equipo de Orqena. Usaremos los datos únicamente para responder y preparar el siguiente paso.</p>
           <a href="mailto:hola@orqenatech.com">hola@orqenatech.com</a>
         </div>
         <LaunchContactForm />
-      </section>
+      </div>
+      </PublicSection>
     </MarketingPage>
   );
 }
@@ -246,32 +244,9 @@ function LegalPage({ kind }: { kind: string }) {
 function StatusPage() {
   return (
     <MarketingPage>
-      <section className="marketing-container launch-status">
-        <BadgeCheck size={42} />
-        <p className="marketing-eyebrow">Estado</p>
-        <h1>La web y el proceso de Capataz responden.</h1>
-        <p>Este control confirma disponibilidad básica del proceso. No consulta proveedores externos en cada petición.</p>
-        <a href={`${APP_URL}/api/health`}>Ver healthcheck técnico</a>
-      </section>
+      <PublicPageHero eyebrow="Estado" title="La web y Capataz responden." description="Disponibilidad básica confirmada. El control técnico se publica por separado y no expone datos de clientes." visual={<PublicProductPreview title="Servicios de Orqena" state="Operativo" metrics={[["Web", "OK"], ["Aplicación", "OK"], ["Datos", "Protegidos"]]}><a href={`${APP_URL}/api/health`}>Ver healthcheck técnico</a></PublicProductPreview>} />
     </MarketingPage>
   );
-}
-
-function FinalCta() {
-  return (
-    <section className="marketing-container launch-final-cta">
-      <div><p className="marketing-eyebrow">Capataz, by Orqena</p><h2>Accede a la aplicación en su dominio privado.</h2></div>
-      <a className="marketing-button" href={`${APP_URL}/login`}>Acceder a Capataz <ArrowRight size={18} /></a>
-    </section>
-  );
-}
-
-function PageHero({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
-  return <section className="launch-page-hero"><div className="marketing-container"><p className="marketing-eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div></section>;
-}
-
-function Feature({ icon: Icon, title, text }: { icon: typeof Route; title: string; text: string }) {
-  return <article className="launch-feature"><Icon /><h3>{title}</h3><p>{text}</p></article>;
 }
 
 function Story({ number, title, text }: { number: string; title: string; text: string }) {

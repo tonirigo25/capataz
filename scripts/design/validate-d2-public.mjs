@@ -57,14 +57,14 @@ check(
   [
     "Pulso del negocio",
     "Pipeline comercial",
-    "Progreso de obra",
+    "Progreso y carga",
     "Previsión de tesorería",
-    "Centro de decisiones",
-    "GroupedBarChart",
-    "CashflowChart",
-    "pipelineStages",
-    "workProgressCard",
-    "aiDecisionCard",
+    "Impacto de recomendaciones",
+    'kind="today"',
+    'kind="clients"',
+    'kind="work"',
+    'kind="money"',
+    'kind="ai"',
   ].every((marker) => hero.includes(marker)),
 );
 check(
@@ -103,8 +103,10 @@ check(
 );
 check(
   "demo guiada compacta de cinco etapas",
-  (story.match(/^\s{4}id: "/gmu) ?? []).length === 5
-    && ["Contacto y visita", "Presupuesto", "Trabajo y planificación", "Compras y costes", "Factura y cobro"].every((label) => story.includes(label)),
+  (story.match(/\{ id: "/gu) ?? []).length === 5
+    && ["Contacto", "Presupuesto", "Trabajo", "Costes", "Cobro"].every((label) => story.includes(`label: "${label}"`))
+    && story.includes("onKeyDown")
+    && story.includes("simulateAction"),
 );
 check(
   "home sintetizada en capacidades, flujos, demo, CTA y footer",

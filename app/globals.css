@@ -2194,3 +2194,34 @@ button:disabled,
   .launch-contact-layout { grid-template-columns: minmax(0,.8fr) minmax(32rem,1.2fr); }
   .launch-audience-card { grid-template-columns: .8fr 1.2fr; align-items: center; }
 }
+
+/* Public-site revision 3: shared surface for linked marketing routes. */
+.public-site-v3 > main { background: #f6f3eb; color: #102019; }
+.public-site-v3 .marketing-container { width: min(100% - 2.5rem, 82rem); }
+.public-site-v3 .launch-story-grid { margin: 0; border-color: #dbe2da; border-radius: .85rem; background: #dbe2da; }
+.public-site-v3 .launch-story-grid article { min-height: 11rem; padding: 1rem; }
+.public-site-v3 .launch-story-grid h2 { margin-top: 1.6rem; font-size: 1.15rem; }
+.public-site-v3 .launch-audience-card { border-radius: .9rem; background: #102019; padding: clamp(1.2rem,3vw,2.3rem); }
+.public-site-v3 .launch-audience-card h2 { font-size: clamp(1.7rem,3vw,2.6rem); }
+.public-site-v3 .launch-pricing-grid { gap: .75rem; }
+.public-site-v3 .launch-pricing-grid article { min-height: 18rem; border-radius: .85rem; padding: 1rem; }
+.public-site-v3 .launch-pricing-grid article > strong { padding-top: 1.2rem; }
+.public-site-v3 .launch-pricing-grid article > a { min-height: 2.8rem; margin-top: .75rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #102019; border-radius: .55rem; background: #102019; color: #fff; font-size: .78rem; font-weight: 820; padding: .65rem .8rem; text-decoration: none; }
+.public-site-v3 .launch-contact-layout { width: 100%; display: grid; gap: 2rem; padding: 0; }
+.public-site-v3 .launch-contact-layout > div > p { color: #5c6c64; line-height: 1.65; }
+.public-site-v3 .launch-contact-layout > div > a { display: inline-block; margin-top: 1rem; color: #087a68; font-weight: 850; }
+.public-site-v3 .launch-contact-form { border-radius: .85rem; box-shadow: 0 1rem 3rem rgb(16 32 25 / 8%); }
+.public-site-v3 .launch-legal { padding-block: clamp(3rem,5vw,4.5rem); }
+.public-site-v3 .launch-legal h1 { max-width: 15ch; font-size: clamp(2.5rem,5vw,4rem); }
+.public-site-v3 .launch-legal-card { border-radius: .85rem; }
+
+@media (min-width: 56rem) {
+  .public-site-v3 .launch-story-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .public-site-v3 .launch-contact-layout { grid-template-columns: minmax(0,.7fr) minmax(28rem,1.3fr); }
+}
+
+@media (max-width: 40rem) {
+  .public-site-v3 .marketing-container { width: min(100% - 1.5rem,82rem); }
+  .public-site-v3 .launch-pricing-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .65rem; }
+  .public-site-v3 .launch-pricing-grid article { min-width: min(82vw,19rem); scroll-snap-align: start; }
+}

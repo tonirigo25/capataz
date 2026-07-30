@@ -8,7 +8,6 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
-  ChevronRight,
   Clock3,
   FileCheck2,
   FilePenLine,
@@ -31,6 +30,7 @@ import {
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import styles from "./public-home.module.css";
+import { InteractiveProductChart } from "./interactive-product-chart";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { brand } from "@/lib/brand";
 import { trackPublicFunnel } from "@/lib/product/public-analytics";
@@ -171,7 +171,7 @@ function TodayWorkspace() {
       ]} />
       <div className={styles.workspaceMainGrid}>
         <ChartCard title="Pulso del negocio" detail="Ingresos y gastos · 7 semanas">
-          <GroupedBarChart primary={[54, 68, 61, 78, 71, 88, 82]} secondary={[36, 44, 48, 50, 47, 58, 55]} labels={["S1", "S2", "S3", "S4", "S5", "S6", "Hoy"]} />
+          <InteractiveProductChart kind="today" />
         </ChartCard>
         <ActionList title="Prioridades de hoy" items={[
           [AlertTriangle, "Margen de Costa Norte", "Revisar antes de comprar", "Alta"],
@@ -194,19 +194,9 @@ function ClientsWorkspace() {
         [CalendarDays, "Seguimientos", "9", "3 para hoy"],
       ]} />
       <div className={styles.workspaceMainGrid}>
-        <section className={styles.pipelineCard} aria-label="Pipeline comercial de ejemplo">
-          <CardHeading title="Pipeline comercial" detail="128.400 € abiertos" />
-          <div className={styles.pipelineStages}>
-            {[
-              ["Nuevo", "42.600 €", 86, "5"],
-              ["Visita", "36.800 €", 70, "4"],
-              ["Presupuesto", "31.500 €", 54, "3"],
-              ["Decisión", "17.500 €", 34, "2"],
-            ].map(([label, value, width, count]) => (
-              <div key={String(label)}><span><strong>{label}</strong><small>{count} oportunidades</small></span><i><b style={{ width: `${width}%` }} /></i><em>{value}</em></div>
-            ))}
-          </div>
-        </section>
+        <ChartCard title="Pipeline comercial" detail="128.400 € abiertos">
+          <InteractiveProductChart kind="clients" />
+        </ChartCard>
         <ActionList title="Próximos seguimientos" items={[
           [Building2, "Reformas Medina", "Llamada · 10:30", "Hoy"],
           [Users, "Grupo Norte", "Visita técnica · 16:00", "Hoy"],
@@ -228,18 +218,9 @@ function WorkWorkspace() {
         [AlertTriangle, "Incidencias", "2", "1 prioritaria"],
       ]} />
       <div className={styles.workspaceMainGrid}>
-        <section className={styles.workProgressCard} aria-label="Progreso de obras de ejemplo">
-          <CardHeading title="Progreso de obra" detail="Actualizado hace 8 min" />
-          <div className={styles.workRows}>
-            {[
-              ["Costa Norte", "Instalaciones", 78, "En plazo"],
-              ["Reforma Centro", "Acabados", 64, "Revisar"],
-              ["Nave Albor", "Estructura", 42, "En plazo"],
-            ].map(([name, stage, progress, state]) => (
-              <div key={String(name)}><span><strong>{name}</strong><small>{stage}</small></span><i><b style={{ width: `${progress}%` }} /></i><em data-alert={state === "Revisar"}>{progress}% · {state}</em></div>
-            ))}
-          </div>
-        </section>
+        <ChartCard title="Progreso y carga" detail="Actualizado hace 8 min">
+          <InteractiveProductChart kind="work" />
+        </ChartCard>
         <ActionList title="Agenda de equipo" items={[
           [CheckCircle2, "Certificar mediciones", "Marta · 09:30", "Hecho"],
           [Wrench, "Entrega de material", "Iván · 12:00", "En curso"],
@@ -262,7 +243,7 @@ function MoneyWorkspace() {
       ]} />
       <div className={styles.workspaceMainGrid}>
         <ChartCard title="Previsión de tesorería" detail="Saldo proyectado · 6 semanas">
-          <CashflowChart incoming={[58, 34, 72, 45, 66, 51]} outgoing={[32, 49, 38, 57, 42, 46]} labels={["S1", "S2", "S3", "S4", "S5", "S6"]} />
+          <InteractiveProductChart kind="money" />
         </ChartCard>
         <ActionList title="Próximos vencimientos" items={[
           [TrendingUp, "Cobro · Grupo Norte", "+8.500 €", "31 jul"],
@@ -276,6 +257,7 @@ function MoneyWorkspace() {
 }
 
 function AiWorkspace() {
+  const [draftMode, setDraftMode] = useState<"idle" | "editing" | "reviewed">("idle");
   return (
     <>
       <MetricGrid items={[
@@ -285,18 +267,15 @@ function AiWorkspace() {
         [Clock3, "Tiempo estimado", "4 h", "Esta semana"],
       ]} />
       <div className={styles.workspaceMainGrid}>
-        <section className={styles.aiDecisionCard} aria-label="Recomendaciones de inteligencia artificial de ejemplo">
-          <CardHeading title="Centro de decisiones" detail="Preparado, nunca ejecutado" />
-          <div className={styles.aiDecisionList}>
-            <article data-tone="warning"><AlertTriangle /><span><small>Advertencia</small><strong>El margen de Costa Norte baja al 18 %</strong><p>Dos compras no previstas explican la desviación.</p></span><ChevronRight /></article>
-            <article data-tone="good"><Sparkles /><span><small>Recomendación</small><strong>Agrupa tres pedidos al mismo proveedor</strong><p>Ahorro estimado de 480 € antes de confirmar.</p></span><ChevronRight /></article>
-          </div>
-        </section>
+        <ChartCard title="Impacto de recomendaciones" detail="Estimación y confianza">
+          <InteractiveProductChart kind="ai" />
+        </ChartCard>
         <section className={styles.aiDraftCard} aria-label="Borrador preparado por inteligencia artificial">
           <span><FilePenLine /> Borrador preparado</span>
           <strong>Seguimiento a Grupo Norte</strong>
-          <p>Hola, Ana. Te escribo para cerrar la visita técnica y resolver las dos dudas pendientes…</p>
-          <div><button type="button">Editar</button><button type="button">Revisar</button></div>
+          <p>{draftMode === "editing" ? "Hola, Ana. Confirmemos la visita técnica del viernes y las dos dudas pendientes." : "Hola, Ana. Te escribo para cerrar la visita técnica y resolver las dos dudas pendientes…"}</p>
+          <div><button type="button" aria-pressed={draftMode === "editing"} onClick={() => setDraftMode("editing")}>Editar</button><button type="button" aria-pressed={draftMode === "reviewed"} onClick={() => setDraftMode("reviewed")}>Revisar</button></div>
+          <small role="status">{draftMode === "reviewed" ? "Revisión sintética completada. No se ha enviado nada." : draftMode === "editing" ? "Edición local habilitada." : "Pendiente de revisión humana."}</small>
         </section>
       </div>
       <Insight tone="neutral" icon={ShieldCheck} title="Tú conservas la última palabra" text="Nada se crea, modifica ni envía sin una confirmación explícita y trazable." action="Ver controles" />
@@ -322,25 +301,6 @@ function CardHeading({ title, detail }: { title: string; detail: string }) {
   return <div className={styles.cardHeading}><strong>{title}</strong><span>{detail}</span></div>;
 }
 
-function GroupedBarChart({ primary, secondary, labels }: { primary: readonly number[]; secondary: readonly number[]; labels: readonly string[] }) {
-  return (
-    <div className={styles.barChart}>
-      <div className={styles.chartScale}><span>60k</span><span>40k</span><span>20k</span><span>0</span></div>
-      <div className={styles.chartBars}>{labels.map((label, index) => <div key={label}><span><i style={{ height: `${primary[index]}%` }} /><b style={{ height: `${secondary[index]}%` }} /></span><small>{label}</small></div>)}</div>
-      <div className={styles.chartLegend}><span data-series="primary">Ingresos</span><span data-series="secondary">Gastos</span><strong>+18,6 %</strong></div>
-    </div>
-  );
-}
-
-function CashflowChart({ incoming, outgoing, labels }: { incoming: readonly number[]; outgoing: readonly number[]; labels: readonly string[] }) {
-  return (
-    <div className={styles.cashflowChart}>
-      <div className={styles.cashflowBars}>{labels.map((label, index) => <div key={label}><span><i style={{ height: `${incoming[index]}%` }} /><b style={{ height: `${outgoing[index]}%` }} /></span><small>{label}</small></div>)}</div>
-      <div className={styles.chartLegend}><span data-series="primary">Entradas</span><span data-series="danger">Salidas</span><strong>Saldo +82.410 €</strong></div>
-    </div>
-  );
-}
-
 function ActionList({ title, items }: { title: string; items: readonly (readonly [LucideIcon, string, string, string])[] }) {
   return (
     <section className={styles.actionCard}><CardHeading title={title} detail="Ordenado por impacto" /><ul>{items.map(([Icon, name, detail, state]) => <li key={name}><Icon /><span><strong>{name}</strong><small>{detail}</small></span><em>{state}</em></li>)}</ul></section>
@@ -348,7 +308,8 @@ function ActionList({ title, items }: { title: string; items: readonly (readonly
 }
 
 function Insight({ tone, icon: Icon, title, text, action }: { tone: "good" | "warning" | "neutral"; icon: LucideIcon; title: string; text: string; action: string }) {
-  return <div className={styles.workspaceInsight} data-tone={tone}><span><Icon /></span><div><strong>{title}</strong><p>{text}</p></div><button type="button">{action}</button></div>;
+  const [expanded, setExpanded] = useState(false);
+  return <div className={styles.workspaceInsight} data-tone={tone}><span><Icon /></span><div><strong>{title}</strong><p>{text}</p>{expanded ? <small role="status">Detalle sintético abierto. La acción real requeriría confirmación.</small> : null}</div><button type="button" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>{expanded ? "Cerrar" : action}</button></div>;
 }
 
 function PhonePreview({ workspace }: { workspace: WorkspaceId }) {

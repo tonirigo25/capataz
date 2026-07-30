@@ -272,7 +272,7 @@ function onToggleIfOpen(open: boolean, onToggle: () => void) {
 
 function MegaMenu({ id, eyebrow, title, columns }: { id: string; eyebrow: string; title: string; columns: readonly MenuColumn[] }) {
   return (
-    <div id={id} className={styles.megaMenu} role="group" aria-label={title}>
+    <div id={id} className={styles.megaMenu} data-compact={id.includes("solutions") ? "true" : undefined} role="group" aria-label={title}>
       <div className={styles.megaMenuHeading}>
         <span>{eyebrow}</span>
         <strong>{title}</strong>

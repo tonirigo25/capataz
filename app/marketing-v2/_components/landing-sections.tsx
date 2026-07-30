@@ -3,7 +3,6 @@ import {
   Bot,
   BriefcaseBusiness,
   Building2,
-  FileText,
   ScanText,
   ShieldCheck,
   TrendingUp,
@@ -109,19 +108,25 @@ function FinalCta() {
   return (
     <section id="solicitar-acceso" className={styles.finalCta} aria-labelledby="final-cta-title">
       <div className={styles.finalCtaCopy}>
-        <span>Empieza por una decisión real</span>
-        <h2 id="final-cta-title">Controla el trabajo sin añadir más trabajo.</h2>
-        <p>Te enseñamos Capataz con un caso parecido al de tu empresa, datos aislados y acompañamiento directo.</p>
-        <ul>
-          <li><ShieldCheck />Demo privada</li>
-          <li><FileText />Sin migrar datos para probar</li>
-          <li><Bot />IA supervisada</li>
-        </ul>
+        <span>Una prueba con contexto</span>
+        <h2 id="final-cta-title">Mira tu operación con menos ruido.</h2>
+        <p>Recorre Capataz con un caso parecido al de tu empresa. Sin migrar datos, sin tarjeta y con confirmación humana.</p>
+        <div className={styles.finalCtaButtons}>
+          <Link className={styles.finalPrimary} href="/contacto?motivo=demo">Solicitar demo <ArrowRight /></Link>
+          <Link className={styles.finalSecondary} href="/demo#quick-demo">Probar demo guiada</Link>
+        </div>
+        <small>Al continuar aceptas que tratemos tu solicitud según nuestra <Link href="/privacidad">política de privacidad</Link>.</small>
       </div>
-      <div className={styles.finalCtaActions}>
-        <Link className={styles.finalPrimary} href="/contacto?motivo=demo">Solicitar demo <ArrowRight /></Link>
-        <Link className={styles.finalSecondary} href="/demo#quick-demo">Probar demo guiada</Link>
-        <small>Sin tarjeta · Respuesta personal · Beta privada</small>
+      <div className={styles.finalCtaModule}>
+        <div><span>Tu demo incluye</span><strong>Un espacio privado para probar de verdad.</strong></div>
+        <ul>
+          <li><strong>7 días</strong><span>de acceso guiado</span></li>
+          <li><strong>1 usuario</strong><span>con datos aislados</span></li>
+          <li><strong>100 operaciones IA</strong><span>supervisadas</span></li>
+          <li><strong>Sin tarjeta</strong><span>ni compromiso</span></li>
+          <li><strong>&lt; 24 h laborables</strong><span>respuesta personal</span></li>
+        </ul>
+        <p><ShieldCheck /> Datos sintéticos, acceso controlado y cero escrituras en tu negocio.</p>
       </div>
     </section>
   );
@@ -135,10 +140,13 @@ export function MarketingFooter() {
           <a className={styles.footerBrand} href="#top">{brand.wordmark}</a>
           <p>{brand.productName} conecta clientes, trabajo y dinero para que cada decisión tenga contexto.</p>
           <span>{brand.productName} es un producto de {brand.legalName}.</span>
+          <div><Link href="/soporte">Soporte</Link><Link href="/estado"><i />Todos los sistemas operativos</Link><span>ES · Español</span></div>
         </div>
-        <FooterColumn title="Producto" links={[["Áreas clave", "/#producto"], ["Cómo funciona", "/#como-funciona"], ["Demo guiada", "/demo"], ["Precios", "/precios"]]} />
-        <FooterColumn title="Empresa" links={[["Solicitar demo", "/contacto?motivo=demo"], ["Seguridad", "/seguridad"], ["Estado", "/estado"], ["Soporte", "/soporte"]]} />
-        <FooterColumn title="Legal" links={[["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Contacto", "/contacto"]]} />
+        <FooterColumn title="Producto" links={[["Producto", "/producto"], ["Funcionalidades", "/funcionalidades"], ["Demo", "/demo"], ["Precios", "/precios"]]} />
+        <FooterColumn title="Soluciones" links={[["Autónomos", "/para-autonomos"], ["Empresas", "/para-empresas"], ["Clientes y ventas", "/#clientes-y-ventas"], ["Trabajo y obra", "/#trabajo-y-obra"]]} />
+        <FooterColumn title="Empresa" links={[["Contacto", "/contacto"], ["Seguridad", "/seguridad"], ["Estado", "/estado"], ["Soporte", "/soporte"]]} />
+        <FooterColumn title="Recursos" links={[["Cómo funciona", "/#como-funciona"], ["Centro de ayuda", "/soporte"], ["Estado del servicio", "/estado"], ["Entrar", "https://app.orqenatech.com/login"]]} />
+        <FooterColumn title="Legal" links={[["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Aviso legal", "/legal/aviso-legal"]]} />
       </div>
       <div className={styles.footerBottom}><span>© 2026 {brand.legalName}</span><span>Beta privada · Datos de ejemplo · Noindex</span><a href="#top">Volver arriba</a></div>
     </footer>
@@ -146,5 +154,5 @@ export function MarketingFooter() {
 }
 
 function FooterColumn({ title, links }: { title: string; links: readonly (readonly [string, string])[] }) {
-  return <nav aria-label={title}><strong>{title}</strong>{links.map(([label, href]) => <Link href={href} key={label}>{label}</Link>)}</nav>;
+  return <details className={styles.footerColumn} open><summary>{title}</summary><nav aria-label={title}>{links.map(([label, href]) => <Link href={href} key={label}>{label}</Link>)}</nav></details>;
 }

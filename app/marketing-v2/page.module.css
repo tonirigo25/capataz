@@ -3994,6 +3994,42 @@
   padding-inline: 0.85rem;
 }
 
+.megaMenu[data-compact="true"] {
+  width: min(54rem, calc(100vw - 2rem));
+}
+
+.megaMenu[data-compact="true"] .megaMenuHeading {
+  padding: 0.8rem 1rem 0.7rem;
+}
+
+.megaMenu[data-compact="true"] .megaMenuGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0.7rem 0.55rem;
+}
+
+.megaMenu[data-compact="true"] .megaMenuColumn {
+  padding-inline: 0.55rem;
+}
+
+.megaMenu[data-compact="true"] .megaMenuColumn > p {
+  min-height: 0;
+  margin-top: 0.18rem;
+}
+
+.megaMenu[data-compact="true"] .megaMenuColumn ul {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.35rem;
+}
+
+.desktopNav .megaMenu[data-compact="true"] .megaMenuColumn .megaMenuItem {
+  min-height: 2.45rem;
+  padding: 0.4rem 0.45rem;
+}
+
+.desktopNav .megaMenu[data-compact="true"] .megaMenuFooter {
+  min-height: 3rem;
+}
+
 .headerCta,
 .mobileNavCta {
   border-color: #c9f36a;

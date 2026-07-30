@@ -137,8 +137,14 @@ for (const line of diff.split(/\r?\n/u)) {
   if (!line.startsWith("+") || line.startsWith("+++")) continue;
   const value = line.slice(1);
   const isFieldOsDeclaration = currentFile === "app/globals.css" && value.includes("--fos-");
-  const isDedicatedPublicVisualStyle = currentFile === "app/globals.css"
-    && /^\.(?:launch-|security-example|margin-calculator-result)/u.test(value.trim());
+  const isDedicatedPublicVisualStyle = (currentFile === "app/globals.css"
+    && /^\.(?:launch-|security-example|margin-calculator-result|public-site-v3)/u.test(value.trim()))
+    || [
+      "app/demo-v2/page.module.css",
+      "app/marketing-v2/page.module.css",
+      "app/marketing-v2/_components/public-home.module.css",
+      "components/marketing/public-ui.module.css",
+    ].includes(currentFile);
   const isSemanticColorInputDefault = currentFile === "app/(app)/configuracion/page.tsx"
     && value.includes('name="colorMarca"')
     && value.includes('type="color"');

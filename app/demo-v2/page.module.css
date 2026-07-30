@@ -1423,3 +1423,55 @@
     border-bottom: 0;
   }
 }
+
+/* Revision 3: dense guided demo with every visible control active. */
+.demoPage { background: #f6f3eb; }
+.header { border-bottom-color: #31443a; background: #102019; color: #fff; }
+.headerInner { min-height: 4.25rem; }
+.wordmark { color: #f5f2e8; }
+.localBadge { border-color: #3c5146; background: #172a21; color: #b7c4bc; }
+.localBadge svg { color: #c9f36a; }
+.backLink { border-color: #41554a; background: transparent; color: #f5f2e8; }
+.intro { min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(17rem, .42fr); gap: 2rem; padding: 2.75rem 0; }
+.intro h1 { max-width: 14ch; font-size: clamp(2.9rem, 5vw, 4.5rem); }
+.introText { max-width: 39rem; font-size: 1rem; }
+.safetyNote { padding: .8rem; }
+.scenarioSection { padding: 2.25rem 0; }
+.sectionLead { margin-bottom: 1rem; }
+.sectionLead h2 { font-size: clamp(1.9rem, 3vw, 2.9rem); }
+.scenarioGrid { gap: .65rem; }
+.scenarioCard { min-height: 8rem; padding: .8rem; }
+.workspace { grid-template: "top top" auto "steps panel" minmax(26rem, auto) / 11.5rem minmax(0, 1fr); margin-bottom: 2.5rem; }
+.workspaceTop { min-height: 4.5rem; grid-template-columns: minmax(10rem,.65fr) minmax(16rem,1fr) auto; }
+.stepNav button { min-height: 4.25rem; padding: .65rem .75rem; }
+.panelShell { padding: 1.15rem; }
+.stepPanel { grid-template-columns: minmax(12rem,.34fr) minmax(0,.66fr); gap: 1.35rem; }
+.panelHeading h2 { font-size: clamp(2rem,3vw,3rem); }
+.inputPreview blockquote { font-size: clamp(1rem,1.5vw,1.3rem); }
+.controls { margin-top: .9rem; }
+.status { margin: -1.5rem auto 2.25rem; }
+.footer { min-height: 5rem; }
+
+@media (max-width: 62rem) {
+  .workspace { grid-template: "top" auto "steps" auto "panel" auto / minmax(0,1fr); }
+  .stepNav button { min-height: 3.8rem; }
+}
+
+@media (max-width: 48rem) {
+  .intro { grid-template-columns: minmax(0,1fr); padding: 2.4rem 0; }
+  .scenarioGrid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .65rem; }
+  .scenarioCard { min-width: min(78vw,18rem); scroll-snap-align: start; }
+  .stepNav { overflow-x: auto; }
+  .stepNav ol { min-width: 36rem; grid-template-columns: repeat(6,minmax(6rem,1fr)); }
+  .stepNav button { min-height: 3.6rem; border-right: 1px solid var(--capataz-line) !important; border-bottom: 0 !important; }
+  .stepPanel { grid-template-columns: minmax(0,1fr); }
+  .panelHeading h2 { font-size: 2.25rem; }
+}
+
+@media (max-width: 40rem) {
+  .intro h1 { font-size: clamp(2.55rem,12vw,3.25rem); }
+  .scenarioSection { padding: 2rem 0; }
+  .workspace { margin-bottom: 2.25rem; }
+  .controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .controls button:last-child { grid-column: 1 / -1; }
+}

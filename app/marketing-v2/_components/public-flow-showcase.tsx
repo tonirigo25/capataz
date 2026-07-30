@@ -30,7 +30,13 @@ const flows: ReadonlyArray<{ id: FlowId; label: string; icon: LucideIcon; title:
 
 export function PublicFlowShowcase() {
   const [activeFlow, setActiveFlow] = useState<FlowId>("venta");
+  const [status, setStatus] = useState("Venta: recorrido preparado.");
   const flow = flows.find((item) => item.id === activeFlow) ?? flows[0];
+  const chooseFlow = (id: FlowId) => {
+    setActiveFlow(id);
+    setStatus(`${flows.find((item) => item.id === id)?.label}: recorrido preparado.`);
+  };
+  const simulate = (action: string) => setStatus(`${action}. Vista local actualizada; no se han escrito datos.`);
   return (
     <section id="flujos" className={styles.flowSection} aria-labelledby="flow-title">
       <div className={styles.flowIntro}>
@@ -40,24 +46,24 @@ export function PublicFlowShowcase() {
           <p>Elige un flujo y comprueba cómo cambia la información, el contexto y la decisión preparada.</p>
         </div>
         <div className={styles.flowTabs} role="tablist" aria-label="Flujos públicos de ejemplo">
-          {flows.map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={activeFlow === id} aria-controls={`flow-panel-${id}`} onClick={() => setActiveFlow(id)}><Icon /><span>{label}</span></button>)}
+          {flows.map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={activeFlow === id} aria-controls={`flow-panel-${id}`} onClick={() => chooseFlow(id)}><Icon /><span>{label}</span></button>)}
         </div>
       </div>
       <div id={`flow-panel-${activeFlow}`} role="tabpanel" className={styles.flowCanvas} key={activeFlow}>
         <div className={styles.flowNarrative}><span>Flujo seleccionado</span><h3>{flow.title}</h3><p>{flow.text}</p><strong><ShieldCheck /> Contexto y confirmación en cada paso</strong></div>
-        <FlowVisual id={activeFlow} />
+        <div><FlowVisual id={activeFlow} onAction={simulate} /><p className={styles.flowStatus} role="status">{status}</p></div>
       </div>
     </section>
   );
 }
 
-function FlowVisual({ id }: { id: FlowId }) {
-  if (id === "obra") return <WorkFlow />;
-  if (id === "documento") return <DocumentFlow />;
-  return <SalesFlow />;
+function FlowVisual({ id, onAction }: { id: FlowId; onAction: (action: string) => void }) {
+  if (id === "obra") return <WorkFlow onAction={onAction} />;
+  if (id === "documento") return <DocumentFlow onAction={onAction} />;
+  return <SalesFlow onAction={onAction} />;
 }
 
-function SalesFlow() {
+function SalesFlow({ onAction }: { onAction: (action: string) => void }) {
   return (
     <div className={styles.flowProduct} aria-label="Flujo comercial de ejemplo">
       <FlowHeader icon={Users} label="Cliente · Grupo Norte" status="Oportunidad activa" />
@@ -68,25 +74,25 @@ function SalesFlow() {
         <ChevronRight />
         <FlowStep icon={WalletCards} label="Decisión" value="Margen 28,4 %" state="Revisar" />
       </div>
-      <div className={styles.flowDecision}><Bot /><span><strong>{brand.productName} ha señalado dos dudas</strong><small>Plazo de ejecución y condición de pago sin confirmar.</small></span><button type="button">Abrir propuesta</button></div>
+      <div className={styles.flowDecision}><Bot /><span><strong>{brand.productName} ha señalado dos dudas</strong><small>Plazo de ejecución y condición de pago sin confirmar.</small></span><button type="button" onClick={() => onAction("Propuesta abierta")}>Abrir propuesta</button></div>
     </div>
   );
 }
 
-function WorkFlow() {
+function WorkFlow({ onAction }: { onAction: (action: string) => void }) {
   return (
     <div className={styles.flowProduct} aria-label="Flujo de trabajo de ejemplo">
       <FlowHeader icon={BriefcaseBusiness} label="Obra · Costa Norte" status="78 % completado" />
       <div className={styles.workBoard}>
         <article><span>Hoy</span><strong>Instalación eléctrica</strong><small>3 tareas · Carlos y Marta</small><i><b style={{ width: "72%" }} /></i></article>
         <article><span>Incidencia</span><strong>Material incompleto</strong><small>Proveedor avisado · respuesta 13:00</small><em>Prioridad alta</em></article>
-        <article><span>Siguiente hito</span><strong>Certificación parcial</strong><small>Viernes · 8.450 €</small><button type="button">Preparar revisión</button></article>
+        <article><span>Siguiente hito</span><strong>Certificación parcial</strong><small>Viernes · 8.450 €</small><button type="button" onClick={() => onAction("Revisión del hito preparada")}>Preparar revisión</button></article>
       </div>
     </div>
   );
 }
 
-function DocumentFlow() {
+function DocumentFlow({ onAction }: { onAction: (action: string) => void }) {
   return (
     <div className={styles.flowProduct} aria-label="Flujo documental de ejemplo">
       <FlowHeader icon={ReceiptText} label="Factura recibida · FR-882" status="Pendiente de revisión" />
@@ -97,7 +103,7 @@ function DocumentFlow() {
         <ArrowRight />
         <article><FileCheck2 /><span><small>Relación</small><strong>Obra Costa Norte</strong><em>Coste previsto</em></span></article>
       </div>
-      <div className={styles.documentDecision}><ShieldCheck /><span><strong>Listo para validar</strong><small>No se contabiliza hasta confirmar proveedor, IVA y obra.</small></span><button type="button"><Check /> Revisar datos</button></div>
+      <div className={styles.documentDecision}><ShieldCheck /><span><strong>Listo para validar</strong><small>No se contabiliza hasta confirmar proveedor, IVA y obra.</small></span><button type="button" onClick={() => onAction("Datos documentales revisados")}><Check /> Revisar datos</button></div>
     </div>
   );
 }
