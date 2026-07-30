@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Layers3 } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { Process, R4CTA, R4Hero, R4Section, SolutionInterface, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, publicPage, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 import { marketingSolutions } from "@/lib/marketing/solutions";
 
@@ -18,6 +19,10 @@ const styles = getR4Styles();
 export default function SolutionsPage() {
   const featured = marketingSolutions[1];
   return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      publicPage("CollectionPage", "/soluciones", "Soluciones conectadas de Orqena", "Ocho recorridos para vender, ejecutar, controlar y cobrar sin perder contexto."),
+      breadcrumbList([["Inicio", ""], ["Soluciones", "/soluciones"]]),
+    )} />
     <R4Hero current="Soluciones" eyebrow="RESULTADOS POR NECESIDAD" title="Empieza por el problema. Mantén conectada la empresa." description="Ocho recorridos completos para vender, ejecutar, controlar y cobrar con responsables, datos de origen y revisión humana." actions={<><Link href="#soluciones">Explorar soluciones<ArrowRight aria-hidden="true" /></Link><Link href="/contacto?motivo=soluciones">Contarnos tu caso</Link></>} visual={<SolutionInterface solution={featured} />} />
     <R4Section id="soluciones" eyebrow="OCHO RECORRIDOS" title="Elige el resultado que necesitas ahora." description="Cada solución explica el problema, el flujo, la interfaz y el límite de lo que Orqena puede preparar."><div className={styles.cardGrid}>{marketingSolutions.map((solution, index) => <Link className={styles.card} href={`/soluciones/${solution.slug}`} key={solution.slug}><span>{String(index + 1).padStart(2, "0")} · {solution.eyebrow}</span><h3>{solution.title}</h3><p>{solution.outcome}</p><strong>Ver solución<ArrowRight aria-hidden="true" /></strong></Link>)}</div></R4Section>
     <R4Section tone="soft" eyebrow="UNA MISMA OPERACIÓN" title="Del contacto al cobro sin reconstruir la historia." description="Los recorridos comparten clientes, trabajo, documentos, responsables y estados."><Process steps={["Contacto", "Presupuesto", "Trabajo", "Coste", "Factura"]} /></R4Section>

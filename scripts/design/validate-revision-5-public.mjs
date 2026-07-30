@@ -15,6 +15,10 @@ const paths = {
   header: "app/marketing-v2/_components/marketing-header.tsx",
   hostRouting: "lib/host-routing.ts",
   routeAccess: "lib/route-access.ts",
+  layout: "app/layout.tsx",
+  structuredData: "components/marketing/public-structured-data.tsx",
+  publicMatrix: "scripts/design/validate-d10-public-matrix.mjs",
+  lighthouse: "lighthouserc.cjs",
   mp4: "public/media/marketing/orqena-video-01-35s.mp4",
   webm: "public/media/marketing/orqena-video-01-35s.webm",
   poster: "public/media/marketing/orqena-video-01-poster.webp",
@@ -26,6 +30,10 @@ const landing = read(paths.landing);
 const header = read(paths.header);
 const hostRouting = read(paths.hostRouting);
 const routeAccess = read(paths.routeAccess);
+const layout = read(paths.layout);
+const structuredData = read(paths.structuredData);
+const publicMatrix = read(paths.publicMatrix);
+const lighthouse = read(paths.lighthouse);
 
 function check(label, run) {
   try {
@@ -146,6 +154,20 @@ check("public navigation contains no known broken solution or product anchors", 
 check("marketing video is a shared public static resource on every approved host", () => {
   assertIncludes(hostRouting, '"/media/marketing/"', "shared marketing media prefix");
   assertIncludes(routeAccess, 'pathname.startsWith("/media/marketing/")', "public route access prefix");
+});
+
+check("SEO stays canonical, fail-closed and covered on the requested public routes", () => {
+  assertIncludes(layout, "metadataBase: new URL(brand.publicUrl)", "canonical public metadata base");
+  assert.match(hostRouting, /pathname === "\/robots\.txt" \|\| pathname === "\/sitemap\.xml"[\s\S]{0,120}action: "pass"/u);
+  for (const route of ["/producto", "/demo", "/precios", "/recursos", "/empresa", "/contacto"]) {
+    assertIncludes(lighthouse, `http://127.0.0.1:3210${route}`, `Lighthouse route ${route}`);
+  }
+  assertIncludes(lighthouse, '"largest-contentful-paint": ["error", { "maxNumericValue": 2500 }]', "LCP 2.5-second gate");
+  assertIncludes(lighthouse, '"categories:seo"', "Lighthouse SEO gate");
+  for (const route of ["/recursos", "/empresa"]) assertIncludes(publicMatrix, `"${route}"`, `D10 route ${route}`);
+  for (const token of ["x-nonce", "BreadcrumbList", "FAQPage", "SoftwareApplication", "\\u003c"]) {
+    assertIncludes(structuredData, token, `safe structured data token ${token}`);
+  }
 });
 
 check("public UI source contains no personal identity or legacy product copy", () => {

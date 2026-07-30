@@ -75,6 +75,8 @@ const routes = [
   "/sectores",
   "/planes",
   "/precios",
+  "/recursos",
+  "/empresa",
   "/seguridad",
   "/estado",
   "/soporte",

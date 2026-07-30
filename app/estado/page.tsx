@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, Clock3, ExternalLink, ShieldAlert } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PublicStructuredData, breadcrumbList, publicPage, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 import mobileCapabilities from "@/contracts/mobile/v1/capability-matrix.json";
 
@@ -42,6 +43,10 @@ const states = [
 export default function StatusPage() {
   return (
     <MarketingPage>
+      <PublicStructuredData data={structuredGraph(
+        publicPage("WebPage", "/estado", "Estado de Orqena", "Capacidades disponibles, beta y pendientes sin afirmar un SLA no contratado."),
+        breadcrumbList([["Inicio", ""], ["Estado", "/estado"]]),
+      )} />
       <section className="marketing-container py-16 lg:py-24">
         <p className="marketing-eyebrow">Estado del producto</p>
         <h1 className="marketing-display mt-4 max-w-5xl">Lo disponible se separa de lo que aún necesita una aprobación.</h1>

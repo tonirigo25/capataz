@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Eye, Layers3, LockKeyhole, Scale, ShieldCheck, UsersRound } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { R4CTA, R4Hero, R4Section, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, publicPage, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -24,6 +25,10 @@ const principles = [
 
 export default function CompanyPage() {
   return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      publicPage("Organization", "/empresa", "Orqena Tech", "Empresa de producto que desarrolla Orqena para pequeñas empresas de construcción y servicios."),
+      breadcrumbList([["Inicio", ""], ["Empresa", "/empresa"]]),
+    )} />
     <R4Hero current="Empresa" eyebrow="ORQENA TECH" title="Tecnología para que una pequeña empresa trabaje con el control de una grande." description="Construimos Orqena para conectar el trabajo comercial, operativo y económico de empresas de construcción y servicios sin quitar la decisión a las personas." actions={<><Link href="/producto">Conocer Orqena<ArrowRight aria-hidden="true" /></Link><Link href="/contacto">Contactar</Link></>} visual={<CompanyVisual />} />
     <R4Section eyebrow="QUÉ ES ORQENA TECH" title="Una empresa de producto centrada en la operación real." description="Orqena Tech desarrolla Orqena, un software web para mantener conectados clientes, presupuestos, trabajos, costes, documentos, facturación, cobros e IA."><div className={styles.editorialGrid}><h3>La tecnología debe reducir reconstrucciones, no añadir otra capa de trabajo.</h3><div><article><h4>Por qué construimos Orqena</h4><p>Porque una empresa pequeña puede tener información suficiente y, aun así, perder tiempo al reunirla antes de cada decisión. Orqena mantiene el hilo entre áreas.</p></article><article><h4>Para quién</h4><p>Autónomos y equipos de construcción, reformas, instalaciones y servicios que coordinan clientes, trabajo, documentos y dinero.</p></article></div></div></R4Section>
     <R4Section tone="soft" eyebrow="PRINCIPIOS" title="Claridad, responsabilidad y continuidad." description="Estos principios guían la experiencia pública y el comportamiento del producto."><div className={styles.cardGrid}>{principles.map(({ title, text, icon: Icon }, index) => <article className={styles.card} key={title}><Icon aria-hidden="true" /><span>{String(index + 1).padStart(2, "0")}</span><h3>{title}</h3><p>{text}</p></article>)}</div></R4Section>

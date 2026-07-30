@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, Bot, CheckSquare, FileText, Landmark, Truck } fro
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { ResourceCalculators } from "@/components/marketing/r4-pages-interactive";
 import { R4CTA, R4FAQ, R4Hero, R4Section, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, faqPage, publicPage, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -23,6 +24,11 @@ const faq = [
 
 export default function ResourcesPage() {
   return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      publicPage("CollectionPage", "/recursos", "Recursos prácticos de Orqena", "Calculadoras, checklist y guías para presupuestar, controlar costes y cobrar a tiempo."),
+      breadcrumbList([["Inicio", ""], ["Recursos", "/recursos"]]),
+      faqPage(faq),
+    )} />
     <R4Hero current="Recursos" eyebrow="HERRAMIENTAS PRÁCTICAS" title="Recursos prácticos para presupuestar mejor, controlar costes y cobrar a tiempo." description="Calcula escenarios, revisa documentos y recorre métodos concretos sin entregar tus datos. Cada resultado explica sus límites." actions={<><Link href="#herramientas">Usar herramientas<ArrowRight aria-hidden="true" /></Link><Link href="#guias">Explorar guías</Link></>} visual={<ResourcesVisual />} />
     <R4Section id="herramientas" eyebrow="CALCULADORAS" title="Prueba escenarios con tus propias hipótesis." description="Los resultados cambian al editar cada campo y nunca se presentan como datos reales ni como predicción."><ResourceCalculators /></R4Section>
     <R4Section tone="soft" eyebrow="REVISIÓN OPERATIVA" title="Comprueba antes de registrar o pagar." description="La checklist es interactiva, descargable e imprimible; conserva la decisión en tus manos."><div className={styles.cardGrid}><Link className={styles.card} href="/recursos/checklist-factura-recibida"><CheckSquare aria-hidden="true" /><h3>Checklist de factura recibida</h3><p>Ocho comprobaciones sobre proveedor, importes, documento, obra y vencimiento.</p><strong>Abrir checklist<ArrowRight aria-hidden="true" /></strong></Link><Link className={styles.card} href="/recursos/calculadora-margen-obra"><Landmark aria-hidden="true" /><h3>Calculadora de margen completa</h3><p>Añade horas, coste interno y contingencia a la revisión de una obra.</p><strong>Abrir calculadora<ArrowRight aria-hidden="true" /></strong></Link><article className={styles.card}><FileText aria-hidden="true" /><span>Plantillas</span><h3>Próximas plantillas editables</h3><p>Publicaremos plantillas sólo cuando puedan descargarse, verificarse y mantenerse. No hay una descarga ficticia.</p></article></div></R4Section>

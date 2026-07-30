@@ -4,6 +4,7 @@ import { ArrowRight, Bot, BriefcaseBusiness, FileCheck2, ShieldCheck, Users, Wal
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { ProductTour } from "@/components/marketing/r4-pages-interactive";
 import { R4CTA, R4Hero, R4Section, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, softwareApplication, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -25,6 +26,10 @@ const foundations = [
 
 export default function ProductPage() {
   return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      softwareApplication("/producto", "Orqena", "Clientes, trabajo, dinero, documentos, equipo y Orqena IA conectados bajo control humano."),
+      breadcrumbList([["Inicio", ""], ["Producto", "/producto"]]),
+    )} />
     <R4Hero current="Producto" eyebrow="UNA OPERACIÓN, UN MISMO CONTEXTO" title="Orqena conecta el trabajo que hoy reconstruyes a mano." description="Clientes, presupuestos, obras, costes, documentos, facturas, cobros e IA avanzan en una interfaz común. Orqena prepara; tú revisas y confirmas." actions={<><Link href="/demo">Ver demo guiada<ArrowRight aria-hidden="true" /></Link><Link href="/contacto?motivo=demo">Solicitar una demo</Link></>} visual={<ProductHeroVisual />} />
     <R4Section id="tour" eyebrow="TOUR INTERACTIVO" title="La prioridad cambia. El contexto permanece." description="Recorre las áreas principales. Cada pestaña transforma la interfaz, los datos y las acciones mostradas."><ProductTour /></R4Section>
     <R4Section tone="soft" eyebrow="ÁREAS CONECTADAS" title="No son módulos aislados." description="Cada área conserva relaciones, responsables y una siguiente decisión clara."><div className={styles.cardGrid}>{foundations.map(({ title, text, icon: Icon, href }) => <Link className={styles.card} href={href} key={title}><Icon aria-hidden="true" /><h3>{title}</h3><p>{text}</p><strong>Explorar solución<ArrowRight aria-hidden="true" /></strong></Link>)}</div></R4Section>

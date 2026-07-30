@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import {
   ArrowRight,
   Building2,
@@ -69,7 +70,7 @@ export async function generateMetadata({ params }: { params: Promise<PageParams>
   if (!page) return {};
   const canonical = `${MARKETING_URL}${pathname === "/" ? "" : pathname}`;
   return {
-    title: page.title,
+    title: pathname === "/" ? { absolute: page.title } : page.title,
     description: page.description,
     alternates: { canonical },
     openGraph: {
@@ -99,15 +100,16 @@ export default async function LaunchMarketingRoute({ params }: { params: Promise
   notFound();
 }
 
-function HomePage() {
+async function HomePage() {
   const legal = getLegalConfiguration();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const structuredData = [
     legal.entityName ? { "@type": "Organization", name: legal.entityName, url: MARKETING_URL } : null,
     { "@type": "SoftwareApplication", name: brand.productName, applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${MARKETING_URL}/producto` },
   ].filter(Boolean);
   return (
     <div className={fieldOsStyles.page} id="top">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": structuredData }) }} />
+      <script nonce={nonce} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": structuredData }).replace(/</gu, "\\u003c") }} />
       <a className={fieldOsStyles.skipLink} href="#main-content">Saltar al contenido</a>
       <FieldOsMarketingHeader />
       <main id="main-content" className={fieldOsStyles.mainContent} tabIndex={-1}>

@@ -4,6 +4,7 @@ import { ArrowRight, Bot, Check, Users } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { PriceComparison, PricingExplorer } from "@/components/marketing/r4-pages-interactive";
 import { R4CTA, R4FAQ, R4Hero, R4Section, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, faqPage, softwareApplication, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -24,6 +25,11 @@ const faq = [
 
 export default function PricingPage() {
   return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      softwareApplication("/precios", "Planes y precios de Orqena", "Compara Starter, Professional y Business por usuarios, coordinación y operaciones de IA."),
+      breadcrumbList([["Inicio", ""], ["Planes y precios", "/precios"]]),
+      faqPage(faq),
+    )} />
     <R4Hero current="Planes y precios" eyebrow="PLANES PARA CADA ETAPA" title="Elige el nivel de control que necesita tu empresa." description="Empieza con lo esencial y amplía cuando crezcan tu equipo, tus obras o el uso de IA. Todos los planes comparten la misma base: datos aislados, control humano y acceso web y móvil." actions={<><Link href="#planes">Comparar planes<ArrowRight aria-hidden="true" /></Link><Link href="/contacto?motivo=acceso">Solicitar acceso</Link></>} visual={<PricingVisual />} />
     <R4Section id="planes" eyebrow="MENSUAL O ANUAL" title="Tres planes. Una misma base operativa." description="Selecciona la periodicidad para ver el importe aprobado. La solicitud de acceso no inicia una compra."><PricingExplorer /></R4Section>
     <R4Section tone="soft" eyebrow="COMPARACIÓN" title="Lo esencial, lado a lado." description="Los límites de usuarios y operaciones de IA siguen el catálogo aprobado."><PriceComparison /></R4Section>

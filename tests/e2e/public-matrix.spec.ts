@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 const coreRoutes = ["/", "/demo", "/contacto", "/login"];
-const detailedRoutes = ["/producto", "/soluciones", "/sectores", "/planes", "/seguridad", "/estado", "/soporte", "/privacidad", "/terminos", "/cookies", "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida", "/route-that-does-not-exist"];
+const detailedRoutes = ["/producto", "/soluciones", "/sectores", "/planes", "/precios", "/recursos", "/empresa", "/seguridad", "/estado", "/soporte", "/privacidad", "/terminos", "/cookies", "/recursos/calculadora-margen-obra", "/recursos/checklist-factura-recibida", "/route-that-does-not-exist"];
 const viewportPairs = [{ width: 390, height: 844 }, { width: 1440, height: 900 }];
 const chromiumWidths = [320, 390, 768, 1024, 1440, 1920];
 

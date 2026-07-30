@@ -13,11 +13,13 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import styles from "./public-home.module.css";
 
 type FlowStage = {
   label: string;
+  summary: string;
   title: string;
   detail: string;
   outcome: string;
@@ -29,15 +31,17 @@ type FlowStage = {
 };
 
 const stages: readonly FlowStage[] = [
-  { label: "Contacto", title: "Entrada ordenada", detail: "Llamada, necesidad y siguiente paso quedan unidos al cliente.", outcome: "Visita preparada", context: "Grupo Norte Demo · Oficina Centro", status: "Necesidad revisada", nextDecision: "Confirmar visita del viernes", impact: "Oportunidad lista para presupuestar", icon: Users },
-  { label: "Presupuesto", title: "Propuesta con margen", detail: "Partidas, dudas y condiciones se revisan antes de enviar.", outcome: "24.600 € · margen 28,4 %", context: "PR-104 · 12 partidas", status: "2 dudas abiertas", nextDecision: "Resolver plazo y primer pago", impact: "Propuesta revisable", icon: FilePenLine },
-  { label: "Trabajo", title: "Ejecución coordinada", detail: "Hitos, tareas, equipo e incidencias conservan el contexto.", outcome: "14 tareas · 4 responsables", context: "TR-021 · Reforma Oficina Centro", status: "3 hitos planificados", nextDecision: "Confirmar inicio el 5 de agosto", impact: "Agenda y responsables conectados", icon: BriefcaseBusiness },
-  { label: "Compras", title: "Coste relacionado", detail: "La compra llega al trabajo correcto y muestra la desviación.", outcome: "Total 1.840,50 €", context: "FR-882 · Materiales Levante Demo", status: "Vinculada al trabajo", nextDecision: "Validar base e IVA", impact: "+80,50 € sobre lo previsto", icon: ShoppingCart },
-  { label: "Factura", title: "Emisión revisable", detail: "El hito prepara una factura, sin emitirla hasta confirmar.", outcome: "F-2031 · 8.450 €", context: "Hito 2 · certificación parcial", status: "Borrador preparado", nextDecision: "Revisar destinatario y emitir", impact: "Vencimiento calculado a 30 días", icon: ReceiptText },
-  { label: "Cobro", title: "Caja bajo control", detail: "Vencimiento, seguimiento y previsión terminan el recorrido.", outcome: "Cobro previsto · 30 ago", context: "F-2031 · Grupo Norte Demo", status: "Pendiente de emisión", nextDecision: "Confirmar factura o devolver", impact: "Previsión incorporada a tesorería", icon: WalletCards },
+  { label: "Contacto", summary: "Necesidad y siguiente paso", title: "Consulta convertida en siguiente paso", detail: "La conversación, la necesidad y la próxima acción quedan unidas al cliente.", outcome: "Visita preparada", context: "Grupo Norte Demo · Oficina Centro", status: "Necesidad revisada", nextDecision: "Confirmar visita propuesta", impact: "Oportunidad lista para presupuestar", icon: Users },
+  { label: "Presupuesto", summary: "Partidas, condiciones y margen", title: "Propuesta revisable con margen", detail: "Partidas, dudas y condiciones se revisan antes de enviar.", outcome: "24.600 € · margen 28,4 %", context: "PR-104 · 12 partidas", status: "2 dudas abiertas", nextDecision: "Resolver plazo y primer pago", impact: "Propuesta lista para revisión", icon: FilePenLine },
+  { label: "Trabajo", summary: "Hitos, tareas e incidencias", title: "Ejecución coordinada con contexto", detail: "Hitos, tareas, equipo e incidencias permanecen conectados al trabajo.", outcome: "14 tareas · 4 responsables", context: "TR-021 · Reforma Oficina Centro", status: "3 hitos planificados", nextDecision: "Confirmar fecha de inicio", impact: "Agenda y responsables conectados", icon: BriefcaseBusiness },
+  { label: "Compras", summary: "Costes vinculados al trabajo", title: "Coste vinculado al trabajo", detail: "Cada compra conserva su origen y muestra la desviación frente a lo previsto.", outcome: "Total 1.840,50 €", context: "FR-882 · Materiales Levante Demo", status: "Vinculada al trabajo", nextDecision: "Validar base e IVA", impact: "+80,50 € sobre lo previsto", icon: ShoppingCart },
+  { label: "Factura", summary: "Borrador listo para revisar", title: "Factura preparada para revisar", detail: "El hito prepara el borrador, pero la factura no se emite hasta confirmar.", outcome: "F-2031 · 8.450 €", context: "Hito 2 · certificación parcial", status: "Borrador preparado", nextDecision: "Revisar destinatario y emitir", impact: "Vencimiento calculado a 30 días", icon: ReceiptText },
+  { label: "Cobro", summary: "Vencimiento y previsión de caja", title: "Vencimiento y caja bajo control", detail: "El vencimiento y su seguimiento completan el recorrido sin inventar cobros.", outcome: "Previsión tras emisión · 30 días", context: "F-2031 · Grupo Norte Demo", status: "Pendiente de emisión", nextDecision: "Confirmar factura o devolver a revisión", impact: "Previsión incorporada a tesorería", icon: WalletCards },
 ] as const;
 
 const FLOW_AUTOPLAY_MS = 6000;
+const FLOW_PANEL_ID = "flow-panel";
+const FLOW_STAGE_TITLE_ID = "flow-stage-title";
 
 export function PublicFlowShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -47,7 +51,7 @@ export function PublicFlowShowcase() {
   const [inViewport, setInViewport] = useState(false);
   const [playing, setPlaying] = useState(true);
   const sectionRef = useRef<HTMLElement | null>(null);
-  const trackRef = useRef<HTMLElement | null>(null);
+  const trackRef = useRef<HTMLOListElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const active = stages[activeIndex];
 
@@ -98,33 +102,43 @@ export function PublicFlowShowcase() {
     <section ref={sectionRef} id="flujos" className={styles.flowSection} aria-labelledby="flow-title">
       <div className={styles.sectionHeading}>
         <span>Producto en movimiento</span>
-        <h2 id="flow-title">Del primer contacto al cobro, todo sigue el mismo hilo.</h2>
-        <p>Orqena convierte conversaciones, documentos y tareas en un flujo claro: presupuesto, trabajo, coste, factura y cobro, sin perder contexto.</p>
+        <h2 id="flow-title">De cliente a cobro: todo el trabajo sigue el mismo hilo.</h2>
+        <p>Orqena conecta el seguimiento del cliente, los presupuestos, la ejecución, las compras, la facturación y los cobros. Cada paso conserva su documento de origen y requiere revisión antes de confirmar.</p>
         <button
           className={styles.flowPlayback}
           type="button"
+          aria-label={reducedMotion ? "Avance manual del recorrido" : "Reproducción automática del recorrido"}
+          aria-controls={FLOW_PANEL_ID}
+          aria-pressed={playing && !reducedMotion}
           onClick={() => setPlaying((current) => !current)}
           disabled={reducedMotion}
         >
-          {playing ? <><Pause />Pausar recorrido</> : <><Play />Reanudar recorrido</>}
+          {reducedMotion ? <><Play />Avance manual</> : playing ? <><Pause />Pausar recorrido</> : <><Play />Reanudar recorrido</>}
         </button>
       </div>
       <div className={styles.connectedFlow}>
-        <nav ref={trackRef} className={styles.connectedFlowTrack} aria-label="Recorrido de producto">
-          {stages.map(({ label, status, icon: Icon }, index) => (
-            <button ref={(node) => { buttonRefs.current[index] = node; }} key={label} type="button" aria-current={index === activeIndex ? "step" : undefined} onClick={() => select(index)}>
-              <span>{index < activeIndex || confirmed && index === activeIndex ? <CheckCircle2 /> : <Icon />}</span>
-              <strong>{label}</strong>
-              <small>{status}</small>
-              {index < stages.length - 1 ? <i aria-hidden="true"><b data-complete={index < activeIndex} /></i> : null}
-            </button>
+        <ol ref={trackRef} className={styles.connectedFlowTrack} aria-label="Proceso de trabajo en Orqena">
+          {stages.map(({ label, summary, icon: Icon }, index) => (
+            <li key={label}>
+              <button id={`flow-step-${index}`} ref={(node) => { buttonRefs.current[index] = node; }} type="button" aria-controls={FLOW_PANEL_ID} aria-current={index === activeIndex ? "step" : undefined} onClick={() => select(index)}>
+                <span>{index < activeIndex || confirmed && index === activeIndex ? <CheckCircle2 aria-hidden="true" /> : <Icon aria-hidden="true" />}</span>
+                <strong>{label}</strong>
+                <small>{summary}</small>
+                {index < stages.length - 1 ? <i aria-hidden="true"><b data-complete={index < activeIndex} /></i> : null}
+              </button>
+            </li>
           ))}
-        </nav>
-        <article className={styles.connectedFlowPanel} key={active.label}>
-          <div><span>{String(activeIndex + 1).padStart(2, "0")} · {active.label}</span><h3>{active.title}</h3><p>{active.detail}</p></div>
-          <dl><div><dt>Contexto</dt><dd>{active.context}</dd></div><div><dt>Estado</dt><dd>{active.status}</dd></div><div><dt>Próxima decisión</dt><dd>{active.nextDecision}</dd></div><div><dt>Impacto</dt><dd>{active.impact}</dd></div></dl>
-          <aside><small>Resultado preparado</small><strong>{active.outcome}</strong><em>{confirmed ? "Confirmación simulada · sin escribir datos" : "Pendiente de confirmación humana"}</em><button type="button" onClick={() => setConfirmed((current) => !current)}>{confirmed ? "Reabrir revisión" : "Revisar paso"}<ArrowRight /></button></aside>
+        </ol>
+        <article id={FLOW_PANEL_ID} role="region" aria-labelledby={FLOW_STAGE_TITLE_ID} className={styles.connectedFlowPanel} key={active.label}>
+          <div><span>{String(activeIndex + 1).padStart(2, "0")} · {active.label}</span><h3 id={FLOW_STAGE_TITLE_ID}>{active.title}</h3><p>{active.detail}</p></div>
+          <dl><div><dt>Entra</dt><dd>{active.context}</dd></div><div><dt>Orqena conecta</dt><dd>{active.status}</dd></div><div><dt>Tú decides</dt><dd>{active.nextDecision}</dd></div><div><dt>Sale preparado</dt><dd>{active.impact}</dd></div></dl>
+          <aside><small>Ejemplo con datos sintéticos</small><strong>{active.outcome}</strong><em>{confirmed ? "Confirmación simulada · sin escribir datos" : "Pendiente de confirmación humana"}</em><button type="button" onClick={() => setConfirmed((current) => !current)}>{confirmed ? "Reabrir simulación" : "Simular revisión"}<ArrowRight aria-hidden="true" /></button></aside>
         </article>
+      </div>
+      <div className={styles.flowActions}>
+        <Link className={styles.flowPrimaryCta} href="#como-funciona">Ver la demo guiada <ArrowRight aria-hidden="true" /></Link>
+        <Link className={styles.flowSecondaryCta} href="/contacto?motivo=demo">Solicitar demo privada</Link>
+        <p className={styles.flowTrust}>Datos sintéticos. Ninguna acción modifica tu negocio.</p>
       </div>
     </section>
   );

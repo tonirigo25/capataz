@@ -16,12 +16,10 @@ export const LAUNCH_MARKETING_PATHS = new Set([
   "/funcionalidades",
   "/para-autonomos",
   "/para-empresas",
-  "/contacto",
   "/legal/aviso-legal",
   "/legal/privacidad",
   "/legal/cookies",
   "/legal/terminos",
-  "/estado",
 ]);
 
 const PUBLIC_MARKETING_PREFIXES = [
@@ -29,10 +27,12 @@ const PUBLIC_MARKETING_PREFIXES = [
   "/soluciones",
   "/precios",
   "/empresa",
+  "/contacto",
   "/recursos",
   "/sectores",
   "/planes",
   "/seguridad",
+  "/estado",
   "/demo",
   "/privacidad",
   "/terminos",
@@ -191,7 +191,7 @@ function marketingDecision(pathname: string, search: string): HostRoutingDecisio
     return { action: "pass", site: "marketing" };
   }
   if (pathname === "/robots.txt" || pathname === "/sitemap.xml") {
-    return { action: "rewrite", pathname: internalMarketingPath(pathname), site: "marketing" };
+    return { action: "pass", site: "marketing" };
   }
   if (APP_PWA_PATHS.has(pathname) || pathname.startsWith("/api/")) {
     return { action: "reject", status: 404, site: "marketing" };

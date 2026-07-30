@@ -72,6 +72,12 @@ async function validateHosts() {
     action: "pass",
     site: "marketing",
   }, "marketing serves the canonical pricing page directly");
+  for (const pathname of ["/contacto", "/estado", "/robots.txt", "/sitemap.xml"]) {
+    equal(resolveHostRouting({ host: MARKETING_HOST, pathname, nodeEnv: "production" }), {
+      action: "pass",
+      site: "marketing",
+    }, `marketing serves canonical ${pathname} directly`);
+  }
   equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/media/marketing/orqena-video-01-35s.mp4", nodeEnv: "production" }), {
     action: "pass",
     site: "marketing",

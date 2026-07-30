@@ -54,7 +54,7 @@ const capabilityCards: ReadonlyArray<{
   },
   {
     id: "documentos-y-ocr",
-    aliases: ["capataz-ia"],
+    aliases: ["orqena-ia"],
     eyebrow: "Inteligencia",
     title: "Documentos que terminan en acción",
     text: "OCR e IA preparan datos, advertencias y borradores para que una persona confirme.",
@@ -107,26 +107,31 @@ function CapabilityOverview() {
 function FinalCta() {
   return (
     <section id="solicitar-acceso" className={styles.finalCta} aria-labelledby="final-cta-title">
-      <div className={styles.finalCtaCopy}>
-        <span>Demo privada, con datos aislados</span>
-        <h2 id="final-cta-title">Comprueba cómo encaja Orqena en tu forma de trabajar.</h2>
-        <p>Te preparamos un entorno con un caso parecido al de tu empresa para que veas clientes, obras, costes, documentos, facturas e IA funcionando de principio a fin.</p>
-        <div className={styles.finalCtaButtons}>
-          <Link className={styles.finalPrimary} href="/contacto?motivo=demo">Solicitar demo <ArrowRight /></Link>
-          <Link className={styles.finalSecondary} href="/demo#quick-demo">Probar demo guiada</Link>
+      <div className={styles.finalCtaHeader}>
+        <div className={styles.finalCtaHeading}>
+          <span>Demo privada, con datos aislados</span>
+          <h2 id="final-cta-title">Comprueba cómo encaja Orqena en tu forma de trabajar.</h2>
         </div>
-        <small>Al continuar aceptas que tratemos tu solicitud según nuestra <Link href="/privacidad">política de privacidad</Link>.</small>
+        <div className={styles.finalCtaBody}>
+          <p>Para autónomos y equipos de construcción que quieran evaluar Orqena con calma. Revisamos la solicitud y respondemos en menos de 24 horas laborables; si encaja, preparamos un entorno aislado sin conectar tus datos reales.</p>
+          <div className={styles.finalCtaButtons}>
+            <Link className={styles.finalPrimary} href="/contacto?motivo=demo">Solicitar demo <ArrowRight /></Link>
+            <Link className={styles.finalSecondary} href="/demo#quick-demo">Probar demo guiada</Link>
+          </div>
+          <small>Al continuar aceptas que tratemos tu solicitud según nuestra <Link href="/privacidad">política de privacidad</Link>.</small>
+        </div>
       </div>
       <div className={styles.finalCtaModule}>
-        <div><span>Entorno de evaluación controlado</span><strong>Prueba el flujo completo sin exponer tu negocio.</strong></div>
-        <p className={styles.finalCtaModuleIntro}>Podrás comprobar cómo se conectan las áreas principales y cómo Orqena IA prepara propuestas que siempre requieren supervisión humana.</p>
+        <div className={styles.finalCtaModuleLead}><span>Entorno de evaluación controlado</span><strong>Siete días para revisar el producto con un caso profesional.</strong><p className={styles.finalCtaModuleIntro}>Una persona podrá recorrer clientes, presupuestos, obras, agenda, documentos, gastos, facturas, tesorería y hasta 100 operaciones de Orqena IA, siempre con confirmación humana.</p></div>
         <ul aria-label="Qué podrás evaluar en la demo">
-          <li><strong>Flujo operativo</strong><span>clientes, trabajo, costes, documentos y cobros</span></li>
-          <li><strong>Orqena IA</strong><span>borradores y sugerencias bajo tu control</span></li>
-          <li><strong>Privacidad</strong><span>datos sintéticos aislados de tus sistemas</span></li>
-          <li><strong>Sin impacto real</strong><span>ninguna escritura en los datos de tu empresa</span></li>
+          <li><strong>7 días</strong><span>acceso temporal para una evaluación ordenada</span></li>
+          <li><strong>1 usuario</strong><span>un recorrido claro, sin compartir credenciales</span></li>
+          <li><strong>100 operaciones IA</strong><span>propuestas y borradores sujetos a revisión humana</span></li>
+          <li><strong>Flujo conectado</strong><span>del cliente al trabajo, el margen y el cobro</span></li>
+          <li><strong>Sin tarjeta</strong><span>no se solicitan datos de pago para la demo</span></li>
+          <li><strong>Sin cargos automáticos</strong><span>la evaluación no inicia una suscripción</span></li>
         </ul>
-        <p><ShieldCheck /> La demo no usa ni modifica información real de tu empresa. El acceso es limitado y tú decides si continuar.</p>
+        <p className={styles.finalCtaAssurance}><ShieldCheck /> Datos sintéticos, acceso controlado y ninguna escritura en tu negocio. Tras la solicitud recibirás una respuesta en menos de 24 horas laborables con el siguiente paso.</p>
       </div>
     </section>
   );
@@ -143,7 +148,7 @@ export function MarketingFooter() {
           <div><Link href="/soporte">Soporte</Link><Link href="/estado"><i />Todos los sistemas operativos</Link><span>ES · Español</span></div>
         </div>
         <FooterColumn title="Producto" links={[["Producto", "/producto"], ["Funcionalidades", "/funcionalidades"], ["Demo", "/demo"], ["Precios", "/precios"]]} />
-        <FooterColumn title="Soluciones" links={[["Todas las soluciones", "/soluciones"], ["Autónomos", "/soluciones/autonomos"], ["Empresas", "/soluciones/pymes-construccion"], ["Trabajo y obra", "/soluciones/control-de-obras"]]} />
+        <FooterColumn title="Soluciones" links={[["Todas las soluciones", "/soluciones"], ["Autónomos", "/para-autonomos"], ["Empresas", "/para-empresas"], ["Trabajo y obra", "/soluciones/obras-y-trabajo"]]} />
         <FooterColumn title="Empresa" links={[["Quiénes somos", "/empresa"], ["Contacto", "/contacto"], ["Seguridad", "/seguridad"], ["Estado", "/estado"]]} />
         <FooterColumn title="Recursos" links={[["Centro de recursos", "/recursos"], ["Cómo funciona", "/#como-funciona"], ["Centro de ayuda", "/soporte"], ["Entrar", "https://app.orqenatech.com/login"]]} />
         <FooterColumn title="Legal" links={[["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Aviso legal", "/legal/aviso-legal"]]} />

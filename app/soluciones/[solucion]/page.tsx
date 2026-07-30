@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, ShieldCheck, UsersRound } from "lucide-react"
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { Process, R4CTA, R4FAQ, R4Hero, R4Section, SolutionInterface, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, faqPage, softwareApplication, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 import { getMarketingSolution, marketingSolutions } from "@/lib/marketing/solutions";
 
@@ -20,6 +21,11 @@ export default async function SolutionPage({ params }: { params: Promise<{ soluc
   const { solucion } = await params; const item = getMarketingSolution(solucion); if (!item) notFound();
   const related = item.related.map((slug) => getMarketingSolution(slug)).filter((solution): solution is NonNullable<typeof solution> => Boolean(solution));
   return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      softwareApplication(`/soluciones/${item.slug}`, item.title, item.outcome),
+      breadcrumbList([["Inicio", ""], ["Soluciones", "/soluciones"], [item.title, `/soluciones/${item.slug}`]]),
+      faqPage(item.faq),
+    )} />
     <R4Hero current={item.title} parent={["Soluciones", "/soluciones"]} eyebrow={item.eyebrow} title={item.title} description={item.outcome} actions={<><Link href="/contacto?motivo=demo">Solicitar demo<ArrowRight aria-hidden="true" /></Link><Link href="/demo">Ver demo guiada</Link></>} visual={<SolutionInterface solution={item} />} />
     <R4Section eyebrow="EL PROBLEMA" title="El contexto se rompe antes de la decisión." description={item.problem}><div className={styles.editorialGrid}><h3>Orqena convierte información dispersa en un recorrido revisable.</h3><div><article><h4>Resultado visible</h4><p>{item.outcome}</p></article><article><h4>Evidencia en la interfaz</h4><p>{item.proof}</p></article></div></div></R4Section>
     <R4Section tone="soft" eyebrow="FLUJO COMPLETO" title="Cinco estados con responsable y siguiente paso." description="Cada etapa conserva su origen. No hay saltos automáticos sobre decisiones sensibles."><Process steps={item.steps} /></R4Section>
