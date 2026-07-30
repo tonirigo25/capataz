@@ -1,0 +1,95 @@
+name: Build Orqena PR63 correction package
+
+on:
+  push:
+    branches:
+      - artifacts/orqena-pr63-correction-package-2026-07-30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-package:
+    if: ${{ !contains(github.event.head_commit.message, '[package-built]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout package branch
+        uses: actions/checkout@v4
+        with:
+          ref: artifacts/orqena-pr63-correction-package-2026-07-30
+          fetch-depth: 0
+
+      - name: Download canonical visual references
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifact-package/referencias_visuales dist
+
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://cdn.creativeclaw.co/u/0410d6f9/images/449ecc6a-6aca-47bb-9f80-f00f4001e16f.png' \
+            --output artifact-package/referencias_visuales/01_PORTADA_FINAL_OSCURA.png
+
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://cdn.creativeclaw.co/u/0410d6f9/images/311ff84c-dc8e-4379-96fc-b17962c767da.png' \
+            --output artifact-package/referencias_visuales/02_PORTAL_INTERNO_CLARO.png
+
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://cdn.creativeclaw.co/u/0410d6f9/images/cf8b40cb-ced8-464c-b51a-925d6f650a5e.png' \
+            --output artifact-package/referencias_visuales/03_MENU_MOVIL_PLANTILLAS.png
+
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://cdn.creativeclaw.co/u/0410d6f9/images/b180b496-ed37-482e-a602-534f6660673a.png' \
+            --output artifact-package/referencias_visuales/04_PRESENTACION_GENERAL.png
+
+          cat > artifact-package/referencias_visuales/00_MAPA_REFERENCIAS.md <<'EOF'
+          # MAPA DE REFERENCIAS
+
+          1. `01_PORTADA_FINAL_OSCURA.png`: portada, hero, proporciones y dirección principal.
+          2. `02_PORTAL_INTERNO_CLARO.png`: portal, dashboard, sidebar y panel IA.
+          3. `03_MENU_MOVIL_PLANTILLAS.png`: mega menú, móvil, facturas y plantillas.
+          4. `04_PRESENTACION_GENERAL.png`: conjunto, pops IA y vistas complementarias.
+
+          No copiar marcas, clientes, cifras ni textos ficticios. Usar composición, jerarquía, densidad y patrones de interacción.
+          EOF
+
+      - name: Validate images and build manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find artifact-package/referencias_visuales -maxdepth 1 -name '*.png' | wc -l)" -eq 4
+          find artifact-package -type f -print0 | sort -z | xargs -0 sha256sum > artifact-package/MANIFEST_SHA256.txt
+
+      - name: Build ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip
+          zip -9 -r dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip artifact-package
+          unzip -t dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip
+          sha256sum dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip > dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip.sha256
+          printf 'Package built from commit %s at %s\n' "$GITHUB_SHA" "$(date -u +%FT%TZ)" > BUILD_COMPLETE.txt
+
+      - name: Commit generated images and ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'orqena-package-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add artifact-package/referencias_visuales artifact-package/MANIFEST_SHA256.txt dist BUILD_COMPLETE.txt
+          if git diff --cached --quiet; then
+            echo 'Package already current.'
+          else
+            git commit -m 'chore: publish PR63 correction ZIP [package-built]'
+            git push origin HEAD:artifacts/orqena-pr63-correction-package-2026-07-30
+          fi
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30
+          path: |
+            dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip
+            dist/ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
