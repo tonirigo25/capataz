@@ -38,7 +38,7 @@ check("header-mobile-and-final-demo-cta", () => {
 check("audio-copy-is-honest", () => {
   const hero = read("app/marketing-v2/_components/hero-demo.tsx");
   assert.ok(hero.includes("Gestiona tu empresa."));
-  assert.ok(hero.includes("Capataz prepara; tú revisas y confirmas."));
+  assert.ok(hero.includes("Orqena prepara; tú revisas y confirmas."));
   assert.ok(hero.includes("Datos aislados"));
 });
 check("quick-and-deep-demo-preserved", () => {

@@ -28,7 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import styles from "./public-home.module.css";
 import { InteractiveProductChart } from "./interactive-product-chart";
 import { BrandMark } from "@/components/brand/brand-mark";
@@ -66,7 +66,6 @@ const HERO_FIRST_PAUSE_MS = 3000;
 
 export function HeroDemo() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("hoy");
-  const [paused, setPaused] = useState(false);
   const [inViewport, setInViewport] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [cycle, setCycle] = useState(0);
@@ -92,7 +91,7 @@ export function HeroDemo() {
   }, []);
 
   useEffect(() => {
-    if (paused || reducedMotion || !inViewport) return;
+    if (reducedMotion || !inViewport) return;
     const delay = autoplayStarted ? HERO_AUTOPLAY_MS : HERO_FIRST_PAUSE_MS;
     const timer = window.setTimeout(() => {
       const currentIndex = workspaceTabs.findIndex(({ id }) => id === activeWorkspace);
@@ -101,7 +100,7 @@ export function HeroDemo() {
       setCycle((current) => current + 1);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [activeWorkspace, autoplayStarted, cycle, inViewport, paused, reducedMotion]);
+  }, [activeWorkspace, autoplayStarted, cycle, inViewport, reducedMotion]);
 
   const selectTab = (index: number, focus = false, manual = false) => {
     const next = workspaceTabs[index];
@@ -123,10 +122,6 @@ export function HeroDemo() {
     if (nextIndex === null) return;
     event.preventDefault();
     selectTab(nextIndex, true, true);
-  };
-
-  const handleShowcaseBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
   };
 
   return (
@@ -157,7 +152,7 @@ export function HeroDemo() {
           </ul>
         </div>
 
-        <div ref={showcaseRef} className={styles.productShowcase} aria-label="Vista interactiva de Orqena con datos de ejemplo" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={handleShowcaseBlur}>
+        <div ref={showcaseRef} className={styles.productShowcase} aria-label="Vista interactiva de Orqena con datos de ejemplo">
           <div className={styles.productTabs} role="tablist" aria-label="Áreas de Orqena">
             {workspaceTabs.map(({ id, label, icon: Icon }, index) => {
               const selected = activeWorkspace === id;

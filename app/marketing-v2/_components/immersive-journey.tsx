@@ -21,34 +21,43 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import styles from "./public-home.module.css";
 
-type Scene = { label: string; input: string; prepared: string; decision: string; status: string };
+type Scene = {
+  label: string;
+  input: string;
+  prepared: string;
+  decision: string;
+  status: string;
+  context: string;
+  metric: readonly [string, string];
+  nextAction: string;
+};
 type Stage = { id: string; label: string; title: string; outcome: string; action: string; icon: LucideIcon; scenes: readonly [Scene, Scene, Scene] };
 
 const stages: readonly Stage[] = [
   { id: "contacto", label: "Contacto", title: "De una llamada a una visita preparada.", outcome: "Oportunidad preparada", action: "Confirmar visita", icon: Building2, scenes: [
-    { label: "Entrada", input: "Audio de 46 s · cliente nuevo", prepared: "Nombre, necesidad y dirección", decision: "Revisar datos extraídos", status: "Conversación recibida" },
-    { label: "Contexto", input: "Reforma integral de oficina", prepared: "Cliente y oportunidad relacionados", decision: "Elegir responsable", status: "Contexto conectado" },
-    { label: "Siguiente paso", input: "Disponibilidad del viernes", prepared: "Visita · 10:30", decision: "Confirmar fecha", status: "Visita lista" },
+    { label: "Entrada", input: "Audio de 46 s · cliente nuevo", prepared: "Nombre, necesidad y dirección", decision: "Revisar datos extraídos", status: "Conversación recibida", context: "Grupo Norte Demo · oficina", metric: ["Datos detectados", "6 de 7"], nextAction: "Resolver el teléfono pendiente" },
+    { label: "Contexto", input: "Reforma integral de oficina", prepared: "Cliente y oportunidad relacionados", decision: "Elegir responsable", status: "Contexto conectado", context: "Oportunidad · Reforma Oficina Centro", metric: ["Valor orientativo", "24.600 €"], nextAction: "Asignar responsable comercial" },
+    { label: "Siguiente paso", input: "Disponibilidad del viernes", prepared: "Visita · 10:30", decision: "Confirmar fecha", status: "Visita lista", context: "Marta Ruiz · agenda comercial", metric: ["Tiempo reservado", "45 min"], nextAction: "Confirmar visita con el cliente" },
   ] },
   { id: "presupuesto", label: "Presupuesto", title: "De la visita a una propuesta con margen.", outcome: "Propuesta revisable", action: "Revisar dudas", icon: CircleDollarSign, scenes: [
-    { label: "Mediciones", input: "Notas y 12 partidas", prepared: "Base de 19.840 €", decision: "Comprobar cantidades", status: "Partidas ordenadas" },
-    { label: "Margen", input: "Coste y precio previstos", prepared: "24.600 € · margen 28,4 %", decision: "Aceptar objetivo", status: "Margen visible" },
-    { label: "Revisión", input: "Plazo y forma de pago", prepared: "Dos dudas señaladas", decision: "Resolver antes de enviar", status: "Borrador seguro" },
+    { label: "Mediciones", input: "Notas de visita y 12 partidas", prepared: "Capítulos, unidades y cantidades", decision: "Comprobar mediciones", status: "Partidas ordenadas", context: "Presupuesto PR-104 · versión 2", metric: ["Coste base", "19.840 €"], nextAction: "Revisar 2 cantidades señaladas" },
+    { label: "Margen", input: "Coste y precio previstos", prepared: "Precio objetivo y desviaciones", decision: "Aceptar objetivo", status: "Margen visible", context: "Reforma Oficina Centro", metric: ["Margen previsto", "28,4 %"], nextAction: "Confirmar precio de 24.600 €" },
+    { label: "Revisión", input: "Plazo y forma de pago", prepared: "Dos dudas antes del envío", decision: "Resolver antes de compartir", status: "Propuesta revisable", context: "Cliente · Grupo Norte Demo", metric: ["Importe", "24.600 €"], nextAction: "Resolver plazo y primer pago" },
   ] },
   { id: "trabajo", label: "Trabajo", title: "De lo vendido a una obra coordinada.", outcome: "Plan coordinado", action: "Revisar plan", icon: ClipboardList, scenes: [
-    { label: "Plan", input: "Presupuesto PR-104 aceptado", prepared: "3 hitos · 14 tareas", decision: "Confirmar calendario", status: "Plan generado" },
-    { label: "Equipo", input: "4 responsables disponibles", prepared: "Carga y agenda relacionadas", decision: "Confirmar asignaciones", status: "Equipo coordinado" },
-    { label: "Incidencia", input: "Material incompleto", prepared: "Impacto sobre el hito", decision: "Elegir respuesta", status: "Riesgo visible" },
+    { label: "Plan", input: "Presupuesto PR-104 aceptado", prepared: "3 hitos y 14 tareas enlazadas", decision: "Confirmar calendario", status: "Plan generado", context: "Trabajo TR-021 · Oficina Centro", metric: ["Duración prevista", "18 días"], nextAction: "Validar inicio el 5 de agosto" },
+    { label: "Equipo", input: "4 responsables disponibles", prepared: "Carga y agenda relacionadas", decision: "Confirmar asignaciones", status: "Equipo coordinado", context: "Hito 1 · Preparación", metric: ["Carga asignada", "32 h"], nextAction: "Confirmar 4 responsables" },
+    { label: "Incidencia", input: "Material incompleto", prepared: "Impacto sobre el hito y alternativas", decision: "Elegir respuesta", status: "Riesgo visible", context: "Hito 2 · Instalación", metric: ["Impacto estimado", "+1 día"], nextAction: "Reprogramar o cambiar proveedor" },
   ] },
   { id: "compras", label: "Compras", title: "De una factura al margen correcto.", outcome: "Coste validado", action: "Validar datos", icon: ReceiptText, scenes: [
-    { label: "Documento", input: "Factura FR-882 · 2 páginas", prepared: "Proveedor e importe extraídos", decision: "Comprobar original", status: "Documento leído" },
-    { label: "Relación", input: "1.840,50 € · IVA 21 %", prepared: "Obra Costa Norte encontrada", decision: "Confirmar vínculo", status: "Coste relacionado" },
-    { label: "Desviación", input: "Compra prevista: 1.760 €", prepared: "+80,50 € de desviación", decision: "Aceptar o revisar", status: "Margen actualizado" },
+    { label: "Documento", input: "Factura FR-882 · 2 páginas", prepared: "Proveedor, fecha e importes extraídos", decision: "Comprobar original", status: "Documento leído", context: "Materiales Levante Demo", metric: ["Total", "1.840,50 €"], nextAction: "Revisar base e IVA detectados" },
+    { label: "Relación", input: "Total 1.840,50 € · IVA 21 %", prepared: "Trabajo y pedido compatibles", decision: "Confirmar vínculo", status: "Coste relacionado", context: "Trabajo TR-021 · pedido P-188", metric: ["Coincidencia", "98 %"], nextAction: "Relacionar con Oficina Centro" },
+    { label: "Desviación", input: "Compra prevista: 1.760 €", prepared: "+80,50 € y efecto sobre margen", decision: "Aceptar o revisar", status: "Margen actualizado", context: "Capítulo · Material eléctrico", metric: ["Desviación", "+4,6 %"], nextAction: "Solicitar explicación al responsable" },
   ] },
   { id: "cobro", label: "Cobro", title: "Del hito al vencimiento bajo control.", outcome: "Caja prevista", action: "Revisar factura", icon: WalletCards, scenes: [
-    { label: "Hito", input: "Certificación parcial", prepared: "8.450 € facturables", decision: "Confirmar trabajo", status: "Hito listo" },
-    { label: "Factura", input: "Cliente y datos fiscales", prepared: "F-2031 preparada", decision: "Revisar destinatario", status: "Factura revisable" },
-    { label: "Vencimiento", input: "Condición de pago a 30 días", prepared: "Cobro previsto · 30 ago", decision: "Confirmar emisión", status: "Caja proyectada" },
+    { label: "Hito", input: "Certificación parcial confirmable", prepared: "Trabajo ejecutado y partidas facturables", decision: "Confirmar ejecución", status: "Hito listo", context: "Trabajo TR-021 · hito 2", metric: ["Facturable", "8.450 €"], nextAction: "Confirmar avance del 65 %" },
+    { label: "Factura", input: "Cliente, dirección y datos fiscales", prepared: "Borrador F-2031 con trazabilidad", decision: "Revisar destinatario", status: "Factura revisable", context: "Grupo Norte Demo · PR-104", metric: ["Importe", "8.450 €"], nextAction: "Revisar antes de emitir" },
+    { label: "Vencimiento", input: "Condición de pago a 30 días", prepared: "Previsión de cobro y recordatorio", decision: "Confirmar emisión", status: "Caja proyectada", context: "Tesorería · agosto", metric: ["Cobro previsto", "30 ago"], nextAction: "Emitir o devolver a revisión" },
   ] },
 ] as const;
 
@@ -127,6 +136,6 @@ export function ImmersiveJourney() {
 
 function StagePreview({ stageIndex, sceneIndex, actionState }: { stageIndex: number; sceneIndex: number; actionState: string }) {
   const stage = stages[stageIndex]; const scene = stage.scenes[sceneIndex]; const Icon = stage.icon;
-  const metrics = stageIndex === 0 ? [["Cliente", "Grupo Norte Demo"], ["Responsable", "Marta López"], ["Próxima acción", "Visita · viernes 10:30"]] : stageIndex === 1 ? [["Partidas", "12"], ["Presupuesto", "24.600 €"], ["Margen", "28,4 %"]] : stageIndex === 2 ? [["Hitos", "3"], ["Tareas", "14"], ["Progreso", "64 %"]] : stageIndex === 3 ? [["Proveedor", "Suministros Norte"], ["Total", "1.840,50 €"], ["Confianza", "98 %"]] : [["Factura", "F-2031"], ["Importe", "8.450 €"], ["Vencimiento", "30 ago"]];
-  return <div className={styles.stagePreview}><header className={styles.previewHeader}><span><Icon />{scene.status}</span><em>Escena {sceneIndex + 1}/3</em></header><div className={styles.previewRows}>{metrics.map(([label, value]) => <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div><div className={styles.previewNotice}><FileCheck2 /><span><strong>{stage.outcome}</strong><small>{actionState}</small></span></div></div>;
+  const metrics = [["Estado", scene.status], ["Contexto", scene.context], [scene.metric[0], scene.metric[1]]] as const;
+  return <div className={styles.stagePreview}><header className={styles.previewHeader}><span><Icon />{stage.label} · {scene.label}</span><em>Escena {sceneIndex + 1}/3</em></header><div className={styles.previewRows}>{metrics.map(([label, value]) => <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div><div className={styles.previewNotice}><FileCheck2 /><span><strong>Próxima acción</strong><small>{scene.nextAction}</small></span><em title={actionState}>{stage.outcome}</em></div></div>;
 }

@@ -118,16 +118,15 @@ function FinalCta() {
         <small>Al continuar aceptas que tratemos tu solicitud según nuestra <Link href="/privacidad">política de privacidad</Link>.</small>
       </div>
       <div className={styles.finalCtaModule}>
-        <div><span>Tu demo incluye</span><strong>Un espacio privado para probar de verdad.</strong></div>
-        <ul>
-          <li><strong>7 días</strong><span>de acceso guiado</span></li>
-          <li><strong>1 usuario</strong><span>con datos aislados</span></li>
-          <li><strong>100 operaciones de IA</strong><span>supervisadas</span></li>
-          <li><strong>Sin tarjeta</strong><span>ni compromiso</span></li>
-          <li><strong>Sin cargos automáticos</strong><span>tú decides</span></li>
-          <li><strong>&lt; 24 h laborables</strong><span>respuesta personal</span></li>
+        <div><span>Entorno de evaluación controlado</span><strong>Prueba el flujo completo sin exponer tu negocio.</strong></div>
+        <p className={styles.finalCtaModuleIntro}>Podrás comprobar cómo se conectan las áreas principales y cómo Orqena IA prepara propuestas que siempre requieren supervisión humana.</p>
+        <ul aria-label="Qué podrás evaluar en la demo">
+          <li><strong>Flujo operativo</strong><span>clientes, trabajo, costes, documentos y cobros</span></li>
+          <li><strong>Orqena IA</strong><span>borradores y sugerencias bajo tu control</span></li>
+          <li><strong>Privacidad</strong><span>datos sintéticos aislados de tus sistemas</span></li>
+          <li><strong>Sin impacto real</strong><span>ninguna escritura en los datos de tu empresa</span></li>
         </ul>
-        <p><ShieldCheck /> Datos sintéticos, acceso controlado y cero escrituras en tu negocio.</p>
+        <p><ShieldCheck /> La demo no usa ni modifica información real de tu empresa. El acceso es limitado y tú decides si continuar.</p>
       </div>
     </section>
   );

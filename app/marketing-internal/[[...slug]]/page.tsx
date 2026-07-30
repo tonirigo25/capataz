@@ -15,6 +15,7 @@ import { LaunchContactForm } from "@/components/marketing/launch-contact-form";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { PublicCTA, PublicFeatureGrid, PublicPageHero, PublicProductPreview, PublicSection } from "@/components/marketing/public-ui";
 import { getLegalConfiguration } from "@/lib/marketing/legal";
+import { brand } from "@/lib/brand";
 import { HeroDemo } from "@/app/marketing-v2/_components/hero-demo";
 import { LandingSections, MarketingFooter as FieldOsMarketingFooter } from "@/app/marketing-v2/_components/landing-sections";
 import { MarketingHeader as FieldOsMarketingHeader } from "@/app/marketing-v2/_components/marketing-header";
@@ -32,7 +33,7 @@ const pages: Record<string, PageDefinition> = {
     description: "Orqena conecta clientes, trabajo, documentos y control económico con confirmación humana.",
   },
   "/capataz": {
-    title: "Orqena",
+    title: brand.productName,
     description: "El producto de Orqena Tech para mantener clientes, trabajos, documentos y dinero en contexto.",
   },
   "/funcionalidades": {
@@ -102,7 +103,7 @@ function HomePage() {
   const legal = getLegalConfiguration();
   const structuredData = [
     legal.entityName ? { "@type": "Organization", name: legal.entityName, url: MARKETING_URL } : null,
-    { "@type": "SoftwareApplication", name: "Orqena", applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${MARKETING_URL}/producto` },
+    { "@type": "SoftwareApplication", name: brand.productName, applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${MARKETING_URL}/producto` },
   ].filter(Boolean);
   return (
     <div className={fieldOsStyles.page} id="top">

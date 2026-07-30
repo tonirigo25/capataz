@@ -126,7 +126,7 @@ export function PlaybackControls({
 
 export function DemoController({
   labels,
-  interval = 3200,
+  interval = 3000,
   autoplay = false,
   children,
 }: {

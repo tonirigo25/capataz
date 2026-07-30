@@ -35,9 +35,9 @@ const FLOW_AUTOPLAY_MS = 3000;
 
 export function PublicFlowShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [cycle, setCycle] = useState(0);
   const active = stages[activeIndex];
 
   useEffect(() => {
@@ -49,17 +49,18 @@ export function PublicFlowShowcase() {
   }, []);
 
   useEffect(() => {
-    if (paused || reducedMotion) return;
+    if (reducedMotion) return;
     const timer = window.setTimeout(() => {
       setActiveIndex((current) => (current + 1) % stages.length);
       setConfirmed(false);
     }, FLOW_AUTOPLAY_MS);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, paused, reducedMotion]);
+  }, [activeIndex, cycle, reducedMotion]);
 
   const select = (index: number) => {
     setActiveIndex(index);
     setConfirmed(false);
+    setCycle((current) => current + 1);
   };
 
   return (
@@ -69,7 +70,7 @@ export function PublicFlowShowcase() {
         <h2 id="flow-title">Del primer contacto al cobro, todo sigue el mismo hilo.</h2>
         <p>Orqena convierte conversaciones, documentos y tareas en un flujo claro: presupuesto, trabajo, coste, factura y cobro, sin perder contexto.</p>
       </div>
-      <div className={styles.connectedFlow} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
+      <div className={styles.connectedFlow}>
         <nav className={styles.connectedFlowTrack} aria-label="Recorrido de producto">
           {stages.map(({ label, icon: Icon }, index) => (
             <button key={label} type="button" aria-current={index === activeIndex ? "step" : undefined} onClick={() => select(index)}>

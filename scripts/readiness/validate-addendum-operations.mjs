@@ -7,7 +7,7 @@ const read = (path) => readFileSync(join(root, path), "utf8");
 assert.equal(existsSync(join(root, "app/.well-known/security.txt/route.ts")), true);
 assert.equal(existsSync(join(root, "public/.well-known/security.txt")), false);
 assert.ok(read("docs/runbooks/RESPONSIBLE_DISCLOSURE.md").includes("Private Vulnerability Reporting"));
-assert.ok(read("app/seguridad/page.tsx").includes("security/advisories/new"));
+assert.ok(read("app/seguridad/page.tsx").includes("/.well-known/security.txt"));
 
 const providers = read("docs/runbooks/PROVIDER_DEGRADATION.md");
 for (const token of ["EMAIL_LIVE_ENABLED=false", "BILLING_ENABLED=false", "FISCAL_ENGINE_ENABLED=false", "AI_ENABLED=false", "ANALYTICS_ENABLED=false"]) {
