@@ -29,13 +29,14 @@ check("private-beta-capture-targets-contact", () => {
 });
 check("header-mobile-and-final-demo-cta", () => {
   const header = read("app/marketing-v2/_components/marketing-header.tsx");
-  for (const label of ["Cómo funciona", "Resultados", "Para quién", "Confianza", "Entrar", "Ver demo"]) assert.ok(header.includes(label), label);
-  assert.ok(header.match(/href="\/demo#quick-demo"/gu)?.length >= 2);
+  for (const label of ["Producto", "Soluciones", "Precios", "Recursos", "Empresa", "Iniciar sesión", "Solicitar demo"]) assert.ok(header.includes(label), label);
+  assert.ok(header.match(/href="\/demo#solicitar-acceso"/gu)?.length >= 2);
   assert.ok(landing.includes('href="#solicitar-acceso">Solicitar acceso'));
 });
 check("audio-copy-is-honest", () => {
   const hero = read("app/marketing-v2/_components/hero-demo.tsx");
-  assert.ok(hero.includes("Del audio en la obra al cobro."));
+  assert.ok(hero.includes("Lo que ocurre en obra se convierte en control."));
+  assert.ok(hero.includes("La persona confirma siempre"));
   assert.ok(hero.includes("Demo con datos de ejemplo. Nada se guarda ni se envía."));
 });
 check("quick-and-deep-demo-preserved", () => {
