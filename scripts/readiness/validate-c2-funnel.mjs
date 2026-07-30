@@ -19,8 +19,10 @@ const funnelApi = read("app/api/metrics/funnel/route.ts");
 const analytics = read("lib/product/analytics.ts");
 const platform = read("app/(app)/plataforma/page.tsx");
 
-check("canonical-home-uses-persistent-form", () => {
-  assert.ok(landing.includes('<DemoRequestForm kind="home" />'));
+check("canonical-home-uses-private-demo-entry", () => {
+  assert.ok(landing.includes('href="/contacto?motivo=demo">Solicitar demo'));
+  assert.ok(landing.includes('href="/demo#quick-demo">Probar demo guiada'));
+  assert.equal(landing.includes('<DemoRequestForm kind="home" />'), false);
   assert.equal(existsSync(join(root, "app/marketing-v2/_components/local-access-form.tsx")), false);
 });
 check("private-beta-capture-targets-contact", () => {
@@ -31,7 +33,7 @@ check("header-mobile-and-final-demo-cta", () => {
   const header = read("app/marketing-v2/_components/marketing-header.tsx");
   for (const label of ["Producto", "Soluciones", "Precios", "Recursos", "Empresa", "Iniciar sesión", "Solicitar demo"]) assert.ok(header.includes(label), label);
   assert.ok((header.match(/href="\/contacto\?motivo=demo"/gu)?.length ?? 0) >= 3);
-  assert.ok(landing.includes('href="#solicitar-acceso">Solicitar acceso'));
+  assert.ok(landing.includes('href="/contacto?motivo=demo">Solicitar demo'));
 });
 check("audio-copy-is-honest", () => {
   const hero = read("app/marketing-v2/_components/hero-demo.tsx");
