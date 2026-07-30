@@ -64,6 +64,12 @@ La matriz D10 cubre:
 El detalle machine-readable se conserva bajo
 `artifacts/design-v2/d10-public-9e86a799/`.
 
+La primera ejecución exhaustiva detectó contraste en demo/beta/precios,
+objetivos táctiles en Seguridad y una medición LCP posterior a una interacción.
+Se corrigieron con tokens AA, objetivos de 44 px y separación de LCP/CLS frente
+a INP. La ejecución focal posterior valida los mismos selectores en el SHA
+final.
+
 ## QA autenticada
 
 La matriz autenticada usa únicamente usuarios sintéticos de Review y cubre:
@@ -81,6 +87,11 @@ La matriz autenticada usa únicamente usuarios sintéticos de Review y cubre:
 
 Las credenciales se leen del entorno autenticado y no se escriben en los
 artefactos, repositorio o logs.
+
+La primera ejecución autenticada detectó el verde de éxito sobre blanco y
+`greenSoft` por debajo de AA en dashboard/agenda. El token semántico de texto de
+éxito se separó del verde de marca y se fijó en un valor AA sobre ambas
+superficies.
 
 ## Interacción comprobada
 

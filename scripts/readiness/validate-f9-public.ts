@@ -39,7 +39,10 @@ for (const stage of journey) check(`journey-${stage}`, landing.includes(`id: "${
 check("journey-seven-stages", (landing.match(/\n\s+id: "(?:lead|visita|presupuesto|trabajo|gasto|factura|cobro)"/g) ?? []).length === 7);
 const guided = source("app/demo-v2/_components/guided-demo.tsx");
 check("demo-seven-minute-story", guided.includes("Demostración guiada · 7 minutos") && guided.includes("lead-visita-presupuesto-trabajo-gasto-factura-cobro"));
-check("public-vertical-first", source("app/marketing-v2/_components/hero-demo.tsx").includes("Sistema operativo para obra y reformas"));
+check(
+  "public-vertical-first",
+  source("app/marketing-v2/_components/hero-demo.tsx").includes("Lo que ocurre en obra se convierte en control."),
+);
 check("internal-multisector-catalog-preserved", source("lib/marketing/catalog.ts").includes("marketingSectorCatalog"));
 
 const brand = source("lib/config/brand.ts");

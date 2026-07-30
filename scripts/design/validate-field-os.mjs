@@ -79,6 +79,7 @@ const tokenMappings = [
 ];
 
 const semanticTokenMappings = [
+  ["--fos-color-success-text-aa", tokens.semanticColor.successText.value],
   ["--fos-color-text-muted-aa", tokens.semanticColor.textMuted.value],
   ["--fos-color-warning-text-aa", tokens.semanticColor.warningText.value],
   ["--fos-color-danger-text-aa", tokens.semanticColor.dangerText.value],
@@ -89,6 +90,11 @@ for (const [name, expected] of [...tokenMappings, ...semanticTokenMappings]) {
   pass(`token ${name}`, normalize(actual) === normalize(expected), `expected ${expected}, received ${actual ?? "missing"}`);
 }
 
+pass(
+  "semantic success text meets AA on surfaces",
+  contrastRatio(tokens.semanticColor.successText.value, tokens.color.surface.value) >= 4.5
+    && contrastRatio(tokens.semanticColor.successText.value, tokens.color.greenSoft.value) >= 4.5,
+);
 pass(
   "semantic muted text meets AA on application canvases",
   contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.stone.value) >= 4.5

@@ -189,7 +189,13 @@ async function stateOf(page) {
     ...state,
     axeBlocking: axe.violations
       .filter(({ impact }) => impact === "critical" || impact === "serious")
-      .map(({ id, impact, nodes }) => ({ id, impact, nodes: nodes.length })),
+      .map(({ id, impact, nodes }) => ({
+        id,
+        impact,
+        nodes: nodes.length,
+        targets: nodes.map((node) => node.target),
+        failureSummaries: nodes.map((node) => sanitize(node.failureSummary ?? "")),
+      })),
   };
 }
 

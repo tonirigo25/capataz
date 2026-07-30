@@ -3,6 +3,7 @@ import { brandConfig } from "@/lib/config/brand";
 export const brand = {
   ...brandConfig,
   legalName: brandConfig.legalEntityName,
+  productSignature: `${brandConfig.legacyAliases[0]}, by ${brandConfig.wordmark}`,
   metadata: {
     title: `${brandConfig.productName} — ${brandConfig.tagline}`,
     titleTemplate: `%s · ${brandConfig.productName}`,

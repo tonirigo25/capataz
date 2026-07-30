@@ -34,7 +34,8 @@ check(
 );
 check(
   "hero V2 exacto",
-  hero.includes("Capataz, by Orqena · Field OS")
+  hero.includes("brand.productSignature")
+    && hero.includes("· Field OS")
     && hero.includes("Lo que ocurre en obra se convierte en control.")
     && hero.includes("Clientes, presupuestos, costes, documentos, facturas y cobros conectados.")
     && hero.includes("prepara. Tú revisas y confirmas."),

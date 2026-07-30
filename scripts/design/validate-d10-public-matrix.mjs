@@ -459,17 +459,20 @@ for (const engine of engines) {
       const response = await page.goto(`${origin}/`, { waitUntil: "domcontentloaded", timeout: 60_000 });
       await settle(page);
       await page.waitForTimeout(1_500);
+      const preInteractionVitals = await page.evaluate(() => ({
+        LCP: window.__d10Vitals?.lcp ?? null,
+        CLS: window.__d10Vitals?.cls ?? null,
+      }));
       const safeInteraction = page.locator("summary:visible").first();
       if (await safeInteraction.count()) {
         await safeInteraction.click();
         await page.waitForTimeout(250);
       }
-      const vitals = await page.evaluate(() => ({
-        LCP: window.__d10Vitals?.lcp ?? null,
-        CLS: window.__d10Vitals?.cls ?? null,
+      const postInteractionVitals = await page.evaluate(() => ({
         INP: window.__d10Vitals?.inp ?? null,
         INPUpperBound: window.__d10Vitals?.inp === null ? 16 : null,
       }));
+      const vitals = { ...preInteractionVitals, ...postInteractionVitals };
       const caseKey = `chromium:performance:run-${run}`;
       if (response?.status() !== 200) findings.push(`${caseKey}:HTTP_${response?.status() ?? 0}`);
       if (diagnostics.events.length) findings.push(`${caseKey}:DIAGNOSTICS_${diagnostics.events.length}`);

@@ -179,7 +179,7 @@ function MegaMenu({
   return (
     <div id={id} className={styles.megaMenu} role="group" aria-label={title}>
       <div className={styles.megaMenuHeading}>
-        <span>Capataz, by Orqena</span>
+        <span>{brand.productSignature}</span>
         <strong>{title}</strong>
       </div>
       <div className={styles.megaMenuGrid}>

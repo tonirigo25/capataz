@@ -530,6 +530,7 @@
 
 .demoTopline strong {
   overflow: hidden;
+  color: var(--capataz-ink);
   font-size: 0.94rem;
   letter-spacing: -0.015em;
   text-overflow: ellipsis;
@@ -2307,7 +2308,7 @@
 }
 
 .betaLead > span {
-  color: #42611f;
+  color: var(--capataz-ink);
 }
 
 .betaLead h2 {
@@ -2315,7 +2316,7 @@
 }
 
 .betaLead > p {
-  color: #3c4d34;
+  color: var(--capataz-ink);
 }
 
 .betaLead > a {
@@ -3787,7 +3788,7 @@
 }
 
 .immersiveRail button[aria-current="step"] small {
-  color: var(--fos-color-text-muted-aa);
+  color: var(--fos-color-ink);
 }
 
 .immersiveRail button em {

@@ -19,6 +19,7 @@
   --fos-color-orange: #d58a1f;
   --fos-color-red: #c8453b;
   --fos-color-green: #168c55;
+  --fos-color-success-text-aa: #137a49;
   --fos-color-text-muted-aa: #5b6761;
   --fos-color-warning-text-aa: #ae431f;
   --fos-color-danger-text-aa: #a7332b;
@@ -84,8 +85,8 @@
   --cap-sand: var(--fos-color-stone);
   --cap-steel: var(--fos-color-ink-muted);
   --cap-steel-rgb: 102 115 108;
-  --cap-success: var(--fos-color-green);
-  --cap-success-rgb: 22 140 85;
+  --cap-success: var(--fos-color-success-text-aa);
+  --cap-success-rgb: 19 122 73;
   --cap-warning: var(--fos-color-warning-text-aa);
   --cap-warning-rgb: 174 67 31;
   --cap-danger: var(--fos-color-danger-text-aa);
@@ -1864,7 +1865,7 @@ button:disabled,
 .security-close > svg { color: var(--cap-success); }
 .security-close h2 { font-size: 1rem; font-weight: 900; }
 .security-close p { margin-top: .25rem; color: var(--cap-text-muted); font-size: .7rem; line-height: 1.5; }
-.security-close a { display: flex; align-items: center; gap: .35rem; color: var(--cap-brand-strong); font-size: .7rem; font-weight: 800; }
+.security-close a { display: flex; min-height: 2.75rem; align-items: center; gap: .35rem; padding-block: .55rem; color: var(--cap-brand-strong); font-size: .7rem; font-weight: 800; }
 
 .margin-calculator-result.card { border-color: rgb(255 255 255 / .16); background: #092c2a; color: #fff; }
 .margin-calculator-result__eyebrow { color: #9ee8d4; }
@@ -2144,7 +2145,7 @@ button:disabled,
 .launch-pricing-grid article > p:not(.marketing-eyebrow) { margin-top: .8rem; color: #657572; line-height: 1.65; }
 .launch-pricing-grid strong { margin-top: auto; padding-top: 2rem; color: #284b46; }
 .launch-pricing-grid button { margin-top: 1rem; border-radius: .75rem; background: #e6ece8; padding: .85rem 1rem; color: #687873; font-weight: 800; }
-.launch-pricing-note { max-width: 52rem; margin-top: 1.5rem; color: #657572; font-size: .85rem; line-height: 1.6; }
+.launch-pricing-note { max-width: 52rem; margin-top: 1.5rem; color: #5b6d68; font-size: .85rem; line-height: 1.6; }
 .launch-contact-layout { display: grid; gap: 3rem; padding-block: clamp(4.5rem, 8vw, 7rem); }
 .launch-contact-layout h1 { max-width: 12ch; font-size: clamp(2.6rem, 6vw, 4.8rem); }
 .launch-contact-layout > div > p:last-of-type { max-width: 34rem; margin-top: 1.4rem; color: #60716e; line-height: 1.7; }

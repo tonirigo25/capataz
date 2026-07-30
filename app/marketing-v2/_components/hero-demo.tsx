@@ -63,7 +63,7 @@ export function HeroDemo() {
     <section className={styles.hero} aria-labelledby="public-hero-title">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Capataz, by Orqena · Field OS</p>
+          <p className={styles.eyebrow}>{brand.productSignature} · Field OS</p>
           <h1 id="public-hero-title">Lo que ocurre en obra se convierte en control.</h1>
           <p className={styles.heroSubtitle}>
             Clientes, presupuestos, costes, documentos, facturas y cobros conectados.

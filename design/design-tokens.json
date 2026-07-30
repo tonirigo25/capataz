@@ -57,6 +57,11 @@
     }
   },
   "semanticColor": {
+    "successText": {
+      "value": "#137A49",
+      "source": "green",
+      "role": "AA success text on surface and greenSoft"
+    },
     "textMuted": {
       "value": "#5B6761",
       "source": "inkMuted",
