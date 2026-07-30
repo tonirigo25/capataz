@@ -32,7 +32,6 @@ import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import styles from "./public-home.module.css";
 import { InteractiveProductChart } from "./interactive-product-chart";
 import { BrandMark } from "@/components/brand/brand-mark";
-import { brand } from "@/lib/brand";
 import { trackPublicFunnel } from "@/lib/product/public-analytics";
 
 type WorkspaceId = "hoy" | "clientes" | "trabajo" | "dinero" | "ia";
@@ -42,7 +41,7 @@ const workspaceTabs: ReadonlyArray<{ id: WorkspaceId; label: string; icon: Lucid
   { id: "clientes", label: "Clientes", icon: Users },
   { id: "trabajo", label: "Trabajo", icon: BriefcaseBusiness },
   { id: "dinero", label: "Dinero", icon: WalletCards },
-  { id: "ia", label: `${brand.productName} IA`, icon: Bot },
+  { id: "ia", label: "Capataz IA", icon: Bot },
 ];
 
 const workspaceMeta: Record<WorkspaceId, { greeting: string; title: string; subtitle: string; status: string }> = {
@@ -50,7 +49,7 @@ const workspaceMeta: Record<WorkspaceId, { greeting: string; title: string; subt
   clientes: { greeting: "Área comercial", title: "Clientes y oportunidades", subtitle: "Pipeline, presupuestos y seguimientos", status: "3 tareas para hoy" },
   trabajo: { greeting: "Operación", title: "Trabajo en marcha", subtitle: "Obras, equipo, hitos e incidencias", status: "4 obras activas" },
   dinero: { greeting: "Control económico", title: "Caja, margen y vencimientos", subtitle: "Cobros y pagos previstos", status: "Actualizado ahora" },
-  ia: { greeting: "Asistente supervisado", title: `${brand.productName} IA`, subtitle: "Propuestas listas para revisar", status: "Confirmación humana" },
+  ia: { greeting: "Asistente supervisado", title: "Capataz IA", subtitle: "Propuestas listas para revisar", status: "Confirmación humana" },
 };
 
 const phoneContent: Record<WorkspaceId, { eyebrow: string; title: string; actions: readonly [LucideIcon, string][] }> = {
@@ -58,7 +57,7 @@ const phoneContent: Record<WorkspaceId, { eyebrow: string; title: string; action
   clientes: { eyebrow: "Clientes", title: "Siguiente paso comercial", actions: [[Users, "Abrir seguimiento"], [FilePenLine, "Preparar presupuesto"], [MessageSquareText, "Registrar llamada"]] },
   trabajo: { eyebrow: "Obra Costa Norte", title: "Actualiza desde la obra", actions: [[BriefcaseBusiness, "Añadir avance"], [AlertTriangle, "Crear incidencia"], [Wrench, "Registrar material"]] },
   dinero: { eyebrow: "Tesorería", title: "Controla los vencimientos", actions: [[WalletCards, "Ver cobros"], [ReceiptText, "Revisar pagos"], [Landmark, "Abrir previsión"]] },
-  ia: { eyebrow: `${brand.productName} IA`, title: "Tres propuestas preparadas", actions: [[Sparkles, "Revisar recomendación"], [FileCheck2, "Abrir borrador"], [ShieldCheck, "Ver trazabilidad"]] },
+  ia: { eyebrow: "Capataz IA", title: "Tres propuestas preparadas", actions: [[Sparkles, "Revisar recomendación"], [FileCheck2, "Abrir borrador"], [ShieldCheck, "Ver trazabilidad"]] },
 };
 
 export function HeroDemo() {

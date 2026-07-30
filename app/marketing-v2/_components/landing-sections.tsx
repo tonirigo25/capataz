@@ -138,8 +138,8 @@ export function MarketingFooter() {
       <div className={styles.footerTop}>
         <div className={styles.footerIdentity}>
           <a className={styles.footerBrand} href="#top">{brand.wordmark}</a>
-          <p>{brand.productName} conecta clientes, trabajo y dinero para que cada decisión tenga contexto.</p>
-          <span>{brand.productName} es un producto de {brand.legalName}.</span>
+          <p>Capataz conecta clientes, trabajo y dinero para que cada decisión tenga contexto.</p>
+          <span>Capataz, by Orqena Tech.</span>
           <div><Link href="/soporte">Soporte</Link><Link href="/estado"><i />Todos los sistemas operativos</Link><span>ES · Español</span></div>
         </div>
         <FooterColumn title="Producto" links={[["Producto", "/producto"], ["Funcionalidades", "/funcionalidades"], ["Demo", "/demo"], ["Precios", "/precios"]]} />

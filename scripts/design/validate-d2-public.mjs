@@ -47,7 +47,7 @@ check("CTA V2 exactas", hero.includes("Solicitar demo") && hero.includes("Ver cÃ
 check(
   "producto visible e interactivo",
   ["Hoy", "Clientes", "Trabajo", "Dinero"].every((label) => hero.includes(`label: "${label}"`))
-    && hero.includes('label: `${brand.productName} IA`')
+    && hero.includes('label: "Capataz IA"')
     && hero.includes('role="tablist"')
     && hero.includes("onKeyDown")
     && ["TodayWorkspace", "ClientsWorkspace", "WorkWorkspace", "MoneyWorkspace", "AiWorkspace"].every((component) => hero.includes(component)),

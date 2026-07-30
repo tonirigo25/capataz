@@ -18,7 +18,6 @@ import {
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import styles from "./public-home.module.css";
-import { brand } from "@/lib/brand";
 
 type Stage = {
   id: string;
@@ -94,7 +93,7 @@ export function ImmersiveJourney() {
             <h3>{stage.title}</h3>
             <dl>
               <div><dt>Entra</dt><dd>{stage.input}</dd></div>
-              <div><dt>{brand.productName} prepara</dt><dd>{stage.prepared}</dd></div>
+              <div><dt>Capataz prepara</dt><dd>{stage.prepared}</dd></div>
               <div><dt>Tú confirmas</dt><dd>{stage.decision}</dd></div>
             </dl>
             <button type="button" onClick={simulateAction}>{stage.action} <ArrowRight /></button>

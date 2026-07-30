@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import styles from "./public-home.module.css";
-import { brand } from "@/lib/brand";
 
 type FlowId = "venta" | "obra" | "documento";
 
@@ -74,7 +73,7 @@ function SalesFlow({ onAction }: { onAction: (action: string) => void }) {
         <ChevronRight />
         <FlowStep icon={WalletCards} label="Decisión" value="Margen 28,4 %" state="Revisar" />
       </div>
-      <div className={styles.flowDecision}><Bot /><span><strong>{brand.productName} ha señalado dos dudas</strong><small>Plazo de ejecución y condición de pago sin confirmar.</small></span><button type="button" onClick={() => onAction("Propuesta abierta")}>Abrir propuesta</button></div>
+      <div className={styles.flowDecision}><Bot /><span><strong>Capataz ha señalado dos dudas</strong><small>Plazo de ejecución y condición de pago sin confirmar.</small></span><button type="button" onClick={() => onAction("Propuesta abierta")}>Abrir propuesta</button></div>
     </div>
   );
 }
