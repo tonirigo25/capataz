@@ -11,6 +11,7 @@
     "design:validate": "node scripts/design/validate-field-os.mjs",
     "design:validate-d2": "node scripts/design/validate-d2-public.mjs",
     "design:validate-d2-browser": "node scripts/design/run-d2-browser-isolated.mjs",
+    "design:validate-revision-4-public": "node scripts/design/validate-revision-4-public.mjs",
     "design:capture-baseline": "node scripts/design/capture-baseline.mjs",
     "readiness:validate-config": "node scripts/readiness/validate-runtime-config.mjs ready",
     "readiness:generate-schema-docs": "node scripts/readiness/generate-schema-docs.mjs",

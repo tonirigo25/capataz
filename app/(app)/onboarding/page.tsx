@@ -96,7 +96,7 @@ export default async function OnboardingPage() {
                 <label><span className="label">Cómo llamas a un trabajo</span><input className="field mt-1" name="workSingular" defaultValue={selected.terminology.workSingular}/></label>
                 <label><span className="label">En plural</span><input className="field mt-1" name="workPlural" defaultValue={selected.terminology.workPlural}/></label>
                 <label className="sm:col-span-2"><span className="label">Objetivo principal</span><input className="field mt-1" name="mainGoal" defaultValue={state.mainGoal} placeholder="Ej. controlar cobros y organizar proyectos"/></label>
-                <label className="sm:col-span-2"><span className="label">Primera acción</span><select className="field mt-1" name="firstAction" defaultValue={state.firstAction ?? "Crear un cliente"}><option>Crear un cliente</option><option>Preparar un presupuesto</option><option>Organizar mi agenda</option><option>Preguntar a Orqena</option></select></label>
+                <label className="sm:col-span-2"><span className="label">Primera acción</span><select className="field mt-1" name="firstAction" defaultValue={state.firstAction ?? "Crear un cliente"}><option>Crear un cliente</option><option>Preparar un presupuesto</option><option>Organizar mi agenda</option><option>{`Preguntar a ${brand.assistantName}`}</option></select></label>
               </div>
             </details>
             <input type="hidden" name="step" value="2"/>

@@ -2,115 +2,89 @@
 
 import {
   ArrowRight,
-  Bot,
   BriefcaseBusiness,
-  Check,
-  ChevronRight,
-  FileCheck2,
-  FileText,
-  Mic,
+  CheckCircle2,
+  FilePenLine,
   ReceiptText,
-  ScanText,
-  ShieldCheck,
+  ShoppingCart,
   Users,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./public-home.module.css";
 
-type FlowId = "venta" | "obra" | "documento";
+type FlowStage = {
+  label: string;
+  title: string;
+  detail: string;
+  outcome: string;
+  icon: LucideIcon;
+};
 
-const flows: ReadonlyArray<{ id: FlowId; label: string; icon: LucideIcon; title: string; text: string }> = [
-  { id: "venta", label: "Vender y presupuestar", icon: Users, title: "De una conversación a una propuesta revisable", text: "El seguimiento comercial termina en un presupuesto con margen y dudas visibles." },
-  { id: "obra", label: "Ejecutar y coordinar", icon: BriefcaseBusiness, title: "De lo que ocurre en obra al siguiente paso", text: "Avances, tareas e incidencias llegan al equipo sin perder responsable ni fecha." },
-  { id: "documento", label: "Ordenar y controlar", icon: ScanText, title: "De un documento a una decisión económica", text: "El dato se extrae, se relaciona y se propone; una persona valida antes de guardar." },
+const stages: readonly FlowStage[] = [
+  { label: "Contacto", title: "Entrada ordenada", detail: "Llamada, necesidad y siguiente paso quedan unidos al cliente.", outcome: "Visita preparada", icon: Users },
+  { label: "Presupuesto", title: "Propuesta con margen", detail: "Partidas, dudas y condiciones se revisan antes de enviar.", outcome: "24.600 € · 28,4 %", icon: FilePenLine },
+  { label: "Trabajo", title: "Ejecución coordinada", detail: "Hitos, tareas, equipo e incidencias conservan el contexto.", outcome: "14 tareas · 4 responsables", icon: BriefcaseBusiness },
+  { label: "Compras", title: "Coste relacionado", detail: "La compra llega al trabajo correcto y muestra la desviación.", outcome: "1.840,50 € validados", icon: ShoppingCart },
+  { label: "Factura", title: "Emisión revisable", detail: "El hito prepara una factura, sin emitirla hasta confirmar.", outcome: "F-2031 preparada", icon: ReceiptText },
+  { label: "Cobro", title: "Caja bajo control", detail: "Vencimiento, seguimiento y previsión terminan el recorrido.", outcome: "Cobro previsto · 30 ago", icon: WalletCards },
 ] as const;
 
+const FLOW_AUTOPLAY_MS = 4600;
+
 export function PublicFlowShowcase() {
-  const [activeFlow, setActiveFlow] = useState<FlowId>("venta");
-  const [status, setStatus] = useState("Venta: recorrido preparado.");
-  const flow = flows.find((item) => item.id === activeFlow) ?? flows[0];
-  const chooseFlow = (id: FlowId) => {
-    setActiveFlow(id);
-    setStatus(`${flows.find((item) => item.id === id)?.label}: recorrido preparado.`);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const active = stages[activeIndex];
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (paused || reducedMotion) return;
+    const timer = window.setTimeout(() => {
+      setActiveIndex((current) => (current + 1) % stages.length);
+      setConfirmed(false);
+    }, FLOW_AUTOPLAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, paused, reducedMotion]);
+
+  const select = (index: number) => {
+    setActiveIndex(index);
+    setConfirmed(false);
   };
-  const simulate = (action: string) => setStatus(`${action}. Vista local actualizada; no se han escrito datos.`);
+
   return (
     <section id="flujos" className={styles.flowSection} aria-labelledby="flow-title">
-      <div className={styles.flowIntro}>
-        <div className={styles.sectionHeading}>
-          <span>Producto en movimiento</span>
-          <h2 id="flow-title">No son módulos sueltos. Son recorridos completos.</h2>
-          <p>Elige un flujo y comprueba cómo cambia la información, el contexto y la decisión preparada.</p>
-        </div>
-        <div className={styles.flowTabs} role="tablist" aria-label="Flujos públicos de ejemplo">
-          {flows.map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={activeFlow === id} aria-controls={`flow-panel-${id}`} onClick={() => chooseFlow(id)}><Icon /><span>{label}</span></button>)}
-        </div>
+      <div className={styles.sectionHeading}>
+        <span>Producto en movimiento</span>
+        <h2 id="flow-title">Del primer contacto al cobro, todo sigue el mismo hilo.</h2>
+        <p>Orqena convierte conversaciones, documentos y tareas en un flujo claro: presupuesto, trabajo, coste, factura y cobro, sin perder contexto.</p>
       </div>
-      <div id={`flow-panel-${activeFlow}`} role="tabpanel" className={styles.flowCanvas} key={activeFlow}>
-        <div className={styles.flowNarrative}><span>Flujo seleccionado</span><h3>{flow.title}</h3><p>{flow.text}</p><strong><ShieldCheck /> Contexto y confirmación en cada paso</strong></div>
-        <div><FlowVisual id={activeFlow} onAction={simulate} /><p className={styles.flowStatus} role="status">{status}</p></div>
+      <div className={styles.connectedFlow} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
+        <nav className={styles.connectedFlowTrack} aria-label="Recorrido de producto">
+          {stages.map(({ label, icon: Icon }, index) => (
+            <button key={label} type="button" aria-current={index === activeIndex ? "step" : undefined} onClick={() => select(index)}>
+              <span>{index < activeIndex || confirmed && index === activeIndex ? <CheckCircle2 /> : <Icon />}</span>
+              <strong>{label}</strong>
+              {index < stages.length - 1 ? <i aria-hidden="true"><b data-complete={index < activeIndex} /></i> : null}
+            </button>
+          ))}
+        </nav>
+        <article className={styles.connectedFlowPanel} key={active.label}>
+          <div><span>{String(activeIndex + 1).padStart(2, "0")} · {active.label}</span><h3>{active.title}</h3><p>{active.detail}</p></div>
+          <aside><small>Resultado preparado</small><strong>{active.outcome}</strong><em>{confirmed ? "Confirmación simulada · sin escribir datos" : "Pendiente de confirmación humana"}</em></aside>
+          <button type="button" onClick={() => setConfirmed((current) => !current)}>{confirmed ? "Reabrir revisión" : "Revisar paso"}<ArrowRight /></button>
+        </article>
       </div>
     </section>
   );
-}
-
-function FlowVisual({ id, onAction }: { id: FlowId; onAction: (action: string) => void }) {
-  if (id === "obra") return <WorkFlow onAction={onAction} />;
-  if (id === "documento") return <DocumentFlow onAction={onAction} />;
-  return <SalesFlow onAction={onAction} />;
-}
-
-function SalesFlow({ onAction }: { onAction: (action: string) => void }) {
-  return (
-    <div className={styles.flowProduct} aria-label="Flujo comercial de ejemplo">
-      <FlowHeader icon={Users} label="Cliente · Grupo Norte" status="Oportunidad activa" />
-      <div className={styles.flowSteps} role="region" aria-label="Etapas del flujo comercial" tabIndex={0}>
-        <FlowStep icon={Mic} label="Entrada" value="Llamada registrada" state="09:42" />
-        <ChevronRight />
-        <FlowStep icon={FileText} label="Propuesta" value="PR-104 · 24.600 €" state="Borrador" />
-        <ChevronRight />
-        <FlowStep icon={WalletCards} label="Decisión" value="Margen 28,4 %" state="Revisar" />
-      </div>
-      <div className={styles.flowDecision}><Bot /><span><strong>Capataz ha señalado dos dudas</strong><small>Plazo de ejecución y condición de pago sin confirmar.</small></span><button type="button" onClick={() => onAction("Propuesta abierta")}>Abrir propuesta</button></div>
-    </div>
-  );
-}
-
-function WorkFlow({ onAction }: { onAction: (action: string) => void }) {
-  return (
-    <div className={styles.flowProduct} aria-label="Flujo de trabajo de ejemplo">
-      <FlowHeader icon={BriefcaseBusiness} label="Obra · Costa Norte" status="78 % completado" />
-      <div className={styles.workBoard} role="region" aria-label="Panel del trabajo en marcha" tabIndex={0}>
-        <article><span>Hoy</span><strong>Instalación eléctrica</strong><small>3 tareas · Carlos y Marta</small><i><b style={{ width: "72%" }} /></i></article>
-        <article><span>Incidencia</span><strong>Material incompleto</strong><small>Proveedor avisado · respuesta 13:00</small><em>Prioridad alta</em></article>
-        <article><span>Siguiente hito</span><strong>Certificación parcial</strong><small>Viernes · 8.450 €</small><button type="button" onClick={() => onAction("Revisión del hito preparada")}>Preparar revisión</button></article>
-      </div>
-    </div>
-  );
-}
-
-function DocumentFlow({ onAction }: { onAction: (action: string) => void }) {
-  return (
-    <div className={styles.flowProduct} aria-label="Flujo documental de ejemplo">
-      <FlowHeader icon={ReceiptText} label="Factura recibida · FR-882" status="Pendiente de revisión" />
-      <div className={styles.documentFlow} role="region" aria-label="Etapas del flujo documental" tabIndex={0}>
-        <article><ReceiptText /><span><small>Documento</small><strong>Suministros Norte</strong><em>PDF · 2 páginas</em></span></article>
-        <ArrowRight />
-        <article><ScanText /><span><small>Extracción</small><strong>1.840,50 € · IVA 21 %</strong><em>Confianza 98 %</em></span></article>
-        <ArrowRight />
-        <article><FileCheck2 /><span><small>Relación</small><strong>Obra Costa Norte</strong><em>Coste previsto</em></span></article>
-      </div>
-      <div className={styles.documentDecision}><ShieldCheck /><span><strong>Listo para validar</strong><small>No se contabiliza hasta confirmar proveedor, IVA y obra.</small></span><button type="button" onClick={() => onAction("Datos documentales revisados")}><Check /> Revisar datos</button></div>
-    </div>
-  );
-}
-
-function FlowHeader({ icon: Icon, label, status }: { icon: LucideIcon; label: string; status: string }) {
-  return <header className={styles.flowProductHeader}><span><Icon />{label}</span><em>{status}</em></header>;
-}
-
-function FlowStep({ icon: Icon, label, value, state }: { icon: LucideIcon; label: string; value: string; state: string }) {
-  return <article><Icon /><span><small>{label}</small><strong>{value}</strong><em>{state}</em></span></article>;
 }

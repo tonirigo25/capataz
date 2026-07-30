@@ -28,23 +28,23 @@ type PageDefinition = { title: string; description: string };
 
 const pages: Record<string, PageDefinition> = {
   "/": {
-    title: "Orqena Tech — Capataz para organizar el trabajo real",
-    description: "Capataz conecta clientes, trabajo, documentos y control económico con confirmación humana.",
+    title: "Orqena — gestión inteligente para organizar el trabajo real",
+    description: "Orqena conecta clientes, trabajo, documentos y control económico con confirmación humana.",
   },
   "/capataz": {
-    title: "Capataz",
+    title: "Orqena",
     description: "El producto de Orqena Tech para mantener clientes, trabajos, documentos y dinero en contexto.",
   },
   "/funcionalidades": {
     title: "Funcionalidades",
-    description: "Las capacidades actuales de Capataz explicadas sin promesas ni cifras inventadas.",
+    description: "Las capacidades actuales de Orqena explicadas sin promesas ni cifras inventadas.",
   },
   "/para-autonomos": {
-    title: "Capataz para autónomos",
+    title: "Orqena para autónomos",
     description: "Una forma práctica de conservar contexto, documentos y próximos pasos sin duplicar trabajo.",
   },
   "/para-empresas": {
-    title: "Capataz para empresas",
+    title: "Orqena para empresas",
     description: "Coordinación por responsabilidades, permisos y empresa activa.",
   },
   "/precios": {
@@ -56,10 +56,10 @@ const pages: Record<string, PageDefinition> = {
     description: "Contacta con Orqena Tech para información, acceso anticipado, soporte o privacidad.",
   },
   "/legal/aviso-legal": { title: "Aviso legal", description: "Información legal disponible de Orqena Tech." },
-  "/legal/privacidad": { title: "Privacidad", description: "Información sobre el tratamiento de datos en Orqena Tech y Capataz." },
+  "/legal/privacidad": { title: "Privacidad", description: "Información sobre el tratamiento de datos en Orqena Tech y Orqena." },
   "/legal/cookies": { title: "Cookies", description: "Información sobre cookies y almacenamiento técnico." },
-  "/legal/terminos": { title: "Términos", description: "Condiciones de uso disponibles para Capataz." },
-  "/estado": { title: "Estado del servicio", description: "Estado básico de disponibilidad de Capataz." },
+  "/legal/terminos": { title: "Términos", description: "Condiciones de uso disponibles para Orqena." },
+  "/estado": { title: "Estado del servicio", description: "Estado básico de disponibilidad de Orqena." },
 };
 
 export async function generateMetadata({ params }: { params: Promise<PageParams> }): Promise<Metadata> {
@@ -77,7 +77,7 @@ export async function generateMetadata({ params }: { params: Promise<PageParams>
       siteName: "Orqena Tech",
       title: page.title,
       description: page.description,
-      images: [{ url: `${MARKETING_URL}/brand/social-card.svg`, width: 1200, height: 630, alt: "Orqena Tech y Capataz" }],
+      images: [{ url: `${MARKETING_URL}/brand/social-card.svg`, width: 1200, height: 630, alt: "Orqena Tech y Orqena" }],
     },
   };
 }
@@ -102,7 +102,7 @@ function HomePage() {
   const legal = getLegalConfiguration();
   const structuredData = [
     legal.entityName ? { "@type": "Organization", name: legal.entityName, url: MARKETING_URL } : null,
-    { "@type": "SoftwareApplication", name: "Capataz", applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${MARKETING_URL}/capataz` },
+    { "@type": "SoftwareApplication", name: "Orqena", applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${MARKETING_URL}/producto` },
   ].filter(Boolean);
   return (
     <div className={fieldOsStyles.page} id="top">
@@ -121,7 +121,7 @@ function HomePage() {
 function ProductPage() {
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Producto" title="Capataz mantiene cada decisión cerca de su origen." description="Clientes, ejecución, documentos y control económico comparten el mismo contexto, sin reconstruir lo que pasó." actions={<><a href="/demo">Explorar la demo <ArrowRight size={16} /></a><a href="/contacto?motivo=demo">Solicitar acceso</a></>} visual={<PublicProductPreview title="Hoy · Control operativo" state="Actualizado" metrics={[["Ingresos", "48.200 €"], ["Margen", "28,4 %"], ["Pendientes", "7"]]} />} />
+      <PublicPageHero eyebrow="Producto" title="Orqena mantiene cada decisión cerca de su origen." description="Clientes, ejecución, documentos y control económico comparten el mismo contexto, sin reconstruir lo que pasó." actions={<><a href="/demo">Explorar la demo <ArrowRight size={16} /></a><a href="/contacto?motivo=demo">Solicitar acceso</a></>} visual={<PublicProductPreview title="Hoy · Control operativo" state="Actualizado" metrics={[["Ingresos", "48.200 €"], ["Margen", "28,4 %"], ["Pendientes", "7"]]} />} />
       <PublicSection eyebrow="Un recorrido conectado" title="Cuatro pasos. Un único hilo." description="La información entra una vez y reaparece donde ayuda a avanzar.">
         <div className="launch-story-grid">
           <Story number="01" title="Captura" text="Registra información desde formularios, documentos y actividad del equipo." />
@@ -142,11 +142,11 @@ function FeaturesPage() {
     ["Documentos", "Archivos privados vinculados a su empresa y origen operativo.", FileCheck2],
     ["Ventas y compras", "Presupuestos, facturas emitidas y recibidas con trazabilidad.", ReceiptText],
     ["Tesorería", "Cobros, pagos y previsión derivados de documentos registrados.", Building2],
-    ["Capataz", "Consulta y propuesta asistida con confirmación para acciones sensibles.", Sparkles],
+    ["Orqena IA", "Consulta y propuesta asistida con confirmación para acciones sensibles.", Sparkles],
   ] as const;
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Funcionalidades" title="Capacidades conectadas, con límites explícitos." description="Capataz no inventa saldos, progreso ni previsiones. Cada cifra y estado parte de información registrada." />
+      <PublicPageHero eyebrow="Funcionalidades" title="Capacidades conectadas, con límites explícitos." description="Orqena no inventa saldos, progreso ni previsiones. Cada cifra y estado parte de información registrada." />
       <PublicSection eyebrow="Áreas del producto" title="La misma verdad operativa, en cada función.">
         <PublicFeatureGrid items={items.map(([title, text, icon]) => ({ title, text, icon }))} />
       </PublicSection>
@@ -165,7 +165,7 @@ function AudiencePage({ kind }: { kind: "self-employed" | "company" }) {
       <PublicPageHero
         eyebrow={selfEmployed ? "Para autónomos" : "Para empresas"}
         title={selfEmployed ? "Menos tiempo reconstruyendo qué pasó." : "Cada persona ve lo necesario para hacer avanzar el trabajo."}
-        description={selfEmployed ? "Capataz reúne operación y contexto para que puedas continuar sin depender de notas dispersas." : "Dirección, comercial, compras, finanzas y ejecución trabajan sobre relaciones comunes con accesos diferenciados."}
+        description={selfEmployed ? "Orqena reúne operación y contexto para que puedas continuar sin depender de notas dispersas." : "Dirección, comercial, compras, finanzas y ejecución trabajan sobre relaciones comunes con accesos diferenciados."}
       />
       <PublicSection eyebrow="Una experiencia enfocada" title={selfEmployed ? "Lo necesario para avanzar cada día." : "Coordinación sin perder responsabilidad."}>
         <div className="launch-audience-card">
@@ -196,7 +196,7 @@ function PricingPage() {
               <h2>{name}</h2>
               <p>{description}</p>
               <strong>{billingEnabled ? "Configuración disponible en la aplicación" : "Acceso anticipado"}</strong>
-              {billingEnabled ? <a href={`${APP_URL}/billing`}>Continuar en Capataz</a> : <a href="/contacto?motivo=planes">Consultar disponibilidad</a>}
+              {billingEnabled ? <a href={`${APP_URL}/billing`}>Continuar en Orqena</a> : <a href="/contacto?motivo=planes">Consultar disponibilidad</a>}
             </article>
           ))}
         </div>
@@ -244,7 +244,7 @@ function LegalPage({ kind }: { kind: string }) {
 function StatusPage() {
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Estado" title="La web y Capataz responden." description="Disponibilidad básica confirmada. El control técnico se publica por separado y no expone datos de clientes." visual={<PublicProductPreview title="Servicios de Orqena" state="Operativo" metrics={[["Web", "OK"], ["Aplicación", "OK"], ["Datos", "Protegidos"]]}><a href={`${APP_URL}/api/health`}>Ver healthcheck técnico</a></PublicProductPreview>} />
+      <PublicPageHero eyebrow="Estado" title="La web y Orqena responden." description="Disponibilidad básica confirmada. El control técnico se publica por separado y no expone datos de clientes." visual={<PublicProductPreview title="Servicios de Orqena" state="Operativo" metrics={[["Web", "OK"], ["Aplicación", "OK"], ["Datos", "Protegidos"]]}><a href={`${APP_URL}/api/health`}>Ver healthcheck técnico</a></PublicProductPreview>} />
     </MarketingPage>
   );
 }
@@ -276,12 +276,12 @@ function legalContent(kind: string, legal: ReturnType<typeof getLegalConfigurati
   ] };
   if (kind === "cookies") return { title: "Política de cookies", blocks: [
     { title: "Sitio público", text: "La web pública no activa cookies publicitarias ni seguimiento de aperturas o clics." },
-    { title: "Aplicación", text: "Capataz usa una cookie técnica host-only para mantener la sesión en app.orqenatech.com." },
+    { title: "Aplicación", text: "Orqena usa una cookie técnica host-only para mantener la sesión en app.orqenatech.com." },
     { title: "Control", text: "Puedes borrar el almacenamiento técnico desde los ajustes del navegador; algunas funciones requerirán iniciar sesión de nuevo." },
   ] };
   if (kind === "terminos") return { title: "Términos de uso", blocks: [
-    { title: "Servicio", text: "Capataz es una herramienta de gestión y asistencia. La persona usuaria debe revisar los datos y confirmar las acciones sensibles." },
-    { title: "Documentos y cifras", text: "Los documentos y cálculos dependen de la información registrada. Capataz no sustituye asesoramiento fiscal, jurídico o profesional." },
+    { title: "Servicio", text: "Orqena es una herramienta de gestión y asistencia. La persona usuaria debe revisar los datos y confirmar las acciones sensibles." },
+    { title: "Documentos y cifras", text: "Los documentos y cálculos dependen de la información registrada. Orqena no sustituye asesoramiento fiscal, jurídico o profesional." },
     { title: "Contacto", text: `Las consultas sobre estas condiciones se atienden mediante ${contact}.` },
   ] };
   return null;

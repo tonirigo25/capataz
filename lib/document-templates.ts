@@ -44,7 +44,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     format: "docx",
     label: "Plantilla presupuesto DOCX",
     fileName: "Plantilla_Presupuesto_Orqena.docx",
-    relativePath: "templates/documents/Plantilla_Presupuesto_Capataz.docx",
+    relativePath: "templates/documents/Plantilla_Presupuesto_Orqena.docx",
     contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   },
   {
@@ -53,7 +53,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     format: "pdf",
     label: "Plantilla presupuesto PDF",
     fileName: "Plantilla_Presupuesto_Orqena.pdf",
-    relativePath: "templates/documents/Plantilla_Presupuesto_Capataz.pdf",
+    relativePath: "templates/documents/Plantilla_Presupuesto_Orqena.pdf",
     contentType: "application/pdf"
   },
   {
@@ -62,7 +62,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     format: "docx",
     label: "Plantilla factura DOCX",
     fileName: "Plantilla_Factura_Orqena.docx",
-    relativePath: "templates/documents/Plantilla_Factura_Capataz.docx",
+    relativePath: "templates/documents/Plantilla_Factura_Orqena.docx",
     contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   },
   {
@@ -71,7 +71,7 @@ export const documentTemplateAssets: DocumentTemplateAsset[] = [
     format: "pdf",
     label: "Plantilla factura PDF",
     fileName: "Plantilla_Factura_Orqena.pdf",
-    relativePath: "templates/documents/Plantilla_Factura_Capataz.pdf",
+    relativePath: "templates/documents/Plantilla_Factura_Orqena.pdf",
     contentType: "application/pdf"
   }
 ];
@@ -80,15 +80,15 @@ export const documentTemplates = {
   budget: {
     kind: "budget" as const,
     title: "Presupuesto profesional",
-    sourceDocx: "Plantilla_Presupuesto_Capataz.docx",
-    sourcePdf: "Plantilla_Presupuesto_Capataz.pdf",
+    sourceDocx: "Plantilla_Presupuesto_Orqena.docx",
+    sourcePdf: "Plantilla_Presupuesto_Orqena.pdf",
     visualLabel: "Plantilla profesional de presupuesto Orqena"
   },
   invoice: {
     kind: "invoice" as const,
     title: "Factura profesional",
-    sourceDocx: "Plantilla_Factura_Capataz.docx",
-    sourcePdf: "Plantilla_Factura_Capataz.pdf",
+    sourceDocx: "Plantilla_Factura_Orqena.docx",
+    sourcePdf: "Plantilla_Factura_Orqena.pdf",
     visualLabel: "Plantilla profesional de factura Orqena"
   }
 };

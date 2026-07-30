@@ -19,7 +19,7 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
     resolveAuthorization(auth, "orqena.use"), resolveAuthorization(auth, "sales.invoices.view"),
     resolveAuthorization(auth, "sales.budgets.view"), resolveAuthorization(auth, "sales.pricing.view"), resolveAuthorization(auth, "purchases.received_invoices.view"), resolveAuthorization(auth, "followups.view")
   ]);
-  if (!orqenaAccess.allowed) return <main className="screen"><h1 className="type-page-title">Acceso a {brand.productName}</h1><p className="type-secondary mt-2">No tienes acceso a {brand.productName} en esta empresa.</p></main>;
+  if (!orqenaAccess.allowed) return <main className="screen"><h1 className="type-page-title">Acceso a {brand.assistantName}</h1><p className="type-secondary mt-2">No tienes acceso a {brand.assistantName} en esta empresa.</p></main>;
   const economicCapabilities = ["sales.budgets.view", "sales.invoices.view", "treasury.view", "banking.view", "purchases.received_invoices.view", "purchase_cost.view", "internal_cost.view", "margin_percent.view", "margin_amount.view", "profitability.view"] as const;
   const economicDecisions = await Promise.all(economicCapabilities.map((capability) => resolveAuthorization(auth, capability)));
   const canSeeEconomy = economicDecisions.every((decision) => decision.allowed && decision.scope === "COMPANY");
@@ -68,10 +68,10 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
 
   return (
     <main className="screen">
-      <div className="hidden md:block"><PageHeader eyebrow="Tu asistente" title={brand.productName} description="Consulta, prepara y revisa el trabajo de tu negocio." /></div>
+      <div className="hidden md:block"><PageHeader eyebrow="Tu asistente" title={brand.assistantName} description="Consulta, prepara y revisa el trabajo de tu negocio." /></div>
       <header className="mb-3 md:hidden">
         <p className="type-label">Tu asistente</p>
-        <h1 className="type-page-title mt-1">{brand.productName}</h1>
+        <h1 className="type-page-title mt-1">{brand.assistantName}</h1>
         <p className="type-secondary mt-1">Consulta, prepara y revisa tu trabajo.</p>
       </header>
 

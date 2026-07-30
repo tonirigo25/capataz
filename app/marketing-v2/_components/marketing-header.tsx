@@ -36,44 +36,44 @@ const productColumns: readonly MenuColumn[] = [
     title: "Clientes y ventas",
     description: "De la primera llamada al cobro.",
     items: [
-      { label: "Clientes", href: "/#clientes-y-ventas", icon: Users },
-      { label: "Seguimientos", href: "/#clientes-y-ventas", icon: ClipboardCheck },
-      { label: "Presupuestos", href: "/#presupuestos", icon: FileText },
-      { label: "Facturas", href: "/#facturas-y-cobros", icon: ReceiptText },
-      { label: "Cobros", href: "/#facturas-y-cobros", icon: WalletCards },
+      { label: "Clientes", href: "/producto#clientes", icon: Users },
+      { label: "Seguimientos", href: "/producto#clientes", icon: ClipboardCheck },
+      { label: "Presupuestos", href: "/producto#clientes", icon: FileText },
+      { label: "Facturas", href: "/producto#dinero", icon: ReceiptText },
+      { label: "Cobros", href: "/producto#dinero", icon: WalletCards },
     ],
   },
   {
     title: "Trabajo y obra",
     description: "Planifica, ejecuta y deja rastro.",
     items: [
-      { label: "Obras y trabajos", href: "/#trabajo-y-obra", icon: BriefcaseBusiness },
-      { label: "Agenda", href: "/#equipo-y-agenda", icon: CalendarDays },
-      { label: "Tareas", href: "/#trabajo-y-obra", icon: ClipboardCheck },
-      { label: "Equipo", href: "/#equipo-y-agenda", icon: Users },
-      { label: "Evidencias", href: "/#trabajo-y-obra", icon: FolderKanban },
+      { label: "Obras y trabajos", href: "/producto#trabajo", icon: BriefcaseBusiness },
+      { label: "Agenda", href: "/producto#equipo", icon: CalendarDays },
+      { label: "Tareas", href: "/producto#trabajo", icon: ClipboardCheck },
+      { label: "Equipo", href: "/producto#equipo", icon: Users },
+      { label: "Evidencias", href: "/producto#trabajo", icon: FolderKanban },
     ],
   },
   {
     title: "Compras y documentos",
     description: "Cada coste en su contexto.",
     items: [
-      { label: "Proveedores", href: "/#costes-y-compras", icon: Building2 },
-      { label: "Subcontratas", href: "/#costes-y-compras", icon: BriefcaseBusiness },
-      { label: "Facturas recibidas", href: "/#documentos-y-ocr", icon: ReceiptText },
-      { label: "OCR documental", href: "/#documentos-y-ocr", icon: ScanText },
-      { label: "Gastos", href: "/#costes-y-compras", icon: CircleDollarSign },
+      { label: "Proveedores", href: "/producto#documentos", icon: Building2 },
+      { label: "Subcontratas", href: "/producto#trabajo", icon: BriefcaseBusiness },
+      { label: "Facturas recibidas", href: "/producto#documentos", icon: ReceiptText },
+      { label: "OCR documental", href: "/producto#documentos", icon: ScanText },
+      { label: "Gastos", href: "/producto#dinero", icon: CircleDollarSign },
     ],
   },
   {
     title: "Dinero e inteligencia",
     description: "Decide con margen y caja visibles.",
     items: [
-      { label: "Tesorería", href: "/#facturas-y-cobros", icon: Landmark },
-      { label: "Rentabilidad", href: "/#costes-y-compras", icon: BarChart3 },
-      { label: "Alertas", href: "/#capataz-ia", icon: Sparkles },
-      { label: brand.legacyAliases[1], href: "/#capataz-ia", icon: Bot },
-      { label: "Automatizaciones", href: "/#capataz-ia", icon: Sparkles },
+      { label: "Tesorería", href: "/producto#dinero", icon: Landmark },
+      { label: "Rentabilidad", href: "/producto#dinero", icon: BarChart3 },
+      { label: "Alertas", href: "/producto#ia", icon: Sparkles },
+      { label: brand.assistantName, href: "/producto#ia", icon: Bot },
+      { label: "Automatizaciones", href: "/producto#ia", icon: Sparkles },
     ],
   },
 ] as const;
@@ -81,22 +81,22 @@ const productColumns: readonly MenuColumn[] = [
 const solutionColumns: readonly MenuColumn[] = [
   {
     title: "Vender y ejecutar",
-    description: "Un recorrido sin volver a teclear.",
+    description: "Flujos completos para crecer con orden.",
     items: [
-      { label: "Vender y presupuestar", href: "/#presupuestos", icon: FileText },
-      { label: "Ejecutar trabajos", href: "/#trabajo-y-obra", icon: BriefcaseBusiness },
-      { label: "Coordinar proveedores", href: "/#costes-y-compras", icon: Building2 },
-      { label: "Gestionar equipo", href: "/#equipo-y-agenda", icon: Users },
+      { label: "Clientes y presupuestos", href: "/soluciones/clientes-y-presupuestos", icon: FileText },
+      { label: "Obras y trabajo", href: "/soluciones/obras-y-trabajo", icon: BriefcaseBusiness },
+      { label: "Proveedores y subcontratas", href: "/soluciones/proveedores-y-subcontratas", icon: Building2 },
+      { label: "Equipo y agenda", href: "/soluciones/equipo-y-agenda", icon: Users },
     ],
   },
   {
     title: "Controlar y cobrar",
     description: "Información útil antes de decidir.",
     items: [
-      { label: "Controlar costes y margen", href: "/#costes-y-compras", icon: BarChart3 },
-      { label: "Facturar y cobrar", href: "/#facturas-y-cobros", icon: WalletCards },
-      { label: "Ordenar documentos", href: "/#documentos-y-ocr", icon: FileSearch },
-      { label: `Trabajar con ${brand.legacyAliases[1]}`, href: "/#capataz-ia", icon: Bot },
+      { label: "Costes y margen", href: "/soluciones/control-costes-y-margen", icon: BarChart3 },
+      { label: "Facturación y cobros", href: "/soluciones/facturacion-y-cobros", icon: WalletCards },
+      { label: "Documentos y OCR", href: "/soluciones/documentos-y-ocr", icon: FileSearch },
+      { label: "IA operativa", href: "/soluciones/ia-operativa", icon: Bot },
     ],
   },
 ] as const;
@@ -159,7 +159,7 @@ export function MarketingHeader() {
           <DesktopMenu
             id="product-mega-menu"
             label="Producto"
-            eyebrow="Capataz, by Orqena"
+            eyebrow="Orqena · producto conectado"
             title="Todo el negocio conectado"
             columns={productColumns}
             open={openMenu === "product"}
@@ -179,8 +179,8 @@ export function MarketingHeader() {
             onBlur={closeWhenFocusLeaves}
           />
           <Link href="/precios">Precios</Link>
-          <Link href="/seguridad">Recursos</Link>
-          <Link href="/contacto">Empresa</Link>
+          <Link href="/recursos">Recursos</Link>
+          <Link href="/empresa">Empresa</Link>
         </nav>
 
         <div className={styles.headerActions}>
@@ -220,8 +220,8 @@ export function MarketingHeader() {
               onNavigate={() => closeDrawer(false)}
             />
             <Link href="/precios" onClick={() => closeDrawer(false)}>Precios</Link>
-            <Link href="/seguridad" onClick={() => closeDrawer(false)}>Recursos</Link>
-            <Link href="/contacto" onClick={() => closeDrawer(false)}>Empresa</Link>
+            <Link href="/recursos" onClick={() => closeDrawer(false)}>Recursos</Link>
+            <Link href="/empresa" onClick={() => closeDrawer(false)}>Empresa</Link>
             <Link href="/login" onClick={() => closeDrawer(false)}>Iniciar sesión</Link>
           </div>
           <div className={styles.mobileNavFooter}>

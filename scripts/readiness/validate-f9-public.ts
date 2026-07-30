@@ -56,8 +56,8 @@ for (const token of ["NEXT_PUBLIC_PRODUCT_NAME", "NEXT_PUBLIC_LEGAL_COMPANY_NAME
 }
 check(
   "accepted-v2-uses-approved-product-signature",
-  source("app/marketing-v2/_components/hero-demo.tsx").includes("CAPATAZ · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS")
-    && source("app/marketing-v2/_components/hero-demo.tsx").includes("Capataz prepara; tú revisas y confirmas."),
+  source("app/marketing-v2/_components/hero-demo.tsx").includes("ORQENA · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS")
+    && source("app/marketing-v2/_components/hero-demo.tsx").includes("Orqena prepara; tú revisas y confirmas."),
 );
 check("email-subjects-use-brand-config", source("lib/email/index.ts").includes("brand.productName") && !/correo en Orqena|contraseña de Orqena/.test(source("lib/email/index.ts")));
 check("pdf-branding-is-company-configurable", source("lib/document-pdf.ts").includes("input.company.brandColor") && source("lib/document-pdf.ts").includes("input.company.logo"));

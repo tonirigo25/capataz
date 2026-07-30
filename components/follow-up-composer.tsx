@@ -5,6 +5,7 @@ import { CheckCircle2, MessageCircle, ShieldCheck, X } from "lucide-react";
 import { scheduleBudgetFollowUp } from "@/app/(app)/clientes/actions";
 import { DemoLimitButton } from "@/components/demo-limit-button";
 import { formatCurrency } from "@/lib/format";
+import { brand } from "@/lib/brand";
 
 type FollowUpData = {
   clienteId: string;
@@ -50,7 +51,7 @@ export function FollowUpComposer({
         <div>
           <h2 className="text-lg font-black text-obra-ink">Seguimiento por WhatsApp</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Orqena prepara el mensaje. Revísalo y confirma antes de programarlo.
+            {brand.assistantName} prepara el mensaje. Revísalo y confirma antes de programarlo.
           </p>
         </div>
       </div>

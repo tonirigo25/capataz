@@ -82,7 +82,7 @@ function CapabilityOverview() {
         <h2 id="capability-title">Las cuatro áreas que deben trabajar juntas.</h2>
         <p>Menos menús y más continuidad: cada dato aparece donde ayuda a vender, ejecutar o decidir.</p>
       </div>
-      <div className={styles.capabilityGrid} role="region" aria-label="Áreas principales de Capataz" tabIndex={0}>
+      <div className={styles.capabilityGrid} role="region" aria-label="Áreas principales de Orqena" tabIndex={0}>
         {capabilityCards.map(({ id, aliases, eyebrow, title, text, icon: Icon, proof }, index) => (
           <article id={id} key={id} className={styles.capabilityCard}>
             {aliases.map((alias) => <span className={styles.anchorAlias} id={alias} key={alias} aria-hidden="true" />)}
@@ -108,9 +108,9 @@ function FinalCta() {
   return (
     <section id="solicitar-acceso" className={styles.finalCta} aria-labelledby="final-cta-title">
       <div className={styles.finalCtaCopy}>
-        <span>Una prueba con contexto</span>
-        <h2 id="final-cta-title">Mira tu operación con menos ruido.</h2>
-        <p>Recorre Capataz con un caso parecido al de tu empresa. Sin migrar datos, sin tarjeta y con confirmación humana.</p>
+        <span>Demo privada, con datos aislados</span>
+        <h2 id="final-cta-title">Comprueba cómo encaja Orqena en tu forma de trabajar.</h2>
+        <p>Te preparamos un entorno con un caso parecido al de tu empresa para que veas clientes, obras, costes, documentos, facturas e IA funcionando de principio a fin.</p>
         <div className={styles.finalCtaButtons}>
           <Link className={styles.finalPrimary} href="/contacto?motivo=demo">Solicitar demo <ArrowRight /></Link>
           <Link className={styles.finalSecondary} href="/demo#quick-demo">Probar demo guiada</Link>
@@ -122,8 +122,9 @@ function FinalCta() {
         <ul>
           <li><strong>7 días</strong><span>de acceso guiado</span></li>
           <li><strong>1 usuario</strong><span>con datos aislados</span></li>
-          <li><strong>100 operaciones IA</strong><span>supervisadas</span></li>
+          <li><strong>100 operaciones de IA</strong><span>supervisadas</span></li>
           <li><strong>Sin tarjeta</strong><span>ni compromiso</span></li>
+          <li><strong>Sin cargos automáticos</strong><span>tú decides</span></li>
           <li><strong>&lt; 24 h laborables</strong><span>respuesta personal</span></li>
         </ul>
         <p><ShieldCheck /> Datos sintéticos, acceso controlado y cero escrituras en tu negocio.</p>
@@ -138,17 +139,17 @@ export function MarketingFooter() {
       <div className={styles.footerTop}>
         <div className={styles.footerIdentity}>
           <a className={styles.footerBrand} href="#top">{brand.wordmark}</a>
-          <p>Capataz conecta clientes, trabajo y dinero para que cada decisión tenga contexto.</p>
-          <span>Capataz, by Orqena Tech.</span>
+          <p>Orqena conecta clientes, trabajo y dinero para que cada decisión tenga contexto.</p>
+          <span>Orqena · por Orqena Tech.</span>
           <div><Link href="/soporte">Soporte</Link><Link href="/estado"><i />Todos los sistemas operativos</Link><span>ES · Español</span></div>
         </div>
         <FooterColumn title="Producto" links={[["Producto", "/producto"], ["Funcionalidades", "/funcionalidades"], ["Demo", "/demo"], ["Precios", "/precios"]]} />
-        <FooterColumn title="Soluciones" links={[["Autónomos", "/para-autonomos"], ["Empresas", "/para-empresas"], ["Clientes y ventas", "/#clientes-y-ventas"], ["Trabajo y obra", "/#trabajo-y-obra"]]} />
-        <FooterColumn title="Empresa" links={[["Contacto", "/contacto"], ["Seguridad", "/seguridad"], ["Estado", "/estado"], ["Soporte", "/soporte"]]} />
-        <FooterColumn title="Recursos" links={[["Cómo funciona", "/#como-funciona"], ["Centro de ayuda", "/soporte"], ["Estado del servicio", "/estado"], ["Entrar", "https://app.orqenatech.com/login"]]} />
+        <FooterColumn title="Soluciones" links={[["Todas las soluciones", "/soluciones"], ["Autónomos", "/soluciones/autonomos"], ["Empresas", "/soluciones/pymes-construccion"], ["Trabajo y obra", "/soluciones/control-de-obras"]]} />
+        <FooterColumn title="Empresa" links={[["Quiénes somos", "/empresa"], ["Contacto", "/contacto"], ["Seguridad", "/seguridad"], ["Estado", "/estado"]]} />
+        <FooterColumn title="Recursos" links={[["Centro de recursos", "/recursos"], ["Cómo funciona", "/#como-funciona"], ["Centro de ayuda", "/soporte"], ["Entrar", "https://app.orqenatech.com/login"]]} />
         <FooterColumn title="Legal" links={[["Privacidad", "/privacidad"], ["Términos", "/terminos"], ["Cookies", "/cookies"], ["Aviso legal", "/legal/aviso-legal"]]} />
       </div>
-      <div className={styles.footerBottom}><span>© 2026 {brand.legalName}</span><span>Beta privada · Datos de ejemplo · Noindex</span><a href="#top">Volver arriba</a></div>
+      <div className={styles.footerBottom}><span>© 2026 {brand.legalName}</span><span>Control humano · Datos aislados · Acceso seguro</span><a href="#top">Volver arriba</a></div>
     </footer>
   );
 }

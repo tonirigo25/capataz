@@ -28,7 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
 import styles from "./public-home.module.css";
 import { InteractiveProductChart } from "./interactive-product-chart";
 import { BrandMark } from "@/components/brand/brand-mark";
@@ -42,34 +42,75 @@ const workspaceTabs: ReadonlyArray<{ id: WorkspaceId; label: string; icon: Lucid
   { id: "clientes", label: "Clientes", icon: Users },
   { id: "trabajo", label: "Trabajo", icon: BriefcaseBusiness },
   { id: "dinero", label: "Dinero", icon: WalletCards },
-  { id: "ia", label: brand.legacyAliases[1], icon: Bot },
+  { id: "ia", label: brand.assistantName, icon: Bot },
 ];
 
 const workspaceMeta: Record<WorkspaceId, { greeting: string; title: string; subtitle: string; status: string }> = {
-  hoy: { greeting: "Buenos días, Toni", title: "Tu empresa, hoy", subtitle: "Jueves, 30 de julio · 5 prioridades", status: "Todo conectado" },
+  hoy: { greeting: "Buenos días, Marta", title: "Tu empresa, hoy", subtitle: "Jueves, 30 de julio · 5 prioridades", status: "Todo conectado" },
   clientes: { greeting: "Área comercial", title: "Clientes y oportunidades", subtitle: "Pipeline, presupuestos y seguimientos", status: "3 tareas para hoy" },
   trabajo: { greeting: "Operación", title: "Trabajo en marcha", subtitle: "Obras, equipo, hitos e incidencias", status: "4 obras activas" },
   dinero: { greeting: "Control económico", title: "Caja, margen y vencimientos", subtitle: "Cobros y pagos previstos", status: "Actualizado ahora" },
-  ia: { greeting: "Asistente supervisado", title: brand.legacyAliases[1], subtitle: "Propuestas listas para revisar", status: "Confirmación humana" },
+  ia: { greeting: "Asistente supervisado", title: brand.assistantName, subtitle: "Propuestas listas para revisar", status: "Confirmación humana" },
 };
 
 const phoneContent: Record<WorkspaceId, { eyebrow: string; title: string; actions: readonly [LucideIcon, string][] }> = {
-  hoy: { eyebrow: "Buenos días, Toni", title: "¿Qué necesita atención?", actions: [[CalendarDays, "Ver prioridades"], [ReceiptText, "Escanear factura"], [Bot, "Preguntar a Capataz"]] },
+  hoy: { eyebrow: "Buenos días, Marta", title: "¿Qué necesita atención?", actions: [[CalendarDays, "Ver prioridades"], [ReceiptText, "Escanear factura"], [Bot, "Preguntar a Orqena IA"]] },
   clientes: { eyebrow: "Clientes", title: "Siguiente paso comercial", actions: [[Users, "Abrir seguimiento"], [FilePenLine, "Preparar presupuesto"], [MessageSquareText, "Registrar llamada"]] },
   trabajo: { eyebrow: "Obra Costa Norte", title: "Actualiza desde la obra", actions: [[BriefcaseBusiness, "Añadir avance"], [AlertTriangle, "Crear incidencia"], [Wrench, "Registrar material"]] },
   dinero: { eyebrow: "Tesorería", title: "Controla los vencimientos", actions: [[WalletCards, "Ver cobros"], [ReceiptText, "Revisar pagos"], [Landmark, "Abrir previsión"]] },
-  ia: { eyebrow: brand.legacyAliases[1], title: "Tres propuestas preparadas", actions: [[Sparkles, "Revisar recomendación"], [FileCheck2, "Abrir borrador"], [ShieldCheck, "Ver trazabilidad"]] },
+  ia: { eyebrow: brand.assistantName, title: "Tres propuestas preparadas", actions: [[Sparkles, "Revisar recomendación"], [FileCheck2, "Abrir borrador"], [ShieldCheck, "Ver trazabilidad"]] },
 };
+
+const HERO_AUTOPLAY_MS = 8200;
+const HERO_FIRST_PAUSE_MS = 3000;
 
 export function HeroDemo() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>("hoy");
+  const [paused, setPaused] = useState(false);
+  const [inViewport, setInViewport] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [cycle, setCycle] = useState(0);
+  const [autoplayStarted, setAutoplayStarted] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const showcaseRef = useRef<HTMLDivElement>(null);
   const active = workspaceMeta[activeWorkspace];
 
-  const selectTab = (index: number, focus = false) => {
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const target = showcaseRef.current;
+    if (!target || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setInViewport(Boolean(entry?.isIntersecting)), { threshold: 0.3 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (paused || reducedMotion || !inViewport) return;
+    const delay = autoplayStarted ? HERO_AUTOPLAY_MS : HERO_FIRST_PAUSE_MS;
+    const timer = window.setTimeout(() => {
+      const currentIndex = workspaceTabs.findIndex(({ id }) => id === activeWorkspace);
+      setActiveWorkspace(workspaceTabs[(currentIndex + 1) % workspaceTabs.length].id);
+      setAutoplayStarted(true);
+      setCycle((current) => current + 1);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [activeWorkspace, autoplayStarted, cycle, inViewport, paused, reducedMotion]);
+
+  const selectTab = (index: number, focus = false, manual = false) => {
     const next = workspaceTabs[index];
     if (!next) return;
     setActiveWorkspace(next.id);
+    if (manual) {
+      setAutoplayStarted(true);
+      setCycle((current) => current + 1);
+    }
     if (focus) tabRefs.current[index]?.focus();
   };
 
@@ -81,21 +122,25 @@ export function HeroDemo() {
     if (event.key === "End") nextIndex = workspaceTabs.length - 1;
     if (nextIndex === null) return;
     event.preventDefault();
-    selectTab(nextIndex, true);
+    selectTab(nextIndex, true, true);
+  };
+
+  const handleShowcaseBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
   };
 
   return (
     <section className={styles.hero} aria-labelledby="public-hero-title">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>CAPATAZ · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS</p>
+          <p className={styles.eyebrow}><span className={styles.eyebrowDesktop}>ORQENA · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS</span><span className={styles.eyebrowMobile}>ORQENA · GESTIÓN INTELIGENTE</span></p>
           <h1 id="public-hero-title">
             <span>Gestiona tu empresa.</span>
             <strong>Ahorra tiempo.</strong>
             <strong>Toma el control.</strong>
           </h1>
           <p className={styles.heroSubtitle}>
-            Clientes, presupuestos, obras, costes, documentos, facturas, cobros e IA conectados en un único sistema. Capataz prepara; tú revisas y confirmas.
+            Clientes, presupuestos, obras, costes, documentos, facturas, cobros e IA conectados en un único sistema. Orqena prepara; tú revisas y confirmas.
           </p>
           <div className={styles.heroActions} aria-label="Acciones principales">
             <Link className={styles.primaryAction} href="/contacto?motivo=demo" onClick={() => trackPublicFunnel("funnel.hero_cta", { target: "access_request" })}>
@@ -112,13 +157,13 @@ export function HeroDemo() {
           </ul>
         </div>
 
-        <div className={styles.productShowcase} aria-label="Vista interactiva del producto con datos de ejemplo">
-          <div className={styles.productTabs} role="tablist" aria-label="Áreas de Capataz">
+        <div ref={showcaseRef} className={styles.productShowcase} aria-label="Vista interactiva de Orqena con datos de ejemplo" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={handleShowcaseBlur}>
+          <div className={styles.productTabs} role="tablist" aria-label="Áreas de Orqena">
             {workspaceTabs.map(({ id, label, icon: Icon }, index) => {
               const selected = activeWorkspace === id;
               return (
-                <button key={id} ref={(element) => { tabRefs.current[index] = element; }} id={`workspace-tab-${id}`} type="button" role="tab" aria-selected={selected} aria-controls={`workspace-panel-${id}`} tabIndex={selected ? 0 : -1} onClick={() => selectTab(index)} onKeyDown={(event) => handleTabKey(event, index)}>
-                  <Icon aria-hidden="true" /><span>{label}</span>
+                <button key={id} ref={(element) => { tabRefs.current[index] = element; }} id={`workspace-tab-${id}`} type="button" role="tab" aria-selected={selected} aria-controls={`workspace-panel-${id}`} tabIndex={selected ? 0 : -1} onClick={() => selectTab(index, false, true)} onKeyDown={(event) => handleTabKey(event, index)}>
+                  <Icon aria-hidden="true" /><span>{label}</span>{selected && !reducedMotion ? <i key={`${id}-${cycle}`} className={styles.tabProgress} aria-hidden="true" style={{ "--hero-progress-duration": `${autoplayStarted ? HERO_AUTOPLAY_MS : HERO_FIRST_PAUSE_MS}ms` } as CSSProperties} /> : null}
                 </button>
               );
             })}
@@ -144,7 +189,7 @@ export function HeroDemo() {
 
       <ul className={styles.heroValueBand} aria-label="Beneficios principales">
         <li><strong>Todo conectado</strong><span>Cliente, trabajo, documentos y dinero.</span></li>
-        <li><strong>IA con control humano</strong><span>Capataz prepara; tú confirmas.</span></li>
+        <li><strong>IA con control humano</strong><span>Orqena prepara; tú confirmas.</span></li>
         <li><strong>Datos aislados y seguros</strong><span>Cada empresa trabaja en su espacio.</span></li>
         <li><strong>Acceso web y móvil</strong><span>Oficina y obra siempre coordinadas.</span></li>
       </ul>
@@ -203,7 +248,7 @@ function ClientsWorkspace() {
           [FilePenLine, "Estudio Abril", "Enviar propuesta", "Mañana"],
         ]} />
       </div>
-      <Insight tone="neutral" icon={Target} title="La oportunidad con más potencial está parada" text="Grupo Norte lleva 5 días sin siguiente paso. Capataz ha preparado un recordatorio." action="Revisar seguimiento" />
+      <Insight tone="neutral" icon={Target} title="La oportunidad con más potencial está parada" text="Grupo Norte Demo lleva 5 días sin siguiente paso. Orqena ha preparado un recordatorio." action="Revisar seguimiento" />
     </>
   );
 }
@@ -224,7 +269,7 @@ function WorkWorkspace() {
         <ActionList title="Agenda de equipo" items={[
           [CheckCircle2, "Certificar mediciones", "Marta · 09:30", "Hecho"],
           [Wrench, "Entrega de material", "Iván · 12:00", "En curso"],
-          [AlertTriangle, "Resolver incidencia", "Toni · 16:30", "Alta"],
+          [AlertTriangle, "Resolver incidencia", "Marta · 16:30", "Alta"],
         ]} />
       </div>
       <Insight tone="warning" icon={AlertTriangle} title="Una incidencia puede mover el hito del viernes" text="Falta confirmar el suministro de climatización de Reforma Centro." action="Abrir incidencia" />
@@ -316,8 +361,10 @@ function PhonePreview({ workspace }: { workspace: WorkspaceId }) {
   const content = phoneContent[workspace];
   return (
     <div className={styles.productPhone} aria-hidden="true" key={`phone-${workspace}`}>
-      <div><span>9:41</span><strong>Capataz</strong></div><p>{content.eyebrow}</p><h2>{content.title}</h2>
+      <div><span>9:41</span><strong>Orqena</strong></div><p>{content.eyebrow}</p><h2>{content.title}</h2>
       <ul>{content.actions.map(([Icon, label]) => <li key={label}><Icon />{label}</li>)}</ul>
+      <aside><Sparkles aria-hidden="true" /><span><strong>Orqena IA</strong><small>He preparado dos prioridades para revisar.</small></span></aside>
+      <nav aria-label="Navegación móvil de muestra"><LayoutDashboard /><Users /><BriefcaseBusiness /><WalletCards /></nav>
       <span className={styles.phoneAction}><Plus /></span>
     </div>
   );

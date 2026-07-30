@@ -69,10 +69,9 @@ async function validateHosts() {
   }, "defensive domain preserves path and query");
   equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/api/private", nodeEnv: "production" }).action, "reject", "marketing blocks app API");
   equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/precios", nodeEnv: "production" }), {
-    action: "rewrite",
-    pathname: "/marketing-internal/precios",
+    action: "pass",
     site: "marketing",
-  }, "marketing is internally isolated");
+  }, "marketing serves the canonical pricing page directly");
   equal(resolveHostRouting({ host: APP_HOST, pathname: "/precios", nodeEnv: "production" }), {
     action: "redirect",
     location: "https://orqenatech.com/precios",
@@ -101,15 +100,14 @@ async function validateHosts() {
     else process.env.APP_BASE_URL = previousAppBaseUrl;
   }
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/precios", nodeEnv: "production" }), {
-    action: "rewrite",
-    pathname: "/marketing-internal/precios",
+    action: "pass",
     site: "marketing",
-  }, "Railway validation host serves launch marketing routes");
+  }, "Railway validation host serves the canonical pricing page directly");
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production" }), {
-    action: "rewrite",
-    pathname: "/marketing-internal/capataz",
-    site: "marketing",
-  }, "Railway validation host serves the public Capataz page without a session");
+    action: "redirect",
+    location: "https://orqenatech.com/producto",
+    status: 301,
+  }, "Railway validation host redirects the legacy public product route");
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production", hasSessionCookie: true }), {
     action: "pass",
     site: "app",

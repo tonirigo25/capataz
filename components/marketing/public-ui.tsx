@@ -22,7 +22,7 @@ export function PublicProductPreview({ title, state, metrics, children }: { titl
 }
 
 export function PublicCTA({ title = "Comprueba cómo encaja en tu operación.", text = "Demo privada, datos sintéticos y acompañamiento personal.", primary = ["Solicitar demo", "/contacto?motivo=demo"], secondary = ["Ver demo guiada", "/demo"] }: { title?: string; text?: string; primary?: readonly [string, string]; secondary?: readonly [string, string] }) {
-  return <section className={styles.cta}><div><span>Capataz, by Orqena</span><h2>{title}</h2><p>{text}</p></div><div><Link href={primary[1]}>{primary[0]} <ArrowRight /></Link><Link href={secondary[1]}>{secondary[0]}</Link><small><ShieldCheck /> Sin tarjeta · acceso controlado</small></div></section>;
+  return <section className={styles.cta}><div><span>Orqena · por Orqena Tech</span><h2>{title}</h2><p>{text}</p></div><div><Link href={primary[1]}>{primary[0]} <ArrowRight /></Link><Link href={secondary[1]}>{secondary[0]}</Link><small><ShieldCheck /> Sin tarjeta · acceso controlado</small></div></section>;
 }
 
 export function PublicFooter() { return <MarketingFooter />; }

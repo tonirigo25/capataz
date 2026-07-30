@@ -54,7 +54,7 @@ export function LaunchContactForm() {
         <label>
           <span>Motivo</span>
           <select name="reason" defaultValue="informacion" required>
-            <option value="informacion">Información sobre Capataz</option>
+            <option value="informacion">Información sobre Orqena</option>
             <option value="acceso">Acceso anticipado</option>
             <option value="soporte">Soporte</option>
             <option value="privacidad">Privacidad</option>

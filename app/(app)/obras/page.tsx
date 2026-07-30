@@ -34,6 +34,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { statusClass } from "@/lib/status";
+import { brand } from "@/lib/brand";
 import {
   calculateWorkFinancials,
   getWorkNextAction,
@@ -174,7 +175,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         title="Trabajos"
         description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos de cada trabajo."
         action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link> : undefined}
-        secondaryActions={<Link href="/capataz" className="secondary-button">Abrir Orqena</Link>}
+        secondaryActions={<Link href="/capataz" className="secondary-button">Abrir {brand.assistantName}</Link>}
       >
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
           <ExecutiveMetric icon={BriefcaseBusiness} label="Activas" value={String(totals.active)} detail={`${totals.blocked} bloqueadas`} tone={totals.blocked ? "warning" : "neutral"} />

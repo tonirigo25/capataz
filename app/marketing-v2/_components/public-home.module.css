@@ -69,6 +69,8 @@
   text-transform: uppercase;
 }
 
+.eyebrowMobile { display: none; }
+
 .heroCopy h1 {
   max-width: 11ch;
   margin: 1.2rem 0 0;
@@ -186,6 +188,8 @@
 }
 
 .productTabs button {
+  position: relative;
+  overflow: hidden;
   min-width: 0;
   min-height: 2.75rem;
   display: flex;
@@ -200,6 +204,20 @@
   font-size: 0.66rem;
   font-weight: 760;
   padding: 0.4rem;
+}
+
+.tabProgress {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: #087a68;
+  transform-origin: left;
+  animation: hero-tab-progress var(--hero-progress-duration, 8200ms) linear both;
+}
+
+@keyframes hero-tab-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 .productTabs button[aria-selected="true"] {
@@ -261,7 +279,7 @@
 .productWorkspace {
   min-width: 0;
   padding: 0.85rem;
-  animation: workspace-in 180ms ease-out;
+  animation: workspace-in 780ms cubic-bezier(.2,.8,.2,1);
 }
 
 @keyframes workspace-in {
@@ -699,8 +717,8 @@
   background: #f8faf6;
   box-shadow: 0 1.5rem 3.5rem rgb(0 0 0 / 34%);
   color: #17251e;
-  padding: 0.72rem;
-  animation: workspace-in 180ms ease-out;
+  padding: 0.72rem 0.72rem 3.35rem;
+  animation: workspace-in 780ms cubic-bezier(.2,.8,.2,1);
 }
 
 .productPhone > div:first-child { display: flex; justify-content: space-between; color: #526159; font-size: 0.44rem; }
@@ -709,7 +727,14 @@
 .productPhone ul { margin: 0.85rem 0 0; display: grid; gap: 0.4rem; padding: 0; list-style: none; }
 .productPhone li { min-height: 2.45rem; display: flex; align-items: center; gap: 0.4rem; border: 1px solid #d9e0d8; border-radius: 0.52rem; background: #fff; font-size: 0.48rem; font-weight: 740; padding: 0.42rem; }
 .productPhone li svg { width: 1.3rem; height: 1.3rem; border-radius: 0.38rem; background: #eaf4e6; color: var(--home-green); padding: 0.3rem; }
-.phoneAction { width: 2.35rem; height: 2.35rem; position: absolute; right: 0.75rem; bottom: 0.8rem; display: grid; place-items: center; border-radius: 50%; background: var(--home-lime); }
+.productPhone > aside { position: absolute; right: 0.55rem; bottom: 2.35rem; left: 0.55rem; display: grid; grid-template-columns: 1.35rem minmax(0, 1fr); align-items: center; gap: 0.35rem; border: 1px solid #cddac9; border-radius: 0.5rem; background: #edf7e9; padding: 0.42rem; }
+.productPhone > aside > svg { width: 1.25rem; height: 1.25rem; border-radius: 0.35rem; background: var(--home-ink); color: var(--home-lime); padding: 0.28rem; }
+.productPhone > aside strong, .productPhone > aside small { display: block; }
+.productPhone > aside strong { font-size: 0.43rem; }
+.productPhone > aside small { margin-top: 0.08rem; color: #526159; font-size: 0.34rem; line-height: 1.25; }
+.productPhone > nav { position: absolute; right: 0; bottom: 0; left: 0; min-height: 1.9rem; display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; border-top: 1px solid #d9e0d8; background: #fff; color: #6b7b71; padding: 0.42rem 1rem; }
+.productPhone > nav svg { width: 0.78rem; margin: auto; }
+.phoneAction { width: 2.1rem; height: 2.1rem; position: absolute; right: 0.7rem; bottom: 2.05rem; z-index: 2; display: grid; place-items: center; border-radius: 50%; background: var(--home-lime); box-shadow: 0 .45rem 1rem rgb(16 32 25 / 20%); }
 .phoneAction svg { width: 1rem; }
 
 .heroValueBand {
@@ -1208,14 +1233,14 @@
 .professionalChart svg text { fill: #6a776f; font-size: 10px; font-weight: 700; }
 .chartGrid line { stroke: #e3e8e1; stroke-width: 1; stroke-dasharray: 3 5; }
 .chartArea { fill: rgb(8 122 104 / 10%); }
-.chartLine, .chartLineSecondary { fill: none; stroke: var(--home-green); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 900; animation: chart-draw 620ms ease-out both; }
-.chartLineSecondary { stroke: #94a39a; stroke-width: 2.5; animation-delay: 90ms; }
+.chartLine, .chartLineSecondary { fill: none; stroke: var(--home-green); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 900; animation: chart-draw 1800ms cubic-bezier(.2,.8,.2,1) both; }
+.chartLineSecondary { stroke: #94a39a; stroke-width: 2.5; animation-delay: 180ms; }
 .chartPoint { fill: #fff; stroke: var(--home-green); stroke-width: 3; cursor: pointer; transition: r 160ms ease, fill 160ms ease; }
 .chartPoint[data-active="true"] { fill: var(--home-lime); stroke: var(--home-ink); }
-.funnelBar { fill: #dcead9; stroke: #b9d3b4; stroke-width: 1; transform-box: fill-box; transform-origin: center; animation: chart-grow-x 520ms var(--chart-delay) cubic-bezier(.2,.8,.2,1) both; }
+.funnelBar { fill: #dcead9; stroke: #b9d3b4; stroke-width: 1; transform-box: fill-box; transform-origin: center; animation: chart-grow-x 1550ms var(--chart-delay) cubic-bezier(.2,.8,.2,1) both; }
 .funnelSeries > g[data-active="true"] .funnelBar { fill: var(--home-lime); stroke: var(--home-green); }
 .funnelSeries > g { cursor: pointer; outline: none; }
-.chartBar, .chartBarSecondary { fill: var(--home-green); transform-box: fill-box; transform-origin: bottom; animation: chart-grow-y 540ms var(--chart-delay) cubic-bezier(.2,.8,.2,1) both; }
+.chartBar, .chartBarSecondary { fill: var(--home-green); transform-box: fill-box; transform-origin: bottom; animation: chart-grow-y 1600ms var(--chart-delay) cubic-bezier(.2,.8,.2,1) both; }
 .chartBarSecondary { fill: #b9c5bd; }
 .barSeries > g[data-active="true"] .chartBar { fill: var(--home-lime); stroke: var(--home-ink); stroke-width: 1; }
 .barSeries > g[data-active="true"] .chartBarSecondary { fill: #52675b; }
@@ -1233,6 +1258,26 @@
 @keyframes chart-grow-x { from { transform: scaleX(0); opacity: 0.25; } to { transform: scaleX(1); opacity: 1; } }
 
 .capabilitySection, .flowSection, .guidedSection { padding-block: clamp(3.5rem, 5vw, 4.75rem); }
+.connectedFlow { margin-top: 1.75rem; overflow: hidden; border: 1px solid #cfd9d0; border-radius: 1rem; background: #fff; box-shadow: 0 1.5rem 3.5rem rgb(22 40 31 / 8%); }
+.connectedFlowTrack { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid #d7dfd6; background: #edf2eb; padding: 0.55rem; }
+.connectedFlowTrack button { min-width: 0; min-height: 4.8rem; position: relative; display: grid; place-items: center; align-content: center; gap: 0.42rem; border: 0; border-radius: 0.58rem; background: transparent; color: #65746c; cursor: pointer; padding: 0.45rem; }
+.connectedFlowTrack button[aria-current="step"] { background: var(--home-ink); color: #fff; }
+.connectedFlowTrack button > span { width: 1.85rem; height: 1.85rem; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; }
+.connectedFlowTrack button > span svg { width: 0.85rem; }
+.connectedFlowTrack button > strong { font-size: 0.62rem; }
+.connectedFlowTrack button > i { width: calc(100% - 2.6rem); height: 2px; position: absolute; top: 1.58rem; left: calc(50% + 1.25rem); overflow: hidden; background: #c8d3c8; }
+.connectedFlowTrack button > i b { width: 100%; height: 100%; display: block; background: var(--home-lime); transform: scaleX(0); transform-origin: left; transition: transform 780ms cubic-bezier(.2,.8,.2,1); }
+.connectedFlowTrack button > i b[data-complete="true"] { transform: scaleX(1); }
+.connectedFlowPanel { min-height: 13rem; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(14rem, .8fr) auto; align-items: center; gap: clamp(1rem, 3vw, 2.5rem); padding: clamp(1.3rem, 3vw, 2.4rem); animation: workspace-in 780ms cubic-bezier(.2,.8,.2,1); }
+.connectedFlowPanel > div > span { color: var(--home-green); font-size: .62rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.connectedFlowPanel h3 { margin: .45rem 0 0; font-size: clamp(1.65rem, 3vw, 2.55rem); letter-spacing: -.045em; }
+.connectedFlowPanel p { max-width: 40rem; margin: .65rem 0 0; color: var(--home-muted); font-size: .82rem; line-height: 1.55; }
+.connectedFlowPanel aside { display: grid; gap: .3rem; border-left: 2px solid var(--home-lime); padding-left: 1rem; }
+.connectedFlowPanel aside small { color: var(--home-muted); font-size: .58rem; }
+.connectedFlowPanel aside strong { font-size: .88rem; }
+.connectedFlowPanel aside em { color: var(--home-green); font-size: .55rem; font-style: normal; font-weight: 760; }
+.connectedFlowPanel > button { min-height: 2.8rem; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border: 0; border-radius: .55rem; background: var(--home-ink); color: #fff; font-size: .66rem; font-weight: 820; padding: .65rem .8rem; white-space: nowrap; }
+.connectedFlowPanel > button svg { width: .85rem; }
 .sectionHeading h2, .guidedIntro h2 { font-size: clamp(2.35rem, 3.7vw, 3.65rem); }
 .capabilityGrid { margin-top: 1.75rem; }
 .capabilityCard { min-height: 15.2rem; padding: 1rem; }
@@ -1267,6 +1312,10 @@
 .previewNotice button, .previewAction { min-height: 2.25rem; border: 1px solid #b8cfb2; border-radius: 0.42rem; background: #fff; color: #1e473d; font-size: 0.53rem; font-weight: 820; padding-inline: 0.6rem; }
 .previewAction { width: 100%; margin-top: 0.75rem; }
 .guidedFooter { min-height: 3.5rem; }
+.guidedSceneDots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border-top: 1px solid #34483d; background: #34483d; }
+.guidedSceneDots button { min-height: 2.35rem; border: 0; border-radius: 0; background: #172820; color: #aebbb3; font-size: .54rem; font-weight: 760; }
+.guidedSceneDots button[aria-current="step"] { background: #243b30; color: var(--home-lime); }
+.guidedFooter > div { flex-wrap: wrap; justify-content: flex-end; }
 
 .finalCta { grid-template-columns: minmax(0, 0.4fr) minmax(25rem, 0.6fr); align-items: stretch; gap: clamp(1.5rem, 3vw, 3rem); margin-bottom: 2.5rem; padding: clamp(1.75rem, 3vw, 2.8rem); }
 .finalCtaCopy { display: flex; flex-direction: column; justify-content: center; }
@@ -1307,12 +1356,17 @@
 }
 
 @media (max-width: 52rem) {
+  .connectedFlowTrack { grid-template-columns: repeat(6, minmax(6.8rem, 1fr)); overflow-x: auto; }
+  .connectedFlowPanel { grid-template-columns: minmax(0, 1fr); }
   .guidedPanel { grid-template-columns: minmax(0, 1fr); }
   .footerTop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 40rem) {
   .heroGrid { gap: 1.75rem; padding: 2.6rem 0 2rem; }
+  .eyebrowDesktop { display: none; }
+  .eyebrowMobile { display: inline; }
+  .eyebrow { max-width: 27ch; font-size: 0.56rem; letter-spacing: 0.085em; line-height: 1.4; }
   .heroCopy h1 { font-size: clamp(2.55rem, 12vw, 3.25rem); }
   .heroValueBand { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .heroValueBand li { min-height: 4.25rem; }
@@ -1323,22 +1377,34 @@
   .chartReadout { grid-template-columns: minmax(0, 1fr) auto; }
   .chartReadout span:nth-child(2) { display: none; }
   .capabilitySection, .flowSection, .guidedSection { padding-block: 3.25rem; }
+  .flowSection .sectionHeading h2 { max-width: 20ch; font-size: clamp(2.12rem, 9.8vw, 2.5rem); overflow-wrap: anywhere; }
   .sectionHeading h2, .guidedIntro h2, .finalCtaCopy h2 { font-size: clamp(2.15rem, 10.5vw, 2.75rem); }
   .capabilityGrid { display: flex; gap: 0.75rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 0.05rem 0.75rem; }
   .capabilityCard { min-width: min(82vw, 19rem); min-height: 13.5rem; scroll-snap-align: start; }
   .capabilitySummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .connectedFlow { margin-top: 1.2rem; }
+  .connectedFlowTrack { grid-template-columns: repeat(6, minmax(5.65rem, 1fr)); scroll-snap-type: x mandatory; }
+  .connectedFlowTrack button { min-height: 4.2rem; scroll-snap-align: start; }
+  .connectedFlowPanel { min-height: 0; padding: 1rem; }
+  .connectedFlowPanel h3 { font-size: 1.65rem; }
+  .connectedFlowPanel > button { width: 100%; }
   .flowTabs { grid-template-columns: repeat(3, minmax(9.8rem, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; }
   .flowTabs button { min-height: 3rem; scroll-snap-align: start; }
   .flowNarrative h3 { font-size: 1.6rem; }
   .guidedNav { grid-template-columns: repeat(5, minmax(5.2rem, 1fr)); }
   .guidedNav button { min-height: 3.8rem; }
   .guidedPanel { padding: 0.45rem; }
+  .guidedConsole { border-radius: .72rem; }
+  .guidedTopbar { align-items: flex-start; }
+  .guidedSceneDots button { min-height: 2.8rem; }
+  .guidedFooter > div { width: 100%; justify-content: stretch; }
+  .guidedFooter button { min-width: 0; flex: 1 1 7rem; justify-content: center; }
   .previewRows { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .previewRows span { min-height: 4.3rem; }
   .previewDocument, .previewClient { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .previewNotice { grid-template-columns: 1.7rem minmax(0, 1fr); }
   .previewNotice button { grid-column: 1 / -1; width: 100%; }
-  .finalCta { padding: 1.2rem; }
+  .finalCta { margin-bottom: 3.5rem; padding: 1.2rem 1.2rem 3.5rem; }
   .finalCtaButtons { display: grid; }
   .finalCtaModule ul { grid-template-columns: minmax(0, 1fr); }
   .finalCtaModule li:last-child { grid-column: auto; }
@@ -1350,9 +1416,22 @@
   .footerColumn[open] summary::after { content: "−"; }
   .footerColumn nav { margin: 0 0 0.9rem; }
   .footerColumn:not([open]) > nav { display: none; }
+  .footer { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@media (min-width: 40.01rem) and (max-width: 56.24rem) {
+  .footerTop { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .footerIdentity { grid-column: auto; margin-bottom: 1.5rem; }
+  .footerColumn { border-top: 1px solid #293c32; }
+  .footerColumn summary { min-height: 3.25rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .footerColumn summary::after { content: "+"; color: var(--home-lime); font-size: 1rem; }
+  .footerColumn[open] summary::after { content: "−"; }
+  .footerColumn nav { margin: 0 0 1rem; }
+  .footerColumn:not([open]) > nav { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chartLine, .chartLineSecondary, .chartBar, .chartBarSecondary, .funnelBar { animation: none; }
+  .tabProgress, .chartLine, .chartLineSecondary, .chartBar, .chartBarSecondary, .funnelBar { animation: none; }
   .guidedTopbar > i b { transition: none; }
+  .connectedFlowTrack button > i b { transition: none; }
 }

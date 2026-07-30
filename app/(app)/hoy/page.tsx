@@ -9,6 +9,7 @@ import { userDisplayName } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
 import { ActivationChecklist } from "@/components/activation-checklist";
 import { getAndMeasureActivationStatus } from "@/lib/product/activation";
+import { brand } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ export default async function TodayPage({
         eyebrow={fullDate}
         title={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}`}
         description={`Hasta tres prioridades de tu portal de ${portal.profileLabel.toLocaleLowerCase("es-ES")}. El resto puede esperar.`}
-        secondaryActions={portal.orqenaTools.length ? <Link href="/capataz" className="secondary-button"><Bot size={18} aria-hidden="true" />Preguntar a Orqena</Link> : undefined}
+        secondaryActions={portal.orqenaTools.length ? <Link href="/capataz" className="secondary-button"><Bot size={18} aria-hidden="true" />Preguntar a {brand.assistantName}</Link> : undefined}
         action={firstQuickAction ? <Link href={firstQuickAction.href} className="primary-button"><Plus size={18} aria-hidden="true" />{firstQuickAction.label}</Link> : undefined}
       />
 

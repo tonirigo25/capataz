@@ -40,6 +40,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import { prisma } from "@/lib/prisma";
+import { brand } from "@/lib/brand";
 import {
   requireCapability,
   resolveAuthorization,
@@ -428,7 +429,7 @@ function ClientContextRail({
         className="secondary-button w-full"
       >
         <Bot size={17} />
-        Preguntar a Orqena
+        Preguntar a {brand.assistantName}
       </Link>
     </div>
   );
@@ -928,10 +929,10 @@ function ClientActions({
         <Link
           href={`/capataz?clienteId=${clientId}`}
           className="secondary-button"
-          aria-label={`Preguntar a Orqena sobre ${clientName}`}
+          aria-label={`Preguntar a ${brand.assistantName} sobre ${clientName}`}
         >
           <Bot size={18} />
-          Preguntar a Orqena
+          Preguntar a {brand.assistantName}
         </Link>
         <ArchiveActions id={clientId} archived={archived} />
       </div>

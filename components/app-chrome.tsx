@@ -42,6 +42,7 @@ import {
 import type { PortalManifest } from "@/lib/commercial/portal-manifest";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { brand } from "@/lib/brand";
 
 type DesktopPanel = "more" | "create" | "user" | null;
 type Overlay = "search" | "capture" | "more" | null;
@@ -93,6 +94,7 @@ export function AppChrome({
   const dialogRef = useRef<HTMLDivElement>(null);
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
+  const contextLabel = pathname === "/capataz" ? brand.assistantName : context.label;
   const canCapture = useMemo(
     () => captureActions.some((item) => !item.capability || capabilities.includes(item.capability)),
     [capabilities],
@@ -227,8 +229,8 @@ export function AppChrome({
           >
             <BrandMark className="h-7 w-7 text-white" />
           </Link>
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${context.label}`}>
-            {context.label}
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${contextLabel}`}>
+            {contextLabel}
           </p>
           <Link href="/seleccionar-empresa" className="ghost-button max-w-40 truncate px-2 text-xs" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
             <Building2 size={17} aria-hidden="true"/><span className="truncate">{companyName}</span><ChevronDown size={14} aria-hidden="true"/>
@@ -237,11 +239,11 @@ export function AppChrome({
           <button
             type="button"
             className="field-os-global-search h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface"
-            aria-label="Buscar en Orqena"
+            aria-label={`Buscar en ${brand.productName}`}
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
             <Search size={18} aria-hidden="true" />
-            <span className="flex-1">Buscar en Orqena</span>
+            <span className="flex-1">Buscar en {brand.productName}</span>
             <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-content-tertiary">Ctrl K</kbd>
           </button>
 
@@ -249,7 +251,7 @@ export function AppChrome({
             <button
               type="button"
               className="icon-button field-os-search-trigger"
-              aria-label="Buscar en Orqena"
+              aria-label={`Buscar en ${brand.productName}`}
               onClick={(event) => openOverlay("search", event.currentTarget)}
             >
               <Search size={20} aria-hidden="true" />
@@ -263,7 +265,7 @@ export function AppChrome({
               <Plus size={18} aria-hidden="true" />Crear
             </button> : null}
             {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
-              <Bot size={18} aria-hidden="true" />Orqena
+              <Bot size={18} aria-hidden="true" />{brand.assistantName}
             </Link> : null}
             <NotificationLink unread={unreadNotifications} />
           </div>
@@ -374,7 +376,7 @@ function DesktopNavigation({
             <BrandMark className="h-7 w-7" />
           </span>
           <span className="min-w-0">
-            <span className="block text-base font-bold leading-5 text-content">Orqena</span>
+            <span className="block text-base font-bold leading-5 text-content">{brand.productName}</span>
             <span className="flex items-center gap-1 truncate text-xs text-content-secondary">{companyName}<ChevronDown size={13} aria-hidden="true"/></span>
           </span>
         </Link>
@@ -583,7 +585,7 @@ function BottomLink({ item, pathname }: { item: ProductDestination; pathname: st
       className={clsx("shell-bottom-item", active ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
     >
       <Icon size={22} aria-hidden="true" />
-      <span>{item.label}</span>
+      <span>{item.href === "/capataz" ? brand.assistantName : item.label}</span>
     </Link>
   );
 }
@@ -593,7 +595,7 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
     <div className="p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en Orqena</h2>
+          <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en {brand.productName}</h2>
           <p className="type-secondary mt-1">Clientes, trabajos, presupuestos, facturas y documentos.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Cerrar búsqueda" onClick={onClose}>
@@ -670,7 +672,7 @@ function MobileMoreSheet({
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
       {navigation.some((item) => item.href === "/capataz") ? <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
-        <Bot size={20} aria-hidden="true" />Orqena
+        <Bot size={20} aria-hidden="true" />{brand.assistantName}
       </Link> : null}
       <div className="grid gap-5">
         <section>
@@ -837,7 +839,7 @@ function NavigationLink({
       )}
     >
       <Icon size={19} aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="min-w-0 flex-1 truncate">{item.href === "/capataz" ? brand.assistantName : item.label}</span>
       {badge ? <NotificationBadge count={badge} /> : null}
     </Link>
   );
