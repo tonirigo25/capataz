@@ -80,3 +80,7 @@ EU_B2B_CROSS_BORDER_ENABLED=false
 - Embat: orden, navegación, claridad financiera e inteligencia operativa.
 - Holded: producto visible, facilidad, modularidad y onboarding.
 - Orqena: identidad propia, vertical de construcción/servicios, control humano e IA contextual.
+
+## Package build
+
+Esta revisión activa el workflow que incorpora las cuatro referencias visuales y genera el ZIP comprobado.
