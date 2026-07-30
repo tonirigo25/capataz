@@ -1,5 +1,21 @@
 # Orqena Field OS V2 — registro de implementación
 
+## Corrección visual PR #63 — Gate 1, revisión 2
+
+- La portada pública se redujo a la secuencia ejecutiva acordada: header, hero,
+  banda breve, capacidades, flujos, demo guiada, CTA y footer.
+- El hero contiene cinco superficies completas y diferenciadas para Hoy,
+  Clientes, Trabajo, Dinero y Orqena IA; cada una sustituye métricas, gráfico o
+  visual funcional, estados, acciones, insight y vista móvil.
+- Se añadieron flujos interactivos de venta, operación y control documental.
+- La demo pública se compactó a tres minutos, con escenario, señal visual,
+  navegación sin desbordamiento, revisión y confirmación humana.
+- Se rehízo el cierre en escritorio y móvil.
+- Evidencia nueva:
+  `artifacts/design-v2/correction-pr63/gate-1-revision-2/`.
+- El Gate 1 anterior queda superseded por esta revisión. La PR sigue Draft y no
+  existe autorización de merge o Production.
+
 > **ESTADO ACTUAL — CORRECCIÓN PR #63, GATE 1.** La portada y los megamenús de
 > la implementación anterior fueron rechazados visualmente por el propietario.
 > Todo el registro D0–D13 que sigue se conserva como evidencia histórica y no

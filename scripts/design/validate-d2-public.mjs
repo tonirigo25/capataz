@@ -4,14 +4,16 @@ const read = (path) => readFileSync(path, "utf8");
 const header = read("app/marketing-v2/_components/marketing-header.tsx");
 const hero = read("app/marketing-v2/_components/hero-demo.tsx");
 const landing = read("app/marketing-v2/_components/landing-sections.tsx");
+const flows = read("app/marketing-v2/_components/public-flow-showcase.tsx");
 const story = read("app/marketing-v2/_components/immersive-journey.tsx");
 const demo = read("app/demo-v2/_components/guided-demo.tsx");
 const css = read("app/marketing-v2/page.module.css");
+const homeCss = read("app/marketing-v2/_components/public-home.module.css");
+const demoCss = read("app/demo-v2/page.module.css");
 const homePage = read("app/page.tsx");
 const canonicalMarketingHome = read("app/marketing-internal/[[...slug]]/page.tsx");
 const hostRouting = read("lib/host-routing.ts");
 const demoPage = read("app/demo/page.tsx");
-const form = read("components/marketing/demo-request-form.tsx");
 const budget = JSON.parse(read("contracts/observability/v1/web-performance-budget.json"));
 const failures = [];
 let checks = 0;
@@ -47,7 +49,29 @@ check(
   ["Hoy", "Clientes", "Trabajo", "Dinero"].every((label) => hero.includes(`label: "${label}"`))
     && hero.includes('label: `${brand.productName} IA`')
     && hero.includes('role="tablist"')
-    && hero.includes("onKeyDown"),
+    && hero.includes("onKeyDown")
+    && ["TodayWorkspace", "ClientsWorkspace", "WorkWorkspace", "MoneyWorkspace", "AiWorkspace"].every((component) => hero.includes(component)),
+);
+check(
+  "cada tab cambia narrativa, métricas, visual y microacciones",
+  [
+    "Pulso del negocio",
+    "Pipeline comercial",
+    "Progreso de obra",
+    "Previsión de tesorería",
+    "Centro de decisiones",
+    "GroupedBarChart",
+    "CashflowChart",
+    "pipelineStages",
+    "workProgressCard",
+    "aiDecisionCard",
+  ].every((marker) => hero.includes(marker)),
+);
+check(
+  "gráficos de producto con jerarquía y datos",
+  [".chartBars", ".cashflowBars", ".pipelineStages", ".workRows"].every((marker) => homeCss.includes(marker))
+    && [".scenarioSignal", ".signalBars"].every((marker) => demoCss.includes(marker))
+    && !hero.includes("placeholder"),
 );
 check(
   "franja de valor",
@@ -64,6 +88,7 @@ check(
 const publicAnchorIds = new Set([
   ...[...landing.matchAll(/id="([^"]+)"/gu)].map((match) => match[1]),
   ...[...landing.matchAll(/id:\s*"([^"]+)"/gu)].map((match) => match[1]),
+  ...[...landing.matchAll(/aliases:\s*\["([^"]+)"\]/gu)].map((match) => match[1]),
 ]);
 const menuAnchorTargets = [...header.matchAll(/href:\s*"\/#([^"]+)"/gu)].map((match) => match[1]);
 check(
@@ -77,19 +102,23 @@ check(
     && !header.includes("/demo#solicitar-acceso"),
 );
 check(
-  "sticky story de cinco etapas",
+  "demo guiada compacta de cinco etapas",
   (story.match(/^\s{4}id: "/gmu) ?? []).length === 5
     && ["Contacto y visita", "Presupuesto", "Trabajo y planificación", "Compras y costes", "Factura y cobro"].every((label) => story.includes(label)),
 );
 check(
-  "resultados, responsabilidad, móvil, confianza y FAQ",
-  ['id="resultados"', 'id="para-quien"', 'id="captura-movil"', 'id="confianza"', 'id="preguntas"'].every((marker) => landing.includes(marker)),
+  "home sintetizada en capacidades, flujos, demo, CTA y footer",
+  ["<CapabilityOverview />", "<PublicFlowShowcase />", "<ImmersiveJourney />", "<FinalCta />", "MarketingFooter"].every((marker) => landing.includes(marker))
+    && !["DemoRequestForm", "RoiCalculator", "FaqAccordion", "HumanControlDemo", "ResponsibilityViews"].some((marker) => landing.includes(marker)),
 );
 check(
-  "formulario persistente",
-  landing.includes('<DemoRequestForm kind="home" />')
-    && form.includes('fetch("/api/demo-requests"')
-    && form.includes('name="consent"'),
+  "flujos públicos funcionales y no decorativos",
+  ["Vender y presupuestar", "Ejecutar y coordinar", "Ordenar y controlar", 'role="tablist"', "activeFlow"].every((marker) => flows.includes(marker)),
+);
+check(
+  "CTA final y footer estructurado",
+  landing.includes('href="/contacto?motivo=demo"')
+    && ["Producto", "Empresa", "Legal", "Volver arriba"].every((marker) => landing.includes(marker)),
 );
 check(
   "demo sin registro y sintética",
@@ -104,7 +133,9 @@ check(
     && demo.includes("onUpdate")
     && demo.includes("Confirmar simulación")
     && demo.includes("Resultado simulado")
-    && demo.includes("Solicitar una demo real"),
+    && demo.includes("Solicitar una demo real")
+    && demo.includes("ScenarioSignal")
+    && demo.includes("Demostración guiada · 3 minutos"),
 );
 check(
   "metadata y schema coherentes",
@@ -120,7 +151,7 @@ check(
     && canonicalMarketingHome.includes("<LandingSections />")
     && hostRouting.includes('"/api/demo-requests"'),
 );
-check("sin imágenes sin dimensiones", ![hero, landing, story, demo].some((source) => /<img\b/iu.test(source)));
+check("sin imágenes sin dimensiones", ![hero, landing, flows, story, demo].some((source) => /<img\b/iu.test(source)));
 check(
   "presupuesto Web Vitals D2",
   budget.budgets.LCP.maximum <= 2500
@@ -129,7 +160,7 @@ check(
 );
 check(
   "sin llamadas externas en UI D2",
-  ![hero, landing, story, demo, form].some((source) => /fetch\(\s*["']https?:\/\//iu.test(source)),
+  ![hero, landing, flows, story, demo].some((source) => /fetch\(\s*["']https?:\/\//iu.test(source)),
 );
 
 if (failures.length) {

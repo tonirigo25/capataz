@@ -1,47 +1,59 @@
-# Design QA — corrección visual PR #63, Gate 1
+# Design QA — corrección visual PR #63, Gate 1, revisión 2
 
 Fecha: 2026-07-30  
 Rama: `design/orqena-field-os-v2`  
-Entorno objetivo: `orqena-review-continuous`
+Entorno objetivo: `orqena-review-continuous / orqena-review-web-review`
 
-## Fuente canónica
+## Fuente y comparación canónicas
 
-La portada y la navegación se han reproducido a partir de las cuatro imágenes
-del paquete `ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30`, en especial
-`referencias_visuales/01_PORTADA_FINAL_OSCURA.png`. La comparación conjunta se
-conserva en:
+- Fuente principal: `referencias_visuales/01_PORTADA_FINAL_OSCURA.png`
+  (1536×1024), complementada por `04_PRESENTACION_GENERAL.png`.
+- Implementación comparada: hero Hoy a 1440×1000 y los cuatro estados
+  alternativos del mismo producto.
+- Comparación conjunta inspeccionada:
+  `artifacts/design-v2/correction-pr63/gate-1-revision-2/09-comparacion-referencia-implementacion.png`.
+- Navegador: Chromium integrado de Codex Desktop.
 
-`artifacts/design-v2/correction-pr63/gate-1/08-comparacion-referencia.png`
+## Primera inspección y correcciones
 
-## Alcance validado
+La inspección inicial confirmó una página de 21 secciones y más de 15.000 px
+en escritorio; las pestañas del hero sólo sustituían el nombre del área. En la
+primera iteración se redujo la portada a siete secciones visibles, se crearon
+cinco superficies de producto completas y se sustituyeron las muestras
+decorativas por datos, gráficos, estados y microacciones. En la segunda
+iteración se eliminó el desbordamiento horizontal de la navegación de la demo
+en tablet y se compactó su recorrido a tres minutos.
 
-- Header oscuro y logotipo de Orqena Tech.
-- Megamenús Producto y Soluciones, con destinos existentes.
-- Menú móvil a altura completa, acordeones, bloqueo del fondo, Escape y
-  restauración del foco.
-- Hero en tres líneas, CTA principal y secundario, señales de confianza y
-  mockup realista e interactivo de Capataz.
-- Banda inferior de beneficios y primera sección clara con ocho módulos.
-- Responsive en 1440×1000 y 390×844.
-- `noindex` y límites de Review preservados.
+## Resultado visible validado
 
-## Evidencia visual exigida
+- Header, hero, banda de valor, áreas clave, flujos, demo, CTA y footer forman
+  una secuencia corta y comercial.
+- Hoy, Clientes, Trabajo, Dinero y Orqena IA cambian título, subtítulo, KPIs,
+  visualización, tarjetas, estados, acciones e interfaz móvil.
+- Los gráficos muestran series, pipeline, progreso, tesorería y señal de
+  escenario con datos sintéticos coherentes.
+- La demo pública conserva edición, teclado, revisión, confirmación y resultado,
+  pero usa menos aire y una jerarquía de producto más clara.
+- CTA y footer se verificaron completos en 390 px y 1440 px.
+- No hay desbordamiento horizontal en 390, 768 ni 1440 px.
+- No se inició el portal autenticado y no se modificaron lógica de negocio,
+  migraciones, datos ni Production.
 
-1. `01-portada-1440x1000.png`
-2. `02-portada-390x844.png`
-3. `03-header-desktop.png`
-4. `04-producto-abierto.png`
-5. `05-soluciones-abierto.png`
-6. `06-drawer-movil.png`
-7. `07-primera-seccion-clara.png`
-8. `08-comparacion-referencia.png`
+## Evidencia exigida
 
-## Límites
+1. `01-hero-hoy-1440x1000.png`
+2. `02-hero-clientes-1440x1000.png`
+3. `03-hero-trabajo-1440x1000.png`
+4. `04-hero-dinero-1440x1000.png`
+5. `05-hero-orqena-ia-1440x1000.png`
+6. `06-demo-guiada-redisenada.png`
+7. `07-cierre-cta-footer-mobile-390.png`
+8. `08-cierre-cta-footer-1440x1000.png`
 
-No se ha iniciado el rediseño del portal autenticado. Dashboard, Clientes,
-Cliente 360, Trabajo, Dinero, demo, administración, IA, emails y documentos
-quedan fuera de esta puerta. `main` y Production no se modifican. La aprobación
-visual del propietario sigue siendo `READY_FOR_EXTERNAL_INPUT`; los tests no la
-sustituyen.
+Directorio:
+`artifacts/design-v2/correction-pr63/gate-1-revision-2/`.
+
+La aprobación visual del propietario sigue siendo externa a los tests y esta PR
+debe permanecer Draft.
 
 final result: passed

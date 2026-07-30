@@ -38,7 +38,12 @@ const journey = ["lead", "visita", "presupuesto", "trabajo", "gasto", "factura",
 for (const stage of journey) check(`journey-${stage}`, landing.includes(`id: "${stage}"`));
 check("journey-seven-stages", (landing.match(/\n\s+id: "(?:lead|visita|presupuesto|trabajo|gasto|factura|cobro)"/g) ?? []).length === 7);
 const guided = source("app/demo-v2/_components/guided-demo.tsx");
-check("demo-seven-minute-story", guided.includes("Demostración guiada · 7 minutos") && guided.includes("lead-visita-presupuesto-trabajo-gasto-factura-cobro"));
+check(
+  "demo-three-minute-decision",
+  guided.includes("Demostración guiada · 3 minutos")
+    && guided.includes("Prueba una decisión completa.")
+    && guided.includes("ScenarioSignal"),
+);
 check(
   "public-vertical-first",
   source("app/marketing-v2/_components/hero-demo.tsx").includes("Gestiona tu empresa."),

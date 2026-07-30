@@ -19,6 +19,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
 } from "react";
 import {
@@ -30,7 +31,6 @@ import {
 } from "./scenarios";
 import styles from "../page.module.css";
 import { brand } from "@/lib/brand";
-import { journeyStages } from "@/app/marketing-v2/_components/landing-data";
 
 const scenarioIcons = {
   presupuesto: FilePenLine,
@@ -144,8 +144,8 @@ export function GuidedDemo() {
       <main id="guided-demo" className={styles.main} tabIndex={-1}>
         <section id="quick-demo" className={styles.intro} aria-labelledby="demo-v2-title">
           <div>
-            <p className={styles.eyebrow}>Demostración guiada · 7 minutos</p>
-            <h1 id="demo-v2-title">Prueba una historia completa.</h1>
+            <p className={styles.eyebrow}>Demostración guiada · 3 minutos</p>
+            <h1 id="demo-v2-title">Prueba una decisión completa.</h1>
             <p className={styles.introText}>
               Elige una entrada y recorre el flujo hasta el resultado. Todo es sintético,
               editable y local; no necesitas registrarte.
@@ -163,26 +163,10 @@ export function GuidedDemo() {
           </div>
         </section>
 
-        <section className={styles.scenarioSection} aria-labelledby="journey-title">
-          <div className={styles.sectionLead}>
-            <span>Historia completa · 7 minutos</span>
-            <h2 id="journey-title">Del primer contacto al cobro, sin saltos.</h2>
-          </div>
-          <ol className={styles.journeyTimeline} data-canonical-journey="lead-visita-presupuesto-trabajo-gasto-factura-cobro">
-            {journeyStages.map((stage, index) => (
-              <li key={stage.id}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{stage.label}</strong>
-                <small>{stage.action}</small>
-              </li>
-            ))}
-          </ol>
-        </section>
-
         <section className={styles.scenarioSection} aria-labelledby="scenario-title">
           <div className={styles.sectionLead}>
-            <span>Elige una situación</span>
-            <h2 id="scenario-title">Empieza por lo que necesitas resolver.</h2>
+            <span>Tres decisiones reales</span>
+            <h2 id="scenario-title">Elige qué quieres resolver.</h2>
           </div>
           <div className={styles.scenarioGrid}>
             {scenarios.map((item, index) => {
@@ -213,6 +197,7 @@ export function GuidedDemo() {
               <span>Escenario activo</span>
               <strong>{scenario.label}</strong>
             </div>
+            <ScenarioSignal scenarioId={scenarioId} step={step} />
             <span aria-live="polite">Paso {step + 1} de {demoSteps.length}</span>
           </div>
 
@@ -302,6 +287,45 @@ export function GuidedDemo() {
           <Link href="/">Volver a la portada comercial</Link>
         </footer>
       </main>
+    </div>
+  );
+}
+
+const scenarioSignals = {
+  presupuesto: {
+    label: "Margen previsto",
+    value: "28,4 %",
+    points: [34, 48, 45, 63, 74, 82],
+  },
+  gasto: {
+    label: "Coste asignado",
+    value: "1.248 €",
+    points: [28, 42, 56, 52, 69, 78],
+  },
+  obra: {
+    label: "Avance confirmado",
+    value: "68 %",
+    points: [22, 35, 46, 58, 66, 76],
+  },
+} as const;
+
+function ScenarioSignal({ scenarioId, step }: { scenarioId: ScenarioId; step: number }) {
+  const signal = scenarioSignals[scenarioId];
+  return (
+    <div className={styles.scenarioSignal} aria-label={`${signal.label}: ${signal.value}`}>
+      <div>
+        <small>{signal.label}</small>
+        <strong>{signal.value}</strong>
+      </div>
+      <div className={styles.signalBars} aria-hidden="true">
+        {signal.points.map((height, index) => (
+          <span
+            key={`${scenarioId}-${height}-${index}`}
+            data-active={index <= step}
+            style={{ "--signal-height": `${height}%` } as CSSProperties}
+          />
+        ))}
+      </div>
     </div>
   );
 }

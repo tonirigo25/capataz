@@ -1,5 +1,22 @@
 # Orqena Field OS V2 — evidencia de QA de release
 
+## Evidencia activa — corrección PR #63, Gate 1, revisión 2
+
+- Rama y PR conservadas: `design/orqena-field-os-v2`, PR `#63` Draft.
+- Superficie: marketing público y demo guiada pública únicamente.
+- Viewports comprobados: 390 px, 768 px y 1440 px.
+- Hero: cinco estados funcionales distintos, con KPIs, gráficos, estados,
+  microacciones y contenido de producto propios.
+- Portada: siete secciones; sin repetición de FAQ, ROI, formulario persistente
+  ni bloques históricos que alargaban la narrativa.
+- Demo: recorrido editable y confirmable, compactado a tres minutos y sin
+  desplazamiento horizontal en tablet.
+- Capturas y comparación canónica:
+  `artifacts/design-v2/correction-pr63/gate-1-revision-2/`.
+- Production, base de datos, migraciones, providers y portal autenticado: sin
+  cambios y fuera de alcance.
+- Resultado automatizado: PASS; aprobación humana: pendiente.
+
 > **ESTADO ACTUAL — GATE 1 ÚNICAMENTE.** El objetivo histórico de producción
 > que aparece más abajo queda superseded. La entrega activa es una revisión de
 > portada y navegación en Railway Review; requiere aprobación visual humana y
