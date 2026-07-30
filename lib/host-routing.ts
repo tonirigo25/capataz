@@ -87,7 +87,7 @@ const APP_PAGE_PREFIXES = [
   "/tesoreria",
 ] as const;
 
-const SHARED_STATIC_PREFIXES = ["/_next/", "/brand/", "/marketing/", "/icons/"] as const;
+const SHARED_STATIC_PREFIXES = ["/_next/", "/brand/", "/marketing/", "/media/marketing/", "/icons/"] as const;
 const SHARED_STATIC_EXACT = new Set(["/favicon.ico", "/.well-known/security.txt"]);
 const APP_PWA_PATHS = new Set(["/manifest.webmanifest", "/service-worker.js", "/offline.html"]);
 const SHARED_HEALTH_PATHS = new Set([

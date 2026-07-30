@@ -66,28 +66,33 @@ const SCENE_MS = 3000;
 export function ImmersiveJourney() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [inViewport, setInViewport] = useState(false);
+  const [filmPlaying, setFilmPlaying] = useState(false);
+  const [journeyPlaying, setJourneyPlaying] = useState(false);
+  const [filmInViewport, setFilmInViewport] = useState(false);
+  const [journeyInViewport, setJourneyInViewport] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [actionState, setActionState] = useState("Demo preparada. Pulsa reproducir para recorrerla.");
+  const sectionRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const autoStartedRef = useRef(false);
-  const manualPlaybackRef = useRef(false);
+  const filmAutoStartedRef = useRef(false);
+  const filmManualPlaybackRef = useRef(false);
+  const journeyAutoStartedRef = useRef(false);
+  const journeyManualPlaybackRef = useRef(false);
+  const filmCycleCountRef = useRef(0);
   const stage = stages[activeIndex];
   const scene = stage.scenes[sceneIndex];
   const absoluteScene = activeIndex * 3 + sceneIndex;
   const totalScenes = stages.length * 3;
   const markManualInteraction = () => {
-    autoStartedRef.current = true;
-    manualPlaybackRef.current = true;
+    journeyAutoStartedRef.current = true;
+    journeyManualPlaybackRef.current = true;
   };
   const playFilm = () => {
     const playback = videoRef.current?.play();
     if (!playback) return;
     void playback.catch(() => {
-      setPlaying(false);
-      setActionState("El vídeo no pudo iniciarse. Usa Reproducir para intentarlo de nuevo.");
+      setFilmPlaying(false);
     });
   };
 
@@ -96,7 +101,8 @@ export function ImmersiveJourney() {
     const update = () => {
       setReducedMotion(media.matches);
       if (media.matches) {
-        setPlaying(false);
+        setFilmPlaying(false);
+        setJourneyPlaying(false);
         videoRef.current?.pause();
       }
     };
@@ -115,21 +121,21 @@ export function ImmersiveJourney() {
     };
     const observer = new IntersectionObserver(([entry]) => {
       const sufficientlyVisible = entry.isIntersecting && entry.intersectionRatio >= 0.35;
-      setInViewport(sufficientlyVisible);
+      setFilmInViewport(sufficientlyVisible);
       if (!sufficientlyVisible) {
         cancelVisibleTimer();
         videoRef.current?.pause();
         return;
       }
-      if (autoStartedRef.current && playing) playFilm();
-      if (autoStartedRef.current || manualPlaybackRef.current || visibleTimer !== null) return;
+      if (filmAutoStartedRef.current && filmPlaying) playFilm();
+      if (filmAutoStartedRef.current || filmManualPlaybackRef.current || visibleTimer !== null) return;
       visibleTimer = window.setTimeout(() => {
         visibleTimer = null;
-        if (autoStartedRef.current || manualPlaybackRef.current) return;
-        autoStartedRef.current = true;
-        setPlaying(true);
+        if (filmAutoStartedRef.current || filmManualPlaybackRef.current) return;
+        filmAutoStartedRef.current = true;
+        filmCycleCountRef.current = 0;
+        setFilmPlaying(true);
         playFilm();
-        setActionState("Recorrido automático iniciado tras 2 segundos en pantalla.");
       }, 2000);
     }, { threshold: [0, 0.35, 0.7] });
     observer.observe(video);
@@ -137,7 +143,38 @@ export function ImmersiveJourney() {
       cancelVisibleTimer();
       observer.disconnect();
     };
-  }, [playing, reducedMotion]);
+  }, [filmPlaying, reducedMotion]);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    let visibleTimer: number | null = null;
+    const cancelVisibleTimer = () => {
+      if (visibleTimer !== null) window.clearTimeout(visibleTimer);
+      visibleTimer = null;
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      const sufficientlyVisible = entry.isIntersecting && entry.intersectionRatio >= 0.18;
+      setJourneyInViewport(sufficientlyVisible);
+      if (!sufficientlyVisible) {
+        cancelVisibleTimer();
+        return;
+      }
+      if (journeyAutoStartedRef.current || journeyManualPlaybackRef.current || visibleTimer !== null) return;
+      visibleTimer = window.setTimeout(() => {
+        visibleTimer = null;
+        if (journeyAutoStartedRef.current || journeyManualPlaybackRef.current) return;
+        journeyAutoStartedRef.current = true;
+        setJourneyPlaying(true);
+        setActionState("Recorrido automático iniciado. Puedes pausarlo o avanzar manualmente.");
+      }, 2000);
+    }, { threshold: [0, 0.18, 0.5] });
+    observer.observe(section);
+    return () => {
+      cancelVisibleTimer();
+      observer.disconnect();
+    };
+  }, []);
 
   const move = (delta: number, manual = false) => {
     if (manual) markManualInteraction();
@@ -148,15 +185,14 @@ export function ImmersiveJourney() {
   };
 
   useEffect(() => {
-    if (!playing || reducedMotion || !inViewport) return;
+    if (!journeyPlaying || reducedMotion || !journeyInViewport) return;
     if (absoluteScene === totalScenes - 1) {
-      setPlaying(false);
-      videoRef.current?.pause();
+      setJourneyPlaying(false);
       return;
     }
     const timer = window.setTimeout(() => move(1), SCENE_MS);
     return () => window.clearTimeout(timer);
-  }, [absoluteScene, inViewport, playing, reducedMotion]);
+  }, [absoluteScene, journeyInViewport, journeyPlaying, reducedMotion]);
 
   const selectStage = (index: number, focus = false) => {
     markManualInteraction();
@@ -164,71 +200,95 @@ export function ImmersiveJourney() {
     setActiveIndex(next); setSceneIndex(0); setActionState(`${stages[next].label}: ${stages[next].scenes[0].status}.`);
     if (focus) requestAnimationFrame(() => buttonRefs.current[next]?.focus());
   };
-  const togglePlayback = () => {
+  const toggleJourneyPlayback = () => {
     markManualInteraction();
-    const nextPlaying = !playing;
-    setPlaying(nextPlaying);
-    if (nextPlaying && inViewport) playFilm();
-    else videoRef.current?.pause();
+    const nextPlaying = !journeyPlaying;
+    setJourneyPlaying(nextPlaying);
     setActionState(nextPlaying ? "Recorrido reanudado por ti." : "Recorrido pausado por ti.");
+  };
+  const toggleFilmPlayback = () => {
+    filmAutoStartedRef.current = true;
+    filmManualPlaybackRef.current = true;
+    const nextPlaying = !filmPlaying;
+    setFilmPlaying(nextPlaying);
+    if (nextPlaying && videoRef.current?.ended) {
+      filmCycleCountRef.current = 0;
+      videoRef.current.currentTime = 0;
+    }
+    if (nextPlaying && filmInViewport) playFilm();
+    else videoRef.current?.pause();
   };
   const restart = () => {
     markManualInteraction();
     setActiveIndex(0);
     setSceneIndex(0);
-    setPlaying(!reducedMotion);
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      if (!reducedMotion && inViewport) playFilm();
-    }
+    setJourneyPlaying(!reducedMotion);
     setActionState(reducedMotion ? "Recorrido reiniciado. Avanza manualmente entre escenas." : "Recorrido reiniciado desde Contacto.");
+  };
+  const handleFilmEnded = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (filmPlaying && filmInViewport && !reducedMotion && filmCycleCountRef.current < 1) {
+      filmCycleCountRef.current += 1;
+      video.currentTime = 0;
+      playFilm();
+      return;
+    }
+    setFilmPlaying(false);
   };
   const handleKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowRight") { event.preventDefault(); move(1, true); }
     if (event.key === "ArrowLeft") { event.preventDefault(); move(-1, true); }
-    if (event.key === " ") { event.preventDefault(); togglePlayback(); }
+    if (event.key === " ") { event.preventDefault(); toggleJourneyPlayback(); }
     if (event.key === "Home") { event.preventDefault(); restart(); }
     if (event.key === "End") {
       event.preventDefault();
       setActiveIndex(stages.length - 1);
       setSceneIndex(2);
-      setPlaying(false);
-      videoRef.current?.pause();
+      setJourneyPlaying(false);
     }
   };
 
   return (
-    <section id="como-funciona" className={styles.guidedSection} aria-labelledby="immersive-title">
-      <div className={styles.guidedIntro}>
-        <span>Demo guiada</span><h2 id="immersive-title">Cinco decisiones. Quince escenas. Un único hilo.</h2>
-        <p>Reproduce el caso sintético, avanza con el teclado o abre cada etapa. Nada se escribe y cada decisión sigue bajo control humano.</p>
+    <section ref={sectionRef} id="como-funciona" className={styles.guidedSection} aria-labelledby="immersive-title">
+      <div className={styles.guidedHeader}>
+        <div className={styles.guidedIntro}>
+          <span>Demo guiada</span><h2 id="immersive-title">Cinco decisiones. Quince escenas. Un único hilo.</h2>
+          <p>Reproduce el caso sintético, avanza con el teclado o abre cada etapa. Verás cómo una necesidad se convierte en presupuesto, trabajo, gasto, factura y previsión de cobro, siempre con revisión humana.</p>
+        </div>
         <div className={styles.guidedFilm}>
           <video
             ref={videoRef}
-            aria-label="Orqena en acción: trabajo de campo y control operativo"
-            loop
+            aria-label="Orqena en acción: trabajo de campo e interacción real con el producto"
+            aria-describedby="guided-film-description"
             muted
             playsInline
-            poster="/media/orqena-marketing/scene-01-site.webp"
+            poster="/media/marketing/orqena-video-01-poster.webp"
             preload="metadata"
+            onEnded={handleFilmEnded}
           >
-            <source src="/media/orqena-marketing/orqena-field-os-film-v1.mp4" type="video/mp4" />
+            <source src="/media/marketing/orqena-video-01-35s.webm" type="video/webm" />
+            <source src="/media/marketing/orqena-video-01-35s.mp4" type="video/mp4" />
+            Tu navegador no puede reproducir este vídeo. Abre la demo guiada para recorrer el producto.
           </video>
-          <span><i aria-hidden="true" />Orqena en acción · 16 s</span>
+          <span id="guided-film-description"><i aria-hidden="true" />Orqena en acción · 35 s</span>
+          <button className={styles.guidedFilmPlayback} type="button" aria-label={filmPlaying ? "Pausar vídeo de Orqena" : "Reproducir vídeo de Orqena"} aria-pressed={filmPlaying} onClick={toggleFilmPlayback} disabled={reducedMotion}>
+            {filmPlaying ? <><Pause aria-hidden="true" />Pausar</> : <><Play aria-hidden="true" />Reproducir</>}
+          </button>
         </div>
-        <Link href="/demo#quick-demo">Abrir demo completa <ArrowRight /></Link>
+        <Link className={styles.guidedDemoLink} href="/demo#quick-demo">Abrir demo completa <ArrowRight /></Link>
       </div>
       <div className={styles.guidedConsole} tabIndex={0} onKeyDown={handleKey} aria-label="Demo guiada interactiva">
         <div className={styles.guidedTopbar}><span>Reforma Costa Norte · {scene.label}</span><strong>{String(absoluteScene + 1).padStart(2, "0")} / {totalScenes}</strong><i aria-hidden="true"><b style={{ width: `${((absoluteScene + 1) / totalScenes) * 100}%` }} /></i></div>
         <nav className={styles.guidedNav} aria-label="Etapas de la demo guiada">
           {stages.map((item, index) => { const Icon = item.icon; return <button ref={(node) => { buttonRefs.current[index] = node; }} key={item.id} type="button" aria-current={index === activeIndex ? "step" : undefined} onClick={() => selectStage(index)}><span>{index < activeIndex ? <Check /> : String(index + 1).padStart(2, "0")}</span><Icon /><strong>{item.label}</strong></button>; })}
         </nav>
-        <div className={styles.guidedPanel} aria-live="polite" key={`${stage.id}-${sceneIndex}`}>
+        <div className={styles.guidedPanel} key={`${stage.id}-${sceneIndex}`}>
           <div className={styles.guidedStory}><span>{stage.label} · {scene.label}</span><h3>{stage.title}</h3><dl><div><dt>Entra</dt><dd>{scene.input}</dd></div><div><dt>Orqena prepara</dt><dd>{scene.prepared}</dd></div><div><dt>Tú confirmas</dt><dd>{scene.decision}</dd></div></dl><button type="button" onClick={() => setActionState(`${stage.outcome}. Simulación completada; no se han escrito datos.`)}>{stage.action} <ArrowRight /></button><strong><ShieldCheck />{stage.outcome}</strong></div>
           <StagePreview stageIndex={activeIndex} sceneIndex={sceneIndex} actionState={actionState} />
         </div>
         <div className={styles.guidedSceneDots} aria-label="Microescenas de la etapa">{stage.scenes.map((item, index) => <button key={item.label} type="button" aria-current={index === sceneIndex ? "step" : undefined} onClick={() => { markManualInteraction(); setSceneIndex(index); setActionState(`${stage.label}: ${item.status}.`); }}>{item.label}</button>)}</div>
-        <div className={styles.guidedFooter}><span role="status"><Bot /> {actionState}</span><div><button type="button" onClick={restart} aria-label="Reiniciar demo"><RotateCcw /></button><button type="button" onClick={() => move(-1, true)} disabled={absoluteScene === 0}><ArrowLeft />Anterior</button><button type="button" onClick={togglePlayback} disabled={reducedMotion}>{playing ? <><Pause />Pausar</> : <><Play />Reproducir</>}</button><button type="button" onClick={() => move(1, true)} disabled={absoluteScene === totalScenes - 1}>Siguiente <ArrowRight /></button></div></div>
+        <div className={styles.guidedFooter}><span role="status" aria-live="polite" aria-atomic="true"><Bot /> {actionState}</span><div><button type="button" onClick={restart} aria-label="Reiniciar demo"><RotateCcw /></button><button type="button" onClick={() => move(-1, true)} disabled={absoluteScene === 0}><ArrowLeft />Anterior</button><button type="button" onClick={toggleJourneyPlayback} disabled={reducedMotion}>{journeyPlaying ? <><Pause />Pausar</> : <><Play />Reproducir</>}</button><button type="button" onClick={() => move(1, true)} disabled={absoluteScene === totalScenes - 1}>Siguiente <ArrowRight /></button></div></div>
       </div>
     </section>
   );

@@ -33,7 +33,10 @@ for (const path of [
   "/icons/capataz.svg",
   "/_next/static/chunk.js",
   "/marketing/hero-owner-desktop.webp",
-  "/marketing/today-worker.webp"
+  "/marketing/today-worker.webp",
+  "/media/marketing/orqena-video-01-35s.mp4",
+  "/media/marketing/orqena-video-01-35s.webm",
+  "/media/marketing/orqena-video-01-poster.webp"
 ]) {
   assert.equal(routeAccess.isPublicResource(path), true, `${path} must remain public`);
 }

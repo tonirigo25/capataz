@@ -72,6 +72,14 @@ async function validateHosts() {
     action: "pass",
     site: "marketing",
   }, "marketing serves the canonical pricing page directly");
+  equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/media/marketing/orqena-video-01-35s.mp4", nodeEnv: "production" }), {
+    action: "pass",
+    site: "marketing",
+  }, "marketing serves optimized product video without redirecting hosts");
+  equal(resolveHostRouting({ host: APP_HOST, pathname: "/media/marketing/orqena-video-01-35s.webm", nodeEnv: "production" }), {
+    action: "pass",
+    site: "app",
+  }, "app host can serve the shared marketing video fallback");
   equal(resolveHostRouting({ host: APP_HOST, pathname: "/precios", nodeEnv: "production" }), {
     action: "redirect",
     location: "https://orqenatech.com/precios",
@@ -103,6 +111,10 @@ async function validateHosts() {
     action: "pass",
     site: "marketing",
   }, "Railway validation host serves the canonical pricing page directly");
+  equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/media/marketing/orqena-video-01-poster.webp", nodeEnv: "production" }), {
+    action: "pass",
+    site: "platform",
+  }, "Railway validation host serves the shared video poster directly");
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production" }), {
     action: "redirect",
     location: "https://orqenatech.com/producto",

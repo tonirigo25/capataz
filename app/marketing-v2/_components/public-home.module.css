@@ -990,6 +990,10 @@
 .guidedFilm video { width: 100%; height: 100%; display: block; object-fit: cover; }
 .guidedFilm > span { position: absolute; right: 0.55rem; bottom: 0.55rem; display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid rgb(255 255 255 / 18%); border-radius: 999px; background: rgb(14 33 24 / 78%); color: #f2f4ed; backdrop-filter: blur(0.45rem); font-size: 0.52rem; font-weight: 780; padding: 0.35rem 0.5rem; }
 .guidedFilm > span i { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--home-lime); box-shadow: 0 0 0 0.2rem rgb(201 243 106 / 13%); }
+.guidedFilmPlayback { min-height: 2.75rem; position: absolute; z-index: 2; left: 0.6rem; bottom: 0.55rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border: 1px solid rgb(255 255 255 / 22%); border-radius: 999px; background: rgb(14 33 24 / 88%); color: #fff; backdrop-filter: blur(0.45rem); cursor: pointer; font-size: 0.68rem; font-weight: 820; padding: 0.55rem 0.78rem; }
+.guidedFilmPlayback svg { width: 0.9rem; height: 0.9rem; }
+.guidedFilmPlayback:focus-visible { outline: 3px solid var(--home-lime); outline-offset: 3px; }
+.guidedFilmPlayback:disabled { cursor: not-allowed; opacity: 0.72; }
 
 .guidedConsole { min-width: 0; overflow: hidden; border: 1px solid #34483d; border-radius: 1rem; background: var(--home-ink); color: #fff; box-shadow: 0 2rem 4.5rem rgb(22 40 31 / 14%); }
 .guidedTopbar { min-height: 3.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #34483d; color: #b8c5bd; font-size: 0.67rem; padding: 0.75rem 0.9rem; }
@@ -1508,4 +1512,97 @@
   .guidedPanel, .guidedStory dl div, .previewRows span, .previewNotice { animation: none; }
   .guidedTopbar > i b { transition: none; }
   .connectedFlowTrack button > i b { transition: none; }
+}
+
+/* Revision 5: editorial desktop composition, readable product context and real film integration. */
+.connectedFlowTrack {
+  margin: 0;
+  list-style: none;
+}
+.connectedFlowTrack > li { min-width: 0; }
+.connectedFlowTrack > li > button { width: 100%; min-height: 5.5rem; }
+.connectedFlowTrack button > strong { font-size: 0.75rem; line-height: 1.25; }
+.connectedFlowTrack button > small { max-width: 10rem; font-size: 0.75rem; line-height: 1.35; }
+.flowPlayback { min-height: 2.75rem; font-size: 0.75rem; }
+.connectedFlowPanel > div > span,
+.connectedFlowPanel dt,
+.connectedFlowPanel aside small,
+.connectedFlowPanel aside em { font-size: 0.75rem; }
+.connectedFlowPanel dd { margin-top: 0.25rem; font-size: 0.8125rem; line-height: 1.4; }
+.connectedFlowPanel aside button { min-height: 2.75rem; font-size: 0.75rem; }
+.flowActions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+.flowPrimaryCta,
+.flowSecondaryCta { min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 0.55rem; font-size: 0.8125rem; font-weight: 820; padding: 0.7rem 0.9rem; text-decoration: none; }
+.flowPrimaryCta { border: 1px solid var(--home-lime); background: var(--home-lime); color: var(--home-ink); }
+.flowSecondaryCta { border: 1px solid #60756a; background: transparent; color: #f4f1e7; }
+.flowPrimaryCta svg { width: 0.9rem; }
+.flowTrust { flex-basis: 100%; margin: 0; color: #aebcb4; font-size: 0.75rem; line-height: 1.45; }
+
+.guidedSection { display: block; }
+.guidedHeader { display: grid; grid-template-areas: "copy" "film" "cta"; gap: 1rem; }
+.guidedIntro { grid-area: copy; position: static; }
+.guidedIntro h2 { max-width: 15ch; }
+.guidedFilm { grid-area: film; margin-top: 0; }
+.guidedDemoLink { grid-area: cta; width: fit-content; min-height: 3rem; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.55rem; background: var(--home-ink); color: #fff; font-size: 0.8rem; font-weight: 820; padding: 0.7rem 0.9rem; text-decoration: none; }
+.guidedDemoLink svg { width: 1rem; }
+.guidedConsole { width: 100%; margin-top: clamp(1.5rem, 3vw, 2.25rem); }
+.guidedTopbar,
+.guidedFooter { font-size: max(0.75rem, 12px); }
+.guidedNav button > strong,
+.guidedSceneDots button,
+.guidedStory dt,
+.previewRows small,
+.previewNotice small { font-size: max(0.6875rem, 11px); }
+.guidedStory dd,
+.previewRows strong,
+.previewNotice strong,
+.guidedConsole button { font-size: max(0.75rem, 12px); }
+.guidedConsole button { min-height: 2.75rem; }
+.previewNotice em { font-size: max(0.6875rem, 11px); }
+
+.finalCta { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: clamp(1.25rem, 2.5vw, 2rem); }
+.finalCtaHeader { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.72fr); align-items: end; gap: clamp(2rem, 5vw, 5rem); }
+.finalCtaHeading > span { color: var(--home-lime); font-size: 0.6rem; font-weight: 850; letter-spacing: 0.12em; text-transform: uppercase; }
+.finalCtaHeading h2 { max-width: 16ch; margin: 0.8rem 0 0; color: #f5f2e8; font-size: clamp(2.75rem, 4vw, 3.75rem); letter-spacing: -0.055em; line-height: 1; }
+.finalCtaBody { align-self: end; }
+.finalCtaBody > p { margin: 0; color: #b5c2ba; font-size: 1rem; line-height: 1.65; }
+.finalCtaBody > small { display: block; margin-top: 0.85rem; color: #9eaea4; font-size: 0.75rem; line-height: 1.5; }
+.finalCtaBody > small a { color: #d4e4da; text-decoration: underline; text-decoration-thickness: 0.08em; text-underline-offset: 0.16em; }
+.finalCtaModule { display: grid; grid-template-columns: minmax(16rem, 0.75fr) minmax(0, 1.25fr); align-items: start; gap: 1rem 1.5rem; }
+.finalCtaModuleLead { min-width: 0; }
+.finalCtaModuleLead > span { color: var(--home-lime); font-size: 0.75rem; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
+.finalCtaModuleLead > strong { display: block; margin-top: 0.35rem; color: #f2f4ed; font-size: 1.15rem; line-height: 1.35; }
+.finalCtaModuleIntro { margin: 0.55rem 0 0; color: #afc0b6; font-size: 0.8125rem; line-height: 1.55; }
+.finalCtaModule ul { margin: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.finalCtaModule li strong { font-size: 0.8125rem; }
+.finalCtaModule li span { font-size: 0.75rem; line-height: 1.45; }
+.finalCtaAssurance { grid-column: 1 / -1; }
+
+@media (min-width: 52.01rem) {
+  .guidedHeader { grid-template-columns: minmax(0, 1fr) minmax(24rem, 1fr); grid-template-areas: "copy film" "cta film"; align-items: start; gap: 1rem clamp(2rem, 4vw, 4rem); }
+  .guidedIntro h2 { max-width: 15ch; font-size: clamp(2.75rem, 3.7vw, 3.65rem); }
+  .guidedPanel { grid-template-columns: minmax(19rem, 0.35fr) minmax(0, 0.65fr); }
+}
+
+@media (max-width: 52rem) {
+  .finalCtaHeader,
+  .finalCtaModule { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .finalCtaHeading h2 { max-width: 18ch; }
+  .finalCtaModule ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finalCtaAssurance { grid-column: auto; }
+}
+
+@media (max-width: 40rem) {
+  .connectedFlowTrack { grid-template-columns: repeat(6, minmax(5.65rem, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; }
+  .connectedFlowTrack > li { scroll-snap-align: start; }
+  .connectedFlowTrack > li > button { min-height: 6.25rem; }
+  .connectedFlowTrack button > small { max-width: 5.25rem; }
+  .flowActions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .flowPrimaryCta,
+  .flowSecondaryCta { width: 100%; }
+  .guidedHeader { gap: 0.9rem; }
+  .guidedIntro h2 { max-width: 11ch; }
+  .guidedConsole { margin-top: 1.25rem; }
+  .finalCtaHeading h2 { max-width: 11ch; font-size: clamp(2.15rem, 10.5vw, 2.75rem); }
+  .finalCtaModule ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
