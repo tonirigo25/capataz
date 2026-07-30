@@ -3797,6 +3797,11 @@
   background: #101814;
 }
 
+.marketingBody {
+  background: #f8f7f1;
+  color: #101814;
+}
+
 .header {
   border-bottom-color: rgba(231, 238, 230, 0.12);
   background: rgba(16, 24, 20, 0.94);

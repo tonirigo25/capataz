@@ -69,7 +69,7 @@ const capabilityCards: ReadonlyArray<{
 
 export function LandingSections() {
   return (
-    <>
+    <div className={styles.marketingBody}>
       <CapabilityOverview />
 
       <section id="producto" className={`${styles.section} ${styles.anchorTarget}`}>
@@ -377,7 +377,7 @@ export function LandingSections() {
           <Link className={styles.finalSecondary} href="/demo#quick-demo">Ver demo</Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
