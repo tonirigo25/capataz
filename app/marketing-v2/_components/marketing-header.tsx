@@ -72,7 +72,7 @@ const productColumns: readonly MenuColumn[] = [
       { label: "Tesorería", href: "/#facturas-y-cobros", icon: Landmark },
       { label: "Rentabilidad", href: "/#costes-y-compras", icon: BarChart3 },
       { label: "Alertas", href: "/#capataz-ia", icon: Sparkles },
-      { label: "Capataz IA", href: "/#capataz-ia", icon: Bot },
+      { label: brand.legacyAliases[1], href: "/#capataz-ia", icon: Bot },
       { label: "Automatizaciones", href: "/#capataz-ia", icon: Sparkles },
     ],
   },
@@ -96,7 +96,7 @@ const solutionColumns: readonly MenuColumn[] = [
       { label: "Controlar costes y margen", href: "/#costes-y-compras", icon: BarChart3 },
       { label: "Facturar y cobrar", href: "/#facturas-y-cobros", icon: WalletCards },
       { label: "Ordenar documentos", href: "/#documentos-y-ocr", icon: FileSearch },
-      { label: "Trabajar con Capataz IA", href: "/#capataz-ia", icon: Bot },
+      { label: `Trabajar con ${brand.legacyAliases[1]}`, href: "/#capataz-ia", icon: Bot },
     ],
   },
 ] as const;

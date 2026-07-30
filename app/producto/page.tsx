@@ -12,7 +12,7 @@ const areas = [
   { title: "Trabajo y obra", text: "Hitos, equipo, tareas e incidencias se leen dentro del trabajo correcto.", icon: BriefcaseBusiness, meta: "Operación" },
   { title: "Documentos y costes", text: "Cada documento termina relacionado, revisable y listo para confirmar.", icon: FileCheck2, meta: "Control" },
   { title: "Dinero", text: "Cobros, pagos, margen y vencimientos parten de registros existentes.", icon: TrendingUp, meta: "Finanzas" },
-  { title: "Capataz IA", text: "Recomienda y prepara borradores; una persona conserva la decisión final.", icon: Bot, meta: "Asistencia" },
+  { title: brand.legacyAliases[1], text: "Recomienda y prepara borradores; una persona conserva la decisión final.", icon: Bot, meta: "Asistencia" },
 ] as const;
 
 export default function ProductPage() {
