@@ -61,7 +61,7 @@ const phoneContent: Record<WorkspaceId, { eyebrow: string; title: string; action
   ia: { eyebrow: brand.assistantName, title: "Tres propuestas preparadas", actions: [[Sparkles, "Revisar recomendación"], [FileCheck2, "Abrir borrador"], [ShieldCheck, "Ver trazabilidad"]] },
 };
 
-const HERO_AUTOPLAY_MS = 8200;
+const HERO_AUTOPLAY_MS = 3000;
 const HERO_FIRST_PAUSE_MS = 3000;
 
 export function HeroDemo() {
