@@ -4298,7 +4298,7 @@
 
 .productTopbar span,
 .productTopbar small {
-  color: #65746b;
+  color: #526159;
   font-size: 0.61rem;
   font-weight: 680;
 }
@@ -4354,7 +4354,7 @@
 
 .metricCard small {
   overflow: hidden;
-  color: #718077;
+  color: #526159;
   font-size: 0.55rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4407,7 +4407,7 @@
 
 .revenueCard > div:first-child strong,
 .activityCard > div:first-child strong {
-  color: #76827b;
+  color: #526159;
   font-size: 0.5rem;
 }
 
@@ -4447,7 +4447,7 @@
   display: flex;
   gap: 0.8rem;
   margin-top: 0.4rem;
-  color: #6f7c74;
+  color: #526159;
   font-size: 0.5rem;
 }
 
@@ -4866,7 +4866,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #6b786f;
+  color: #526159;
   font-size: 0.68rem;
 }
 
