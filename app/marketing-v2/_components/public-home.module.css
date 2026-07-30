@@ -986,6 +986,10 @@
 .guidedIntro h2 { font-size: clamp(2.6rem, 4.3vw, 4.35rem); }
 .guidedIntro a { min-height: 3rem; margin-top: 1.35rem; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.55rem; background: var(--home-ink); color: #fff; font-size: 0.8rem; font-weight: 820; padding: 0.7rem 0.9rem; text-decoration: none; }
 .guidedIntro a svg { width: 1rem; }
+.guidedFilm { width: 100%; aspect-ratio: 16 / 9; position: relative; margin-top: 1rem; overflow: hidden; border: 1px solid #3b5145; border-radius: 0.75rem; background: #14261d; box-shadow: 0 1rem 2.4rem rgb(14 31 23 / 16%); }
+.guidedFilm video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.guidedFilm > span { position: absolute; right: 0.55rem; bottom: 0.55rem; display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid rgb(255 255 255 / 18%); border-radius: 999px; background: rgb(14 33 24 / 78%); color: #f2f4ed; backdrop-filter: blur(0.45rem); font-size: 0.52rem; font-weight: 780; padding: 0.35rem 0.5rem; }
+.guidedFilm > span i { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--home-lime); box-shadow: 0 0 0 0.2rem rgb(201 243 106 / 13%); }
 
 .guidedConsole { min-width: 0; overflow: hidden; border: 1px solid #34483d; border-radius: 1rem; background: var(--home-ink); color: #fff; box-shadow: 0 2rem 4.5rem rgb(22 40 31 / 14%); }
 .guidedTopbar { min-height: 3.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #34483d; color: #b8c5bd; font-size: 0.67rem; padding: 0.75rem 0.9rem; }
@@ -1438,18 +1442,70 @@
 
 .guidedPanel { align-items: start; }
 .guidedStory, .stagePreview { height: auto; }
+.guidedPanel { overflow: hidden; animation: guided-scene-in 360ms cubic-bezier(.2,.8,.2,1); }
+.guidedStory dl div { animation: guided-detail-in 320ms cubic-bezier(.2,.8,.2,1) both; }
+.guidedStory dl div:nth-child(2) { animation-delay: 70ms; }
+.guidedStory dl div:nth-child(3) { animation-delay: 140ms; }
 .previewRows span { min-height: 0; align-content: start; padding: 0.6rem; }
+.previewRows span { animation: guided-metric-in 340ms cubic-bezier(.2,.8,.2,1) both; }
+.previewRows span:nth-child(2) { animation-delay: 80ms; }
+.previewRows span:nth-child(3) { animation-delay: 160ms; }
 .previewRows strong { line-height: 1.35; overflow-wrap: anywhere; }
 .previewNotice { grid-template-columns: 1.7rem minmax(0, 1fr) auto; }
+.previewNotice { animation: guided-detail-in 360ms 180ms cubic-bezier(.2,.8,.2,1) both; }
 .previewNotice em { max-width: 8.5rem; border-radius: 999px; background: #dcefd4; color: #235848; font-size: 0.5rem; font-style: normal; font-weight: 820; line-height: 1.2; padding: 0.35rem 0.5rem; text-align: center; }
+
+@keyframes guided-scene-in {
+  from { opacity: 0.72; transform: translateY(0.3rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes guided-detail-in {
+  from { opacity: 0; transform: translateX(-0.3rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes guided-metric-in {
+  from { opacity: 0; transform: translateY(0.35rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 @media (max-width: 40rem) {
   .previewNotice { grid-template-columns: 1.7rem minmax(0, 1fr); }
   .previewNotice em { grid-column: 1 / -1; max-width: none; justify-self: stretch; }
 }
 
+.connectedFlowTrack button { min-height: 0; align-content: start; padding-block: 0.65rem; }
+.connectedFlowTrack button > small { max-width: 9rem; color: #46574e; font-size: 0.5rem; font-weight: 650; line-height: 1.3; text-align: center; }
+.connectedFlowTrack button[aria-current="step"] > small { color: #dbe5dd; }
+.flowPlayback { min-height: 2.65rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 0.85rem; border: 1px solid #51675b; border-radius: 999px; background: transparent; color: #f4f1e7; font-size: 0.62rem; font-weight: 800; padding: 0.6rem 0.8rem; }
+.flowPlayback svg { width: 0.85rem; }
+.flowPlayback:disabled { cursor: not-allowed; opacity: 0.58; }
+.connectedFlowPanel { min-height: 0; grid-template-columns: minmax(13rem, 0.72fr) minmax(22rem, 1.15fr) minmax(12rem, 0.58fr); align-items: start; padding: clamp(1rem, 2vw, 1.45rem); }
+.connectedFlowPanel h3 { color: var(--home-ink); }
+.connectedFlowPanel p { color: #52635a; }
+.connectedFlowPanel > dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; margin: 0; }
+.connectedFlowPanel > dl > div { min-width: 0; border: 1px solid var(--home-line); border-radius: 0.5rem; background: #f6f8f5; padding: 0.55rem; }
+.connectedFlowPanel dt { color: #617168; font-size: 0.48rem; font-weight: 820; text-transform: uppercase; }
+.connectedFlowPanel dd { margin: 0.2rem 0 0; color: var(--home-ink); font-size: 0.64rem; font-weight: 780; line-height: 1.35; overflow-wrap: anywhere; }
+.connectedFlowPanel aside { align-content: start; }
+.connectedFlowPanel aside strong { color: var(--home-ink); line-height: 1.35; }
+.connectedFlowPanel aside em { line-height: 1.35; }
+.connectedFlowPanel aside button { min-height: 2.55rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.4rem; border: 0; border-radius: 0.5rem; background: var(--home-ink); color: #fff; font-size: 0.6rem; font-weight: 820; padding: 0.55rem 0.7rem; }
+.connectedFlowPanel aside button svg { width: 0.8rem; }
+
+@media (max-width: 52rem) {
+  .connectedFlowPanel { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 40rem) {
+  .connectedFlowTrack button { min-height: 0; }
+  .connectedFlowPanel > dl { grid-template-columns: minmax(0, 1fr); }
+  .connectedFlowPanel aside { border-left: 0; border-top: 2px solid var(--home-lime); padding: 0.75rem 0 0; }
+  .connectedFlowPanel aside button { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .tabProgress, .chartLine, .chartLineSecondary, .chartBar, .chartBarSecondary, .funnelBar { animation: none; }
+  .tabProgress, .chartLine, .chartLineSecondary, .chartBar, .chartBarSecondary, .funnelBar,
+  .guidedPanel, .guidedStory dl div, .previewRows span, .previewNotice { animation: none; }
   .guidedTopbar > i b { transition: none; }
   .connectedFlowTrack button > i b { transition: none; }
 }

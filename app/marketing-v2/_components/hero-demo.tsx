@@ -85,7 +85,7 @@ export function HeroDemo() {
   useEffect(() => {
     const target = showcaseRef.current;
     if (!target || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => setInViewport(Boolean(entry?.isIntersecting)), { threshold: 0.3 });
+    const observer = new IntersectionObserver(([entry]) => setInViewport(Boolean(entry?.isIntersecting)), { threshold: 0.1 });
     observer.observe(target);
     return () => observer.disconnect();
   }, []);
