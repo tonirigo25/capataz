@@ -31,7 +31,7 @@ const stages: readonly FlowStage[] = [
   { label: "Cobro", title: "Caja bajo control", detail: "Vencimiento, seguimiento y previsión terminan el recorrido.", outcome: "Cobro previsto · 30 ago", icon: WalletCards },
 ] as const;
 
-const FLOW_AUTOPLAY_MS = 4600;
+const FLOW_AUTOPLAY_MS = 3000;
 
 export function PublicFlowShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);

@@ -52,7 +52,7 @@ const stages: readonly Stage[] = [
   ] },
 ] as const;
 
-const SCENE_MS = 3600;
+const SCENE_MS = 3000;
 
 export function ImmersiveJourney() {
   const [activeIndex, setActiveIndex] = useState(0);
