@@ -27,7 +27,7 @@ const foundations = [
 export default function ProductPage() {
   return <MarketingPage>
     <PublicStructuredData data={structuredGraph(
-      softwareApplication("/producto", "Orqena", "Clientes, trabajo, dinero, documentos, equipo y Orqena IA conectados bajo control humano."),
+      softwareApplication("/producto", brand.productName, `Clientes, trabajo, dinero, documentos, equipo y ${brand.assistantName} conectados bajo control humano.`),
       breadcrumbList([["Inicio", ""], ["Producto", "/producto"]]),
     )} />
     <R4Hero current="Producto" eyebrow="UNA OPERACIÓN, UN MISMO CONTEXTO" title="Orqena conecta el trabajo que hoy reconstruyes a mano." description="Clientes, presupuestos, obras, costes, documentos, facturas, cobros e IA avanzan en una interfaz común. Orqena prepara; tú revisas y confirmas." actions={<><Link href="/demo">Ver demo guiada<ArrowRight aria-hidden="true" /></Link><Link href="/contacto?motivo=demo">Solicitar una demo</Link></>} visual={<ProductHeroVisual />} />
