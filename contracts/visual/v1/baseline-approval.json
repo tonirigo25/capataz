@@ -1,9 +1,0 @@
-{
-  "schemaVersion": "orqena-visual-baseline-v1",
-  "approved": false,
-  "approvedSha": null,
-  "approvedBy": null,
-  "approvedAt": null,
-  "candidateRoutes": ["/", "/demo", "/contacto", "/recursos/calculadora-margen-obra"],
-  "status": "READY_FOR_EXTERNAL_INPUT"
-}

@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "requiredMetadata": ["promptKey", "version", "contentHash", "approvedPurposes", "dataProfile", "owner"],
-  "immutableAfterUse": true,
-  "humanReviewDefault": true,
-  "storeProviderDataDefault": false
-}

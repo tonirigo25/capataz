@@ -1,0 +1,28 @@
+Adjunto ORQENA_PR63_CORRECCION_COMPLETA_2026-07-30.zip.
+
+Descomprímelo y ejecuta íntegramente:
+
+00_LEEME_PRIMERO.md
+01_PROMPT_MAESTRO_PR63.md
+
+Usa las cuatro imágenes de /referencias_visuales como fuente visual canónica. Si los PNG no están materializados, ejecuta referencias_visuales/DESCARGAR_PNG.ps1.
+
+Continúa sobre:
+
+design/orqena-field-os-v2
+PR #63
+
+No hagas merge.
+No modifiques Production.
+No crees otro Review.
+Reutiliza orqena-review-continuous.
+
+Corrige primero los seis threads y después la portada y el menú.
+
+Detente con:
+
+VISUAL_CORRECTION_READY_FOR_OWNER_REVIEW
+
+No empieces el portal hasta que yo responda:
+
+PORTADA_Y_MENU_APROBADOS
