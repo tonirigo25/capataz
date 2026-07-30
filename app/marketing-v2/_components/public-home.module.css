@@ -283,8 +283,8 @@
 }
 
 @keyframes workspace-in {
-  from { opacity: 0; transform: translateY(0.25rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(0.25rem); }
+  to { transform: translateY(0); }
 }
 
 .productTopbar {
@@ -1252,8 +1252,8 @@
 .chartReadout { min-height: 2.35rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: center; gap: 0.35rem; border: 1px solid #dce5d9; border-radius: 0.48rem; background: #f5f8f3; padding: 0.42rem 0.5rem; }
 .chartReadout span { min-width: 0; display: grid; }
 .chartReadout strong { overflow: hidden; color: #203129; font-size: 0.49rem; text-overflow: ellipsis; white-space: nowrap; }
-.chartReadout small { color: #607068; font-size: 0.43rem; }
-.chartReadout em { color: var(--home-green); font-size: 0.48rem; font-style: normal; font-weight: 850; }
+.chartReadout small { color: #4a5b52; font-size: 0.43rem; }
+.chartReadout em { color: #0b6b5c; font-size: 0.48rem; font-style: normal; font-weight: 850; }
 .professionalChart .chartLegend { margin-top: 0.35rem; }
 .aiDraftCard > small { color: #5b6b62; font-size: 0.43rem; line-height: 1.35; }
 
@@ -1456,16 +1456,16 @@
 .previewNotice em { max-width: 8.5rem; border-radius: 999px; background: #dcefd4; color: #235848; font-size: 0.5rem; font-style: normal; font-weight: 820; line-height: 1.2; padding: 0.35rem 0.5rem; text-align: center; }
 
 @keyframes guided-scene-in {
-  from { opacity: 0.72; transform: translateY(0.3rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(0.3rem); }
+  to { transform: translateY(0); }
 }
 @keyframes guided-detail-in {
-  from { opacity: 0; transform: translateX(-0.3rem); }
-  to { opacity: 1; transform: translateX(0); }
+  from { transform: translateX(-0.3rem); }
+  to { transform: translateX(0); }
 }
 @keyframes guided-metric-in {
-  from { opacity: 0; transform: translateY(0.35rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(0.35rem); }
+  to { transform: translateY(0); }
 }
 
 @media (max-width: 40rem) {
@@ -1484,7 +1484,7 @@
 .connectedFlowPanel p { color: #52635a; }
 .connectedFlowPanel > dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; margin: 0; }
 .connectedFlowPanel > dl > div { min-width: 0; border: 1px solid var(--home-line); border-radius: 0.5rem; background: #f6f8f5; padding: 0.55rem; }
-.connectedFlowPanel dt { color: #617168; font-size: 0.48rem; font-weight: 820; text-transform: uppercase; }
+.connectedFlowPanel dt { color: #4a5b52; font-size: 0.48rem; font-weight: 820; text-transform: uppercase; }
 .connectedFlowPanel dd { margin: 0.2rem 0 0; color: var(--home-ink); font-size: 0.64rem; font-weight: 780; line-height: 1.35; overflow-wrap: anywhere; }
 .connectedFlowPanel aside { align-content: start; }
 .connectedFlowPanel aside strong { color: var(--home-ink); line-height: 1.35; }
