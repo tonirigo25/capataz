@@ -149,7 +149,7 @@ function FeaturesPage() {
   ] as const;
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Funcionalidades" title="Capacidades conectadas, con límites explícitos." description="Orqena no inventa saldos, progreso ni previsiones. Cada cifra y estado parte de información registrada." />
+      <PublicPageHero variant="centered" eyebrow="Funcionalidades" title="Capacidades conectadas, con límites explícitos." description="Orqena no inventa saldos, progreso ni previsiones. Cada cifra y estado parte de información registrada." />
       <PublicSection eyebrow="Áreas del producto" title="La misma verdad operativa, en cada función.">
         <PublicFeatureGrid items={items.map(([title, text, icon]) => ({ title, text, icon }))} />
       </PublicSection>
@@ -166,6 +166,7 @@ function AudiencePage({ kind }: { kind: "self-employed" | "company" }) {
   return (
     <MarketingPage>
       <PublicPageHero
+        variant="centered"
         eyebrow={selfEmployed ? "Para autónomos" : "Para empresas"}
         title={selfEmployed ? "Menos tiempo reconstruyendo qué pasó." : "Cada persona ve lo necesario para hacer avanzar el trabajo."}
         description={selfEmployed ? "Orqena reúne operación y contexto para que puedas continuar sin depender de notas dispersas." : "Dirección, comercial, compras, finanzas y ejecución trabajan sobre relaciones comunes con accesos diferenciados."}
@@ -190,7 +191,7 @@ function PricingPage() {
   ] as const;
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Planes" title="Preparados para elegir por capacidad, sin activar cobros." description="La contratación online permanece desactivada. Puedes comparar el encaje y solicitar una demo controlada." />
+      <PublicPageHero variant="centered" eyebrow="Planes" title="Preparados para elegir por capacidad, sin activar cobros." description="La contratación online permanece desactivada. Puedes comparar el encaje y solicitar una demo controlada." />
       <PublicSection eyebrow="Acceso controlado" title="Tres niveles para tres ritmos de operación.">
         <div className="launch-pricing-grid" data-billing-enabled={String(billingEnabled)}>
           {plans.map(([key, name, description]) => (
@@ -212,7 +213,7 @@ function PricingPage() {
 function ContactPage() {
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Contacto" title="Cuéntanos qué necesitas ordenar." description="Responderemos personalmente. No incluyas contraseñas, tokens ni datos especialmente sensibles." />
+      <PublicPageHero variant="centered" eyebrow="Contacto" title="Cuéntanos qué necesitas ordenar." description="Responderemos personalmente. No incluyas contraseñas, tokens ni datos especialmente sensibles." />
       <PublicSection eyebrow="Solicitud privada" title="Prepara tu demo o consulta.">
       <div className="launch-contact-layout">
         <div>
@@ -232,9 +233,8 @@ function LegalPage({ kind }: { kind: string }) {
   if (!content) notFound();
   return (
     <MarketingPage>
+      <PublicPageHero compact description="Consulta la información jurídica vigente y los campos que todavía requieren configuración externa." eyebrow="Información legal" id={`legal-${kind}`} title={content.title} variant="centered" />
       <section className="marketing-container launch-legal">
-        <p className="marketing-eyebrow">Información legal</p>
-        <h1>{content.title}</h1>
         {legal.missing.length ? <div className="launch-config-notice">Parte de la información jurídica está pendiente de configuración. No se muestran datos ficticios.</div> : null}
         <div className="launch-legal-card">
           {content.blocks.map((block) => <section key={block.title}><h2>{block.title}</h2><p>{block.text}</p></section>)}
@@ -247,7 +247,7 @@ function LegalPage({ kind }: { kind: string }) {
 function StatusPage() {
   return (
     <MarketingPage>
-      <PublicPageHero eyebrow="Estado" title="La web y Orqena responden." description="Disponibilidad básica confirmada. El control técnico se publica por separado y no expone datos de clientes." visual={<PublicProductPreview title="Servicios de Orqena" state="Operativo" metrics={[["Web", "OK"], ["Aplicación", "OK"], ["Datos", "Protegidos"]]}><a href={`${APP_URL}/api/health`}>Ver healthcheck técnico</a></PublicProductPreview>} />
+      <PublicPageHero variant="centered" eyebrow="Estado" title="La web y Orqena responden." description="Disponibilidad básica confirmada. El control técnico se publica por separado y no expone datos de clientes." visual={<PublicProductPreview title="Servicios de Orqena" state="Operativo" metrics={[["Web", "OK"], ["Aplicación", "OK"], ["Datos", "Protegidos"]]}><a href={`${APP_URL}/api/health`}>Ver healthcheck técnico</a></PublicProductPreview>} />
     </MarketingPage>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Check, ChevronDown, Smartphone, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PublicPageHero } from "@/components/marketing/public-page-hero";
 import { MobileWorkDemo, OrqenaActionDemo } from "@/components/marketing/product-scenes";
 import { PortalPreview } from "@/components/marketing/portal-preview";
 import { SectorHeroScene } from "@/components/marketing/sector-scenes";
@@ -29,18 +30,21 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
   const { sector } = await params;
   const item = getMarketingSector(sector);
   if (!item) notFound();
-  const index = marketingSectorCatalog.findIndex((entry) => entry.slug === item.slug);
   const flow = [item.terminology.clientSingular, "Propuesta", item.terminology.workSingular, "Documento", "Resultado"];
   const modules = ["Clientes", item.terminology.workPlural, "Agenda", "Documentos", "Equipo", brand.productName];
 
   return (
     <MarketingPage>
-      <section className={`sector-detail-hero variant-${index % 4}`}>
-        <div className="marketing-container">
-          <div><p className="marketing-eyebrow">Sectores / {item.name}</p><h1>{item.name}</h1><p>{item.lead}</p><Link href={`/demo?sector=${item.slug}`} className="marketing-button">Explorar este perfil <ArrowRight size={18} /></Link></div>
-          <SectorHeroScene sectorKey={item.key} work={item.terminology.workSingular} owner={item.terminology.owner} />
-        </div>
-      </section>
+      <PublicPageHero
+        actions={<Link href={`/demo?sector=${item.slug}`}>Explorar este perfil <ArrowRight size={18} /></Link>}
+        breadcrumbs={[{ label: "Inicio", href: "/" }, { label: "Sectores", href: "/sectores" }, { label: item.name }]}
+        description={item.lead}
+        eyebrow="Perfil sectorial"
+        id={`sector-${item.slug}`}
+        title={item.name}
+        variant="split"
+        visual={<SectorHeroScene sectorKey={item.key} work={item.terminology.workSingular} owner={item.terminology.owner} />}
+      />
 
       <section className="marketing-container sector-journey">
         <div><p className="marketing-eyebrow">Flujo típico</p><h2 className="marketing-title">{item.story}</h2><p>El ejemplo adapta la operación, no promete una integración ni un caso de éxito.</p></div>

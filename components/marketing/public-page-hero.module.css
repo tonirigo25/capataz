@@ -1,0 +1,319 @@
+.root {
+  --hero-ink: var(--fos-ink, #102019);
+  --hero-paper: var(--fos-paper, #f7f4ed);
+  --hero-soft: var(--fos-surface-subtle, #edf2ec);
+  --hero-line: var(--fos-line, #d8e0d8);
+  --hero-green: var(--fos-green, #087a68);
+  --hero-lime: var(--fos-lime, #c9f36a);
+  overflow: hidden;
+  border-bottom: 1px solid #30443a;
+  background: var(--hero-ink);
+  color: #f8f6ef;
+}
+
+.root,
+.root * {
+  box-sizing: border-box;
+}
+
+.root[data-tone="paper"] {
+  border-color: var(--hero-line);
+  background: var(--hero-paper);
+  color: var(--hero-ink);
+}
+
+.root[data-tone="soft"] {
+  border-color: var(--hero-line);
+  background: var(--hero-soft);
+  color: var(--hero-ink);
+}
+
+.inner {
+  width: min(calc(100% - 6rem), 80rem);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: center;
+  gap: 1.5rem clamp(2.5rem, 5vw, 5rem);
+  padding-block: clamp(5.5rem, 7vw, 7.75rem);
+}
+
+.root[data-compact] .inner {
+  padding-block: clamp(3.5rem, 5vw, 5rem);
+}
+
+.copy,
+.visual,
+.metrics,
+.media,
+.trust,
+.footer {
+  min-width: 0;
+}
+
+.root[data-public-hero-layout="split"] .copy {
+  grid-column: 1 / span 5;
+}
+
+.root[data-public-hero-layout="split"] .visual {
+  grid-column: 6 / -1;
+}
+
+.root[data-public-hero-layout="split"] .metrics,
+.root[data-public-hero-layout="split"] .media,
+.root[data-public-hero-layout="split"] .trust,
+.root[data-public-hero-layout="split"] .footer {
+  grid-column: 1 / -1;
+}
+
+.root[data-public-hero-layout="centered"] .copy {
+  width: min(100%, 56rem);
+  grid-column: 2 / 12;
+  justify-self: center;
+  text-align: center;
+}
+
+.root[data-public-hero-layout="centered"] .visual,
+.root[data-public-hero-layout="centered"] .metrics,
+.root[data-public-hero-layout="centered"] .media {
+  width: min(100%, 68rem);
+  grid-column: 2 / 12;
+  justify-self: center;
+}
+
+.root[data-public-hero-layout="centered"] .trust,
+.root[data-public-hero-layout="centered"] .footer {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.root[data-public-hero-layout="wide-editorial"] .copy {
+  grid-column: 1 / 11;
+}
+
+.root[data-public-hero-layout="wide-editorial"] .description {
+  max-width: 47.5rem;
+}
+
+.root[data-public-hero-layout="wide-editorial"] .visual,
+.root[data-public-hero-layout="wide-editorial"] .media {
+  grid-column: 4 / -1;
+}
+
+.root[data-public-hero-layout="wide-editorial"] .metrics,
+.root[data-public-hero-layout="wide-editorial"] .trust,
+.root[data-public-hero-layout="wide-editorial"] .footer {
+  grid-column: 1 / -1;
+}
+
+.breadcrumb {
+  margin-bottom: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem;
+  color: #9fb0a7;
+  font-size: .68rem;
+}
+
+.breadcrumb span {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.breadcrumb svg {
+  width: .75rem;
+}
+
+.breadcrumb a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb strong {
+  color: var(--hero-lime);
+}
+
+.root[data-tone="paper"] .breadcrumb,
+.root[data-tone="soft"] .breadcrumb {
+  color: #5c6b63;
+}
+
+.root[data-tone="paper"] .breadcrumb strong,
+.root[data-tone="soft"] .breadcrumb strong {
+  color: var(--hero-green);
+}
+
+.eyebrow {
+  color: var(--hero-lime);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.root[data-tone="paper"] .eyebrow,
+.root[data-tone="soft"] .eyebrow {
+  color: var(--hero-green);
+}
+
+.copy h1,
+.copy h2 {
+  max-width: 17ch;
+  margin: .9rem 0 0;
+  color: inherit;
+  font-size: clamp(3rem, 4vw, 3.75rem);
+  font-weight: 920;
+  letter-spacing: -.06em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.root[data-public-hero-layout="wide-editorial"] .copy h1,
+.root[data-public-hero-layout="wide-editorial"] .copy h2 {
+  max-width: 21ch;
+}
+
+.root[data-public-hero-layout="centered"] .copy h1,
+.root[data-public-hero-layout="centered"] .copy h2,
+.root[data-public-hero-layout="centered"] .description {
+  margin-inline: auto;
+}
+
+.description {
+  max-width: 45rem;
+  margin-top: 1.25rem;
+  color: #b9c5bd;
+  font-size: clamp(1.125rem, 1.4vw, 1.3125rem);
+  line-height: 1.65;
+}
+
+.root[data-tone="paper"] .description,
+.root[data-tone="soft"] .description {
+  color: #596961;
+}
+
+.actions {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.root[data-public-hero-layout="centered"] .actions {
+  justify-content: center;
+}
+
+.actions a,
+.actions button {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  border: 1px solid #506258;
+  border-radius: .55rem;
+  background: transparent;
+  color: inherit;
+  font-size: .82rem;
+  font-weight: 850;
+  padding: .72rem 1rem;
+  text-decoration: none;
+}
+
+.actions a:first-child,
+.actions button:first-child {
+  border-color: var(--hero-lime);
+  background: var(--hero-lime);
+  color: var(--hero-ink);
+}
+
+.visual {
+  align-self: center;
+}
+
+.metrics,
+.media,
+.trust,
+.footer {
+  margin-top: .5rem;
+}
+
+@media (min-width: 100rem) {
+  .inner {
+    width: min(calc(100% - 10rem), 80rem);
+  }
+}
+
+@media (max-width: 80rem) {
+  .inner {
+    width: min(calc(100% - 5rem), 80rem);
+  }
+}
+
+@media (max-width: 64rem) {
+  .inner {
+    width: min(calc(100% - 3rem), 80rem);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    padding-block: 4rem;
+  }
+
+  .root[data-public-hero-layout] .copy,
+  .root[data-public-hero-layout] .visual,
+  .root[data-public-hero-layout] .metrics,
+  .root[data-public-hero-layout] .media,
+  .root[data-public-hero-layout] .trust,
+  .root[data-public-hero-layout] .footer {
+    width: 100%;
+    grid-column: 1;
+    justify-self: stretch;
+  }
+
+  .root[data-public-hero-layout="centered"] .copy {
+    text-align: left;
+  }
+
+  .root[data-public-hero-layout="centered"] .actions {
+    justify-content: flex-start;
+  }
+
+  .root[data-public-hero-layout="centered"] .copy h1,
+  .root[data-public-hero-layout="centered"] .copy h2,
+  .root[data-public-hero-layout="centered"] .description {
+    margin-inline: 0;
+  }
+}
+
+@media (max-width: 42rem) {
+  .inner {
+    width: min(calc(100% - 2rem), 80rem);
+    gap: 1.75rem;
+    padding-block: 3rem;
+  }
+
+  .root[data-compact] .inner {
+    padding-block: 2.5rem;
+  }
+
+  .breadcrumb {
+    margin-bottom: 1.35rem;
+  }
+
+  .copy h1,
+  .copy h2 {
+    max-width: none;
+    font-size: clamp(2.55rem, 12vw, 3.3rem);
+    line-height: .99;
+  }
+
+  .description {
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+}

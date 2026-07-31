@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, Clock3, ExternalLink, ShieldAlert } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PublicPageHero } from "@/components/marketing/public-page-hero";
 import { PublicStructuredData, breadcrumbList, publicPage, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 import mobileCapabilities from "@/contracts/mobile/v1/capability-matrix.json";
@@ -47,14 +48,8 @@ export default function StatusPage() {
         publicPage("WebPage", "/estado", "Estado de Orqena", "Capacidades disponibles, beta y pendientes sin afirmar un SLA no contratado."),
         breadcrumbList([["Inicio", ""], ["Estado", "/estado"]]),
       )} />
-      <section className="marketing-container py-16 lg:py-24">
-        <p className="marketing-eyebrow">Estado del producto</p>
-        <h1 className="marketing-display mt-4 max-w-5xl">Lo disponible se separa de lo que aún necesita una aprobación.</h1>
-        <p className="marketing-lede mt-5 max-w-3xl">
-          Esta página no declara un SLA, porcentaje histórico de disponibilidad ni
-          certificación. El health endpoint informa del proceso actual, no sustituye
-          un historial de incidentes.
-        </p>
+      <PublicPageHero breadcrumbs={[{ label: "Inicio", href: "/" }, { label: "Estado" }]} compact description="Esta página no declara un SLA, porcentaje histórico de disponibilidad ni certificación. El health endpoint informa del proceso actual, no sustituye un historial de incidentes." eyebrow="Estado del producto" id="estado" title="Lo disponible se separa de lo que aún necesita una aprobación." variant="centered" />
+      <section className="marketing-container py-12 lg:py-16">
         <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {states.map(({ status, icon: Icon, items }) => (
             <article className="card p-6" key={status}>

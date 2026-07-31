@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { LegalBackButton } from "@/components/legal-back-button";
+import { LegalPublicPage } from "@/components/marketing/legal-public-page";
 import { brand } from "@/lib/brand";
 import type { Metadata } from "next";
 import { legalConfig } from "@/lib/config/legal";
@@ -8,14 +7,7 @@ export const metadata: Metadata = { title: "Privacidad", description: `Cómo tra
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
-      <LegalBackButton />
-      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">{brand.productName}</Link>
-      <h1 className="mt-4 text-3xl font-black text-obra-ink">Política de privacidad</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-600">
-        Borrador parametrizado {legalConfig.documentVersion}. Requiere revisión legal antes de publicación comercial.
-      </p>
-
+    <LegalPublicPage title="Política de privacidad" description={<>Borrador parametrizado {legalConfig.documentVersion}. Requiere revisión legal antes de publicación comercial.</>}>
       <section className="card mt-6 grid gap-4 p-5 text-sm leading-6 text-slate-600">
         <Block title="Responsable y contacto">
           {legalConfig.controllerName}. {legalConfig.controllerAddress}. Contacto de privacidad: {legalConfig.privacyEmail}. {legalConfig.registrationReference}.
@@ -40,7 +32,7 @@ export default function PrivacyPage() {
           No se presenta ningún proveedor externo como activo por defecto: OpenAI y Resend sólo operan en los casos autorizados y bajo los controles descritos en esta política.
         </Block>
       </section>
-    </main>
+    </LegalPublicPage>
   );
 }
 

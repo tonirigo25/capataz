@@ -125,7 +125,7 @@ export function HeroDemo() {
   };
 
   return (
-    <section className={styles.hero} aria-labelledby="public-hero-title">
+    <section className={styles.hero} aria-labelledby="public-hero-title" data-hero-shell data-public-hero-layout="split">
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}><span className={styles.eyebrowDesktop}>ORQENA · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS</span><span className={styles.eyebrowMobile}>ORQENA · GESTIÓN INTELIGENTE</span></p>

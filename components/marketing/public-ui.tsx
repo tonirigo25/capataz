@@ -2,12 +2,16 @@ import { ArrowRight, Check, ChevronRight, ShieldCheck, type LucideIcon } from "l
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { MarketingFooter } from "@/app/marketing-v2/_components/landing-sections";
+export {
+  PublicPageHero,
+  PublicHeroActions,
+  PublicHeroCopy,
+  PublicHeroMedia,
+  PublicHeroMetrics,
+  PublicHeroTrust,
+  PublicHeroVisual,
+} from "./public-page-hero";
 import styles from "./public-ui.module.css";
-
-export function PublicPageHero({ eyebrow, title, description, centered = false, level = 1, actions, visual }: { eyebrow?: string; title: string; description?: string; centered?: boolean; level?: 1 | 2; actions?: ReactNode; visual?: ReactNode }) {
-  const Heading = level === 1 ? "h1" : "h2";
-  return <section className={styles.hero} data-centered={centered || undefined}><div className={styles.heroGrid}><div><PublicBreadcrumb items={[["Inicio", "/"], [eyebrow ?? title, "#"]]} />{eyebrow ? <span className={styles.eyebrow}>{eyebrow}</span> : null}<Heading>{title}</Heading>{description ? <p>{description}</p> : null}{actions ? <div className={styles.heroActions}>{actions}</div> : null}</div>{visual ? <div className={styles.heroVisual}>{visual}</div> : null}</div></section>;
-}
 
 export function PublicSection({ eyebrow, title, description, children, tone = "paper", id }: { eyebrow?: string; title?: string; description?: string; children: ReactNode; tone?: "paper" | "soft" | "dark"; id?: string }) {
   return <section id={id} className={styles.section} data-tone={tone}><div className={styles.sectionInner}>{title ? <header><span>{eyebrow}</span><h2>{title}</h2>{description ? <p>{description}</p> : null}</header> : null}{children}</div></section>;

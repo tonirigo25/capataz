@@ -150,10 +150,10 @@ export function MarketingHeader() {
   return (
     <header ref={headerRef} className={styles.header}>
       <div className={styles.headerInner}>
-        <a className={styles.wordmark} href="#top" aria-label={`${brandName}, inicio`}>
+        <Link className={styles.wordmark} href="/" aria-label={`${brandName}, ir a la página de inicio`}>
           <span className={styles.headerBrandMark}><BrandMark /></span>
           <span className={styles.headerBrandName}>{brandName}</span>
-        </a>
+        </Link>
 
         <nav className={styles.desktopNav} aria-label="Navegación principal">
           <DesktopMenu

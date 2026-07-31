@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { LegalBackButton } from "@/components/legal-back-button";
+import { LegalPublicPage } from "@/components/marketing/legal-public-page";
 import type { Metadata } from "next";
 import { brand } from "@/lib/brand";
 import { legalConfig } from "@/lib/config/legal";
@@ -8,14 +7,7 @@ export const metadata: Metadata = { title: "Términos de uso", description: `Con
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
-      <LegalBackButton />
-      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">{brand.productName}</Link>
-      <h1 className="mt-4 text-3xl font-black text-obra-ink">Términos de uso</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-600">
-        Borrador parametrizado {legalConfig.documentVersion} para la beta privada de {brand.productName}. Requiere revisión legal antes de uso contractual.
-      </p>
-
+    <LegalPublicPage title="Términos de uso" description={<>Borrador parametrizado {legalConfig.documentVersion} para la beta privada de {brand.productName}. Requiere revisión legal antes de uso contractual.</>}>
       <section className="card mt-6 grid gap-4 p-5 text-sm leading-6 text-slate-600">
         <Block title="Uso de la herramienta">
           El usuario es responsable de introducir datos correctos, revisar propuestas y confirmar cualquier acción sensible antes de guardarla, enviarla o programarla.
@@ -36,7 +28,7 @@ export default function TermsPage() {
           La versión móvil puede depender de un backend web accesible. En entornos de prueba, algunas integraciones externas pueden estar simuladas o desactivadas.
         </Block>
       </section>
-    </main>
+    </LegalPublicPage>
   );
 }
 

@@ -4,6 +4,7 @@ import { ArrowRight, Check, ChevronDown, Link2, UsersRound } from "lucide-react"
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
 import { ModuleSignatureScene } from "@/components/marketing/module-scenes";
+import { PublicPageHero } from "@/components/marketing/public-page-hero";
 import { brand } from "@/lib/brand";
 import { getMarketingModule, marketingProductCatalog } from "@/lib/marketing/catalog";
 
@@ -30,26 +31,18 @@ export default async function ModulePage({ params }: { params: Promise<{ modulo:
 
   return (
     <MarketingPage>
-      <section className={`module-hero module-hero--${item.visualTone} module-family--${item.family}`}>
-        <div className="marketing-container">
-          <div>
-            <p className="marketing-eyebrow">Producto / {item.eyebrow}</p>
-            <h1>{item.name}</h1>
-            <p>{item.result}</p>
-            <div><Link href={`/demo?objetivo=${item.slug}`} className="marketing-button">Explorar con datos sintéticos <ArrowRight size={18} /></Link></div>
-          </div>
-          <aside>
-            <span>Problema que resuelve</span>
-            <p>{item.problem}</p>
-            <strong>Resultado visible</strong>
-            <p>{item.result}</p>
-          </aside>
-        </div>
-      </section>
-
-      <section className="marketing-container module-scene-section">
-        <ModuleSignatureScene slug={item.slug} />
-      </section>
+      <PublicPageHero
+        actions={<Link href={`/demo?objetivo=${item.slug}`}>Explorar con datos sintéticos <ArrowRight size={18} /></Link>}
+        breadcrumbs={[{ label: "Inicio", href: "/" }, { label: "Producto", href: "/producto" }, { label: item.name }]}
+        description={item.result}
+        eyebrow={`Producto · ${item.eyebrow}`}
+        id={`producto-${item.slug}`}
+        title={item.name}
+        variant="split"
+        visual={<ModuleSignatureScene slug={item.slug} />}
+      >
+        <p><strong>Problema que resuelve:</strong> {item.problem}</p>
+      </PublicPageHero>
 
       <section className="module-journey">
         <div className="marketing-container">

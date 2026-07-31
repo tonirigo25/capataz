@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronRight, ShieldCheck } from "lucide-react";
 import type { MarketingSolution } from "@/lib/marketing/solutions";
+import { PublicPageHero, type PublicHeroVariant } from "./public-page-hero";
 import styles from "./r4-pages.module.css";
 
 export function R4Breadcrumb({ current, parent }: { current: string; parent?: readonly [string, string] }) {
@@ -14,21 +15,13 @@ export function R4Breadcrumb({ current, parent }: { current: string; parent?: re
   );
 }
 
-export function R4Hero({ eyebrow, title, description, visual, actions, current, parent }: { eyebrow: string; title: string; description: string; visual?: ReactNode; actions?: ReactNode; current: string; parent?: readonly [string, string] }) {
-  return (
-    <section className={styles.hero}>
-      <div className={styles.heroInner}>
-        <div className={styles.heroCopy}>
-          <R4Breadcrumb current={current} parent={parent} />
-          <p className={styles.eyebrow}>{eyebrow}</p>
-          <h1>{title}</h1>
-          <p className={styles.lede}>{description}</p>
-          {actions ? <div className={styles.actions}>{actions}</div> : null}
-        </div>
-        {visual ? <div className={styles.heroVisual}>{visual}</div> : null}
-      </div>
-    </section>
-  );
+export function R4Hero({ eyebrow, title, description, visual, actions, current, parent, variant = "split" }: { eyebrow: string; title: string; description: string; visual?: ReactNode; actions?: ReactNode; current: string; parent?: readonly [string, string]; variant?: PublicHeroVariant }) {
+  const breadcrumbs = [
+    { label: "Inicio", href: "/" },
+    ...(parent ? [{ label: parent[0], href: parent[1] }] : []),
+    { label: current },
+  ];
+  return <PublicPageHero actions={actions} breadcrumbs={breadcrumbs} description={description} eyebrow={eyebrow} id={`hero-${current.toLocaleLowerCase("es-ES").replaceAll(" ", "-")}`} title={title} variant={variant} visual={visual} />;
 }
 
 export function R4Section({ eyebrow, title, description, children, tone = "paper", id }: { eyebrow: string; title: string; description?: string; children: ReactNode; tone?: "paper" | "soft" | "dark"; id?: string }) {

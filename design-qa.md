@@ -1,59 +1,38 @@
-# Design QA — corrección visual PR #63, Gate 1, revisión 2
+# Design QA — Public desktop layout Revision 6
 
-Fecha: 2026-07-30  
-Rama: `design/orqena-field-os-v2`  
-Entorno objetivo: `orqena-review-continuous / orqena-review-web-review`
+## Visual source of truth
 
-## Fuente y comparación canónicas
+- Existing approved public direction on branch `design/orqena-field-os-v2`.
+- Preserved home split hero: copy left, interactive Orqena product right.
+- Baseline captures: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/baseline-390/` and `baseline-1440/`.
 
-- Fuente principal: `referencias_visuales/01_PORTADA_FINAL_OSCURA.png`
-  (1536×1024), complementada por `04_PRESENTACION_GENERAL.png`.
-- Implementación comparada: hero Hoy a 1440×1000 y los cuatro estados
-  alternativos del mismo producto.
-- Comparación conjunta inspeccionada:
-  `artifacts/design-v2/correction-pr63/gate-1-revision-2/09-comparacion-referencia-implementacion.png`.
-- Navegador: Chromium integrado de Codex Desktop.
+## Implementation evidence
 
-## Primera inspección y correcciones
+- 46 routes at `390 × 844`: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/final-390/`.
+- 46 routes at `1440 × 1000`: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/final-1440/`.
+- 46 routes at `1920 × 1080`: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/final-1920/`.
+- Combined responsive comparisons: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/comparisons/`.
+- Twelve-column grid and hero annotation: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/annotated-1440/`.
 
-La inspección inicial confirmó una página de 21 secciones y más de 15.000 px
-en escritorio; las pestañas del hero sólo sustituían el nombre del área. En la
-primera iteración se redujo la portada a siete secciones visibles, se crearon
-cinco superficies de producto completas y se sustituyeron las muestras
-decorativas por datos, gráficos, estados y microacciones. En la segunda
-iteración se eliminó el desbordamiento horizontal de la navegación de la demo
-en tablet y se compactó su recorrido a tres minutos.
+## QA passes
 
-## Resultado visible validado
+| Pass | Finding | Severity | Resolution |
+| --- | --- | --- | --- |
+| Layout | Home and Product already had the intended copy/visual balance. | — | Preserved; only a stable layout marker was added to Home. |
+| Layout | Several no-visual pages inherited a split grid and left half the hero empty. | P1 | Assigned `centered`; content now occupies a deliberate 760–900 px measure. |
+| Layout | Dynamic product and sector pages used bespoke hero widths and duplicated the main visual. | P1 | Moved to the shared `split` contract and kept each real module/sector scene. |
+| Layout | `/soluciones` briefly lost its strong right-hand visual in a wide editorial treatment. | P1 | Reverted to `split`; the known-good pattern is preserved. |
+| Responsive | Contact requires a form at the right on desktop and a natural sequence on mobile. | P1 | Shared `split` stacks copy, actions and form at 390 px without clipping or overlap. |
+| Navigation | The top-left Orqena Tech wordmark pointed to `#top` on inner pages. | P1 | It now points to `/` with an explicit accessible label. |
+| Typography | No-visual titles were visually stranded at the left edge on wide screens. | P2 | Centered and wide-editorial variants share a 1280 px grid and bounded copy measure. |
+| Accessibility | Breakpoint corrections could have changed source order. | P1 | DOM order remains copy then visual; focusable controls and labels are unchanged. |
 
-- Header, hero, banda de valor, áreas clave, flujos, demo, CTA y footer forman
-  una secuencia corta y comercial.
-- Hoy, Clientes, Trabajo, Dinero y Orqena IA cambian título, subtítulo, KPIs,
-  visualización, tarjetas, estados, acciones e interfaz móvil.
-- Los gráficos muestran series, pipeline, progreso, tesorería y señal de
-  escenario con datos sintéticos coherentes.
-- La demo pública conserva edición, teclado, revisión, confirmación y resultado,
-  pero usa menos aire y una jerarquía de producto más clara.
-- CTA y footer se verificaron completos en 390 px y 1440 px.
-- No hay desbordamiento horizontal en 390, 768 ni 1440 px.
-- No se inició el portal autenticado y no se modificaron lógica de negocio,
-  migraciones, datos ni Production.
+## Visual judgment
 
-## Evidencia exigida
+The combined comparisons were inspected for typography, wrapping, margins, card density, real product imagery, button hierarchy, responsive stacking and dead space. The split pages preserve the product-led composition; centered pages no longer look like mobile screens stretched across desktop; editorial pages use the available grid without decorative filler.
 
-1. `01-hero-hoy-1440x1000.png`
-2. `02-hero-clientes-1440x1000.png`
-3. `03-hero-trabajo-1440x1000.png`
-4. `04-hero-dinero-1440x1000.png`
-5. `05-hero-orqena-ia-1440x1000.png`
-6. `06-demo-guiada-redisenada.png`
-7. `07-cierre-cta-footer-mobile-390.png`
-8. `08-cierre-cta-footer-1440x1000.png`
+## Final result
 
-Directorio:
-`artifacts/design-v2/correction-pr63/gate-1-revision-2/`.
+`passed`
 
-La aprobación visual del propietario sigue siendo externa a los tests y esta PR
-debe permanecer Draft.
-
-final result: passed
+No unresolved P0, P1 or P2 visual finding remains in the Revision 6 scope.
