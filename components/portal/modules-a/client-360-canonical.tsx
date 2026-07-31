@@ -189,6 +189,15 @@ export function Client360Canonical({
                     <Fact label="Identificación fiscal" value={summary.listItem.fiscalId} />
                   ) : null}
                 </dl>
+                <div className="client-360-canonical__mobile-identity-meta">
+                  <p>Cliente desde {formatDate(client.fechaCreacion)}</p>
+                  <p>
+                    {primaryContact?.name ?? summary.listItem.primaryContact}
+                    {primaryContact?.phone || primaryContact?.email
+                      ? ` · ${primaryContact.phone ?? primaryContact.email}`
+                      : ""}
+                  </p>
+                </div>
               </div>
             </div>
 

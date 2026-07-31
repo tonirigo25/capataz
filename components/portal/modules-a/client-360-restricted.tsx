@@ -164,6 +164,10 @@ export function Client360Restricted({
                     <Fact label="Razón social" value={client.legalName} />
                   ) : null}
                 </dl>
+                <div className="client-360-canonical__mobile-identity-meta">
+                  <p>Vista según tu alcance autorizado</p>
+                  <p>{directContact?.name ?? client.displayName} · {identityContact}</p>
+                </div>
               </div>
             </div>
 
