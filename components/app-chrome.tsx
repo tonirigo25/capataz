@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Activity,
   BarChart3,
@@ -95,6 +95,14 @@ export function AppChrome({
   railRecommendations: PortalRailRecommendations;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const editedClientId =
+    pathname === "/gestion" && searchParams.get("tipo") === "cliente"
+      ? searchParams.get("id")
+      : null;
+  const railPathname = editedClientId
+    ? `/clientes/${editedClientId}/editar`
+    : pathname;
   const hasEmbeddedClientContext =
     pathname === "/clientes" || /^\/clientes\/[^/]+$/.test(pathname);
   const dialogId = useId();
@@ -107,7 +115,11 @@ export function AppChrome({
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
   const desktopNavigation = useMemo(() => buildCanonicalDesktopNavigation(portalManifest), [portalManifest]);
-  const contextLabel = pathname === "/capataz" || pathname.startsWith("/orqena-ia") ? brand.assistantName : context.label;
+  const contextLabel = editedClientId
+    ? "Clientes"
+    : pathname === "/capataz" || pathname.startsWith("/orqena-ia")
+      ? brand.assistantName
+      : context.label;
   const orqenaAvailable = capabilities.includes("orqena.use");
   const canCapture = useMemo(
     () => captureActions.some((item) => !item.capability || capabilities.includes(item.capability)),
@@ -324,7 +336,7 @@ export function AppChrome({
         data-embedded-context={hasEmbeddedClientContext ? "client" : undefined}
       >
         <div id="main-content" className="field-os-main-canvas relative" tabIndex={-1}>{children}</div>
-        {hasEmbeddedClientContext ? null : <OrqenaContextRail pathname={pathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => {
+        {hasEmbeddedClientContext ? null : <OrqenaContextRail pathname={railPathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => {
           const next = !current;
           try {
             window.localStorage.setItem("orqena.portal.iaRailCollapsed", String(next));

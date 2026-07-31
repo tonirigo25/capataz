@@ -46,6 +46,7 @@ import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { managementCapability } from "@/lib/commercial/management-capabilities";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 
 type ManualEntity =
   | "cliente"
@@ -132,7 +133,9 @@ export async function saveManualRecord(formData: FormData) {
       amount: number(formData, "importe"),
       workId: optionalText(formData, "obraId"),
     });
-  const returnTo = optionalText(formData, "returnTo") ?? targetFor(tipo);
+  const returnTo = normalizeLoginReturnPath(
+    optionalText(formData, "returnTo") ?? targetFor(tipo),
+  );
 
   switch (tipo) {
     case "cliente":
@@ -400,8 +403,17 @@ async function saveClient(formData: FormData, id: string | null) {
     ultimaInteraccion: optionalDate(formData, "ultimaInteraccion"),
   };
 
-  if (id) await prisma.client.updateMany({ where: { id, companyId }, data });
-  else await prisma.client.create({ data });
+  if (id) {
+    const result = await prisma.client.updateMany({
+      where: { id, companyId },
+      data,
+    });
+    if (result.count !== 1) {
+      throw new Error("El cliente no está disponible para actualizar.");
+    }
+  } else {
+    await prisma.client.create({ data });
+  }
 }
 
 async function saveWork(formData: FormData, id: string | null) {

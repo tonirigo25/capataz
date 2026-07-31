@@ -17,6 +17,9 @@ const dialog = read("components/accessible-dialog.tsx");
 const workflow = read("components/entity-workflow-summary.tsx");
 const crm = read("lib/client-crm.ts");
 const forms = read("app/(app)/gestion/page.tsx");
+const chrome = read("components/app-chrome.tsx");
+const contextRail = read("components/portal/orqena-context-rail.tsx");
+const management = read("lib/application/operations/management-use-cases.ts");
 const schema = read("prisma/schema.prisma");
 
 const cases = [];
@@ -75,6 +78,12 @@ check("consultas de entidad derivan companyId de sesión", client.includes("requ
 check("tareas y seguimientos están aislados por companyId", workflow.includes("where: { companyId, ...entityWhere"));
 check("cliente y obra por ID están company-scoped", crm.includes("where: { id, companyId }") && work.includes("where: { id, companyId: auth.companyId }"));
 check("formularios mantienen orden semántico y targets", forms.includes("Identidad del cliente") && forms.includes("Contacto operativo") && forms.includes("Fiscal y condiciones comerciales") && forms.includes("StickyFormActions"));
+check("Editar cliente usa identidad, métricas y formulario responsive canónico", forms.includes("client-edit-reference__identity") && forms.includes("client-edit-reference__field-grid--three") && styles.includes(".client-edit-reference__identity") && styles.includes("@media (max-width: 767px)"));
+check("Editar cliente conserva cinco destinos funcionales sin enlaces duplicados", (forms.match(/^  \["(resumen|operacion|dinero|relacion|archivos)"/gm) ?? []).length === 5 && !forms.includes("dinero#presupuestos") && !forms.includes("relacion#contactos"));
+check("Editar cliente no inventa campos comerciales o RGPD sin persistencia", !forms.includes('name="sector"') && !forms.includes('name="sitioWeb"') && !forms.includes('name="condicionesPago"') && !forms.includes('name="consentimientoComercial"'));
+check("métricas de Editar cliente usan scopes propios y excluyen borradores", forms.includes('resolveScopedEntityIds(auth, "work.view", "Work")') && forms.includes('resolveScopedEntityIds(auth, "sales.invoices.view", "Client")') && forms.includes('invoice.estado !== "borrador"'));
+check("Editar cliente normaliza retorno y rechaza IDs inexistentes", forms.includes("normalizeLoginReturnPath") && forms.includes("if (query.id && !record) notFound()") && management.includes("normalizeLoginReturnPath") && management.includes("result.count !== 1"));
+check("rail global reconoce Editar cliente sin duplicar contexto", chrome.includes("railPathname") && chrome.includes("editedClientId") && contextRail.includes("Completar ficha del cliente") && contextRail.includes('pathname.endsWith("/editar")'));
 check("navegación secundaria usa URL, aria-current y targets", clientCanonical.includes("?vista=${view}") && work.includes("?vista=${id}") && clientCanonical.includes("aria-current") && work.includes("aria-current"));
 check("composición responsive cubre móvil, tablet y escritorio", gallery.includes("grid-cols-2") && gallery.includes("sm:grid-cols-3") && gallery.includes("xl:grid-cols-4") && work.includes("xl:grid-cols"));
 

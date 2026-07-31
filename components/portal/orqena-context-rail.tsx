@@ -20,6 +20,7 @@ type RailContext = {
 };
 
 const contexts: Array<{ match: (pathname: string) => boolean; area: PortalRailArea; value: RailContext }> = [
+  { match: (path) => /^\/clientes\/[^/]+\/editar$/.test(path), area: "clients", value: contextual("Completar ficha del cliente", "Revisa los datos incompletos, las coincidencias y los próximos pasos antes de guardar. Orqena IA no modifica la ficha por sí sola.", "Cliente seleccionado, campos visibles y permisos vigentes", "Abrir ayuda comercial", "/orqena-ia/comercial") },
   { match: (path) => path.startsWith("/clientes/"), area: "clients", value: contextual("Cliente 360", "Revisa relación, operación, dinero y archivos sin perder el contexto del cliente.", "Cliente seleccionado y permisos vigentes", "Abrir ayuda comercial", "/orqena-ia/comercial") },
   { match: (path) => path === "/clientes", area: "clients", value: contextual("Clientes", "Prioriza seguimientos y oportunidades con la información que tu rol puede consultar.", "Cartera visible para tu perfil", "Analizar cartera", "/orqena-ia/comercial") },
   { match: (path) => path === "/hoy", area: "hoy", value: contextual("Recomendación para hoy", "No hay recomendaciones activas dentro de tu alcance. Orqena IA volverá a comprobar las señales registradas.", "Datos autorizados de tu empresa", "Revisar prioridades", "/recomendaciones") },
@@ -61,7 +62,11 @@ export function OrqenaContextRail({
   const sheetRef = useRef<HTMLElement>(null);
   const matched = contexts.find((entry) => entry.match(pathname));
   const context = matched?.value ?? fallbackContext;
-  const recommendation = canUse && matched ? recommendations[matched.area] ?? null : null;
+  const contextOnly = pathname.endsWith("/editar");
+  const recommendation =
+    canUse && matched && !contextOnly
+      ? recommendations[matched.area] ?? null
+      : null;
   const dashboardAlerts = canUse && pathname === "/dashboard" ? recommendations.dashboardAlerts ?? [] : [];
 
   useEffect(() => setMobileOpen(false), [pathname]);

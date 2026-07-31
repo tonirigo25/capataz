@@ -4320,6 +4320,416 @@ button:disabled,
   font-size: 10px;
 }
 
+/* Cliente 360 · edición: composición rica basada en la referencia canónica. */
+.client-edit-reference {
+  min-height: calc(100vh - 62px);
+  background: #f4f7f6;
+  padding: 15px 20px 40px;
+}
+.client-edit-reference__header {
+  display: flex;
+  min-height: 31px;
+  align-items: baseline;
+  gap: 9px;
+}
+.client-edit-reference__header h1 {
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+  line-height: 1.3;
+}
+.client-edit-reference__header > p {
+  color: var(--cap-text-soft);
+  font-size: 11px;
+}
+.client-edit-reference__form {
+  display: grid;
+  min-width: 0;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid var(--cap-border);
+  border-radius: 14px;
+  background: var(--cap-surface);
+  box-shadow: 0 1px 2px rgb(15 29 26 / 3%);
+}
+.client-edit-reference__identity {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 72px minmax(150px, .85fr) minmax(0, 3.3fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 142px;
+  padding: 20px 22px;
+}
+.client-edit-reference__avatar {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  place-items: center;
+  border-radius: 12px;
+  background: #0b2a22;
+  color: #fff;
+  font-size: 23px;
+  font-weight: 750;
+  box-shadow: 0 8px 18px rgb(3 32 26 / 14%);
+}
+.client-edit-reference__identity-name { min-width: 0; }
+.client-edit-reference__identity-name h2 {
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 850;
+  letter-spacing: -.03em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-edit-reference__identity-name > span {
+  display: inline-flex;
+  margin-top: 8px;
+  border-radius: 6px;
+  background: var(--cap-brand-soft);
+  padding: 4px 8px;
+  color: var(--cap-brand-strong);
+  font-size: 10px;
+  font-weight: 800;
+}
+.client-edit-reference__identity dl {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.client-edit-reference__identity dl > div {
+  min-width: 0;
+  min-height: 70px;
+  border-left: 1px solid var(--cap-border);
+  padding: 7px 18px;
+}
+.client-edit-reference__identity dt {
+  color: var(--cap-text-soft);
+  font-size: 10px;
+  font-weight: 650;
+}
+.client-edit-reference__identity dd {
+  margin-top: 8px;
+  overflow: hidden;
+  color: var(--cap-text);
+  font-size: 17px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-edit-reference__identity small {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--cap-text-soft);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-edit-reference__tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  border-block: 1px solid var(--cap-border);
+  padding-inline: 20px;
+  scrollbar-width: thin;
+}
+.client-edit-reference__tabs a {
+  flex: 0 0 auto;
+  border-bottom: 2px solid transparent;
+  padding: 12px 15px 11px;
+  color: var(--cap-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+.client-edit-reference__tabs a:first-child { padding-left: 0; }
+.client-edit-reference__tabs a[aria-current="page"] {
+  border-bottom-color: var(--cap-brand);
+  color: var(--cap-brand-strong);
+}
+.client-edit-reference__general {
+  min-width: 0;
+  padding: 18px 20px 22px;
+}
+.client-edit-reference__general > h2,
+.client-edit-reference__contacts h2,
+.client-edit-reference__access h2 {
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+}
+.client-edit-reference__field-grid {
+  display: grid;
+  min-width: 0;
+  gap: 26px;
+  margin-top: 18px;
+}
+.client-edit-reference__field-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.client-edit-reference__field-column {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+}
+.client-edit-reference__field-pair {
+  display: grid;
+  grid-template-columns: .75fr 1.25fr;
+  gap: 10px;
+}
+.client-edit-reference__form .label {
+  color: var(--cap-text-soft);
+  font-size: 9px;
+  font-weight: 700;
+}
+.client-edit-reference__form .field {
+  min-height: 34px;
+  border-color: var(--cap-border);
+  border-radius: 7px;
+  background: var(--cap-surface);
+  padding-inline: 10px;
+  color: var(--cap-text);
+  font-size: 11px;
+}
+.client-edit-reference__form textarea.field {
+  min-height: 76px;
+  padding-block: 9px;
+  line-height: 1.45;
+  resize: vertical;
+}
+.client-edit-reference__contacts {
+  margin-top: 20px;
+}
+.client-edit-reference__contacts > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.client-edit-reference__contacts .secondary-button {
+  min-height: 32px;
+  gap: 5px;
+  border: 0;
+  background: var(--cap-bg-subtle);
+  padding: 7px 10px;
+  font-size: 10px;
+}
+.client-edit-reference__contacts > div {
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid var(--cap-border);
+  border-radius: 8px;
+}
+.client-edit-reference__contacts > div > a {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 30px minmax(120px, 1.15fr) minmax(90px, .9fr) minmax(145px, 1.35fr) minmax(105px, .8fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 6px 10px;
+  color: var(--cap-text);
+  font-size: 10px;
+}
+.client-edit-reference__contacts > div > a + a {
+  border-top: 1px solid var(--cap-border);
+}
+.client-edit-reference__contacts > div > a > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cap-brand-soft);
+  color: var(--cap-brand-strong);
+  font-weight: 850;
+}
+.client-edit-reference__contacts strong,
+.client-edit-reference__contacts em,
+.client-edit-reference__contacts i,
+.client-edit-reference__contacts b {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-edit-reference__contacts strong { font-weight: 800; }
+.client-edit-reference__contacts strong small {
+  margin-left: 6px;
+  border-radius: 5px;
+  background: var(--cap-brand-soft);
+  padding: 2px 5px;
+  color: var(--cap-brand-strong);
+  font-size: 8px;
+}
+.client-edit-reference__contacts > p {
+  margin-top: 8px;
+  border: 1px dashed var(--cap-border);
+  border-radius: 8px;
+  padding: 13px;
+  color: var(--cap-text-soft);
+  font-size: 10px;
+}
+.client-edit-reference__lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(250px, 1fr);
+  gap: 30px;
+  margin-top: 16px;
+}
+.client-edit-reference__lower-grid > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(170px, .65fr);
+  gap: 12px;
+}
+.client-edit-reference__access {
+  border-left: 1px solid var(--cap-border);
+  padding-left: 22px;
+}
+.client-edit-reference__access > p {
+  margin-top: 5px;
+  color: var(--cap-text-soft);
+  font-size: 9px;
+}
+.client-edit-reference__access ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+.client-edit-reference__access li {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 7px;
+  background: var(--cap-brand-soft);
+  padding: 6px 9px;
+  color: var(--cap-brand-strong);
+  font-size: 9px;
+  font-weight: 800;
+}
+.client-edit-reference__access li[data-allowed="false"] {
+  background: var(--cap-bg-subtle);
+  color: var(--cap-text-soft);
+}
+.client-edit-reference__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.client-edit-reference__tags span {
+  border-radius: 6px;
+  background: var(--cap-brand-soft);
+  padding: 5px 8px;
+  color: var(--cap-brand-strong);
+  font-size: 9px;
+  font-weight: 800;
+}
+.client-edit-reference__tags span:nth-child(2) { background: #edf2ff; color: #365fc6; }
+.client-edit-reference__tags span:nth-child(3) { background: #f3edff; color: #7952be; }
+.client-edit-reference__advanced { margin-top: 12px; }
+.client-edit-reference__advanced summary {
+  cursor: pointer;
+  color: var(--cap-brand-strong);
+  font-size: 10px;
+  font-weight: 800;
+}
+.client-edit-reference__advanced > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.client-edit-reference__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  border-top: 1px solid var(--cap-border);
+  padding: 11px 20px;
+}
+.client-edit-reference__actions .primary-button,
+.client-edit-reference__actions .secondary-button {
+  min-width: 118px;
+  min-height: 37px;
+  font-size: 11px;
+}
+
+@media (max-width: 1279px) {
+  .client-edit-reference { padding: 18px 16px 40px; }
+  .client-edit-reference__identity {
+    grid-template-columns: 64px minmax(140px, .75fr) minmax(0, 2.5fr);
+    padding-inline: 18px;
+  }
+  .client-edit-reference__identity dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-edit-reference__identity dl > div { min-height: 54px; padding-block: 3px; }
+  .client-edit-reference__field-grid--three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-edit-reference__field-column:last-child { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-edit-reference__lower-grid { grid-template-columns: minmax(0, 1fr); }
+  .client-edit-reference__access { border-top: 1px solid var(--cap-border); border-left: 0; padding: 16px 0 0; }
+}
+
+@media (max-width: 767px) {
+  .client-edit-reference {
+    min-height: calc(100vh - 54px);
+    padding: 13px 12px 88px;
+  }
+  .client-edit-reference__header { display: block; min-height: 42px; }
+  .client-edit-reference__header h1 { font-size: 21px; }
+  .client-edit-reference__header > p { margin-top: 2px; font-size: 10px; }
+  .client-edit-reference__form { margin-top: 3px; border-radius: 11px; }
+  .client-edit-reference__identity {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 11px;
+    padding: 14px;
+  }
+  .client-edit-reference__avatar { width: 48px; height: 48px; border-radius: 10px; font-size: 17px; }
+  .client-edit-reference__identity-name h2 { font-size: 17px; }
+  .client-edit-reference__identity dl {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 4px;
+  }
+  .client-edit-reference__identity dl > div { min-height: 56px; padding: 5px 9px; }
+  .client-edit-reference__identity dl > div:nth-child(odd) { border-left: 0; }
+  .client-edit-reference__identity dd { font-size: 14px; }
+  .client-edit-reference__tabs { padding-inline: 12px; }
+  .client-edit-reference__tabs a { padding: 10px 13px 9px; font-size: 10px; }
+  .client-edit-reference__general { padding: 15px 12px 18px; }
+  .client-edit-reference__field-grid--three,
+  .client-edit-reference__field-column:last-child,
+  .client-edit-reference__field-pair,
+  .client-edit-reference__lower-grid,
+  .client-edit-reference__lower-grid > div,
+  .client-edit-reference__advanced > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .client-edit-reference__field-grid { gap: 12px; margin-top: 14px; }
+  .client-edit-reference__field-column,
+  .client-edit-reference__field-column:last-child { grid-column: auto; gap: 9px; }
+  .client-edit-reference__contacts { margin-top: 17px; }
+  .client-edit-reference__contacts > header { align-items: flex-start; }
+  .client-edit-reference__contacts > div > a {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 4px 9px;
+    padding-block: 8px;
+  }
+  .client-edit-reference__contacts > div > a > span { grid-row: 1 / span 3; }
+  .client-edit-reference__contacts em,
+  .client-edit-reference__contacts i,
+  .client-edit-reference__contacts b { grid-column: 2; }
+  .client-edit-reference__lower-grid { gap: 15px; }
+  .client-edit-reference__access ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-edit-reference__actions { position: sticky; bottom: 0; z-index: 2; padding: 10px 12px; background: rgb(255 255 255 / 96%); }
+  .client-edit-reference__actions .primary-button,
+  .client-edit-reference__actions .secondary-button { min-width: 0; flex: 1; }
+}
+
 @media (min-width: 1440px) {
   .client-360-canonical[data-has-client-rail="true"] {
     grid-template-columns: minmax(0, 1fr) 20.25rem;
