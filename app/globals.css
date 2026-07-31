@@ -3705,6 +3705,7 @@ button:disabled,
 .dashboard-rail-alerts li a:hover,
 .dashboard-rail-alerts li a:focus-visible { border-color: #c7ddd0; background: #fbfdfb; }
 .dashboard-rail-alert-icon { display: inline-flex; color: #2875d4; }
+.dashboard-rail-alert-icon[data-tone="risk"] { color: #e23a43; }
 .dashboard-rail-alert-icon[data-tone="attention"] { color: #e19320; }
 .dashboard-rail-alerts strong { display: block; color: #27322c; font-size: 11px; font-weight: 650; line-height: 15px; }
 .dashboard-rail-alerts small { display: block; margin-top: 2px; color: #65716b; font-size: 10px; line-height: 15px; }

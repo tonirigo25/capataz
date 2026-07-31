@@ -169,7 +169,7 @@ function DashboardRailContent({ context, titleId, recommendation, alerts, canUse
       <h2 id={`${titleId}-alerts`}>Alertas financieras</h2>
       {alerts.length ? <ul>{alerts.map((alert, index) => <li key={alert.fingerprint} data-dashboard-financial-alert>
         <Link href={alert.href}>
-          <span className="dashboard-rail-alert-icon" data-tone={index < 2 ? "attention" : "info"}>{index === 0 ? <TriangleAlert size={16} aria-hidden="true" /> : index === 1 ? <CircleAlert size={16} aria-hidden="true" /> : <Info size={16} aria-hidden="true" />}</span>
+          <span className="dashboard-rail-alert-icon" data-tone={index === 0 ? "risk" : index === 1 ? "attention" : "info"}>{index === 0 ? <TriangleAlert size={16} aria-hidden="true" /> : index === 1 ? <CircleAlert size={16} aria-hidden="true" /> : <Info size={16} aria-hidden="true" />}</span>
           <span><strong>{alert.title}</strong><small>{alert.description}</small></span>
         </Link>
       </li>)}</ul> : <p className="dashboard-rail-empty">No hay alertas financieras activas dentro de tu alcance.</p>}
