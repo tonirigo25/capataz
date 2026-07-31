@@ -19,7 +19,7 @@ No quedan hallazgos visuales P0, P1 o P2 abiertos dentro del alcance del portal 
 - Railway Review: `orqena-review-continuous` / `orqena-review-web`.
 - URL: `https://orqena-review-web-review.up.railway.app`.
 - El SHA y el deployment exactos se registran en la entrega final después del último gate remoto.
-- PR #63 permanece abierta y Draft.
+- PR #63 fue encontrada fusionada externamente antes de la corrección focal del Dashboard; no se abrió otra PR ni se modificó `main` desde este trabajo.
 - Staging y Production no se modificaron.
 
 ## Evidencia comparada
@@ -65,5 +65,36 @@ Las comparaciones fueron inspeccionadas para jerarquía, densidad, navegación, 
 - Cero migraciones, semillas o cambios de datos ejecutados en esta entrega.
 
 ## Resultado final
+
+`passed`
+
+## Revalidación focal — Dashboard canónico 2026-07-31
+
+### Alcance y estado
+
+- Referencia visual: `C:\Users\Toniet\AppData\Local\Temp\orqena-dashboard-audit-20260731\03_dashboard.png` (1586 × 992).
+- Ficha técnica: `C:\Users\Toniet\AppData\Local\Temp\orqena-dashboard-audit-20260731\03_dashboard_FICHA_TECNICA.png`.
+- Implementación Review: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/dashboard-1586x992-final-full.png`.
+- Estado: empresa `Rigo Asociados`, perfil OWNER/Enterprise, periodo `1 jul – 31 jul 2026`.
+- La diferencia de cifras y nombres respecto a la captura canónica corresponde a los datos sintéticos autorizados de Rigo Asociados; no se sustituyeron por saldos ficticios de la referencia.
+
+### Cinco pasadas de comparación
+
+1. **Estructura:** sidebar, topbar, cabecera, seis KPI, tres gráficos, pipeline, rentabilidad y rail IA aparecen en el orden canónico.
+2. **Geometría:** a 1440 px o más se conservan seis KPI en una fila y los tres gráficos en una fila; el breakpoint incorrecto de 1579 px se redujo a 1399 px.
+3. **Tipografía y semántica:** se preservaron jerarquía, iconos del sistema, estados, leyendas y contraste; las variaciones monetarias muestran contexto y el margen usa puntos porcentuales (`pp`).
+4. **Funcionalidad:** periodo y filtros abren; el KPI de ingresos navega a `/dinero`; los puntos del gráfico muestran tooltip; ocultar/mostrar Orqena IA funciona; el enlace final apunta a `/recomendaciones`.
+5. **Responsive y scroll:** validado en 390 × 844, 768 × 1024, 1024 × 992, 1400 × 1000, 1439 × 1000, 1440 × 1000, 1498 × 932, 1579 × 992, 1580 × 992, 1586 × 992 y 1920 × 1080. No hay desbordamiento horizontal. El rail de escritorio usa el desplazamiento del documento, se estira con el workspace y no tiene scroll vertical independiente.
+
+### Evidencia conjunta fuente vs. Review
+
+- Vista completa: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/comparisons/01-full-reference-vs-review.png`.
+- Cabecera y KPI: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/comparisons/02-header-kpis-reference-vs-review.png`.
+- Gráficos: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/comparisons/03-main-charts-reference-vs-review.png`.
+- Pipeline y rentabilidad: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/comparisons/04-main-bottom-reference-vs-review.png`.
+- Rail IA: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/comparisons/05-ai-rail-reference-vs-review.png`.
+- Métricas: `artifacts/design-v2/portal-interno-pixel-accurate/dashboard/review-8d7d3f3/responsive-metrics.json`.
+
+### Resultado de la revalidación focal
 
 `passed`
