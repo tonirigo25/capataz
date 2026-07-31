@@ -4375,13 +4375,13 @@ button:disabled,
 }
 .client-edit-reference__identity-name { min-width: 0; }
 .client-edit-reference__identity-name h2 {
-  overflow: hidden;
+  overflow: visible;
   font-size: 19px;
   font-weight: 850;
   letter-spacing: -.03em;
   line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .client-edit-reference__identity-name > span {
   display: inline-flex;
@@ -4725,7 +4725,13 @@ button:disabled,
   .client-edit-reference__contacts b { grid-column: 2; }
   .client-edit-reference__lower-grid { gap: 15px; }
   .client-edit-reference__access ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .client-edit-reference__actions { position: sticky; bottom: 0; z-index: 2; padding: 10px 12px; background: rgb(255 255 255 / 96%); }
+  .client-edit-reference__actions {
+    position: sticky;
+    bottom: calc(65px + env(safe-area-inset-bottom));
+    z-index: 41;
+    padding: 10px 12px;
+    background: rgb(255 255 255 / 96%);
+  }
   .client-edit-reference__actions .primary-button,
   .client-edit-reference__actions .secondary-button { min-width: 0; flex: 1; }
 }
