@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertExclusiveOwnerMembership,
   assertReviewRigoHoyTarget,
+  buildDashboardFixtureSignals,
   buildRigoHoyAgendaFixtures,
   REVIEW_RIGO_HOY_IDS,
   REVIEW_RIGO_HOY_TARGET,
@@ -55,17 +56,18 @@ describe("Rigo Hoy Railway Review provisioner", () => {
     ], target)).toThrow("REVIEW_RIGO_HOY_OWNER_HAS_OTHER_MEMBERSHIPS");
   });
 
-  it("builds five deterministic same-day agenda fixtures matching the Hoy reference", () => {
+  it("builds five visible priorities plus one completed activity on the same day", () => {
     const now = new Date("2026-07-31T08:15:00.000Z");
     const fixtures = buildRigoHoyAgendaFixtures(now);
-    expect(fixtures).toHaveLength(5);
-    expect(new Set(fixtures.map((fixture) => fixture.id)).size).toBe(5);
+    expect(fixtures).toHaveLength(6);
+    expect(new Set(fixtures.map((fixture) => fixture.id)).size).toBe(6);
     expect(fixtures.map((fixture) => fixture.titulo)).toEqual([
       "Reunión interna de obra",
       "Visita técnica",
       "Revisión de presupuesto",
       "Llamada seguimiento comercial",
       "Confirmar documento",
+      "Visita de replanteo completada",
     ]);
     expect(fixtures.map((fixture) => [fixture.fechaInicio.getHours(), fixture.fechaInicio.getMinutes()])).toEqual([
       [9, 0],
@@ -73,17 +75,48 @@ describe("Rigo Hoy Railway Review provisioner", () => {
       [12, 0],
       [15, 30],
       [17, 0],
+      [18, 30],
     ]);
     expect(fixtures.every((fixture) => fixture.fechaInicio.toDateString() === now.toDateString())).toBe(true);
   });
 
-  it("does not contain credential, security-factor, active-company or destructive membership mutations", () => {
+  it("does not alter the demo owner's credentials, security factors or delete memberships", () => {
     const source = readFileSync("scripts/readiness/provision-review-rigo-hoy.ts", "utf8");
-    expect(source).not.toMatch(/passwordHash|passwordResetToken|mfaFactor|activeCompanyId/u);
-    expect(source).not.toMatch(/companyMembership\.(?:update|updateMany|delete|deleteMany)/u);
+    const ownerUpdate = source.match(/await transaction\.user\.update\(\{[\s\S]*?\n    \}\);/u)?.[0] ?? "";
+    expect(ownerUpdate).toContain("activeCompanyId: company.id");
+    expect(ownerUpdate).not.toMatch(/passwordHash|passwordResetToken|mfaFactor/u);
+    expect(source).not.toMatch(/passwordResetToken|mfaFactor/u);
+    expect(source).not.toMatch(/companyMembership\.(?:delete|deleteMany|updateMany)/u);
     expect(source).not.toContain("ORQENA_REVIEW_ROTATE_OWNER_ACCESS");
     expect(source).not.toContain("ORQENA_REVIEW_PROVISION_MFA");
     expect(source).not.toContain("console.log");
+  });
+
+  it("derives every Dashboard signal from the same synthetic financial records", () => {
+    const now = new Date("2026-07-31T08:15:00.000Z");
+    const signals = buildDashboardFixtureSignals({
+      now,
+      workIds: ["work-a", "work-b", "work-c"],
+      invoices: [
+        { obraId: "work-a", total: 20_000, pendiente: 14_500, dueAt: new Date("2026-06-10T08:00:00.000Z") },
+        { obraId: "work-b", total: 16_000, pendiente: 12_000, dueAt: new Date("2026-06-12T08:00:00.000Z") },
+        { obraId: "work-c", total: 12_000, pendiente: 9_950, dueAt: new Date("2026-06-18T08:00:00.000Z") },
+        { obraId: "work-a", total: 22_000, pendiente: 22_000, dueAt: new Date("2026-08-02T08:00:00.000Z") },
+        { obraId: "work-b", total: 20_180, pendiente: 20_180, dueAt: new Date("2026-08-05T08:00:00.000Z") },
+      ],
+      expenses: [
+        { obraId: "work-a", importe: 12_000, paymentDueDate: new Date("2026-08-01T08:00:00.000Z") },
+        { obraId: "work-b", importe: 6_750, paymentDueDate: new Date("2026-08-04T08:00:00.000Z") },
+        { obraId: "work-c", importe: 10_000, paymentDueDate: new Date("2026-07-20T08:00:00.000Z") },
+      ],
+    });
+    expect(signals).toEqual({
+      overdueCount: 3,
+      overdueTotal: 36_450,
+      supplierPaymentsThisWeek: 18_750,
+      expectedCollectionsThisWeek: 42_180,
+      lowMarginCount: 1,
+    });
   });
 
   it("never returns free-form failure details that could disclose configuration", () => {

@@ -18,7 +18,9 @@ export type TodayRailRecommendation = {
 };
 
 export type PortalRailArea = "hoy" | "dashboard" | "clients" | "work" | "budgets" | "finance" | "documents" | "agenda" | "team" | "settings" | "orqena";
-export type PortalRailRecommendations = Partial<Record<PortalRailArea, TodayRailRecommendation>>;
+export type PortalRailRecommendations = Partial<Record<PortalRailArea, TodayRailRecommendation>> & {
+  dashboardAlerts?: TodayRailRecommendation[];
+};
 
 export async function getPersistedTodayRailRecommendation(
   context: CompanyContext,
@@ -36,6 +38,13 @@ export async function getPersistedPortalRailRecommendations(
 ): Promise<PortalRailRecommendations> {
   const capabilitySet = new Set(capabilities);
   if (!capabilitySet.has("orqena.use")) return {};
+  const canReadExecutiveDashboard = [
+    "reports.view",
+    "sales.invoices.view",
+    "treasury.view",
+    "margin_percent.view",
+    "profitability.view",
+  ].every((capability) => capabilitySet.has(capability));
 
   const [workIds, clientIds, documentIds] = await Promise.all([
     capabilitySet.has("work.view") ? resolveScopedEntityIds(context, "work.view", "Work") : Promise.resolve([]),
@@ -73,12 +82,16 @@ export async function getPersistedPortalRailRecommendations(
     return true;
   });
   const recommendations: PortalRailRecommendations = {};
+  const dashboardRecommendations: TodayRailRecommendation[] = [];
   for (const item of visible) {
+    const area = recommendationArea(item);
+    if (area === "dashboard" && !canReadExecutiveDashboard) continue;
     const serialized = serializeRecommendation(item);
     if (!recommendations.hoy) recommendations.hoy = serialized;
-    const area = recommendationArea(item);
     if (!recommendations[area]) recommendations[area] = serialized;
+    if (area === "dashboard") dashboardRecommendations.push(serialized);
   }
+  if (dashboardRecommendations.length > 1) recommendations.dashboardAlerts = dashboardRecommendations.slice(1, 5);
   return recommendations;
 }
 

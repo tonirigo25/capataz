@@ -114,6 +114,14 @@ export function AppChrome({
   const canCreate = canCapture || portalManifest.quickActions.length > 0;
 
   useEffect(() => {
+    try {
+      setRailCollapsed(window.localStorage.getItem("orqena.portal.iaRailCollapsed") === "true");
+    } catch {
+      // La preferencia es opcional; el rail sigue funcionando sin almacenamiento local.
+    }
+  }, []);
+
+  useEffect(() => {
     setDesktopPanel(null);
     setOverlay(null);
   }, [pathname]);
@@ -310,7 +318,15 @@ export function AppChrome({
 
       <div className="field-os-workspace" data-rail-collapsed={railCollapsed ? "true" : "false"}>
         <div id="main-content" className="field-os-main-canvas relative" tabIndex={-1}>{children}</div>
-        <OrqenaContextRail pathname={pathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => !current)} />
+        <OrqenaContextRail pathname={pathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => {
+          const next = !current;
+          try {
+            window.localStorage.setItem("orqena.portal.iaRailCollapsed", String(next));
+          } catch {
+            // Mantener el control operativo aunque el navegador bloquee storage.
+          }
+          return next;
+        })} />
       </div>
 
       <MobileBottomNavigation

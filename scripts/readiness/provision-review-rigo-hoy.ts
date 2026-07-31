@@ -29,9 +29,19 @@ export const REVIEW_RIGO_HOY_IDS = {
   workOficinasCentral: "review-rigo-hoy-work-oficinas-central-v1",
   workReformaBravo: "review-rigo-hoy-work-reforma-bravo-v1",
   budgetP0247: "review-rigo-hoy-budget-p0247-v1",
+  budgetProspecting: "review-rigo-dashboard-budget-prospecting-v1",
+  budgetSent: "review-rigo-dashboard-budget-sent-v1",
+  budgetNegotiation: "review-rigo-dashboard-budget-negotiation-v1",
+  budgetAwarded: "review-rigo-dashboard-budget-awarded-v1",
   invoiceF0155: "review-rigo-hoy-invoice-f0155-v1",
   invoiceF0156: "review-rigo-hoy-invoice-f0156-v1",
   invoiceF0158: "review-rigo-hoy-invoice-f0158-v1",
+  invoiceArceOverdue: "review-rigo-dashboard-invoice-arce-overdue-v1",
+  invoiceSolOverdue: "review-rigo-dashboard-invoice-sol-overdue-v1",
+  invoiceBravoOverdue: "review-rigo-dashboard-invoice-bravo-overdue-v1",
+  invoiceArceUpcoming: "review-rigo-dashboard-invoice-arce-upcoming-v1",
+  invoiceSolUpcoming: "review-rigo-dashboard-invoice-sol-upcoming-v1",
+  invoiceBravoUpcoming: "review-rigo-dashboard-invoice-bravo-upcoming-v1",
   documentContractGamma: "review-rigo-hoy-document-contract-gamma-v1",
   documentProgressArce: "review-rigo-hoy-document-progress-arce-v1",
   documentControl: "review-rigo-hoy-document-control-v1",
@@ -39,8 +49,20 @@ export const REVIEW_RIGO_HOY_IDS = {
   followupFuture: "review-rigo-hoy-followup-future-v1",
   expenseMaterials: "review-rigo-hoy-expense-materials-v1",
   expenseMachinery: "review-rigo-hoy-expense-machinery-v1",
+  expenseResidential: "review-rigo-dashboard-expense-residential-v1",
+  expenseOffice: "review-rigo-dashboard-expense-office-v1",
+  expenseBravo: "review-rigo-dashboard-expense-bravo-v1",
+  expenseArceHistoric: "review-rigo-dashboard-expense-arce-historic-v1",
+  expenseLocalHistoric: "review-rigo-dashboard-expense-local-historic-v1",
+  financialAccount: "review-rigo-dashboard-financial-account-v1",
   recommendationBudget: "review-rigo-hoy-recommendation-budget-v1",
   recommendationFingerprint: "review-rigo-hoy:budget:p0247:before-noon:v1",
+  dashboardRecommendation: "review-rigo-dashboard-recommendation-v1",
+  dashboardRecommendationFingerprint: "review-rigo-dashboard:optimize-overdue-collections:v1",
+  dashboardAlertOverdue: "review-rigo-dashboard-alert-overdue-v1",
+  dashboardAlertMargin: "review-rigo-dashboard-alert-margin-v1",
+  dashboardAlertSuppliers: "review-rigo-dashboard-alert-suppliers-v1",
+  dashboardAlertCollections: "review-rigo-dashboard-alert-collections-v1",
   subscription: "review-rigo-hoy-enterprise-subscription-v1",
   userLaura: "review-rigo-hoy-user-laura-v1",
   userDiego: "review-rigo-hoy-user-diego-v1",
@@ -95,6 +117,9 @@ type AgendaFixture = {
   confirmadoPorUsuario: boolean;
 };
 
+type DashboardFixtureInvoice = { obraId: string; total: number; pendiente: number; dueAt: Date };
+type DashboardFixtureExpense = { obraId: string; importe: number; paymentDueDate: Date };
+
 const ALLOWED_DATABASE_HOST = /(?:^|\.)(?:railway\.internal|proxy\.rlwy\.net)$/u;
 const SYNTHETIC_REVIEW_EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@review\.orqena\.invalid$/u;
 
@@ -140,6 +165,48 @@ function addDays(value: Date, days: number, hour = value.getHours(), minute = va
   result.setDate(result.getDate() + days);
   result.setHours(hour, minute, 0, 0);
   return result;
+}
+
+function formatFixtureCurrency(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 2 }).format(value);
+}
+
+export function buildDashboardFixtureSignals({
+  now,
+  invoices,
+  expenses,
+  workIds,
+}: {
+  now: Date;
+  invoices: DashboardFixtureInvoice[];
+  expenses: DashboardFixtureExpense[];
+  workIds: string[];
+}) {
+  const thirtyDaysAgo = addDays(now, -30);
+  const weekEnd = addDays(now, 7);
+  const overdueInvoices = invoices.filter((invoice) => invoice.pendiente > 0 && invoice.dueAt < thirtyDaysAgo);
+  const workFinancials = new Map(workIds.map((workId) => [workId, { income: 0, cost: 0 }]));
+  for (const invoice of invoices) {
+    const financials = workFinancials.get(invoice.obraId);
+    if (financials) financials.income += invoice.total;
+  }
+  for (const expense of expenses) {
+    const financials = workFinancials.get(expense.obraId);
+    if (financials) financials.cost += expense.importe;
+  }
+  return {
+    overdueCount: overdueInvoices.length,
+    overdueTotal: overdueInvoices.reduce((total, invoice) => total + invoice.pendiente, 0),
+    supplierPaymentsThisWeek: expenses
+      .filter((expense) => expense.paymentDueDate >= now && expense.paymentDueDate < weekEnd)
+      .reduce((total, expense) => total + expense.importe, 0),
+    expectedCollectionsThisWeek: invoices
+      .filter((invoice) => invoice.pendiente > 0 && invoice.dueAt >= now && invoice.dueAt < weekEnd)
+      .reduce((total, invoice) => total + invoice.pendiente, 0),
+    lowMarginCount: [...workFinancials.values()].filter(
+      ({ income, cost }) => income > 0 && ((income - cost) / income) * 100 < 30,
+    ).length,
+  } as const;
 }
 
 export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
@@ -296,7 +363,7 @@ async function assertFixtureOwnership(
   transaction: Prisma.TransactionClient,
   companyId: string,
 ) {
-  const [clients, works, budgets, invoices, documents, followUps, expenses, events, recommendations, subscriptions, audits] = await Promise.all([
+  const [clients, works, budgets, invoices, documents, followUps, expenses, accounts, events, recommendations, subscriptions, audits] = await Promise.all([
     transaction.client.findMany({
       where: { id: { in: [REVIEW_RIGO_HOY_IDS.clientAlfa, REVIEW_RIGO_HOY_IDS.clientBeta, REVIEW_RIGO_HOY_IDS.clientDelta, REVIEW_RIGO_HOY_IDS.clientIndustrias, REVIEW_RIGO_HOY_IDS.clientGamma] } },
       select: { id: true, companyId: true },
@@ -305,23 +372,43 @@ async function assertFixtureOwnership(
       where: { id: { in: [REVIEW_RIGO_HOY_IDS.workEdificioArce, REVIEW_RIGO_HOY_IDS.workResidencialSol, REVIEW_RIGO_HOY_IDS.workLocalComercial, REVIEW_RIGO_HOY_IDS.workOficinasCentral, REVIEW_RIGO_HOY_IDS.workReformaBravo] } },
       select: { id: true, companyId: true },
     }),
-    transaction.budget.findMany({ where: { id: REVIEW_RIGO_HOY_IDS.budgetP0247 }, select: { id: true, companyId: true } }),
-    transaction.invoice.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.invoiceF0155, REVIEW_RIGO_HOY_IDS.invoiceF0156, REVIEW_RIGO_HOY_IDS.invoiceF0158] } }, select: { id: true, companyId: true } }),
+    transaction.budget.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.budgetP0247, REVIEW_RIGO_HOY_IDS.budgetProspecting, REVIEW_RIGO_HOY_IDS.budgetSent, REVIEW_RIGO_HOY_IDS.budgetNegotiation, REVIEW_RIGO_HOY_IDS.budgetAwarded] } }, select: { id: true, companyId: true } }),
+    transaction.invoice.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.invoiceF0155, REVIEW_RIGO_HOY_IDS.invoiceF0156, REVIEW_RIGO_HOY_IDS.invoiceF0158, REVIEW_RIGO_HOY_IDS.invoiceArceOverdue, REVIEW_RIGO_HOY_IDS.invoiceSolOverdue, REVIEW_RIGO_HOY_IDS.invoiceBravoOverdue, REVIEW_RIGO_HOY_IDS.invoiceArceUpcoming, REVIEW_RIGO_HOY_IDS.invoiceSolUpcoming] } }, select: { id: true, companyId: true } }),
     transaction.document.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.documentContractGamma, REVIEW_RIGO_HOY_IDS.documentProgressArce, REVIEW_RIGO_HOY_IDS.documentControl] } }, select: { id: true, companyId: true } }),
     transaction.followUp.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.followupIndustrias, REVIEW_RIGO_HOY_IDS.followupFuture] } }, select: { id: true, companyId: true } }),
-    transaction.expense.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.expenseMaterials, REVIEW_RIGO_HOY_IDS.expenseMachinery] } }, select: { id: true, companyId: true } }),
+    transaction.expense.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.expenseMaterials, REVIEW_RIGO_HOY_IDS.expenseMachinery, REVIEW_RIGO_HOY_IDS.expenseOffice, REVIEW_RIGO_HOY_IDS.expenseBravo, REVIEW_RIGO_HOY_IDS.expenseArceHistoric, REVIEW_RIGO_HOY_IDS.expenseLocalHistoric] } }, select: { id: true, companyId: true } }),
+    transaction.financialAccount.findMany({ where: { id: REVIEW_RIGO_HOY_IDS.financialAccount }, select: { id: true, companyId: true } }),
     transaction.eventoAgenda.findMany({
       where: { id: { in: buildRigoHoyAgendaFixtures(new Date()).map((event) => event.id) } },
       select: { id: true, companyId: true },
     }),
     transaction.businessRecommendation.findMany({
-      where: { OR: [{ id: REVIEW_RIGO_HOY_IDS.recommendationBudget }, { fingerprint: REVIEW_RIGO_HOY_IDS.recommendationFingerprint }] },
+      where: {
+        OR: [
+          { id: { in: [
+            REVIEW_RIGO_HOY_IDS.recommendationBudget,
+            REVIEW_RIGO_HOY_IDS.dashboardRecommendation,
+            REVIEW_RIGO_HOY_IDS.dashboardAlertOverdue,
+            REVIEW_RIGO_HOY_IDS.dashboardAlertMargin,
+            REVIEW_RIGO_HOY_IDS.dashboardAlertSuppliers,
+            REVIEW_RIGO_HOY_IDS.dashboardAlertCollections,
+          ] } },
+          { fingerprint: { in: [
+            REVIEW_RIGO_HOY_IDS.recommendationFingerprint,
+            REVIEW_RIGO_HOY_IDS.dashboardRecommendationFingerprint,
+            "review-rigo-dashboard:alert:overdue-invoices:v1",
+            "review-rigo-dashboard:alert:low-margin:v1",
+            "review-rigo-dashboard:alert:supplier-payments:v1",
+            "review-rigo-dashboard:alert:expected-collections:v1",
+          ] } },
+        ],
+      },
       select: { id: true, companyId: true },
     }),
     transaction.subscription.findMany({ where: { id: REVIEW_RIGO_HOY_IDS.subscription }, select: { id: true, companyId: true } }),
     transaction.auditLog.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.auditBudget, REVIEW_RIGO_HOY_IDS.auditInvoice, REVIEW_RIGO_HOY_IDS.auditVisit, REVIEW_RIGO_HOY_IDS.auditDocument, REVIEW_RIGO_HOY_IDS.auditClient] } }, select: { id: true, companyId: true } }),
   ]);
-  const groups = [clients, works, budgets, invoices, documents, followUps, expenses, events, recommendations, subscriptions, audits];
+  const groups = [clients, works, budgets, invoices, documents, followUps, expenses, accounts, events, recommendations, subscriptions, audits];
   if (groups.some((items) => items.some((item) => item.companyId !== companyId))) {
     throw new Error("REVIEW_RIGO_HOY_FIXTURE_OWNERSHIP_CONFLICT");
   }
@@ -585,11 +672,11 @@ export async function provisionReviewRigoHoy(
     ]);
 
     const workFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.workEdificioArce, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, numeroInterno: "OB-0120", titulo: "Edificio Arce", direccion: "Calle Mayor 12, Madrid", estado: "en_curso" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 13, total: 20 },
-      { id: REVIEW_RIGO_HOY_IDS.workResidencialSol, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0118", titulo: "Residencial Sol", direccion: "Avenida del Sol 24, Madrid", estado: "en_curso" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 4, total: 10 },
-      { id: REVIEW_RIGO_HOY_IDS.workLocalComercial, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, numeroInterno: "OB-0112", titulo: "Local Comercial 14", direccion: "Calle Mercado 14, Madrid", estado: "planificada" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 1, total: 5 },
-      { id: REVIEW_RIGO_HOY_IDS.workOficinasCentral, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0105", titulo: "Oficinas Central", direccion: "Paseo Central 5, Madrid", estado: "pendiente_remates" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 9, total: 10 },
-      { id: REVIEW_RIGO_HOY_IDS.workReformaBravo, clienteId: REVIEW_RIGO_HOY_IDS.clientGamma, numeroInterno: "OB-0099", titulo: "Reforma Integral Bravo", direccion: "Plaza Sintética 3, Madrid", estado: "pausada" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 0, total: 0 },
+      { id: REVIEW_RIGO_HOY_IDS.workEdificioArce, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, numeroInterno: "OB-0120", titulo: "Edificio Arce", direccion: "Calle Mayor 12, Madrid", estado: "en_curso" as const, presupuestoAprobado: 162000, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 13, total: 20 },
+      { id: REVIEW_RIGO_HOY_IDS.workResidencialSol, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0118", titulo: "Residencial Sol", direccion: "Avenida del Sol 24, Madrid", estado: "en_curso" as const, presupuestoAprobado: 118000, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 4, total: 10 },
+      { id: REVIEW_RIGO_HOY_IDS.workLocalComercial, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, numeroInterno: "OB-0112", titulo: "Local Comercial 14", direccion: "Calle Mercado 14, Madrid", estado: "planificada" as const, presupuestoAprobado: 48000, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 1, total: 5 },
+      { id: REVIEW_RIGO_HOY_IDS.workOficinasCentral, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0105", titulo: "Oficinas Central", direccion: "Paseo Central 5, Madrid", estado: "pendiente_remates" as const, presupuestoAprobado: 76000, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 9, total: 10 },
+      { id: REVIEW_RIGO_HOY_IDS.workReformaBravo, clienteId: REVIEW_RIGO_HOY_IDS.clientGamma, numeroInterno: "OB-0099", titulo: "Reforma Integral Bravo", direccion: "Plaza Sintética 3, Madrid", estado: "pausada" as const, presupuestoAprobado: 92000, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 3, total: 8 },
     ];
     const foreignTask = await transaction.task.findFirst({
       where: {
@@ -614,6 +701,7 @@ export async function provisionReviewRigoHoy(
           responsable: work.responsable,
           comercial: work.comercial,
           jefeObra: work.jefeObra,
+          presupuestoAprobado: work.presupuestoAprobado,
           archivada: false,
           archivadaAt: null,
           updatedAt,
@@ -627,7 +715,7 @@ export async function provisionReviewRigoHoy(
           direccion: work.direccion,
           tipoTrabajo: "Reforma",
           estado: work.estado,
-          presupuestoAprobado: 0,
+          presupuestoAprobado: work.presupuestoAprobado,
           responsable: work.responsable,
           comercial: work.comercial,
           jefeObra: work.jefeObra,
@@ -668,46 +756,47 @@ export async function provisionReviewRigoHoy(
       });
     }
 
-    await transaction.budget.upsert({
-      where: { id: REVIEW_RIGO_HOY_IDS.budgetP0247 },
-      update: {
+    const budgetFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.budgetP0247, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, numero: "P-0247", titulo: "Reforma fase 2 · Edificio Arce", total: 12450, margenEstimado: 28, estado: "pendiente_revision" as const },
+      { id: REVIEW_RIGO_HOY_IDS.budgetProspecting, clienteId: REVIEW_RIGO_HOY_IDS.clientIndustrias, obraId: null, numero: "P-0248", titulo: "Diagnóstico nave industrial", total: 28600, margenEstimado: 34, estado: "borrador" as const },
+      { id: REVIEW_RIGO_HOY_IDS.budgetSent, clienteId: REVIEW_RIGO_HOY_IDS.clientGamma, obraId: null, numero: "P-0249", titulo: "Adecuación oficinas Gamma", total: 41900, margenEstimado: 36, estado: "enviado" as const },
+      { id: REVIEW_RIGO_HOY_IDS.budgetNegotiation, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: null, numero: "P-0250", titulo: "Ampliación Residencial Sol", total: 53600, margenEstimado: 32, estado: "pendiente_respuesta" as const },
+      { id: REVIEW_RIGO_HOY_IDS.budgetAwarded, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "P-0251", titulo: "Local Comercial 14", total: 48000, margenEstimado: 31, estado: "aceptado" as const },
+    ];
+    for (const budget of budgetFixtures) {
+      const subtotal = Number((budget.total / 1.21).toFixed(2));
+      const data = {
         companyId: company.id,
-        clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa,
-        obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
-        numero: "P-0247",
-        titulo: "Reforma fase 2 · Edificio Arce",
-        partidas: JSON.stringify([{ concepto: "Reforma fase 2", cantidad: 1, importe: 12450 }]),
-        subtotal: 10289.26,
-        iva: 2160.74,
+        clienteId: budget.clienteId,
+        obraId: budget.obraId,
+        numero: budget.numero,
+        titulo: budget.titulo,
+        partidas: JSON.stringify([{ concepto: budget.titulo, cantidad: 1, importe: budget.total }]),
+        subtotal,
+        iva: Number((budget.total - subtotal).toFixed(2)),
         descuento: 0,
-        total: 12450,
-        margenEstimado: 28,
-        estado: "pendiente_revision",
+        total: budget.total,
+        margenEstimado: budget.margenEstimado,
+        estado: budget.estado,
         fechaSeguimiento: todayAt(now, 12),
         fechaValidez: addDays(now, 10, 23, 59),
-      },
-      create: {
-        id: REVIEW_RIGO_HOY_IDS.budgetP0247,
-        companyId: company.id,
-        clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa,
-        obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
-        numero: "P-0247",
-        titulo: "Reforma fase 2 · Edificio Arce",
-        partidas: JSON.stringify([{ concepto: "Reforma fase 2", cantidad: 1, importe: 12450 }]),
-        subtotal: 10289.26,
-        iva: 2160.74,
-        total: 12450,
-        margenEstimado: 28,
-        estado: "pendiente_revision",
-        fechaSeguimiento: todayAt(now, 12),
-        fechaValidez: addDays(now, 10, 23, 59),
-      },
-    });
+      };
+      await transaction.budget.upsert({
+        where: { id: budget.id },
+        update: data,
+        create: { id: budget.id, ...data },
+      });
+    }
 
     const invoiceFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.invoiceF0155, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0155", concepto: "Certificación Oficinas Central", total: 6420, pagado: 6420, pendiente: 0, estado: "pagada" as const, dueAt: addDays(now, -1, 23, 59) },
-      { id: REVIEW_RIGO_HOY_IDS.invoiceF0156, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0156", concepto: "Reforma oficina central", total: 12450, pagado: 0, pendiente: 12450, estado: "pendiente_pago" as const, dueAt: addDays(now, 1, 23, 59) },
-      { id: REVIEW_RIGO_HOY_IDS.invoiceF0158, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "F-2024-0158", concepto: "Adecuación local", total: 8750, pagado: 0, pendiente: 8750, estado: "pendiente_pago" as const, dueAt: addDays(now, 5, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0155, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0155", concepto: "Certificación Oficinas Central", total: 6420, pagado: 6420, pendiente: 0, estado: "pagada" as const, issuedDaysAgo: 48, dueAt: addDays(now, -1, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0156, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0156", concepto: "Reforma oficina central", total: 12450, pagado: 0, pendiente: 12450, estado: "pendiente_pago" as const, issuedDaysAgo: 7, dueAt: addDays(now, 1, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0158, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "F-2024-0158", concepto: "Adecuación local", total: 8750, pagado: 0, pendiente: 8750, estado: "pendiente_pago" as const, issuedDaysAgo: 14, dueAt: addDays(now, 5, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceArceOverdue, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, numero: "F-2024-0159", concepto: "Certificación Edificio Arce", total: 14500, pagado: 0, pendiente: 14500, estado: "vencida" as const, issuedDaysAgo: 70, dueAt: addDays(now, -45, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceSolOverdue, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, numero: "F-2024-0160", concepto: "Certificación Residencial Sol", total: 12000, pagado: 0, pendiente: 12000, estado: "vencida" as const, issuedDaysAgo: 66, dueAt: addDays(now, -42, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceBravoOverdue, clienteId: REVIEW_RIGO_HOY_IDS.clientGamma, obraId: REVIEW_RIGO_HOY_IDS.workReformaBravo, numero: "F-2024-0161", concepto: "Certificación Reforma Bravo", total: 9950, pagado: 0, pendiente: 9950, estado: "vencida" as const, issuedDaysAgo: 63, dueAt: addDays(now, -38, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceArceUpcoming, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, numero: "F-2024-0162", concepto: "Avance Edificio Arce", total: 10500, pagado: 0, pendiente: 10500, estado: "pendiente_pago" as const, issuedDaysAgo: 21, dueAt: addDays(now, 3, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceSolUpcoming, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, numero: "F-2024-0163", concepto: "Avance Residencial Sol", total: 10480, pagado: 0, pendiente: 10480, estado: "pendiente_pago" as const, issuedDaysAgo: 28, dueAt: addDays(now, 6, 23, 59) },
     ];
     for (const invoice of invoiceFixtures) {
       await transaction.invoice.upsert({
@@ -723,7 +812,7 @@ export async function provisionReviewRigoHoy(
           total: invoice.total,
           pagado: invoice.pagado,
           pendiente: invoice.pendiente,
-          fechaEmision: addDays(now, -10, 9),
+          fechaEmision: addDays(now, -invoice.issuedDaysAgo, 9),
           fechaVencimiento: invoice.dueAt,
           estado: invoice.estado,
         },
@@ -739,7 +828,7 @@ export async function provisionReviewRigoHoy(
           total: invoice.total,
           pagado: invoice.pagado,
           pendiente: invoice.pendiente,
-          fechaEmision: addDays(now, -10, 9),
+          fechaEmision: addDays(now, -invoice.issuedDaysAgo, 9),
           fechaVencimiento: invoice.dueAt,
           estado: invoice.estado,
         },
@@ -772,16 +861,48 @@ export async function provisionReviewRigoHoy(
     }
 
     const expenseFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.expenseMaterials, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, proveedor: "Proveedores de Materiales SL", concepto: "Albarán A-4587", categoria: "materiales" as const, importe: 5320, paymentDueDate: todayAt(now, 23, 59) },
-      { id: REVIEW_RIGO_HOY_IDS.expenseMachinery, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, proveedor: "Servicios de Maquinaria SA", concepto: "Alquiler grúa mayo", categoria: "maquinaria" as const, importe: 1850, paymentDueDate: addDays(now, 4, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseMaterials, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, proveedor: "Proveedores de Materiales SL", concepto: "Albarán A-4587", categoria: "materiales" as const, importe: 5320, incurredDaysAgo: 8, paymentDueDate: todayAt(now, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseMachinery, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, proveedor: "Servicios de Maquinaria SA", concepto: "Alquiler grúa mayo", categoria: "maquinaria" as const, importe: 1850, incurredDaysAgo: 6, paymentDueDate: addDays(now, 4, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseOffice, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, proveedor: "Instalaciones Técnicas Centro SL", concepto: "Climatización oficina", categoria: "subcontrata" as const, importe: 4080, incurredDaysAgo: 12, paymentDueDate: addDays(now, 2, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseBravo, obraId: REVIEW_RIGO_HOY_IDS.workReformaBravo, proveedor: "Acabados Bravo SL", concepto: "Carpintería y acabados", categoria: "subcontrata" as const, importe: 7500, incurredDaysAgo: 16, paymentDueDate: addDays(now, 6, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseArceHistoric, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, proveedor: "Estructuras Arce SL", concepto: "Estructura fase 1", categoria: "materiales" as const, importe: 13680, incurredDaysAgo: 35, paymentDueDate: addDays(now, -10, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseLocalHistoric, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, proveedor: "Reformas Mercado SL", concepto: "Instalaciones del local", categoria: "subcontrata" as const, importe: 4100, incurredDaysAgo: 25, paymentDueDate: addDays(now, -8, 23, 59) },
     ];
     for (const expense of expenseFixtures) {
+      const { incurredDaysAgo, ...expenseData } = expense;
       await transaction.expense.upsert({
         where: { id: expense.id },
-        update: { ...expense, companyId: company.id, fecha: addDays(now, -3, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
-        create: { ...expense, companyId: company.id, fecha: addDays(now, -3, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
+        update: { ...expenseData, companyId: company.id, fecha: addDays(now, -incurredDaysAgo, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
+        create: { ...expenseData, companyId: company.id, fecha: addDays(now, -incurredDaysAgo, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
       });
     }
+
+    await transaction.financialAccount.upsert({
+      where: { id: REVIEW_RIGO_HOY_IDS.financialAccount },
+      update: {
+        companyId: company.id,
+        name: "Cuenta operativa Review",
+        type: "bank",
+        currency: "EUR",
+        currentManualBalance: 54000,
+        manualBalanceUpdatedAt: now,
+        minimumBalance: 15000,
+        isActive: true,
+        archivedAt: null,
+      },
+      create: {
+        id: REVIEW_RIGO_HOY_IDS.financialAccount,
+        companyId: company.id,
+        name: "Cuenta operativa Review",
+        type: "bank",
+        currency: "EUR",
+        openingBalance: 54000,
+        currentManualBalance: 54000,
+        manualBalanceUpdatedAt: now,
+        minimumBalance: 15000,
+        isActive: true,
+      },
+    });
 
     await transaction.eventoAgenda.updateMany({
       where: { id: REVIEW_RIGO_HOY_IDS.legacyEventWeeklyReview, companyId: company.id },
@@ -889,6 +1010,128 @@ export async function provisionReviewRigoHoy(
       },
     });
 
+    const dashboardSignals = buildDashboardFixtureSignals({
+      now,
+      invoices: invoiceFixtures,
+      expenses: expenseFixtures,
+      workIds: workFixtures.map((work) => work.id),
+    });
+
+    const dashboardRecommendations = [
+      {
+        id: REVIEW_RIGO_HOY_IDS.dashboardRecommendation,
+        fingerprint: REVIEW_RIGO_HOY_IDS.dashboardRecommendationFingerprint,
+        type: "dashboard_optimize_overdue_collections",
+        title: "Optimiza el cobro en 3 obras",
+        summary: `Hay ${dashboardSignals.overdueCount} facturas por ${formatFixtureCurrency(dashboardSignals.overdueTotal)} con más de 30 días de vencimiento. Preparar un recordatorio puede mejorar la caja esta semana.`,
+        level: "importante" as const,
+        score: 86,
+        priority: 90,
+        amount: dashboardSignals.overdueTotal,
+        requiresConfirmation: true,
+      },
+      {
+        id: REVIEW_RIGO_HOY_IDS.dashboardAlertOverdue,
+        fingerprint: "review-rigo-dashboard:alert:overdue-invoices:v1",
+        type: "dashboard_alert_overdue_invoices",
+        title: `${dashboardSignals.overdueCount} facturas vencidas`,
+        summary: `${formatFixtureCurrency(dashboardSignals.overdueTotal)} en total`,
+        level: "importante" as const,
+        score: 82,
+        priority: 80,
+        amount: dashboardSignals.overdueTotal,
+        requiresConfirmation: false,
+      },
+      {
+        id: REVIEW_RIGO_HOY_IDS.dashboardAlertMargin,
+        fingerprint: "review-rigo-dashboard:alert:low-margin:v1",
+        type: "dashboard_alert_low_margin",
+        title: "Margen por debajo del objetivo",
+        summary: `${dashboardSignals.lowMarginCount} obras < 30% de margen`,
+        level: "atencion" as const,
+        score: 78,
+        priority: 79,
+        amount: null,
+        requiresConfirmation: false,
+      },
+      {
+        id: REVIEW_RIGO_HOY_IDS.dashboardAlertSuppliers,
+        fingerprint: "review-rigo-dashboard:alert:supplier-payments:v1",
+        type: "dashboard_alert_supplier_payments",
+        title: "Pago a proveedores esta semana",
+        summary: `${formatFixtureCurrency(dashboardSignals.supplierPaymentsThisWeek)} programados`,
+        level: "info" as const,
+        score: 70,
+        priority: 78,
+        amount: dashboardSignals.supplierPaymentsThisWeek,
+        requiresConfirmation: false,
+      },
+      {
+        id: REVIEW_RIGO_HOY_IDS.dashboardAlertCollections,
+        fingerprint: "review-rigo-dashboard:alert:expected-collections:v1",
+        type: "dashboard_alert_expected_collections",
+        title: "Cobros previstos esta semana",
+        summary: formatFixtureCurrency(dashboardSignals.expectedCollectionsThisWeek),
+        level: "info" as const,
+        score: 68,
+        priority: 77,
+        amount: dashboardSignals.expectedCollectionsThisWeek,
+        requiresConfirmation: false,
+      },
+    ];
+    for (const recommendation of dashboardRecommendations) {
+      await transaction.businessRecommendation.upsert({
+        where: { fingerprint: recommendation.fingerprint },
+        update: {
+          companyId: company.id,
+          type: recommendation.type,
+          title: recommendation.title,
+          summary: recommendation.summary,
+          detailedExplanation: recommendation.summary,
+          level: recommendation.level,
+          status: "active",
+          source: "datos",
+          entityType: null,
+          entityId: null,
+          clientId: null,
+          workId: null,
+          invoiceId: null,
+          budgetId: null,
+          amount: recommendation.amount,
+          score: recommendation.score,
+          priority: recommendation.priority,
+          expiresAt: addDays(now, 30, 0),
+          requiresConfirmation: recommendation.requiresConfirmation,
+          evidence: { synthetic: true, dashboard: true },
+          context: { sourceLabel: "Dashboard financiero", synthetic: true },
+          dismissedAt: null,
+          snoozedUntil: null,
+          acceptedAt: null,
+          actionStartedAt: null,
+          completedAt: null,
+        },
+        create: {
+          id: recommendation.id,
+          companyId: company.id,
+          fingerprint: recommendation.fingerprint,
+          type: recommendation.type,
+          title: recommendation.title,
+          summary: recommendation.summary,
+          detailedExplanation: recommendation.summary,
+          level: recommendation.level,
+          status: "active",
+          source: "datos",
+          amount: recommendation.amount,
+          score: recommendation.score,
+          priority: recommendation.priority,
+          expiresAt: addDays(now, 30, 0),
+          requiresConfirmation: recommendation.requiresConfirmation,
+          evidence: { synthetic: true, dashboard: true },
+          context: { sourceLabel: "Dashboard financiero", synthetic: true },
+        },
+      });
+    }
+
     return {
       ok: true,
       target: "railway-review",
@@ -900,12 +1143,12 @@ export async function provisionReviewRigoHoy(
       entitlements: enterprisePlan.entitlements.length,
       works: workFixtures.length,
       agendaEvents: agendaFixtures.length,
-      budgets: 1,
+      budgets: budgetFixtures.length,
       invoices: invoiceFixtures.length,
       documents: documentFixtures.length,
       followUps: followUpFixtures.length,
       expenses: expenseFixtures.length,
-      recommendations: 1,
+      recommendations: 1 + dashboardRecommendations.length,
       externalBillingAttached: false,
       credentialsChanged: false,
       securityFactorsChanged: false,
@@ -916,7 +1159,13 @@ export async function provisionReviewRigoHoy(
 
 export function safeProvisionErrorCode(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  return /^[A-Z0-9_]+$/u.test(message) ? message : "REVIEW_RIGO_HOY_PROVISION_FAILED";
+  if (/^[A-Z0-9_]+$/u.test(message)) return message;
+  const providerCode = typeof error === "object" && error !== null && "code" in error
+    ? String(error.code)
+    : "";
+  return /^P\d{4}$/u.test(providerCode)
+    ? `REVIEW_RIGO_HOY_DATABASE_${providerCode}`
+    : "REVIEW_RIGO_HOY_PROVISION_FAILED";
 }
 
 async function main() {

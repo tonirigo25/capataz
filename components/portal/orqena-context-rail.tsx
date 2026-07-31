@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink, FileText, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, ExternalLink, FileText, Info, ShieldCheck, Sparkles, TriangleAlert, X } from "lucide-react";
 import type { PortalRailArea, PortalRailRecommendations, TodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
 import {
   acceptTodayRecommendationAction,
@@ -62,6 +62,7 @@ export function OrqenaContextRail({
   const matched = contexts.find((entry) => entry.match(pathname));
   const context = matched?.value ?? fallbackContext;
   const recommendation = canUse && matched ? recommendations[matched.area] ?? null : null;
+  const dashboardAlerts = canUse && pathname === "/dashboard" ? recommendations.dashboardAlerts ?? [] : [];
 
   useEffect(() => setMobileOpen(false), [pathname]);
   useEffect(() => {
@@ -83,8 +84,8 @@ export function OrqenaContextRail({
 
   return (
     <>
-      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"}>
-        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} onToggleCollapsed={onToggleCollapsed} />}
+      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/dashboard" ? "dashboard" : undefined}>
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
       <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
@@ -95,7 +96,7 @@ export function OrqenaContextRail({
         <div className="orqena-context-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileOpen(false); }}>
           <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet" role="dialog" aria-modal="true" aria-labelledby={`${titleId}-mobile`}>
             <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-            <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} />
+            <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} />
           </aside>
         </div>
       ) : null}
@@ -103,7 +104,10 @@ export function OrqenaContextRail({
   );
 }
 
-function RailContent({ context, titleId, recommendation, canUse, canExecute, isToday, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; canUse: boolean; canExecute: boolean; isToday: boolean; onToggleCollapsed?: () => void }) {
+function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; onToggleCollapsed?: () => void }) {
+  if (isDashboard) {
+    return <DashboardRailContent context={context} titleId={titleId} recommendation={recommendation} alerts={dashboardAlerts} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
+  }
   const title = canUse ? recommendation?.title ?? context.title : "Orqena IA no disponible";
   const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
   const source = recommendation?.source ?? context.source;
@@ -147,6 +151,31 @@ function RailContent({ context, titleId, recommendation, canUse, canExecute, isT
       {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
     </div>
   );
+}
+
+function DashboardRailContent({ context, titleId, recommendation, alerts, canUse, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; alerts: TodayRailRecommendation[]; canUse: boolean; onToggleCollapsed?: () => void }) {
+  const title = canUse ? recommendation?.title ?? "Sin recomendación financiera activa" : "Orqena IA no disponible";
+  const description = canUse ? recommendation?.description ?? "No hay una señal financiera activa dentro de tu alcance. El Dashboard seguirá mostrando únicamente datos registrados." : "Tu plan o permisos actuales no autorizan recomendaciones de Orqena IA.";
+  return <div className="orqena-context-rail__inner">
+    <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+    <p className="orqena-context-eyebrow">Recomendación para ti</p>
+    <article className="orqena-context-card dashboard-rail-recommendation" data-dashboard-ai-recommendation>
+      <span className="orqena-context-card__icon"><FileText size={22} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={13} aria-hidden="true" /></span>
+      <h2 id={titleId}>{title}</h2>
+      <p className="orqena-context-description">{description}</p>
+      {canUse ? <Link href={recommendation?.href ?? context.href} className="orqena-context-primary">Ver detalle</Link> : <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">No disponible en tu acceso</span>}
+    </article>
+    <section className="dashboard-rail-alerts" aria-labelledby={`${titleId}-alerts`} data-dashboard-financial-alerts>
+      <h2 id={`${titleId}-alerts`}>Alertas financieras</h2>
+      {alerts.length ? <ul>{alerts.map((alert, index) => <li key={alert.fingerprint} data-dashboard-financial-alert>
+        <Link href={alert.href}>
+          <span className="dashboard-rail-alert-icon" data-tone={index < 2 ? "attention" : "info"}>{index === 0 ? <TriangleAlert size={16} aria-hidden="true" /> : index === 1 ? <CircleAlert size={16} aria-hidden="true" /> : <Info size={16} aria-hidden="true" />}</span>
+          <span><strong>{alert.title}</strong><small>{alert.description}</small></span>
+        </Link>
+      </li>)}</ul> : <p className="dashboard-rail-empty">No hay alertas financieras activas dentro de tu alcance.</p>}
+    </section>
+    {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+  </div>;
 }
 
 function NoRecommendationControls() {
