@@ -7,7 +7,6 @@ import {
   CalendarCheck2,
   CheckCircle2,
   ChevronLeft,
-  ChevronsRight,
   CircleDollarSign,
   FileText,
   FolderOpen,
@@ -24,6 +23,7 @@ import type { ClientCrmSummary } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { StatusPill } from "@/components/status-pill";
+import { Client360RailShell } from "@/components/portal/modules-a/client-360-rail-shell";
 
 type ClientSummary = NonNullable<ClientCrmSummary>;
 
@@ -49,7 +49,7 @@ export type Client360Incident = {
   id: string;
   title: string;
   detail: string;
-  status: string;
+  status?: string;
   href: string;
 };
 
@@ -137,7 +137,8 @@ export function Client360Canonical({
   const returnTo = `/clientes/${client.id}`;
   const scopedRecommendation =
     recommendation?.clientId === client.id ? recommendation : null;
-  const primaryContact = summary.contacts[0] ?? null;
+  const activeContacts = summary.contacts.filter((contact) => !contact.archivedAt);
+  const primaryContact = activeContacts[0] ?? null;
 
   return (
     <div
@@ -184,7 +185,7 @@ export function Client360Canonical({
                 </div>
                 <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
                   <Fact label="Segmento" value={summary.listItem.typeLabel} />
-                  <Fact label="Tipo" value={summary.listItem.typeRaw} />
+                  <Fact label="Origen" value={client.origen} />
                   <Fact label="Desde" value={formatDate(client.fechaCreacion)} />
                   {summary.listItem.fiscalId ? (
                     <Fact label="Identificación fiscal" value={summary.listItem.fiscalId} />
@@ -194,10 +195,12 @@ export function Client360Canonical({
             </div>
 
             <div className="border-t border-border pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
-              <Fact
-                label="Responsable"
-                value={summary.listItem.responsible ?? "Sin responsable asignado"}
-              />
+              <dl>
+                <Fact
+                  label="Responsable"
+                  value={summary.listItem.responsible ?? "Sin responsable asignado"}
+                />
+              </dl>
               <div className="mt-4">
                 <p className="type-label">Contacto principal</p>
                 <p className="mt-1 font-semibold text-content">
@@ -396,13 +399,13 @@ export function Client360Canonical({
                 key={incident.id}
                 href={incident.href}
                 title={incident.title}
-                meta={`${statusLabel(incident.status)} · ${incident.detail}`}
+                meta={incident.status ? `${statusLabel(incident.status)} · ${incident.detail}` : incident.detail}
               />
             ))}
           </CollectionPanel>
 
           <CollectionPanel title="Contactos clave" href={hrefs.contacts} empty="Sin contactos.">
-            {summary.contacts.slice(0, 3).map((contact) => (
+            {activeContacts.slice(0, 3).map((contact) => (
               <CompactLink
                 key={contact.id}
                 href={
@@ -430,28 +433,13 @@ export function Client360Canonical({
         </> : <div className="client-360-canonical__tab-content min-w-0">{children}</div>}
       </div>
 
-      <details
-        open
-        className="group min-w-0 self-stretch border-t border-border bg-surface 2xl:border-l 2xl:border-t-0"
-      >
-        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 border-b border-border px-5 font-semibold text-content [&::-webkit-details-marker]:hidden">
-          <span className="inline-flex items-center gap-2">
-            <Sparkles size={18} className="text-brand-strong" aria-hidden="true" />
-            Orqena IA
-          </span>
-          <ChevronsRight
-            size={18}
-            className="text-content-secondary transition-transform group-open:rotate-180"
-            aria-hidden="true"
-          />
-          <span className="sr-only">Mostrar u ocultar el contexto de Orqena IA</span>
-        </summary>
+      <Client360RailShell>
         <ClientRecommendationRail
           clientName={displayName}
           recommendation={scopedRecommendation}
           allRecommendationsHref={hrefs.allRecommendations}
         />
-      </details>
+      </Client360RailShell>
     </div>
   );
 }

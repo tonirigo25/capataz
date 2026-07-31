@@ -4114,6 +4114,12 @@ button:disabled,
 }
 
 /* Cliente 360 canónico: una ficha, un único rail contextual y scroll de documento. */
+@media (min-width: 900px) {
+  .field-os-workspace[data-embedded-context="client"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 .client-360-page {
   min-width: 0;
   min-height: 100%;
@@ -4212,49 +4218,57 @@ button:disabled,
   line-height: 1.25;
 }
 .client-360-canonical__tab-content { padding-top: 2px; }
-.client-360-canonical > details {
+.client-360-canonical > [data-client-360-rail] {
   min-width: 0;
   overflow: visible;
   border-color: #dfe5e1;
 }
-.client-360-canonical > details > summary {
+.client-360-canonical > [data-client-360-rail] > button {
   min-height: 52px;
   padding-inline: 18px;
   font-size: 12px;
 }
-.client-360-canonical > details > aside {
+.client-360-canonical > [data-client-360-rail] > aside {
   min-height: 0 !important;
   overflow: visible !important;
   padding: 15px !important;
 }
-.client-360-canonical > details > aside > section {
+.client-360-canonical > [data-client-360-rail] > aside > section {
   border-radius: 9px;
   box-shadow: none;
 }
-.client-360-canonical > details > aside > section h2 { font-size: 12px; }
-.client-360-canonical > details > aside > section p,
-.client-360-canonical > details > aside > section dt,
-.client-360-canonical > details > aside > section dd { font-size: 10px; line-height: 1.55; }
-.client-360-canonical > details > aside .primary-button,
-.client-360-canonical > details > aside .secondary-button {
+.client-360-canonical > [data-client-360-rail] > aside > section h2 { font-size: 12px; }
+.client-360-canonical > [data-client-360-rail] > aside > section p,
+.client-360-canonical > [data-client-360-rail] > aside > section dt,
+.client-360-canonical > [data-client-360-rail] > aside > section dd { font-size: 10px; line-height: 1.55; }
+.client-360-canonical > [data-client-360-rail] > aside .primary-button,
+.client-360-canonical > [data-client-360-rail] > aside .secondary-button {
   min-height: 34px;
   font-size: 10px;
 }
 
 @media (min-width: 1280px) {
   .client-360-canonical > div:first-child { padding-right: 14px; }
-  .client-360-canonical > details {
+  .client-360-canonical > [data-client-360-rail] {
     display: block;
     align-self: stretch;
     border-top: 0;
     border-left: 1px solid #dfe5e1;
   }
-  .client-360-canonical > details > aside { min-height: calc(100dvh - 114px) !important; }
+  .client-360-canonical > [data-client-360-rail] > aside { min-height: calc(100dvh - 114px) !important; }
+  .client-360-canonical:has(> [data-client-360-rail][data-collapsed="true"]) {
+    grid-template-columns: minmax(0, 1fr) 56px !important;
+  }
+  [data-client-360-rail][data-collapsed="true"] > button {
+    min-height: 56px;
+    padding-inline: 10px;
+  }
+  [data-client-360-rail][data-collapsed="true"] .client-360-rail-shell__label { display: none; }
 }
 
 @media (max-width: 1279px) {
   .client-360-page { padding-right: 20px; }
-  .client-360-canonical > details {
+  .client-360-canonical > [data-client-360-rail] {
     margin-top: 12px;
     border: 1px solid #dfe5e1;
     border-radius: 9px;

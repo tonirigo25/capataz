@@ -3,6 +3,8 @@ import fs from "node:fs";
 const read = (path) => fs.readFileSync(path, "utf8");
 const client = read("app/(app)/clientes/[id]/page.tsx");
 const clientCanonical = read("components/portal/modules-a/client-360-canonical.tsx");
+const clientRail = read("components/portal/modules-a/client-360-rail-shell.tsx");
+const styles = read("app/globals.css");
 const clients = read("app/(app)/clientes/page.tsx");
 const clientFilters = read("components/clients/client-filter-bar.tsx");
 const clientSplit = read("components/clients/client-split-view.tsx");
@@ -27,6 +29,9 @@ check("cliente expone cuatro áreas 360 exactas", (client.match(/^  \["(resumen|
 check("cliente abre Resumen por defecto", client.includes(': "resumen");') && client.includes('requestedView'));
 check("cliente usa ParentNavigation y EntityHeader", client.includes("<EntityHeader") && client.includes('<ParentNavigation href="/clientes"'));
 check("cliente conserva acciones contextuales reales", clientCanonical.includes("nextAction.actionLabel") && clientCanonical.includes("hrefs.newOpportunity") && client.includes("<ClientActions"));
+check("insights de cliente quedan aislados por cliente u obra autorizada", client.includes("const scopedSignals") && client.includes("signal.entity.clientId === client.id") && client.includes("clientWorkIds.has(signal.entity.workId)"));
+check("rail de Cliente 360 se oculta, expande y persiste sin scroll propio", clientRail.includes("localStorage.setItem") && clientRail.includes('data-collapsed={collapsed ? "true" : "false"}') && styles.includes('.client-360-canonical:has(> [data-client-360-rail][data-collapsed="true"])'));
+check("Cliente 360 elimina la columna global vacía desde tablet horizontal", styles.includes('@media (min-width: 900px)') && styles.includes('.field-os-workspace[data-embedded-context="client"]'));
 check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));

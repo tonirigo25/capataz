@@ -201,47 +201,57 @@ export default async function ClientDetailPage({
       .map((photo) => ({
         id: photo.id,
         title: photo.titulo,
-        detail: work.titulo,
-        status: photo.categoria,
+        detail: `Evidencia de incidencia · ${work.titulo}`,
         href: `/obras/${work.id}?vista=progreso&modo=galeria`,
       })),
   );
   const principal = operationalContext.principal;
+  const clientWorkIds = new Set(summary.client.works.map((work) => work.id));
+  const scopedSignals = operationalContext.signals.filter(
+    (signal) =>
+      signal.entity.clientId === client.id ||
+      (signal.entity.type === "cliente" && signal.entity.id === client.id) ||
+      Boolean(signal.entity.workId && clientWorkIds.has(signal.entity.workId)),
+  );
   const principalBelongsToClient = Boolean(
     principal &&
       (principal.entity.clientId === client.id ||
         (principal.entity.type === "cliente" &&
-          principal.entity.id === client.id)),
+          principal.entity.id === client.id) ||
+        Boolean(
+          principal.entity.workId && clientWorkIds.has(principal.entity.workId),
+        )),
   );
+  const scopedPrincipal = principalBelongsToClient ? principal : null;
   const recommendationImpact: Array<{ label: string; value: string }> = [];
-  if (principal?.amount != null) {
+  if (scopedPrincipal?.amount != null) {
     recommendationImpact.push({
       label: "Importe relacionado",
-      value: formatCurrency(principal.amount),
+      value: formatCurrency(scopedPrincipal.amount),
     });
   }
-  if (principal?.days != null) {
+  if (scopedPrincipal?.days != null) {
     recommendationImpact.push({
       label: "Antigüedad de la señal",
-      value: `${principal.days} días`,
+      value: `${scopedPrincipal.days} días`,
     });
   }
   const recommendation =
-    aiDecision.allowed && principal && principalBelongsToClient
+    aiDecision.allowed && scopedPrincipal
       ? {
           clientId: client.id,
-          title: principal.title,
-          description: principal.explanation,
-          sourceLabel: statusLabel(principal.category),
+          title: scopedPrincipal.title,
+          description: scopedPrincipal.explanation,
+          sourceLabel: statusLabel(scopedPrincipal.category),
           impact: recommendationImpact,
           primaryAction: {
             label: "Abrir acción",
-            href: principal.entity.href,
+            href: scopedPrincipal.entity.href,
           },
           analysisHref: `/capataz?clienteId=${client.id}`,
         }
       : null;
-  const insights = operationalContext.signals.slice(0, 4).map((signal) => ({
+  const insights = scopedSignals.slice(0, 4).map((signal) => ({
     id: signal.id,
     title: signal.title,
     detail: signal.explanation,
@@ -250,21 +260,22 @@ export default async function ClientDetailPage({
   const nextAction = nextTouch
     ? {
         title: nextTouch.title,
-        description: operationalContext.nextStep,
+        description:
+          scopedSignals[0]?.nextStep ?? "Revisa esta acción antes de confirmar cambios.",
         dateLabel: formatDate(nextTouch.date),
         contactLabel: summary.listItem.primaryContact,
         completeHref: nextTouch.href,
         actionLabel: "Revisar y completar",
       }
-    : principal
+    : scopedPrincipal
       ? {
-          title: principal.title,
-          description: principal.nextStep,
-          dateLabel: principal.referenceDate
-            ? formatDate(principal.referenceDate)
+          title: scopedPrincipal.title,
+          description: scopedPrincipal.nextStep,
+          dateLabel: scopedPrincipal.referenceDate
+            ? formatDate(scopedPrincipal.referenceDate)
             : undefined,
           contactLabel: summary.listItem.primaryContact,
-          completeHref: principal.entity.href,
+          completeHref: scopedPrincipal.entity.href,
           actionLabel: "Abrir acción",
         }
       : null;
