@@ -23,6 +23,7 @@ export function BrandLogo({
       sizes="64px"
       className={clsx("brand-mark", className)}
       style={style}
+      unoptimized
       priority
     />
   );
