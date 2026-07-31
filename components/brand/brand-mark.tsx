@@ -5,7 +5,7 @@ import { brand } from "@/lib/brand";
 
 const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial.png";
 
-export function BrandMark({
+export function BrandLogo({
   className,
   title,
   style
@@ -27,6 +27,8 @@ export function BrandMark({
     />
   );
 }
+
+export const BrandMark = BrandLogo;
 
 export function BrandLockup({
   compact = false,

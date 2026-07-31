@@ -42,15 +42,19 @@ function contextual(eyebrow: string, description: string, source: string, next: 
 
 export function OrqenaContextRail({ pathname }: { pathname: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [feedback, setFeedback] = useState<"postponed" | "dismissed" | null>(null);
   const titleId = useId();
   const context = contexts.find((entry) => entry.match(pathname))?.value ?? fallbackContext;
 
-  useEffect(() => setMobileOpen(false), [pathname]);
+  useEffect(() => {
+    setMobileOpen(false);
+    setFeedback(null);
+  }, [pathname]);
 
   return (
     <>
       <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA">
-        <RailContent context={context} titleId={titleId} />
+        <RailContent context={context} titleId={titleId} feedback={feedback} onFeedback={setFeedback} />
       </aside>
 
       <button
@@ -72,7 +76,7 @@ export function OrqenaContextRail({ pathname }: { pathname: string }) {
             <button type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}>
               <X size={19} aria-hidden="true" />
             </button>
-            <RailContent context={context} titleId={titleId} />
+            <RailContent context={context} titleId={titleId} feedback={feedback} onFeedback={setFeedback} />
           </aside>
         </div>
       ) : null}
@@ -80,7 +84,17 @@ export function OrqenaContextRail({ pathname }: { pathname: string }) {
   );
 }
 
-function RailContent({ context, titleId }: { context: RailContext; titleId: string }) {
+function RailContent({
+  context,
+  titleId,
+  feedback,
+  onFeedback,
+}: {
+  context: RailContext;
+  titleId: string;
+  feedback: "postponed" | "dismissed" | null;
+  onFeedback: (feedback: "postponed" | "dismissed") => void;
+}) {
   return (
     <div className="orqena-context-rail__inner">
       <header className="orqena-context-rail__header">
@@ -111,8 +125,15 @@ function RailContent({ context, titleId }: { context: RailContext; titleId: stri
         </div>
 
         <Link href={context.href} className="primary-button mt-5 w-full">
-          {context.next}<ChevronRight size={17} aria-hidden="true" />
+          Revisar y confirmar<ChevronRight size={17} aria-hidden="true" />
         </Link>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => onFeedback("postponed")}>Posponer</button>
+          <button type="button" className="ghost-button min-h-10 px-3 text-xs" onClick={() => onFeedback("dismissed")}>Descartar</button>
+        </div>
+        {feedback ? <p role="status" className="mt-2 text-center text-xs leading-5 text-content-secondary">
+          {feedback === "postponed" ? "Pospuesta durante esta sesión; no se ha modificado ningún dato." : "Descartada en esta vista; no se ha ejecutado ninguna acción."}
+        </p> : null}
         <Link href="/configuracion/ia" className="ghost-button mt-1 w-full text-xs">Ver límites y control</Link>
       </div>
     </div>

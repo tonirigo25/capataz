@@ -381,7 +381,7 @@ function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): Produc
   ];
 
   return order.flatMap((target) => {
-    if (target.href === "/capataz") return portalManifest.orqenaTools.length ? [target] : [];
+    if (target.href === "/capataz") return [target];
     const source = allowed.get(target.href);
     return source ? [{ ...source, label: target.label, icon: target.icon }] : [];
   });

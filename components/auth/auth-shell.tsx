@@ -22,9 +22,9 @@ export function AuthShell({ title, description, children }: { title: string; des
       <div className="auth-portal-preview" aria-label="Vista previa de Orqena IA">
         <header><BrandMark className="h-6 w-6" /><strong>Orqena IA</strong><span>Acceso controlado</span></header>
         <div className="auth-portal-preview__metrics">
-          <article><small>Acciones confirmadas</small><strong>9</strong><span>Con revisión humana</span></article>
+          <article><small>Acciones sensibles</small><strong>Revisables</strong><span>Con confirmación humana</span></article>
           <article><small>Impacto explicado</small><strong>Visible</strong><span>Antes de aplicar</span></article>
-          <article><small>Trazabilidad</small><strong>100 %</strong><span>Origen y decisión</span></article>
+          <article><small>Trazabilidad</small><strong>Auditable</strong><span>Origen y decisión</span></article>
         </div>
         <div className="auth-portal-preview__rows">
           <p><span>01</span>Revisar presupuesto pendiente<em>Preparado</em></p>
