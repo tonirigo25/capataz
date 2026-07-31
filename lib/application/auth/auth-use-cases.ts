@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth/config";
 import { hashPassword, hashToken, normalizeEmail, validatePassword, verifyPassword } from "@/lib/auth/crypto";
 import { createSession, getAvailableCompanies, revokeCurrentSession } from "@/lib/auth/session";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
@@ -70,6 +71,7 @@ export async function loginAction(_previous: AuthActionState, form: FormData): P
   const email = text(form, "email");
   const password = String(form.get("password") ?? "");
   const remember = form.get("remember") === "on";
+  const returnTo = normalizeLoginReturnPath(String(form.get("returnTo") ?? ""));
   if (!(await allowAuthAttempt("login", normalizeEmail(email), 10))) return { status: "error", message: genericCredentials, fields: { email } };
   const user = await prisma.user.findUnique({ where: { emailNormalized: normalizeEmail(email) } });
   if (!user) { await recordSecurityEvent({ type: "login_attempt", outcome: "failure" }); return { status: "error", message: genericCredentials, fields: { email } }; }
@@ -92,7 +94,7 @@ export async function loginAction(_previous: AuthActionState, form: FormData): P
     const pendingMembership = await prisma.companyMembership.findFirst({ where: { userId: user.id, status: "pending_owner_approval" }, select: { id: true } });
     if (pendingMembership) redirect("/acceso-pendiente");
   }
-  redirect("/hoy");
+  redirect(returnTo);
 }
 
 export async function logoutAction() { await revokeCurrentSession(); redirect("/login"); }

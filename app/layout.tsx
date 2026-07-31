@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/inter";
 import "./globals.css";
 import { PwaRegister } from "@/app/pwa-register";
 import { brand } from "@/lib/brand";
