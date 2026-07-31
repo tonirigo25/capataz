@@ -244,7 +244,10 @@ export default async function ManualManagementPage({
           resolveAuthorization(auth, "work.view"),
           resolveAuthorization(auth, "documents.view"),
         ])
-      : [{ allowed: false }, { allowed: false }];
+      : [
+          { allowed: false, scope: "COMPANY" },
+          { allowed: false, scope: "COMPANY" },
+        ];
   const [scopedWorkIds, scopedClientIds] = await Promise.all([
     resolveScopedEntityIds(auth, auth.capability, "Work"),
     resolveScopedEntityIds(auth, auth.capability, "Client"),
@@ -391,7 +394,13 @@ export default async function ManualManagementPage({
             ? works.filter(
                 (work) =>
                   work.clienteId === query.id &&
-                  (visibleWorkIds === null || visibleWorkIds.includes(work.id)) &&
+                  relationAllowedForClient(
+                    clientWorkAccess.scope,
+                    visibleWorkIds,
+                    visibleWorkClientIds,
+                    work.id,
+                    work.clienteId,
+                  ) &&
                   isActiveWorkStatus(work.estado),
               ).length
             : null,
@@ -399,7 +408,13 @@ export default async function ManualManagementPage({
             ? works.filter(
                 (work) =>
                   work.clienteId === query.id &&
-                  (visibleWorkIds === null || visibleWorkIds.includes(work.id)),
+                  relationAllowedForClient(
+                    clientWorkAccess.scope,
+                    visibleWorkIds,
+                    visibleWorkClientIds,
+                    work.id,
+                    work.clienteId,
+                  ),
               ).length
             : null,
           billedTotal: invoiceAllowed
@@ -407,12 +422,13 @@ export default async function ManualManagementPage({
                 .filter(
                   (invoice) =>
                     invoice.clienteId === query.id &&
-                    ((visibleInvoiceClientIds === null &&
-                      visibleInvoiceWorkIds === null) ||
-                      visibleInvoiceClientIds?.includes(invoice.clienteId) ||
-                      (invoice.obraId
-                        ? visibleInvoiceWorkIds?.includes(invoice.obraId)
-                        : false)) &&
+                    relationAllowedForClient(
+                      invoiceAccess.scope,
+                      visibleInvoiceWorkIds,
+                      visibleInvoiceClientIds,
+                      invoice.obraId,
+                      invoice.clienteId,
+                    ) &&
                     invoice.estado !== "borrador",
                 )
                 .reduce((total, invoice) => total + invoice.total, 0)
@@ -931,6 +947,25 @@ function ClientEditReferenceFields({
       </section>
     </>
   );
+}
+
+function relationAllowedForClient(
+  scope: string,
+  workIds: string[] | null,
+  clientIds: string[] | null,
+  workId: string | null,
+  clientId: string,
+) {
+  if (scope === "COMPANY") return true;
+  if (scope === "SELECTED_WORKS") {
+    return Boolean(workId && workIds?.includes(workId));
+  }
+  if (scope === "SELECTED_CLIENTS") {
+    return Boolean(clientIds?.includes(clientId));
+  }
+  return workId
+    ? Boolean(workIds?.includes(workId))
+    : Boolean(clientIds?.includes(clientId));
 }
 
 async function ensureScopedRecord(
