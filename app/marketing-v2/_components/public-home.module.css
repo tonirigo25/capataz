@@ -20,12 +20,6 @@
   box-sizing: border-box;
 }
 
-.marketingBody > section,
-.footer {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 48rem;
-}
-
 .hero button,
 .hero a,
 .marketingBody button,
@@ -61,10 +55,8 @@
 }
 
 .heroCopy {
-  contain: layout paint style;
   position: relative;
   z-index: 3;
-  transform: translateZ(0);
 }
 
 .eyebrow {
@@ -176,7 +168,6 @@
 }
 
 .productShowcase {
-  contain: layout style;
   min-width: 0;
   position: relative;
   padding: 0.6rem 1.65rem 1.7rem 0;
