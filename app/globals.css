@@ -4113,6 +4113,140 @@ button:disabled,
   .hoy-money-column + .hoy-money-column { border-top: 1px solid #e7e9e8; border-left: 0; }
 }
 
+/* Cliente 360 canónico: una ficha, un único rail contextual y scroll de documento. */
+.client-360-page {
+  min-width: 0;
+  min-height: 100%;
+  background: #fbfcfb;
+  padding: 14px 12px 28px 20px;
+  color: #111b16;
+}
+
+.client-360-canonical { gap: 0 !important; }
+.client-360-canonical > div:first-child { min-width: 0; }
+.client-360-canonical > div:first-child > * + * { margin-top: 10px !important; }
+.client-360-canonical > div:first-child > header > a {
+  min-height: 24px;
+  color: #647169;
+  font-size: 11px;
+}
+.client-360-canonical > div:first-child > header > h1 {
+  margin-top: 1px;
+  font-size: 29px;
+  font-weight: 840;
+  letter-spacing: -.04em;
+  line-height: 1.05;
+}
+.client-360-canonical > div:first-child > section {
+  border-color: #dfe5e1;
+  border-radius: 9px;
+  padding: 13px !important;
+  box-shadow: none;
+}
+.client-360-canonical > div:first-child > nav {
+  scrollbar-width: thin;
+}
+.client-360-canonical > div:first-child > nav > a {
+  min-height: 40px;
+  padding-inline: 15px;
+  font-size: 11px;
+}
+.client-360-canonical__primary,
+.client-360-canonical__collections { gap: 10px !important; }
+.client-360-canonical__primary > section,
+.client-360-canonical__collections > section {
+  min-width: 0;
+  border-color: #dfe5e1;
+  border-radius: 9px;
+  padding: 12px !important;
+  box-shadow: none;
+}
+.client-360-canonical__primary > section > header,
+.client-360-canonical__collections > section > header { margin-bottom: 9px; }
+.client-360-canonical__primary > section h2,
+.client-360-canonical__collections > section h2 { font-size: 11px; }
+.client-360-canonical__primary > section h3 { font-size: 12px; }
+.client-360-canonical__primary > section p,
+.client-360-canonical__primary > section dt,
+.client-360-canonical__primary > section dd { font-size: 10px; line-height: 1.45; }
+.client-360-canonical__primary > section .primary-button {
+  min-height: 34px;
+  padding-block: 7px;
+  font-size: 10px;
+}
+.client-360-canonical__collections > section > div { margin-top: 6px; }
+.client-360-canonical__collections > section > div > a,
+.client-360-canonical__collections > section > div > div {
+  padding-block: 5px;
+}
+.client-360-canonical__collections > section > div span:first-child {
+  font-size: 10px;
+  line-height: 1.25;
+}
+.client-360-canonical__collections > section > div span:last-child {
+  font-size: 9px;
+  line-height: 1.25;
+}
+.client-360-canonical__tab-content { padding-top: 2px; }
+.client-360-canonical > details {
+  min-width: 0;
+  overflow: visible;
+  border-color: #dfe5e1;
+}
+.client-360-canonical > details > summary {
+  min-height: 52px;
+  padding-inline: 18px;
+  font-size: 12px;
+}
+.client-360-canonical > details > aside {
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding: 15px !important;
+}
+.client-360-canonical > details > aside > section {
+  border-radius: 9px;
+  box-shadow: none;
+}
+.client-360-canonical > details > aside > section h2 { font-size: 12px; }
+.client-360-canonical > details > aside > section p,
+.client-360-canonical > details > aside > section dt,
+.client-360-canonical > details > aside > section dd { font-size: 10px; line-height: 1.55; }
+.client-360-canonical > details > aside .primary-button,
+.client-360-canonical > details > aside .secondary-button {
+  min-height: 34px;
+  font-size: 10px;
+}
+
+@media (min-width: 1280px) {
+  .client-360-canonical > div:first-child { padding-right: 14px; }
+  .client-360-canonical > details {
+    display: block;
+    align-self: stretch;
+    border-top: 0;
+    border-left: 1px solid #dfe5e1;
+  }
+  .client-360-canonical > details > aside { min-height: calc(100dvh - 114px) !important; }
+}
+
+@media (max-width: 1279px) {
+  .client-360-page { padding-right: 20px; }
+  .client-360-canonical > details {
+    margin-top: 12px;
+    border: 1px solid #dfe5e1;
+    border-radius: 9px;
+  }
+}
+
+@media (max-width: 760px) {
+  .client-360-page { padding: 12px 12px 88px; }
+  .client-360-canonical > div:first-child > header > h1 { font-size: 25px; }
+  .client-360-canonical > div:first-child > section { padding: 12px !important; }
+  .client-360-canonical > div:first-child > section nav { min-width: 0; }
+  .client-360-canonical > div:first-child > section nav > * { width: 100%; }
+  .client-360-canonical__primary,
+  .client-360-canonical__collections { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
 /* Public-site revision 3: shared surface for linked marketing routes. */
 .public-site-v3 > main { background: #f6f3eb; color: #102019; }
 .public-site-v3 .marketing-container { width: min(100% - 2.5rem, 82rem); }

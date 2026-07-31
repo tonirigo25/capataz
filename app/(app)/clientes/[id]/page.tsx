@@ -5,8 +5,6 @@ import {
   Archive,
   Bell,
   Bot,
-  Building2,
-  BriefcaseBusiness,
   CalendarClock,
   CircleDollarSign,
   ClipboardList,
@@ -21,7 +19,6 @@ import {
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { ContextDrawer } from "@/components/context-drawer";
 import { RecordWorkspace } from "@/components/workspaces";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
@@ -29,13 +26,11 @@ import { StatusPill } from "@/components/status-pill";
 import {
   EmptyState,
   EntityHeader,
-  Notice,
   ParentNavigation,
-  Tabs,
 } from "@/components/ui-primitives";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
-import { OperationalContextSummary } from "@/components/operational-signals";
+import { Client360Canonical } from "@/components/portal/modules-a/client-360-canonical";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
@@ -162,10 +157,13 @@ export default async function ClientDetailPage({
     if (!client) notFound();
     return <ScopedClientDetail auth={auth} client={client} />;
   }
-  const [summary, treasury, operationalContext] = await Promise.all([
+  const [summary, treasury, operationalContext, archiveDecision, aiDecision, uploadDecision] = await Promise.all([
     getClientCrmSummary(id, auth.companyId),
     getEconomicControl({ clientId: id, period: "30d" }),
     getClientOperationalContext(id),
+    resolveAuthorization(auth, "clients.archive"),
+    resolveAuthorization(auth, "orqena.use"),
+    resolveAuthorization(auth, "documents.upload"),
   ]);
   if (!summary) notFound();
 
@@ -178,183 +176,146 @@ export default async function ClientDetailPage({
   const client = summary.client;
   const returnTo = `/clientes/${client.id}`;
 
-  const nextActionHref =
-    operationalContext.principal?.entity.href ??
-    `/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=visita&titulo=Próximo%20paso%20con%20${encodeURIComponent(summary.listItem.displayName)}&returnTo=${encodeURIComponent(returnTo)}`;
-  const responsible =
-    summary.activeWorks.find((work) => work.responsable)?.responsable ??
-    "Sin responsable asignado";
-  const nextDate = summary.upcomingEvents[0]
-    ? formatDate(summary.upcomingEvents[0].fechaInicio)
-    : "Sin próxima fecha";
+  const timeline = [
+    ...summary.upcomingEvents.map((event) => ({
+      id: event.id,
+      title: event.titulo,
+      date: event.fechaInicio,
+      href: `/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`,
+    })),
+    ...summary.pendingReminders.map((reminder) => ({
+      id: reminder.id,
+      title: statusLabel(reminder.tipo),
+      date: reminder.fechaProgramada,
+      href: `/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`,
+    })),
+  ].sort((left, right) => left.date.getTime() - right.date.getTime());
+  const nextTouch = timeline[0] ?? null;
+  const contactEmail =
+    summary.contacts[0]?.email ?? summary.listItem.email ?? undefined;
+  const contactPhone =
+    summary.contacts[0]?.phone ?? summary.listItem.phone ?? undefined;
+  const incidents = summary.client.works.flatMap((work) =>
+    work.photos
+      .filter((photo) => photo.categoria === "incidencia")
+      .map((photo) => ({
+        id: photo.id,
+        title: photo.titulo,
+        detail: work.titulo,
+        status: photo.categoria,
+        href: `/obras/${work.id}?vista=progreso&modo=galeria`,
+      })),
+  );
+  const principal = operationalContext.principal;
+  const principalBelongsToClient = Boolean(
+    principal &&
+      (principal.entity.clientId === client.id ||
+        (principal.entity.type === "cliente" &&
+          principal.entity.id === client.id)),
+  );
+  const recommendationImpact: Array<{ label: string; value: string }> = [];
+  if (principal?.amount != null) {
+    recommendationImpact.push({
+      label: "Importe relacionado",
+      value: formatCurrency(principal.amount),
+    });
+  }
+  if (principal?.days != null) {
+    recommendationImpact.push({
+      label: "Antigüedad de la señal",
+      value: `${principal.days} días`,
+    });
+  }
+  const recommendation =
+    aiDecision.allowed && principal && principalBelongsToClient
+      ? {
+          clientId: client.id,
+          title: principal.title,
+          description: principal.explanation,
+          sourceLabel: statusLabel(principal.category),
+          impact: recommendationImpact,
+          primaryAction: {
+            label: "Abrir acción",
+            href: principal.entity.href,
+          },
+          analysisHref: `/capataz?clienteId=${client.id}`,
+        }
+      : null;
+  const insights = operationalContext.signals.slice(0, 4).map((signal) => ({
+    id: signal.id,
+    title: signal.title,
+    detail: signal.explanation,
+    href: signal.entity.href,
+  }));
+  const nextAction = nextTouch
+    ? {
+        title: nextTouch.title,
+        description: operationalContext.nextStep,
+        dateLabel: formatDate(nextTouch.date),
+        contactLabel: summary.listItem.primaryContact,
+        completeHref: nextTouch.href,
+        actionLabel: "Revisar y completar",
+      }
+    : principal
+      ? {
+          title: principal.title,
+          description: principal.nextStep,
+          dateLabel: principal.referenceDate
+            ? formatDate(principal.referenceDate)
+            : undefined,
+          contactLabel: summary.listItem.primaryContact,
+          completeHref: principal.entity.href,
+          actionLabel: "Abrir acción",
+        }
+      : null;
 
   return (
-    <RecordWorkspace
-      context={
-        <ClientContextRail
-          summary={summary}
-          nextAction={operationalContext.nextStep}
-          responsible={responsible}
-          nextDate={nextDate}
-          returnTo={returnTo}
-        />
-      }
-    >
-      <EntityHeader
-        back={
-          <ParentNavigation
-            href="/clientes"
-            label="Clientes"
-            context={summary.listItem.typeLabel}
+    <div className="client-360-page">
+      <Client360Canonical
+        summary={summary}
+        activeView={activeTab}
+        nextAction={nextAction}
+        insights={insights}
+        incidents={incidents}
+        recommendation={recommendation}
+        hrefs={{
+          back: "/clientes",
+          sendMessage: contactEmail ? `mailto:${contactEmail}` : undefined,
+          call: contactPhone
+            ? `tel:${contactPhone.replace(/\s+/g, "")}`
+            : undefined,
+          newOpportunity: client.archivadoAt
+            ? undefined
+            : `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+          activity: `/clientes/${client.id}?vista=relacion`,
+          budgets: `/clientes/${client.id}?vista=dinero#presupuestos`,
+          works: `/clientes/${client.id}?vista=operacion`,
+          invoices: `/clientes/${client.id}?vista=dinero#facturas`,
+          payments: `/clientes/${client.id}?vista=dinero#cobros`,
+          contacts: `/clientes/${client.id}?vista=relacion#contactos`,
+          documents: `/clientes/${client.id}?vista=archivos`,
+          allRecommendations: `/capataz?clienteId=${client.id}`,
+        }}
+        moreActions={
+          <ClientActions
+            clientId={client.id}
+            clientName={summary.listItem.displayName}
+            returnTo={returnTo}
+            archived={Boolean(client.archivadoAt)}
+            canArchive={
+              archiveDecision.allowed && archiveDecision.scope === "COMPANY"
+            }
+            canUseAi={aiDecision.allowed}
           />
         }
-        context={`Clientes · ${summary.listItem.typeLabel}`}
-        title="Cliente 360"
-        description="Relación, operación, dinero y archivos del cliente en una única vista coherente."
-        status={
-          <StatusPill
-            status={client.archivadoAt ? "archivado" : client.estado}
-          />
-        }
-        action={
-          <Link
-            href={nextActionHref}
-            className="primary-button"
-          >
-            <CalendarClock size={18} /> Abrir siguiente acción
-          </Link>
-        }
-        menu={
-          <>
-            <ContextDrawer
-              title={`Contexto de ${summary.listItem.displayName}`}
-              description="Contactos, datos fiscales, dirección, notas y configuración sin añadir más pestañas."
-              triggerLabel="Ver contexto"
-            >
-              <ContactsTab summary={summary} returnTo={returnTo} />
-              <DataTab summary={summary} returnTo={returnTo} />
-              <NotesTab summary={summary} returnTo={returnTo} />
-            </ContextDrawer>
-            <ClientActions
-              clientId={client.id}
-              clientName={summary.listItem.displayName}
-              returnTo={returnTo}
-              archived={Boolean(client.archivadoAt)}
-            />
-          </>
-        }
-      />
-
-      <section className="mb-4 rounded-xl border border-border bg-surface p-4 shadow-soft" aria-label="Contexto principal del cliente">
-        <div className="grid gap-4 lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1fr)] lg:items-center">
-          <div className="flex min-w-0 items-center gap-4 border-b border-border pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong"><Building2 size={26} aria-hidden="true" /></span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2"><h2 className="type-section-title truncate text-content">{summary.listItem.displayName}</h2><StatusPill status={client.archivadoAt ? "archivado" : client.estado} /></div>
-              <p className="type-secondary mt-1">{summary.listItem.typeLabel} · {client.origen}</p>
-              <p className="type-meta mt-2">{(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}</p>
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <HeaderFact label="Responsable" value={responsible} />
-            <HeaderFact label="Próxima fecha" value={nextDate} />
-            <HeaderFact label="Contacto" value={summary.listItem.primaryContact} />
-          </div>
-        </div>
-      </section>
-
-      <ClientRelationshipRail summary={summary} />
-
-      {summary.listItem.pendingFields.length ? (
-        <Notice
-          tone="warning"
-          title={`${summary.listItem.pendingFields.length} datos pendientes`}
-          description={summary.listItem.pendingFields.slice(0, 4).join(" · ")}
-          action={
-            <Link
-              href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              Completar datos
-            </Link>
-          }
-        />
-      ) : null}
-
-      <section
-        className="client-360-summary mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        aria-label="Resumen ejecutivo del cliente"
       >
-        <StatCard
-          title="Trabajos"
-          value={`${summary.kpis.activeWorks}/${summary.kpis.totalWorks}`}
-          detail="Activas / totales"
-          icon={BriefcaseBusiness}
-        />
-        <StatCard
-          title="Propuestas"
-          value={String(summary.pendingBudgets.length)}
-          detail="Pendientes de decisión"
-          icon={FileText}
-        />
-        <StatCard
-          title="Próxima cita"
-          value={summary.upcomingEvents[0] ? formatDate(summary.upcomingEvents[0].fechaInicio) : "Sin fecha"}
-          detail={summary.upcomingEvents[0]?.titulo ?? "No programada"}
-          icon={CalendarClock}
-        />
-        <StatCard
-          title="Última actividad"
-          value={summary.activity[0] ? formatDate(summary.activity[0].date) : "Sin actividad"}
-          detail={summary.activity[0]?.text ?? "Sin registrar"}
-          icon={ClipboardList}
-        />
-      </section>
-
-      <OperationalContextSummary
-        context={operationalContext}
-        entityType="cliente"
-        entityId={client.id}
-      />
-
-      <div data-client-detail-areas="5">
-        <Tabs label="Secciones de la ficha de cliente" className="mt-5">
-          {tabs.map(({ id: tab, label }) => (
-            <Link
-              key={tab}
-              href={`/clientes/${client.id}?vista=${tab}`}
-              aria-current={activeTab === tab ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
-        </Tabs>
-      </div>
-
-      <div className="mt-4" id="client-360-content">
-        {activeTab === "resumen" ? (
-          <div className="client-360-layout grid gap-4">
-            <section className="surface-feature p-5" aria-labelledby="cliente-siguiente-accion">
-              <p className="type-label">Siguiente acción</p>
-              <h2 id="cliente-siguiente-accion" className="type-section-title mt-2 text-content">
-                {operationalContext.nextStep}
-              </h2>
-              <p className="type-secondary mt-2">
-                {operationalContext.phrase}
-              </p>
-              <Link href={nextActionHref} className="secondary-button mt-4">
-                Abrir origen
-              </Link>
-            </section>
-            <SummaryTab summary={summary} returnTo={returnTo} />
-          </div>
-        ) : null}
         {activeTab === "relacion" ? (
           <div className="grid gap-4">
             <ContactsTab summary={summary} returnTo={returnTo} />
             <ActivityTab summary={summary} />
             <VisitsTab summary={summary} returnTo={returnTo} />
             <NotesTab summary={summary} returnTo={returnTo} />
+            <DataTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
         {activeTab === "operacion" ? (
@@ -363,122 +324,52 @@ export default async function ClientDetailPage({
             <WorksTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
-        {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
+        {activeTab === "archivos" ? (
+          <DocumentsTab
+            summary={summary}
+            canUpload={uploadDecision.allowed}
+          />
+        ) : null}
         {activeTab === "dinero" ? (
           <div className="grid gap-4">
-            <section className="grid gap-3 sm:grid-cols-3" aria-label="Economía autorizada del cliente">
-              <StatCard title="Facturado" value={formatCurrency(summary.kpis.billedTotal)} detail="Sin borradores" icon={Receipt} />
-              <StatCard title="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} detail="Pagos reales" icon={WalletCards} tone="success" />
-              <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
+            <section
+              className="grid gap-3 sm:grid-cols-3"
+              aria-label="Economía autorizada del cliente"
+            >
+              <StatCard
+                title="Facturado"
+                value={formatCurrency(summary.kpis.billedTotal)}
+                detail="Sin borradores"
+                icon={Receipt}
+              />
+              <StatCard
+                title="Cobrado"
+                value={formatCurrency(summary.kpis.paidTotal)}
+                detail="Pagos reales"
+                icon={WalletCards}
+                tone="success"
+              />
+              <StatCard
+                title="Pendiente"
+                value={formatCurrency(summary.kpis.pendingTotal)}
+                detail="Total menos pagos"
+                icon={CircleDollarSign}
+                tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"}
+              />
             </section>
-            <BudgetsTab summary={summary} returnTo={returnTo} />
-            <InvoicesTab summary={summary} returnTo={returnTo} />
-            <PaymentsTab summary={summary} />
+            <div id="presupuestos">
+              <BudgetsTab summary={summary} returnTo={returnTo} />
+            </div>
+            <div id="facturas">
+              <InvoicesTab summary={summary} returnTo={returnTo} />
+            </div>
+            <div id="cobros">
+              <PaymentsTab summary={summary} />
+            </div>
             <ClientFinanceTab treasury={treasury} clientId={client.id} />
           </div>
         ) : null}
-      </div>
-    </RecordWorkspace>
-  );
-}
-
-function ClientRelationshipRail({
-  summary,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-}) {
-  const stages = [
-    ["Cliente", "completada", "resumen", "Relación activa"],
-    ["Oportunidad", summary.recentBudgets.length ? "completada" : "activa", "resumen", summary.recentBudgets.length ? "Contexto creado" : "Siguiente paso"],
-    ["Presupuesto", summary.recentBudgets.length ? "completada" : "pendiente", "dinero", `${summary.recentBudgets.length} propuestas`],
-    ["Trabajo", summary.kpis.activeWorks ? "activa" : summary.kpis.totalWorks ? "completada" : "pendiente", "operacion", `${summary.kpis.activeWorks} activos`],
-    ["Factura", summary.kpis.billedTotal ? "completada" : "pendiente", "dinero", summary.kpis.billedTotal ? "Emitida" : "Pendiente"],
-    ["Cobro", summary.kpis.paidTotal ? "completada" : summary.kpis.billedTotal ? "activa" : "pendiente", "dinero", summary.kpis.paidTotal ? "Registrado" : "Pendiente"],
-  ] as const;
-  return (
-    <section className="client-relationship-rail mt-4" aria-label="Recorrido Cliente 360">
-      <div><p className="type-label">Cliente 360</p><strong>Relación completa</strong><span>Selecciona una etapa sin abandonar la ficha.</span></div>
-      <ol>{stages.map(([label, state, view, detail], index) => <li key={label} className={`is-${state}`}><Link href={`/clientes/${summary.client.id}?vista=${view}#client-360-content`}><i>{index + 1}</i><span><strong>{label}</strong><small>{detail}</small></span></Link></li>)}</ol>
-    </section>
-  );
-}
-
-function HeaderFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-lg bg-surface px-3 py-2">
-      <p className="type-label">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-content">{value}</p>
-    </div>
-  );
-}
-
-function ClientContextRail({
-  summary,
-  nextAction,
-  responsible,
-  nextDate,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  nextAction: string;
-  responsible: string;
-  nextDate: string;
-  returnTo: string;
-}) {
-  const risk = summary.kpis.overdueInvoices
-    ? `${summary.kpis.overdueInvoices} cobros vencidos`
-    : summary.listItem.pendingFields.length
-      ? `${summary.listItem.pendingFields.length} datos pendientes`
-      : summary.kpis.pendingTotal > 0
-        ? `${formatCurrency(summary.kpis.pendingTotal)} pendientes`
-        : "Sin riesgo principal detectado";
-  return (
-    <div className="grid gap-4">
-      <p className="type-label text-brand-strong">Contexto operativo del cliente</p>
-      <section className="rounded-xl border border-brand/25 bg-brand-soft p-4">
-        <p className="type-label">Siguiente acción documentada</p>
-        <h2 className="type-object-title mt-2 text-content">{nextAction}</h2>
-        <p className="type-secondary mt-2">Próxima fecha: {nextDate}. Revisa el origen antes de confirmar cualquier acción.</p>
-      </section>
-      <dl className="divide-y divide-border border-y border-border">
-        <ContextFact label="Contacto" value={summary.listItem.primaryContact} />
-        <ContextFact label="Responsable" value={responsible} />
-        <ContextFact label="Riesgo" value={risk} />
-        <ContextFact
-          label="Trabajo abierto"
-          value={
-            summary.kpis.activeWorks
-              ? `${summary.kpis.activeWorks} activos`
-              : "Sin trabajo activo"
-          }
-        />
-        <ContextFact
-          label="Datos pendientes"
-          value={String(summary.listItem.pendingFields.length)}
-        />
-      </dl>
-      <Link
-        href={`/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-        className="secondary-button w-full"
-      >
-        Editar datos y configuración
-      </Link>
-      <Link
-        href={`/capataz?clienteId=${summary.client.id}`}
-        className="secondary-button w-full"
-      >
-        <Bot size={17} />
-        Preguntar a {brand.assistantName}
-      </Link>
-    </div>
-  );
-}
-
-function ContextFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="py-3">
-      <dt className="type-label">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold text-content">{value}</dd>
+      </Client360Canonical>
     </div>
   );
 }
@@ -909,11 +800,15 @@ function ClientActions({
   clientName,
   returnTo,
   archived,
+  canArchive,
+  canUseAi,
 }: {
   clientId: string;
   clientName: string;
   returnTo: string;
   archived: boolean;
+  canArchive: boolean;
+  canUseAi: boolean;
 }) {
   const encodedReturn = encodeURIComponent(returnTo);
   const visitDate = encodeURIComponent(tomorrowAtTenInputValue());
@@ -965,15 +860,17 @@ function ClientActions({
           <Plus size={18} />
           Contacto
         </Link>
-        <Link
-          href={`/capataz?clienteId=${clientId}`}
-          className="secondary-button"
-          aria-label={`Preguntar a ${brand.assistantName} sobre ${clientName}`}
-        >
-          <Bot size={18} />
-          Preguntar a {brand.assistantName}
-        </Link>
-        <ArchiveActions id={clientId} archived={archived} />
+        {canUseAi ? (
+          <Link
+            href={`/capataz?clienteId=${clientId}`}
+            className="secondary-button"
+            aria-label={`Preguntar a ${brand.assistantName} sobre ${clientName}`}
+          >
+            <Bot size={18} />
+            Preguntar a {brand.assistantName}
+          </Link>
+        ) : null}
+        {canArchive ? <ArchiveActions id={clientId} archived={archived} /> : null}
       </div>
     </details>
   );
@@ -1006,112 +903,6 @@ function ArchiveActions({ id, archived }: { id: string; archived: boolean }) {
         Archivar
       </ConfirmSubmitButton>
     </form>
-  );
-}
-
-function SummaryTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-      <div className="grid gap-4">
-        <SectionList
-          title="Obras activas"
-          emptyTitle="Este cliente todavía no tiene obras activas."
-          emptyAction={
-            <Link
-              href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              Crear obra
-            </Link>
-          }
-        >
-          {summary.activeWorks.slice(0, 3).map((work) => (
-            <WorkCard key={work.id} work={work} returnTo={returnTo} compact />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Facturas pendientes"
-          emptyTitle="No hay facturas pendientes."
-        >
-          {summary.pendingInvoices.slice(0, 3).map((invoice) => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              returnTo={returnTo}
-              compact
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Presupuestos recientes"
-          emptyTitle="No hay presupuestos registrados."
-        >
-          {summary.recentBudgets.slice(0, 3).map((budget) => (
-            <BudgetCard
-              key={budget.id}
-              budget={budget}
-              returnTo={returnTo}
-              compact
-            />
-          ))}
-        </SectionList>
-      </div>
-
-      <aside className="grid gap-4">
-        <SectionList
-          title="Próximas visitas y tareas"
-          emptyTitle="No hay visitas o tareas próximas."
-        >
-          {summary.upcomingEvents.slice(0, 4).map((event) => (
-            <CompactRow
-              key={event.id}
-              icon={CalendarClock}
-              title={event.titulo}
-              detail={`${statusLabel(event.tipo)} · ${formatDate(event.fechaInicio)}`}
-              href={`/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Seguimientos pendientes"
-          emptyTitle="No hay seguimientos pendientes."
-        >
-          {summary.pendingReminders.slice(0, 4).map((reminder) => (
-            <CompactRow
-              key={reminder.id}
-              icon={Bell}
-              title={statusLabel(reminder.tipo)}
-              detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)}`}
-              href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Actividad reciente"
-          emptyTitle="Sin actividad reciente."
-        >
-          {summary.activity.slice(0, 5).map((event) => (
-            <CompactRow
-              key={event.id}
-              icon={ClipboardList}
-              title={event.text}
-              detail={`${event.type} · ${formatDate(event.date)}`}
-              href={event.href}
-            />
-          ))}
-        </SectionList>
-      </aside>
-    </div>
   );
 }
 
@@ -1503,8 +1294,10 @@ function VisitsTab({
 
 function DocumentsTab({
   summary,
+  canUpload,
 }: {
   summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  canUpload: boolean;
 }) {
   const returnTo = `/clientes/${summary.client.id}?tab=documentos`;
   return (
@@ -1512,14 +1305,14 @@ function DocumentsTab({
       title="Documentos"
       description="Archivos, presupuestos y facturas relacionados con este cliente."
       emptyTitle="No hay documentos asociados."
-      emptyAction={
+      emptyAction={canUpload ? (
         <Link
           href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
           className="secondary-button"
         >
           Registrar documento
         </Link>
-      }
+      ) : undefined}
     >
       {summary.documents.length ? (
         <div className="grid gap-3 md:grid-cols-2">

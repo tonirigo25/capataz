@@ -95,6 +95,8 @@ export function AppChrome({
   railRecommendations: PortalRailRecommendations;
 }) {
   const pathname = usePathname();
+  const hasEmbeddedClientContext =
+    pathname === "/clientes" || /^\/clientes\/[^/]+$/.test(pathname);
   const dialogId = useId();
   const [desktopPanel, setDesktopPanel] = useState<DesktopPanel>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
@@ -319,10 +321,10 @@ export function AppChrome({
       <div
         className="field-os-workspace"
         data-rail-collapsed={railCollapsed ? "true" : "false"}
-        data-embedded-context={pathname === "/clientes" ? "client" : undefined}
+        data-embedded-context={hasEmbeddedClientContext ? "client" : undefined}
       >
         <div id="main-content" className="field-os-main-canvas relative" tabIndex={-1}>{children}</div>
-        {pathname === "/clientes" ? null : <OrqenaContextRail pathname={pathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => {
+        {hasEmbeddedClientContext ? null : <OrqenaContextRail pathname={pathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => {
           const next = !current;
           try {
             window.localStorage.setItem("orqena.portal.iaRailCollapsed", String(next));

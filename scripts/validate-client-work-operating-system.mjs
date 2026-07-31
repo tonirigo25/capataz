@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const read = (path) => fs.readFileSync(path, "utf8");
 const client = read("app/(app)/clientes/[id]/page.tsx");
+const clientCanonical = read("components/portal/modules-a/client-360-canonical.tsx");
 const clients = read("app/(app)/clientes/page.tsx");
 const clientFilters = read("components/clients/client-filter-bar.tsx");
 const clientSplit = read("components/clients/client-split-view.tsx");
@@ -25,13 +26,13 @@ const ordered = (source, tokens) => {
 check("cliente expone cuatro áreas 360 exactas", (client.match(/^  \["(resumen|trabajos|dinero|archivos)"/gm) ?? []).length === 4);
 check("cliente abre Resumen por defecto", client.includes(': "resumen");') && client.includes('requestedView'));
 check("cliente usa ParentNavigation y EntityHeader", client.includes("<EntityHeader") && client.includes('<ParentNavigation href="/clientes"'));
-check("cliente conserva una sola acción primaria contextual", client.includes("Abrir siguiente acción") && client.includes("<ContextDrawer") && client.includes("<ClientActions"));
+check("cliente conserva acciones contextuales reales", clientCanonical.includes("nextAction.actionLabel") && clientCanonical.includes("hrefs.newOpportunity") && client.includes("<ClientActions"));
 check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
 check("cliente conserva mapa heredado explícito", ["obras", "archivos", "dinero", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "notas"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
 check("listado de clientes prioriza próxima acción", clients.includes("toWorkspaceItem") && clients.includes("nextAction") && clients.includes("activeWorksCount") && clients.includes("pendingTotal"));
-check("listado ofrece vistas inteligentes, búsqueda y filtros en sheet", ["Necesitan acción", "Activos", "Todos"].every((label) => clientFilters.includes(label)) && clientFilters.includes("<FilterSheet") && clientFilters.includes('type="search"'));
+check("listado ofrece seis vistas inteligentes, búsqueda y filtros en sheet", ["Todos", "Seguimiento", "Presupuesto abierto", "Trabajo activo", "Cobro pendiente", "En riesgo"].every((label) => clientFilters.includes(label)) && clientFilters.includes("<FilterSheet") && clientFilters.includes('type="search"'));
 check("desktop usa split 420-480 y móvil evita tabla", clientSplit.includes("data-client-list-split") && clientSplit.includes("data-client-mobile-cards") && !clientSplit.includes("<table"));
 check("preview cambia por click y foco sin perder deep link", clientSplit.includes("onClick={onSelect}") && clientSplit.includes("onFocusCapture={onSelect}") && clientSplit.includes("Abrir ficha completa"));
 check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('event.key === "Escape"') && contextDrawer.includes("opener.current?.focus()") && contextDrawer.includes('aria-modal="true"'));
@@ -60,7 +61,7 @@ check("consultas de entidad derivan companyId de sesión", client.includes("requ
 check("tareas y seguimientos están aislados por companyId", workflow.includes("where: { companyId, ...entityWhere"));
 check("cliente y obra por ID están company-scoped", crm.includes("where: { id, companyId }") && work.includes("where: { id, companyId: auth.companyId }"));
 check("formularios mantienen orden semántico y targets", forms.includes("Identidad del cliente") && forms.includes("Contacto operativo") && forms.includes("Fiscal y condiciones comerciales") && forms.includes("StickyFormActions"));
-check("navegación secundaria usa URL, aria-current y targets", client.includes("?vista=${tab}") && work.includes("?vista=${id}") && client.includes("aria-current") && work.includes("aria-current"));
+check("navegación secundaria usa URL, aria-current y targets", clientCanonical.includes("?vista=${view}") && work.includes("?vista=${id}") && clientCanonical.includes("aria-current") && work.includes("aria-current"));
 check("composición responsive cubre móvil, tablet y escritorio", gallery.includes("grid-cols-2") && gallery.includes("sm:grid-cols-3") && gallery.includes("xl:grid-cols-4") && work.includes("xl:grid-cols"));
 
 let failed = 0;
