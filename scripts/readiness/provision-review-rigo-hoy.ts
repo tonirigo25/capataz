@@ -205,7 +205,7 @@ async function resolveTargetCompany(transaction: Prisma.TransactionClient, legac
     const legacyCandidate = existing.id === legacyCompanyId && existing.nombreComercial === REVIEW_RIGO_HOY_LEGACY_COMPANY_NAME;
     if (existing.nombreComercial !== REVIEW_RIGO_HOY_TARGET.companyName && !legacyCandidate) throw new Error("REVIEW_RIGO_HOY_COMPANY_NAME_CONFLICT");
     if (existing.archivedAt || existing.status !== "active" || !existing.isDemo) throw new Error("REVIEW_RIGO_HOY_COMPANY_NOT_SYNTHETIC_ACTIVE");
-    if (existing.provisioningKey && existing.provisioningKey !== REVIEW_RIGO_HOY_TARGET.provisioningKey) throw new Error("REVIEW_RIGO_HOY_COMPANY_PROVISIONING_CONFLICT");
+    if (existing.provisioningKey && existing.provisioningKey !== REVIEW_RIGO_HOY_TARGET.provisioningKey && !legacyCandidate) throw new Error("REVIEW_RIGO_HOY_COMPANY_PROVISIONING_CONFLICT");
     return transaction.company.update({
       where: { id: existing.id },
       data: {
