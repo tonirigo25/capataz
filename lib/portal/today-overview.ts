@@ -101,6 +101,7 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
   const dayEnd = zonedMidnight(now, timeZone, 1);
   const urgentEnd = zonedMidnight(now, timeZone, 2);
   const soon = zonedMidnight(now, timeZone, 7);
+  const followupSummaryEnd = zonedMidnight(now, timeZone, 14);
   const [
     budgetAccess,
     invoiceAccess,
@@ -134,7 +135,7 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
 
   const budgetWhere: Prisma.BudgetWhereInput = {
     companyId,
-    estado: { in: ["pendiente_revision", "enviado", "visto", "pendiente_respuesta"] },
+    estado: "pendiente_revision",
     ...relationWhere(budgetScopes),
   };
   const invoiceWhere: Prisma.InvoiceWhereInput = {
@@ -255,7 +256,7 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
     urgentInvoiceCount,
     pendingDocumentCount,
     followupsDueToday,
-    allActiveFollowupCount,
+    summaryFollowupCount,
   ] = await Promise.all([
     works.length
       ? prisma.task.findMany({
@@ -307,7 +308,10 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
             companyId,
             archivedAt: null,
             status: { in: ["planned", "due", "in_progress", "waiting_response", "promised"] },
-            ...relationWhere(followupScopes),
+            AND: [
+              { OR: [{ dueAt: { lte: followupSummaryEnd } }, { nextActionAt: { lte: followupSummaryEnd } }] },
+              relationWhere(followupScopes),
+            ],
           },
         })
       : Promise.resolve(0),
@@ -414,7 +418,7 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
     })),
     activity: activity.map((item) => ({
       id: item.id,
-      title: activityTitle(item.action, item.userActor?.displayName ?? "Equipo"),
+      title: activityTitle(item.action, item.userActor?.displayName ?? "Equipo", item.metadata),
       detail: activityDetail(item.targetType, item.metadata),
       time: relativeTime(item.createdAt, now),
       href: auditTargetHref(item.targetType, item.targetId),
@@ -470,7 +474,7 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
       completedVisits: allTodayAgenda.filter((item) => item.tipo === "visita" && item.estado === "realizado").length,
       pendingDocuments: documentCount,
       documentsToConfirm: pendingDocumentCount,
-      followups: allActiveFollowupCount,
+      followups: summaryFollowupCount,
       followupsDueToday,
     },
   };
@@ -502,7 +506,9 @@ function taskProgress(tasks: Array<{ status: string }>) {
   return Math.round((completed / tasks.length) * 100);
 }
 
-function activityTitle(action: string, actor: string) {
+function activityTitle(action: string, actor: string, metadata: Prisma.JsonValue) {
+  const values = jsonRecord(metadata);
+  if (typeof values.headline === "string" && values.headline.trim()) return values.headline.trim();
   const normalized = action.toLocaleLowerCase("es-ES");
   const verb = normalized.includes("paid") || normalized.includes("pagad")
     ? "ha marcado un pago"
@@ -520,6 +526,7 @@ function activityTitle(action: string, actor: string) {
 
 function activityDetail(targetType: string, metadata: Prisma.JsonValue) {
   const values = jsonRecord(metadata);
+  if (typeof values.detail === "string") return values.detail.trim();
   const label = ["entityLabel", "targetLabel", "reference", "title", "name"]
     .map((key) => values[key])
     .find((value): value is string => typeof value === "string" && Boolean(value.trim()));
@@ -543,14 +550,15 @@ function agendaTone(type: string, index: number): TodayAgendaRow["tone"] {
 }
 
 function agendaContext(item: AgendaItem) {
-  const values = [
-    item.obraTitulo,
-    item.clienteNombre,
-    item.presupuestoNumero ? `Presupuesto ${item.presupuestoNumero}` : null,
-    item.descripcion,
-    item.direccion,
-  ].filter((value): value is string => Boolean(value?.trim()));
-  return [...new Set(values)].slice(0, 2).join(" · ") || "Agenda interna";
+  const values = item.obraTitulo
+    ? [item.obraTitulo, item.direccion ?? item.clienteNombre]
+    : item.presupuestoNumero
+      ? [item.clienteNombre, item.presupuestoNumero]
+      : item.titulo.toLocaleLowerCase("es-ES").includes("documento")
+        ? [item.descripcion, item.clienteNombre]
+        : [item.clienteNombre, item.descripcion, item.direccion];
+  const normalized = values.filter((value): value is string => Boolean(value?.trim()));
+  return [...new Set(normalized)].slice(0, 2).join(" · ") || "Agenda interna";
 }
 
 function dueTone(date: Date | null | undefined, now: Date, timeZone: string): TodayMoneyRow["tone"] {

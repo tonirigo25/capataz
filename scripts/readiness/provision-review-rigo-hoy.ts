@@ -50,6 +50,10 @@ export const REVIEW_RIGO_HOY_IDS = {
   eventCommercialCall: "review-rigo-hoy-event-commercial-call-v1",
   eventDocumentConfirmation: "review-rigo-hoy-event-document-confirmation-v1",
   eventCompletedVisit: "review-rigo-hoy-event-completed-visit-v1",
+  legacyEventWeeklyReview: "review-event-5",
+  legacyFollowUpBudget: "review-followup-1",
+  legacyFollowUpCollection: "review-followup-2",
+  legacyFollowUpVisit: "review-followup-3",
   auditBudget: "review-rigo-hoy-audit-budget-v1",
   auditInvoice: "review-rigo-hoy-audit-invoice-v1",
   auditVisit: "review-rigo-hoy-audit-visit-v1",
@@ -85,6 +89,7 @@ type AgendaFixture = {
   fechaFin: Date;
   clienteId: string;
   obraId: string | null;
+  presupuestoId?: string | null;
   direccion: string | null;
   requiereConfirmacion: boolean;
   confirmadoPorUsuario: boolean;
@@ -150,13 +155,13 @@ export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
     {
       id: REVIEW_RIGO_HOY_IDS.eventInternalMeeting,
       titulo: "Reunión interna de obra",
-      descripcion: "Coordinación sintética del equipo en Edificio Arce.",
+      descripcion: "Coordinación del equipo en Edificio Arce.",
       tipo: "recordatorio_interno",
       estado: "confirmado",
       ...at(9, 0, 45),
       clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa,
       obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
-      direccion: "Edificio Arce · Sala 2",
+      direccion: "Sala 2",
       requiereConfirmacion: false,
       confirmadoPorUsuario: true,
     },
@@ -182,6 +187,7 @@ export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
       ...at(12, 0, 30),
       clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa,
       obraId: null,
+      presupuestoId: REVIEW_RIGO_HOY_IDS.budgetP0247,
       direccion: null,
       requiereConfirmacion: true,
       confirmadoPorUsuario: false,
@@ -202,7 +208,7 @@ export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
     {
       id: REVIEW_RIGO_HOY_IDS.eventDocumentConfirmation,
       titulo: "Confirmar documento",
-      descripcion: "Comprobación sintética pendiente de confirmación humana.",
+      descripcion: "Contrato",
       tipo: "recordatorio_interno",
       estado: "pendiente",
       ...at(17, 0, 30),
@@ -500,7 +506,7 @@ export async function provisionReviewRigoHoy(
     }
     await transaction.user.update({
       where: { id: owner.id },
-      data: { activeCompanyId: company.id },
+      data: { activeCompanyId: company.id, displayName: "Marta Ruiz" },
     });
 
     await assertFixtureOwnership(transaction, company.id);
@@ -514,7 +520,7 @@ export async function provisionReviewRigoHoy(
       },
       {
         id: REVIEW_RIGO_HOY_IDS.clientBeta,
-        nombre: "Cliente Beta SL",
+        nombre: "Beta SL",
         telefono: "+34 000 000 304",
         email: "cliente.beta@review.orqena.invalid",
         direccion: "Avenida del Sol 24, Madrid",
@@ -579,7 +585,7 @@ export async function provisionReviewRigoHoy(
     ]);
 
     const workFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.workEdificioArce, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, numeroInterno: "OB-0120", titulo: "Edificio Arce", direccion: "Calle Mayor 12, Madrid", estado: "en_curso" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 13, total: 20 },
+      { id: REVIEW_RIGO_HOY_IDS.workEdificioArce, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, numeroInterno: "OB-0120", titulo: "Edificio Arce", direccion: "Calle Mayor 12, Madrid", estado: "en_curso" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 13, total: 20 },
       { id: REVIEW_RIGO_HOY_IDS.workResidencialSol, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0118", titulo: "Residencial Sol", direccion: "Avenida del Sol 24, Madrid", estado: "en_curso" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 4, total: 10 },
       { id: REVIEW_RIGO_HOY_IDS.workLocalComercial, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, numeroInterno: "OB-0112", titulo: "Local Comercial 14", direccion: "Calle Mercado 14, Madrid", estado: "planificada" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 1, total: 5 },
       { id: REVIEW_RIGO_HOY_IDS.workOficinasCentral, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0105", titulo: "Oficinas Central", direccion: "Paseo Central 5, Madrid", estado: "pendiente_remates" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 9, total: 10 },
@@ -699,8 +705,8 @@ export async function provisionReviewRigoHoy(
     });
 
     const invoiceFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.invoiceF0155, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, numero: "F-2024-0155", concepto: "Certificación Edificio Arce", total: 6420, pagado: 6420, pendiente: 0, estado: "pagada" as const, dueAt: addDays(now, -1, 23, 59) },
-      { id: REVIEW_RIGO_HOY_IDS.invoiceF0156, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0156", concepto: "Remates Oficinas Central", total: 12450, pagado: 0, pendiente: 12450, estado: "pendiente_pago" as const, dueAt: addDays(now, 1, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0155, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0155", concepto: "Certificación Oficinas Central", total: 6420, pagado: 6420, pendiente: 0, estado: "pagada" as const, dueAt: addDays(now, -1, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0156, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0156", concepto: "Reforma oficina central", total: 12450, pagado: 0, pendiente: 12450, estado: "pendiente_pago" as const, dueAt: addDays(now, 1, 23, 59) },
       { id: REVIEW_RIGO_HOY_IDS.invoiceF0158, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "F-2024-0158", concepto: "Adecuación Local Comercial 14", total: 8750, pagado: 0, pendiente: 8750, estado: "pendiente_pago" as const, dueAt: addDays(now, 5, 23, 59) },
     ];
     for (const invoice of invoiceFixtures) {
@@ -754,7 +760,7 @@ export async function provisionReviewRigoHoy(
     }
 
     const followUpFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.followupIndustrias, title: "Industrias Norte", responsibleId: diego.id, clientId: REVIEW_RIGO_HOY_IDS.clientIndustrias, dueAt: todayAt(now, 16), expectedOutcome: "Confirmar próximos pasos comerciales" },
+      { id: REVIEW_RIGO_HOY_IDS.followupIndustrias, title: "Lead · Industrias Norte", responsibleId: diego.id, clientId: REVIEW_RIGO_HOY_IDS.clientIndustrias, dueAt: todayAt(now, 16), expectedOutcome: "Confirmar próximos pasos comerciales" },
       { id: REVIEW_RIGO_HOY_IDS.followupFuture, title: "Cliente Beta SL", responsibleId: laura.id, clientId: REVIEW_RIGO_HOY_IDS.clientBeta, dueAt: addDays(now, 10, 10), expectedOutcome: "Revisar ampliación de alcance" },
     ];
     for (const followUp of followUpFixtures) {
@@ -766,14 +772,36 @@ export async function provisionReviewRigoHoy(
     }
 
     const expenseFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.expenseMaterials, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, proveedor: "Materiales Construcción", concepto: "Albarán A-4587", categoria: "materiales" as const, importe: 5320, paymentDueDate: todayAt(now, 23, 59) },
-      { id: REVIEW_RIGO_HOY_IDS.expenseMachinery, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, proveedor: "Maquinaria López", concepto: "Alquiler maquinaria", categoria: "maquinaria" as const, importe: 1850, paymentDueDate: addDays(now, 4, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseMaterials, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, proveedor: "Proveedores de Materiales SL", concepto: "Albarán A-4587", categoria: "materiales" as const, importe: 5320, paymentDueDate: todayAt(now, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseMachinery, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, proveedor: "Servicios de Maquinaria SA", concepto: "Alquiler grúa mayo", categoria: "maquinaria" as const, importe: 1850, paymentDueDate: addDays(now, 4, 23, 59) },
     ];
     for (const expense of expenseFixtures) {
       await transaction.expense.upsert({
         where: { id: expense.id },
         update: { ...expense, companyId: company.id, fecha: addDays(now, -3, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
         create: { ...expense, companyId: company.id, fecha: addDays(now, -3, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
+      });
+    }
+
+    await transaction.eventoAgenda.updateMany({
+      where: { id: REVIEW_RIGO_HOY_IDS.legacyEventWeeklyReview, companyId: company.id },
+      data: {
+        fechaInicio: addDays(now, 1, 16),
+        fechaFin: addDays(now, 1, 17),
+      },
+    });
+    const legacyFollowUpIds = [
+      REVIEW_RIGO_HOY_IDS.legacyFollowUpBudget,
+      REVIEW_RIGO_HOY_IDS.legacyFollowUpCollection,
+      REVIEW_RIGO_HOY_IDS.legacyFollowUpVisit,
+    ];
+    for (const [index, legacyFollowUpId] of legacyFollowUpIds.entries()) {
+      await transaction.followUp.updateMany({
+        where: { id: legacyFollowUpId, companyId: company.id },
+        data: {
+          dueAt: addDays(now, 30 + index, 10),
+          nextActionAt: addDays(now, 30 + index, 10),
+        },
       });
     }
 
@@ -787,11 +815,11 @@ export async function provisionReviewRigoHoy(
     }
 
     const auditFixtures = [
-      { id: REVIEW_RIGO_HOY_IDS.auditBudget, userActorId: laura.id, action: "budget.updated", targetType: "Budget", targetId: REVIEW_RIGO_HOY_IDS.budgetP0247, metadata: { entityLabel: "Presupuesto P-0247" }, createdAt: new Date(now.getTime() - 8 * 60_000) },
-      { id: REVIEW_RIGO_HOY_IDS.auditInvoice, userActorId: owner.id, action: "invoice.paid", targetType: "Invoice", targetId: REVIEW_RIGO_HOY_IDS.invoiceF0155, metadata: { entityLabel: "Factura F-2024-0155" }, createdAt: new Date(now.getTime() - 18 * 60_000) },
-      { id: REVIEW_RIGO_HOY_IDS.auditVisit, userActorId: diego.id, action: "visit.completed", targetType: "EventoAgenda", targetId: REVIEW_RIGO_HOY_IDS.eventCompletedVisit, metadata: { entityLabel: "Visita de replanteo" }, createdAt: new Date(now.getTime() - 35 * 60_000) },
-      { id: REVIEW_RIGO_HOY_IDS.auditDocument, userActorId: laura.id, action: "document.uploaded", targetType: "Document", targetId: REVIEW_RIGO_HOY_IDS.documentProgressArce, metadata: { entityLabel: "Parte de avance · Edificio Arce" }, createdAt: new Date(now.getTime() - 62 * 60_000) },
-      { id: REVIEW_RIGO_HOY_IDS.auditClient, userActorId: owner.id, action: "client.updated", targetType: "Client", targetId: REVIEW_RIGO_HOY_IDS.clientAlfa, metadata: { entityLabel: "Cliente Alfa" }, createdAt: new Date(now.getTime() - 95 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditBudget, userActorId: laura.id, action: "budget.updated", targetType: "Budget", targetId: REVIEW_RIGO_HOY_IDS.budgetP0247, metadata: { headline: "Laura Soto ha actualizado el presupuesto P-0247", detail: "Cliente Alfa" }, createdAt: new Date(now.getTime() - 25 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditInvoice, userActorId: owner.id, action: "invoice.paid", targetType: "Invoice", targetId: REVIEW_RIGO_HOY_IDS.invoiceF0155, metadata: { headline: "Factura F-2024-0155 marcada como pagada por Beta SL", detail: "" }, createdAt: new Date(now.getTime() - 60 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditVisit, userActorId: diego.id, action: "visit.completed", targetType: "EventoAgenda", targetId: REVIEW_RIGO_HOY_IDS.eventCompletedVisit, metadata: { headline: "Diego Martín ha completado la visita técnica", detail: "OB-0118 · Residencial Sol" }, createdAt: new Date(now.getTime() - 2 * 60 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditDocument, userActorId: laura.id, action: "document.uploaded", targetType: "Document", targetId: REVIEW_RIGO_HOY_IDS.documentProgressArce, metadata: { headline: "Nuevo documento subido a OB-0120 · Edificio Arce", detail: "Informe de avance · Mayo 2024" }, createdAt: new Date(now.getTime() - 3 * 60 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditClient, userActorId: owner.id, action: "client.created", targetType: "Client", targetId: REVIEW_RIGO_HOY_IDS.clientIndustrias, metadata: { headline: "Marta Ruiz ha creado el lead Industrias Norte", detail: "" }, createdAt: new Date(now.getTime() - 4 * 60 * 60_000) },
     ];
     for (const audit of auditFixtures) {
       await transaction.auditLog.upsert({
@@ -807,7 +835,7 @@ export async function provisionReviewRigoHoy(
         companyId: company.id,
         type: "budget_review_before_noon",
         title: "Revisa el presupuesto P-0247 antes del mediodía",
-        summary: "El cliente Alfa ha mostrado interés en acelerar la decisión.",
+        summary: "El cliente Alfa ha mostrado interés en acelerar la decisión. Revisarlo a tiempo puede aumentar un 35% la probabilidad de cierre esta semana.",
         detailedExplanation: "El cliente Alfa ha mostrado interés en acelerar la decisión. Revisarlo a tiempo puede aumentar un 35% la probabilidad de cierre esta semana.",
         level: "importante",
         status: "active",
@@ -819,7 +847,7 @@ export async function provisionReviewRigoHoy(
         budgetId: REVIEW_RIGO_HOY_IDS.budgetP0247,
         amount: 12450,
         score: 92,
-        priority: 95,
+        priority: 110,
         dueAt: todayAt(now, 12),
         expiresAt: addDays(now, 1, 0),
         preferredActionId: null,
@@ -839,7 +867,7 @@ export async function provisionReviewRigoHoy(
         fingerprint: REVIEW_RIGO_HOY_IDS.recommendationFingerprint,
         type: "budget_review_before_noon",
         title: "Revisa el presupuesto P-0247 antes del mediodía",
-        summary: "El cliente Alfa ha mostrado interés en acelerar la decisión.",
+        summary: "El cliente Alfa ha mostrado interés en acelerar la decisión. Revisarlo a tiempo puede aumentar un 35% la probabilidad de cierre esta semana.",
         detailedExplanation: "El cliente Alfa ha mostrado interés en acelerar la decisión. Revisarlo a tiempo puede aumentar un 35% la probabilidad de cierre esta semana.",
         level: "importante",
         status: "active",
@@ -851,7 +879,7 @@ export async function provisionReviewRigoHoy(
         budgetId: REVIEW_RIGO_HOY_IDS.budgetP0247,
         amount: 12450,
         score: 92,
-        priority: 95,
+        priority: 110,
         dueAt: todayAt(now, 12),
         expiresAt: addDays(now, 1, 0),
         requiresConfirmation: true,
@@ -941,7 +969,55 @@ async function main() {
     if (entitlements.planKey !== "ENTERPRISE" || capabilities.length !== Object.keys(capabilityCatalog).length) {
       throw new Error("REVIEW_RIGO_HOY_FULL_ACCESS_VALIDATION_FAILED");
     }
-    process.stdout.write(`${JSON.stringify({ ...result, capabilities: capabilities.length, authorizationGates: entitlementGates.length })}\n`);
+    const { buildPortalManifest } = await import("../../lib/commercial/portal-manifest");
+    const { getNotificationItems } = await import("../../lib/notifications");
+    const manifest = await buildPortalManifest(context);
+    const notificationItems = await getNotificationItems({ context, domains: manifest.notificationDomains });
+    const unreadNotificationKeys = new Set([
+      `agenda-${REVIEW_RIGO_HOY_IDS.eventTechnicalVisit}`,
+      `agenda-${REVIEW_RIGO_HOY_IDS.eventBudgetReview}`,
+      `document-pending-${REVIEW_RIGO_HOY_IDS.documentContractGamma}`,
+    ]);
+    const existingNotificationStates = await prisma.notification.findMany({
+      where: { sourceKey: { in: notificationItems.map((item) => item.sourceKey) } },
+      select: { companyId: true },
+    });
+    if (existingNotificationStates.some((item) => item.companyId !== company.id)) {
+      throw new Error("REVIEW_RIGO_HOY_NOTIFICATION_OWNERSHIP_CONFLICT");
+    }
+    const readAt = new Date();
+    for (const item of notificationItems) {
+      await prisma.notification.upsert({
+        where: { sourceKey: item.sourceKey },
+        update: {
+          companyId: company.id,
+          type: item.type,
+          title: item.title,
+          body: item.body,
+          href: item.href,
+          priority: item.priority,
+          entityType: item.entityType,
+          entityId: item.entityId,
+          readAt: unreadNotificationKeys.has(item.sourceKey) ? null : readAt,
+          archivedAt: null,
+        },
+        create: {
+          companyId: company.id,
+          sourceKey: item.sourceKey,
+          type: item.type,
+          title: item.title,
+          body: item.body,
+          href: item.href,
+          priority: item.priority,
+          entityType: item.entityType,
+          entityId: item.entityId,
+          readAt: unreadNotificationKeys.has(item.sourceKey) ? null : readAt,
+        },
+      });
+    }
+    const unreadNotifications = notificationItems.filter((item) => unreadNotificationKeys.has(item.sourceKey)).length;
+    if (unreadNotifications !== 3) throw new Error("REVIEW_RIGO_HOY_NOTIFICATION_FIXTURE_INCOMPLETE");
+    process.stdout.write(`${JSON.stringify({ ...result, capabilities: capabilities.length, authorizationGates: entitlementGates.length, unreadNotifications })}\n`);
   } finally {
     await prisma.$disconnect();
   }
