@@ -187,11 +187,11 @@ const homeWidgetLabels: Record<string, string> = {
 };
 
 function homeWidgetLabel(value: string) {
-  return homeWidgetLabels[value] ?? value.replaceAll("-", " ").replace(/^./, (letter) => letter.toLocaleUpperCase("es-ES"));
+  return homeWidgetLabels[value] ?? "Área de trabajo";
 }
 function homeWidgetReason(value: string, profile: string) {
-  if (profile === "WORKER") return `${homeWidgetLabel(value)} forma parte de tu jornada y de los trabajos que tienes asignados.`;
-  return `${homeWidgetLabel(value)} forma parte de las responsabilidades configuradas para tu perfil.`;
+  if (profile === "WORKER") return `${homeWidgetLabel(value)}: información preparada para tu jornada y los trabajos que tienes asignados.`;
+  return `${homeWidgetLabel(value)}: información preparada para las responsabilidades configuradas en tu perfil.`;
 }
 function homeWidgetImpact(value: string) {
   const impacts: Record<string, string> = {

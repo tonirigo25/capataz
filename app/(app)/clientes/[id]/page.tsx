@@ -68,12 +68,13 @@ const legacyClientAreas = [
 ] as const;
 
 type ClientTabId = (typeof tabs)[number]["id"];
+type LegacyClientAreaId = (typeof legacyClientAreas)[number][0];
 
-const legacyTabs: Record<string, ClientTabId> = {
-  [legacyClientAreas[0][0]]: "resumen",
-  [legacyClientAreas[1][0]]: "operacion",
-  [legacyClientAreas[2][0]]: "dinero",
-  [legacyClientAreas[3][0]]: "archivos",
+const legacyTabs: Record<LegacyClientAreaId | string, ClientTabId> = {
+  resumen: "resumen",
+  trabajos: "operacion",
+  dinero: "dinero",
+  archivos: "archivos",
   obras: "operacion",
   actividad: "relacion",
   contactos: "relacion",
