@@ -1,19 +1,51 @@
 import Link from "next/link";
-import { BrandLockup } from "@/components/brand/brand-mark";
+import { BarChart3, ShieldCheck, UsersRound } from "lucide-react";
+import { BrandLockup, BrandMark } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 export function AuthShell({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <main className="mx-auto flex min-h-dvh w-full max-w-lg items-center px-4 py-8 sm:px-6">
-    <section className="card relative w-full p-5 sm:p-7">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <Link href="/" aria-label="Volver al inicio de Orqena">
-          <BrandLockup compact />
-        </Link>
-        <ThemeSwitcher compact />
+  return <main className="auth-portal-shell">
+    <section className="auth-portal-story" aria-label="Presentación de Orqena">
+      <Link href="/" aria-label="Volver al inicio de Orqena" className="inline-flex">
+        <BrandLockup inverse compact />
+      </Link>
+      <div className="auth-portal-story__copy">
+        <p className="type-label text-brand">Plataforma empresarial</p>
+        <h2>Automatiza. Optimiza.<br />Toma el control.</h2>
+        <p>Orqena centraliza procesos, datos y equipos para impulsar decisiones más rápidas y seguras.</p>
+        <ul>
+          <li><ShieldCheck aria-hidden="true" /><span><strong>Automatización supervisada</strong><small>Reduce tareas manuales sin perder el control humano.</small></span></li>
+          <li><BarChart3 aria-hidden="true" /><span><strong>Visibilidad en tiempo real</strong><small>Métricas y procesos siempre conectados.</small></span></li>
+          <li><UsersRound aria-hidden="true" /><span><strong>Colaboración segura</strong><small>Equipos alineados con permisos por empresa.</small></span></li>
+        </ul>
       </div>
-      <h1 className="text-2xl font-black text-obra-ink">{title}</h1>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-      <div className="mt-6">{children}</div>
+      <div className="auth-portal-preview" aria-label="Vista previa de Orqena IA">
+        <header><BrandMark className="h-6 w-6" /><strong>Orqena IA</strong><span>Acceso controlado</span></header>
+        <div className="auth-portal-preview__metrics">
+          <article><small>Acciones confirmadas</small><strong>9</strong><span>Con revisión humana</span></article>
+          <article><small>Impacto explicado</small><strong>Visible</strong><span>Antes de aplicar</span></article>
+          <article><small>Trazabilidad</small><strong>100 %</strong><span>Origen y decisión</span></article>
+        </div>
+        <div className="auth-portal-preview__rows">
+          <p><span>01</span>Revisar presupuesto pendiente<em>Preparado</em></p>
+          <p><span>02</span>Ordenar cobros prioritarios<em>Revisable</em></p>
+          <p><span>03</span>Coordinar la agenda de mañana<em>Sin cambios</em></p>
+        </div>
+      </div>
+      <footer>
+        <span>Datos aislados por empresa</span><span>Acceso seguro</span><span>Decisiones confirmables</span>
+      </footer>
+    </section>
+
+    <section className="auth-portal-form">
+      <div className="auth-portal-form__card">
+        <div className="flex justify-end"><ThemeSwitcher compact /></div>
+        <div className="auth-portal-form__brand"><BrandMark className="h-12 w-12" /></div>
+        <h1>{title}</h1>
+        <p>{description}</p>
+        <div className="mt-7">{children}</div>
+        <p className="mt-7 text-center text-xs text-content-tertiary">Acceso seguro para clientes y equipos</p>
+      </div>
     </section>
   </main>;
 }

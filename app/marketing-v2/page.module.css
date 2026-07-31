@@ -3827,14 +3827,12 @@
   height: 2.25rem;
   display: grid;
   place-items: center;
-  border-radius: 0.58rem;
-  background: #c9f36a;
-  color: #101814;
+  background: transparent;
 }
 
-.headerBrandMark svg {
-  width: 1.55rem;
-  height: 1.55rem;
+.headerBrandMark img {
+  width: 2.1rem;
+  height: 2.1rem;
 }
 
 .headerBrandName {
@@ -4310,8 +4308,14 @@
 
 .productSidebar .productBrand {
   margin-bottom: 0.5rem;
-  background: #c9f36a;
-  color: #101814;
+  background: transparent;
+  color: #ffffff;
+}
+
+.productSidebar .productBrand img {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
 }
 
 .productWorkspace {
