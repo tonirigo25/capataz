@@ -1,5 +1,8 @@
 import Link from "next/link";
 import {
+  CheckCircle2,
+  CircleDollarSign,
+  Clock3,
   Copy,
   Download,
   Eye,
@@ -8,25 +11,30 @@ import {
   Pencil,
   Plus,
   Search,
-  Send,
+  TrendingUp,
 } from "lucide-react";
 import { duplicateBudget } from "@/app/(app)/presupuestos/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ListWorkspace } from "@/components/workspaces";
 import { DemoLimitButton } from "@/components/demo-limit-button";
-import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
+import {
+  CompactTabs,
+  KpiCard,
+  KpiGrid,
+  ModuleHeader,
+  ModulePanel,
+  RatioRow,
+  SoftBadge,
+} from "@/components/portal/modules-b/module-frame";
 import {
   ActionMenu,
   EmptyState,
   CompactFilterBar,
-  MetricStrip,
   MobileList,
-  PageHeader,
   ResponsiveTable,
   ResultCount,
   CompactSearch,
-  Tabs,
 } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -154,61 +162,84 @@ export default async function BudgetsPage({
     0,
   );
   const hasCriteria = activeFilter !== "todos" || Boolean(query.buscar);
+  const review = budgets.filter(
+    (budget) => budget.estado === "pendiente_revision",
+  );
+  const sent = budgets.filter((budget) =>
+    ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado),
+  );
+  const drafts = budgets.filter((budget) => budget.estado === "borrador");
+  const acceptedRate = budgets.length
+    ? Math.round((accepted.length / budgets.length) * 100)
+    : 0;
+  const highlightedBudget = visibleBudgets[0] ?? null;
 
   return (
     <ListWorkspace>
-      <PageHeader
+      <ModuleHeader
         eyebrow="Ventas"
         title="Presupuestos"
-        description="Prepara, envía y sigue cada propuesta sin perder de vista su validez y próxima acción."
+        description="Prepara, revisa y convierte propuestas con estado, alcance y trazabilidad siempre visibles."
         action={
-          createDecision.allowed && pricingDecision.allowed ? (
-            <DemoLimitButton
-              href="/gestion?tipo=presupuesto&returnTo=/presupuestos"
-              currentCount={budgets.length}
-              limit={2}
-            >
-              <Plus size={18} /> Nuevo presupuesto
-            </DemoLimitButton>
-          ) : undefined
-        }
-        secondaryActions={
-          <Link href="/presupuestos/plantillas" className="secondary-button">
-            <FileText size={18} /> Plantillas
-          </Link>
+          <>
+            <Link href="/presupuestos/plantillas" className="secondary-button">
+              <FileText size={18} /> Plantillas
+            </Link>
+            {createDecision.allowed && pricingDecision.allowed ? (
+              <DemoLimitButton
+                href="/gestion?tipo=presupuesto&returnTo=/presupuestos"
+                currentCount={budgets.length}
+                limit={2}
+              >
+                <Plus size={18} /> Nuevo presupuesto
+              </DemoLimitButton>
+            ) : null}
+          </>
         }
       />
 
-      <MetricStrip className="mb-5">
-        <StatCard
-          title="Total"
+      <KpiGrid>
+        <KpiCard
+          label="Abiertos"
           value={String(budgets.length)}
-          detail="Presupuestos registrados"
+          detail="Presupuestos visibles en tu alcance"
           icon={FileText}
         />
-        <StatCard
-          title="Pendientes"
-          value={String(pending.length)}
-          detail="Revisión, envío o respuesta"
-          icon={Send}
+        <KpiCard
+          label="Pendientes de aprobación"
+          value={String(review.length)}
+          detail={
+            review.length
+              ? "Requieren una decisión del equipo"
+              : "No hay revisiones pendientes"
+          }
+          icon={Clock3}
           tone={pending.length ? "warning" : "neutral"}
         />
-        <StatCard
-          title="Aceptados"
+        <KpiCard
+          label="Aceptados"
           value={String(accepted.length)}
-          detail="Propuestas aprobadas"
-          icon={FileText}
+          detail={`${acceptedRate}% del total registrado`}
+          icon={CheckCircle2}
           tone="success"
         />
         {pricingDecision.allowed ? (
-          <StatCard
-            title="Importe aceptado autorizado"
+          <KpiCard
+            label="Valor aceptado"
             value={formatCurrency(totalAccepted)}
-            detail="Solo presupuestos dentro del alcance de precios"
-            icon={FileText}
+            detail="Importe autorizado dentro de tu alcance"
+            icon={CircleDollarSign}
+            tone="accent"
           />
-        ) : null}
-      </MetricStrip>
+        ) : (
+          <KpiCard
+            label="Valor comercial"
+            value="Restringido"
+            detail="Importes protegidos por permisos"
+            icon={CircleDollarSign}
+          />
+        )}
+      </KpiGrid>
 
       <CompactFilterBar className="mb-4">
         <form
@@ -228,19 +259,122 @@ export default async function BudgetsPage({
             <Search size={18} /> Buscar
           </button>
         </form>
-        <Tabs label="Estados de presupuesto" className="mt-3">
+        <CompactTabs label="Estados de presupuesto">
           {filters.map(([id, label]) => (
             <Link
               key={id}
               href={budgetHref(id, query.buscar)}
               aria-current={activeFilter === id ? "page" : undefined}
-              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${activeFilter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}
+              className={`inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 py-1.5 text-sm font-bold ${activeFilter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}
             >
               {label}
             </Link>
           ))}
-        </Tabs>
+        </CompactTabs>
       </CompactFilterBar>
+
+      <div className="mb-5 grid gap-4 xl:grid-cols-[minmax(18rem,.72fr)_minmax(0,1.28fr)]">
+        <ModulePanel
+          title="Embudo de conversión"
+          description="Volumen real por estado"
+        >
+          <div className="grid gap-4 p-4">
+            <RatioRow
+              label="Borrador"
+              value={
+                budgets.length ? (drafts.length / budgets.length) * 100 : 0
+              }
+              amount={`${drafts.length} propuestas`}
+              tone="blue"
+            />
+            <RatioRow
+              label="En revisión"
+              value={
+                budgets.length ? (review.length / budgets.length) * 100 : 0
+              }
+              amount={`${review.length} propuestas`}
+              tone="orange"
+            />
+            <RatioRow
+              label="Enviados y seguimiento"
+              value={budgets.length ? (sent.length / budgets.length) * 100 : 0}
+              amount={`${sent.length} propuestas`}
+              tone="purple"
+            />
+            <RatioRow
+              label="Aceptados"
+              value={acceptedRate}
+              amount={`${accepted.length} propuestas`}
+              tone="green"
+            />
+          </div>
+        </ModulePanel>
+
+        <ModulePanel
+          title="Presupuesto prioritario"
+          description="La primera propuesta del resultado actual"
+          action={
+            highlightedBudget ? (
+              <SoftBadge
+                tone={
+                  highlightedBudget.estado === "aceptado"
+                    ? "success"
+                    : "warning"
+                }
+              >
+                {nextBudgetAction(highlightedBudget.estado)}
+              </SoftBadge>
+            ) : null
+          }
+        >
+          {highlightedBudget ? (
+            <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div>
+                <p className="type-label">{highlightedBudget.numero}</p>
+                <h3 className="mt-1 text-lg font-bold text-obra-ink">
+                  {highlightedBudget.titulo}
+                </h3>
+                <p className="type-secondary mt-1">
+                  {highlightedBudget.client.nombre} ·{" "}
+                  {highlightedBudget.work?.titulo ?? "Sin obra vinculada"}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <StatusPill status={highlightedBudget.estado} />
+                  <SoftBadge>
+                    Validez {formatDate(highlightedBudget.fechaValidez)}
+                  </SoftBadge>
+                </div>
+              </div>
+              <div className="flex min-w-44 flex-col justify-between rounded-xl bg-slate-50 p-4 text-right">
+                <div>
+                  <p className="type-label">Importe autorizado</p>
+                  <p className="mt-1 text-xl font-bold text-obra-ink tabular-nums">
+                    {pricingDecision.allowed &&
+                    relationAllowed(
+                      pricingDecision.scope,
+                      pricingWorkIds,
+                      pricingClientIds,
+                      highlightedBudget,
+                    )
+                      ? formatCurrency(highlightedBudget.total)
+                      : "Restringido"}
+                  </p>
+                </div>
+                <Link
+                  href={`/presupuestos/${highlightedBudget.id}`}
+                  className="primary-button mt-4"
+                >
+                  Revisar propuesta <TrendingUp size={17} />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <p className="p-4 text-sm text-slate-500">
+              No hay propuestas en el resultado actual.
+            </p>
+          )}
+        </ModulePanel>
+      </div>
 
       <ResultCount
         shown={visibleBudgets.length}
@@ -260,7 +394,10 @@ export default async function BudgetsPage({
 
       {visibleBudgets.length ? (
         <>
-          <ResponsiveTable label="Presupuestos" className="mt-4">
+          <ResponsiveTable
+            label="Presupuestos"
+            className="mt-4 overflow-hidden rounded-xl border border-slate-200"
+          >
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
                 <tr>
@@ -291,7 +428,7 @@ export default async function BudgetsPage({
                 {visibleBudgets.map((budget) => (
                   <tr
                     key={budget.id}
-                    className="align-middle hover:bg-slate-50/70"
+                    className={`${budget.id === highlightedBudget?.id ? "bg-emerald-50/60" : ""} align-middle hover:bg-slate-50/70`}
                   >
                     <td className="px-4 py-4">
                       <Link
