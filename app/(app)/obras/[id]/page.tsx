@@ -39,6 +39,7 @@ import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from 
 import { statusClass } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import type { EconomicDocument } from "@/lib/economic-control/types";
+import { brand } from "@/lib/brand";
 import {
   buildWorkDocuments,
   buildWorkRisks,
@@ -535,7 +536,7 @@ function AiTab({ work, financial, risks, openInvoices, pendingMaterials, documen
           </article>
         ))}
       </div>
-      <Link href="/capataz" className="primary-button mt-4 inline-flex"><Bot size={18} /> Preguntar en Orqena</Link>
+      <Link href="/capataz" className="primary-button mt-4 inline-flex"><Bot size={18} /> Preguntar a {brand.assistantName}</Link>
     </Section>
   );
 }

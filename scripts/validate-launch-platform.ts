@@ -69,10 +69,23 @@ async function validateHosts() {
   }, "defensive domain preserves path and query");
   equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/api/private", nodeEnv: "production" }).action, "reject", "marketing blocks app API");
   equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/precios", nodeEnv: "production" }), {
-    action: "rewrite",
-    pathname: "/marketing-internal/precios",
+    action: "pass",
     site: "marketing",
-  }, "marketing is internally isolated");
+  }, "marketing serves the canonical pricing page directly");
+  for (const pathname of ["/contacto", "/estado", "/robots.txt", "/sitemap.xml"]) {
+    equal(resolveHostRouting({ host: MARKETING_HOST, pathname, nodeEnv: "production" }), {
+      action: "pass",
+      site: "marketing",
+    }, `marketing serves canonical ${pathname} directly`);
+  }
+  equal(resolveHostRouting({ host: MARKETING_HOST, pathname: "/media/marketing/orqena-video-01-35s.mp4", nodeEnv: "production" }), {
+    action: "pass",
+    site: "marketing",
+  }, "marketing serves optimized product video without redirecting hosts");
+  equal(resolveHostRouting({ host: APP_HOST, pathname: "/media/marketing/orqena-video-01-35s.webm", nodeEnv: "production" }), {
+    action: "pass",
+    site: "app",
+  }, "app host can serve the shared marketing video fallback");
   equal(resolveHostRouting({ host: APP_HOST, pathname: "/precios", nodeEnv: "production" }), {
     action: "redirect",
     location: "https://orqenatech.com/precios",
@@ -101,15 +114,18 @@ async function validateHosts() {
     else process.env.APP_BASE_URL = previousAppBaseUrl;
   }
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/precios", nodeEnv: "production" }), {
-    action: "rewrite",
-    pathname: "/marketing-internal/precios",
+    action: "pass",
     site: "marketing",
-  }, "Railway validation host serves launch marketing routes");
+  }, "Railway validation host serves the canonical pricing page directly");
+  equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/media/marketing/orqena-video-01-poster.webp", nodeEnv: "production" }), {
+    action: "pass",
+    site: "platform",
+  }, "Railway validation host serves the shared video poster directly");
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production" }), {
-    action: "rewrite",
-    pathname: "/marketing-internal/capataz",
-    site: "marketing",
-  }, "Railway validation host serves the public Capataz page without a session");
+    action: "redirect",
+    location: "https://orqenatech.com/producto",
+    status: 301,
+  }, "Railway validation host redirects the legacy public product route");
   equal(resolveHostRouting({ host: "orqena-review-web-review.up.railway.app", pathname: "/capataz", nodeEnv: "production", hasSessionCookie: true }), {
     action: "pass",
     site: "app",

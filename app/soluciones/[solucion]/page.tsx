@@ -1,84 +1,39 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, ShieldCheck, UsersRound } from "lucide-react";
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { Process, R4CTA, R4FAQ, R4Hero, R4Section, SolutionInterface, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, faqPage, softwareApplication, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 import { getMarketingSolution, marketingSolutions } from "@/lib/marketing/solutions";
 
-export function generateStaticParams() {
-  return marketingSolutions.map((solution) => ({ solucion: solution.slug }));
-}
+export function generateStaticParams() { return marketingSolutions.map((solution) => ({ solucion: solution.slug })); }
 
 export async function generateMetadata({ params }: { params: Promise<{ solucion: string }> }): Promise<Metadata> {
-  const { solucion } = await params;
-  const item = getMarketingSolution(solucion);
-  if (!item) return {};
-  return {
-    title: item.title,
-    description: item.outcome,
-    alternates: { canonical: `/soluciones/${item.slug}` },
-    openGraph: { title: `${item.title} con ${brand.productName}`, description: item.outcome, images: [brand.socialImage] },
-  };
+  const { solucion } = await params; const item = getMarketingSolution(solucion); if (!item) return {};
+  return { title: item.title, description: item.outcome, alternates: { canonical: `/soluciones/${item.slug}` }, openGraph: { title: `${item.title} con Orqena`, description: item.outcome, images: [brand.socialImage] } };
 }
 
+const styles = getR4Styles();
+
 export default async function SolutionPage({ params }: { params: Promise<{ solucion: string }> }) {
-  const { solucion } = await params;
-  const item = getMarketingSolution(solucion);
-  if (!item) notFound();
-
-  return (
-    <MarketingPage>
-      <section className="marketing-container grid gap-10 py-16 lg:grid-cols-[1.1fr_.9fr] lg:py-24">
-        <div>
-          <p className="marketing-eyebrow">Soluciones / {item.eyebrow}</p>
-          <h1 className="marketing-display mt-4">{item.title}</h1>
-          <p className="marketing-lede mt-5">{item.outcome}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="marketing-button" href="/demo#quick-demo">Ver demo rápida <ArrowRight size={17} /></Link>
-            <Link className="marketing-outline-button" href="/contacto">Solicitar demo</Link>
-          </div>
-        </div>
-        <aside className="card p-6">
-          <span className="marketing-eyebrow">Problema</span>
-          <p className="mt-4 text-lg font-bold leading-7">{item.problem}</p>
-          <div className="mt-6 border-t border-border pt-5">
-            <span className="marketing-eyebrow">Límite de evidencia</span>
-            <p className="mt-3 text-sm leading-6 text-content-secondary">{item.proofBoundary}</p>
-          </div>
-        </aside>
-      </section>
-
-      <section className="border-y border-border bg-surface-raised py-16">
-        <div className="marketing-container">
-          <p className="marketing-eyebrow">Recorrido</p>
-          <h2 className="marketing-title mt-3">Cinco pasos con estado y decisión.</h2>
-          <ol className="mt-8 grid gap-3 md:grid-cols-5">
-            {item.steps.map((step, index) => (
-              <li className="card p-5" key={step}>
-                <span className="marketing-eyebrow">{String(index + 1).padStart(2, "0")}</span>
-                <strong className="mt-3 block">{step}</strong>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section className="marketing-container grid gap-6 py-16 lg:grid-cols-2">
-        <article className="card p-6">
-          <CheckCircle2 aria-hidden="true" />
-          <h2 className="mt-5 text-2xl font-black">Resultado visible</h2>
-          <p className="mt-3 leading-7 text-content-secondary">{item.outcome}</p>
-        </article>
-        <article className="card p-6">
-          <ShieldCheck aria-hidden="true" />
-          <h2 className="mt-5 text-2xl font-black">Revisión humana</h2>
-          <p className="mt-3 leading-7 text-content-secondary">
-            Las acciones sensibles muestran su efecto y esperan confirmación. La
-            interfaz no sustituye las comprobaciones del servidor.
-          </p>
-        </article>
-      </section>
-    </MarketingPage>
-  );
+  const { solucion } = await params; const item = getMarketingSolution(solucion); if (!item) notFound();
+  const related = item.related.map((slug) => getMarketingSolution(slug)).filter((solution): solution is NonNullable<typeof solution> => Boolean(solution));
+  return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      softwareApplication(`/soluciones/${item.slug}`, item.title, item.outcome),
+      breadcrumbList([["Inicio", ""], ["Soluciones", "/soluciones"], [item.title, `/soluciones/${item.slug}`]]),
+      faqPage(item.faq),
+    )} />
+    <R4Hero current={item.title} parent={["Soluciones", "/soluciones"]} eyebrow={item.eyebrow} title={item.title} description={item.outcome} actions={<><Link href="/contacto?motivo=demo">Solicitar demo<ArrowRight aria-hidden="true" /></Link><Link href="/demo">Ver demo guiada</Link></>} visual={<SolutionInterface solution={item} />} />
+    <R4Section eyebrow="EL PROBLEMA" title="El contexto se rompe antes de la decisión." description={item.problem}><div className={styles.editorialGrid}><h3>Orqena convierte información dispersa en un recorrido revisable.</h3><div><article><h4>Resultado visible</h4><p>{item.outcome}</p></article><article><h4>Evidencia en la interfaz</h4><p>{item.proof}</p></article></div></div></R4Section>
+    <R4Section tone="soft" eyebrow="FLUJO COMPLETO" title="Cinco estados con responsable y siguiente paso." description="Cada etapa conserva su origen. No hay saltos automáticos sobre decisiones sensibles."><Process steps={item.steps} /></R4Section>
+    <R4Section eyebrow="INTERFAZ" title="Información útil, no una ilustración vacía." description="Los datos son sintéticos y muestran la densidad, jerarquía y comportamiento del producto."><SolutionInterface solution={item} /></R4Section>
+    <R4Section tone="dark" eyebrow="PERFILES" title="Cada responsabilidad recibe el contexto necesario." description="Los permisos del servidor siguen siendo la autoridad aunque cambie la composición visual."><div className={styles.roleGrid}>{item.roles.map((role, index) => <article key={role}><UsersRound aria-hidden="true" /><span>{String(index + 1).padStart(2, "0")}</span><h3>{role}</h3><p>{index === 0 ? "Visión, prioridades y decisiones pendientes." : index === 1 ? "Trabajo asignado, excepciones y confirmaciones." : "Acciones necesarias dentro de su alcance."}</p></article>)}</div></R4Section>
+    <R4Section tone="soft" eyebrow="CONTROL" title="La asistencia no sustituye la responsabilidad." description="Orqena prepara el contexto y mantiene la persona en el centro de la decisión."><div className={styles.roleGrid}><article><CheckCircle2 aria-hidden="true" /><h3>Origen visible</h3><p>Documento, actividad o registro relacionado junto a la propuesta.</p></article><article><ShieldCheck aria-hidden="true" /><h3>Efecto previsto</h3><p>Qué cambiará y qué permanecerá igual antes de confirmar.</p></article><article><CheckCircle2 aria-hidden="true" /><h3>Decisión trazable</h3><p>Editar, confirmar o descartar sin esconder el resultado.</p></article></div></R4Section>
+    <R4Section eyebrow="PREGUNTAS FRECUENTES" title={`Antes de explorar ${item.title.toLocaleLowerCase("es-ES")}.`}><R4FAQ items={item.faq} /></R4Section>
+    <R4Section tone="soft" eyebrow="TAMBIÉN PUEDE INTERESARTE" title="Continúa el recorrido."><div className={styles.cardGrid}>{related.map((solution) => <Link className={styles.card} href={`/soluciones/${solution.slug}`} key={solution.slug}><span>{solution.eyebrow}</span><h3>{solution.title}</h3><p>{solution.outcome}</p><strong>Ver solución<ArrowRight aria-hidden="true" /></strong></Link>)}</div></R4Section>
+    <R4CTA title={`Comprueba ${item.title.toLocaleLowerCase("es-ES")} con un caso parecido al tuyo.`} text="La demo utiliza datos aislados y permite recorrer el flujo completo sin alterar información empresarial." />
+  </MarketingPage>;
 }

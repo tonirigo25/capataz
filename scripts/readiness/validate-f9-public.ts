@@ -38,15 +38,27 @@ const journey = ["lead", "visita", "presupuesto", "trabajo", "gasto", "factura",
 for (const stage of journey) check(`journey-${stage}`, landing.includes(`id: "${stage}"`));
 check("journey-seven-stages", (landing.match(/\n\s+id: "(?:lead|visita|presupuesto|trabajo|gasto|factura|cobro)"/g) ?? []).length === 7);
 const guided = source("app/demo-v2/_components/guided-demo.tsx");
-check("demo-seven-minute-story", guided.includes("Demostración guiada · 7 minutos") && guided.includes("lead-visita-presupuesto-trabajo-gasto-factura-cobro"));
-check("public-vertical-first", source("app/marketing-v2/_components/hero-demo.tsx").includes("Sistema operativo para obra y reformas"));
+check(
+  "demo-three-minute-decision",
+  guided.includes("Demostración guiada · 3 minutos")
+    && guided.includes("Prueba una decisión completa.")
+    && guided.includes("ScenarioSignal"),
+);
+check(
+  "public-vertical-first",
+  source("app/marketing-v2/_components/hero-demo.tsx").includes("Gestiona tu empresa."),
+);
 check("internal-multisector-catalog-preserved", source("lib/marketing/catalog.ts").includes("marketingSectorCatalog"));
 
 const brand = source("lib/config/brand.ts");
 for (const token of ["NEXT_PUBLIC_PRODUCT_NAME", "NEXT_PUBLIC_LEGAL_COMPANY_NAME", "NEXT_PUBLIC_BRAND_TAGLINE", "NEXT_PUBLIC_BRAND_MARK", "NEXT_PUBLIC_SOCIAL_IMAGE", "NEXT_PUBLIC_BRAND_COLOR", "NEXT_PUBLIC_PWA_NAME", "NEXT_PUBLIC_SENDER_NAME"]) {
   check(`brand-${token.toLowerCase()}`, brand.includes(token));
 }
-check("accepted-v2-has-no-product-literal", !/Capataz/.test(["marketing-header.tsx", "hero-demo.tsx", "landing-sections.tsx"].map((file) => source(`app/marketing-v2/_components/${file}`)).join("\n")));
+check(
+  "accepted-v2-uses-approved-product-signature",
+  source("app/marketing-v2/_components/hero-demo.tsx").includes("ORQENA · GESTIÓN INTELIGENTE PARA CONSTRUCCIÓN Y SERVICIOS")
+    && source("app/marketing-v2/_components/hero-demo.tsx").includes("Orqena prepara; tú revisas y confirmas."),
+);
 check("email-subjects-use-brand-config", source("lib/email/index.ts").includes("brand.productName") && !/correo en Orqena|contraseña de Orqena/.test(source("lib/email/index.ts")));
 check("pdf-branding-is-company-configurable", source("lib/document-pdf.ts").includes("input.company.brandColor") && source("lib/document-pdf.ts").includes("input.company.logo"));
 check("public-metadata-uses-brand-config", ["contacto", "soporte", "seguridad", "planes", "producto", "sectores"].every((route) => source(`app/${route}/page.tsx`).includes("brand.productName")));

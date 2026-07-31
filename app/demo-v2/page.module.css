@@ -1126,3 +1126,352 @@
     transform: none;
   }
 }
+
+/* PR63 Gate 1 visual correction: compact, product-led public demo. */
+.intro {
+  min-height: 20rem;
+  grid-template-columns: minmax(0, 1.45fr) minmax(17rem, 0.55fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding: clamp(2.8rem, 5vw, 4.25rem) 0;
+}
+
+.intro h1 {
+  max-width: 13ch;
+  font-size: clamp(3.25rem, 6vw, 5.8rem);
+}
+
+.introText {
+  margin-top: 1rem;
+  font-size: clamp(1rem, 1.4vw, 1.18rem);
+}
+
+.scenarioSection {
+  padding: clamp(2.5rem, 4vw, 3.75rem) 0;
+}
+
+.sectionLead {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.35fr) minmax(0, 0.65fr);
+  align-items: end;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.sectionLead > span {
+  margin: 0;
+}
+
+.sectionLead h2 {
+  max-width: 18ch;
+  margin: 0;
+  font-size: clamp(2.1rem, 4vw, 3.8rem);
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.scenarioCard {
+  min-height: 10.5rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template:
+    "top top" auto
+    "steps panel" minmax(34rem, auto)
+    / 13.5rem minmax(0, 1fr);
+  margin-bottom: 4.5rem;
+  border-radius: 1.2rem;
+}
+
+.workspaceTop {
+  grid-area: top;
+  min-height: 5.6rem;
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.7fr) minmax(18rem, 1fr) auto;
+  align-items: center;
+}
+
+.scenarioSignal {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 1fr);
+  align-items: center;
+  gap: 1rem;
+  border-right: 1px solid var(--capataz-line);
+  border-left: 1px solid var(--capataz-line);
+  padding: 0 1.2rem;
+}
+
+.scenarioSignal small,
+.scenarioSignal strong {
+  display: block;
+}
+
+.scenarioSignal small {
+  color: var(--capataz-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.scenarioSignal strong {
+  margin-top: 0.12rem;
+  font-size: 1rem;
+}
+
+.signalBars {
+  height: 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.25rem;
+  border-bottom: 1px solid #cbd3cc;
+}
+
+.signalBars span {
+  height: var(--signal-height);
+  display: block;
+  border-radius: 0.16rem 0.16rem 0 0;
+  background: #aeb9b1;
+}
+
+.signalBars span[data-active="true"] {
+  background: var(--capataz-info);
+}
+
+.stepNav {
+  grid-area: steps;
+  border-right: 1px solid var(--capataz-line);
+  border-bottom: 0;
+}
+
+.stepNav ol {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stepNav button {
+  min-height: 5.65rem;
+  justify-content: flex-start;
+  border-right: 0;
+  border-bottom: 1px solid var(--capataz-line);
+  padding: 0.8rem 1rem;
+  text-align: left;
+}
+
+.stepNav li:last-child button {
+  border-bottom: 0;
+}
+
+.stepNav button[aria-current="step"] {
+  box-shadow: inset 3px 0 var(--capataz-accent);
+}
+
+.panelShell {
+  grid-area: panel;
+  padding: clamp(1.2rem, 3vw, 2.2rem);
+}
+
+.stepPanel {
+  grid-template-columns: minmax(13rem, 0.35fr) minmax(0, 0.65fr);
+  gap: clamp(1.5rem, 3vw, 3.25rem);
+}
+
+.panelHeading h2 {
+  font-size: clamp(2.3rem, 4vw, 4.25rem);
+}
+
+.inputPreview blockquote {
+  font-size: clamp(1.15rem, 2vw, 1.65rem);
+}
+
+.controls {
+  margin-top: 1.4rem;
+}
+
+.status {
+  margin: -3rem auto 3.5rem;
+}
+
+.footer {
+  min-height: 7rem;
+}
+
+@media (max-width: 62rem) {
+  .workspace {
+    grid-template:
+      "top" auto
+      "steps" auto
+      "panel" auto
+      / minmax(0, 1fr);
+  }
+
+  .workspaceTop {
+    grid-template-columns: minmax(10rem, 0.75fr) minmax(16rem, 1fr) auto;
+  }
+
+  .stepNav {
+    border-right: 0;
+    border-bottom: 1px solid var(--capataz-line);
+  }
+
+  .stepNav ol {
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stepNav button {
+    min-height: 4.4rem;
+    justify-content: center;
+    border-right: 1px solid var(--capataz-line);
+    border-bottom: 1px solid var(--capataz-line);
+    text-align: center;
+  }
+
+  .stepNav li:nth-child(3n) button {
+    border-right: 0;
+  }
+
+  .stepNav li:nth-last-child(-n + 3) button {
+    border-bottom: 0;
+  }
+
+  .stepNav button[aria-current="step"] {
+    box-shadow: inset 0 -3px var(--capataz-accent);
+  }
+}
+
+@media (max-width: 48rem) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 3rem 0;
+  }
+
+  .sectionLead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+
+  .workspaceTop {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .scenarioSignal {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    border: 0;
+    border-top: 1px solid var(--capataz-line);
+    padding: 0.75rem 0;
+  }
+}
+
+@media (max-width: 40rem) {
+  .intro h1 {
+    font-size: clamp(3rem, 14vw, 4rem);
+  }
+
+  .scenarioSection {
+    padding: 3rem 0;
+  }
+
+  .scenarioCard {
+    min-height: 8.75rem;
+  }
+
+  .workspace {
+    margin-bottom: 3.5rem;
+  }
+
+  .workspaceTop {
+    align-items: center;
+    flex-direction: initial;
+    padding: 0.8rem;
+  }
+
+  .workspaceTop > span {
+    align-self: start;
+  }
+
+  .stepPanel,
+  .panelHeading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panelHeading h2 {
+    font-size: 2.65rem;
+  }
+
+  .stepNav ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stepNav li:nth-child(3n) button,
+  .stepNav li:nth-child(odd) button {
+    border-right: 1px solid var(--capataz-line);
+  }
+
+  .stepNav li:nth-child(even) button {
+    border-right: 0;
+  }
+
+  .stepNav li:nth-last-child(-n + 3) button {
+    border-bottom: 1px solid var(--capataz-line);
+  }
+
+  .stepNav li:nth-last-child(-n + 2) button {
+    border-bottom: 0;
+  }
+}
+
+/* Revision 3: dense guided demo with every visible control active. */
+.demoPage { background: #f6f3eb; }
+.header { border-bottom-color: #31443a; background: #102019; color: #fff; }
+.headerInner { min-height: 4.25rem; }
+.wordmark { color: #f5f2e8; }
+.localBadge { border-color: #3c5146; background: #172a21; color: #b7c4bc; }
+.localBadge svg { color: #c9f36a; }
+.backLink { border-color: #41554a; background: transparent; color: #f5f2e8; }
+.intro { min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(17rem, .42fr); gap: 2rem; padding: 2.75rem 0; }
+.intro h1 { max-width: 14ch; font-size: clamp(2.9rem, 5vw, 4.5rem); }
+.introText { max-width: 39rem; font-size: 1rem; }
+.safetyNote { padding: .8rem; }
+.scenarioSection { padding: 2.25rem 0; }
+.sectionLead { margin-bottom: 1rem; }
+.sectionLead h2 { font-size: clamp(1.9rem, 3vw, 2.9rem); }
+.scenarioGrid { gap: .65rem; }
+.scenarioCard { min-height: 8rem; padding: .8rem; }
+.workspace { grid-template: "top top" auto "steps panel" minmax(26rem, auto) / 11.5rem minmax(0, 1fr); margin-bottom: 2.5rem; }
+.workspaceTop { min-height: 4.5rem; grid-template-columns: minmax(10rem,.65fr) minmax(16rem,1fr) auto; }
+.stepNav button { min-height: 4.25rem; padding: .65rem .75rem; }
+.panelShell { padding: 1.15rem; }
+.stepPanel { grid-template-columns: minmax(12rem,.34fr) minmax(0,.66fr); gap: 1.35rem; }
+.panelHeading h2 { font-size: clamp(2rem,3vw,3rem); }
+.inputPreview blockquote { font-size: clamp(1rem,1.5vw,1.3rem); }
+.controls { margin-top: .9rem; }
+.status { margin: -1.5rem auto 2.25rem; }
+.footer { min-height: 5rem; }
+
+@media (max-width: 62rem) {
+  .workspace { grid-template: "top" auto "steps" auto "panel" auto / minmax(0,1fr); }
+  .stepNav button { min-height: 3.8rem; }
+}
+
+@media (max-width: 48rem) {
+  .intro { grid-template-columns: minmax(0,1fr); padding: 2.4rem 0; }
+  .scenarioGrid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .65rem; }
+  .scenarioCard { min-width: min(78vw,18rem); scroll-snap-align: start; }
+  .stepNav { overflow-x: auto; }
+  .stepNav ol { min-width: 36rem; grid-template-columns: repeat(6,minmax(6rem,1fr)); }
+  .stepNav button { min-height: 3.6rem; border-right: 1px solid var(--capataz-line) !important; border-bottom: 0 !important; }
+  .stepPanel { grid-template-columns: minmax(0,1fr); }
+  .panelHeading h2 { font-size: 2.25rem; }
+}
+
+@media (max-width: 40rem) {
+  .intro h1 { font-size: clamp(2.55rem,12vw,3.25rem); }
+  .scenarioSection { padding: 2rem 0; }
+  .workspace { margin-bottom: 2.25rem; }
+  .controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .controls button:last-child { grid-column: 1 / -1; }
+}

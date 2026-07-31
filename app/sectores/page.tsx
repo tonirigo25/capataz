@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PublicPageHero } from "@/components/marketing/public-page-hero";
 import { SectorMiniScene } from "@/components/marketing/sector-scenes";
 import { brand } from "@/lib/brand";
 import { marketingSectorCatalog } from "@/lib/marketing/catalog";
@@ -16,12 +17,15 @@ export const metadata: Metadata = {
 export default function SectorsPage() {
   return (
     <MarketingPage>
-      <section className="sectors-hub">
-        <div className="marketing-container">
-          <div><p className="marketing-eyebrow">Un único ICP público</p><h1>Construcción, reformas e instalaciones. De 1 a 20 personas.</h1><p>Los ejemplos públicos se concentran en este tipo de empresa. El aislamiento, los permisos y la confirmación humana permanecen.</p></div>
-          <div className="sectors-hub__legend"><span>Relación</span><span>Trabajo</span><span>Responsable</span><span>Resultado</span></div>
-        </div>
-      </section>
+      <PublicPageHero
+        breadcrumbs={[{ label: "Inicio", href: "/" }, { label: "Sectores" }]}
+        description="Los ejemplos públicos se concentran en este tipo de empresa. El aislamiento, los permisos y la confirmación humana permanecen."
+        eyebrow="Un único ICP público"
+        id="sectores"
+        title="Construcción, reformas e instalaciones. De 1 a 20 personas."
+        variant="wide-editorial"
+        visual={<div className="sectors-hub__legend"><span>Relación</span><span>Trabajo</span><span>Responsable</span><span>Resultado</span></div>}
+      />
       <section className="marketing-container sector-mosaic" aria-label="Perfiles sectoriales">
         {marketingSectorCatalog.map((sector, index) => (
           <Link key={sector.slug} href={`/sectores/${sector.slug}`} className={`sector-mosaic__item tone-${index % 4}`}>

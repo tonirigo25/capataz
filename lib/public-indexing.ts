@@ -22,6 +22,9 @@ const PUBLIC_INDEXABLE_EXACT_PATHS = new Set([
   "/",
   "/producto",
   "/soluciones",
+  "/precios",
+  "/recursos",
+  "/empresa",
   "/sectores",
   "/planes",
   "/seguridad",
@@ -40,6 +43,9 @@ export const PUBLIC_ROBOTS_ALLOW_PATHS = [
   "/$",
   "/producto",
   "/soluciones",
+  "/precios",
+  "/recursos",
+  "/empresa",
   "/sectores",
   "/planes",
   "/seguridad",
@@ -55,7 +61,13 @@ export const PUBLIC_ROBOTS_ALLOW_PATHS = [
 ] as const;
 
 export function isPublicIndexingEnabled(): boolean {
-  return getPublicConfig().publicIndexingEnabled;
+  const config = getPublicConfig();
+  const railwayEnvironment = process.env.RAILWAY_ENVIRONMENT_NAME?.trim().toLowerCase() ?? "";
+  const isValidationEnvironment = config.environment === "staging"
+    || config.environment === "test"
+    || railwayEnvironment.includes("review")
+    || railwayEnvironment.includes("staging");
+  return config.publicIndexingEnabled && !isValidationEnvironment;
 }
 
 export function isPublicIndexablePath(pathname: string): boolean {

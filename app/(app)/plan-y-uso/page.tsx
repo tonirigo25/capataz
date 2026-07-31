@@ -3,6 +3,7 @@ import { stripePriceForPlan } from "@/lib/billing/config";
 import { planCatalog } from "@/lib/commercial/plans";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "node:crypto";
+import { brand } from "@/lib/brand";
 import { changeLocalPlan, changeStripeSubscription, openStripeCustomerPortal, scheduleStripeDowngrade, startStripeCheckout } from "./actions";
 
 const CHECKOUT_PLAN_KEYS = ["STARTER", "PROFESSIONAL", "BUSINESS"] as const;
@@ -81,7 +82,7 @@ export default async function PlanUsagePage() {
                     </form>
                     <form action={scheduleStripeDowngrade} className="grid gap-3">
                       <p className="type-secondary">También puedes programar explícitamente un plan inferior para el final del periodo, sin prorrata.</p>
-                      <select name="planKey" className="field"><option value="STARTER">Capataz Inicial</option><option value="PROFESSIONAL">Capataz Equipo</option></select>
+                      <select name="planKey" className="field"><option value="STARTER">{brand.productName} Inicial</option><option value="PROFESSIONAL">{brand.productName} Equipo</option></select>
                       <select name="interval" className="field"><option value="month">Mensual</option><option value="year">Anual</option></select>
                       <input type="hidden" name="confirm" value="PROGRAMAR_DOWNGRADE"/>
                       <input type="hidden" name="idempotencyKey" value={`downgrade:${auth.companyId}:${randomUUID()}`}/>

@@ -1,70 +1,32 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, MessageSquareText, Sheet } from "lucide-react";
+import { ArrowRight, Check, Layers3 } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { Process, R4CTA, R4Hero, R4Section, SolutionInterface, getR4Styles } from "@/components/marketing/r4-pages";
+import { PublicStructuredData, breadcrumbList, publicPage, structuredGraph } from "@/components/marketing/public-structured-data";
 import { brand } from "@/lib/brand";
 import { marketingSolutions } from "@/lib/marketing/solutions";
 
 export const metadata: Metadata = {
-  title: "Soluciones para obra, reformas e instalaciones",
-  description: `Recorridos de ${brand.productName} para presupuestos, costes, proveedores, partes, facturación y asistencia revisable.`,
+  title: "Soluciones",
+  description: "Soluciones de Orqena para clientes, obras, costes, facturación, proveedores, documentos, equipo e IA operativa.",
   alternates: { canonical: "/soluciones" },
-  openGraph: {
-    title: `Soluciones ${brand.productName}`,
-    description: "Seis problemas operativos explicados sin promesas de resultados no medidos.",
-    images: [brand.socialImage],
-  },
+  openGraph: { title: "Soluciones conectadas de Orqena", description: "Empieza por el problema operativo que quieres resolver sin perder el contexto del resto de la empresa.", images: [brand.socialImage] },
 };
 
+const styles = getR4Styles();
+
 export default function SolutionsPage() {
-  return (
-    <MarketingPage>
-      <section className="marketing-container py-16 lg:py-24">
-        <p className="marketing-eyebrow">Construcción, reformas e instalaciones · 1–20 personas</p>
-        <h1 className="marketing-display mt-4 max-w-5xl">Empieza por el problema que quieres dejar de reconstruir.</h1>
-        <p className="marketing-lede mt-5 max-w-3xl">
-          Cada recorrido conecta registros que ya existen en el producto y mantiene
-          revisión humana. Las cifras públicas son ejemplos, no resultados de clientes.
-        </p>
-        <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {marketingSolutions.map((solution, index) => (
-            <Link className="card group grid min-h-72 gap-4 p-6" href={`/soluciones/${solution.slug}`} key={solution.slug}>
-              <span className="marketing-eyebrow">{String(index + 1).padStart(2, "0")} · {solution.eyebrow}</span>
-              <h2 className="text-2xl font-black tracking-tight">{solution.title}</h2>
-              <p className="text-sm leading-6 text-content-secondary">{solution.problem}</p>
-              <span className="mt-auto inline-flex items-center gap-2 font-bold text-brand-strong">
-                Explorar recorrido <ArrowRight className="transition-transform group-hover:translate-x-1" size={17} />
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-y border-border bg-surface-raised py-16">
-        <div className="marketing-container">
-          <p className="marketing-eyebrow">Comparación honesta</p>
-          <h2 className="marketing-title mt-3 max-w-3xl">La herramienta adecuada depende del problema.</h2>
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            <Comparison icon={Sheet} title="Excel y mensajería" copy="Flexibles y conocidos. El contexto, los permisos y la trazabilidad dependen del método que establezca el equipo." />
-            <Comparison icon={CheckCircle2} title="ERP horizontal" copy="Puede cubrir procesos amplios. La implantación, profundidad sectorial y experiencia diaria varían por producto y configuración." />
-            <Comparison icon={MessageSquareText} title="Software de presupuestos" copy="Puede ser más profundo en mediciones o bancos de precios. Orqena prioriza el recorrido conectado hasta trabajo, coste y cobro." />
-          </div>
-          <p className="mt-6 max-w-3xl text-sm leading-6 text-content-secondary">
-            No se declara superioridad universal. La elección debe comprobarse con
-            datos propios, requisitos fiscales y una prueba controlada.
-          </p>
-        </div>
-      </section>
-    </MarketingPage>
-  );
-}
-
-function Comparison({ icon: Icon, title, copy }: { icon: typeof Sheet; title: string; copy: string }) {
-  return (
-    <article className="card p-6">
-      <Icon aria-hidden="true" />
-      <h3 className="mt-5 text-xl font-black">{title}</h3>
-      <p className="mt-3 text-sm leading-6 text-content-secondary">{copy}</p>
-    </article>
-  );
+  const featured = marketingSolutions[1];
+  return <MarketingPage>
+    <PublicStructuredData data={structuredGraph(
+      publicPage("CollectionPage", "/soluciones", "Soluciones conectadas de Orqena", "Ocho recorridos para vender, ejecutar, controlar y cobrar sin perder contexto."),
+      breadcrumbList([["Inicio", ""], ["Soluciones", "/soluciones"]]),
+    )} />
+    <R4Hero variant="split" current="Soluciones" eyebrow="RESULTADOS POR NECESIDAD" title="Empieza por el problema. Mantén conectada la empresa." description="Ocho recorridos completos para vender, ejecutar, controlar y cobrar con responsables, datos de origen y revisión humana." actions={<><Link href="#soluciones">Explorar soluciones<ArrowRight aria-hidden="true" /></Link><Link href="/contacto?motivo=soluciones">Contarnos tu caso</Link></>} visual={<SolutionInterface solution={featured} />} />
+    <R4Section id="soluciones" eyebrow="OCHO RECORRIDOS" title="Elige el resultado que necesitas ahora." description="Cada solución explica el problema, el flujo, la interfaz y el límite de lo que Orqena puede preparar."><div className={styles.cardGrid}>{marketingSolutions.map((solution, index) => <Link className={styles.card} href={`/soluciones/${solution.slug}`} key={solution.slug}><span>{String(index + 1).padStart(2, "0")} · {solution.eyebrow}</span><h3>{solution.title}</h3><p>{solution.outcome}</p><strong>Ver solución<ArrowRight aria-hidden="true" /></strong></Link>)}</div></R4Section>
+    <R4Section tone="soft" eyebrow="UNA MISMA OPERACIÓN" title="Del contacto al cobro sin reconstruir la historia." description="Los recorridos comparten clientes, trabajo, documentos, responsables y estados."><Process steps={["Contacto", "Presupuesto", "Trabajo", "Coste", "Factura"]} /></R4Section>
+    <R4Section tone="dark" eyebrow="LÍMITES CLAROS" title="Lo que ve la demo es demostrable." description="Datos sintéticos, cálculos explicados y acciones sin efecto real permiten evaluar el producto sin confundir una muestra con un resultado de cliente."><div className={styles.roleGrid}><article><Check aria-hidden="true" /><h3>Datos sintéticos</h3><p>Nombres, obras, documentos e importes creados para demostración.</p></article><article><Check aria-hidden="true" /><h3>Acciones seguras</h3><p>Los controles públicos muestran comportamiento sin alterar datos empresariales.</p></article><article><Layers3 aria-hidden="true" /><h3>Contexto conectado</h3><p>Cada solución enlaza con los recorridos que completan el proceso.</p></article></div></R4Section>
+    <R4CTA title="Explora la solución que más se parece a tu operación." text="Te preparamos una demostración con un caso sintético de tu sector y revisamos juntos dónde encaja Orqena." />
+  </MarketingPage>;
 }

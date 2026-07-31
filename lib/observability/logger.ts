@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { resolveReleaseSha } from "@/lib/observability/release-sha";
 import { getRequestContext } from "@/lib/platform/request-context";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -28,7 +29,7 @@ export function log(level: LogLevel, event: string, fields: Record<string, unkno
     jobId: context?.jobId,
     provider: context?.provider,
     operation: context?.operation,
-    release: context?.release ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA,
+    release: context?.release ?? resolveReleaseSha(),
     environment: context?.environment ?? process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NEXT_PUBLIC_APP_ENV,
     deploymentId: process.env.RAILWAY_DEPLOYMENT_ID,
   };

@@ -1,5 +1,8 @@
 import Link from "next/link";
 import {
+  CheckCircle2,
+  CircleDollarSign,
+  Clock3,
   Copy,
   Download,
   Eye,
@@ -8,25 +11,30 @@ import {
   Pencil,
   Plus,
   Search,
-  Send,
+  TrendingUp,
 } from "lucide-react";
 import { duplicateBudget } from "@/app/(app)/presupuestos/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ListWorkspace } from "@/components/workspaces";
 import { DemoLimitButton } from "@/components/demo-limit-button";
-import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
+import {
+  CompactTabs,
+  KpiCard,
+  KpiGrid,
+  ModuleHeader,
+  ModulePanel,
+  RatioRow,
+  SoftBadge,
+} from "@/components/portal/modules-b/module-frame";
 import {
   ActionMenu,
   EmptyState,
   CompactFilterBar,
-  MetricStrip,
   MobileList,
-  PageHeader,
   ResponsiveTable,
   ResultCount,
   CompactSearch,
-  Tabs,
 } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -64,13 +72,19 @@ export default async function BudgetsPage({
     resolveScopedEntityIds(auth, "sales.budgets.view", "Client"),
   ]);
   const scopeWhere = relationScope(auth.scope, workIds, clientIds);
-  const [createDecision, updateDecision, agendaDecision, pricingDecision] =
-    await Promise.all([
-      resolveAuthorization(auth, "sales.budgets.create"),
-      resolveAuthorization(auth, "sales.budgets.update"),
-      resolveAuthorization(auth, "agenda.manage"),
-      resolveAuthorization(auth, "sales.pricing.view"),
-    ]);
+  const [
+    createDecision,
+    updateDecision,
+    agendaDecision,
+    pricingDecision,
+    marginDecision,
+  ] = await Promise.all([
+    resolveAuthorization(auth, "sales.budgets.create"),
+    resolveAuthorization(auth, "sales.budgets.update"),
+    resolveAuthorization(auth, "agenda.manage"),
+    resolveAuthorization(auth, "sales.pricing.view"),
+    resolveAuthorization(auth, "margin_amount.view"),
+  ]);
   const [
     createWorkIds,
     createClientIds,
@@ -80,6 +94,8 @@ export default async function BudgetsPage({
     agendaClientIds,
     pricingWorkIds,
     pricingClientIds,
+    marginWorkIds,
+    marginClientIds,
   ] = await Promise.all([
     createDecision.allowed
       ? resolveScopedEntityIds(auth, "sales.budgets.create", "Work")
@@ -104,6 +120,12 @@ export default async function BudgetsPage({
       : Promise.resolve([]),
     pricingDecision.allowed
       ? resolveScopedEntityIds(auth, "sales.pricing.view", "Client")
+      : Promise.resolve([]),
+    marginDecision.allowed
+      ? resolveScopedEntityIds(auth, "margin_amount.view", "Work")
+      : Promise.resolve([]),
+    marginDecision.allowed
+      ? resolveScopedEntityIds(auth, "margin_amount.view", "Client")
       : Promise.resolve([]),
   ]);
   const budgets = await prisma.budget.findMany({
@@ -154,61 +176,84 @@ export default async function BudgetsPage({
     0,
   );
   const hasCriteria = activeFilter !== "todos" || Boolean(query.buscar);
+  const review = budgets.filter(
+    (budget) => budget.estado === "pendiente_revision",
+  );
+  const sent = budgets.filter((budget) =>
+    ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado),
+  );
+  const drafts = budgets.filter((budget) => budget.estado === "borrador");
+  const acceptedRate = budgets.length
+    ? Math.round((accepted.length / budgets.length) * 100)
+    : 0;
+  const latestBudget = visibleBudgets[0] ?? null;
 
   return (
     <ListWorkspace>
-      <PageHeader
+      <ModuleHeader
         eyebrow="Ventas"
         title="Presupuestos"
-        description="Prepara, envía y sigue cada propuesta sin perder de vista su validez y próxima acción."
+        description="Prepara, revisa y convierte propuestas con estado, alcance y trazabilidad siempre visibles."
         action={
-          createDecision.allowed && pricingDecision.allowed ? (
-            <DemoLimitButton
-              href="/gestion?tipo=presupuesto&returnTo=/presupuestos"
-              currentCount={budgets.length}
-              limit={2}
-            >
-              <Plus size={18} /> Nuevo presupuesto
-            </DemoLimitButton>
-          ) : undefined
-        }
-        secondaryActions={
-          <Link href="/presupuestos/plantillas" className="secondary-button">
-            <FileText size={18} /> Plantillas
-          </Link>
+          <>
+            <Link href="/presupuestos/plantillas" className="secondary-button">
+              <FileText size={18} /> Plantillas
+            </Link>
+            {createDecision.allowed && pricingDecision.allowed ? (
+              <DemoLimitButton
+                href="/gestion?tipo=presupuesto&returnTo=/presupuestos"
+                currentCount={budgets.length}
+                limit={2}
+              >
+                <Plus size={18} /> Nuevo presupuesto
+              </DemoLimitButton>
+            ) : null}
+          </>
         }
       />
 
-      <MetricStrip className="mb-5">
-        <StatCard
-          title="Total"
+      <KpiGrid>
+        <KpiCard
+          label="Total"
           value={String(budgets.length)}
-          detail="Presupuestos registrados"
+          detail="Presupuestos visibles, en cualquier estado"
           icon={FileText}
         />
-        <StatCard
-          title="Pendientes"
-          value={String(pending.length)}
-          detail="Revisión, envío o respuesta"
-          icon={Send}
+        <KpiCard
+          label="Pendientes de aprobación"
+          value={String(review.length)}
+          detail={
+            review.length
+              ? "Requieren una decisión del equipo"
+              : "No hay revisiones pendientes"
+          }
+          icon={Clock3}
           tone={pending.length ? "warning" : "neutral"}
         />
-        <StatCard
-          title="Aceptados"
+        <KpiCard
+          label="Aceptados"
           value={String(accepted.length)}
-          detail="Propuestas aprobadas"
-          icon={FileText}
+          detail={`${acceptedRate}% del total registrado`}
+          icon={CheckCircle2}
           tone="success"
         />
         {pricingDecision.allowed ? (
-          <StatCard
-            title="Importe aceptado autorizado"
+          <KpiCard
+            label="Valor aceptado"
             value={formatCurrency(totalAccepted)}
-            detail="Solo presupuestos dentro del alcance de precios"
-            icon={FileText}
+            detail="Importe autorizado dentro de tu alcance"
+            icon={CircleDollarSign}
+            tone="accent"
           />
-        ) : null}
-      </MetricStrip>
+        ) : (
+          <KpiCard
+            label="Valor comercial"
+            value="Restringido"
+            detail="Importes protegidos por permisos"
+            icon={CircleDollarSign}
+          />
+        )}
+      </KpiGrid>
 
       <CompactFilterBar className="mb-4">
         <form
@@ -228,19 +273,131 @@ export default async function BudgetsPage({
             <Search size={18} /> Buscar
           </button>
         </form>
-        <Tabs label="Estados de presupuesto" className="mt-3">
+        <CompactTabs label="Estados de presupuesto">
           {filters.map(([id, label]) => (
             <Link
               key={id}
               href={budgetHref(id, query.buscar)}
               aria-current={activeFilter === id ? "page" : undefined}
-              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-black ${activeFilter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}
+              className={`inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 py-1.5 text-sm font-bold ${activeFilter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}
             >
               {label}
             </Link>
           ))}
-        </Tabs>
+        </CompactTabs>
       </CompactFilterBar>
+
+      <div className="mb-5 grid gap-4 xl:grid-cols-[minmax(18rem,.72fr)_minmax(0,1.28fr)]">
+        <ModulePanel
+          title="Embudo de conversión"
+          description="Volumen real por estado"
+        >
+          <div className="grid gap-4 p-4">
+            <RatioRow
+              label="Borrador"
+              value={
+                budgets.length ? (drafts.length / budgets.length) * 100 : 0
+              }
+              amount={`${drafts.length} propuestas`}
+              tone="blue"
+            />
+            <RatioRow
+              label="En revisión"
+              value={
+                budgets.length ? (review.length / budgets.length) * 100 : 0
+              }
+              amount={`${review.length} propuestas`}
+              tone="orange"
+            />
+            <RatioRow
+              label="Enviados y seguimiento"
+              value={budgets.length ? (sent.length / budgets.length) * 100 : 0}
+              amount={`${sent.length} propuestas`}
+              tone="purple"
+            />
+            <RatioRow
+              label="Aceptados"
+              value={acceptedRate}
+              amount={`${accepted.length} propuestas`}
+              tone="green"
+            />
+          </div>
+        </ModulePanel>
+
+        <ModulePanel
+          title="Último presupuesto visible"
+          description="El más reciente dentro del resultado actual"
+          action={
+            latestBudget ? (
+              <SoftBadge
+                tone={
+                  latestBudget.estado === "aceptado" ? "success" : "warning"
+                }
+              >
+                {nextBudgetAction(latestBudget.estado)}
+              </SoftBadge>
+            ) : null
+          }
+        >
+          {latestBudget ? (
+            <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div>
+                <p className="type-label">{latestBudget.numero}</p>
+                <h3 className="mt-1 text-lg font-bold text-obra-ink">
+                  {latestBudget.titulo}
+                </h3>
+                <p className="type-secondary mt-1">
+                  {latestBudget.client.nombre} ·{" "}
+                  {latestBudget.work?.titulo ?? "Sin obra vinculada"}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <StatusPill status={latestBudget.estado} />
+                  <SoftBadge>
+                    Validez {formatDate(latestBudget.fechaValidez)}
+                  </SoftBadge>
+                  {marginDecision.allowed &&
+                  relationAllowed(
+                    marginDecision.scope,
+                    marginWorkIds,
+                    marginClientIds,
+                    latestBudget,
+                  ) ? (
+                    <SoftBadge tone="accent">
+                      Margen {budgetMarginLabel(latestBudget)}
+                    </SoftBadge>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex min-w-44 flex-col justify-between rounded-xl bg-slate-50 p-4 text-right">
+                <div>
+                  <p className="type-label">Importe autorizado</p>
+                  <p className="mt-1 text-xl font-bold text-obra-ink tabular-nums">
+                    {pricingDecision.allowed &&
+                    relationAllowed(
+                      pricingDecision.scope,
+                      pricingWorkIds,
+                      pricingClientIds,
+                      latestBudget,
+                    )
+                      ? formatCurrency(latestBudget.total)
+                      : "Restringido"}
+                  </p>
+                </div>
+                <Link
+                  href={`/presupuestos/${latestBudget.id}`}
+                  className="primary-button mt-4"
+                >
+                  Revisar propuesta <TrendingUp size={17} />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <p className="p-4 text-sm text-slate-500">
+              No hay propuestas en el resultado actual.
+            </p>
+          )}
+        </ModulePanel>
+      </div>
 
       <ResultCount
         shown={visibleBudgets.length}
@@ -260,7 +417,10 @@ export default async function BudgetsPage({
 
       {visibleBudgets.length ? (
         <>
-          <ResponsiveTable label="Presupuestos" className="mt-4">
+          <ResponsiveTable
+            label="Presupuestos"
+            className="mt-4 overflow-hidden rounded-xl border border-slate-200"
+          >
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
                 <tr>
@@ -276,6 +436,11 @@ export default async function BudgetsPage({
                   <th scope="col" className="px-4 py-3 text-right">
                     Importe
                   </th>
+                  {marginDecision.allowed ? (
+                    <th scope="col" className="px-4 py-3 text-right">
+                      Margen
+                    </th>
+                  ) : null}
                   <th scope="col" className="px-4 py-3">
                     Estado
                   </th>
@@ -291,7 +456,7 @@ export default async function BudgetsPage({
                 {visibleBudgets.map((budget) => (
                   <tr
                     key={budget.id}
-                    className="align-middle hover:bg-slate-50/70"
+                    className={`${budget.id === latestBudget?.id ? "bg-emerald-50/60" : ""} align-middle hover:bg-slate-50/70`}
                   >
                     <td className="px-4 py-4">
                       <Link
@@ -329,6 +494,18 @@ export default async function BudgetsPage({
                         ? formatCurrency(budget.total)
                         : "Restringido"}
                     </td>
+                    {marginDecision.allowed ? (
+                      <td className="px-4 py-4 text-right font-bold text-slate-700">
+                        {relationAllowed(
+                          marginDecision.scope,
+                          marginWorkIds,
+                          marginClientIds,
+                          budget,
+                        )
+                          ? budgetMarginLabel(budget)
+                          : "Restringido"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-4">
                       <StatusPill status={budget.estado} />
                     </td>
@@ -401,6 +578,14 @@ export default async function BudgetsPage({
                       pricingClientIds,
                       budget,
                     ),
+                  margin:
+                    marginDecision.allowed &&
+                    relationAllowed(
+                      marginDecision.scope,
+                      marginWorkIds,
+                      marginClientIds,
+                      budget,
+                    ),
                 }}
               />
             ))}
@@ -458,6 +643,7 @@ function BudgetCard({
     duplicate: boolean;
     agenda: boolean;
     pricing: boolean;
+    margin: boolean;
   };
 }) {
   return (
@@ -478,6 +664,9 @@ function BudgetCard({
       <div className="mt-4 grid grid-cols-2 gap-2">
         {permissions.pricing ? (
           <Mini label="Total" value={formatCurrency(budget.total)} />
+        ) : null}
+        {permissions.margin ? (
+          <Mini label="Margen" value={budgetMarginLabel(budget)} />
         ) : null}
         <Mini label="Validez" value={formatDate(budget.fechaValidez)} />
         <Mini label="Creado" value={formatDate(budget.fechaCreacion)} />
@@ -539,6 +728,14 @@ function Mini({ label, value }: { label: string; value: string }) {
       <p className="mt-1 line-clamp-2 font-black text-obra-ink">{value}</p>
     </div>
   );
+}
+function budgetMarginLabel(budget: {
+  subtotal: number;
+  margenEstimado: number;
+}) {
+  if (budget.subtotal <= 0) return "Datos insuficientes";
+  const percent = (budget.margenEstimado / budget.subtotal) * 100;
+  return `${percent.toFixed(1)} % · ${formatCurrency(budget.margenEstimado)}`;
 }
 function nextBudgetAction(status: string) {
   if (["borrador", "pendiente_revision"].includes(status))

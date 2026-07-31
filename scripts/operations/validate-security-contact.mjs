@@ -74,7 +74,7 @@ if (policyUrl.hostname === "orqenatech.com") {
   assert.equal(policyUrl.hostname, "github.com", "POLICY_HOST_NOT_PUBLIC");
   assert.ok(existsSync(securityPolicyPath), "GITHUB_SECURITY_POLICY_MISSING");
 }
-assert.match(publicPolicy, /security\/advisories\/new/u, "PUBLIC_POLICY_PRIVATE_REPORTING_LINK_MISSING");
+assert.match(publicPolicy, /\/\.well-known\/security\.txt/u, "PUBLIC_POLICY_PRIVATE_REPORTING_LINK_MISSING");
 assert.match(publicPolicy, /no uses issues p[uú]blicas/iu, "PUBLIC_POLICY_MUST_REJECT_PUBLIC_ISSUES");
 assert.match(publicPolicy, /orqenatech\.com/u, "PUBLIC_POLICY_ROOT_SCOPE_MISSING");
 assert.match(publicPolicy, /app\.orqenatech\.com/u, "PUBLIC_POLICY_APP_SCOPE_MISSING");
@@ -82,7 +82,7 @@ assert.match(publicPolicy, /pentesting intrusivo/iu, "PUBLIC_POLICY_INTRUSIVE_TE
 assert.match(publicPolicy, /denegaci[oó]n de servicio/iu, "PUBLIC_POLICY_DOS_LIMIT_MISSING");
 assert.match(publicPolicy, /ingenier[ií]a social/iu, "PUBLIC_POLICY_SOCIAL_ENGINEERING_LIMIT_MISSING");
 assert.match(publicPolicy, /datos ajenos/iu, "PUBLIC_POLICY_THIRD_PARTY_DATA_LIMIT_MISSING");
-assert.match(publicPolicy, /security\/policy/u, "PUBLIC_POLICY_FULL_POLICY_LINK_MISSING");
+assert.match(publicPolicy, /href="\/seguridad"/u, "PUBLIC_POLICY_FULL_POLICY_LINK_MISSING");
 
 assert.match(securityPolicy, /^## Español$/mu);
 assert.match(securityPolicy, /^## English$/mu);

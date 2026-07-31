@@ -5,7 +5,7 @@ import { FakeEmailProvider } from "@/lib/platform/providers/fake";
 import { ResendEmailProvider } from "@/lib/platform/providers/production";
 import type { EmailDeliveryProvider } from "@/lib/platform/providers/contracts";
 
-const DEFAULT_FROM = "Capataz · Orqena Tech <notificaciones@updates.orqenatech.com>";
+const DEFAULT_FROM = `${brand.productName} · ${brand.companyName} <notificaciones@updates.orqenatech.com>`;
 const APP_BASE_URL = "https://app.orqenatech.com";
 
 export type MailMessage = {
@@ -110,7 +110,7 @@ export async function sendVerificationEmail(to: string, token: string, provider?
     to,
     subject: `Verifica tu correo en ${brand.productName}`,
     text: `Verifica tu correo abriendo este enlace: ${url}`,
-    html: `<p>Confirma tu correo para activar tu cuenta de Capataz.</p><p><a href="${escapeHtml(url)}">Verificar correo</a></p>`,
+    html: `<p>Confirma tu correo para activar tu cuenta de ${brand.productName}.</p><p><a href="${escapeHtml(url)}">Verificar correo</a></p>`,
   }, provider);
 }
 
@@ -121,7 +121,7 @@ export async function sendPasswordResetEmail(to: string, token: string, provider
     to,
     subject: `Restablece tu contraseña de ${brand.productName}`,
     text: `Restablece tu contraseña abriendo este enlace: ${url}`,
-    html: `<p>Se ha solicitado un cambio de contraseña para tu cuenta de Capataz.</p><p><a href="${escapeHtml(url)}">Restablecer contraseña</a></p><p>Si no lo solicitaste, ignora este mensaje.</p>`,
+    html: `<p>Se ha solicitado un cambio de contraseña para tu cuenta de ${brand.productName}.</p><p><a href="${escapeHtml(url)}">Restablecer contraseña</a></p><p>Si no lo solicitaste, ignora este mensaje.</p>`,
   }, provider);
 }
 

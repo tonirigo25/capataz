@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
+import { resolveReleaseSha } from "@/lib/observability/release-sha";
 import { publicRequestContext } from "@/lib/platform/request-boundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   return publicRequestContext("GET /api/health", undefined, async () => {
-    const commit = process.env.RAILWAY_GIT_COMMIT_SHA?.trim()
-      || process.env.GIT_COMMIT_SHA?.trim()
-      || process.env.VERCEL_GIT_COMMIT_SHA?.trim()
-      || "unknown";
+    const commit = resolveReleaseSha();
     return NextResponse.json(
       {
         ok: true,

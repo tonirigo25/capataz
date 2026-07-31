@@ -49,7 +49,7 @@ export function DemoStudio({ sectors }: { sectors: DemoSector[] }) {
         return current;
       }
       return current + 1;
-    }), 7000);
+    }), 3000);
     return () => window.clearInterval(timer);
   }, [objective.steps.length, playing]);
 
@@ -78,7 +78,7 @@ export function DemoStudio({ sectors }: { sectors: DemoSector[] }) {
         </div>
       </div>
       <div className="demo-studio__playback">
-        <div><span>Paso {activeStep + 1} de {objective.steps.length}</span><strong>{objective.steps[activeStep]}</strong><small>Recorrido completo: 49 segundos</small></div>
+        <div><span>Paso {activeStep + 1} de {objective.steps.length}</span><strong>{objective.steps[activeStep]}</strong><small>Recorrido completo: 21 segundos</small></div>
         <div>
           <button type="button" onClick={() => { setPlaying(false); setActiveStep((current) => Math.max(0, current - 1)); }} aria-label="Paso anterior"><ChevronLeft size={16} /></button>
           <button type="button" onClick={() => setPlaying((current) => !current)}>{playing ? <Pause size={16} /> : <Play size={16} />}{playing ? "Pausar" : "Reproducir"}</button>

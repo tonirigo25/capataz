@@ -12,17 +12,19 @@ const manual = read("docs/CAPATAZ_PRODUCT_DESIGN_MANUAL.md");
 const roadmap = read("docs/CAPATAZ_MASTER_ROADMAP.md");
 
 const exactTokens = [
-  "--fos-color-ink: #111a16",
+  "--fos-color-ink: #101814",
+  "--fos-color-dark-2: #17212c",
   "--fos-color-ink-muted: #66736c",
-  "--fos-color-stone: #f3f0e7",
-  "--fos-color-paper: #fbfaf7",
+  "--fos-color-stone: #f5f7f6",
+  "--fos-color-paper: #f5f7f6",
   "--fos-color-surface: #ffffff",
   "--fos-color-line: #d8ded7",
-  "--fos-color-lime: #c9f36b",
+  "--fos-color-lime: #20b862",
+  "--fos-color-green-soft: #e7f7ee",
   "--fos-color-blue: #2d5de0",
-  "--fos-color-orange: #e96b3d",
+  "--fos-color-orange: #d58a1f",
   "--fos-color-red: #c8453b",
-  "--fos-color-green: #157b59"
+  "--fos-color-green: #168c55"
 ];
 
 const primitiveNames = [

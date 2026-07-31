@@ -16,21 +16,23 @@ export const LAUNCH_MARKETING_PATHS = new Set([
   "/funcionalidades",
   "/para-autonomos",
   "/para-empresas",
-  "/precios",
-  "/contacto",
   "/legal/aviso-legal",
   "/legal/privacidad",
   "/legal/cookies",
   "/legal/terminos",
-  "/estado",
 ]);
 
-const LEGACY_MARKETING_PREFIXES = [
+const PUBLIC_MARKETING_PREFIXES = [
   "/producto",
   "/soluciones",
+  "/precios",
+  "/empresa",
+  "/contacto",
+  "/recursos",
   "/sectores",
   "/planes",
   "/seguridad",
+  "/estado",
   "/demo",
   "/privacidad",
   "/terminos",
@@ -85,7 +87,7 @@ const APP_PAGE_PREFIXES = [
   "/tesoreria",
 ] as const;
 
-const SHARED_STATIC_PREFIXES = ["/_next/", "/brand/", "/marketing/", "/icons/"] as const;
+const SHARED_STATIC_PREFIXES = ["/_next/", "/brand/", "/marketing/", "/media/marketing/", "/icons/"] as const;
 const SHARED_STATIC_EXACT = new Set(["/favicon.ico", "/.well-known/security.txt"]);
 const APP_PWA_PATHS = new Set(["/manifest.webmanifest", "/service-worker.js", "/offline.html"]);
 const SHARED_HEALTH_PATHS = new Set([
@@ -94,7 +96,7 @@ const SHARED_HEALTH_PATHS = new Set([
   "/api/health/live",
   "/api/health/ready",
 ]);
-const MARKETING_API_PATHS = new Set(["/api/marketing/contact"]);
+const MARKETING_API_PATHS = new Set(["/api/marketing/contact", "/api/demo-requests"]);
 
 export type HostRoutingDecision =
   | { action: "pass"; site: "app" | "marketing" | "platform" }
@@ -133,7 +135,7 @@ export function resolveHostRouting(input: {
   }
 
   if (host === MARKETING_WWW_HOST || DEFENSIVE_HOSTS.has(host)) {
-    return { action: "redirect", location: `${marketingUrl(pathname)}${search}`, status: 301 };
+    return { action: "redirect", location: `${marketingUrl(canonicalMarketingPath(pathname))}${search}`, status: 301 };
   }
 
   if (host === MARKETING_HOST || input.developmentSite === "marketing") {
@@ -172,10 +174,13 @@ function platformDecision(pathname: string, search: string, hasSessionCookie: bo
   if (pathname === "/capataz" && hasSessionCookie) {
     return { action: "pass", site: "app" };
   }
+  if (pathname === "/capataz") {
+    return { action: "redirect", location: `${marketingUrl("/producto")}${search}`, status: 301 };
+  }
   if (isLaunchMarketingPath(pathname)) {
     return { action: "rewrite", pathname: internalMarketingPath(pathname), site: "marketing" };
   }
-  if (isLegacyMarketingPath(pathname)) {
+  if (isPublicMarketingPath(pathname)) {
     return { action: "pass", site: "marketing" };
   }
   return { action: "pass", site: "platform" };
@@ -186,15 +191,18 @@ function marketingDecision(pathname: string, search: string): HostRoutingDecisio
     return { action: "pass", site: "marketing" };
   }
   if (pathname === "/robots.txt" || pathname === "/sitemap.xml") {
-    return { action: "rewrite", pathname: internalMarketingPath(pathname), site: "marketing" };
+    return { action: "pass", site: "marketing" };
   }
   if (APP_PWA_PATHS.has(pathname) || pathname.startsWith("/api/")) {
     return { action: "reject", status: 404, site: "marketing" };
   }
+  if (pathname === "/capataz") {
+    return { action: "redirect", location: `${marketingUrl("/producto")}${search}`, status: 301 };
+  }
   if (isLaunchMarketingPath(pathname)) {
     return { action: "rewrite", pathname: internalMarketingPath(pathname), site: "marketing" };
   }
-  if (isLegacyMarketingPath(pathname)) {
+  if (isPublicMarketingPath(pathname)) {
     return { action: "pass", site: "marketing" };
   }
   if (pathname.startsWith("/marketing-internal")) {
@@ -214,14 +222,14 @@ function appDecision(pathname: string, search: string): HostRoutingDecision {
   // /capataz is both the public product page and the existing private assistant.
   // Preserve the authenticated product route on the application hostname.
   if (pathname === "/capataz") return { action: "pass", site: "app" };
-  if (isLaunchMarketingPath(pathname) || isLegacyMarketingPath(pathname)) {
+  if (isLaunchMarketingPath(pathname) || isPublicMarketingPath(pathname)) {
     return { action: "redirect", location: `${marketingUrl(pathname)}${search}`, status: 307 };
   }
   return { action: "pass", site: "app" };
 }
 
-function isLegacyMarketingPath(pathname: string) {
-  return LEGACY_MARKETING_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+function isPublicMarketingPath(pathname: string) {
+  return PUBLIC_MARKETING_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function isAppPage(pathname: string) {
@@ -242,6 +250,10 @@ function marketingUrl(pathname: string) {
 
 function appUrl(pathname: string) {
   return `https://${APP_HOST}${pathname}`;
+}
+
+function canonicalMarketingPath(pathname: string) {
+  return pathname === "/capataz" ? "/producto" : pathname;
 }
 
 function normalizePathname(value: string) {

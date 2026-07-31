@@ -57,6 +57,7 @@ export function isPublicResource(pathname: string) {
     || pathname.startsWith("/_next/")
     || pathname.startsWith("/icons/")
     || pathname.startsWith("/marketing/")
+    || pathname.startsWith("/media/marketing/")
     || pathname.startsWith("/brand/");
 }
 

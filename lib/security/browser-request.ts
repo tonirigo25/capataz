@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { resolveExternalRequestHost } from "./request-host";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const CANONICAL_MARKETING_ORIGIN = "https://orqenatech.com";
 const HOST_AGNOSTIC_HEALTH_PATHS = new Set([
   "/api/status",
   "/api/health",
@@ -44,7 +45,7 @@ export function validateBrowserRequest(request: NextRequest): BrowserRequestVerd
 }
 
 export function allowedOrigins(env: NodeJS.ProcessEnv): Set<string> {
-  const origins = new Set<string>();
+  const origins = new Set<string>([CANONICAL_MARKETING_ORIGIN]);
   for (const value of [env.APP_BASE_URL, env.NEXT_PUBLIC_WEB_BASE_URL, ...(env.TRUSTED_BROWSER_ORIGINS?.split(",") ?? [])]) {
     if (!value?.trim()) continue;
     try { origins.add(new URL(value.trim()).origin); } catch { /* startup validation reports malformed values */ }

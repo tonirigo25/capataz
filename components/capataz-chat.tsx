@@ -841,8 +841,8 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
               className="field"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              aria-label="Mensaje para Orqena"
-              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : "Escribe a Orqena..."}
+              aria-label={`Mensaje para ${brand.assistantName}`}
+              placeholder={isSending ? "Puedes ir escribiendo el siguiente mensaje..." : `Escribe a ${brand.assistantName}...`}
             />
             {data.voiceAvailable ? <button
               type="button"
@@ -881,7 +881,7 @@ export function CapatazChat({ data, userId }: { data: ChatData; userId: string }
           </div>
         )}
         <div className="mt-4 grid gap-2 border-t border-slate-100 pt-4">
-          <Link className="secondary-button justify-center" href="/configuracion/memoria">Memoria de Orqena</Link>
+          <Link className="secondary-button justify-center" href="/configuracion/memoria">Memoria de {brand.assistantName}</Link>
           <p className="text-xs leading-5 text-slate-500">Historial aislado por empresa y persona. No se muestran instrucciones internas.</p>
         </div>
       </aside>
@@ -895,7 +895,7 @@ function welcomeMessage(displayName: string | null): Message {
     role: "assistant",
     text: displayName
       ? `Hola ${displayName}, dime qué necesitas y lo dejamos ordenado.`
-      : "Hola, soy Orqena. Puedo ayudarte a ordenar clientes, trabajo, ventas, cobros y agenda. ¿Por dónde empezamos?"
+      : `Hola, soy ${brand.assistantName}. Puedo ayudarte a ordenar clientes, trabajo, ventas, cobros y agenda. ¿Por dónde empezamos?`
   };
 }
 
@@ -1304,7 +1304,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         type: "agenda-event",
         eventType: "recordatorio_interno",
         title: `Llamar a ${client?.nombre ?? findMentionedName(text) ?? "cliente"}`,
-        description: "Llamada preparada con Orqena.",
+        description: `Llamada preparada con ${brand.assistantName}.`,
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         dateTime: normalized.includes("viernes") ? nextFridayAtTen() : tomorrowAtTen(),
         requiereConfirmacion: false
@@ -1323,7 +1323,7 @@ function respond(text: string, data: ChatData, pendingDebt: ChatData["invoices"]
         title: `Seguimiento cobro ${openInvoice?.numero ?? ""}`.trim() || "Seguimiento de cobro",
         description: openInvoice
           ? `Revisar cobro pendiente de ${formatCurrency(openInvoice.pendiente)}.`
-          : "Seguimiento de cobro preparado con Orqena.",
+          : `Seguimiento de cobro preparado con ${brand.assistantName}.`,
         clientId: client?.id ?? data.clients[0]?.id ?? "",
         invoiceId: openInvoice?.id,
         dateTime: normalized.includes("lunes") ? nextWeekdayAt(1, 10) : tomorrowAtTen(),
@@ -1769,7 +1769,7 @@ function ExpenseCard({ card, data }: { card: Extract<ActionCard, { type: "expens
       <InputField name="concepto" label="Concepto" value={card.concept} />
       <InputField name="proveedor" label="Proveedor" value="Proveedor pendiente" />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Preparado con Orqena" />
+      <TextareaField name="notas" label="Notas" value={`Preparado con ${brand.assistantName}`} />
       <button type="submit" className="primary-button w-full">Confirmar gasto</button>
     </form>
   );
@@ -1786,7 +1786,7 @@ function PaymentCard({ card, data }: { card: Extract<ActionCard, { type: "paymen
       <SelectField name="metodo" label="Método" value="transferencia" options={[["transferencia", "Transferencia"], ["bizum", "Bizum"], ["efectivo", "Efectivo"], ["tarjeta", "Tarjeta"]]} />
       <SelectField name="tipo" label="Tipo" value="pago_parcial" options={[["senal", "Señal"], ["pago_parcial", "Pago parcial"], ["pago_final", "Pago final"], ["regularizacion", "Regularización"]]} />
       <InputField name="fecha" label="Fecha" type="datetime-local" value={nowInputValue()} />
-      <TextareaField name="notas" label="Notas" value="Pago preparado con Orqena" />
+      <TextareaField name="notas" label="Notas" value={`Pago preparado con ${brand.assistantName}`} />
       <button type="submit" className="primary-button w-full">Confirmar pago</button>
     </form>
   );
@@ -1842,7 +1842,7 @@ function ClientCard({ card, data }: { card: Extract<ActionCard, { type: "client"
       <InputField name="direccion" label="Dirección" value="Pendiente" />
       <InputField name="tipoCliente" label="Tipo" value="Particular" />
       <InputField name="origen" label="Origen" value={brand.productName} />
-      <TextareaField name="notas" label="Notas" value={`Cliente potencial preparado con Orqena. Trabajo solicitado: ${card.job}.`} />
+      <TextareaField name="notas" label="Notas" value={`Cliente potencial preparado con ${brand.assistantName}. Trabajo solicitado: ${card.job}.`} />
       {limited ? (
         <DemoLimitButton
           className="primary-button w-full"
@@ -1891,7 +1891,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="titulo" label="Título" value={card.title} />
       <SelectField name="estado" label="Estado" value="borrador" options={[["borrador", "Borrador"], ["pendiente_revision", "Pendiente revisión"]]} />
       <input type="hidden" name="ivaPercent" value={ivaPercent} />
-      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: "Partida preparada con Orqena", cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
+      <TextareaField name="partidas" label="Partidas" value={JSON.stringify([{ descripcion: `Partida preparada con ${brand.assistantName}`, cantidad: 1, unidad: "servicio", precioUnitario: base, total: base, categoria: "General" }], null, 2)} />
       <InputField name="subtotal" label="Subtotal" type="number" value={base} />
       <InputField name="iva" label="IVA" type="number" value={iva} />
       <InputField name="descuento" label="Descuento" type="number" value={0} />
@@ -1899,7 +1899,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="margenEstimado" label="Margen estimado" type="number" value={Math.round(card.amount * 0.25 * 100) / 100} />
       <InputField name="fechaValidez" label="Fecha validez" type="datetime-local" value={inDaysInputValue(15)} />
       <TextareaField name="condiciones" label="Condiciones" value="Validez 15 días. Fechas sujetas a disponibilidad de materiales." />
-      <TextareaField name="observaciones" label="Observaciones" value="Propuesta preparada con Orqena. Revísala antes de enviar." />
+      <TextareaField name="observaciones" label="Observaciones" value={`Propuesta preparada con ${brand.assistantName}. Revísala antes de enviar.`} />
       <InputField name="formaPago" label="Forma de pago" value="Transferencia / según acuerdo" />
       {limited ? (
         <DemoLimitButton
@@ -1937,7 +1937,7 @@ function InvoiceCard({ card, data }: { card: Extract<ActionCard, { type: "invoic
       <InputField name="pendiente" label="Pendiente" type="number" value={card.amount} />
       <InputField name="fechaEmision" label="Fecha emisión" type="datetime-local" value={nowInputValue()} />
       <InputField name="fechaVencimiento" label="Fecha vencimiento" type="datetime-local" value={inDaysInputValue(7)} />
-      <TextareaField name="observaciones" label="Observaciones" value="Borrador preparado con Orqena. Revisa los datos fiscales antes de emitirlo." />
+      <TextareaField name="observaciones" label="Observaciones" value={`Borrador preparado con ${brand.assistantName}. Revisa los datos fiscales antes de emitirlo.`} />
       <InputField name="metodoPago" label="Método de pago" value="transferencia" />
       <TextareaField name="datosBancarios" label="Datos bancarios" value={data.company?.iban ?? ""} />
       <div className="rounded-lg bg-obra-yellow/20 p-3 text-xs font-semibold leading-5 text-obra-yellowDark">

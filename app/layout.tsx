@@ -9,7 +9,7 @@ import { ConsentManager } from "@/components/consent-manager";
 
 export function generateMetadata(): Metadata {
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_BASE_URL || "http://localhost:3000"),
+    metadataBase: new URL(brand.publicUrl),
     title: { default: brand.metadata.title, template: brand.metadata.titleTemplate },
     description: brand.metadata.description,
     applicationName: brand.productName,

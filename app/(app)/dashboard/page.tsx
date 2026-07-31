@@ -52,18 +52,24 @@ export default async function DashboardPage({
   const initialKpis = initialKpiIds
     .map((id) => summary.kpis.find((item) => item.id === id))
     .filter((item): item is BusinessKpi => Boolean(item));
+  const dashboardKpis = [
+    ...initialKpis,
+    ...["expenses", "margin_invoiced"]
+      .map((id) => summary.kpis.find((item) => item.id === id))
+      .filter((item): item is BusinessKpi => Boolean(item)),
+  ];
   const periodEnd = new Date(summary.period.end.getTime() - 1);
   const hasEconomicData = initialKpis.some((item) => item.value !== 0) || summary.quotes.count > 0 || summary.works.byLowestMargin.some((work) => work.hasEnoughData);
 
   return (
     <ProductPage layout="analytical">
-      <header className="mb-8">
+      <header className="mb-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="type-meta mb-2">Análisis global del negocio</p>
+            <p className="type-meta mb-2">Visión ejecutiva · datos trazables</p>
             <h1 className="type-page-title text-content">Dashboard</h1>
             <p className="type-body mt-2 max-w-3xl text-content-secondary">
-              Comprende el periodo, compara resultados y abre siempre el dato que origina cada cifra.
+              Visión operativa y financiera del negocio en tiempo real, distinta del cockpit diario de Hoy.
             </p>
           </div>
           <Link href="/capataz" className="primary-button shrink-0">
@@ -72,9 +78,8 @@ export default async function DashboardPage({
           </Link>
         </div>
 
-        <Surface variant="secondary" className="mt-5 p-3 sm:p-4">
-          <p className="label mb-2">Periodo</p>
-          <nav aria-label="Seleccionar periodo" className="flex flex-wrap gap-2">
+        <Surface variant="secondary" className="mt-4 flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between">
+          <div><p className="label mb-2">Periodo</p><nav aria-label="Seleccionar periodo" className="flex flex-wrap gap-2">
             {periodOptions.map((option) => (
               <Link
                 key={option.id}
@@ -85,8 +90,8 @@ export default async function DashboardPage({
                 {option.label}
               </Link>
             ))}
-          </nav>
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 type-meta">
+          </nav></div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 type-meta lg:justify-end">
             <span>{formatDate(summary.period.start)} – {formatDate(periodEnd)}</span>
             <span>Comparación: periodo anterior equivalente</span>
             <span>Actualizado {formatDate(summary.updatedAt)}</span>
@@ -94,10 +99,10 @@ export default async function DashboardPage({
         </Surface>
       </header>
 
-      <section aria-labelledby="dashboard-resumen" className="section-shell mb-6">
-        <SectionHeading id="dashboard-resumen" title="Cuatro cifras para empezar" description={`Todas usan ${summary.period.label.toLowerCase()} y abren el documento o listado que las origina.`} />
-        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4" data-dashboard-primary-kpis={initialKpis.length}>
-          {initialKpis.map((kpi) => <Kpi key={kpi.id} kpi={kpi} />)}
+      <section aria-labelledby="dashboard-resumen" className="section-shell mb-5">
+        <SectionHeading id="dashboard-resumen" title="Indicadores principales" description={`Todas las cifras usan ${summary.period.label.toLowerCase()} y enlazan con su dato de origen.`} />
+        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" data-dashboard-primary-kpis={initialKpis.length}>
+          {dashboardKpis.map((kpi) => <div key={kpi.id} className="bg-surface"><Kpi kpi={kpi} /></div>)}
         </div>
       </section>
 
@@ -110,14 +115,16 @@ export default async function DashboardPage({
         />
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.65fr)]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]">
             <section aria-labelledby="dashboard-tendencia" className="section-shell">
               <SectionHeading id="dashboard-tendencia" title="Evolución del periodo" description="Facturación emitida, pagos registrados y gastos reales agrupados en intervalos legibles." />
               <TrendChart points={summary.trend} />
+              <MarginOverview rows={summary.works.byLowestMargin.slice(0, 5)} />
             </section>
 
-            <section aria-labelledby="dashboard-excepciones" className="section-shell">
-              <SectionHeading id="dashboard-excepciones" title="Excepciones" description="Solo situaciones respaldadas por datos registrados; cada fila abre su origen." action={<Link href="/hoy" className="ghost-button">Ver prioridades</Link>} />
+            <section aria-labelledby="dashboard-excepciones" className="section-shell border-brand/25">
+              <div className="mb-4 flex items-center gap-2 text-brand-strong"><ShieldAlert size={18} aria-hidden="true" /><p className="type-label text-brand-strong">Señales derivadas de datos registrados</p></div>
+              <SectionHeading id="dashboard-excepciones" title="Excepciones" description="Riesgos y oportunidades respaldados por datos registrados; cada fila abre su origen." action={<Link href="/hoy" className="ghost-button">Ver prioridades</Link>} />
               <RiskList alerts={summary.alerts.slice(0, 5)} />
             </section>
           </div>
@@ -132,7 +139,7 @@ export default async function DashboardPage({
             </div>
           </section>
 
-          <div className="mt-10 grid gap-10 xl:grid-cols-2">
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <section aria-labelledby="dashboard-cobros" className="section-shell">
               <SectionHeading
                 id="dashboard-cobros"
@@ -180,12 +187,17 @@ export default async function DashboardPage({
             </section>
           </div>
 
-          <section aria-labelledby="dashboard-obras" className="section-shell mt-10">
+          <section aria-labelledby="dashboard-obras" className="section-shell mt-6">
             <SectionHeading id="dashboard-obras" title="Rentabilidad por trabajo" description="Los trabajos con menor margen aparecen primero según la facturación y los costes registrados." action={<Link href="/obras?estado=activas" className="secondary-button">Ver trabajos</Link>} />
             <WorkProfitability rows={summary.works.byLowestMargin.slice(0, 5)} />
           </section>
 
-          <section aria-labelledby="dashboard-presupuestos" className="section-shell mt-10">
+          <section aria-labelledby="dashboard-clientes" className="section-shell mt-6">
+            <SectionHeading id="dashboard-clientes" title="Clientes por facturación" description="Ranking del periodo calculado únicamente con facturas válidas registradas." action={<Link href="/clientes" className="secondary-button">Ver clientes</Link>} />
+            <ClientRanking rows={summary.clients.byRevenue.slice(0, 5)} />
+          </section>
+
+          <section aria-labelledby="dashboard-presupuestos" className="section-shell mt-6">
             <SectionHeading id="dashboard-presupuestos" title="Presupuestos y actividad comercial" description="Presupuestar no equivale a vender, facturar ni cobrar." action={<Link href="/presupuestos?filtro=pendientes" className="secondary-button">Ver presupuestos</Link>} />
             <div className="grid grid-cols-2 gap-2 border-b border-border pb-4 sm:grid-cols-4">
               <CompactMetric label="Importe presupuestado" value={formatCurrency(summary.quotes.validTotal)} />
@@ -289,6 +301,16 @@ function TrendChart({ points }: { points: BusinessTrendPoint[] }) {
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg bg-subtle p-3"><p className="type-label">{label}</p><p className="type-object-title mt-1 tabular text-content">{value}</p></div>;
+}
+
+function MarginOverview({ rows }: { rows: Awaited<ReturnType<typeof getBusinessIntelligenceSummary>>["works"]["byLowestMargin"] }) {
+  if (!rows.length) return null;
+  return <section className="mt-5 border-t border-border pt-4" aria-labelledby="dashboard-margins"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="type-label">Comparativa real</p><h3 id="dashboard-margins" className="type-object-title mt-1 text-content">Margen por trabajo</h3></div><Link href="/obras?orden=rentabilidad" className="ghost-button">Ver detalle</Link></div><div className="grid gap-3">{rows.map((work) => { const value = Math.max(-100, Math.min(100, work.marginOnInvoiced)); return <Link key={work.workId} href={`/obras/${work.workId}`} className="grid gap-2 rounded-lg border border-border p-3 hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_minmax(10rem,.7fr)_auto] sm:items-center"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-content">{work.title}</span><span className="type-meta mt-1 block truncate">{work.clientName}</span></span><meter className="h-2 w-full accent-brand" min={-100} max={100} low={15} optimum={35} value={value} aria-label={`Margen de ${work.title}: ${round(work.marginOnInvoiced)} %`} /><span className={`text-sm font-semibold tabular-nums ${work.marginOnInvoiced < 15 ? "text-danger" : "text-success"}`}>{round(work.marginOnInvoiced)} %</span></Link>; })}</div></section>;
+}
+
+function ClientRanking({ rows }: { rows: Awaited<ReturnType<typeof getBusinessIntelligenceSummary>>["clients"]["byRevenue"] }) {
+  if (!rows.length) return <EmptyState title="Sin clientes comparables" description="El ranking aparecerá cuando existan facturas válidas dentro del periodo." icon={BriefcaseBusiness} />;
+  return <ol className="divide-y divide-border">{rows.map((client, index) => <li key={client.clientId}><Link href={client.href} className="grid gap-3 py-3 hover:bg-subtle sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-strong">{index + 1}</span><span className="min-w-0"><span className="type-object-title block truncate text-content">{client.name}</span><span className="type-meta mt-1 block">Cobrado: {formatCurrency(client.collected)}</span></span><span className="font-semibold tabular-nums text-content">{formatCurrency(client.invoiced)}</span></Link></li>)}</ol>;
 }
 
 function RiskList({ alerts }: { alerts: BusinessAlert[] }) {

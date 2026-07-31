@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { brand } from "@/lib/brand";
 import { isPublicIndexingEnabled, PUBLIC_ROBOTS_ALLOW_PATHS } from "@/lib/public-indexing";
 
 export default function robots(): MetadataRoute.Robots {
@@ -12,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: [...PUBLIC_ROBOTS_ALLOW_PATHS],
       disallow: "/",
     },
-    sitemap: `${process.env.NEXT_PUBLIC_WEB_BASE_URL ?? "http://localhost:3000"}/sitemap.xml`,
+    sitemap: `${brand.publicUrl}/sitemap.xml`,
   };
 }

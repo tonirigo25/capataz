@@ -79,6 +79,7 @@ const tokenMappings = [
 ];
 
 const semanticTokenMappings = [
+  ["--fos-color-success-text-aa", tokens.semanticColor.successText.value],
   ["--fos-color-text-muted-aa", tokens.semanticColor.textMuted.value],
   ["--fos-color-warning-text-aa", tokens.semanticColor.warningText.value],
   ["--fos-color-danger-text-aa", tokens.semanticColor.dangerText.value],
@@ -90,9 +91,14 @@ for (const [name, expected] of [...tokenMappings, ...semanticTokenMappings]) {
 }
 
 pass(
-  "semantic muted text meets AA on stone and lime",
+  "semantic success text meets AA on surfaces",
+  contrastRatio(tokens.semanticColor.successText.value, tokens.color.surface.value) >= 4.5
+    && contrastRatio(tokens.semanticColor.successText.value, tokens.color.greenSoft.value) >= 4.5,
+);
+pass(
+  "semantic muted text meets AA on application canvases",
   contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.stone.value) >= 4.5
-    && contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.lime.value) >= 4.5,
+    && contrastRatio(tokens.semanticColor.textMuted.value, tokens.color.greenSoft.value) >= 4.5,
 );
 pass(
   "semantic warning and danger text meet AA on paper",
@@ -131,8 +137,14 @@ for (const line of diff.split(/\r?\n/u)) {
   if (!line.startsWith("+") || line.startsWith("+++")) continue;
   const value = line.slice(1);
   const isFieldOsDeclaration = currentFile === "app/globals.css" && value.includes("--fos-");
-  const isDedicatedPublicVisualStyle = currentFile === "app/globals.css"
-    && /^\.(?:launch-|security-example|margin-calculator-result)/u.test(value.trim());
+  const isDedicatedPublicVisualStyle = (currentFile === "app/globals.css"
+    && /^\.(?:launch-|security-example|margin-calculator-result|public-site-v3)/u.test(value.trim()))
+    || [
+      "app/demo-v2/page.module.css",
+      "app/marketing-v2/page.module.css",
+      "app/marketing-v2/_components/public-home.module.css",
+      "components/marketing/public-ui.module.css",
+    ].includes(currentFile);
   const isSemanticColorInputDefault = currentFile === "app/(app)/configuracion/page.tsx"
     && value.includes('name="colorMarca"')
     && value.includes('type="color"');

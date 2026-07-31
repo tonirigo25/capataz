@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check, Gauge, HardDrive, UsersRound } from "lucide-react";
 import { MarketingPage } from "@/components/marketing/marketing-shell";
+import { PublicPageHero } from "@/components/marketing/public-page-hero";
 import { brand } from "@/lib/brand";
 import { planCatalog } from "@/lib/commercial/plans";
 import { PUBLIC_PRICING_ENABLED } from "@/lib/commercial/unit-economics";
@@ -19,12 +20,7 @@ const support = { STARTER: "Soporte estándar", PROFESSIONAL: "Acompañamiento d
 export default function PlansPage() {
   return (
     <MarketingPage>
-      <section className="plans-hero">
-        <div className="marketing-container">
-          <div><p className="marketing-eyebrow">Planes y límites</p><h1>Elige por capacidad, no por una cifra sin contexto.</h1><p>La beta privada mantiene el precio público desactivado. Compara empresas, personas, documentos, IA, almacenamiento y soporte.</p></div>
-          <aside><Gauge size={24} /><strong>Precio público desactivado</strong><p>Los costes internos y el margen se modelan en una herramienta exclusiva para PLATFORM_OWNER.</p></aside>
-        </div>
-      </section>
+      <PublicPageHero breadcrumbs={[{ label: "Inicio", href: "/" }, { label: "Planes" }]} compact description="La beta privada mantiene el precio público desactivado. Compara empresas, personas, documentos, IA, almacenamiento y soporte." eyebrow="Planes y límites" id="planes" title="Elige por capacidad, no por una cifra sin contexto." variant="centered"><p><strong>Precio público desactivado.</strong> Los costes internos y el margen sólo se modelan en el control interno autorizado.</p></PublicPageHero>
 
       <section className="marketing-container plans-grid" data-public-pricing={PUBLIC_PRICING_ENABLED ? "enabled" : "disabled"}>
         {Object.entries(planCatalog).map(([key, plan], index) => {

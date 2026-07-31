@@ -47,6 +47,22 @@ describe("browser request host validation", () => {
     expect(validateBrowserRequest(request)).toEqual({ allowed: true });
   });
 
+  it("accepts a canonical marketing mutation when both configured base URLs point to the app host", () => {
+    process.env.APP_BASE_URL = "https://app.orqenatech.com";
+    process.env.NEXT_PUBLIC_WEB_BASE_URL = "https://app.orqenatech.com";
+    const request = new NextRequest("http://railway.internal/api/demo-requests", {
+      method: "POST",
+      headers: {
+        host: "orqena-production.up.railway.app",
+        "x-forwarded-host": "orqenatech.com",
+        origin: "https://orqenatech.com",
+        "sec-fetch-site": "same-origin",
+      },
+    });
+
+    expect(validateBrowserRequest(request)).toEqual({ allowed: true });
+  });
+
   it("rejects an untrusted forwarded host instead of falling through", () => {
     const request = new NextRequest("http://railway.internal/.well-known/security.txt", {
       headers: {

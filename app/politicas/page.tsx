@@ -1,24 +1,17 @@
 import Link from "next/link";
-import { LegalBackButton } from "@/components/legal-back-button";
+import { LegalPublicPage } from "@/components/marketing/legal-public-page";
 import { brand } from "@/lib/brand";
 import { legalConfig } from "@/lib/config/legal";
 
 export default function PoliciesPage() {
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-8 pt-20 sm:px-6">
-      <LegalBackButton />
-      <Link href="/" className="text-sm font-bold text-slate-600 hover:text-obra-ink">{brand.productName}</Link>
-      <h1 className="mt-4 text-3xl font-black text-obra-ink">Políticas legales</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-600">
-        Acceso a los borradores legales {legalConfig.documentVersion}; su revisión jurídica sigue pendiente antes de publicación comercial.
-      </p>
-
+    <LegalPublicPage title="Políticas legales" description={<>Acceso a los borradores legales de {brand.productName}, versión {legalConfig.documentVersion}; su revisión jurídica sigue pendiente antes de publicación comercial.</>}>
       <section className="card mt-6 grid gap-3 p-5 text-sm leading-6 text-slate-600">
         <Link href="/privacidad" className="secondary-button justify-start">Política de privacidad</Link>
         <Link href="/terminos" className="secondary-button justify-start">Términos de uso</Link>
         <Link href="/cookies" className="secondary-button justify-start">Política de cookies</Link>
         <Link href="/soporte" className="secondary-button justify-start">Soporte</Link>
       </section>
-    </main>
+    </LegalPublicPage>
   );
 }

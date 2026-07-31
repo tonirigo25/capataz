@@ -20,6 +20,8 @@ import {
   Landmark,
   LogOut,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   ReceiptText,
   Search,
@@ -42,6 +44,8 @@ import {
 import type { PortalManifest } from "@/lib/commercial/portal-manifest";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { brand } from "@/lib/brand";
+import { OrqenaContextRail } from "@/components/portal/orqena-context-rail";
 
 type DesktopPanel = "more" | "create" | "user" | null;
 type Overlay = "search" | "capture" | "more" | null;
@@ -89,10 +93,13 @@ export function AppChrome({
   const dialogId = useId();
   const [desktopPanel, setDesktopPanel] = useState<DesktopPanel>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
+  const desktopNavigation = useMemo(() => buildCanonicalDesktopNavigation(portalManifest), [portalManifest]);
+  const contextLabel = pathname === "/capataz" ? brand.assistantName : context.label;
   const canCapture = useMemo(
     () => captureActions.some((item) => !item.capability || capabilities.includes(item.capability)),
     [capabilities],
@@ -198,7 +205,7 @@ export function AppChrome({
   }
 
   return (
-    <div className="field-os-app-shell min-h-dvh">
+    <div className="field-os-app-shell min-h-dvh" data-sidebar-collapsed={sidebarCollapsed ? "true" : "false"}>
       <a
         href="#main-content"
         className="fixed left-4 top-3 z-[80] inline-flex min-h-11 -translate-y-20 items-center rounded-lg bg-brand px-4 py-2 font-semibold text-white transition focus:translate-y-0"
@@ -208,12 +215,14 @@ export function AppChrome({
 
       <aside className="field-os-sidebar fixed inset-y-0 left-0 z-40 border-r">
         <DesktopNavigation
-          navigation={portalManifest.navigation}
+          navigation={desktopNavigation}
           pathname={pathname}
           companyName={companyName}
           userName={userName}
           modeLabel={modeLabel}
+          collapsed={sidebarCollapsed}
           desktopPanel={desktopPanel}
+          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
           onOpenPanel={openDesktopPanel}
         />
       </aside>
@@ -227,8 +236,8 @@ export function AppChrome({
           >
             <BrandMark className="h-7 w-7 text-white" />
           </Link>
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${context.label}`}>
-            {context.label}
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${contextLabel}`}>
+            {contextLabel}
           </p>
           <Link href="/seleccionar-empresa" className="ghost-button max-w-40 truncate px-2 text-xs" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
             <Building2 size={17} aria-hidden="true"/><span className="truncate">{companyName}</span><ChevronDown size={14} aria-hidden="true"/>
@@ -237,11 +246,11 @@ export function AppChrome({
           <button
             type="button"
             className="field-os-global-search h-10 min-w-0 max-w-md flex-1 items-center gap-3 rounded-lg border border-border bg-subtle px-3 text-left text-sm text-content-secondary transition hover:border-border-strong hover:bg-surface"
-            aria-label="Buscar en Orqena"
+            aria-label={`Buscar en ${brand.productName}`}
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
             <Search size={18} aria-hidden="true" />
-            <span className="flex-1">Buscar en Orqena</span>
+            <span className="flex-1">Buscar en {brand.productName}</span>
             <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-content-tertiary">Ctrl K</kbd>
           </button>
 
@@ -249,7 +258,7 @@ export function AppChrome({
             <button
               type="button"
               className="icon-button field-os-search-trigger"
-              aria-label="Buscar en Orqena"
+              aria-label={`Buscar en ${brand.productName}`}
               onClick={(event) => openOverlay("search", event.currentTarget)}
             >
               <Search size={20} aria-hidden="true" />
@@ -263,14 +272,17 @@ export function AppChrome({
               <Plus size={18} aria-hidden="true" />Crear
             </button> : null}
             {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
-              <Bot size={18} aria-hidden="true" />Orqena
+              <Bot size={18} aria-hidden="true" />Orqena IA
             </Link> : null}
             <NotificationLink unread={unreadNotifications} />
           </div>
         </div>
       </header>
 
-      <div id="main-content" className="relative" tabIndex={-1}>{children}</div>
+      <div className="field-os-workspace">
+        <div id="main-content" className="field-os-main-canvas relative" tabIndex={-1}>{children}</div>
+        <OrqenaContextRail pathname={pathname} />
+      </div>
 
       <MobileBottomNavigation
         items={portalManifest.mobileNavigation}
@@ -349,13 +361,41 @@ export function AppChrome({
   );
 }
 
+function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): ProductDestination[] {
+  const allowed = new Map(
+    [...portalManifest.navigation, ...portalManifest.navigationGroups.flatMap((group) => group.items)]
+      .map((item) => [item.href, item] as const),
+  );
+  const order: Array<{ href: string; label: string; icon: ProductIcon }> = [
+    { href: "/hoy", label: "Hoy", icon: "home" },
+    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+    { href: "/clientes", label: "Clientes", icon: "client" },
+    { href: "/obras", label: "Trabajo", icon: "briefcase" },
+    { href: "/presupuestos", label: "Presupuestos", icon: "document" },
+    { href: "/dinero", label: "Dinero", icon: "invoice" },
+    { href: "/documentos", label: "Documentos", icon: "document" },
+    { href: "/agenda", label: "Agenda", icon: "agenda" },
+    { href: "/equipo", label: "Equipo", icon: "client" },
+    { href: "/capataz", label: brand.assistantName, icon: "bot" },
+    { href: "/configuracion", label: "Configuración", icon: "settings" },
+  ];
+
+  return order.flatMap((target) => {
+    if (target.href === "/capataz") return [target];
+    const source = allowed.get(target.href);
+    return source ? [{ ...source, label: target.label, icon: target.icon }] : [];
+  });
+}
+
 function DesktopNavigation({
   navigation,
   pathname,
   companyName,
   userName,
   modeLabel,
+  collapsed,
   desktopPanel,
+  onToggleCollapsed,
   onOpenPanel
 }: {
   navigation: ProductDestination[];
@@ -363,47 +403,58 @@ function DesktopNavigation({
   companyName: string;
   userName: string;
   modeLabel?: string;
+  collapsed: boolean;
   desktopPanel: DesktopPanel;
+  onToggleCollapsed: () => void;
   onOpenPanel: (panel: Exclude<DesktopPanel, null>, trigger: HTMLButtonElement) => void;
 }) {
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 pb-3 pt-4">
-        <Link href="/seleccionar-empresa" className="flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
-          <span className="field-os-sidebar__brand-mark flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-            <BrandMark className="h-7 w-7" />
+        <Link href="/hoy" className="field-os-sidebar__brand flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label="Ir a Hoy">
+          <span className="field-os-sidebar__brand-mark flex h-10 w-10 shrink-0 items-center justify-center">
+            <BrandMark className="h-8 w-8" />
           </span>
-          <span className="min-w-0">
-            <span className="block text-base font-bold leading-5 text-content">Orqena</span>
-            <span className="flex items-center gap-1 truncate text-xs text-content-secondary">{companyName}<ChevronDown size={13} aria-hidden="true"/></span>
+          <span className="field-os-sidebar__brand-copy min-w-0">
+            <span className="block text-base font-bold leading-5 text-content">{brand.companyName}</span>
+            <span className="block truncate text-xs text-content-secondary">Portal empresarial</span>
           </span>
         </Link>
-        {modeLabel ? <p className="mt-1 truncate px-2 text-[11px] font-medium text-content-tertiary">{modeLabel}</p> : null}
+        {modeLabel && !collapsed ? <p className="mt-1 truncate px-2 text-[11px] font-medium text-content-tertiary">{modeLabel}</p> : null}
       </div>
 
-      <nav className="flex-1 px-3" aria-label="Navegación principal">
+      <nav className="field-os-sidebar__navigation flex-1 overflow-y-auto px-3" aria-label="Navegación principal">
         <div className="grid gap-1">
           {navigation.map((item) => (
             <NavigationLink key={item.href} item={item} pathname={pathname} />
           ))}
         </div>
-        <button
-          type="button"
-          className={clsx(
-            "mt-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-            desktopPanel === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
-          )}
-          aria-expanded={desktopPanel === "more"}
-          aria-controls="desktop-more-navigation"
-          onClick={(event) => onOpenPanel("more", event.currentTarget)}
-        >
-          <Ellipsis size={19} aria-hidden="true" />
-          <span className="flex-1 text-left">Más</span>
-          <ChevronDown size={16} className="-rotate-90" aria-hidden="true" />
-        </button>
+        {!collapsed ? <button
+            type="button"
+            className={clsx(
+              "mt-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
+              desktopPanel === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
+            )}
+            aria-expanded={desktopPanel === "more"}
+            aria-controls="desktop-more-navigation"
+            onClick={(event) => onOpenPanel("more", event.currentTarget)}
+          >
+            <Ellipsis size={19} aria-hidden="true" />
+            <span className="flex-1 text-left">Más</span>
+            <ChevronDown size={16} className="-rotate-90" aria-hidden="true" />
+          </button> : null}
       </nav>
 
       <div className="border-t border-border p-3">
+        <button
+          type="button"
+          className="mb-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content"
+          aria-label={collapsed ? "Expandir menú" : "Ocultar menú"}
+          onClick={onToggleCollapsed}
+        >
+          {collapsed ? <PanelLeftOpen size={19} aria-hidden="true" /> : <PanelLeftClose size={19} aria-hidden="true" />}
+          <span className="field-os-sidebar__label">Ocultar menú</span>
+        </button>
         <button
           type="button"
           className={clsx(
@@ -414,11 +465,11 @@ function DesktopNavigation({
           onClick={(event) => onOpenPanel("user", event.currentTarget)}
         >
           <UserAvatar name={userName} />
-          <span className="min-w-0 flex-1">
+          <span className="field-os-sidebar__label min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-content">{userName}</span>
             <span className="block truncate text-xs text-content-secondary">{companyName}</span>
           </span>
-          <ChevronDown size={16} aria-hidden="true" />
+          {!collapsed ? <ChevronDown size={16} aria-hidden="true" /> : null}
         </button>
       </div>
     </div>
@@ -583,7 +634,7 @@ function BottomLink({ item, pathname }: { item: ProductDestination; pathname: st
       className={clsx("shell-bottom-item", active ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
     >
       <Icon size={22} aria-hidden="true" />
-      <span>{item.label}</span>
+      <span>{item.href === "/capataz" ? brand.assistantName : item.label}</span>
     </Link>
   );
 }
@@ -593,7 +644,7 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
     <div className="p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en Orqena</h2>
+          <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en {brand.productName}</h2>
           <p className="type-secondary mt-1">Clientes, trabajos, presupuestos, facturas y documentos.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Cerrar búsqueda" onClick={onClose}>
@@ -670,7 +721,7 @@ function MobileMoreSheet({
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
       {navigation.some((item) => item.href === "/capataz") ? <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
-        <Bot size={20} aria-hidden="true" />Orqena
+        <Bot size={20} aria-hidden="true" />{brand.assistantName}
       </Link> : null}
       <div className="grid gap-5">
         <section>
@@ -837,7 +888,7 @@ function NavigationLink({
       )}
     >
       <Icon size={19} aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{item.href === "/capataz" ? brand.assistantName : item.label}</span>
       {badge ? <NotificationBadge count={badge} /> : null}
     </Link>
   );

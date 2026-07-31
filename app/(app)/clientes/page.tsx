@@ -6,9 +6,9 @@ import {
   type ClientFilterQuery,
 } from "@/components/clients/client-filter-bar";
 import {
-  ClientSplitView,
   type ClientWorkspaceItem,
 } from "@/components/clients/client-split-view";
+import { ClientPortfolio } from "@/components/portal/modules-a/client-portfolio";
 import {
   EmptyState,
   PageHeader,
@@ -190,7 +190,7 @@ export default async function ClientsPage({
 
       <div className="mt-4">
         {items.length ? (
-          <ClientSplitView items={items} />
+          <ClientPortfolio items={items} />
         ) : (
           <EmptyState
             title={
@@ -354,7 +354,7 @@ async function ScopedClientsPage({
       <ResultCount shown={items.length} total={items.length} noun="clientes" />
       <div className="mt-4">
         {items.length ? (
-          <ClientSplitView items={items} />
+          <ClientPortfolio items={items} />
         ) : (
           <EmptyState
             title="No hay clientes en esta vista"

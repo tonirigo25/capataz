@@ -426,8 +426,8 @@ function clientVisibleText(value: string | null | undefined) {
     "nif/cif pendiente",
     "datos pendientes",
     "trabajo pendiente de definir",
-    "preparada por capataz",
-    "preparado por capataz",
+    "preparada por orqena",
+    "preparado por orqena",
     "provisional"
   ];
   if (normalized === "pendiente" || normalized === "sin informar" || normalized === "no informado") return "";
