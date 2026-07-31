@@ -1,39 +1,68 @@
-# Design QA — Public desktop layout Revision 6
+# Design QA — Portal interno Orqena
 
-## Visual source of truth
-
-- Existing approved public direction on branch `design/orqena-field-os-v2`.
-- Preserved home split hero: copy left, interactive Orqena product right.
-- Baseline captures: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/baseline-390/` and `baseline-1440/`.
-
-## Implementation evidence
-
-- 46 routes at `390 × 844`: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/final-390/`.
-- 46 routes at `1440 × 1000`: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/final-1440/`.
-- 46 routes at `1920 × 1080`: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/final-1920/`.
-- Combined responsive comparisons: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/comparisons/`.
-- Twelve-column grid and hero annotation: `artifacts/design-v2/correction-pr63/revision-6-desktop-layout/annotated-1440/`.
-
-## QA passes
-
-| Pass | Finding | Severity | Resolution |
-| --- | --- | --- | --- |
-| Layout | Home and Product already had the intended copy/visual balance. | — | Preserved; only a stable layout marker was added to Home. |
-| Layout | Several no-visual pages inherited a split grid and left half the hero empty. | P1 | Assigned `centered`; content now occupies a deliberate 760–900 px measure. |
-| Layout | Dynamic product and sector pages used bespoke hero widths and duplicated the main visual. | P1 | Moved to the shared `split` contract and kept each real module/sector scene. |
-| Layout | `/soluciones` briefly lost its strong right-hand visual in a wide editorial treatment. | P1 | Reverted to `split`; the known-good pattern is preserved. |
-| Responsive | Contact requires a form at the right on desktop and a natural sequence on mobile. | P1 | Shared `split` stacks copy, actions and form at 390 px without clipping or overlap. |
-| Navigation | The top-left Orqena Tech wordmark pointed to `#top` on inner pages. | P1 | It now points to `/` with an explicit accessible label. |
-| Typography | No-visual titles were visually stranded at the left edge on wide screens. | P2 | Centered and wide-editorial variants share a 1280 px grid and bounded copy measure. |
-| Accessibility | Breakpoint corrections could have changed source order. | P1 | DOM order remains copy then visual; focusable controls and labels are unchanged. |
-| Accessibility | The white contact form inherited the dark hero's light text color. | P1 | Scoped the form foreground to the canonical dark ink; Axe can evaluate the intended white-form contrast in every engine. |
-
-## Visual judgment
-
-The combined comparisons were inspected for typography, wrapping, margins, card density, real product imagery, button hierarchy, responsive stacking and dead space. The split pages preserve the product-led composition; centered pages no longer look like mobile screens stretched across desktop; editorial pages use the available grid without decorative filler.
-
-## Final result
+## Resultado
 
 `passed`
 
-No unresolved P0, P1 or P2 visual finding remains in the Revision 6 scope.
+No quedan hallazgos visuales P0, P1 o P2 abiertos dentro del alcance del portal interno autorizado para PR #63.
+
+## Fuente visual canónica
+
+- Paquete: `ORQENA_CODEX_PAQUETE_LIGERO_COMPLETO.zip`.
+- Contrato global, logo oficial y prompt maestro leídos antes de modificar código.
+- Las 18 carpetas `REFERENCIAS/NN` se trataron como pares inseparables de imagen y ficha técnica.
+- No se mezclaron referencias entre módulos.
+
+## Implementación validada
+
+- Rama: `design/orqena-field-os-v2`.
+- Railway Review: `orqena-review-continuous` / `orqena-review-web`.
+- URL: `https://orqena-review-web-review.up.railway.app`.
+- El SHA y el deployment exactos se registran en la entrega final después del último gate remoto.
+- PR #63 permanece abierta y Draft.
+- Staging y Production no se modificaron.
+
+## Evidencia comparada
+
+- 18 capturas de implementación a 1440 px: `artifacts/design-v2/portal-interno/implementation/1440/`.
+- 18 tableros fuente-vs-Review en una misma imagen: `artifacts/design-v2/portal-interno/comparisons/1440/`.
+- Matriz autenticada de perfiles a 390 px y 1440 px: `artifacts/design-v2/portal-interno/runtime-auth/` y `runtime-auth-remaining/`.
+
+Las comparaciones fueron inspeccionadas para jerarquía, densidad, navegación, composición, tipografía, responsive, estados, controles y fidelidad funcional. Las diferencias frente a las referencias son adaptaciones deliberadas a datos sintéticos veraces, permisos reales y límites de producto; no se inventaron saldos, progreso ni previsiones.
+
+## Cobertura funcional y visual
+
+- Login con el logo oficial y shell autenticado compartido.
+- Hoy y Dashboard como pantallas distintas.
+- Cliente 360 subordinado a Clientes.
+- Trabajo, Presupuestos, Dinero, Documentos, Agenda, Equipo y Configuración.
+- Orqena IA persistente en la navegación y ayuda contextual por módulo.
+- Confirmación humana, posponer y descartar en las propuestas de IA.
+- Navegación móvil, panel contextual móvil y layouts de escritorio.
+- Perfiles owner, dirección general, administración, ventas, finanzas, compras, proyecto, supervisión, campo, externo y viewer.
+- Aislamiento tenant, permisos, acceso de sólo lectura y límites de plan conservados.
+
+## Iteraciones cerradas
+
+| Hallazgo | Severidad | Corrección |
+| --- | --- | --- |
+| Etiquetas y enlaces heredados no coincidían con el nuevo mapa | P1 | Normalización de navegación y deep links. |
+| Ayuda de IA genérica o no contextual | P1 | Rail contextual gobernado por módulo, rol y acción. |
+| Datos económicos podían sugerir magnitudes no confirmadas | P1 | Presentación limitada a información autorizada y fixtures explícitos. |
+| Logo oficial fallaba a través del optimizador dinámico | P1 | Recurso oficial servido directamente, sin alterar el activo. |
+| Secreto TOTP configurado en entorno no coincidía con el factor activo preservado | P1 operacional | Validación autenticada con el factor activo recuperado de forma efímera y sin mutar la base. |
+
+## Gates
+
+- Typecheck: PASS.
+- Build: PASS (93/93 rutas).
+- Tests focales de portal, permisos, tenant e IA: PASS.
+- CI de aplicación, infraestructura, base crítica, supply chain, CodeQL y contrato de backup: PASS.
+- Browser: PASS, incluidos 513 E2E y Lighthouse.
+- `/api/health/live`: 200.
+- `/api/health/ready`: 200.
+- Cero migraciones, semillas o cambios de datos ejecutados en esta entrega.
+
+## Resultado final
+
+`passed`

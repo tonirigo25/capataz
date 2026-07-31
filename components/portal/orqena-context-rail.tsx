@@ -108,14 +108,18 @@ function RailContent({
         <h2 id={titleId} className="mt-5 text-lg font-bold leading-6 text-content">{context.title}</h2>
         <p className="mt-3 text-sm leading-6 text-content-secondary">{context.description}</p>
 
-        <dl className="mt-5 grid gap-3 rounded-xl bg-brand-soft p-4 text-xs leading-5">
-          <div>
+        <dl className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-brand-soft p-4 text-xs leading-5">
+          <div className="col-span-2">
             <dt className="font-semibold text-content-secondary">Origen</dt>
             <dd className="mt-1 text-content">{context.source}</dd>
           </div>
-          <div className="grid grid-cols-2 gap-3 border-t border-brand/10 pt-3">
-            <div><dt className="font-semibold text-content-secondary">Confianza</dt><dd className="mt-1 text-content">Se calcula al analizar</dd></div>
-            <div><dt className="font-semibold text-content-secondary">Impacto</dt><dd className="mt-1 text-content">Sin cambios aplicados</dd></div>
+          <div className="border-t border-brand/10 pt-3">
+            <dt className="font-semibold text-content-secondary">Confianza</dt>
+            <dd className="mt-1 text-content">Se calcula al analizar</dd>
+          </div>
+          <div className="border-t border-brand/10 pt-3">
+            <dt className="font-semibold text-content-secondary">Impacto</dt>
+            <dd className="mt-1 text-content">Sin cambios aplicados</dd>
           </div>
         </dl>
 
