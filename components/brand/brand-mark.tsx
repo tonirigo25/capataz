@@ -3,7 +3,8 @@ import { clsx } from "clsx";
 import type { CSSProperties } from "react";
 import { brand } from "@/lib/brand";
 
-const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial.png";
+const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial-v2.png";
+const OFFICIAL_DARK_LOCKUP = "/brand/orqena/orqena-logo-oficial-sobre-oscuro.png";
 
 export function BrandLogo({
   className,
@@ -40,8 +41,25 @@ export function BrandLockup({
   inverse?: boolean;
   className?: string;
 }) {
+  if (inverse) {
+    return (
+      <span className={clsx("brand-lockup brand-lockup--inverse", className)}>
+        <Image
+          src={OFFICIAL_DARK_LOCKUP}
+          alt={brand.companyName}
+          width={220}
+          height={78}
+          sizes="220px"
+          className="brand-lockup__official-dark"
+          unoptimized
+          priority
+        />
+      </span>
+    );
+  }
+
   return (
-    <span className={clsx("brand-lockup", inverse && "brand-lockup--inverse", className)}>
+    <span className={clsx("brand-lockup", className)}>
       <span className="brand-lockup__tile"><BrandMark /></span>
       <span className="min-w-0">
         <strong className="brand-lockup__name">{brand.companyName}</strong>

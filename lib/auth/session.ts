@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { redirect } from "next/navigation";
 import type { CompanyRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { authConfig, SESSION_COOKIE_NAME } from "@/lib/auth/config";
+import { authConfig, SESSION_COOKIE_NAME, SESSION_PERSISTENCE_COOKIE_NAME } from "@/lib/auth/config";
 import { createOpaqueToken, hashToken } from "@/lib/auth/crypto";
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import { rotateSessionRecord } from "@/lib/auth/session-store";
@@ -47,7 +47,8 @@ function bindTrustedCompanyContext(context: CompanyContext): CompanyContext {
   return context;
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, options: { remember?: boolean } = {}) {
+  const remember = options.remember ?? true;
   const token = createOpaqueToken();
   const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
   const headerStore = await headers();
@@ -60,7 +61,7 @@ export async function createSession(userId: string) {
     }
     await transaction.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt, userAgent } });
   });
-  setSessionCookie(cookieStore, token, expiresAt);
+  setSessionCookie(cookieStore, token, expiresAt, remember);
 }
 
 export async function rotateCurrentSession(reason: "company_selection" | "privilege_elevation" | "password_change") {
@@ -71,19 +72,21 @@ export async function rotateCurrentSession(reason: "company_selection" | "privil
   const current = await prisma.session.findUnique({ where: { tokenHash: oldHash } });
   if (!current || current.revokedAt || current.expiresAt <= new Date()) throw new Error("SESSION_ROTATION_INVALID_SESSION");
   const expiresAt = new Date(Date.now() + authConfig.sessionDays * 86_400_000);
+  const remember = cookieStore.get(SESSION_PERSISTENCE_COOKIE_NAME)?.value !== "0";
   const rotated = await rotateSessionRecord({ prisma, sessionId: current.id, userId: current.userId, expiresAt, userAgent: current.userAgent, ipHash: current.ipHash, secondFactorVerifiedAt: current.secondFactorVerifiedAt });
-  setSessionCookie(cookieStore, rotated.token, expiresAt);
+  setSessionCookie(cookieStore, rotated.token, expiresAt, remember);
   await recordSecurityEvent({ type: "session_rotated", outcome: "success", userId: current.userId, metadata: { reason } });
 }
 
-function setSessionCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, token: string, expiresAt: Date) {
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
+function setSessionCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, token: string, expiresAt: Date, remember: boolean) {
+  const baseOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/",
-    expires: expiresAt
-  });
+    path: "/"
+  } as const;
+  cookieStore.set(SESSION_COOKIE_NAME, token, remember ? { ...baseOptions, expires: expiresAt } : baseOptions);
+  cookieStore.set(SESSION_PERSISTENCE_COOKIE_NAME, remember ? "1" : "0", remember ? { ...baseOptions, expires: expiresAt } : baseOptions);
 }
 
 export async function getOptionalSession(): Promise<AuthenticatedSession | null> {
@@ -222,4 +225,5 @@ export async function revokeCurrentSession() {
     if (session) await recordSecurityEvent({ type: "logout", outcome: "success", userId: session.userId });
   }
   cookieStore.set(SESSION_COOKIE_NAME, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+  cookieStore.set(SESSION_PERSISTENCE_COOKIE_NAME, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
 }
