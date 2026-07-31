@@ -412,7 +412,7 @@ export async function provisionReviewRigoHoy(
       securityFactorsChanged: false,
       otherMembershipsChanged: false,
     } as const;
-  }, { isolationLevel: "Serializable" });
+  }, { isolationLevel: "Serializable", maxWait: 10_000, timeout: 30_000 });
 }
 
 export function safeProvisionErrorCode(error: unknown) {
