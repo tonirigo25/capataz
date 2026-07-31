@@ -57,7 +57,7 @@ export async function buildPortalManifest(context: CompanyContext): Promise<Port
   const allowed = (item: { capability?: string }) => !item.capability || capabilitySet.has(item.capability);
   const navigation = primaryNavigation.filter(allowed);
   const navigationGroups = secondaryNavigation.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter((group) => group.items.length);
-  const orqena = { href: "/capataz", label: brand.productName, icon: "bot" as const, capability: "orqena.use" };
+  const orqena = { href: "/orqena-ia", label: brand.assistantName, icon: "bot" as const, capability: "orqena.use" };
   if (allowed(orqena)) navigation.push(orqena);
   const preferredMobile = mobileRoutes(profile);
   const allNavigation = [...navigation, ...navigationGroups.flatMap((group) => group.items)];
@@ -95,10 +95,10 @@ function asRecord(value: unknown): Record<string, unknown> { return value && typ
 function scalarString(value: unknown) { return typeof value === "string" || typeof value === "number" ? String(value) : undefined; }
 
 function mobileRoutes(profile: string) {
-  if (profile === "WORKER") return ["/hoy", "/obras", "/tareas", "/capataz"];
-  if (profile === "FINANCE") return ["/hoy", "/dinero", "/tesoreria", "/capataz"];
-  if (["SALES", "SALES_MANAGER"].includes(profile)) return ["/hoy", "/clientes", "/presupuestos", "/capataz"];
-  return ["/hoy", "/clientes", "/obras", "/capataz"];
+  if (profile === "WORKER") return ["/hoy", "/obras", "/tareas", "/orqena-ia"];
+  if (profile === "FINANCE") return ["/hoy", "/dinero", "/tesoreria", "/orqena-ia"];
+  if (["SALES", "SALES_MANAGER"].includes(profile)) return ["/hoy", "/clientes", "/presupuestos", "/orqena-ia"];
+  return ["/hoy", "/clientes", "/obras", "/orqena-ia"];
 }
 
 function domainsForCapabilities(capabilities: string[]) {

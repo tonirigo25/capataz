@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { Bot, ChevronRight, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Bot, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Sparkles, X } from "lucide-react";
+import type { PortalRailArea, PortalRailRecommendations, TodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
+import {
+  acceptTodayRecommendationAction,
+  dismissTodayRecommendationAction,
+  snoozeTodayRecommendationAction,
+} from "@/app/(app)/hoy/actions";
 
 type RailContext = {
   eyebrow: string;
@@ -13,70 +20,83 @@ type RailContext = {
   href: string;
 };
 
-const contexts: Array<{ match: (pathname: string) => boolean; value: RailContext }> = [
-  { match: (path) => path.startsWith("/clientes/"), value: contextual("Cliente 360", "Revisa relación, operación, dinero y archivos sin perder el contexto del cliente.", "Cliente seleccionado y permisos vigentes", "Preparar el siguiente paso", "/capataz?contexto=cliente") },
-  { match: (path) => path === "/clientes", value: contextual("Clientes", "Prioriza seguimientos y oportunidades con la información que tu rol puede consultar.", "Cartera visible para tu perfil", "Analizar cartera", "/capataz?contexto=clientes") },
-  { match: (path) => path === "/hoy", value: contextual("Prioridad del día", "Ordena lo que necesita atención ahora y conserva la decisión en manos de tu equipo.", "Agenda, alertas y tareas autorizadas", "Preparar prioridades", "/capataz?contexto=hoy") },
-  { match: (path) => path === "/dashboard", value: contextual("Lectura ejecutiva", "Explica tendencias y riesgos usando sólo indicadores que tu perfil puede ver.", "Indicadores agregados del periodo", "Analizar indicadores", "/capataz?contexto=dashboard") },
-  { match: (path) => path === "/obras" || path.startsWith("/obras/"), value: contextual("Riesgo operativo", "Contrasta avance, hitos e incidencias antes de preparar una recomendación.", "Trabajo seleccionado y actividad registrada", "Revisar trabajo", "/capataz?contexto=trabajo") },
-  { match: (path) => path.startsWith("/presupuestos"), value: contextual("Presupuesto revisable", "Comprueba partidas, margen y condiciones sin modificar cálculos ni fiscalidad.", "Versión visible del presupuesto", "Preparar revisión", "/capataz?contexto=presupuesto") },
-  { match: (path) => path === "/dinero" || path.startsWith("/tesoreria"), value: contextual("Control financiero", "Ordena vencimientos y riesgos con importes protegidos por permisos financieros.", "Tesorería autorizada para tu perfil", "Preparar plan financiero", "/capataz?contexto=dinero") },
-  { match: (path) => path.startsWith("/documentos") || path.startsWith("/gastos-materiales/lector"), value: contextual("Revisión documental", "Señala campos dudosos y relaciones probables; la confirmación siempre es humana.", "Documento seleccionado y extracción autorizada", "Revisar con Orqena IA", "/capataz?contexto=documentos") },
-  { match: (path) => path === "/agenda", value: contextual("Coordinación de agenda", "Detecta conflictos y prepara alternativas sin mover eventos automáticamente.", "Agenda y equipo dentro de tu alcance", "Preparar alternativas", "/capataz?contexto=agenda") },
-  { match: (path) => path === "/equipo" || path.startsWith("/equipos"), value: contextual("Coordinación del equipo", "Revisa carga y acceso sin ampliar permisos ni mostrar información fuera de tu alcance.", "Personas y tareas autorizadas", "Analizar coordinación", "/capataz?contexto=equipo") },
-  { match: (path) => path.startsWith("/configuracion"), value: contextual("Configuración recomendada", "Comprueba plan, consumo, permisos e integraciones antes de proponer cambios.", "Configuración visible para tu rol", "Abrir guía segura", "/capataz?contexto=configuracion") },
-  { match: (path) => path === "/capataz" || path.startsWith("/orqena-ia"), value: contextual("Asistente Orqena IA", "Consulta, prepara y revisa acciones con trazabilidad, límites y confirmación humana.", "Contexto mínimo autorizado", "Continuar en Orqena IA", "/capataz") },
+const contexts: Array<{ match: (pathname: string) => boolean; area: PortalRailArea; value: RailContext }> = [
+  { match: (path) => path.startsWith("/clientes/"), area: "clients", value: contextual("Cliente 360", "Revisa relación, operación, dinero y archivos sin perder el contexto del cliente.", "Cliente seleccionado y permisos vigentes", "Abrir ayuda comercial", "/orqena-ia/comercial") },
+  { match: (path) => path === "/clientes", area: "clients", value: contextual("Clientes", "Prioriza seguimientos y oportunidades con la información que tu rol puede consultar.", "Cartera visible para tu perfil", "Analizar cartera", "/orqena-ia/comercial") },
+  { match: (path) => path === "/hoy", area: "hoy", value: contextual("Recomendación para hoy", "No hay recomendaciones activas dentro de tu alcance. Orqena IA volverá a comprobar las señales registradas.", "Datos autorizados de tu empresa", "Revisar prioridades", "/recomendaciones") },
+  { match: (path) => path === "/dashboard", area: "dashboard", value: contextual("Lectura ejecutiva", "Explica tendencias y riesgos usando sólo indicadores que tu perfil puede ver.", "Indicadores agregados del periodo", "Analizar indicadores", "/orqena-ia") },
+  { match: (path) => path === "/obras" || path.startsWith("/obras/"), area: "work", value: contextual("Riesgo operativo", "Contrasta avance, hitos e incidencias antes de preparar una recomendación.", "Trabajo seleccionado y actividad registrada", "Revisar trabajo", "/orqena-ia/operaciones") },
+  { match: (path) => path.startsWith("/presupuestos"), area: "budgets", value: contextual("Presupuesto revisable", "Comprueba partidas, margen y condiciones sin modificar cálculos ni fiscalidad.", "Versión visible del presupuesto", "Preparar revisión", "/orqena-ia/comercial") },
+  { match: (path) => path.startsWith("/dinero") || path.startsWith("/tesoreria"), area: "finance", value: contextual("Control financiero", "Ordena vencimientos y riesgos con importes protegidos por permisos financieros.", "Tesorería autorizada para tu perfil", "Preparar plan financiero", "/orqena-ia/finanzas") },
+  { match: (path) => path.startsWith("/documentos") || path.startsWith("/gastos-materiales/lector"), area: "documents", value: contextual("Revisión documental", "Señala campos dudosos y relaciones probables; la confirmación siempre es humana.", "Documento seleccionado y extracción autorizada", "Revisar con Orqena IA", "/orqena-ia/documentos") },
+  { match: (path) => path.startsWith("/agenda"), area: "agenda", value: contextual("Coordinación de agenda", "Detecta conflictos y prepara alternativas sin mover eventos automáticamente.", "Agenda y equipo dentro de tu alcance", "Preparar alternativas", "/orqena-ia/operaciones") },
+  { match: (path) => path === "/equipo" || path.startsWith("/equipos"), area: "team", value: contextual("Coordinación del equipo", "Revisa carga y acceso sin ampliar permisos ni mostrar información fuera de tu alcance.", "Personas y tareas autorizadas", "Analizar coordinación", "/orqena-ia/equipo") },
+  { match: (path) => path.startsWith("/configuracion"), area: "settings", value: contextual("Configuración recomendada", "Comprueba plan, consumo, permisos e integraciones antes de proponer cambios.", "Configuración visible para tu rol", "Abrir guía segura", "/orqena-ia") },
+  { match: (path) => path === "/capataz" || path.startsWith("/orqena-ia"), area: "orqena", value: contextual("Asistente Orqena IA", "Consulta, prepara y revisa acciones con trazabilidad, límites y confirmación humana.", "Contexto mínimo autorizado", "Continuar en Orqena IA", "/orqena-ia") },
 ];
 
-const fallbackContext = contextual(
-  "Ayuda contextual",
-  "Orqena IA puede preparar un análisis con los datos autorizados de esta vista.",
-  "Módulo actual y permisos vigentes",
-  "Abrir Orqena IA",
-  "/capataz",
-);
+const fallbackContext = contextual("Ayuda contextual", "Orqena IA puede preparar un análisis con los datos autorizados de esta vista.", "Módulo actual y permisos vigentes", "Abrir Orqena IA", "/orqena-ia");
 
 function contextual(eyebrow: string, description: string, source: string, next: string, href: string): RailContext {
   return { eyebrow, title: next, description, source, next, href };
 }
 
-export function OrqenaContextRail({ pathname }: { pathname: string }) {
+export function OrqenaContextRail({
+  pathname,
+  recommendations,
+  canUse,
+  canExecute,
+  collapsed,
+  onToggleCollapsed,
+}: {
+  pathname: string;
+  recommendations: PortalRailRecommendations;
+  canUse: boolean;
+  canExecute: boolean;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [feedback, setFeedback] = useState<"postponed" | "dismissed" | null>(null);
   const titleId = useId();
-  const context = contexts.find((entry) => entry.match(pathname))?.value ?? fallbackContext;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  const matched = contexts.find((entry) => entry.match(pathname));
+  const context = matched?.value ?? fallbackContext;
+  const recommendation = canUse && matched ? recommendations[matched.area] ?? null : null;
 
+  useEffect(() => setMobileOpen(false), [pathname]);
   useEffect(() => {
-    setMobileOpen(false);
-    setFeedback(null);
-  }, [pathname]);
+    if (!mobileOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() => sheetRef.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      triggerRef.current?.focus();
+    };
+  }, [mobileOpen]);
 
   return (
     <>
-      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA">
-        <RailContent context={context} titleId={`${titleId}-desktop`} feedback={feedback} onFeedback={setFeedback} />
+      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"}>
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
-      <button
-        type="button"
-        className="orqena-context-trigger"
-        aria-expanded={mobileOpen}
-        aria-controls={`${titleId}-panel`}
-        onClick={() => setMobileOpen(true)}
-      >
-        <Sparkles size={18} aria-hidden="true" />
-        <span>Ayuda IA</span>
+      <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
+        <Sparkles size={18} aria-hidden="true" /><span>Ayuda IA</span>
       </button>
 
       {mobileOpen ? (
-        <div className="orqena-context-sheet-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setMobileOpen(false);
-        }}>
-          <aside id={`${titleId}-panel`} className="orqena-context-sheet" role="dialog" aria-modal="true" aria-labelledby={`${titleId}-mobile`}>
-            <button type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}>
-              <X size={19} aria-hidden="true" />
-            </button>
-            <RailContent context={context} titleId={`${titleId}-mobile`} feedback={feedback} onFeedback={setFeedback} />
+        <div className="orqena-context-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileOpen(false); }}>
+          <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet" role="dialog" aria-modal="true" aria-labelledby={`${titleId}-mobile`}>
+            <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
+            <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} />
           </aside>
         </div>
       ) : null}
@@ -84,62 +104,71 @@ export function OrqenaContextRail({ pathname }: { pathname: string }) {
   );
 }
 
-function RailContent({
-  context,
-  titleId,
-  feedback,
-  onFeedback,
-}: {
-  context: RailContext;
-  titleId: string;
-  feedback: "postponed" | "dismissed" | null;
-  onFeedback: (feedback: "postponed" | "dismissed") => void;
-}) {
+function RailContent({ context, titleId, recommendation, canUse, canExecute, isToday, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; canUse: boolean; canExecute: boolean; isToday: boolean; onToggleCollapsed?: () => void }) {
+  const title = canUse ? recommendation?.title ?? context.title : "Orqena IA no disponible";
+  const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
+  const source = recommendation?.source ?? context.source;
+  const evidence = recommendation ? recommendation.evidence : [];
+
   return (
     <div className="orqena-context-rail__inner">
-      <header className="orqena-context-rail__header">
-        <span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span>
-        <span>Orqena IA</span>
-      </header>
-
-      <p className="type-label mt-7 text-brand-strong">{context.eyebrow}</p>
-      <div className="orqena-context-card mt-3">
+      <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+      <p className="orqena-context-eyebrow">{context.eyebrow}</p>
+      <div className="orqena-context-card">
         <span className="orqena-context-card__icon"><Bot size={22} aria-hidden="true" /></span>
-        <h2 id={titleId} className="mt-5 text-lg font-bold leading-6 text-content">{context.title}</h2>
-        <p className="mt-3 text-sm leading-6 text-content-secondary">{context.description}</p>
+        <h2 id={titleId}>{title}</h2>
+        <p className="orqena-context-description">{description}</p>
+        <p className="orqena-context-source"><strong>Origen</strong><span>{source}</span></p>
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-brand-soft p-4 text-xs leading-5">
-          <div className="col-span-2">
-            <dt className="font-semibold text-content-secondary">Origen</dt>
-            <dd className="mt-1 text-content">{context.source}</dd>
-          </div>
-          <div className="border-t border-brand/10 pt-3">
-            <dt className="font-semibold text-content-secondary">Confianza</dt>
-            <dd className="mt-1 text-content">Se calcula al analizar</dd>
-          </div>
-          <div className="border-t border-brand/10 pt-3">
-            <dt className="font-semibold text-content-secondary">Impacto</dt>
-            <dd className="mt-1 text-content">Sin cambios aplicados</dd>
-          </div>
+        <dl className="orqena-context-impact">
+          <div className="orqena-context-impact__title"><dt>Impacto estimado</dt><dd>{!canUse ? "Acceso no autorizado" : recommendation ? "Con datos registrados" : "Sin recomendación activa"}</dd></div>
+          {recommendation?.amount != null ? <div><dt>Importe</dt><dd>{formatCurrency(recommendation.amount)}</dd></div> : null}
+          {recommendation?.dueAt ? <div><dt>Vencimiento</dt><dd>{formatDate(recommendation.dueAt)}</dd></div> : null}
+          {evidence.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+          {!recommendation ? <div><dt>Estado</dt><dd>Sin cambios aplicados</dd></div> : null}
         </dl>
 
-        <div className="mt-5 flex items-start gap-2 rounded-xl border border-border bg-surface p-3 text-xs leading-5 text-content-secondary">
-          <ShieldCheck className="mt-0.5 shrink-0 text-brand-strong" size={17} aria-hidden="true" />
-          <p>Tu equipo revisa y confirma cada acción. Descartar o posponer no modifica datos.</p>
-        </div>
+        <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>La recomendación no ejecuta cambios por sí sola. Tu equipo revisa y confirma cada acción.</p></div>
 
-        <Link href={context.href} className="primary-button mt-5 w-full">
-          Revisar y confirmar<ChevronRight size={17} aria-hidden="true" />
-        </Link>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={() => onFeedback("postponed")}>Posponer</button>
-          <button type="button" className="ghost-button min-h-10 px-3 text-xs" onClick={() => onFeedback("dismissed")}>Descartar</button>
-        </div>
-        {feedback ? <p role="status" className="mt-2 text-center text-xs leading-5 text-content-secondary">
-          {feedback === "postponed" ? "Pospuesta durante esta sesión; no se ha modificado ningún dato." : "Descartada en esta vista; no se ha ejecutado ninguna acción."}
-        </p> : null}
-        <Link href="/configuracion/ia" className="ghost-button mt-1 w-full text-xs">Ver límites y control</Link>
+        {!canUse ? <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">No disponible en tu acceso</span> : recommendation && canExecute && isToday ? <TodayRecommendationControls recommendation={recommendation} /> : (
+          <Link href={recommendation?.href ?? context.href} className="orqena-context-primary">{recommendation ? "Abrir origen" : context.next}<ChevronRight size={16} aria-hidden="true" /></Link>
+        )}
+        {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones</Link> : null}
       </div>
     </div>
   );
+}
+
+function TodayRecommendationControls({ recommendation }: { recommendation: TodayRailRecommendation }) {
+  return <div className="orqena-context-controls">
+    <form action={acceptTodayRecommendationAction}>
+      <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
+      <SubmitButton className="orqena-context-primary" pending="Confirmando…">Confirmar acción<ChevronRight size={16} aria-hidden="true" /></SubmitButton>
+    </form>
+    <div className="orqena-context-secondary-controls">
+      <form action={snoozeTodayRecommendationAction}>
+        <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
+        <input type="hidden" name="preset" value="tomorrow" />
+        <SubmitButton className="orqena-context-secondary" pending="Posponiendo…">Posponer</SubmitButton>
+      </form>
+      <form action={dismissTodayRecommendationAction}>
+        <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
+        <input type="hidden" name="reason" value="Descartada desde Hoy" />
+        <SubmitButton className="orqena-context-secondary" pending="Descartando…">Descartar</SubmitButton>
+      </form>
+    </div>
+  </div>;
+}
+
+function SubmitButton({ children, pending, className }: { children: React.ReactNode; pending: string; className: string }) {
+  const status = useFormStatus();
+  return <button type="submit" className={className} disabled={status.pending}>{status.pending ? pending : children}</button>;
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" }).format(new Date(value));
 }

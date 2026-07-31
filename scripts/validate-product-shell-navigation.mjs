@@ -27,7 +27,7 @@ const primaryIndexes = primaryOrder.map((token) => navigation.indexOf(token));
 const navigationOnly = navigation.slice(navigation.indexOf("export const primaryNavigation"), navigation.indexOf("export const createActions"));
 const createOnly = navigation.slice(navigation.indexOf("export const createActions"), navigation.indexOf("export const captureActions"));
 
-check("sidebar usa el token Field OS de 248 px", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 248px"));
+check("sidebar usa el ancho canónico del portal de 239 px", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 239px"));
 check("navegación principal tiene seis destinos en orden", primaryIndexes.every((index) => index >= 0) && primaryIndexes.every((index, position) => position === 0 || index > primaryIndexes[position - 1]));
 check("Agenda se mantiene dentro de Más", navigation.indexOf('label: "Agenda"') > navigation.indexOf('label: "Control"'));
 check("Más usa tres grupos aprobados", ['label: "Compras"', 'label: "Control"', 'label: "Administración"'].every((token) => navigation.includes(token)));
@@ -40,9 +40,9 @@ check("paneles restauran foco y hojas bloquean scroll", chrome.includes("activeT
 check("diálogos contienen el foco por teclado", chrome.includes('event.key !== "Tab"') && chrome.includes("getFocusable") && chrome.includes('role="dialog"'));
 check("búsqueda usa activador central y compacto, atajo y ruta existentes", chrome.includes("field-os-global-search") && chrome.includes("field-os-search-trigger") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
 check("búsqueda presenta filas y estados vacío, carga, error y resultados", searchPage.includes("InteractiveRow") && searchPage.includes("¿Qué necesitas encontrar?") && searchPage.includes("No hay resultados") && searchLoading.includes("LoadingState") && searchError.includes("ErrorState"));
-check("Orqena conserva la acción secundaria y el alias", chrome.includes('href="/capataz"') && chrome.includes(">Orqena"));
+check("Orqena usa la ruta visual canónica y conserva el alias técnico", chrome.includes('href="/orqena-ia"') && navigation.includes('{ href: "/capataz", label: brand.assistantName }'));
 check("notificaciones limitan contador a 99+ sin danger", chrome.includes('count > 99 ? "99+"') && !chrome.includes("bg-danger"));
-check("móvil se construye desde PortalManifest y mantiene Capturar y Más", chrome.includes("portalManifest.mobileNavigation") && chrome.includes('aria-label="Capturar"') && chrome.includes('aria-label="Más áreas"'));
+check("móvil se construye desde PortalManifest y mantiene Nuevo y Más", chrome.includes("portalManifest.mobileNavigation") && chrome.includes('aria-label="Crear o capturar"') && chrome.includes('aria-label="Más áreas"'));
 check("Dashboard está disponible desde Más y búsqueda", chrome.includes('href="/dashboard"') && searchPage.includes('href="/dashboard"'));
 check("Crear contiene exactamente seis acciones aprobadas", (createOnly.match(/description: "/g) ?? []).length === 6 && ["Presupuesto", "Cliente", "Trabajo", "Gasto", "Cobro", "Visita"].every((label) => createOnly.includes(`label: "${label}"`)));
 check("Crear no incluye Capataz", !navigation.slice(navigation.indexOf("export const createActions"), navigation.indexOf("export type RouteContext")).includes("Capataz"));

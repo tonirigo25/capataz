@@ -13,6 +13,7 @@ import {
   Building2,
   CalendarDays,
   ChevronDown,
+  CircleHelp,
   CircleUserRound,
   Ellipsis,
   FileText,
@@ -42,13 +43,15 @@ import {
   type ProductIcon
 } from "@/lib/product-navigation";
 import type { PortalManifest } from "@/lib/commercial/portal-manifest";
-import { BrandMark } from "@/components/brand/brand-mark";
+import { BrandLogo } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { brand } from "@/lib/brand";
 import { OrqenaContextRail } from "@/components/portal/orqena-context-rail";
+import type { PortalRailRecommendations } from "@/lib/application/intelligence/today-recommendation";
 
 type DesktopPanel = "more" | "create" | "user" | null;
 type Overlay = "search" | "capture" | "more" | null;
+type ShellDestination = ProductDestination & { unavailable?: boolean };
 
 const icons: Record<ProductIcon, LucideIcon> = {
   activity: Activity,
@@ -77,7 +80,8 @@ export function AppChrome({
   companyName,
   userName,
   platformAccess,
-  logoutAction
+  logoutAction,
+  railRecommendations,
 }: {
   children: ReactNode;
   portalManifest: PortalManifest;
@@ -88,22 +92,26 @@ export function AppChrome({
   userName: string;
   platformAccess: boolean;
   logoutAction: () => Promise<void>;
+  railRecommendations: PortalRailRecommendations;
 }) {
   const pathname = usePathname();
   const dialogId = useId();
   const [desktopPanel, setDesktopPanel] = useState<DesktopPanel>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
   const desktopNavigation = useMemo(() => buildCanonicalDesktopNavigation(portalManifest), [portalManifest]);
-  const contextLabel = pathname === "/capataz" ? brand.assistantName : context.label;
+  const contextLabel = pathname === "/capataz" || pathname.startsWith("/orqena-ia") ? brand.assistantName : context.label;
+  const orqenaAvailable = capabilities.includes("orqena.use");
   const canCapture = useMemo(
     () => captureActions.some((item) => !item.capability || capabilities.includes(item.capability)),
     [capabilities],
   );
+  const canCreate = canCapture || portalManifest.quickActions.length > 0;
 
   useEffect(() => {
     setDesktopPanel(null);
@@ -217,31 +225,23 @@ export function AppChrome({
         <DesktopNavigation
           navigation={desktopNavigation}
           pathname={pathname}
-          companyName={companyName}
-          userName={userName}
-          modeLabel={modeLabel}
           collapsed={sidebarCollapsed}
-          desktopPanel={desktopPanel}
           onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-          onOpenPanel={openDesktopPanel}
         />
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/95">
-        <div className="mx-auto flex h-16 max-w-product items-center gap-2 px-4 sm:px-6 lg:px-8">
+      <header className="field-os-topbar sticky top-0 z-30 border-b border-border bg-surface/95">
+        <div className="field-os-topbar__inner flex items-center gap-2 px-4 sm:px-6">
           <Link
             href={portalManifest.safeHome}
             className="field-os-mobile-brand h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white"
             aria-label="Ir a Hoy"
           >
-            <BrandMark className="h-7 w-7 text-white" />
+            <BrandLogo variant="symbol" size="sm" className="h-7 w-7" />
           </Link>
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${contextLabel}`}>
+          <p className="field-os-mobile-context min-w-0 flex-1 truncate text-sm font-semibold text-content" aria-label={`Área actual: ${contextLabel}`}>
             {contextLabel}
           </p>
-          <Link href="/seleccionar-empresa" className="ghost-button max-w-40 truncate px-2 text-xs" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
-            <Building2 size={17} aria-hidden="true"/><span className="truncate">{companyName}</span><ChevronDown size={14} aria-hidden="true"/>
-          </Link>
 
           <button
             type="button"
@@ -250,9 +250,20 @@ export function AppChrome({
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
             <Search size={18} aria-hidden="true" />
-            <span className="flex-1">Buscar en {brand.productName}</span>
+            <span className="flex-1">Buscar en Orqena Tech...</span>
             <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-content-tertiary">Ctrl K</kbd>
           </button>
+
+          <Link
+            href="/seleccionar-empresa"
+            className="field-os-company-switcher"
+            aria-label={`Cambiar empresa. Activa: ${companyName}`}
+          >
+            <Building2 size={18} aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{companyName}</span>
+            {modeLabel ? <span className="field-os-environment-badge">{modeLabel}</span> : null}
+            <ChevronDown size={15} aria-hidden="true" />
+          </Link>
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <button
@@ -263,30 +274,40 @@ export function AppChrome({
             >
               <Search size={20} aria-hidden="true" />
             </button>
+            <NotificationLink unread={unreadNotifications} />
+            <Link href="/configuracion/soporte/ayuda" className="icon-button field-os-help-link" aria-label="Abrir ayuda">
+              <CircleHelp size={20} aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              className="field-os-user-trigger"
+              aria-expanded={desktopPanel === "user"}
+              onClick={(event) => openDesktopPanel("user", event.currentTarget)}
+            >
+              <UserAvatar name={userName} />
+              <span className="truncate">{userName}</span>
+              <ChevronDown size={15} aria-hidden="true" />
+            </button>
             {portalManifest.quickActions.length ? <button
               type="button"
-              className="field-os-desktop-action secondary-button"
+              className="field-os-desktop-action field-os-new-action"
               aria-expanded={desktopPanel === "create"}
               onClick={(event) => openDesktopPanel("create", event.currentTarget)}
             >
-              <Plus size={18} aria-hidden="true" />Crear
+              <Plus size={17} aria-hidden="true" /><span>Nuevo</span><ChevronDown size={15} aria-hidden="true" />
             </button> : null}
-            {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
-              <Bot size={18} aria-hidden="true" />Orqena IA
-            </Link> : null}
-            <NotificationLink unread={unreadNotifications} />
           </div>
         </div>
       </header>
 
-      <div className="field-os-workspace">
+      <div className="field-os-workspace" data-rail-collapsed={railCollapsed ? "true" : "false"}>
         <div id="main-content" className="field-os-main-canvas relative" tabIndex={-1}>{children}</div>
-        <OrqenaContextRail pathname={pathname} />
+        <OrqenaContextRail pathname={pathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => !current)} />
       </div>
 
       <MobileBottomNavigation
         items={portalManifest.mobileNavigation}
-        canCapture={canCapture}
+        canCapture={canCreate}
         pathname={pathname}
         overlay={overlay}
         onOpen={openOverlay}
@@ -351,6 +372,7 @@ export function AppChrome({
                 modeLabel={modeLabel}
                 logoutAction={logoutAction}
                 platformAccess={platformAccess}
+                orqenaAvailable={orqenaAvailable}
                 onClose={() => setOverlay(null)}
               />
             )}
@@ -361,7 +383,7 @@ export function AppChrome({
   );
 }
 
-function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): ProductDestination[] {
+function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): ShellDestination[] {
   const allowed = new Map(
     [...portalManifest.navigation, ...portalManifest.navigationGroups.flatMap((group) => group.items)]
       .map((item) => [item.href, item] as const),
@@ -376,13 +398,13 @@ function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): Produc
     { href: "/documentos", label: "Documentos", icon: "document" },
     { href: "/agenda", label: "Agenda", icon: "agenda" },
     { href: "/equipo", label: "Equipo", icon: "client" },
-    { href: "/capataz", label: brand.assistantName, icon: "bot" },
+    { href: "/orqena-ia", label: brand.assistantName, icon: "bot" },
     { href: "/configuracion", label: "Configuración", icon: "settings" },
   ];
 
   return order.flatMap((target) => {
-    if (target.href === "/capataz") return [target];
     const source = allowed.get(target.href);
+    if (target.href === "/orqena-ia" && !source) return [{ ...target, capability: "orqena.use", unavailable: true }];
     return source ? [{ ...source, label: target.label, icon: target.icon }] : [];
   });
 }
@@ -390,37 +412,20 @@ function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): Produc
 function DesktopNavigation({
   navigation,
   pathname,
-  companyName,
-  userName,
-  modeLabel,
   collapsed,
-  desktopPanel,
   onToggleCollapsed,
-  onOpenPanel
 }: {
-  navigation: ProductDestination[];
+  navigation: ShellDestination[];
   pathname: string;
-  companyName: string;
-  userName: string;
-  modeLabel?: string;
   collapsed: boolean;
-  desktopPanel: DesktopPanel;
   onToggleCollapsed: () => void;
-  onOpenPanel: (panel: Exclude<DesktopPanel, null>, trigger: HTMLButtonElement) => void;
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pb-3 pt-4">
-        <Link href="/hoy" className="field-os-sidebar__brand flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label="Ir a Hoy">
-          <span className="field-os-sidebar__brand-mark flex h-10 w-10 shrink-0 items-center justify-center">
-            <BrandMark className="h-8 w-8" />
-          </span>
-          <span className="field-os-sidebar__brand-copy min-w-0">
-            <span className="block text-base font-bold leading-5 text-content">{brand.companyName}</span>
-            <span className="block truncate text-xs text-content-secondary">Portal empresarial</span>
-          </span>
+      <div className="field-os-sidebar__brand-area">
+        <Link href="/hoy" className="field-os-sidebar__brand" aria-label="Ir a Hoy">
+          {collapsed ? <BrandLogo variant="symbol" size="sm" className="h-8 w-8" /> : <BrandLogo variant="sidebar" size="lg" title={brand.companyName} />}
         </Link>
-        {modeLabel && !collapsed ? <p className="mt-1 truncate px-2 text-[11px] font-medium text-content-tertiary">{modeLabel}</p> : null}
       </div>
 
       <nav className="field-os-sidebar__navigation flex-1 overflow-y-auto px-3" aria-label="Navegación principal">
@@ -429,23 +434,9 @@ function DesktopNavigation({
             <NavigationLink key={item.href} item={item} pathname={pathname} />
           ))}
         </div>
-        {!collapsed ? <button
-            type="button"
-            className={clsx(
-              "mt-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-              desktopPanel === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
-            )}
-            aria-expanded={desktopPanel === "more"}
-            aria-controls="desktop-more-navigation"
-            onClick={(event) => onOpenPanel("more", event.currentTarget)}
-          >
-            <Ellipsis size={19} aria-hidden="true" />
-            <span className="flex-1 text-left">Más</span>
-            <ChevronDown size={16} className="-rotate-90" aria-hidden="true" />
-          </button> : null}
       </nav>
 
-      <div className="border-t border-border p-3">
+      <div className="field-os-sidebar__footer border-t border-border p-3">
         <button
           type="button"
           className="mb-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content"
@@ -454,22 +445,6 @@ function DesktopNavigation({
         >
           {collapsed ? <PanelLeftOpen size={19} aria-hidden="true" /> : <PanelLeftClose size={19} aria-hidden="true" />}
           <span className="field-os-sidebar__label">Ocultar menú</span>
-        </button>
-        <button
-          type="button"
-          className={clsx(
-            "flex min-h-14 w-full items-center gap-3 rounded-lg px-2 text-left transition hover:bg-subtle",
-            desktopPanel === "user" && "bg-subtle"
-          )}
-          aria-expanded={desktopPanel === "user"}
-          onClick={(event) => onOpenPanel("user", event.currentTarget)}
-        >
-          <UserAvatar name={userName} />
-          <span className="field-os-sidebar__label min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-content">{userName}</span>
-            <span className="block truncate text-xs text-content-secondary">{companyName}</span>
-          </span>
-          {!collapsed ? <ChevronDown size={16} aria-hidden="true" /> : null}
         </button>
       </div>
     </div>
@@ -547,7 +522,7 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
   onClose
 }, ref) {
   return (
-    <div ref={ref} className="field-os-sidebar-panel fixed bottom-3 z-50 w-72 rounded-2xl border border-border bg-surface p-3 shadow-card">
+    <div ref={ref} className="field-os-user-panel fixed right-4 top-[4.25rem] z-50 w-72 rounded-2xl border border-border bg-surface p-3 shadow-card">
       <div className="border-b border-border px-2 pb-3">
         <p className="truncate text-sm font-semibold text-content">{userName}</p>
         <p className="truncate text-xs text-content-secondary">{companyName}</p>
@@ -599,14 +574,14 @@ function MobileBottomNavigation({
         {canCapture ? <button
           type="button"
           className={clsx("field-os-capture-trigger shell-bottom-item", overlay === "capture" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
-          aria-label="Capturar"
+          aria-label="Crear o capturar"
           aria-expanded={overlay === "capture"}
           onClick={(event) => onOpen("capture", event.currentTarget)}
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-lg">
             <Plus size={19} aria-hidden="true" />
           </span>
-          <span>Capturar</span>
+          <span>Nuevo</span>
         </button> : null}
         {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
         <button
@@ -634,7 +609,7 @@ function BottomLink({ item, pathname }: { item: ProductDestination; pathname: st
       className={clsx("shell-bottom-item", active ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
     >
       <Icon size={22} aria-hidden="true" />
-      <span>{item.href === "/capataz" ? brand.assistantName : item.label}</span>
+      <span>{item.href === "/orqena-ia" ? brand.assistantName : item.label}</span>
     </Link>
   );
 }
@@ -684,8 +659,15 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
 
 function MobileCaptureSheet({ id, capabilities, onClose }: { id: string; capabilities: string[]; onClose: () => void }) {
   return (
-    <SheetFrame id={id} title="Capturar" description="Registra lo que acaba de pasar." onClose={onClose}>
+    <SheetFrame id={id} title="Nuevo" description="Crea o registra una acción autorizada." onClose={onClose}>
+      <section>
+        <h3 className="type-label mb-2">Crear</h3>
+        <CreateRows capabilities={capabilities} onNavigate={onClose} />
+      </section>
+      <section className="mt-5 border-t border-border pt-4">
+        <h3 className="type-label mb-2">Captura rápida</h3>
       <CaptureRows capabilities={capabilities} onNavigate={onClose} />
+      </section>
       <p className="mt-4 rounded-lg bg-subtle p-3 text-xs leading-5 text-content-secondary">
         La cámara o el micrófono sólo se solicitarán después de elegir una acción que los necesite.
       </p>
@@ -703,6 +685,7 @@ function MobileMoreSheet({
   userName,
   modeLabel,
   platformAccess,
+  orqenaAvailable,
   logoutAction,
   onClose
 }: {
@@ -715,24 +698,25 @@ function MobileMoreSheet({
   userName: string;
   modeLabel?: string;
   platformAccess: boolean;
+  orqenaAvailable: boolean;
   logoutAction: () => Promise<void>;
   onClose: () => void;
 }) {
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
-      {navigation.some((item) => item.href === "/capataz") ? <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
+      {orqenaAvailable ? <Link href="/orqena-ia" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
         <Bot size={20} aria-hidden="true" />{brand.assistantName}
-      </Link> : null}
+      </Link> : <span aria-disabled="true" title="No disponible en tu plan o permisos" className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-subtle px-3 font-semibold text-content-tertiary"><Bot size={20} aria-hidden="true" />{brand.assistantName}<small className="ml-auto">No disponible</small></span>}
       <div className="grid gap-5">
         <section>
           <h3 className="type-label mb-2">Trabajo y gestión</h3>
           <div className="grid gap-1">
-            {navigation.filter((item) => !["/hoy", "/clientes", "/obras", "/capataz"].includes(item.href)).map((item) => (
+            {navigation.filter((item) => !["/hoy", "/clientes", "/obras", "/orqena-ia"].includes(item.href)).map((item) => (
               <NavigationLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />
             ))}
           </div>
         </section>
-        {groups.slice(0, 2).map((group) => (
+        {groups.map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -746,6 +730,15 @@ function MobileMoreSheet({
           </div>
         </div>
         <div className="mt-3 grid gap-1">
+          <Link href="/seleccionar-empresa" className="shell-menu-row" onClick={onClose}>
+            <Building2 size={18} aria-hidden="true" />Cambiar empresa
+          </Link>
+          <Link href="/notificaciones" className="shell-menu-row" onClick={onClose}>
+            <Bell size={18} aria-hidden="true" />Notificaciones{unread ? ` (${unread})` : ""}
+          </Link>
+          <Link href="/configuracion/soporte/ayuda" className="shell-menu-row" onClick={onClose}>
+            <CircleHelp size={18} aria-hidden="true" />Ayuda
+          </Link>
           <div className="px-2 py-2">
             <p className="mb-2 text-xs font-semibold text-content-secondary">Apariencia</p>
             <ThemeSwitcher />
@@ -870,25 +863,39 @@ function NavigationLink({
   onNavigate,
   badge = 0
 }: {
-  item: ProductDestination;
+  item: ShellDestination;
   pathname: string;
   onNavigate?: () => void;
   badge?: number;
 }) {
   const active = isProductDestinationActive(pathname, item.href);
   const Icon = icons[item.icon];
+  const label = item.href === "/orqena-ia" ? brand.assistantName : item.label;
+  if (item.unavailable) {
+    return (
+      <span
+        aria-disabled="true"
+        title="No disponible en tu plan o permisos"
+        className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-tertiary"
+      >
+        <Icon size={19} aria-hidden="true" />
+        <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{label}</span>
+      </span>
+    );
+  }
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
+      aria-label={label}
       className={clsx(
         "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
         active ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
       )}
     >
       <Icon size={19} aria-hidden="true" />
-      <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{item.href === "/capataz" ? brand.assistantName : item.label}</span>
+      <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{label}</span>
       {badge ? <NotificationBadge count={badge} /> : null}
     </Link>
   );
