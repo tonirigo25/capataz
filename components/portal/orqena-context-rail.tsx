@@ -108,6 +108,7 @@ function RailContent({ context, titleId, recommendation, canUse, canExecute, isT
   const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
   const source = recommendation?.source ?? context.source;
   const evidence = recommendation ? recommendation.evidence : [];
+  const todayEvidence = isToday ? evidence.filter((item) => item.label !== "Confianza") : evidence;
 
   return (
     <div className="orqena-context-rail__inner">
@@ -121,9 +122,15 @@ function RailContent({ context, titleId, recommendation, canUse, canExecute, isT
 
         <dl className="orqena-context-impact">
           <div className="orqena-context-impact__title"><dt>Impacto estimado</dt>{!recommendation ? <dd>{!canUse ? "Acceso no autorizado" : "Sin recomendación activa"}</dd> : null}</div>
-          {recommendation?.amount != null ? <div><dt>Importe</dt><dd>{formatCurrency(recommendation.amount)}</dd></div> : null}
-          {recommendation?.dueAt ? <div><dt>Vencimiento</dt><dd>{formatDate(recommendation.dueAt)}</dd></div> : null}
-          {evidence.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+          {isToday ? <>
+            {todayEvidence.filter((item) => item.label === "Probabilidad").map((item) => <div key={item.label}><dt>{item.label} de cierre</dt><dd>{item.value}</dd></div>)}
+            {recommendation?.amount != null ? <div><dt>Importe</dt><dd>{formatCurrency(recommendation.amount, true)}</dd></div> : null}
+            {todayEvidence.filter((item) => item.label !== "Probabilidad").map((item) => <div key={item.label}><dt>{item.label === "Ciclo" ? "Ciclo de venta" : item.label}</dt><dd>{item.value}</dd></div>)}
+          </> : <>
+            {recommendation?.amount != null ? <div><dt>Importe</dt><dd>{formatCurrency(recommendation.amount)}</dd></div> : null}
+            {recommendation?.dueAt ? <div><dt>Vencimiento</dt><dd>{formatDate(recommendation.dueAt)}</dd></div> : null}
+            {evidence.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+          </>}
           {!recommendation ? <>
             <div><dt>Estado</dt><dd>Sin cambios aplicados</dd></div>
             <div><dt>Confianza</dt><dd>Sin señal activa</dd></div>
@@ -170,8 +177,8 @@ function SubmitButton({ children, pending, className }: { children: React.ReactN
   return <button type="submit" className={className} disabled={status.pending}>{status.pending ? pending : children}</button>;
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
+function formatCurrency(value: number, exact = false) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: exact ? 2 : 0, maximumFractionDigits: exact ? 2 : 0 }).format(value);
 }
 
 function formatDate(value: string) {

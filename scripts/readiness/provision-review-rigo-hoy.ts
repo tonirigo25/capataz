@@ -707,7 +707,7 @@ export async function provisionReviewRigoHoy(
     const invoiceFixtures = [
       { id: REVIEW_RIGO_HOY_IDS.invoiceF0155, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0155", concepto: "Certificación Oficinas Central", total: 6420, pagado: 6420, pendiente: 0, estado: "pagada" as const, dueAt: addDays(now, -1, 23, 59) },
       { id: REVIEW_RIGO_HOY_IDS.invoiceF0156, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0156", concepto: "Reforma oficina central", total: 12450, pagado: 0, pendiente: 12450, estado: "pendiente_pago" as const, dueAt: addDays(now, 1, 23, 59) },
-      { id: REVIEW_RIGO_HOY_IDS.invoiceF0158, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "F-2024-0158", concepto: "Adecuación Local Comercial 14", total: 8750, pagado: 0, pendiente: 8750, estado: "pendiente_pago" as const, dueAt: addDays(now, 5, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0158, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "F-2024-0158", concepto: "Adecuación local", total: 8750, pagado: 0, pendiente: 8750, estado: "pendiente_pago" as const, dueAt: addDays(now, 5, 23, 59) },
     ];
     for (const invoice of invoiceFixtures) {
       await transaction.invoice.upsert({

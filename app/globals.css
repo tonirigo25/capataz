@@ -2929,10 +2929,10 @@ button:disabled,
   justify-content: center;
   gap: 8px;
   margin-top: auto;
-  border: 1px solid #dbe0dd;
+  border: 1px solid #1b9b4a;
   border-radius: 7px;
   padding: 0 10px;
-  color: #17211c;
+  color: #14833f;
   font-size: 10px;
   font-weight: 760;
 }
@@ -3141,7 +3141,7 @@ button:disabled,
 
 .hoy-work-status[data-status="Planificación"] { background: #fff0dc; color: #a46117; }
 .hoy-work-status[data-status="Cierre"] { background: #e9f7ea; color: #137449; }
-.hoy-work-status[data-status="En pausa"] { background: #eef0ef; color: #6b7570; }
+.hoy-work-status[data-status="Pausado"] { background: #eef0ef; color: #6b7570; }
 
 .hoy-bottom-grid {
   display: grid;
@@ -3344,18 +3344,18 @@ button:disabled,
 }
 
 .orqena-context-card h2 {
-  margin-top: 32px;
+  margin-top: 24px;
   color: #111a16;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 780;
-  line-height: 24px;
+  line-height: 21px;
 }
 
 .orqena-context-description {
-  margin-top: 20px;
+  margin-top: 16px;
   color: #59665f;
   font-size: 12px;
-  line-height: 20px;
+  line-height: 18px;
 }
 
 .orqena-context-source {
@@ -3398,7 +3398,7 @@ button:disabled,
 }
 
 .orqena-context-description + .orqena-context-impact {
-  margin-top: 56px;
+  margin-top: 40px;
 }
 
 .orqena-context-impact dt {
