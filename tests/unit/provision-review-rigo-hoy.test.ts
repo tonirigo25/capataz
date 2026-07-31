@@ -25,6 +25,7 @@ const validEnvironment = {
 describe("Rigo Hoy Railway Review provisioner", () => {
   it("accepts only the exact Review project, environment, database service and preview scope", () => {
     expect(assertReviewRigoHoyTarget(validEnvironment)).toBe("rigo.owner@review.orqena.invalid");
+    expect(assertReviewRigoHoyTarget({ ...validEnvironment, ORQENA_REVIEW_RIGO_OWNER_EMAIL: "demo@demo" })).toBe("demo@demo");
 
     const rejected = [
       ["ORQENA_REVIEW_RIGO_HOY_APPROVED", "false", "REVIEW_RIGO_HOY_APPROVAL_REQUIRED"],

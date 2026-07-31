@@ -12,6 +12,8 @@ export const REVIEW_RIGO_HOY_TARGET = {
   demoScenarioKey: "rigo-hoy-v1",
 } as const;
 
+export const REVIEW_RIGO_HOY_LEGACY_COMPANY_NAME = "Orqena Review · Construcción";
+
 export const REVIEW_RIGO_HOY_IDS = {
   company: "review-rigo-hoy-company-v1",
   ownerMembership: "review-rigo-hoy-owner-membership-v1",
@@ -80,7 +82,7 @@ export function assertReviewRigoHoyTarget(env: ReviewTargetEnvironment): string 
   if (!ALLOWED_DATABASE_HOST.test(database.hostname)) throw new Error("REVIEW_RIGO_HOY_DATABASE_HOST_INVALID");
 
   const ownerEmail = env.ORQENA_REVIEW_RIGO_OWNER_EMAIL?.trim().toLocaleLowerCase("en-US") ?? "";
-  if (!SYNTHETIC_REVIEW_EMAIL.test(ownerEmail)) throw new Error("REVIEW_RIGO_HOY_OWNER_EMAIL_INVALID");
+  if (ownerEmail !== "demo@demo" && !SYNTHETIC_REVIEW_EMAIL.test(ownerEmail)) throw new Error("REVIEW_RIGO_HOY_OWNER_EMAIL_INVALID");
   return ownerEmail;
 }
 
@@ -177,8 +179,8 @@ export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
   ];
 }
 
-async function resolveTargetCompany(transaction: Prisma.TransactionClient) {
-  const [byProvisioningKey, byName, bySlug] = await Promise.all([
+async function resolveTargetCompany(transaction: Prisma.TransactionClient, legacyCompanyId?: string) {
+  const [byProvisioningKey, byName, bySlug, byLegacyId] = await Promise.all([
     transaction.company.findUnique({ where: { provisioningKey: REVIEW_RIGO_HOY_TARGET.provisioningKey } }),
     transaction.company.findMany({
       where: {
@@ -188,6 +190,7 @@ async function resolveTargetCompany(transaction: Prisma.TransactionClient) {
       take: 2,
     }),
     transaction.company.findUnique({ where: { slug: REVIEW_RIGO_HOY_TARGET.companySlug } }),
+    legacyCompanyId ? transaction.company.findUnique({ where: { id: legacyCompanyId } }) : Promise.resolve(null),
   ]);
 
   if (byName.length > 1) throw new Error("REVIEW_RIGO_HOY_COMPANY_AMBIGUOUS");
@@ -195,15 +198,19 @@ async function resolveTargetCompany(transaction: Prisma.TransactionClient) {
   if (byProvisioningKey && namedCompany && byProvisioningKey.id !== namedCompany.id) throw new Error("REVIEW_RIGO_HOY_COMPANY_IDENTITY_CONFLICT");
   if (bySlug && byProvisioningKey && bySlug.id !== byProvisioningKey.id) throw new Error("REVIEW_RIGO_HOY_COMPANY_SLUG_CONFLICT");
   if (bySlug && namedCompany && bySlug.id !== namedCompany.id) throw new Error("REVIEW_RIGO_HOY_COMPANY_SLUG_CONFLICT");
+  if (bySlug && byLegacyId && bySlug.id !== byLegacyId.id) throw new Error("REVIEW_RIGO_HOY_COMPANY_SLUG_CONFLICT");
 
-  const existing = byProvisioningKey ?? namedCompany ?? bySlug;
+  const existing = byProvisioningKey ?? namedCompany ?? bySlug ?? byLegacyId;
   if (existing) {
-    if (existing.nombreComercial !== REVIEW_RIGO_HOY_TARGET.companyName) throw new Error("REVIEW_RIGO_HOY_COMPANY_NAME_CONFLICT");
+    const legacyCandidate = existing.id === legacyCompanyId && existing.nombreComercial === REVIEW_RIGO_HOY_LEGACY_COMPANY_NAME;
+    if (existing.nombreComercial !== REVIEW_RIGO_HOY_TARGET.companyName && !legacyCandidate) throw new Error("REVIEW_RIGO_HOY_COMPANY_NAME_CONFLICT");
     if (existing.archivedAt || existing.status !== "active" || !existing.isDemo) throw new Error("REVIEW_RIGO_HOY_COMPANY_NOT_SYNTHETIC_ACTIVE");
     if (existing.provisioningKey && existing.provisioningKey !== REVIEW_RIGO_HOY_TARGET.provisioningKey) throw new Error("REVIEW_RIGO_HOY_COMPANY_PROVISIONING_CONFLICT");
     return transaction.company.update({
       where: { id: existing.id },
       data: {
+        nombreComercial: REVIEW_RIGO_HOY_TARGET.companyName,
+        slug: REVIEW_RIGO_HOY_TARGET.companySlug,
         provisioningKey: REVIEW_RIGO_HOY_TARGET.provisioningKey,
         demoScenarioKey: REVIEW_RIGO_HOY_TARGET.demoScenarioKey,
         sectorKey: "construction",
@@ -276,9 +283,20 @@ export async function provisionReviewRigoHoy(
       },
       select: { id: true },
     });
-    assertExclusiveOwnerMembership(owner.memberships, new Set(existingTargets.map((company) => company.id)));
+    const legacyCompany = existingTargets.length === 0 && owner.memberships.length === 1
+      ? await transaction.company.findUnique({ where: { id: owner.memberships[0].companyId }, select: { id: true, nombreComercial: true, isDemo: true, status: true, archivedAt: true } })
+      : null;
+    const safeLegacyCompany = legacyCompany?.nombreComercial === REVIEW_RIGO_HOY_LEGACY_COMPANY_NAME
+      && legacyCompany.isDemo
+      && legacyCompany.status === "active"
+      && !legacyCompany.archivedAt
+      ? legacyCompany
+      : null;
+    const allowedCompanyIds = new Set(existingTargets.map((company) => company.id));
+    if (safeLegacyCompany) allowedCompanyIds.add(safeLegacyCompany.id);
+    assertExclusiveOwnerMembership(owner.memberships, allowedCompanyIds);
 
-    const company = await resolveTargetCompany(transaction);
+    const company = await resolveTargetCompany(transaction, safeLegacyCompany?.id);
     const existingMembership = await transaction.companyMembership.findUnique({
       where: { userId_companyId: { userId: owner.id, companyId: company.id } },
     });
