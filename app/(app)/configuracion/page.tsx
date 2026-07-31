@@ -6,6 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 import { brand } from "@/lib/brand";
+import { getEffectiveCapabilities, getEntitlements } from "@/lib/commercial/authorization";
+import { planCatalog } from "@/lib/commercial/plans";
+import { readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
+import { ConfigurationOverview } from "@/components/portal/modules-c/configuration-overview";
 
 
 export const dynamic = "force-dynamic";
@@ -19,9 +23,16 @@ export default async function SettingsPage({
   const area = query.area ?? "perfil";
   const auth = await requireCompanyContext();
   const owner = auth.role === "OWNER";
-  const [companyRecord, legacyProfile] = await Promise.all([
+  const periodStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+  const [companyRecord, legacyProfile, commercial, capabilities, activeMfa, memberCount, aiUsage, aiPolicy] = await Promise.all([
     owner ? prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }) : Promise.resolve(null),
-    prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } })
+    prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
+    getEntitlements(auth.companyId),
+    getEffectiveCapabilities(auth),
+    prisma.mfaFactor.count({ where: { userId: auth.userId, status: "ACTIVE", disabledAt: null } }),
+    owner ? prisma.companyMembership.count({ where: { companyId: auth.companyId, status: "active" } }) : Promise.resolve(null),
+    owner ? prisma.aiUsageEvent.count({ where: { companyId: auth.companyId, createdAt: { gte: periodStart } } }) : Promise.resolve(null),
+    prisma.companyAiPolicy.findUnique({ where: { companyId: auth.companyId }, select: { enabled: true, killSwitch: true } }),
   ]);
   const company = companyRecord ? companySettingsView(companyRecord) : null;
   const profile = legacyProfile ?? {
@@ -32,10 +43,31 @@ export default async function SettingsPage({
   };
   const profileStatus = profileCompletion(profile);
   const companyStatus = company ? companyCompletion(company) : null;
+  const memberLimit = numericLimit(commercial.values.max_members);
+  const aiLimit = numericLimit(commercial.values.monthly_orqena_actions);
+  const planName = planCatalog[commercial.planKey as keyof typeof planCatalog]?.name ?? commercial.planKey;
+  const aiEnabled = aiPolicy?.enabled === true && aiPolicy.killSwitch === false && companyRuntimeAiEnabled(auth.companyId);
 
   return (
     <main className="screen">
       <SectionHeader title="Configuración" description="Tu trato personal, datos de empresa, app móvil, límites y planes." />
+      <div className="mt-5">
+        <ConfigurationOverview data={{
+          owner,
+          companyName: auth.companyName,
+          planName,
+          accountStatus: companyRecord?.status ?? auth.commercialStatus,
+          members: memberCount,
+          memberLimit,
+          aiUsage,
+          aiLimit,
+          aiEnabled,
+          mfaEnabled: activeMfa > 0,
+          profilePercent: profileStatus.percent,
+          companyPercent: companyStatus?.percent ?? null,
+          capabilityCount: capabilities.length,
+        }} />
+      </div>
       <div className="mt-5 grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]" data-d8-settings-workspace>
         <aside className="card h-fit p-3 lg:sticky lg:top-24">
           <p className="type-label px-2">Áreas</p>
@@ -59,7 +91,7 @@ export default async function SettingsPage({
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <ReadinessItem label="Perfil personal" detail={`${profileStatus.percent}% completo`} ready={profileStatus.missingRequired.length === 0} href="/configuracion?area=perfil#perfil" />
               {owner && companyStatus ? <ReadinessItem label="Datos de empresa" detail={`${companyStatus.percent}% completo`} ready={companyStatus.missingRequired.length === 0} href="/configuracion?area=empresa#empresa" /> : null}
-              <ReadinessItem label="Seguridad y MFA" detail="Revisar acceso personal" ready={false} href="/configuracion/seguridad" />
+              <ReadinessItem label="Seguridad y MFA" detail={activeMfa > 0 ? "Segundo factor activo" : "Segundo factor pendiente"} ready={activeMfa > 0} href="/configuracion/seguridad" />
               {owner ? <ReadinessItem label="Equipo y permisos" detail="Perfiles, scopes y aprobación" ready href="/equipo" /> : null}
               <ReadinessItem label="Modo manual" detail="Funciona sin providers live" ready href="/configuracion?area=integraciones#integraciones" />
             </div>
@@ -374,4 +406,18 @@ function AssetUpload({ kind, label, configured }: { kind: "logo" | "seal"; label
       <button type="submit" className="secondary-button mt-3 w-full">Subir archivo privado</button>
     </form>
   );
+}
+
+function numericLimit(value: boolean | number | string | undefined) {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function companyRuntimeAiEnabled(companyId: string) {
+  try {
+    const runtime = readRuntimeAiControl();
+    return runtime.globalEnabled && runtime.liveConfigurationComplete && runtime.companyAllowlist.includes(companyId);
+  } catch {
+    return false;
+  }
 }

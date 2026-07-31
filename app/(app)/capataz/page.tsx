@@ -9,6 +9,7 @@ import { getEconomicControl } from "@/lib/economic-control/queries";
 import { getEffectiveCapabilities, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { brand } from "@/lib/brand";
 import { readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
+import { CapatazWorkspaceEntry } from "@/components/portal/modules-c/orqena-ai-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,8 @@ export default async function CapatazPage({ searchParams }: { searchParams: Prom
         <h1 className="type-page-title mt-1">{brand.assistantName}</h1>
         <p className="type-secondary mt-1">Consulta, prepara y revisa tu trabajo.</p>
       </header>
+
+      <CapatazWorkspaceEntry />
 
       <CapatazChat
         userId={auth.userId}
