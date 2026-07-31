@@ -139,7 +139,7 @@ function ClientTableRow({
           <span><strong>{client.displayName}</strong><small>{client.typeLabel}</small></span>
         </button>
       </th>
-      <td><StatusPill status={client.status} /></td>
+      <td><span className="clients-status" data-status={client.status}><StatusPill status={client.status} /></span></td>
       <td><span className="clients-responsible">{client.responsible}</span></td>
       <td><span className="clients-cell-stack"><strong>{client.nextAction}</strong><small>{client.nextActionAt ?? client.nextActionSource ?? "Sin fecha registrada"}</small></span></td>
       <td>{client.activeWorkCount ? <Link href={`/clientes/${client.id}?vista=trabajos`} className="clients-number-link">{client.activeWorkCount}</Link> : <span>0</span>}</td>

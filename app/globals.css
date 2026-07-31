@@ -4385,12 +4385,12 @@ button:disabled,
 .clients-table th:nth-child(1) { width: 32px; text-align: center; }
 .clients-table th:nth-child(2) { width: 133px; }
 .clients-table th:nth-child(3) { width: 92px; }
-.clients-table th:nth-child(4) { width: 100px; }
-.clients-table th:nth-child(5) { width: 112px; }
-.clients-table th:nth-child(6) { width: 58px; text-align: center; }
-.clients-table th:nth-child(7) { width: 84px; }
-.clients-table th:nth-child(8) { width: 82px; }
-.clients-table th:nth-child(9) { width: 98px; }
+.clients-table th:nth-child(4) { width: 88px; }
+.clients-table th:nth-child(5) { width: 110px; }
+.clients-table th:nth-child(6) { width: 72px; text-align: center; }
+.clients-table th:nth-child(7) { width: 80px; }
+.clients-table th:nth-child(8) { width: 78px; }
+.clients-table th:nth-child(9) { width: 90px; }
 .clients-table th:nth-child(10) { width: 58px; }
 .clients-table th:nth-child(11) { width: 34px; }
 .clients-table td:nth-child(6) { text-align: center; }
@@ -4492,6 +4492,38 @@ button:disabled,
   font-weight: 680;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.clients-status > span {
+  min-height: 18px !important;
+  max-width: 100%;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-size: 8px !important;
+  line-height: 12px !important;
+  white-space: nowrap;
+}
+
+.clients-status[data-status="obra_activa"] > span,
+.clients-status[data-status="aceptado"] > span,
+.clients-status[data-status="finalizado"] > span {
+  background: #e7f7e8 !important;
+  color: #19863b !important;
+}
+
+.clients-status[data-status="presupuesto_pendiente"] > span,
+.clients-status[data-status="presupuesto_enviado"] > span,
+.clients-status[data-status="seguimiento_pendiente"] > span,
+.clients-status[data-status="visita_pendiente"] > span {
+  background: #fff3df !important;
+  color: #d17606 !important;
+}
+
+.clients-status[data-status="pendiente_cobro"] > span,
+.clients-status[data-status="pendiente_datos"] > span,
+.clients-status[data-status="rechazado"] > span {
+  background: #feeae7 !important;
+  color: #d8312a !important;
 }
 
 .clients-number-link,
