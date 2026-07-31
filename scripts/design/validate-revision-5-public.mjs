@@ -164,6 +164,10 @@ check("SEO stays canonical, fail-closed and covered on the requested public rout
   }
   assertIncludes(lighthouse, '"largest-contentful-paint": ["error", { "maxNumericValue": 2500 }]', "LCP 2.5-second gate");
   assertIncludes(lighthouse, 'onlyCategories: ["performance", "accessibility", "best-practices", "seo"]', "Lighthouse SEO audit");
+  assertIncludes(lighthouse, 'throttlingMethod: "simulate"', "Lighthouse controlled mobile profile");
+  assertIncludes(lighthouse, "rttMs: 40", "Lighthouse controlled mobile RTT");
+  assertIncludes(lighthouse, "throughputKbps: 10240", "Lighthouse controlled mobile throughput");
+  assertIncludes(lighthouse, "cpuSlowdownMultiplier: 2", "Lighthouse controlled mobile CPU");
   assertIncludes(lighthouse, "Review is intentionally noindex", "Review SEO score exception");
   for (const route of ["/recursos", "/empresa"]) assertIncludes(publicMatrix, `"${route}"`, `D10 route ${route}`);
   for (const token of ["x-nonce", "BreadcrumbList", "FAQPage", "SoftwareApplication", "\\u003c"]) {

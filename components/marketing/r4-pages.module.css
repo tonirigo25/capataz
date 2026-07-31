@@ -5,3 +5,4 @@
 @media(max-width:64rem){.tourPanel{grid-template-columns:1fr}.planGrid{grid-template-columns:1fr}.planGrid header>p:last-child{min-height:0}.recommender{grid-template-columns:1fr 1fr}.recommender>div{grid-column:1/-1}.toolGrid{grid-template-columns:1fr}}
 @media(max-width:42rem){.tourPanel{padding:.6rem}.tourCopy{padding:1rem}.tourUi>div{gap:.3rem}.tourUi article{min-height:4rem;padding:.45rem}.tourUi li{grid-template-columns:1.35rem minmax(0,1fr)}.tourUi li b{display:none}.priceToggle{width:100%}.priceToggle button{flex:1}.recommender{grid-template-columns:1fr}.guideGrid{grid-template-columns:1fr}.twoFields{grid-template-columns:1fr}.cashChart b{font-size:.48rem}}
 .roleGrid article{color:var(--ink)}
+.metricGrid small{color:#526158}.solutionBody aside>span{color:#bdc9c1}.editorialGrid article>a{min-height:2.75rem;display:inline-flex;align-items:center}

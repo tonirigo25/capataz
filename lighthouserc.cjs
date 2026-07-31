@@ -17,7 +17,13 @@ module.exports = {
       settings: {
         port: Number(process.env.LIGHTHOUSE_CHROME_PORT || 0),
         hostname: "127.0.0.1",
-        onlyCategories: ["performance", "accessibility", "best-practices", "seo"]
+        onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
+        throttlingMethod: "simulate",
+        throttling: {
+          rttMs: 40,
+          throughputKbps: 10240,
+          cpuSlowdownMultiplier: 2,
+        },
       }
     },
     assert: {
