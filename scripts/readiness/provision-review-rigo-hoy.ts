@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { ensureBasePlans } from "../../lib/commercial/provisioning";
 
 export const REVIEW_RIGO_HOY_TARGET = {
   projectId: "c54a5065-df2c-46b9-a82b-cfac3be07315",
@@ -18,14 +19,42 @@ export const REVIEW_RIGO_HOY_IDS = {
   company: "review-rigo-hoy-company-v1",
   ownerMembership: "review-rigo-hoy-owner-membership-v1",
   clientAlfa: "review-rigo-hoy-client-alfa-v1",
+  clientBeta: "review-rigo-hoy-client-beta-v1",
+  clientDelta: "review-rigo-hoy-client-delta-v1",
   clientIndustrias: "review-rigo-hoy-client-industrias-v1",
   clientGamma: "review-rigo-hoy-client-gamma-v1",
   workEdificioArce: "review-rigo-hoy-work-edificio-arce-v1",
+  workResidencialSol: "review-rigo-hoy-work-residencial-sol-v1",
+  workLocalComercial: "review-rigo-hoy-work-local-comercial-v1",
+  workOficinasCentral: "review-rigo-hoy-work-oficinas-central-v1",
+  workReformaBravo: "review-rigo-hoy-work-reforma-bravo-v1",
+  budgetP0247: "review-rigo-hoy-budget-p0247-v1",
+  invoiceF0155: "review-rigo-hoy-invoice-f0155-v1",
+  invoiceF0156: "review-rigo-hoy-invoice-f0156-v1",
+  invoiceF0158: "review-rigo-hoy-invoice-f0158-v1",
+  documentContractGamma: "review-rigo-hoy-document-contract-gamma-v1",
+  documentProgressArce: "review-rigo-hoy-document-progress-arce-v1",
+  documentControl: "review-rigo-hoy-document-control-v1",
+  followupIndustrias: "review-rigo-hoy-followup-industrias-v1",
+  followupFuture: "review-rigo-hoy-followup-future-v1",
+  expenseMaterials: "review-rigo-hoy-expense-materials-v1",
+  expenseMachinery: "review-rigo-hoy-expense-machinery-v1",
+  recommendationBudget: "review-rigo-hoy-recommendation-budget-v1",
+  recommendationFingerprint: "review-rigo-hoy:budget:p0247:before-noon:v1",
+  subscription: "review-rigo-hoy-enterprise-subscription-v1",
+  userLaura: "review-rigo-hoy-user-laura-v1",
+  userDiego: "review-rigo-hoy-user-diego-v1",
   eventInternalMeeting: "review-rigo-hoy-event-internal-meeting-v1",
   eventTechnicalVisit: "review-rigo-hoy-event-technical-visit-v1",
   eventBudgetReview: "review-rigo-hoy-event-budget-review-v1",
   eventCommercialCall: "review-rigo-hoy-event-commercial-call-v1",
   eventDocumentConfirmation: "review-rigo-hoy-event-document-confirmation-v1",
+  eventCompletedVisit: "review-rigo-hoy-event-completed-visit-v1",
+  auditBudget: "review-rigo-hoy-audit-budget-v1",
+  auditInvoice: "review-rigo-hoy-audit-invoice-v1",
+  auditVisit: "review-rigo-hoy-audit-visit-v1",
+  auditDocument: "review-rigo-hoy-audit-document-v1",
+  auditClient: "review-rigo-hoy-audit-client-v1",
 } as const;
 
 type ReviewTargetEnvironment = {
@@ -51,7 +80,7 @@ type AgendaFixture = {
   titulo: string;
   descripcion: string;
   tipo: "visita" | "llamada" | "seguimiento_presupuesto" | "recordatorio_interno";
-  estado: "confirmado" | "pendiente";
+  estado: "confirmado" | "pendiente" | "realizado";
   fechaInicio: Date;
   fechaFin: Date;
   clienteId: string;
@@ -99,6 +128,13 @@ function todayAt(now: Date, hour: number, minute = 0) {
   const value = new Date(now);
   value.setHours(hour, minute, 0, 0);
   return value;
+}
+
+function addDays(value: Date, days: number, hour = value.getHours(), minute = value.getMinutes()) {
+  const result = new Date(value);
+  result.setDate(result.getDate() + days);
+  result.setHours(hour, minute, 0, 0);
+  return result;
 }
 
 export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
@@ -176,6 +212,19 @@ export function buildRigoHoyAgendaFixtures(now: Date): AgendaFixture[] {
       requiereConfirmacion: true,
       confirmadoPorUsuario: false,
     },
+    {
+      id: REVIEW_RIGO_HOY_IDS.eventCompletedVisit,
+      titulo: "Visita de replanteo completada",
+      descripcion: "Control sintético completado para validar el resumen operativo.",
+      tipo: "visita",
+      estado: "realizado",
+      ...at(18, 30, 30),
+      clienteId: REVIEW_RIGO_HOY_IDS.clientBeta,
+      obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol,
+      direccion: "Residencial Sol · Madrid",
+      requiereConfirmacion: false,
+      confirmadoPorUsuario: true,
+    },
   ];
 }
 
@@ -214,6 +263,7 @@ async function resolveTargetCompany(transaction: Prisma.TransactionClient, legac
         provisioningKey: REVIEW_RIGO_HOY_TARGET.provisioningKey,
         demoScenarioKey: REVIEW_RIGO_HOY_TARGET.demoScenarioKey,
         sectorKey: "construction",
+        commercialStatus: "ACTIVE",
       },
     });
   }
@@ -240,20 +290,35 @@ async function assertFixtureOwnership(
   transaction: Prisma.TransactionClient,
   companyId: string,
 ) {
-  const [clients, work, events] = await Promise.all([
+  const [clients, works, budgets, invoices, documents, followUps, expenses, events, recommendations, subscriptions, audits] = await Promise.all([
     transaction.client.findMany({
-      where: { id: { in: [REVIEW_RIGO_HOY_IDS.clientAlfa, REVIEW_RIGO_HOY_IDS.clientIndustrias, REVIEW_RIGO_HOY_IDS.clientGamma] } },
+      where: { id: { in: [REVIEW_RIGO_HOY_IDS.clientAlfa, REVIEW_RIGO_HOY_IDS.clientBeta, REVIEW_RIGO_HOY_IDS.clientDelta, REVIEW_RIGO_HOY_IDS.clientIndustrias, REVIEW_RIGO_HOY_IDS.clientGamma] } },
       select: { id: true, companyId: true },
     }),
-    transaction.work.findUnique({ where: { id: REVIEW_RIGO_HOY_IDS.workEdificioArce }, select: { companyId: true } }),
+    transaction.work.findMany({
+      where: { id: { in: [REVIEW_RIGO_HOY_IDS.workEdificioArce, REVIEW_RIGO_HOY_IDS.workResidencialSol, REVIEW_RIGO_HOY_IDS.workLocalComercial, REVIEW_RIGO_HOY_IDS.workOficinasCentral, REVIEW_RIGO_HOY_IDS.workReformaBravo] } },
+      select: { id: true, companyId: true },
+    }),
+    transaction.budget.findMany({ where: { id: REVIEW_RIGO_HOY_IDS.budgetP0247 }, select: { id: true, companyId: true } }),
+    transaction.invoice.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.invoiceF0155, REVIEW_RIGO_HOY_IDS.invoiceF0156, REVIEW_RIGO_HOY_IDS.invoiceF0158] } }, select: { id: true, companyId: true } }),
+    transaction.document.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.documentContractGamma, REVIEW_RIGO_HOY_IDS.documentProgressArce, REVIEW_RIGO_HOY_IDS.documentControl] } }, select: { id: true, companyId: true } }),
+    transaction.followUp.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.followupIndustrias, REVIEW_RIGO_HOY_IDS.followupFuture] } }, select: { id: true, companyId: true } }),
+    transaction.expense.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.expenseMaterials, REVIEW_RIGO_HOY_IDS.expenseMachinery] } }, select: { id: true, companyId: true } }),
     transaction.eventoAgenda.findMany({
       where: { id: { in: buildRigoHoyAgendaFixtures(new Date()).map((event) => event.id) } },
       select: { id: true, companyId: true },
     }),
+    transaction.businessRecommendation.findMany({
+      where: { OR: [{ id: REVIEW_RIGO_HOY_IDS.recommendationBudget }, { fingerprint: REVIEW_RIGO_HOY_IDS.recommendationFingerprint }] },
+      select: { id: true, companyId: true },
+    }),
+    transaction.subscription.findMany({ where: { id: REVIEW_RIGO_HOY_IDS.subscription }, select: { id: true, companyId: true } }),
+    transaction.auditLog.findMany({ where: { id: { in: [REVIEW_RIGO_HOY_IDS.auditBudget, REVIEW_RIGO_HOY_IDS.auditInvoice, REVIEW_RIGO_HOY_IDS.auditVisit, REVIEW_RIGO_HOY_IDS.auditDocument, REVIEW_RIGO_HOY_IDS.auditClient] } }, select: { id: true, companyId: true } }),
   ]);
-  if (clients.some((item) => item.companyId !== companyId)) throw new Error("REVIEW_RIGO_HOY_CLIENT_OWNERSHIP_CONFLICT");
-  if (work && work.companyId !== companyId) throw new Error("REVIEW_RIGO_HOY_WORK_OWNERSHIP_CONFLICT");
-  if (events.some((item) => item.companyId !== companyId)) throw new Error("REVIEW_RIGO_HOY_EVENT_OWNERSHIP_CONFLICT");
+  const groups = [clients, works, budgets, invoices, documents, followUps, expenses, events, recommendations, subscriptions, audits];
+  if (groups.some((items) => items.some((item) => item.companyId !== companyId))) {
+    throw new Error("REVIEW_RIGO_HOY_FIXTURE_OWNERSHIP_CONFLICT");
+  }
 }
 
 export async function provisionReviewRigoHoy(
@@ -303,10 +368,17 @@ export async function provisionReviewRigoHoy(
     if (existingMembership) {
       const validExistingMembership = existingMembership.role === "OWNER"
         && existingMembership.functionalProfileKey === "OWNER"
-        && ["STANDARD", "READ_ONLY"].includes(existingMembership.accessMode)
         && existingMembership.status === "active"
         && existingMembership.isDemo;
       if (!validExistingMembership) throw new Error("REVIEW_RIGO_HOY_OWNER_MEMBERSHIP_CONFLICT");
+      await transaction.companyMembership.update({
+        where: { id: existingMembership.id },
+        data: {
+          accessMode: "STANDARD",
+          accessStartsAt: null,
+          accessEndsAt: null,
+        },
+      });
     } else {
       await transaction.companyMembership.create({
         data: {
@@ -332,6 +404,105 @@ export async function provisionReviewRigoHoy(
     assertExclusiveOwnerMembership(finalMemberships, new Set([company.id]));
     if (finalMemberships.length !== 1) throw new Error("REVIEW_RIGO_HOY_OWNER_MEMBERSHIP_COUNT_INVALID");
 
+    const membership = await transaction.companyMembership.findUniqueOrThrow({
+      where: { userId_companyId: { userId: owner.id, companyId: company.id } },
+      include: {
+        permissionOverrides: true,
+        fieldVisibilityPolicies: true,
+        scopeAssignments: true,
+      },
+    });
+    if (membership.permissionOverrides.some((item) => item.effect === "DENY")) {
+      throw new Error("REVIEW_RIGO_HOY_PERMISSION_OVERRIDE_CONFLICT");
+    }
+    if (membership.fieldVisibilityPolicies.some((item) => !item.visible)) {
+      throw new Error("REVIEW_RIGO_HOY_FIELD_VISIBILITY_CONFLICT");
+    }
+    if (membership.permissionOverrides.some((item) => item.scope && item.scope !== "COMPANY")
+      || membership.scopeAssignments.some((item) => item.scope !== "COMPANY")) {
+      throw new Error("REVIEW_RIGO_HOY_SCOPE_RESTRICTION_CONFLICT");
+    }
+
+    await ensureBasePlans(transaction);
+    const enterprisePlan = await transaction.plan.findUnique({
+      where: { key: "ENTERPRISE" },
+      include: { entitlements: true },
+    });
+    if (!enterprisePlan || enterprisePlan.entitlements.length === 0) {
+      throw new Error("REVIEW_RIGO_HOY_ENTERPRISE_PLAN_MISSING");
+    }
+    const entitlementOverride = await transaction.companyEntitlementOverride.findFirst({
+      where: {
+        companyId: company.id,
+        active: true,
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      select: { id: true },
+    });
+    if (entitlementOverride) throw new Error("REVIEW_RIGO_HOY_ENTITLEMENT_OVERRIDE_CONFLICT");
+
+    const subscriptions = await transaction.subscription.findMany({
+      where: { companyId: company.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (subscriptions.length > 1) throw new Error("REVIEW_RIGO_HOY_SUBSCRIPTION_AMBIGUOUS");
+    const subscription = subscriptions[0] ?? null;
+    if (subscription) {
+      const externalBillingAttached = subscription.provider !== "local"
+        || Boolean(subscription.externalCustomerId)
+        || Boolean(subscription.externalSubscriptionId)
+        || Boolean(subscription.providerPriceId)
+        || Boolean(subscription.providerProductId)
+        || Boolean(subscription.providerCheckoutId)
+        || Boolean(subscription.stripeSubscriptionId)
+        || Boolean(subscription.stripePriceId);
+      if (externalBillingAttached) throw new Error("REVIEW_RIGO_HOY_EXTERNAL_BILLING_CONFLICT");
+      await transaction.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          planId: enterprisePlan.id,
+          status: "ACTIVE",
+          trialEndsAt: null,
+          currentPeriodStart: now,
+          currentPeriodEnd: addDays(now, 365),
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          graceEndsAt: null,
+          readOnlyAt: null,
+          scheduledPlanKey: null,
+          metadata: {
+            synthetic: true,
+            fixture: REVIEW_RIGO_HOY_TARGET.demoScenarioKey,
+            billingEnabled: false,
+            stripeObjectsCreated: false,
+          },
+        },
+      });
+    } else {
+      await transaction.subscription.create({
+        data: {
+          id: REVIEW_RIGO_HOY_IDS.subscription,
+          companyId: company.id,
+          planId: enterprisePlan.id,
+          status: "ACTIVE",
+          provider: "local",
+          currentPeriodStart: now,
+          currentPeriodEnd: addDays(now, 365),
+          metadata: {
+            synthetic: true,
+            fixture: REVIEW_RIGO_HOY_TARGET.demoScenarioKey,
+            billingEnabled: false,
+            stripeObjectsCreated: false,
+          },
+        },
+      });
+    }
+    await transaction.user.update({
+      where: { id: owner.id },
+      data: { activeCompanyId: company.id },
+    });
+
     await assertFixtureOwnership(transaction, company.id);
     const clientFixtures = [
       {
@@ -340,6 +511,20 @@ export async function provisionReviewRigoHoy(
         telefono: "+34 000 000 301",
         email: "cliente.alfa@review.orqena.invalid",
         direccion: "Calle Mayor 12, Madrid",
+      },
+      {
+        id: REVIEW_RIGO_HOY_IDS.clientBeta,
+        nombre: "Cliente Beta SL",
+        telefono: "+34 000 000 304",
+        email: "cliente.beta@review.orqena.invalid",
+        direccion: "Avenida del Sol 24, Madrid",
+      },
+      {
+        id: REVIEW_RIGO_HOY_IDS.clientDelta,
+        nombre: "Cliente Delta",
+        telefono: "+34 000 000 305",
+        email: "cliente.delta@review.orqena.invalid",
+        direccion: "Calle Mercado 14, Madrid",
       },
       {
         id: REVIEW_RIGO_HOY_IDS.clientIndustrias,
@@ -364,32 +549,233 @@ export async function provisionReviewRigoHoy(
       });
     }
 
-    await transaction.work.upsert({
-      where: { id: REVIEW_RIGO_HOY_IDS.workEdificioArce },
+    const [laura, diego] = await Promise.all([
+      transaction.user.upsert({
+        where: { emailNormalized: "laura.soto@review.orqena.invalid" },
+        update: { displayName: "Laura Soto", status: "active", emailVerifiedAt: now },
+        create: {
+          id: REVIEW_RIGO_HOY_IDS.userLaura,
+          email: "laura.soto@review.orqena.invalid",
+          emailNormalized: "laura.soto@review.orqena.invalid",
+          passwordHash: "review-fixture-no-login",
+          displayName: "Laura Soto",
+          status: "active",
+          emailVerifiedAt: now,
+        },
+      }),
+      transaction.user.upsert({
+        where: { emailNormalized: "diego.martin@review.orqena.invalid" },
+        update: { displayName: "Diego Martín", status: "active", emailVerifiedAt: now },
+        create: {
+          id: REVIEW_RIGO_HOY_IDS.userDiego,
+          email: "diego.martin@review.orqena.invalid",
+          emailNormalized: "diego.martin@review.orqena.invalid",
+          passwordHash: "review-fixture-no-login",
+          displayName: "Diego Martín",
+          status: "active",
+          emailVerifiedAt: now,
+        },
+      }),
+    ]);
+
+    const workFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.workEdificioArce, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, numeroInterno: "OB-0120", titulo: "Edificio Arce", direccion: "Calle Mayor 12, Madrid", estado: "en_curso" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 13, total: 20 },
+      { id: REVIEW_RIGO_HOY_IDS.workResidencialSol, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0118", titulo: "Residencial Sol", direccion: "Avenida del Sol 24, Madrid", estado: "en_curso" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 4, total: 10 },
+      { id: REVIEW_RIGO_HOY_IDS.workLocalComercial, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, numeroInterno: "OB-0112", titulo: "Local Comercial 14", direccion: "Calle Mercado 14, Madrid", estado: "planificada" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 1, total: 5 },
+      { id: REVIEW_RIGO_HOY_IDS.workOficinasCentral, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0105", titulo: "Oficinas Central", direccion: "Paseo Central 5, Madrid", estado: "pendiente_remates" as const, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 9, total: 10 },
+      { id: REVIEW_RIGO_HOY_IDS.workReformaBravo, clienteId: REVIEW_RIGO_HOY_IDS.clientGamma, numeroInterno: "OB-0099", titulo: "Reforma Integral Bravo", direccion: "Plaza Sintética 3, Madrid", estado: "pausada" as const, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 0, total: 0 },
+    ];
+    const foreignTask = await transaction.task.findFirst({
+      where: {
+        workId: { in: workFixtures.map((work) => work.id) },
+        origin: { not: "review-rigo-hoy" },
+      },
+      select: { id: true },
+    });
+    if (foreignTask) throw new Error("REVIEW_RIGO_HOY_WORK_TASK_CONFLICT");
+    for (const [index, work] of workFixtures.entries()) {
+      const updatedAt = new Date(now.getTime() - index * 60_000);
+      await transaction.work.upsert({
+        where: { id: work.id },
+        update: {
+          companyId: company.id,
+          clienteId: work.clienteId,
+          numeroInterno: work.numeroInterno,
+          titulo: work.titulo,
+          direccion: work.direccion,
+          tipoTrabajo: "Reforma",
+          estado: work.estado,
+          responsable: work.responsable,
+          comercial: work.comercial,
+          jefeObra: work.jefeObra,
+          archivada: false,
+          archivadaAt: null,
+          updatedAt,
+        },
+        create: {
+          id: work.id,
+          companyId: company.id,
+          clienteId: work.clienteId,
+          numeroInterno: work.numeroInterno,
+          titulo: work.titulo,
+          direccion: work.direccion,
+          tipoTrabajo: "Reforma",
+          estado: work.estado,
+          presupuestoAprobado: 0,
+          responsable: work.responsable,
+          comercial: work.comercial,
+          jefeObra: work.jefeObra,
+          updatedAt,
+        },
+      });
+      const taskIds = Array.from({ length: work.total }, (_, taskIndex) => `${work.id}-task-${taskIndex + 1}`);
+      for (const [taskIndex, taskId] of taskIds.entries()) {
+        await transaction.task.upsert({
+          where: { id: taskId },
+          update: {
+            companyId: company.id,
+            workId: work.id,
+            title: `${work.titulo} · hito ${taskIndex + 1}`,
+            origin: "review-rigo-hoy",
+            status: taskIndex < work.completed ? "completed" : "planned",
+            completedAt: taskIndex < work.completed ? addDays(now, -1) : null,
+            archivedAt: null,
+          },
+          create: {
+            id: taskId,
+            companyId: company.id,
+            workId: work.id,
+            title: `${work.titulo} · hito ${taskIndex + 1}`,
+            origin: "review-rigo-hoy",
+            status: taskIndex < work.completed ? "completed" : "planned",
+            completedAt: taskIndex < work.completed ? addDays(now, -1) : null,
+          },
+        });
+      }
+      await transaction.task.deleteMany({
+        where: {
+          companyId: company.id,
+          workId: work.id,
+          origin: "review-rigo-hoy",
+          ...(taskIds.length ? { id: { notIn: taskIds } } : {}),
+        },
+      });
+    }
+
+    await transaction.budget.upsert({
+      where: { id: REVIEW_RIGO_HOY_IDS.budgetP0247 },
       update: {
         companyId: company.id,
         clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa,
-        numeroInterno: "OB-0120",
-        titulo: "Edificio Arce",
-        direccion: "Calle Mayor 12, Madrid",
-        tipoTrabajo: "Reforma",
-        estado: "en_curso",
-        archivada: false,
-        archivadaAt: null,
+        obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
+        numero: "P-0247",
+        titulo: "Reforma fase 2 · Edificio Arce",
+        partidas: JSON.stringify([{ concepto: "Reforma fase 2", cantidad: 1, importe: 12450 }]),
+        subtotal: 10289.26,
+        iva: 2160.74,
+        descuento: 0,
+        total: 12450,
+        margenEstimado: 28,
+        estado: "pendiente_revision",
+        fechaSeguimiento: todayAt(now, 12),
+        fechaValidez: addDays(now, 10, 23, 59),
       },
       create: {
-        id: REVIEW_RIGO_HOY_IDS.workEdificioArce,
+        id: REVIEW_RIGO_HOY_IDS.budgetP0247,
         companyId: company.id,
         clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa,
-        numeroInterno: "OB-0120",
-        titulo: "Edificio Arce",
-        direccion: "Calle Mayor 12, Madrid",
-        tipoTrabajo: "Reforma",
-        estado: "en_curso",
-        presupuestoAprobado: 0,
-        responsable: "Equipo sintético Review",
+        obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
+        numero: "P-0247",
+        titulo: "Reforma fase 2 · Edificio Arce",
+        partidas: JSON.stringify([{ concepto: "Reforma fase 2", cantidad: 1, importe: 12450 }]),
+        subtotal: 10289.26,
+        iva: 2160.74,
+        total: 12450,
+        margenEstimado: 28,
+        estado: "pendiente_revision",
+        fechaSeguimiento: todayAt(now, 12),
+        fechaValidez: addDays(now, 10, 23, 59),
       },
     });
+
+    const invoiceFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0155, clienteId: REVIEW_RIGO_HOY_IDS.clientAlfa, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, numero: "F-2024-0155", concepto: "Certificación Edificio Arce", total: 6420, pagado: 6420, pendiente: 0, estado: "pagada" as const, dueAt: addDays(now, -1, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0156, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, obraId: REVIEW_RIGO_HOY_IDS.workOficinasCentral, numero: "F-2024-0156", concepto: "Remates Oficinas Central", total: 12450, pagado: 0, pendiente: 12450, estado: "pendiente_pago" as const, dueAt: addDays(now, 1, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.invoiceF0158, clienteId: REVIEW_RIGO_HOY_IDS.clientDelta, obraId: REVIEW_RIGO_HOY_IDS.workLocalComercial, numero: "F-2024-0158", concepto: "Adecuación Local Comercial 14", total: 8750, pagado: 0, pendiente: 8750, estado: "pendiente_pago" as const, dueAt: addDays(now, 5, 23, 59) },
+    ];
+    for (const invoice of invoiceFixtures) {
+      await transaction.invoice.upsert({
+        where: { id: invoice.id },
+        update: {
+          companyId: company.id,
+          clienteId: invoice.clienteId,
+          obraId: invoice.obraId,
+          numero: invoice.numero,
+          concepto: invoice.concepto,
+          importeBase: Number((invoice.total / 1.21).toFixed(2)),
+          iva: Number((invoice.total - invoice.total / 1.21).toFixed(2)),
+          total: invoice.total,
+          pagado: invoice.pagado,
+          pendiente: invoice.pendiente,
+          fechaEmision: addDays(now, -10, 9),
+          fechaVencimiento: invoice.dueAt,
+          estado: invoice.estado,
+        },
+        create: {
+          id: invoice.id,
+          companyId: company.id,
+          clienteId: invoice.clienteId,
+          obraId: invoice.obraId,
+          numero: invoice.numero,
+          concepto: invoice.concepto,
+          importeBase: Number((invoice.total / 1.21).toFixed(2)),
+          iva: Number((invoice.total - invoice.total / 1.21).toFixed(2)),
+          total: invoice.total,
+          pagado: invoice.pagado,
+          pendiente: invoice.pendiente,
+          fechaEmision: addDays(now, -10, 9),
+          fechaVencimiento: invoice.dueAt,
+          estado: invoice.estado,
+        },
+      });
+    }
+
+    const documentFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.documentContractGamma, name: "Contrato Cliente Gamma", category: "contrato" as const, status: "REVIEW_REQUIRED" as const, clientId: REVIEW_RIGO_HOY_IDS.clientGamma, workId: null, uploadedById: laura.id, metadata: { synthetic: true, reviewDueAt: todayAt(now, 17).toISOString(), entityLabel: "Contrato · Cliente Gamma" } },
+      { id: REVIEW_RIGO_HOY_IDS.documentProgressArce, name: "Parte de avance Edificio Arce", category: "informe" as const, status: "PROCESSING" as const, clientId: REVIEW_RIGO_HOY_IDS.clientAlfa, workId: REVIEW_RIGO_HOY_IDS.workEdificioArce, uploadedById: diego.id, metadata: { synthetic: true, entityLabel: "Parte de avance · Edificio Arce" } },
+      { id: REVIEW_RIGO_HOY_IDS.documentControl, name: "Control documental del día", category: "otro" as const, status: "UPLOADED" as const, clientId: null, workId: null, uploadedById: owner.id, metadata: { synthetic: true, entityLabel: "Control documental del día" } },
+    ];
+    for (const document of documentFixtures) {
+      await transaction.document.upsert({
+        where: { id: document.id },
+        update: { ...document, companyId: company.id, mimeType: "application/pdf", archivedAt: null },
+        create: { ...document, companyId: company.id, mimeType: "application/pdf" },
+      });
+    }
+
+    const followUpFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.followupIndustrias, title: "Industrias Norte", responsibleId: diego.id, clientId: REVIEW_RIGO_HOY_IDS.clientIndustrias, dueAt: todayAt(now, 16), expectedOutcome: "Confirmar próximos pasos comerciales" },
+      { id: REVIEW_RIGO_HOY_IDS.followupFuture, title: "Cliente Beta SL", responsibleId: laura.id, clientId: REVIEW_RIGO_HOY_IDS.clientBeta, dueAt: addDays(now, 10, 10), expectedOutcome: "Revisar ampliación de alcance" },
+    ];
+    for (const followUp of followUpFixtures) {
+      await transaction.followUp.upsert({
+        where: { id: followUp.id },
+        update: { ...followUp, companyId: company.id, type: "commercial", status: "planned", priority: "high", origin: "review-rigo-hoy", archivedAt: null },
+        create: { ...followUp, companyId: company.id, type: "commercial", status: "planned", priority: "high", origin: "review-rigo-hoy" },
+      });
+    }
+
+    const expenseFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.expenseMaterials, obraId: REVIEW_RIGO_HOY_IDS.workEdificioArce, proveedor: "Materiales Construcción", concepto: "Albarán A-4587", categoria: "materiales" as const, importe: 5320, paymentDueDate: todayAt(now, 23, 59) },
+      { id: REVIEW_RIGO_HOY_IDS.expenseMachinery, obraId: REVIEW_RIGO_HOY_IDS.workResidencialSol, proveedor: "Maquinaria López", concepto: "Alquiler maquinaria", categoria: "maquinaria" as const, importe: 1850, paymentDueDate: addDays(now, 4, 23, 59) },
+    ];
+    for (const expense of expenseFixtures) {
+      await transaction.expense.upsert({
+        where: { id: expense.id },
+        update: { ...expense, companyId: company.id, fecha: addDays(now, -3, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
+        create: { ...expense, companyId: company.id, fecha: addDays(now, -3, 10), paymentStatus: "pending", notas: "Dato sintético de Review" },
+      });
+    }
 
     const agendaFixtures = buildRigoHoyAgendaFixtures(now);
     for (const event of agendaFixtures) {
@@ -400,19 +786,104 @@ export async function provisionReviewRigoHoy(
       });
     }
 
+    const auditFixtures = [
+      { id: REVIEW_RIGO_HOY_IDS.auditBudget, userActorId: laura.id, action: "budget.updated", targetType: "Budget", targetId: REVIEW_RIGO_HOY_IDS.budgetP0247, metadata: { entityLabel: "Presupuesto P-0247" }, createdAt: new Date(now.getTime() - 8 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditInvoice, userActorId: owner.id, action: "invoice.paid", targetType: "Invoice", targetId: REVIEW_RIGO_HOY_IDS.invoiceF0155, metadata: { entityLabel: "Factura F-2024-0155" }, createdAt: new Date(now.getTime() - 18 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditVisit, userActorId: diego.id, action: "visit.completed", targetType: "EventoAgenda", targetId: REVIEW_RIGO_HOY_IDS.eventCompletedVisit, metadata: { entityLabel: "Visita de replanteo" }, createdAt: new Date(now.getTime() - 35 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditDocument, userActorId: laura.id, action: "document.uploaded", targetType: "Document", targetId: REVIEW_RIGO_HOY_IDS.documentProgressArce, metadata: { entityLabel: "Parte de avance · Edificio Arce" }, createdAt: new Date(now.getTime() - 62 * 60_000) },
+      { id: REVIEW_RIGO_HOY_IDS.auditClient, userActorId: owner.id, action: "client.updated", targetType: "Client", targetId: REVIEW_RIGO_HOY_IDS.clientAlfa, metadata: { entityLabel: "Cliente Alfa" }, createdAt: new Date(now.getTime() - 95 * 60_000) },
+    ];
+    for (const audit of auditFixtures) {
+      await transaction.auditLog.upsert({
+        where: { id: audit.id },
+        update: { ...audit, companyId: company.id, environment: "review", provider: "fixture" },
+        create: { ...audit, companyId: company.id, environment: "review", provider: "fixture" },
+      });
+    }
+
+    await transaction.businessRecommendation.upsert({
+      where: { fingerprint: REVIEW_RIGO_HOY_IDS.recommendationFingerprint },
+      update: {
+        companyId: company.id,
+        type: "budget_review_before_noon",
+        title: "Revisa el presupuesto P-0247 antes del mediodía",
+        summary: "El cliente Alfa ha mostrado interés en acelerar la decisión.",
+        detailedExplanation: "El cliente Alfa ha mostrado interés en acelerar la decisión. Revisarlo a tiempo puede aumentar un 35% la probabilidad de cierre esta semana.",
+        level: "importante",
+        status: "active",
+        source: "presupuestos",
+        entityType: "Budget",
+        entityId: REVIEW_RIGO_HOY_IDS.budgetP0247,
+        clientId: REVIEW_RIGO_HOY_IDS.clientAlfa,
+        workId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
+        budgetId: REVIEW_RIGO_HOY_IDS.budgetP0247,
+        amount: 12450,
+        score: 92,
+        priority: 95,
+        dueAt: todayAt(now, 12),
+        expiresAt: addDays(now, 1, 0),
+        preferredActionId: null,
+        requiresConfirmation: true,
+        suggestedActions: [{ id: "review-budget", label: "Revisar presupuesto", type: "navigate", href: `/presupuestos/${REVIEW_RIGO_HOY_IDS.budgetP0247}` }],
+        evidence: { probabilityDelta: 35, cycleDeltaDays: -3, confidence: 92, synthetic: true },
+        context: { sourceLabel: "Presupuesto P-0247", entityLabel: "Cliente Alfa", synthetic: true },
+        dismissedAt: null,
+        snoozedUntil: null,
+        acceptedAt: null,
+        actionStartedAt: null,
+        completedAt: null,
+      },
+      create: {
+        id: REVIEW_RIGO_HOY_IDS.recommendationBudget,
+        companyId: company.id,
+        fingerprint: REVIEW_RIGO_HOY_IDS.recommendationFingerprint,
+        type: "budget_review_before_noon",
+        title: "Revisa el presupuesto P-0247 antes del mediodía",
+        summary: "El cliente Alfa ha mostrado interés en acelerar la decisión.",
+        detailedExplanation: "El cliente Alfa ha mostrado interés en acelerar la decisión. Revisarlo a tiempo puede aumentar un 35% la probabilidad de cierre esta semana.",
+        level: "importante",
+        status: "active",
+        source: "presupuestos",
+        entityType: "Budget",
+        entityId: REVIEW_RIGO_HOY_IDS.budgetP0247,
+        clientId: REVIEW_RIGO_HOY_IDS.clientAlfa,
+        workId: REVIEW_RIGO_HOY_IDS.workEdificioArce,
+        budgetId: REVIEW_RIGO_HOY_IDS.budgetP0247,
+        amount: 12450,
+        score: 92,
+        priority: 95,
+        dueAt: todayAt(now, 12),
+        expiresAt: addDays(now, 1, 0),
+        requiresConfirmation: true,
+        suggestedActions: [{ id: "review-budget", label: "Revisar presupuesto", type: "navigate", href: `/presupuestos/${REVIEW_RIGO_HOY_IDS.budgetP0247}` }],
+        evidence: { probabilityDelta: 35, cycleDeltaDays: -3, confidence: 92, synthetic: true },
+        context: { sourceLabel: "Presupuesto P-0247", entityLabel: "Cliente Alfa", synthetic: true },
+      },
+    });
+
     return {
       ok: true,
       target: "railway-review",
       fixture: REVIEW_RIGO_HOY_TARGET.demoScenarioKey,
       companyId: company.id,
       clients: clientFixtures.length,
-      works: 1,
+      plan: "ENTERPRISE",
+      ownerAccessMode: "STANDARD",
+      entitlements: enterprisePlan.entitlements.length,
+      works: workFixtures.length,
       agendaEvents: agendaFixtures.length,
+      budgets: 1,
+      invoices: invoiceFixtures.length,
+      documents: documentFixtures.length,
+      followUps: followUpFixtures.length,
+      expenses: expenseFixtures.length,
+      recommendations: 1,
+      externalBillingAttached: false,
       credentialsChanged: false,
       securityFactorsChanged: false,
       otherMembershipsChanged: false,
     } as const;
-  }, { isolationLevel: "Serializable", maxWait: 10_000, timeout: 30_000 });
+  }, { isolationLevel: "Serializable", maxWait: 10_000, timeout: 120_000 });
 }
 
 export function safeProvisionErrorCode(error: unknown) {
@@ -425,7 +896,52 @@ async function main() {
   const { prisma } = await import("../../lib/prisma");
   try {
     const result = await provisionReviewRigoHoy(prisma, ownerEmail);
-    process.stdout.write(`${JSON.stringify(result)}\n`);
+    const owner = await prisma.user.findUniqueOrThrow({ where: { emailNormalized: ownerEmail } });
+    const [company, membership] = await Promise.all([
+      prisma.company.findUniqueOrThrow({ where: { id: result.companyId } }),
+      prisma.companyMembership.findUniqueOrThrow({ where: { userId_companyId: { userId: owner.id, companyId: result.companyId } } }),
+    ]);
+    const { resolveAuthorization, getEffectiveCapabilities, getEntitlements } = await import("../../lib/commercial/authorization");
+    const { capabilityCatalog } = await import("../../lib/commercial/catalog");
+    const context = {
+      sessionId: "review-rigo-hoy-provision",
+      userId: owner.id,
+      email: owner.email,
+      displayName: owner.displayName,
+      expiresAt: addDays(new Date(), 1),
+      secondFactorVerifiedAt: null,
+      companyId: company.id,
+      membershipId: membership.id,
+      role: membership.role,
+      functionalProfileKey: membership.functionalProfileKey,
+      isDemo: company.isDemo,
+      companyName: company.nombreComercial,
+      companyStatus: company.status,
+      commercialStatus: company.commercialStatus ?? "ACTIVE",
+    };
+    const entitlementGates = [
+      "company.members.invite",
+      "company.members.update",
+      "company.members.remove",
+      "company.teams.manage",
+      "clients.export",
+      "reports.export",
+      "orqena.use",
+      "orqena.execute",
+      "orqena.memory.manage",
+    ] as const;
+    const decisions = await Promise.all(entitlementGates.map((capability) => resolveAuthorization(context, capability)));
+    if (decisions.some((decision) => !decision.allowed || decision.scope !== "COMPANY")) {
+      throw new Error("REVIEW_RIGO_HOY_ENTERPRISE_AUTHORIZATION_FAILED");
+    }
+    const [capabilities, entitlements] = await Promise.all([
+      getEffectiveCapabilities(context),
+      getEntitlements(company.id),
+    ]);
+    if (entitlements.planKey !== "ENTERPRISE" || capabilities.length !== Object.keys(capabilityCatalog).length) {
+      throw new Error("REVIEW_RIGO_HOY_FULL_ACCESS_VALIDATION_FAILED");
+    }
+    process.stdout.write(`${JSON.stringify({ ...result, capabilities: capabilities.length, authorizationGates: entitlementGates.length })}\n`);
   } finally {
     await prisma.$disconnect();
   }

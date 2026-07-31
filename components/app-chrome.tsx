@@ -295,7 +295,15 @@ export function AppChrome({
               onClick={(event) => openDesktopPanel("create", event.currentTarget)}
             >
               <Plus size={17} aria-hidden="true" /><span>Nuevo</span><ChevronDown size={15} aria-hidden="true" />
-            </button> : null}
+            </button> : <button
+              type="button"
+              className="field-os-desktop-action field-os-new-action"
+              aria-label="Nuevo no disponible con este acceso"
+              title="Tu acceso actual es de solo lectura"
+              disabled
+            >
+              <Plus size={17} aria-hidden="true" /><span>Nuevo</span><ChevronDown size={15} aria-hidden="true" />
+            </button>}
           </div>
         </div>
       </header>
@@ -909,16 +917,17 @@ function NotificationLink({ unread }: { unread: number }) {
       aria-label={`Notificaciones${unread ? `, ${unread} sin leer` : ""}`}
     >
       <Bell size={20} aria-hidden="true" />
-      {unread ? <span className="absolute -right-1 -top-1"><NotificationBadge count={unread} compact /></span> : null}
+      {unread ? <span className="absolute -right-1 -top-1"><NotificationBadge count={unread} compact tone="alert" /></span> : null}
     </Link>
   );
 }
 
-function NotificationBadge({ count, compact = false }: { count: number; compact?: boolean }) {
+function NotificationBadge({ count, compact = false, tone = "default" }: { count: number; compact?: boolean; tone?: "default" | "alert" }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center justify-center rounded-full bg-content px-1.5 font-bold leading-none text-white",
+        "inline-flex items-center justify-center rounded-full px-1.5 font-bold leading-none text-white",
+        tone === "alert" ? "bg-red-600" : "bg-content",
         compact ? "min-h-5 min-w-5 text-[10px]" : "min-h-6 min-w-6 text-xs"
       )}
       aria-hidden="true"

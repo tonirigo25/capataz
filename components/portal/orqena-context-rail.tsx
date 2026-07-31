@@ -3,12 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { Bot, ChevronRight, ChevronsLeft, ChevronsRight, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink, FileText, ShieldCheck, Sparkles, X } from "lucide-react";
 import type { PortalRailArea, PortalRailRecommendations, TodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
 import {
   acceptTodayRecommendationAction,
   dismissTodayRecommendationAction,
-  snoozeTodayRecommendationAction,
 } from "@/app/(app)/hoy/actions";
 
 type RailContext = {
@@ -114,49 +113,55 @@ function RailContent({ context, titleId, recommendation, canUse, canExecute, isT
     <div className="orqena-context-rail__inner">
       <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
       <p className="orqena-context-eyebrow">{context.eyebrow}</p>
-      <div className="orqena-context-card">
-        <span className="orqena-context-card__icon"><Bot size={22} aria-hidden="true" /></span>
+      <div className="orqena-context-card" data-today={isToday ? "true" : "false"}>
+        <span className="orqena-context-card__icon"><FileText size={22} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={13} aria-hidden="true" /></span>
         <h2 id={titleId}>{title}</h2>
         <p className="orqena-context-description">{description}</p>
-        <p className="orqena-context-source"><strong>Origen</strong><span>{source}</span></p>
+        {!isToday ? <p className="orqena-context-source"><strong>Origen</strong><span>{source}</span></p> : null}
 
         <dl className="orqena-context-impact">
-          <div className="orqena-context-impact__title"><dt>Impacto estimado</dt><dd>{!canUse ? "Acceso no autorizado" : recommendation ? "Con datos registrados" : "Sin recomendación activa"}</dd></div>
+          <div className="orqena-context-impact__title"><dt>Impacto estimado</dt>{!recommendation ? <dd>{!canUse ? "Acceso no autorizado" : "Sin recomendación activa"}</dd> : null}</div>
           {recommendation?.amount != null ? <div><dt>Importe</dt><dd>{formatCurrency(recommendation.amount)}</dd></div> : null}
           {recommendation?.dueAt ? <div><dt>Vencimiento</dt><dd>{formatDate(recommendation.dueAt)}</dd></div> : null}
           {evidence.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
-          {!recommendation ? <div><dt>Estado</dt><dd>Sin cambios aplicados</dd></div> : null}
+          {!recommendation ? <>
+            <div><dt>Estado</dt><dd>Sin cambios aplicados</dd></div>
+            <div><dt>Confianza</dt><dd>Sin señal activa</dd></div>
+            <div><dt>Control</dt><dd>Revisión humana</dd></div>
+          </> : null}
         </dl>
 
         <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>La recomendación no ejecuta cambios por sí sola. Tu equipo revisa y confirma cada acción.</p></div>
 
-        {!canUse ? <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">No disponible en tu acceso</span> : recommendation && canExecute && isToday ? <TodayRecommendationControls recommendation={recommendation} /> : (
+        {!canUse ? <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">No disponible en tu acceso</span> : recommendation && canExecute && isToday ? <TodayRecommendationControls recommendation={recommendation} /> : isToday && !recommendation ? <NoRecommendationControls /> : (
           <Link href={recommendation?.href ?? context.href} className="orqena-context-primary">{recommendation ? "Abrir origen" : context.next}<ChevronRight size={16} aria-hidden="true" /></Link>
         )}
-        {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones</Link> : null}
       </div>
+      {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
     </div>
   );
+}
+
+function NoRecommendationControls() {
+  return <div className="orqena-context-controls">
+    <button type="button" className="orqena-context-primary orqena-context-primary--disabled" disabled title="No hay una recomendación activa">Confirmar acción</button>
+    <button type="button" className="orqena-context-secondary" disabled title="No hay una recomendación activa">Descartar</button>
+  </div>;
 }
 
 function TodayRecommendationControls({ recommendation }: { recommendation: TodayRailRecommendation }) {
   return <div className="orqena-context-controls">
     <form action={acceptTodayRecommendationAction}>
       <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
+      {recommendation.preferredActionId ? <input type="hidden" name="actionId" value={recommendation.preferredActionId} /> : null}
+      <input type="hidden" name="confirmed" value="true" />
       <SubmitButton className="orqena-context-primary" pending="Confirmando…">Confirmar acción<ChevronRight size={16} aria-hidden="true" /></SubmitButton>
     </form>
-    <div className="orqena-context-secondary-controls">
-      <form action={snoozeTodayRecommendationAction}>
-        <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-        <input type="hidden" name="preset" value="tomorrow" />
-        <SubmitButton className="orqena-context-secondary" pending="Posponiendo…">Posponer</SubmitButton>
-      </form>
-      <form action={dismissTodayRecommendationAction}>
-        <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-        <input type="hidden" name="reason" value="Descartada desde Hoy" />
-        <SubmitButton className="orqena-context-secondary" pending="Descartando…">Descartar</SubmitButton>
-      </form>
-    </div>
+    <form action={dismissTodayRecommendationAction}>
+      <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
+      <input type="hidden" name="reason" value="Descartada desde Hoy" />
+      <SubmitButton className="orqena-context-secondary" pending="Descartando…">Descartar</SubmitButton>
+    </form>
   </div>;
 }
 

@@ -1,4 +1,4 @@
-import type { BusinessRecommendation } from "@prisma/client";
+import type { BusinessRecommendation, Prisma } from "@prisma/client";
 import type { CompanyContext } from "@/lib/auth/session";
 import { resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +12,8 @@ export type TodayRailRecommendation = {
   amount: number | null;
   dueAt: string | null;
   score: number;
+  preferredActionId: string | null;
+  requiresConfirmation: boolean;
   evidence: Array<{ label: string; value: string }>;
 };
 
@@ -40,12 +42,22 @@ export async function getPersistedPortalRailRecommendations(
     capabilitySet.has("clients.view") ? resolveScopedEntityIds(context, "clients.view", "Client") : Promise.resolve([]),
     capabilitySet.has("documents.view") ? resolveScopedEntityIds(context, "documents.view", "Document") : Promise.resolve([]),
   ]);
+  const visibilityFilters: Prisma.BusinessRecommendationWhereInput[] = [];
+  if (!capabilitySet.has("work.view")) visibilityFilters.push({ workId: null });
+  else if (workIds !== null) visibilityFilters.push({ OR: [{ workId: null }, { workId: { in: workIds } }] });
+  if (!capabilitySet.has("clients.view")) visibilityFilters.push({ clientId: null });
+  else if (clientIds !== null) visibilityFilters.push({ OR: [{ clientId: null }, { clientId: { in: clientIds } }] });
+  if (!capabilitySet.has("documents.view")) visibilityFilters.push({ entityType: { notIn: ["document", "Document"] } });
+  else if (documentIds !== null) visibilityFilters.push({ OR: [{ entityType: { notIn: ["document", "Document"] } }, { entityId: null }, { entityId: { in: documentIds } }] });
+  if (!capabilitySet.has("sales.invoices.view")) visibilityFilters.push({ invoiceId: null, entityType: { notIn: ["invoice", "Invoice"] } });
+  if (!capabilitySet.has("sales.budgets.view")) visibilityFilters.push({ budgetId: null, entityType: { notIn: ["budget", "Budget"] } });
+  if (!capabilitySet.has("treasury.view")) visibilityFilters.push({ source: { not: "tesoreria" } });
   const candidates = await prisma.businessRecommendation.findMany({
     where: {
       companyId: context.companyId,
-      status: { in: ["active", "viewed", "failed"] },
+      status: { in: ["active", "viewed"] },
       OR: [{ cooldownUntil: null }, { cooldownUntil: { lte: now } }],
-      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }],
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, ...visibilityFilters],
     },
     orderBy: [{ priority: "desc" }, { score: "desc" }, { dueAt: "asc" }, { recommendedAt: "desc" }],
     take: 24,
@@ -80,6 +92,8 @@ function serializeRecommendation(item: BusinessRecommendation): TodayRailRecomme
     amount: item.amount,
     dueAt: item.dueAt?.toISOString() ?? null,
     score: item.score,
+    preferredActionId: preferredActionId(item.context),
+    requiresConfirmation: item.requiresConfirmation,
     evidence: safeEvidence(item.evidence),
   };
 }
@@ -130,9 +144,33 @@ function safeEvidence(value: unknown) {
     confidence: "Confianza",
     reason: "Señal",
   };
-  return Object.entries(labels).flatMap(([key, label]) => {
+  const direct = Object.entries(labels).flatMap(([key, label]) => {
     const raw = item[key];
     if (typeof raw !== "string" && typeof raw !== "number") return [];
-    return [{ label, value: String(raw) }];
-  }).slice(0, 3);
+    return [{ label, value: evidenceValue(label, raw) }];
+  });
+  const breakdown = Array.isArray(item.scoreBreakdown)
+    ? item.scoreBreakdown.flatMap((part) => {
+        if (!part || typeof part !== "object" || Array.isArray(part)) return [];
+        const record = part as Record<string, unknown>;
+        if (typeof record.label !== "string" || typeof record.value !== "number") return [];
+        return [{ label: record.label, value: evidenceValue(record.label, record.value) }];
+      })
+    : [];
+  return [...direct, ...breakdown].slice(0, 3);
+}
+
+function evidenceValue(label: string, value: string | number) {
+  if (typeof value === "string") return value;
+  const normalized = label.toLocaleLowerCase("es-ES");
+  if (normalized.includes("probabilidad") || normalized.includes("confianza")) return `${value > 0 ? "▲ " : ""}${value}%`;
+  if (normalized.includes("ciclo") || normalized.includes("día")) return `${value > 0 ? "+" : ""}${value} días`;
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function preferredActionId(value: Prisma.JsonValue) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return typeof value.preferredActionId === "string" && value.preferredActionId.trim()
+    ? value.preferredActionId.trim()
+    : null;
 }

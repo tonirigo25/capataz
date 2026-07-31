@@ -1,19 +1,23 @@
 "use server";
 
 import { executeNextAction } from "@/lib/platform/next-action-boundary";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { getEffectiveCapabilities, requireCapability } from "@/lib/commercial/authorization";
 import { prisma } from "@/lib/prisma";
+import { getPersistedTodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
 import {
   acceptRecommendationAction as acceptRecommendationUseCase,
   dismissRecommendationAction as dismissRecommendationUseCase,
+  executeRecommendationAction as executeRecommendationUseCase,
   snoozeRecommendationAction as snoozeRecommendationUseCase,
 } from "@/lib/application/intelligence/recommendation-use-cases";
 
 export async function acceptTodayRecommendationAction(formData: FormData) {
   return executeNextAction({ operation: "app/(app)/hoy/actions.ts#acceptTodayRecommendationAction" }, async () => {
     const auth = await assertTodayRecommendation(formData);
-    await acceptRecommendationUseCase(formData);
-    await auditTodayAction(auth, formData, "accepted");
+    const actionId = clean(formData.get("actionId"));
+    if (actionId) await executeRecommendationUseCase(formData);
+    else await acceptRecommendationUseCase(formData);
+    await auditTodayAction(auth, formData, actionId ? "executed" : "accepted");
   });
 }
 
@@ -38,17 +42,28 @@ async function assertTodayRecommendation(formData: FormData) {
   const fingerprint = clean(formData.get("fingerprint"));
   if (!fingerprint) throw new Error("TODAY_RECOMMENDATION_REQUIRED");
   const recommendation = await prisma.businessRecommendation.findFirst({
-    where: { fingerprint, companyId: auth.companyId },
+    where: {
+      fingerprint,
+      companyId: auth.companyId,
+      status: { in: ["active", "viewed"] },
+      OR: [{ cooldownUntil: null }, { cooldownUntil: { lte: new Date() } }],
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+    },
     select: { id: true },
   });
   if (!recommendation) throw new Error("TODAY_RECOMMENDATION_NOT_FOUND");
+  const capabilities = await getEffectiveCapabilities(auth);
+  const visible = await getPersistedTodayRailRecommendation(auth, capabilities);
+  if (!visible || visible.fingerprint !== fingerprint) throw new Error("TODAY_RECOMMENDATION_NOT_VISIBLE");
+  const actionId = clean(formData.get("actionId"));
+  if (actionId && visible.preferredActionId !== actionId) throw new Error("TODAY_RECOMMENDATION_ACTION_INVALID");
   return { ...auth, recommendationId: recommendation.id, fingerprint };
 }
 
 async function auditTodayAction(
   auth: Awaited<ReturnType<typeof assertTodayRecommendation>>,
   formData: FormData,
-  outcome: "accepted" | "snoozed" | "dismissed",
+  outcome: "accepted" | "executed" | "snoozed" | "dismissed",
 ) {
   await prisma.auditLog.create({
     data: {
