@@ -21,7 +21,9 @@ for (const viewport of viewports) {
       () => video.evaluate((element) => ({ paused: (element as HTMLVideoElement).paused, currentTime: (element as HTMLVideoElement).currentTime })),
       { timeout: 8_000 },
     ).toMatchObject({ paused: false });
-    expect(await video.evaluate((element) => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+    await expect
+      .poll(() => video.evaluate((element) => (element as HTMLVideoElement).currentTime), { timeout: 8_000 })
+      .toBeGreaterThan(0);
 
     const control = page.getByRole("button", { name: "Pausar vídeo de Orqena" });
     await control.click();
