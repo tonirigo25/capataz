@@ -272,7 +272,7 @@ export function AppChrome({
               <Plus size={18} aria-hidden="true" />Crear
             </button> : null}
             {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
-              <Bot size={18} aria-hidden="true" />{brand.assistantName}
+              <Bot size={18} aria-hidden="true" />Orqena IA
             </Link> : null}
             <NotificationLink unread={unreadNotifications} />
           </div>
