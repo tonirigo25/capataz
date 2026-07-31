@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { LegalPublicPage } from "@/components/marketing/legal-public-page";
+import { brand } from "@/lib/brand";
 import { legalConfig } from "@/lib/config/legal";
 
 export default function PoliciesPage() {
   return (
-    <LegalPublicPage title="Políticas legales" description={<>Acceso a los borradores legales {legalConfig.documentVersion}; su revisión jurídica sigue pendiente antes de publicación comercial.</>}>
+    <LegalPublicPage title="Políticas legales" description={<>Acceso a los borradores legales de {brand.productName}, versión {legalConfig.documentVersion}; su revisión jurídica sigue pendiente antes de publicación comercial.</>}>
       <section className="card mt-6 grid gap-3 p-5 text-sm leading-6 text-slate-600">
         <Link href="/privacidad" className="secondary-button justify-start">Política de privacidad</Link>
         <Link href="/terminos" className="secondary-button justify-start">Términos de uso</Link>
