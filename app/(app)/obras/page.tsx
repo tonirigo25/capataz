@@ -29,6 +29,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { ListWorkspace } from "@/components/workspaces";
+import { WorkPortfolio } from "@/components/portal/modules-a/work-portfolio";
 import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, Toolbar } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -167,6 +168,33 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   }, { active: 0, blocked: 0, invoiced: 0, pending: 0, cost: 0, benefit: 0, purchaseCost: 0, internalCost: 0 });
   const avgMargin = totals.invoiced ? Math.round((totals.benefit / totals.invoiced) * 1000) / 10 : 0;
   const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
+  const portfolioItems = visibleWorks.map((item) => {
+    const purchaseCost = item.work.gastoReal + item.work.subcontratasCoste + item.work.expenses.reduce((sum, expense) => sum + expense.importe, 0);
+    const authorizedCost = item.visibility.purchaseCost && item.visibility.internalCost
+      ? item.financial.realCost
+      : item.visibility.purchaseCost
+        ? purchaseCost
+        : item.visibility.internalCost
+          ? item.work.costePrevisto
+          : null;
+    return {
+      id: item.work.id,
+      title: item.work.titulo,
+      client: item.work.client.nombre,
+      status: item.status.label,
+      statusClassName: statusClass(item.work.estado),
+      priority: item.priority.label,
+      nextAction: item.nextAction.label,
+      nextDate: formatDate(item.work.fechaFinPrevista ?? item.work.fechaInicioPrevista ?? item.work.fechaInicio),
+      updatedAt: formatDate(item.work.updatedAt),
+      responsible: item.work.responsable ?? "Sin asignar",
+      margin: item.visibility.marginPercent ? `${item.financial.marginPercent}%` : null,
+      budget: item.visibility.budgets ? formatCurrency(item.financial.budgeted) : null,
+      cost: authorizedCost === null ? null : formatCurrency(authorizedCost),
+      pending: item.visibility.invoices ? formatCurrency(item.financial.pending) : null,
+      risk: item.hasRisk,
+    };
+  });
 
   return (
     <ListWorkspace>
@@ -225,7 +253,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link> : undefined}
         />
       ) : view === "tabla" ? (
-        <WorkTable items={visibleWorks} />
+        <WorkPortfolio items={portfolioItems} />
       ) : view === "compacta" ? (
         <CompactList items={visibleWorks} />
       ) : view === "kanban" ? (
@@ -294,29 +322,6 @@ function WorkCard({ item }: { item: WorkItem }) {
         {visibility.updateWork ? <WorkStatusButton id={work.id} estado="finalizada" label="Finalizar" /> : null}
       </div>
     </article>
-  );
-}
-
-function WorkTable({ items }: { items: WorkItem[] }) {
-  return (
-    <div className="grid gap-3">
-      {items.map((item) => (
-        <article key={item.work.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-soft">
-          <div className="grid gap-3 lg:grid-cols-[1.35fr_0.75fr_0.8fr_0.8fr_0.75fr_auto] lg:items-center">
-            <div className="min-w-0">
-              <StatusBadge status={item.work.estado} iconLabel={item.status.icon} />
-              <Link href={`/obras/${item.work.id}`} className="mt-2 block font-black text-obra-ink hover:underline">{item.work.titulo}</Link>
-              <p className="text-sm text-slate-500">{item.work.client.nombre}</p>
-            </div>
-            <MetricLine label="Última actualización" value={formatDate(item.work.updatedAt)} />
-            <MetricLine label="Próxima fecha" value={formatDate(item.work.fechaFinPrevista ?? item.work.fechaInicioPrevista ?? item.work.fechaInicio)} />
-            <MetricLine label="Próxima acción" value={item.nextAction.label} />
-            {item.visibility.marginPercent ? <MetricLine label={item.hasRisk ? "Riesgo · margen" : "Margen"} value={`${item.financial.marginPercent}%`} /> : item.visibility.marginAmount ? <MetricLine label="Margen importe" value={formatCurrency(item.financial.benefit)} /> : <MetricLine label="Prioridad" value={item.priority.label} />}
-            <Link href={`/obras/${item.work.id}`} className="secondary-button justify-center">Abrir</Link>
-          </div>
-        </article>
-      ))}
-    </div>
   );
 }
 
@@ -431,15 +436,6 @@ function Counter({ icon: Icon, label, value }: { icon: LucideIcon; label: string
       <Icon size={17} className="mx-auto text-slate-500" />
       <p className="mt-1 text-xs font-bold text-slate-500">{label}</p>
       <p className="font-black text-obra-ink">{value}</p>
-    </div>
-  );
-}
-
-function MetricLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 font-black text-obra-ink">{value}</p>
     </div>
   );
 }

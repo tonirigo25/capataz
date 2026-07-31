@@ -5,6 +5,7 @@ import {
   Archive,
   Bell,
   Bot,
+  Building2,
   BriefcaseBusiness,
   CalendarClock,
   CircleDollarSign,
@@ -15,6 +16,7 @@ import {
   Plus,
   Receipt,
   RotateCcw,
+  Sparkles,
   UserRound,
   WalletCards,
 } from "lucide-react";
@@ -189,9 +191,9 @@ export default async function ClientDetailPage({
             context={summary.listItem.typeLabel}
           />
         }
-        context={`${summary.listItem.typeLabel} · ${client.origen}`}
-        title={summary.listItem.displayName}
-        description={`${summary.listItem.primaryContact} · ${(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}`}
+        context={`Clientes · ${summary.listItem.typeLabel}`}
+        title="Cliente 360"
+        description="Relación, operación, dinero y archivos del cliente en una única vista coherente."
         status={
           <StatusPill
             status={client.archivadoAt ? "archivado" : client.estado}
@@ -226,11 +228,22 @@ export default async function ClientDetailPage({
         }
       />
 
-      <section className="mb-4 grid gap-2 rounded-xl border border-border bg-subtle p-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Contexto principal del cliente">
-        <HeaderFact label="Tipo" value={summary.listItem.typeLabel} />
-        <HeaderFact label="Responsable" value={responsible} />
-        <HeaderFact label="Próxima fecha" value={nextDate} />
-        <HeaderFact label="Contacto" value={summary.listItem.primaryContact} />
+      <section className="mb-4 rounded-xl border border-border bg-surface p-4 shadow-soft" aria-label="Contexto principal del cliente">
+        <div className="grid gap-4 lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1fr)] lg:items-center">
+          <div className="flex min-w-0 items-center gap-4 border-b border-border pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-5">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong"><Building2 size={26} aria-hidden="true" /></span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2"><h2 className="type-section-title truncate text-content">{summary.listItem.displayName}</h2><StatusPill status={client.archivadoAt ? "archivado" : client.estado} /></div>
+              <p className="type-secondary mt-1">{summary.listItem.typeLabel} · {client.origen}</p>
+              <p className="type-meta mt-2">{(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}</p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <HeaderFact label="Responsable" value={responsible} />
+            <HeaderFact label="Próxima fecha" value={nextDate} />
+            <HeaderFact label="Contacto" value={summary.listItem.primaryContact} />
+          </div>
+        </div>
       </section>
 
       <ClientRelationshipRail summary={summary} />
@@ -396,10 +409,11 @@ function ClientContextRail({
         : "Sin riesgo principal detectado";
   return (
     <div className="grid gap-4">
-      <section className="rounded-xl bg-subtle p-4">
-        <p className="type-label">Siguiente acción</p>
+      <div className="flex items-center gap-2 text-brand-strong"><Sparkles size={18} aria-hidden="true" /><p className="type-label text-brand-strong">{brand.assistantName} · contexto del cliente</p></div>
+      <section className="rounded-xl border border-brand/25 bg-brand-soft p-4">
+        <p className="type-label">Recomendación contextual</p>
         <h2 className="type-object-title mt-2 text-content">{nextAction}</h2>
-        <p className="type-secondary mt-2">Próxima fecha: {nextDate}</p>
+        <p className="type-secondary mt-2">Próxima fecha: {nextDate}. Revisa el origen antes de confirmar cualquier acción.</p>
       </section>
       <dl className="divide-y divide-border border-y border-border">
         <ContextFact label="Contacto" value={summary.listItem.primaryContact} />
