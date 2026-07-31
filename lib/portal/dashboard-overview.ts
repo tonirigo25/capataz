@@ -206,18 +206,32 @@ export async function getDashboardOverview({
     comparison: { label: string; tone: "positive" | "negative" | "neutral" } | undefined,
     href: string,
   ): DashboardKpi {
-    return { id, label, value: formatCurrency(value), comparison: comparison?.label ?? "Sin periodo comparable", tone: comparison?.tone ?? "neutral", href };
+    return {
+      id,
+      label,
+      value: formatCurrency(value),
+      comparison: comparison ? withPeriodContext(comparison.label) : "Sin periodo comparable",
+      tone: comparison?.tone ?? "neutral",
+      href,
+    };
   }
 
   function percentKpi(
     id: DashboardKpi["id"],
     label: string,
     value: number,
-    comparison: { label: string; tone: "positive" | "negative" | "neutral" } | undefined,
+    comparison: { label: string; tone: "positive" | "negative" | "neutral"; delta?: number | null } | undefined,
     href: string,
   ): DashboardKpi {
-    return { id, label, value: `${formatNumber(value, 1)}%`, comparison: comparison?.label ?? "Sin periodo comparable", tone: comparison?.tone ?? "neutral", href };
+    const comparisonLabel = comparison?.delta == null
+      ? comparison?.label ?? "Sin periodo comparable"
+      : `${comparison.delta >= 0 ? "+" : ""}${formatNumber(comparison.delta, 1)} pp vs. periodo anterior`;
+    return { id, label, value: `${formatNumber(value, 1)}%`, comparison: comparisonLabel, tone: comparison?.tone ?? "neutral", href };
   }
+}
+
+function withPeriodContext(label: string) {
+  return /^[+-]/u.test(label) ? `${label} vs. periodo anterior` : label;
 }
 
 function buildWeeklyTrend(

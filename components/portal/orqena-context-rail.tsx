@@ -148,7 +148,7 @@ function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse
           <Link href={recommendation?.href ?? context.href} className="orqena-context-primary">{recommendation ? "Abrir origen" : context.next}<ChevronRight size={16} aria-hidden="true" /></Link>
         )}
       </div>
-      {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+      {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver todas las recomendaciones <ExternalLink size={13} aria-hidden="true" /></Link> : null}
     </div>
   );
 }
@@ -174,7 +174,7 @@ function DashboardRailContent({ context, titleId, recommendation, alerts, canUse
         </Link>
       </li>)}</ul> : <p className="dashboard-rail-empty">No hay alertas financieras activas dentro de tu alcance.</p>}
     </section>
-    {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+    {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver todas las recomendaciones <ExternalLink size={13} aria-hidden="true" /></Link> : null}
   </div>;
 }
 

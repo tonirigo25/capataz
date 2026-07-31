@@ -2684,7 +2684,7 @@ button:disabled,
   .field-os-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--fos-layout-record-rail);
-    align-items: start;
+    align-items: stretch;
   }
 
   .field-os-workspace[data-rail-collapsed="true"] {
@@ -2692,11 +2692,19 @@ button:disabled,
   }
 
   .orqena-context-rail {
-    position: sticky;
-    top: var(--fos-layout-topbar);
-    display: block;
-    height: calc(100dvh - var(--fos-layout-topbar));
-    overflow-y: auto;
+    position: relative;
+    top: auto;
+    display: flex;
+    height: auto;
+    min-height: calc(100dvh - var(--fos-layout-topbar));
+    align-self: stretch;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .orqena-context-rail > .orqena-context-rail__inner,
+  .orqena-context-rail > .orqena-context-expand {
+    flex: 1 1 auto;
   }
 
   .orqena-context-rail[data-collapsed="true"] {
@@ -3297,8 +3305,8 @@ button:disabled,
 .dashboard-page {
   max-width: none !important;
   min-height: calc(100dvh - 67px);
-  height: calc(100dvh - 67px);
-  overflow: hidden;
+  height: auto;
+  overflow: visible;
   padding: 20px 25px 24px !important;
   background: #fff;
 }
@@ -3711,7 +3719,7 @@ button:disabled,
 .dashboard-rail-alerts small { display: block; margin-top: 2px; color: #65716b; font-size: 10px; line-height: 15px; }
 .dashboard-rail-empty { display: grid; min-height: 220px; place-items: center; color: #67736d; font-size: 11px; line-height: 17px; text-align: center; }
 
-@media (max-width: 1579px) {
+@media (max-width: 1399px) {
   .dashboard-page { height: auto; min-height: calc(100dvh - var(--fos-layout-topbar)); overflow: visible; padding-bottom: 7rem !important; }
   .dashboard-kpis { height: auto; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-top-grid { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3878,13 +3886,17 @@ button:disabled,
 
 .orqena-context-card {
   display: flex;
-  min-height: 666px;
+  min-height: 0;
   flex-direction: column;
   margin-top: 19px;
   border: 1px solid #cfe8d7;
   border-radius: 8px;
   padding: 16px;
   box-shadow: none;
+}
+
+.orqena-context-card[data-today="true"] {
+  min-height: 666px;
 }
 
 .orqena-context-card__icon {
