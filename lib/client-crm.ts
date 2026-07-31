@@ -21,6 +21,7 @@ import {
   normalizeStatus,
   pendingAmountForInvoice,
   primaryContactLabel,
+  startOfDay,
   type CrmClientFieldsInput,
   type DuplicateMatch
 } from "@/lib/client-crm-calculations";
@@ -52,6 +53,29 @@ export type ClientListQuery = {
   pagina?: string;
 };
 
+export type ClientSmartViewCounts = {
+  todos: number;
+  seguimiento: number;
+  presupuesto: number;
+  trabajo: number;
+  cobro: number;
+  riesgo: number;
+};
+
+export type ClientListWorkSummary = {
+  id: string;
+  title: string;
+  status: string;
+};
+
+export type ClientListBudgetSummary = {
+  id: string;
+  number: string;
+  title: string;
+  total: number;
+  status: string;
+};
+
 export type ClientListItem = {
   id: string;
   displayName: string;
@@ -73,6 +97,18 @@ export type ClientListItem = {
   pendingInvoicesCount: number;
   overdueInvoicesCount: number;
   pendingBudgetsCount: number;
+  responsible: string | null;
+  nextActionAt: Date | null;
+  nextActionSource: string | null;
+  activeWorks: ClientListWorkSummary[];
+  latestBudget: ClientListBudgetSummary | null;
+  overdueTotal: number;
+  upcomingTotal: number;
+  latestNote: { content: string; createdAt: Date } | null;
+  addressLabel: string;
+  riskLevel: "Bajo" | "Medio" | "Alto";
+  riskReason: string;
+  lastActivityKind: string;
   pendingFields: string[];
   lastActivityAt: Date | null;
   lastContactAt: Date | null;
@@ -88,6 +124,7 @@ export type ClientListResult = {
   totalPages: number;
   typeOptions: string[];
   activeFilters: Array<{ id: string; label: string }>;
+  smartViewCounts: ClientSmartViewCounts;
 };
 
 export type ClientCrmSummary = Awaited<ReturnType<typeof getClientCrmSummary>>;
@@ -360,9 +397,10 @@ export async function getClientList(query: ClientListQuery, companyId: string, s
   const filters = parseFilters(query.filtros);
   const allItems = clients
     .map((client) => toListItem(client, now))
-    .filter((item) => matchesComputedFilters(item, filters))
-    .filter((item) => matchesSmartView(item, query.vista));
-  const sortedItems = sortClientItems(allItems, query.ordenar ?? "ultimaActividad_desc");
+    .filter((item) => matchesComputedFilters(item, filters));
+  const smartViewCounts = buildSmartViewCounts(allItems);
+  const visibleItems = allItems.filter((item) => matchesSmartView(item, query.vista));
+  const sortedItems = sortClientItems(visibleItems, query.ordenar ?? "ultimaActividad_desc");
 
   const total = sortedItems.length;
   const totalPages = Math.max(1, Math.ceil(total / CLIENT_PAGE_SIZE));
@@ -378,7 +416,8 @@ export async function getClientList(query: ClientListQuery, companyId: string, s
     pageSize: CLIENT_PAGE_SIZE,
     totalPages,
     typeOptions,
-    activeFilters: activeFilterLabels(query, filters)
+    activeFilters: activeFilterLabels(query, filters),
+    smartViewCounts,
   };
 }
 
@@ -538,7 +577,7 @@ function buildClientWhere(query: ClientListQuery): Prisma.ClientWhereInput {
       invoices: {
         some: {
           pendiente: { gt: 0 },
-          fechaVencimiento: { lt: new Date() },
+          fechaVencimiento: { lt: startOfDay(new Date()) },
           estado: { notIn: PRISMA_BILLABLE_INVOICE_EXCLUDED_STATUSES as InvoiceStatus[] }
         }
       }
@@ -578,23 +617,54 @@ function matchesComputedFilters(item: ClientListItem, filters: Set<string>) {
 }
 
 function matchesSmartView(item: ClientListItem, view?: string) {
-  if (!view || view === "accion") {
-    return (
-      item.pendingFields.length > 0 ||
-      item.overdueInvoicesCount > 0 ||
-      item.pendingTotal > 0 ||
-      item.pendingBudgetsCount > 0 ||
-      ["nuevo", "pendiente_datos", "visita_pendiente", "seguimiento_pendiente"].includes(item.status)
-    );
+  switch (view) {
+    case "accion":
+      return item.riskLevel !== "Bajo" || ["nuevo", "visita_pendiente", "seguimiento_pendiente"].includes(item.status);
+    case "seguimiento":
+      return item.status === "seguimiento_pendiente" || item.nextActionSource === "Seguimiento";
+    case "presupuesto":
+      return item.pendingBudgetsCount > 0;
+    case "trabajo":
+    case "activos":
+      return item.activeWorksCount > 0;
+    case "cobro":
+      return item.pendingTotal > 0;
+    case "riesgo":
+      return item.riskLevel !== "Bajo";
+    case "todos":
+    default:
+      return true;
   }
-  return true;
+}
+
+function buildSmartViewCounts(items: ClientListItem[]): ClientSmartViewCounts {
+  return {
+    todos: items.length,
+    seguimiento: items.filter((item) => matchesSmartView(item, "seguimiento")).length,
+    presupuesto: items.filter((item) => matchesSmartView(item, "presupuesto")).length,
+    trabajo: items.filter((item) => matchesSmartView(item, "trabajo")).length,
+    cobro: items.filter((item) => matchesSmartView(item, "cobro")).length,
+    riesgo: items.filter((item) => matchesSmartView(item, "riesgo")).length,
+  };
 }
 
 function toListItem(client: ClientCrmRecord, now: Date): ClientListItem {
   const financial = buildFinancialSummary(client.invoices, now);
   const budgets = buildBudgetSummary(client.budgets);
   const pendingFields = getClientPendingFields(client);
-  const activeWorksCount = client.works.filter((work) => isActiveWorkStatus(work.estado)).length;
+  const activeWorks = client.works.filter((work) => isActiveWorkStatus(work.estado));
+  const activeWorksCount = activeWorks.length;
+  const nextAction = resolveClientNextAction(client, now, { pendingFields, activeWorksCount, financial, pendingBudgetsCount: budgets.pendingBudgetsCount, status: client.estado });
+  const overdueTotal = client.invoices
+    .filter((invoice) => invoice.fechaVencimiento < startOfDay(now))
+    .reduce((total, invoice) => total + pendingAmountForInvoice(invoice), 0);
+  const latestBudget = client.budgets.find((budget) =>
+    PENDING_BUDGET_STATUSES.includes(normalizeStatus(budget.estado)),
+  ) ?? null;
+  const latestNote = client.internalNotes.find((note) => !note.archivedAt) ?? null;
+  const responsible = activeWorks.find((work) => work.responsable)?.responsable
+    ?? client.works.find((work) => work.responsable)?.responsable
+    ?? null;
   const lastActivityAt = latestDate([
     client.ultimaInteraccion,
     client.fechaCreacion,
@@ -607,6 +677,12 @@ function toListItem(client: ClientCrmRecord, now: Date): ClientListItem {
     ...client.agendaEvents.map((event) => event.fechaInicio)
   ]);
   const lastContactAt = lastContactDate(client.agendaEvents, now);
+  const risk = resolveClientListRisk({
+    overdueTotal,
+    pendingTotal: financial.pendingTotal,
+    pendingBudgetsCount: budgets.pendingBudgetsCount,
+    pendingFields,
+  });
 
   return {
     id: client.id,
@@ -629,12 +705,72 @@ function toListItem(client: ClientCrmRecord, now: Date): ClientListItem {
     pendingInvoicesCount: financial.pendingInvoicesCount,
     overdueInvoicesCount: financial.overdueInvoicesCount,
     pendingBudgetsCount: budgets.pendingBudgetsCount,
+    responsible,
+    nextActionAt: nextAction.at,
+    nextActionSource: nextAction.source,
+    activeWorks: activeWorks.slice(0, 3).map((work) => ({ id: work.id, title: work.titulo, status: work.estado })),
+    latestBudget: latestBudget ? {
+      id: latestBudget.id,
+      number: latestBudget.numero,
+      title: latestBudget.titulo,
+      total: latestBudget.total,
+      status: latestBudget.estado,
+    } : null,
+    overdueTotal,
+    upcomingTotal: Math.max(financial.pendingTotal - overdueTotal, 0),
+    latestNote: latestNote ? { content: latestNote.content, createdAt: latestNote.createdAt } : null,
+    addressLabel: client.direccionFiscal || client.direccion || [client.codigoPostal, client.municipio, client.provincia].filter(Boolean).join(" "),
+    riskLevel: risk.level,
+    riskReason: risk.reason,
+    lastActivityKind: lastContactAt && (!lastActivityAt || lastContactAt.getTime() >= lastActivityAt.getTime()) ? "Contacto" : "Actividad registrada",
     pendingFields,
     lastActivityAt,
     lastContactAt,
     archivedAt: client.archivadoAt,
-    nextAction: nextActionForClient({ pendingFields, activeWorksCount, financial, pendingBudgetsCount: budgets.pendingBudgetsCount, status: client.estado })
+    nextAction: nextAction.label,
   };
+}
+
+function resolveClientNextAction(
+  client: ClientCrmRecord,
+  now: Date,
+  fallbackInput: Parameters<typeof nextActionForClient>[0],
+) {
+  const candidates = [
+    ...client.reminders
+      .filter((reminder) => OPEN_REMINDER_STATUSES.includes(normalizeStatus(reminder.estado)))
+      .map((reminder) => ({
+        label: reminder.mensaje?.trim() || humanizeClientSignal(reminder.tipo),
+        at: reminder.fechaProgramada,
+        source: reminder.tipo.includes("seguimiento") ? "Seguimiento" : "Recordatorio",
+      })),
+    ...client.agendaEvents
+      .filter((event) => event.estado !== "cancelado" && event.fechaInicio >= now)
+      .map((event) => ({ label: event.titulo, at: event.fechaInicio, source: "Agenda" })),
+  ].sort((a, b) => a.at.getTime() - b.at.getTime());
+  return candidates[0] ?? { label: nextActionForClient(fallbackInput), at: null, source: null };
+}
+
+function resolveClientListRisk({
+  overdueTotal,
+  pendingTotal,
+  pendingBudgetsCount,
+  pendingFields,
+}: {
+  overdueTotal: number;
+  pendingTotal: number;
+  pendingBudgetsCount: number;
+  pendingFields: string[];
+}): { level: "Bajo" | "Medio" | "Alto"; reason: string } {
+  if (overdueTotal > 0) return { level: "Alto", reason: "Cobro vencido" };
+  if (pendingTotal > 0) return { level: "Medio", reason: "Saldo pendiente" };
+  if (pendingFields.length) return { level: "Medio", reason: "Datos incompletos" };
+  if (pendingBudgetsCount > 0) return { level: "Medio", reason: "Seguimiento pendiente" };
+  return { level: "Bajo", reason: "Sin riesgo detectado" };
+}
+
+function humanizeClientSignal(value: string) {
+  return value.replaceAll("_", " ").replace(/^./, (character) => character.toLocaleUpperCase("es-ES"));
 }
 
 function sortClientItems(items: ClientListItem[], order: string) {
@@ -744,7 +880,7 @@ function buildActivity(client: ClientCrmRecord, now: Date) {
   for (const invoice of client.invoices) {
     if (!isBillableInvoiceStatus(invoice.estado)) continue;
     events.push({ id: `invoice-${invoice.id}`, type: "Factura", text: `Factura ${invoice.numero} creada`, date: invoice.fechaEmision, href: `/dinero/${invoice.id}` });
-    if (pendingAmountForInvoice(invoice) > 0 && invoice.fechaVencimiento < now) {
+    if (pendingAmountForInvoice(invoice) > 0 && invoice.fechaVencimiento < startOfDay(now)) {
       events.push({ id: `invoice-overdue-${invoice.id}`, type: "Cobro", text: `Factura ${invoice.numero} vencida`, date: invoice.fechaVencimiento, href: `/dinero/${invoice.id}` });
     }
   }

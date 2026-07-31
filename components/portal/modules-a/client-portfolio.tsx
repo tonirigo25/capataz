@@ -1,158 +1,296 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
-  CalendarPlus,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   CircleDollarSign,
+  Ellipsis,
   Mail,
+  MapPin,
   Phone,
+  Sparkles,
   UserRound,
+  WalletCards,
 } from "lucide-react";
 import type { ClientWorkspaceItem } from "@/components/clients/client-split-view";
 import { StatusPill } from "@/components/status-pill";
 
-export function ClientPortfolio({ items }: { items: ClientWorkspaceItem[] }) {
+export type ClientPortfolioPagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  previousHref: string | null;
+  nextHref: string | null;
+  pages: Array<{ page: number; href: string; current: boolean }>;
+};
+
+export function ClientPortfolio({
+  items,
+  pagination,
+  canUpdate,
+  canUseAi,
+}: {
+  items: ClientWorkspaceItem[];
+  pagination: ClientPortfolioPagination;
+  canUpdate: boolean;
+  canUseAi: boolean;
+}) {
   const [selectedId, setSelectedId] = useState(items[0]?.id ?? "");
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? items[0],
     [items, selectedId],
   );
 
+  useEffect(() => {
+    if (!items.some((item) => item.id === selectedId)) {
+      setSelectedId(items[0]?.id ?? "");
+    }
+  }, [items, selectedId]);
+
   return (
     <>
-      <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-soft min-[1180px]:grid min-[1180px]:grid-cols-[minmax(0,1fr)_19rem]">
-        <section className="min-w-0" aria-label="Listado de clientes">
-          <div className="border-b border-border bg-subtle px-4 py-3">
-            <p className="type-label">Cartera visible</p>
-            <p className="type-secondary mt-1">Selecciona un cliente para revisar su contexto sin perder el listado.</p>
+      <div className="clients-workspace" data-preview-collapsed={previewCollapsed ? "true" : "false"}>
+        <section className="clients-table-shell" aria-label="Cartera de clientes">
+          <div className="clients-table-scroll">
+            <table className="clients-table">
+              <caption className="sr-only">Clientes visibles para el perfil actual</caption>
+              <thead>
+                <tr>
+                  <th scope="col"><span className="sr-only">Seleccionar</span></th>
+                  <th scope="col">Cliente</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Responsable</th>
+                  <th scope="col">Próxima acción</th>
+                  <th scope="col">Trabajo activo</th>
+                  <th scope="col">Presupuesto</th>
+                  <th scope="col">Saldo</th>
+                  <th scope="col">Última actividad</th>
+                  <th scope="col">Riesgo</th>
+                  <th scope="col"><span className="sr-only">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((client) => (
+                  <ClientTableRow
+                    key={client.id}
+                    client={client}
+                    selected={client.id === selected?.id}
+                    canUpdate={canUpdate}
+                    onSelect={() => setSelectedId(client.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="divide-y divide-border" role="list">
-            {items.map((client) => {
-              const active = client.id === selected?.id;
-              return (
-                <article
-                  key={client.id}
-                  role="listitem"
-                  className={`px-4 py-3 transition ${active ? "bg-brand-soft" : "hover:bg-subtle"}`}
-                  onMouseEnter={() => setSelectedId(client.id)}
-                  onFocusCapture={() => setSelectedId(client.id)}
-                >
-                  <button type="button" aria-pressed={active} className="flex w-full min-w-0 items-start justify-between gap-3 text-left" onClick={() => setSelectedId(client.id)}>
-                    <span className="flex min-w-0 items-center gap-3">
-                      <Initials name={client.displayName} />
-                      <span className="min-w-0">
-                        <span className="type-object-title block truncate text-content">{client.displayName}</span>
-                        <span className="type-meta mt-1 block truncate">{client.typeLabel} · {client.primaryContact}</span>
-                      </span>
-                    </span>
-                    <StatusPill status={client.status} />
-                  </button>
-                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
-                    <RowFact label="Próxima acción" value={client.nextAction} strong />
-                    <RowFact label="Última actividad" value={client.lastContact} />
-                    <RowFact label="Trabajo" value={client.activeWork} />
-                    <RowFact label="Saldo" value={client.pendingBalance ?? "Restringido"} />
-                    <div className="col-span-2"><RowFact label="Riesgo" value={client.risk} danger={client.risk !== "Sin riesgo detectado"} /></div>
-                  </dl>
-                </article>
-              );
-            })}
-          </div>
+          <PaginationFooter pagination={pagination} />
         </section>
 
-        {selected ? <ClientPreview client={selected} /> : null}
+        {selected ? (
+          <ClientPreview
+            client={selected}
+            collapsed={previewCollapsed}
+            canUseAi={canUseAi}
+            onToggle={() => setPreviewCollapsed((current) => !current)}
+          />
+        ) : null}
       </div>
 
-      <div className="grid gap-3 min-[1180px]:hidden" data-client-mobile-cards>
+      <div className="clients-mobile-list" aria-label="Clientes" data-client-mobile-cards>
         {items.map((client, index) => (
-          <article key={client.id} className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Initials name={client.displayName} />
-                <div className="min-w-0">
-                  <h2 className="type-object-title truncate text-content">{client.displayName}</h2>
-                  <p className="type-meta mt-1 truncate">{client.typeLabel}</p>
-                </div>
-              </div>
-              <StatusPill status={client.status} />
-            </div>
-            <div className="mt-4 rounded-xl bg-subtle p-3">
-              <p className="type-label">Próxima acción</p>
-              <p className="mt-1 font-semibold text-content">{client.nextAction}</p>
-              <p className="type-meta mt-1">Último contacto: {client.lastContact}</p>
-            </div>
-            <dl className="mt-3 grid grid-cols-2 gap-2">
-              <Fact icon={BriefcaseBusiness} label="Trabajo" value={client.activeWork} />
-              <Fact icon={CircleDollarSign} label="Saldo" value={client.pendingBalance ?? "Restringido"} />
-            </dl>
-            <Link href={client.actionHref} className={`${index === 0 ? "primary-button" : "secondary-button"} mt-4 w-full`}>
-              {client.actionLabel}<ArrowUpRight size={16} />
-            </Link>
-          </article>
+          <ClientMobileCard key={client.id} client={client} primary={index === 0} canUseAi={canUseAi} />
         ))}
+        <PaginationFooter pagination={pagination} mobile />
       </div>
     </>
   );
 }
 
-function ClientPreview({ client }: { client: ClientWorkspaceItem }) {
-  const actions = [
-    client.phone ? { href: `tel:${client.phone}`, label: "Llamar", icon: Phone } : null,
-    client.email ? { href: `mailto:${client.email}`, label: "Mensaje", icon: Mail } : null,
-    client.visitHref ? { href: client.visitHref, label: "Visita", icon: CalendarPlus } : null,
-  ].filter(Boolean) as Array<{ href: string; label: string; icon: typeof Phone }>;
+function ClientTableRow({
+  client,
+  selected,
+  canUpdate,
+  onSelect,
+}: {
+  client: ClientWorkspaceItem;
+  selected: boolean;
+  canUpdate: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <tr data-selected={selected ? "true" : "false"}>
+      <td>
+        <label className="clients-row-check">
+          <span className="sr-only">Seleccionar {client.displayName}</span>
+          <input type="checkbox" checked={selected} onChange={onSelect} />
+        </label>
+      </td>
+      <th scope="row">
+        <button type="button" className="clients-client-cell" aria-pressed={selected} onClick={onSelect}>
+          <Initials name={client.displayName} />
+          <span><strong>{client.displayName}</strong><small>{client.typeLabel}</small></span>
+        </button>
+      </th>
+      <td><StatusPill status={client.status} /></td>
+      <td><span className="clients-responsible">{client.responsible}</span></td>
+      <td><span className="clients-cell-stack"><strong>{client.nextAction}</strong><small>{client.nextActionAt ?? client.nextActionSource ?? "Sin fecha registrada"}</small></span></td>
+      <td>{client.activeWorkCount ? <Link href={`/clientes/${client.id}?vista=trabajos`} className="clients-number-link">{client.activeWorkCount}</Link> : <span>0</span>}</td>
+      <td>{client.budget && client.budgetTotal ? <Link href={`/presupuestos/${client.budget.id}`} className="clients-money-link">{client.budgetTotal}</Link> : <span aria-label="Sin presupuesto abierto">—</span>}</td>
+      <td>{client.pendingBalance ? <Link href={`/clientes/${client.id}?vista=dinero`} className={client.riskLevel === "Alto" ? "clients-money-link clients-money-link--danger" : "clients-money-link"}>{client.pendingBalance}</Link> : <span aria-label="Sin saldo pendiente">—</span>}</td>
+      <td><span className="clients-cell-stack"><strong>{client.lastContact}</strong><small>{client.lastActivityKind}</small></span></td>
+      <td><RiskPill level={client.riskLevel} /></td>
+      <td><ClientRowActions client={client} canUpdate={canUpdate} /></td>
+    </tr>
+  );
+}
+
+function ClientRowActions({ client, canUpdate }: { client: ClientWorkspaceItem; canUpdate: boolean }) {
+  return (
+    <details className="clients-row-actions">
+      <summary aria-label={`Acciones de ${client.displayName}`}><Ellipsis size={17} aria-hidden="true" /></summary>
+      <nav aria-label={`Menú de ${client.displayName}`}>
+        <Link href={`/clientes/${client.id}`}>Abrir Cliente 360</Link>
+        {canUpdate ? <Link href={`/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`}>Editar cliente</Link> : null}
+        {client.email ? <Link href={`mailto:${client.email}`}>Enviar mensaje</Link> : null}
+        {client.phone ? <Link href={`tel:${client.phone}`}>Llamar</Link> : null}
+      </nav>
+    </details>
+  );
+}
+
+function ClientPreview({
+  client,
+  collapsed,
+  canUseAi,
+  onToggle,
+}: {
+  client: ClientWorkspaceItem;
+  collapsed: boolean;
+  canUseAi: boolean;
+  onToggle: () => void;
+}) {
+  if (collapsed) {
+    return (
+      <aside className="clients-preview clients-preview--collapsed" aria-label="Vista de cliente contraída">
+        <button type="button" aria-label="Mostrar vista de cliente" onClick={onToggle}><ChevronsLeft size={18} aria-hidden="true" /><span>Vista de cliente</span></button>
+      </aside>
+    );
+  }
 
   return (
-    <aside className="border-l border-border bg-surface p-5" aria-label={`Vista de ${client.displayName}`}>
-      <p className="type-label">Vista de cliente</p>
-      <div className="mt-4 flex items-start gap-3">
-        <Initials name={client.displayName} large />
-        <div className="min-w-0">
-          <h2 className="type-section-title truncate text-content">{client.displayName}</h2>
-          <p className="type-secondary mt-1">{client.typeLabel}</p>
-          <div className="mt-2"><StatusPill status={client.status} /></div>
-        </div>
-      </div>
+    <aside className="clients-preview" aria-label={`Vista de cliente: ${client.displayName}`}>
+      <header className="clients-preview__header">
+        <span><Sparkles size={16} aria-hidden="true" />Vista de cliente</span>
+        <button type="button" aria-label="Ocultar vista de cliente" onClick={onToggle}><ChevronsRight size={18} aria-hidden="true" /></button>
+      </header>
 
-      <section className="mt-5 rounded-xl border border-border bg-subtle p-4">
-        <p className="type-label">Próxima acción</p>
-        <h3 className="type-object-title mt-2 text-content">{client.nextAction}</h3>
-        <p className="type-secondary mt-2">Contexto derivado de la ficha y de las señales autorizadas.</p>
-        <Link href={client.actionHref} className="primary-button mt-4 w-full">{client.actionLabel}</Link>
+      <section className="clients-preview-card clients-preview-identity">
+        <div className="clients-preview-identity__title">
+          <Initials name={client.displayName} large />
+          <div><h2>{client.displayName}</h2><p>{client.typeLabel}</p><StatusPill status={client.status} /></div>
+        </div>
+        <div className="clients-preview-contact">
+          <h3>Contacto principal</h3>
+          <ContactLine icon={UserRound} value={client.primaryContact} detail={client.primaryContactDetail} />
+          {client.email ? <ContactLine icon={Mail} value={client.email} href={`mailto:${client.email}`} /> : null}
+          {client.phone ? <ContactLine icon={Phone} value={client.phone} href={`tel:${client.phone}`} /> : null}
+          {client.addressLabel ? <ContactLine icon={MapPin} value={client.addressLabel} /> : null}
+        </div>
       </section>
 
-      <dl className="mt-4 divide-y divide-border border-y border-border">
-        <PreviewFact label="Contacto principal" value={client.primaryContact} />
-        <PreviewFact label="Trabajo activo" value={client.activeWork} />
-        {client.pendingBalance ? <PreviewFact label="Saldo autorizado" value={client.pendingBalance} /> : null}
-        <PreviewFact label="Riesgo" value={client.risk} danger={client.risk !== "Sin riesgo detectado"} />
-        <PreviewFact label="Última actividad" value={client.lastContact} />
-      </dl>
+      <PreviewSection icon={CalendarDays} title="Próxima acción" side={client.nextActionAt ?? undefined}>
+        <strong>{client.nextAction}</strong>
+        <p>{client.nextActionSource ?? "Acción derivada del contexto autorizado del cliente."}</p>
+        {client.visitHref ? <Link href={client.visitHref} className="clients-preview-action">Ver en agenda</Link> : null}
+      </PreviewSection>
 
-      {actions.length ? <nav className="mt-4 grid grid-cols-3 gap-2" aria-label={`Acciones rápidas de ${client.displayName}`}>
-        {actions.map(({ href, label, icon: Icon }) => <Link key={label} href={href} className="secondary-button min-w-0 px-2 text-xs"><Icon size={15} /><span className="sr-only 2xl:not-sr-only">{label}</span></Link>)}
-      </nav> : null}
-      <Link href={`/clientes/${client.id}`} className="secondary-button mt-3 w-full">Abrir Cliente 360<ArrowUpRight size={16} /></Link>
+      {client.budget ? (
+        <PreviewSection icon={WalletCards} title="Presupuesto activo" side={client.budgetTotal ?? undefined}>
+          <strong>{client.budget.number} · {client.budget.title}</strong>
+          <p>Estado: {client.budget.status.replaceAll("_", " ")}</p>
+          <Link href={`/presupuestos/${client.budget.id}`} className="clients-preview-action">Ver presupuesto</Link>
+        </PreviewSection>
+      ) : null}
+
+      <PreviewSection icon={BriefcaseBusiness} title="Trabajo activo" side={client.activeWorkCount ? String(client.activeWorkCount) : undefined}>
+        {client.activeWorks.length ? <ul className="clients-preview-work-list">{client.activeWorks.map((work) => <li key={work.id}><Link href={`/obras/${work.id}`}>{work.title}</Link><StatusPill status={work.status} /></li>)}</ul> : <p>No hay trabajos activos registrados.</p>}
+        <Link href={`/clientes/${client.id}?vista=trabajos`} className="clients-preview-action">Ver trabajos</Link>
+      </PreviewSection>
+
+      {client.pendingBalance ? (
+        <PreviewSection icon={CircleDollarSign} title="Saldo pendiente" side={client.pendingBalance} danger={client.riskLevel === "Alto"}>
+          <dl className="clients-preview-balance"><div><dt>Vencido</dt><dd>{client.overdueBalance ?? "0 €"}</dd></div><div><dt>Por vencer</dt><dd>{client.upcomingBalance ?? "0 €"}</dd></div></dl>
+          <Link href={`/clientes/${client.id}?vista=dinero`} className="clients-preview-action">Ver detalle de saldo</Link>
+        </PreviewSection>
+      ) : null}
+
+      {client.latestNote ? (
+        <PreviewSection icon={BriefcaseBusiness} title="Últimas notas">
+          <small>{client.latestNote.date}</small><p>{client.latestNote.content}</p>
+          <Link href={`/clientes/${client.id}?vista=notas`} className="clients-preview-action">Ver todas las notas</Link>
+        </PreviewSection>
+      ) : null}
+
+      <section className="clients-preview-card clients-preview-ai" aria-label="Ayuda contextual de Orqena IA">
+        <h3><Sparkles size={16} aria-hidden="true" />Orqena IA</h3>
+        <strong>{client.nextAction}</strong>
+        <p>{client.riskLevel === "Bajo" ? "No hay un riesgo alto registrado. Revisa el siguiente paso antes de confirmar cambios." : `Riesgo ${client.riskLevel.toLocaleLowerCase("es-ES")}: ${client.risk}. La recomendación no ejecuta cambios por sí sola.`}</p>
+        {canUseAi ? <Link href={`/orqena-ia/comercial?clientId=${client.id}`} className="clients-preview-action">Abrir recomendación contextual</Link> : <span className="clients-preview-unavailable">No disponible en este plan o permiso</span>}
+      </section>
     </aside>
   );
 }
 
+function ClientMobileCard({ client, primary, canUseAi }: { client: ClientWorkspaceItem; primary: boolean; canUseAi: boolean }) {
+  return (
+    <article className="clients-mobile-card">
+      <div className="clients-mobile-card__head"><span className="clients-mobile-card__identity"><Initials name={client.displayName} /><span><strong>{client.displayName}</strong><small>{client.typeLabel}</small></span></span><StatusPill status={client.status} /></div>
+      <section><span>Próxima acción</span><strong>{client.nextAction}</strong><small>{client.nextActionAt ?? "Sin fecha registrada"}</small></section>
+      <dl><div><dt>Trabajo</dt><dd>{client.activeWork}</dd></div><div><dt>Saldo</dt><dd>{client.pendingBalance ?? "Sin saldo pendiente"}</dd></div><div><dt>Riesgo</dt><dd><RiskPill level={client.riskLevel} /></dd></div><div><dt>Actividad</dt><dd>{client.lastContact}</dd></div></dl>
+      <Link href={`/clientes/${client.id}`} className={primary ? "primary-button" : "secondary-button"}>Abrir Cliente 360<ArrowUpRight size={16} aria-hidden="true" /></Link>
+      {canUseAi ? <Link href={`/orqena-ia/comercial?clientId=${client.id}`} className="clients-mobile-ai"><Sparkles size={15} aria-hidden="true" />Recomendación contextual</Link> : null}
+    </article>
+  );
+}
+
+function PreviewSection({ icon: Icon, title, side, danger = false, children }: { icon: typeof CalendarDays; title: string; side?: string; danger?: boolean; children: React.ReactNode }) {
+  return <section className="clients-preview-card clients-preview-section"><header><h3><Icon size={15} aria-hidden="true" />{title}</h3>{side ? <strong data-danger={danger ? "true" : "false"}>{side}</strong> : null}</header><div>{children}</div></section>;
+}
+
+function ContactLine({ icon: Icon, value, detail, href }: { icon: typeof UserRound; value: string; detail?: string; href?: string }) {
+  const content = <><Icon size={14} aria-hidden="true" /><span><strong>{value}</strong>{detail ? <small>{detail}</small> : null}</span></>;
+  return href ? <Link href={href}>{content}</Link> : <div>{content}</div>;
+}
+
 function Initials({ name, large = false }: { name: string; large?: boolean }) {
   const value = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toLocaleUpperCase("es-ES");
-  return <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white ${large ? "h-12 w-12" : "h-9 w-9"}`}>{value || <UserRound size={17} />}</span>;
+  return <span aria-hidden="true" className="clients-initials" data-size={large ? "large" : "normal"}>{value || <UserRound size={17} />}</span>;
 }
 
-function Fact({ icon: Icon, label, value }: { icon: typeof BriefcaseBusiness; label: string; value: string }) {
-  return <div className="min-w-0 rounded-lg border border-border p-3"><Icon size={16} className="text-brand-strong" /><dt className="type-meta mt-2">{label}</dt><dd className="mt-1 truncate text-sm font-semibold text-content">{value}</dd></div>;
+function RiskPill({ level }: { level: ClientWorkspaceItem["riskLevel"] }) {
+  return <span className="clients-risk-pill" data-level={level.toLocaleLowerCase("es-ES")}>{level}</span>;
 }
 
-function PreviewFact({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
-  return <div className="py-3"><dt className="type-label">{label}</dt><dd className={`mt-1 text-sm font-semibold ${danger ? "text-danger" : "text-content"}`}>{value}</dd></div>;
-}
-
-function RowFact({ label, value, strong = false, danger = false }: { label: string; value: string; strong?: boolean; danger?: boolean }) {
-  return <div className="min-w-0"><dt className="type-meta">{label}</dt><dd className={`mt-0.5 truncate text-sm ${danger ? "font-semibold text-danger" : strong ? "font-semibold text-content" : "text-content-secondary"}`}>{value}</dd></div>;
+function PaginationFooter({ pagination, mobile = false }: { pagination: ClientPortfolioPagination; mobile?: boolean }) {
+  const first = pagination.total ? (pagination.page - 1) * pagination.pageSize + 1 : 0;
+  const last = Math.min(pagination.page * pagination.pageSize, pagination.total);
+  return (
+    <footer className={mobile ? "clients-pagination clients-pagination--mobile" : "clients-pagination"}>
+      <p>Mostrando {first} a {last} de {pagination.total} clientes</p>
+      <nav aria-label="Paginación de clientes">
+        {pagination.previousHref ? <Link href={pagination.previousHref} aria-label="Página anterior"><ChevronLeft size={16} aria-hidden="true" /></Link> : <span aria-disabled="true"><ChevronLeft size={16} aria-hidden="true" /></span>}
+        {pagination.pages.map((item) => <Link key={item.page} href={item.href} aria-current={item.current ? "page" : undefined}>{item.page}</Link>)}
+        {pagination.nextHref ? <Link href={pagination.nextHref} aria-label="Página siguiente"><ChevronRight size={16} aria-hidden="true" /></Link> : <span aria-disabled="true"><ChevronRight size={16} aria-hidden="true" /></span>}
+      </nav>
+      <span>{pagination.pageSize} por página</span>
+    </footer>
+  );
 }
