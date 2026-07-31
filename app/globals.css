@@ -4232,9 +4232,9 @@ button:disabled,
 }
 .client-360-canonical__primary,
 .client-360-canonical__collections { gap: 10px !important; }
-.client-360-canonical > div:first-child > .client-360-canonical__primary { margin-top: 21px !important; }
-.client-360-canonical > div:first-child > .client-360-canonical__collections--primary { margin-top: 24px !important; }
-.client-360-canonical > div:first-child > .client-360-canonical__collections--secondary { margin-top: 20px !important; }
+.client-360-canonical > div:first-child > .client-360-canonical__primary { margin-top: 16px !important; }
+.client-360-canonical > div:first-child > .client-360-canonical__collections--primary { margin-top: 17px !important; }
+.client-360-canonical > div:first-child > .client-360-canonical__collections--secondary { margin-top: 14px !important; }
 .client-360-canonical__primary > section,
 .client-360-canonical__collections > section {
   min-width: 0;
