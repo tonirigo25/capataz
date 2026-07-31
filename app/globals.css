@@ -4970,8 +4970,8 @@ button:disabled,
   .clients-search-form { grid-column: 1 / -1; }
   .clients-toolbar .secondary-button,
   .clients-toolbar .primary-button { min-width: 0; padding-inline: 12px; }
-  .clients-export-action span,
-  .clients-create-action span { display: none; }
+  .clients-export-action span { display: none; }
+  .clients-create-action { grid-column: 1 / -1; }
   .clients-mobile-list { grid-template-columns: minmax(0, 1fr); }
   .clients-pagination--mobile {
     grid-template-columns: minmax(0, 1fr) auto;
