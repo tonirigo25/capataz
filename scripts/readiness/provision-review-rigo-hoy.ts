@@ -303,7 +303,7 @@ export async function provisionReviewRigoHoy(
     if (existingMembership) {
       const validExistingMembership = existingMembership.role === "OWNER"
         && existingMembership.functionalProfileKey === "OWNER"
-        && existingMembership.accessMode === "STANDARD"
+        && ["STANDARD", "READ_ONLY"].includes(existingMembership.accessMode)
         && existingMembership.status === "active"
         && existingMembership.isDemo;
       if (!validExistingMembership) throw new Error("REVIEW_RIGO_HOY_OWNER_MEMBERSHIP_CONFLICT");
