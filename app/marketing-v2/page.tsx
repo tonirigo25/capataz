@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { HeroDemo } from "./_components/hero-demo";
+import { HeroSection } from "./_components/hero-section";
 import { LandingSections, MarketingFooter } from "./_components/landing-sections";
 import { MarketingHeader } from "./_components/marketing-header";
 import styles from "./page.module.css";
@@ -29,7 +29,7 @@ export default function MarketingPreviewPage() {
       </a>
       <MarketingHeader />
       <main id="main-content" className={styles.mainContent} tabIndex={-1}>
-        <HeroDemo />
+        <HeroSection />
         <LandingSections />
       </main>
       <MarketingFooter />

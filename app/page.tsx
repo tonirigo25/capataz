@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { HeroDemo } from "@/app/marketing-v2/_components/hero-demo";
+import { HeroSection } from "@/app/marketing-v2/_components/hero-section";
 import { LandingSections, MarketingFooter } from "@/app/marketing-v2/_components/landing-sections";
 import { MarketingHeader } from "@/app/marketing-v2/_components/marketing-header";
 import styles from "@/app/marketing-v2/page.module.css";
@@ -42,7 +42,7 @@ export default async function PublicHomePage() {
       <a className={styles.skipLink} href="#main-content">Saltar al contenido</a>
       <MarketingHeader />
       <main id="main-content" className={styles.mainContent} tabIndex={-1}>
-        <HeroDemo />
+        <HeroSection />
         <LandingSections />
       </main>
       <MarketingFooter />
