@@ -68,9 +68,8 @@ const legacyClientAreas = [
 ] as const;
 
 type ClientTabId = (typeof tabs)[number]["id"];
-type LegacyClientAreaId = (typeof legacyClientAreas)[number][0];
 
-const legacyTabs: Record<LegacyClientAreaId | string, ClientTabId> = {
+const legacyTabs: Record<string, ClientTabId> = {
   resumen: "resumen",
   trabajos: "operacion",
   dinero: "dinero",
@@ -88,6 +87,12 @@ const legacyTabs: Record<LegacyClientAreaId | string, ClientTabId> = {
   visitas: "relacion",
   notas: "relacion",
 };
+
+function normalizeClientView(value: string | undefined) {
+  if (!value) return undefined;
+  const knownLegacyArea = legacyClientAreas.find(([id]) => id === value);
+  return legacyTabs[knownLegacyArea?.[0] ?? value] ?? value;
+}
 
 export default async function ClientDetailPage({
   params,
@@ -165,8 +170,8 @@ export default async function ClientDetailPage({
   if (!summary) notFound();
 
   const requestedView =
-    (query.vista ? (legacyTabs[query.vista] ?? query.vista) : undefined) ??
-    (query.tab ? (legacyTabs[query.tab] ?? query.tab) : "resumen");
+    normalizeClientView(query.vista) ??
+    (query.tab ? normalizeClientView(query.tab) : "resumen");
   const activeTab = tabs.some(({ id: tab }) => tab === requestedView)
     ? (requestedView as ClientTabId)
     : "resumen";
