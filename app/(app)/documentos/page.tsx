@@ -227,6 +227,7 @@ export default async function DocumentsPage() {
           companyId,
           ...documentScope,
           archivedAt: null,
+          classification: { in: manifest.documentClasses },
           metadata: { path: ["source"], equals: "expense_document_reader" },
         },
         orderBy: { createdAt: "desc" },
@@ -306,48 +307,54 @@ export default async function DocumentsPage() {
       />
 
       <CompactTabs label="Categorías documentales">
-        {documentCategories.map((category) => {
-          const Icon =
-            categoryIcons[category.id as keyof typeof categoryIcons] ??
-            FolderOpen;
-          return (
-            <Link
-              key={category.id}
-              href={category.href}
-              className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-white hover:text-obra-ink"
-            >
-              <Icon size={16} />
-              {category.label}
-            </Link>
-          );
-        })}
+        {documentCategories
+          .filter((category) =>
+            ["presupuestos", "facturas", "archivos", "plantillas"].includes(
+              category.id,
+            ),
+          )
+          .map((category) => {
+            const Icon =
+              categoryIcons[category.id as keyof typeof categoryIcons] ??
+              FolderOpen;
+            return (
+              <Link
+                key={category.id}
+                href={category.href}
+                className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-white hover:text-obra-ink"
+              >
+                <Icon size={16} />
+                {category.label}
+              </Link>
+            );
+          })}
       </CompactTabs>
 
       <KpiGrid>
         <KpiCard
-          label="En bandeja"
+          label="Bandeja reciente"
           value={String(inboxDocuments.length)}
-          detail="Recepciones recientes en tu alcance"
+          detail="Hasta 8 recepciones recientes en tu alcance"
           icon={ScanLine}
         />
         <KpiCard
-          label="Pendientes de revisión"
+          label="Pendientes recientes"
           value={String(reviewDocuments.length)}
-          detail="Requieren comprobación humana"
+          detail="Dentro de las recepciones mostradas"
           icon={AlertTriangle}
           tone={reviewDocuments.length ? "warning" : "success"}
         />
         <KpiCard
-          label="Confirmados"
+          label="Confirmados recientes"
           value={String(confirmedDocuments.length)}
-          detail="Extracciones listas o registradas"
+          detail="Dentro de las recepciones mostradas"
           icon={CheckCircle2}
           tone="success"
         />
         <KpiCard
-          label="Documentos vinculados"
+          label="Vinculados mostrados"
           value={String(linkedDocuments.length)}
-          detail="Relacionados con cliente, trabajo o registro"
+          detail="Hasta 20 registros de la biblioteca visible"
           icon={FileCheck2}
           tone="accent"
         />
@@ -404,7 +411,7 @@ export default async function DocumentsPage() {
             </div>
 
             <div className="border-b border-[var(--color-border)] bg-slate-50/70 p-4 sm:p-6 lg:border-b-0 lg:border-r">
-              <p className="label mb-3">Documento original</p>
+              <p className="label mb-3">Vista textual de la extracción</p>
               <div className="mx-auto flex min-h-[25rem] max-w-[30rem] flex-col bg-white p-6 shadow-sm sm:p-8">
                 <div className="text-center">
                   <ScanLine className="mx-auto text-slate-400" size={28} />
@@ -464,8 +471,14 @@ export default async function DocumentsPage() {
                 ) : null}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <SoftBadge tone="success">R2 privado</SoftBadge>
-                <SoftBadge>URL temporal</SoftBadge>
+                {activeInboxDocument.storageKey ? (
+                  <>
+                    <SoftBadge tone="success">R2 privado</SoftBadge>
+                    <SoftBadge>URL temporal disponible</SoftBadge>
+                  </>
+                ) : (
+                  <SoftBadge tone="warning">Sin binario adjunto</SoftBadge>
+                )}
                 <SoftBadge tone="accent">Scope de empresa</SoftBadge>
               </div>
               <div className="mt-4 grid gap-3">
@@ -661,9 +674,6 @@ export default async function DocumentsPage() {
           ) : null}
         </div>
       </section>
-      <div id="albaranes" className="scroll-mt-24" aria-hidden="true" />
-      <div id="contratos" className="scroll-mt-24" aria-hidden="true" />
-
       <div className="grid gap-5 lg:grid-cols-2">
         <section>
           <SectionHeader level={2} title="Últimos presupuestos" />

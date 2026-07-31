@@ -83,6 +83,9 @@ export default async function AgendaPage({
   const weekStart = startOfWeek(selectedDay);
   const weekItems = itemsBetween(items, weekStart, addDays(weekStart, 7));
   const navigationStep = view === "semana" ? 7 : 1;
+  const hasActiveFilters = Boolean(
+    query.buscar || (query.tipo && query.tipo !== "todos"),
+  );
   const nextVisit = items.find(
     (item) =>
       item.tipo === "visita" &&
@@ -110,10 +113,11 @@ export default async function AgendaPage({
           <>
             <SoftBadge tone="success">
               {todayItems.length} elementos hoy
+              {hasActiveFilters ? " con estos filtros" : ""}
             </SoftBadge>
             {nextVisit ? (
               <SoftBadge tone="warning">
-                Próxima visita · {timeLabel(nextVisit.fechaInicio)}
+                Próxima visita visible · {timeLabel(nextVisit.fechaInicio)}
               </SoftBadge>
             ) : (
               <SoftBadge>Sin visitas próximas</SoftBadge>
@@ -223,6 +227,7 @@ export default async function AgendaPage({
           items={weekItems}
           selectedDay={selectedDay}
           weekStart={weekStart}
+          query={query}
         />
       ) : null}
       {view === "mes" ? (
@@ -299,10 +304,12 @@ function WeekView({
   items,
   selectedDay,
   weekStart,
+  query,
 }: {
   items: AgendaItem[];
   selectedDay: Date;
   weekStart: Date;
+  query: { tipo?: string; buscar?: string };
 }) {
   const days = Array.from({ length: 7 }, (_, index) =>
     addDays(weekStart, index),
@@ -312,7 +319,7 @@ function WeekView({
     <div className="grid gap-3" data-agenda-week>
       <Legend />
       <nav
-        className="flex gap-2 overflow-x-auto pb-1 lg:hidden"
+        className="flex gap-2 overflow-x-auto pb-1 xl:hidden"
         aria-label="Días de la semana"
       >
         {days.map((day) => {
@@ -321,7 +328,7 @@ function WeekView({
           return (
             <Link
               className={`min-w-16 rounded-lg px-3 py-2 text-center text-xs font-black ${active ? "bg-obra-ink text-white" : "border border-slate-200 bg-white text-obra-ink"}`}
-              href={`/agenda?vista=semana&dia=${toDateInputValue(day)}`}
+              href={agendaHref("semana", day, query)}
               key={day.toISOString()}
             >
               <span className="block capitalize">
@@ -332,7 +339,7 @@ function WeekView({
           );
         })}
       </nav>
-      <section className="card p-4 lg:hidden" data-agenda-selected-day>
+      <section className="card p-4 xl:hidden" data-agenda-selected-day>
         <HeaderLine
           title={weekdayLabel(selectedDay)}
           count={selectedItems.length}
@@ -343,7 +350,7 @@ function WeekView({
           empty="Sin citas ni tareas para este día."
         />
       </section>
-      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="hidden gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_17rem]">
         <div className="grid grid-cols-5 gap-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-200">
           {days.slice(0, 5).map((day) => (
             <WeekDayColumn
@@ -392,14 +399,14 @@ function WeekView({
             ) : null}
           </div>
           <Link
-            href={`/agenda?vista=lista&dia=${toDateInputValue(selectedDay)}`}
-            className="ghost-button m-3 w-[calc(100%-1.5rem)]"
+            href={agendaHref("lista", selectedDay, query)}
+            className="ghost-button m-3 w-[calc(100%_-_1.5rem)]"
           >
             Ver agenda completa
           </Link>
         </aside>
       </div>
-      <details className="card hidden p-4 lg:block">
+      <details className="card hidden p-4 xl:block">
         <summary className="cursor-pointer font-black text-obra-ink">
           Fin de semana ·{" "}
           {itemsForDay(items, days[5]).length +

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export function ModuleHeader({
@@ -90,12 +91,12 @@ export function KpiCard({
 
   if (href) {
     return (
-      <a
+      <Link
         href={href}
         className="card min-h-[8.5rem] p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm"
       >
         {body}
-      </a>
+      </Link>
     );
   }
   return <article className="card min-h-[8.5rem] p-4">{body}</article>;

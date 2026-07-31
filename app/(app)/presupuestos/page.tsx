@@ -72,13 +72,19 @@ export default async function BudgetsPage({
     resolveScopedEntityIds(auth, "sales.budgets.view", "Client"),
   ]);
   const scopeWhere = relationScope(auth.scope, workIds, clientIds);
-  const [createDecision, updateDecision, agendaDecision, pricingDecision] =
-    await Promise.all([
-      resolveAuthorization(auth, "sales.budgets.create"),
-      resolveAuthorization(auth, "sales.budgets.update"),
-      resolveAuthorization(auth, "agenda.manage"),
-      resolveAuthorization(auth, "sales.pricing.view"),
-    ]);
+  const [
+    createDecision,
+    updateDecision,
+    agendaDecision,
+    pricingDecision,
+    marginDecision,
+  ] = await Promise.all([
+    resolveAuthorization(auth, "sales.budgets.create"),
+    resolveAuthorization(auth, "sales.budgets.update"),
+    resolveAuthorization(auth, "agenda.manage"),
+    resolveAuthorization(auth, "sales.pricing.view"),
+    resolveAuthorization(auth, "margin_amount.view"),
+  ]);
   const [
     createWorkIds,
     createClientIds,
@@ -88,6 +94,8 @@ export default async function BudgetsPage({
     agendaClientIds,
     pricingWorkIds,
     pricingClientIds,
+    marginWorkIds,
+    marginClientIds,
   ] = await Promise.all([
     createDecision.allowed
       ? resolveScopedEntityIds(auth, "sales.budgets.create", "Work")
@@ -112,6 +120,12 @@ export default async function BudgetsPage({
       : Promise.resolve([]),
     pricingDecision.allowed
       ? resolveScopedEntityIds(auth, "sales.pricing.view", "Client")
+      : Promise.resolve([]),
+    marginDecision.allowed
+      ? resolveScopedEntityIds(auth, "margin_amount.view", "Work")
+      : Promise.resolve([]),
+    marginDecision.allowed
+      ? resolveScopedEntityIds(auth, "margin_amount.view", "Client")
       : Promise.resolve([]),
   ]);
   const budgets = await prisma.budget.findMany({
@@ -172,7 +186,7 @@ export default async function BudgetsPage({
   const acceptedRate = budgets.length
     ? Math.round((accepted.length / budgets.length) * 100)
     : 0;
-  const highlightedBudget = visibleBudgets[0] ?? null;
+  const latestBudget = visibleBudgets[0] ?? null;
 
   return (
     <ListWorkspace>
@@ -200,9 +214,9 @@ export default async function BudgetsPage({
 
       <KpiGrid>
         <KpiCard
-          label="Abiertos"
+          label="Total"
           value={String(budgets.length)}
-          detail="Presupuestos visibles en tu alcance"
+          detail="Presupuestos visibles, en cualquier estado"
           icon={FileText}
         />
         <KpiCard
@@ -311,38 +325,47 @@ export default async function BudgetsPage({
         </ModulePanel>
 
         <ModulePanel
-          title="Presupuesto prioritario"
-          description="La primera propuesta del resultado actual"
+          title="Último presupuesto visible"
+          description="El más reciente dentro del resultado actual"
           action={
-            highlightedBudget ? (
+            latestBudget ? (
               <SoftBadge
                 tone={
-                  highlightedBudget.estado === "aceptado"
-                    ? "success"
-                    : "warning"
+                  latestBudget.estado === "aceptado" ? "success" : "warning"
                 }
               >
-                {nextBudgetAction(highlightedBudget.estado)}
+                {nextBudgetAction(latestBudget.estado)}
               </SoftBadge>
             ) : null
           }
         >
-          {highlightedBudget ? (
+          {latestBudget ? (
             <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_auto]">
               <div>
-                <p className="type-label">{highlightedBudget.numero}</p>
+                <p className="type-label">{latestBudget.numero}</p>
                 <h3 className="mt-1 text-lg font-bold text-obra-ink">
-                  {highlightedBudget.titulo}
+                  {latestBudget.titulo}
                 </h3>
                 <p className="type-secondary mt-1">
-                  {highlightedBudget.client.nombre} ·{" "}
-                  {highlightedBudget.work?.titulo ?? "Sin obra vinculada"}
+                  {latestBudget.client.nombre} ·{" "}
+                  {latestBudget.work?.titulo ?? "Sin obra vinculada"}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <StatusPill status={highlightedBudget.estado} />
+                  <StatusPill status={latestBudget.estado} />
                   <SoftBadge>
-                    Validez {formatDate(highlightedBudget.fechaValidez)}
+                    Validez {formatDate(latestBudget.fechaValidez)}
                   </SoftBadge>
+                  {marginDecision.allowed &&
+                  relationAllowed(
+                    marginDecision.scope,
+                    marginWorkIds,
+                    marginClientIds,
+                    latestBudget,
+                  ) ? (
+                    <SoftBadge tone="accent">
+                      Margen {budgetMarginLabel(latestBudget)}
+                    </SoftBadge>
+                  ) : null}
                 </div>
               </div>
               <div className="flex min-w-44 flex-col justify-between rounded-xl bg-slate-50 p-4 text-right">
@@ -354,14 +377,14 @@ export default async function BudgetsPage({
                       pricingDecision.scope,
                       pricingWorkIds,
                       pricingClientIds,
-                      highlightedBudget,
+                      latestBudget,
                     )
-                      ? formatCurrency(highlightedBudget.total)
+                      ? formatCurrency(latestBudget.total)
                       : "Restringido"}
                   </p>
                 </div>
                 <Link
-                  href={`/presupuestos/${highlightedBudget.id}`}
+                  href={`/presupuestos/${latestBudget.id}`}
                   className="primary-button mt-4"
                 >
                   Revisar propuesta <TrendingUp size={17} />
@@ -413,6 +436,11 @@ export default async function BudgetsPage({
                   <th scope="col" className="px-4 py-3 text-right">
                     Importe
                   </th>
+                  {marginDecision.allowed ? (
+                    <th scope="col" className="px-4 py-3 text-right">
+                      Margen
+                    </th>
+                  ) : null}
                   <th scope="col" className="px-4 py-3">
                     Estado
                   </th>
@@ -428,7 +456,7 @@ export default async function BudgetsPage({
                 {visibleBudgets.map((budget) => (
                   <tr
                     key={budget.id}
-                    className={`${budget.id === highlightedBudget?.id ? "bg-emerald-50/60" : ""} align-middle hover:bg-slate-50/70`}
+                    className={`${budget.id === latestBudget?.id ? "bg-emerald-50/60" : ""} align-middle hover:bg-slate-50/70`}
                   >
                     <td className="px-4 py-4">
                       <Link
@@ -466,6 +494,18 @@ export default async function BudgetsPage({
                         ? formatCurrency(budget.total)
                         : "Restringido"}
                     </td>
+                    {marginDecision.allowed ? (
+                      <td className="px-4 py-4 text-right font-bold text-slate-700">
+                        {relationAllowed(
+                          marginDecision.scope,
+                          marginWorkIds,
+                          marginClientIds,
+                          budget,
+                        )
+                          ? budgetMarginLabel(budget)
+                          : "Restringido"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-4">
                       <StatusPill status={budget.estado} />
                     </td>
@@ -538,6 +578,14 @@ export default async function BudgetsPage({
                       pricingClientIds,
                       budget,
                     ),
+                  margin:
+                    marginDecision.allowed &&
+                    relationAllowed(
+                      marginDecision.scope,
+                      marginWorkIds,
+                      marginClientIds,
+                      budget,
+                    ),
                 }}
               />
             ))}
@@ -595,6 +643,7 @@ function BudgetCard({
     duplicate: boolean;
     agenda: boolean;
     pricing: boolean;
+    margin: boolean;
   };
 }) {
   return (
@@ -615,6 +664,9 @@ function BudgetCard({
       <div className="mt-4 grid grid-cols-2 gap-2">
         {permissions.pricing ? (
           <Mini label="Total" value={formatCurrency(budget.total)} />
+        ) : null}
+        {permissions.margin ? (
+          <Mini label="Margen" value={budgetMarginLabel(budget)} />
         ) : null}
         <Mini label="Validez" value={formatDate(budget.fechaValidez)} />
         <Mini label="Creado" value={formatDate(budget.fechaCreacion)} />
@@ -676,6 +728,14 @@ function Mini({ label, value }: { label: string; value: string }) {
       <p className="mt-1 line-clamp-2 font-black text-obra-ink">{value}</p>
     </div>
   );
+}
+function budgetMarginLabel(budget: {
+  subtotal: number;
+  margenEstimado: number;
+}) {
+  if (budget.subtotal <= 0) return "Datos insuficientes";
+  const percent = (budget.margenEstimado / budget.subtotal) * 100;
+  return `${percent.toFixed(1)} % · ${formatCurrency(budget.margenEstimado)}`;
 }
 function nextBudgetAction(status: string) {
   if (["borrador", "pendiente_revision"].includes(status))

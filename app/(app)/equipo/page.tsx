@@ -124,14 +124,6 @@ export default async function TeamPage({
           })
         : Promise.resolve([]),
     ]);
-  const selectedMember =
-    members.find((member) => member.id === query.persona) ?? members[0] ?? null;
-  const selectedProfile = selectedMember
-    ? resolveFunctionalProfile(
-        selectedMember.functionalProfileKey,
-        selectedMember.role,
-      )
-    : null;
   const profileFilter = query.perfil ?? "todos";
   const filteredMembers = members.filter((member) =>
     memberMatchesFilter(
@@ -141,9 +133,21 @@ export default async function TeamPage({
       profileFilter,
     ),
   );
+  const selectedMember =
+    filteredMembers.find((member) => member.id === query.persona) ??
+    filteredMembers[0] ??
+    null;
+  const selectedProfile = selectedMember
+    ? resolveFunctionalProfile(
+        selectedMember.functionalProfileKey,
+        selectedMember.role,
+      )
+    : null;
   const activeMembers = members.filter((member) => member.status === "active");
-  const pendingMembers = members.filter((member) => member.status !== "active");
-  const membersWithMfa = members.filter(
+  const pendingMembers = members.filter((member) =>
+    ["invited", "pending_approval"].includes(member.status),
+  );
+  const activeMembersWithMfa = activeMembers.filter(
     (member) => member.user.mfaFactors.length > 0,
   );
 
@@ -192,17 +196,18 @@ export default async function TeamPage({
         <KpiCard
           label="Pendientes"
           value={String(pendingMembers.length)}
-          detail="Invitados, suspendidos o por aprobar"
+          detail="Invitados o pendientes de aprobación"
           icon={UserPlus}
           tone={pendingMembers.length ? "warning" : "neutral"}
         />
         <KpiCard
           label="MFA activa"
-          value={`${membersWithMfa.length}/${members.length}`}
-          detail="Protección adicional registrada"
+          value={`${activeMembersWithMfa.length}/${activeMembers.length}`}
+          detail="Miembros activos con protección adicional"
           icon={ShieldCheck}
           tone={
-            membersWithMfa.length === members.length && members.length
+            activeMembersWithMfa.length === activeMembers.length &&
+            activeMembers.length
               ? "success"
               : "warning"
           }
@@ -215,7 +220,7 @@ export default async function TeamPage({
           {teamFilters.map(([id, label]) => (
             <Link
               key={id}
-              href={`/equipo?perfil=${id}${selectedMember ? `&persona=${selectedMember.id}` : ""}`}
+              href={`/equipo?perfil=${id}`}
               aria-current={profileFilter === id ? "page" : undefined}
               className={`inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 py-1.5 text-sm font-bold ${profileFilter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}
             >
@@ -408,7 +413,7 @@ export default async function TeamPage({
         data-d8-team-workspace
       >
         <div
-          className="card h-fit overflow-hidden"
+          className="card h-fit overflow-x-auto"
           aria-label="Lista de personas"
         >
           <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
@@ -422,7 +427,7 @@ export default async function TeamPage({
               {filteredMembers.length}
             </span>
           </div>
-          <div className="hidden grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,.8fr)_minmax(8rem,.75fr)_7rem_6rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 md:grid">
+          <div className="hidden grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,.8fr)_minmax(8rem,.75fr)_7rem_6rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 md:grid md:min-w-[42rem]">
             <span>Miembro</span>
             <span>Perfil</span>
             <span>Acceso</span>
@@ -438,11 +443,11 @@ export default async function TeamPage({
               return (
                 <Link
                   key={member.id}
-                  href={`/equipo?persona=${member.id}`}
+                  href={`/equipo?perfil=${profileFilter}&persona=${member.id}`}
                   aria-current={
                     member.id === selectedMember?.id ? "page" : undefined
                   }
-                  className={`grid gap-2 px-4 py-3 transition hover:bg-slate-50 md:grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,.8fr)_minmax(8rem,.75fr)_7rem_6rem] md:items-center md:gap-3 ${member.id === selectedMember?.id ? "bg-emerald-50/70 ring-1 ring-inset ring-emerald-200" : "bg-white"}`}
+                  className={`grid gap-2 px-4 py-3 transition hover:bg-slate-50 md:min-w-[42rem] md:grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,.8fr)_minmax(8rem,.75fr)_7rem_6rem] md:items-center md:gap-3 ${member.id === selectedMember?.id ? "bg-emerald-50/70 ring-1 ring-inset ring-emerald-200" : "bg-white"}`}
                 >
                   <span className="min-w-0">
                     <strong className="block truncate text-sm text-obra-ink">
@@ -521,7 +526,7 @@ export default async function TeamPage({
                   }
                 />
                 <PortalFact
-                  label="Alcance"
+                  label="Alcance configurado"
                   value={
                     selectedMember.scopeAssignments.length
                       ? [
@@ -535,7 +540,7 @@ export default async function TeamPage({
                   }
                 />
                 <PortalFact
-                  label="Paquetes"
+                  label="Paquetes configurados"
                   value={
                     selectedMember.accessPackages.length
                       ? selectedMember.accessPackages
@@ -577,8 +582,9 @@ export default async function TeamPage({
                 />
               </dl>
               <p className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 text-sm leading-6 text-slate-600">
-                La vista previa calcula perfil, paquetes, excepciones y alcance
-                efectivos. Ningún ajuste se aplica desde este resumen.
+                Este resumen muestra la configuración registrada. Abre la vista
+                previa para calcular el acceso efectivo con vigencia,
+                excepciones y alcance. Ningún ajuste se aplica desde aquí.
               </p>
             </>
           ) : (
