@@ -51,6 +51,7 @@ Las comparaciones fueron inspeccionadas para jerarquía, densidad, navegación, 
 | Datos económicos podían sugerir magnitudes no confirmadas | P1 | Presentación limitada a información autorizada y fixtures explícitos. |
 | Logo oficial fallaba a través del optimizador dinámico | P1 | Recurso oficial servido directamente, sin alterar el activo. |
 | Secreto TOTP configurado en entorno no coincidía con el factor activo preservado | P1 operacional | Validación autenticada con el factor activo recuperado de forma efímera y sin mutar la base. |
+| El panel móvil y el rail de escritorio compartían el mismo identificador de título al abrirse | P1 | Identificadores independientes y relación `aria-labelledby` inequívoca para el diálogo móvil. |
 
 ## Gates
 

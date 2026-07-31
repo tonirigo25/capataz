@@ -54,7 +54,7 @@ export function OrqenaContextRail({ pathname }: { pathname: string }) {
   return (
     <>
       <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA">
-        <RailContent context={context} titleId={titleId} feedback={feedback} onFeedback={setFeedback} />
+        <RailContent context={context} titleId={`${titleId}-desktop`} feedback={feedback} onFeedback={setFeedback} />
       </aside>
 
       <button
@@ -72,11 +72,11 @@ export function OrqenaContextRail({ pathname }: { pathname: string }) {
         <div className="orqena-context-sheet-backdrop" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setMobileOpen(false);
         }}>
-          <aside id={`${titleId}-panel`} className="orqena-context-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+          <aside id={`${titleId}-panel`} className="orqena-context-sheet" role="dialog" aria-modal="true" aria-labelledby={`${titleId}-mobile`}>
             <button type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}>
               <X size={19} aria-hidden="true" />
             </button>
-            <RailContent context={context} titleId={titleId} feedback={feedback} onFeedback={setFeedback} />
+            <RailContent context={context} titleId={`${titleId}-mobile`} feedback={feedback} onFeedback={setFeedback} />
           </aside>
         </div>
       ) : null}
