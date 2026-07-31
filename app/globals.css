@@ -4143,6 +4143,24 @@ button:disabled,
   padding: 13px !important;
   box-shadow: none;
 }
+.client-360-canonical > div:first-child > section nav .primary-button,
+.client-360-canonical > div:first-child > section nav .secondary-button {
+  min-height: 36px;
+  padding-block: 7px;
+  font-size: 10px;
+}
+.client-360-canonical__more-actions > details > summary {
+  min-height: 26px;
+  border: 0;
+  padding: 2px 7px;
+  background: #f1f5f2;
+  font-size: 9px;
+}
+.client-360-canonical__more-actions > details > div {
+  top: 100%;
+  right: auto;
+  left: 0;
+}
 .client-360-canonical > div:first-child > nav {
   scrollbar-width: thin;
 }
@@ -4166,6 +4184,12 @@ button:disabled,
 .client-360-canonical__primary > section h2,
 .client-360-canonical__collections > section h2 { font-size: 11px; }
 .client-360-canonical__primary > section h3 { font-size: 12px; }
+.client-360-canonical__primary > section ul { gap: 7px; }
+.client-360-canonical__primary > section li > span {
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+}
 .client-360-canonical__primary > section p,
 .client-360-canonical__primary > section dt,
 .client-360-canonical__primary > section dd { font-size: 10px; line-height: 1.45; }

@@ -86,6 +86,7 @@ export type Client360CanonicalProps = {
     sendMessage?: string;
     call?: string;
     newOpportunity?: string;
+    newOpportunityLabel?: string;
     activity: string;
     budgets: string;
     works: string;
@@ -175,6 +176,11 @@ export function Client360Canonical({
                   <StatusPill
                     status={client.archivadoAt ? "archivado" : client.estado}
                   />
+                  {moreActions ? (
+                    <span className="client-360-canonical__more-actions">
+                      {moreActions}
+                    </span>
+                  ) : null}
                 </div>
                 <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
                   <Fact label="Segmento" value={summary.listItem.typeLabel} />
@@ -218,10 +224,9 @@ export function Client360Canonical({
               ) : null}
               {hrefs.newOpportunity ? (
                 <Link href={hrefs.newOpportunity} className="primary-button w-full">
-                  <Plus size={16} aria-hidden="true" /> Nueva oportunidad
+                  <Plus size={16} aria-hidden="true" /> {hrefs.newOpportunityLabel ?? "Nueva acción"}
                 </Link>
               ) : null}
-              {moreActions}
             </nav>
           </div>
         </section>
@@ -310,13 +315,13 @@ export function Client360Canonical({
                     </span>
                     <div className="min-w-0">
                       {insight.href ? (
-                        <Link href={insight.href} className="font-semibold text-content hover:underline">
+                        <Link href={insight.href} className="text-[11px] font-semibold leading-tight text-content hover:underline">
                           {insight.title}
                         </Link>
                       ) : (
-                        <p className="font-semibold text-content">{insight.title}</p>
+                        <p className="text-[11px] font-semibold leading-tight text-content">{insight.title}</p>
                       )}
-                      <p className="mt-0.5 text-sm text-content-secondary">{insight.detail}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[9px] leading-tight text-content-secondary">{insight.detail}</p>
                     </div>
                   </li>
                 ))}
@@ -590,8 +595,8 @@ function CompactLink({
 }) {
   const content = (
     <>
-      <span className="truncate font-semibold text-content">{title}</span>
-      <span className="mt-0.5 truncate text-xs text-content-secondary">{meta}</span>
+      <span className="block truncate font-semibold text-content">{title}</span>
+      <span className="mt-0.5 block truncate text-xs text-content-secondary">{meta}</span>
     </>
   );
   return href ? (

@@ -287,6 +287,7 @@ export default async function ClientDetailPage({
           newOpportunity: client.archivadoAt
             ? undefined
             : `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+          newOpportunityLabel: "Nuevo presupuesto",
           activity: `/clientes/${client.id}?vista=relacion`,
           budgets: `/clientes/${client.id}?vista=dinero#presupuestos`,
           works: `/clientes/${client.id}?vista=operacion`,
