@@ -25,38 +25,38 @@ export function ClientPortfolio({ items }: { items: ClientWorkspaceItem[] }) {
     <>
       <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-soft min-[1180px]:grid min-[1180px]:grid-cols-[minmax(0,1fr)_19rem]">
         <section className="min-w-0" aria-label="Listado de clientes">
-          <div className="grid grid-cols-[minmax(12rem,1.25fr)_8rem_minmax(11rem,1fr)_8rem_8rem_7rem] gap-3 border-b border-border bg-subtle px-4 py-3 type-label">
-            <span>Cliente</span>
-            <span>Estado</span>
-            <span>Próxima acción</span>
-            <span>Trabajo</span>
-            <span>Saldo</span>
-            <span>Riesgo</span>
+          <div className="border-b border-border bg-subtle px-4 py-3">
+            <p className="type-label">Cartera visible</p>
+            <p className="type-secondary mt-1">Selecciona un cliente para revisar su contexto sin perder el listado.</p>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border" role="list">
             {items.map((client) => {
               const active = client.id === selected?.id;
               return (
                 <article
                   key={client.id}
-                  className={`grid grid-cols-[minmax(12rem,1.25fr)_8rem_minmax(11rem,1fr)_8rem_8rem_7rem] gap-3 px-4 py-3 transition ${active ? "bg-brand-soft" : "hover:bg-subtle"}`}
+                  role="listitem"
+                  className={`px-4 py-3 transition ${active ? "bg-brand-soft" : "hover:bg-subtle"}`}
                   onMouseEnter={() => setSelectedId(client.id)}
                   onFocusCapture={() => setSelectedId(client.id)}
                 >
-                  <button type="button" className="min-w-0 text-left" onClick={() => setSelectedId(client.id)}>
-                    <span className="flex items-center gap-3">
+                  <button type="button" aria-pressed={active} className="flex w-full min-w-0 items-start justify-between gap-3 text-left" onClick={() => setSelectedId(client.id)}>
+                    <span className="flex min-w-0 items-center gap-3">
                       <Initials name={client.displayName} />
                       <span className="min-w-0">
                         <span className="type-object-title block truncate text-content">{client.displayName}</span>
                         <span className="type-meta mt-1 block truncate">{client.typeLabel} · {client.primaryContact}</span>
                       </span>
                     </span>
+                    <StatusPill status={client.status} />
                   </button>
-                  <span className="self-center"><StatusPill status={client.status} /></span>
-                  <span className="self-center text-sm font-semibold text-content">{client.nextAction}<small className="mt-1 block font-normal text-content-tertiary">{client.lastContact}</small></span>
-                  <span className="self-center text-sm text-content-secondary">{client.activeWork}</span>
-                  <span className="self-center text-sm font-semibold tabular-nums text-content">{client.pendingBalance ?? "Restringido"}</span>
-                  <span className={`self-center text-sm font-semibold ${client.risk === "Sin riesgo detectado" ? "text-success" : "text-danger"}`}>{client.risk}</span>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                    <RowFact label="Próxima acción" value={client.nextAction} strong />
+                    <RowFact label="Última actividad" value={client.lastContact} />
+                    <RowFact label="Trabajo" value={client.activeWork} />
+                    <RowFact label="Saldo" value={client.pendingBalance ?? "Restringido"} />
+                    <div className="col-span-2"><RowFact label="Riesgo" value={client.risk} danger={client.risk !== "Sin riesgo detectado"} /></div>
+                  </dl>
                 </article>
               );
             })}
@@ -151,4 +151,8 @@ function Fact({ icon: Icon, label, value }: { icon: typeof BriefcaseBusiness; la
 
 function PreviewFact({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
   return <div className="py-3"><dt className="type-label">{label}</dt><dd className={`mt-1 text-sm font-semibold ${danger ? "text-danger" : "text-content"}`}>{value}</dd></div>;
+}
+
+function RowFact({ label, value, strong = false, danger = false }: { label: string; value: string; strong?: boolean; danger?: boolean }) {
+  return <div className="min-w-0"><dt className="type-meta">{label}</dt><dd className={`mt-0.5 truncate text-sm ${danger ? "font-semibold text-danger" : strong ? "font-semibold text-content" : "text-content-secondary"}`}>{value}</dd></div>;
 }

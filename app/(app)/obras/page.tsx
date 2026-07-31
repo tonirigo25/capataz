@@ -193,6 +193,9 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       cost: authorizedCost === null ? null : formatCurrency(authorizedCost),
       pending: item.visibility.invoices ? formatCurrency(item.financial.pending) : null,
       risk: item.hasRisk,
+      marginRisk: item.visibility.marginPercent && item.financial.marginPercent < 15,
+      pendingMaterials: item.pendingMaterials.length,
+      pendingDocuments: item.pendingDocs,
     };
   });
 
@@ -201,7 +204,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       <PageHeader
         eyebrow="Centro operativo"
         title="Trabajos"
-        description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos de cada trabajo."
+        description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos. Conserva la Última actualización de cada trabajo."
         action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link> : undefined}
         secondaryActions={<Link href="/capataz" className="secondary-button">Abrir {brand.assistantName}</Link>}
       >

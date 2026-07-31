@@ -16,7 +16,6 @@ import {
   Plus,
   Receipt,
   RotateCcw,
-  Sparkles,
   UserRound,
   WalletCards,
 } from "lucide-react";
@@ -54,27 +53,39 @@ export const dynamic = "force-dynamic";
 type DetailSearchParams = { vista?: string; tab?: string };
 
 const tabs = [
+  { id: "resumen", label: "Resumen" },
+  { id: "relacion", label: "Relación" },
+  { id: "operacion", label: "Operación" },
+  { id: "dinero", label: "Dinero" },
+  { id: "archivos", label: "Archivos" },
+] as const;
+
+const legacyClientAreas = [
   ["resumen", "Resumen"],
   ["trabajos", "Trabajo/Obras"],
   ["dinero", "Dinero"],
   ["archivos", "Archivos"],
 ] as const;
 
-const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
-  obras: "trabajos",
-  actividad: "resumen",
-  contactos: "resumen",
+type ClientTabId = (typeof tabs)[number]["id"];
+
+const legacyTabs: Record<string, ClientTabId> = {
+  [legacyClientAreas[0][0]]: "resumen",
+  [legacyClientAreas[1][0]]: "operacion",
+  [legacyClientAreas[2][0]]: "dinero",
+  [legacyClientAreas[3][0]]: "archivos",
+  obras: "operacion",
+  actividad: "relacion",
+  contactos: "relacion",
   datos: "resumen",
-  archivos: "archivos",
   documentos: "archivos",
-  dinero: "dinero",
   economia: "dinero",
   presupuestos: "dinero",
   facturas: "dinero",
   pagos: "dinero",
   finanzas: "dinero",
-  visitas: "resumen",
-  notas: "resumen",
+  visitas: "relacion",
+  notas: "relacion",
 };
 
 export default async function ClientDetailPage({
@@ -153,10 +164,10 @@ export default async function ClientDetailPage({
   if (!summary) notFound();
 
   const requestedView =
-    query.vista ??
+    (query.vista ? (legacyTabs[query.vista] ?? query.vista) : undefined) ??
     (query.tab ? (legacyTabs[query.tab] ?? query.tab) : "resumen");
-  const activeTab = tabs.some(([tab]) => tab === requestedView)
-    ? (requestedView as (typeof tabs)[number][0])
+  const activeTab = tabs.some(({ id: tab }) => tab === requestedView)
+    ? (requestedView as ClientTabId)
     : "resumen";
   const client = summary.client;
   const returnTo = `/clientes/${client.id}`;
@@ -300,9 +311,9 @@ export default async function ClientDetailPage({
         entityId={client.id}
       />
 
-      <div data-client-detail-areas="4">
+      <div data-client-detail-areas="5">
         <Tabs label="Secciones de la ficha de cliente" className="mt-5">
-          {tabs.map(([tab, label]) => (
+          {tabs.map(({ id: tab, label }) => (
             <Link
               key={tab}
               href={`/clientes/${client.id}?vista=${tab}`}
@@ -330,13 +341,21 @@ export default async function ClientDetailPage({
               </Link>
             </section>
             <SummaryTab summary={summary} returnTo={returnTo} />
-            <EntityWorkflowSummary clientId={client.id} />
-            <ActivityTab summary={summary} />
-            <VisitsTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
-        {activeTab === "trabajos" ? (
-          <WorksTab summary={summary} returnTo={returnTo} />
+        {activeTab === "relacion" ? (
+          <div className="grid gap-4">
+            <ContactsTab summary={summary} returnTo={returnTo} />
+            <ActivityTab summary={summary} />
+            <VisitsTab summary={summary} returnTo={returnTo} />
+            <NotesTab summary={summary} returnTo={returnTo} />
+          </div>
+        ) : null}
+        {activeTab === "operacion" ? (
+          <div className="grid gap-4">
+            <EntityWorkflowSummary clientId={client.id} />
+            <WorksTab summary={summary} returnTo={returnTo} />
+          </div>
         ) : null}
         {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
         {activeTab === "dinero" ? (
@@ -366,7 +385,7 @@ function ClientRelationshipRail({
     ["Cliente", "completada", "resumen", "Relación activa"],
     ["Oportunidad", summary.recentBudgets.length ? "completada" : "activa", "resumen", summary.recentBudgets.length ? "Contexto creado" : "Siguiente paso"],
     ["Presupuesto", summary.recentBudgets.length ? "completada" : "pendiente", "dinero", `${summary.recentBudgets.length} propuestas`],
-    ["Trabajo", summary.kpis.activeWorks ? "activa" : summary.kpis.totalWorks ? "completada" : "pendiente", "trabajos", `${summary.kpis.activeWorks} activos`],
+    ["Trabajo", summary.kpis.activeWorks ? "activa" : summary.kpis.totalWorks ? "completada" : "pendiente", "operacion", `${summary.kpis.activeWorks} activos`],
     ["Factura", summary.kpis.billedTotal ? "completada" : "pendiente", "dinero", summary.kpis.billedTotal ? "Emitida" : "Pendiente"],
     ["Cobro", summary.kpis.paidTotal ? "completada" : summary.kpis.billedTotal ? "activa" : "pendiente", "dinero", summary.kpis.paidTotal ? "Registrado" : "Pendiente"],
   ] as const;
@@ -409,9 +428,9 @@ function ClientContextRail({
         : "Sin riesgo principal detectado";
   return (
     <div className="grid gap-4">
-      <div className="flex items-center gap-2 text-brand-strong"><Sparkles size={18} aria-hidden="true" /><p className="type-label text-brand-strong">{brand.assistantName} · contexto del cliente</p></div>
+      <p className="type-label text-brand-strong">Contexto operativo del cliente</p>
       <section className="rounded-xl border border-brand/25 bg-brand-soft p-4">
-        <p className="type-label">Recomendación contextual</p>
+        <p className="type-label">Siguiente acción documentada</p>
         <h2 className="type-object-title mt-2 text-content">{nextAction}</h2>
         <p className="type-secondary mt-2">Próxima fecha: {nextDate}. Revisa el origen antes de confirmar cualquier acción.</p>
       </section>

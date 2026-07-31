@@ -101,7 +101,7 @@ export default async function DashboardPage({
 
       <section aria-labelledby="dashboard-resumen" className="section-shell mb-5">
         <SectionHeading id="dashboard-resumen" title="Indicadores principales" description={`Todas las cifras usan ${summary.period.label.toLowerCase()} y enlazan con su dato de origen.`} />
-        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" data-dashboard-primary-kpis={initialKpis.length}>
+        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" data-dashboard-primary-kpis={initialKpis.length}>
           {dashboardKpis.map((kpi) => <div key={kpi.id} className="bg-surface"><Kpi kpi={kpi} /></div>)}
         </div>
       </section>
@@ -119,10 +119,11 @@ export default async function DashboardPage({
             <section aria-labelledby="dashboard-tendencia" className="section-shell">
               <SectionHeading id="dashboard-tendencia" title="Evolución del periodo" description="Facturación emitida, pagos registrados y gastos reales agrupados en intervalos legibles." />
               <TrendChart points={summary.trend} />
+              <MarginOverview rows={summary.works.byLowestMargin.slice(0, 5)} />
             </section>
 
             <section aria-labelledby="dashboard-excepciones" className="section-shell border-brand/25">
-              <div className="mb-4 flex items-center gap-2 text-brand-strong"><Bot size={18} aria-hidden="true" /><p className="type-label text-brand-strong">Orqena IA · señales autorizadas</p></div>
+              <div className="mb-4 flex items-center gap-2 text-brand-strong"><ShieldAlert size={18} aria-hidden="true" /><p className="type-label text-brand-strong">Señales derivadas de datos registrados</p></div>
               <SectionHeading id="dashboard-excepciones" title="Excepciones" description="Riesgos y oportunidades respaldados por datos registrados; cada fila abre su origen." action={<Link href="/hoy" className="ghost-button">Ver prioridades</Link>} />
               <RiskList alerts={summary.alerts.slice(0, 5)} />
             </section>
@@ -189,6 +190,11 @@ export default async function DashboardPage({
           <section aria-labelledby="dashboard-obras" className="section-shell mt-6">
             <SectionHeading id="dashboard-obras" title="Rentabilidad por trabajo" description="Los trabajos con menor margen aparecen primero según la facturación y los costes registrados." action={<Link href="/obras?estado=activas" className="secondary-button">Ver trabajos</Link>} />
             <WorkProfitability rows={summary.works.byLowestMargin.slice(0, 5)} />
+          </section>
+
+          <section aria-labelledby="dashboard-clientes" className="section-shell mt-6">
+            <SectionHeading id="dashboard-clientes" title="Clientes por facturación" description="Ranking del periodo calculado únicamente con facturas válidas registradas." action={<Link href="/clientes" className="secondary-button">Ver clientes</Link>} />
+            <ClientRanking rows={summary.clients.byRevenue.slice(0, 5)} />
           </section>
 
           <section aria-labelledby="dashboard-presupuestos" className="section-shell mt-6">
@@ -295,6 +301,16 @@ function TrendChart({ points }: { points: BusinessTrendPoint[] }) {
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg bg-subtle p-3"><p className="type-label">{label}</p><p className="type-object-title mt-1 tabular text-content">{value}</p></div>;
+}
+
+function MarginOverview({ rows }: { rows: Awaited<ReturnType<typeof getBusinessIntelligenceSummary>>["works"]["byLowestMargin"] }) {
+  if (!rows.length) return null;
+  return <section className="mt-5 border-t border-border pt-4" aria-labelledby="dashboard-margins"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="type-label">Comparativa real</p><h3 id="dashboard-margins" className="type-object-title mt-1 text-content">Margen por trabajo</h3></div><Link href="/obras?orden=rentabilidad" className="ghost-button">Ver detalle</Link></div><div className="grid gap-3">{rows.map((work) => { const value = Math.max(-100, Math.min(100, work.marginOnInvoiced)); return <Link key={work.workId} href={`/obras/${work.workId}`} className="grid gap-2 rounded-lg border border-border p-3 hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_minmax(10rem,.7fr)_auto] sm:items-center"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-content">{work.title}</span><span className="type-meta mt-1 block truncate">{work.clientName}</span></span><meter className="h-2 w-full accent-brand" min={-100} max={100} low={15} optimum={35} value={value} aria-label={`Margen de ${work.title}: ${round(work.marginOnInvoiced)} %`} /><span className={`text-sm font-semibold tabular-nums ${work.marginOnInvoiced < 15 ? "text-danger" : "text-success"}`}>{round(work.marginOnInvoiced)} %</span></Link>; })}</div></section>;
+}
+
+function ClientRanking({ rows }: { rows: Awaited<ReturnType<typeof getBusinessIntelligenceSummary>>["clients"]["byRevenue"] }) {
+  if (!rows.length) return <EmptyState title="Sin clientes comparables" description="El ranking aparecerá cuando existan facturas válidas dentro del periodo." icon={BriefcaseBusiness} />;
+  return <ol className="divide-y divide-border">{rows.map((client, index) => <li key={client.clientId}><Link href={client.href} className="grid gap-3 py-3 hover:bg-subtle sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-strong">{index + 1}</span><span className="min-w-0"><span className="type-object-title block truncate text-content">{client.name}</span><span className="type-meta mt-1 block">Cobrado: {formatCurrency(client.collected)}</span></span><span className="font-semibold tabular-nums text-content">{formatCurrency(client.invoiced)}</span></Link></li>)}</ol>;
 }
 
 function RiskList({ alerts }: { alerts: BusinessAlert[] }) {

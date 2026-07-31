@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Bot, CalendarDays, CheckCircle2, Plus, Sparkles } from "lucide-react";
+import { ArrowUpRight, Bot, CalendarDays, Plus } from "lucide-react";
 import { EmptyState, Metric, MetricGroup, PageHeader, ProductPage, Status } from "@/components/ui-primitives";
 import { getAgendaItems } from "@/lib/agenda";
 import { requireCapability } from "@/lib/commercial/authorization";
@@ -75,20 +75,19 @@ export default async function TodayPage({
         action={firstQuickAction ? <Link href={firstQuickAction.href} className="primary-button"><Plus size={18} aria-hidden="true" />{firstQuickAction.label}</Link> : undefined}
       />
 
-      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_19rem]" data-portal-home={portal.profile}>
-        <div className="min-w-0">
+      <div data-portal-home={portal.profile}>
           <section aria-labelledby="portal-priorities" className={`section-shell portal-priorities portal-priorities--${experience.tone}`}>
             <div className="mb-4 flex items-start justify-between gap-3">
               <div><p className="type-label">{experience.label}</p><h2 id="portal-priorities" className="type-section-title mt-1 text-content">Prioridades de hoy</h2></div>
               <Status tone="neutral">{priorities.length} en foco</Status>
             </div>
             {priorities.length ? (
-              <ol className="grid gap-3 lg:grid-cols-3" data-priority-count={priorities.length}>
+              <ol className="grid gap-3 xl:grid-cols-3" data-priority-count={priorities.length}>
                 {priorities.map((priority, index) => (
                   <li key={priority.id} className="flex min-h-60 flex-col rounded-xl border border-border bg-surface p-4 shadow-soft">
                     <div className="flex items-start justify-between gap-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft font-semibold text-brand-strong" aria-hidden="true">{index + 1}</span>
-                      <Status tone={index === 0 ? "attention" : "neutral"}>{index === 0 ? "Primera" : "Pendiente"}</Status>
+                      <Status tone="neutral">En foco</Status>
                     </div>
                     <h3 className="type-object-title mt-4 text-content">{priority.title}</h3>
                     <p className="type-secondary mt-2">{priority.reason}</p>
@@ -122,14 +121,6 @@ export default async function TodayPage({
           </div>
 
           {portal.quickActions.length ? <section aria-labelledby="quick-actions" className="section-shell mt-5"><div className="mb-4"><p className="type-label">Captura rápida según permisos</p><h2 id="quick-actions" className="type-section-title mt-1 text-content">Registrar sin perder contexto</h2></div><div className="flex flex-wrap gap-2">{portal.quickActions.map((item) => <Link key={item.href} href={item.href} className="secondary-button"><Plus size={17} aria-hidden="true" />{item.label}</Link>)}</div></section> : null}
-        </div>
-
-        <aside className="rounded-xl border border-border bg-surface p-5 shadow-soft" aria-label={`Recomendación de ${brand.assistantName}`}>
-          <div className="flex items-center gap-2 text-brand-strong"><Sparkles size={18} aria-hidden="true" /><p className="type-label text-brand-strong">{brand.assistantName}</p></div>
-          <h2 className="type-section-title mt-5 text-content">Recomendación para hoy</h2>
-          {priorities[0] ? <div className="mt-4 rounded-xl border border-brand/30 bg-brand-soft p-4"><CheckCircle2 size={22} className="text-brand-strong" aria-hidden="true" /><h3 className="type-object-title mt-4 text-content">{priorities[0].title}</h3><p className="type-secondary mt-2">{priorities[0].impact}</p><dl className="mt-4 border-t border-brand/20 pt-4"><dt className="type-label">Origen verificado</dt><dd className="type-meta mt-1">{priorities[0].origin}</dd></dl><Link href={priorities[0].href} className="secondary-button mt-5 w-full">Revisar acción</Link></div> : <p className="type-secondary mt-4">No hay recomendaciones adicionales dentro de tu alcance actual.</p>}
-          <Link href="/capataz" className="secondary-button mt-4 w-full"><Bot size={17} />Abrir {brand.assistantName}</Link>
-        </aside>
       </div>
 
       {activation ? <div className="mt-5"><ActivationChecklist status={activation}/></div> : null}
