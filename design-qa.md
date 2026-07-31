@@ -26,6 +26,7 @@
 | Navigation | The top-left Orqena Tech wordmark pointed to `#top` on inner pages. | P1 | It now points to `/` with an explicit accessible label. |
 | Typography | No-visual titles were visually stranded at the left edge on wide screens. | P2 | Centered and wide-editorial variants share a 1280 px grid and bounded copy measure. |
 | Accessibility | Breakpoint corrections could have changed source order. | P1 | DOM order remains copy then visual; focusable controls and labels are unchanged. |
+| Accessibility | The white contact form inherited the dark hero's light text color. | P1 | Scoped the form foreground to the canonical dark ink; Axe can evaluate the intended white-form contrast in every engine. |
 
 ## Visual judgment
 

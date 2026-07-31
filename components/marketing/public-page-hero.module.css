@@ -237,6 +237,10 @@
   align-self: center;
 }
 
+.visual :global(.marketing-form) {
+  color: var(--hero-ink);
+}
+
 .metrics,
 .media,
 .trust,
