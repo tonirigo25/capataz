@@ -4131,7 +4131,14 @@ button:disabled,
 .client-360-canonical { gap: 0 !important; }
 .client-360-canonical > div:first-child { min-width: 0; }
 .client-360-canonical > div:first-child > * + * { margin-top: 10px !important; }
+.client-360-canonical > div:first-child > header {
+  display: grid;
+  grid-template-rows: 16px 28px;
+  gap: 1px;
+}
 .client-360-canonical > div:first-child > header > a {
+  display: flex;
+  width: max-content;
   min-height: 16px;
   color: #647169;
   font-size: 11px;
@@ -4139,15 +4146,15 @@ button:disabled,
 }
 .client-360-canonical > div:first-child > header > h1 {
   margin-top: 1px;
-  font-size: 29px;
+  font-size: 27px;
   font-weight: 840;
   letter-spacing: -.04em;
-  line-height: 1.05;
+  line-height: 28px;
 }
 .client-360-canonical > div:first-child > section {
   border-color: #dfe5e1;
   border-radius: 9px;
-  padding: 13px !important;
+  padding: 12px !important;
   box-shadow: none;
 }
 .client-360-canonical > div:first-child > section nav .primary-button,
@@ -4214,15 +4221,19 @@ button:disabled,
   font-size: 10px;
 }
 .client-360-canonical > div:first-child > nav {
+  margin-top: 0 !important;
   scrollbar-width: thin;
 }
 .client-360-canonical > div:first-child > nav > a {
-  min-height: 40px;
+  min-height: 48px;
   padding-inline: 15px;
   font-size: 11px;
 }
 .client-360-canonical__primary,
 .client-360-canonical__collections { gap: 10px !important; }
+.client-360-canonical__primary { margin-top: 15px !important; }
+.client-360-canonical__collections--primary { margin-top: 17px !important; }
+.client-360-canonical__collections--secondary { margin-top: 16px !important; }
 .client-360-canonical__primary > section,
 .client-360-canonical__collections > section {
   min-width: 0;
@@ -4230,6 +4241,10 @@ button:disabled,
   border-radius: 9px;
   padding: 12px !important;
   box-shadow: none;
+}
+.client-360-canonical__primary > section {
+  display: flex;
+  flex-direction: column;
 }
 .client-360-canonical__primary > section > header,
 .client-360-canonical__collections > section > header { margin-bottom: 9px; }
@@ -4309,6 +4324,7 @@ button:disabled,
     grid-template-columns: minmax(0, 1fr) 20.25rem;
   }
   .client-360-canonical > div:first-child { padding-right: 14px; }
+  .client-360-canonical__primary > section { height: 208px; }
   .client-360-canonical > [data-client-360-rail] {
     display: block;
     align-self: stretch;

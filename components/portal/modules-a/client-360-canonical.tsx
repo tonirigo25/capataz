@@ -271,7 +271,7 @@ export function Client360Canonical({
         <div className="client-360-canonical__primary grid gap-4 xl:grid-cols-[0.95fr_1fr_1fr]">
           <Panel title="Próxima acción" icon={CalendarCheck2}>
             {nextAction ? (
-              <div className="flex h-full flex-col">
+              <div className="flex flex-1 flex-col">
                 <h3 className="font-semibold text-content">{nextAction.title}</h3>
                 {nextAction.description ? (
                   <p className="mt-1 text-sm text-content-secondary">
