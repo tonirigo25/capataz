@@ -6,6 +6,7 @@ import {
   Bell,
   Bot,
   CalendarClock,
+  ChevronDown,
   CircleDollarSign,
   ClipboardList,
   FileText,
@@ -19,18 +20,16 @@ import {
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { RecordWorkspace } from "@/components/workspaces";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import {
   EmptyState,
-  EntityHeader,
-  ParentNavigation,
 } from "@/components/ui-primitives";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
 import { Client360Canonical } from "@/components/portal/modules-a/client-360-canonical";
+import { Client360Restricted } from "@/components/portal/modules-a/client-360-restricted";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
@@ -166,6 +165,12 @@ export default async function ClientDetailPage({
     resolveAuthorization(auth, "documents.upload"),
   ]);
   if (!summary) notFound();
+  const aiClientIds = aiDecision.allowed
+    ? await resolveScopedEntityIds(auth, "orqena.use", "Client")
+    : [];
+  const canUseAiForClient =
+    aiDecision.allowed &&
+    (aiClientIds === null || aiClientIds.includes(summary.client.id));
 
   const requestedView =
     normalizeClientView(query.vista) ??
@@ -237,7 +242,7 @@ export default async function ClientDetailPage({
     });
   }
   const recommendation =
-    aiDecision.allowed && scopedPrincipal
+    canUseAiForClient && scopedPrincipal
       ? {
           clientId: client.id,
           title: scopedPrincipal.title,
@@ -289,6 +294,7 @@ export default async function ClientDetailPage({
         insights={insights}
         incidents={incidents}
         recommendation={recommendation}
+        showAiRail={canUseAiForClient}
         hrefs={{
           back: "/clientes",
           sendMessage: contactEmail ? `mailto:${contactEmail}` : undefined,
@@ -317,7 +323,7 @@ export default async function ClientDetailPage({
             canArchive={
               archiveDecision.allowed && archiveDecision.scope === "COMPANY"
             }
-            canUseAi={aiDecision.allowed}
+            canUseAi={canUseAiForClient}
           />
         }
       >
@@ -412,6 +418,7 @@ async function ScopedClientDetail({
     invoiceDecision,
     clientUpdateDecision,
     followupDecision,
+    aiDecision,
   ] = await Promise.all([
     resolveAuthorization(auth, "work.view"),
     resolveAuthorization(auth, "sales.budgets.view"),
@@ -420,6 +427,7 @@ async function ScopedClientDetail({
     resolveAuthorization(auth, "sales.invoices.view"),
     resolveAuthorization(auth, "clients.update"),
     resolveAuthorization(auth, "followups.manage"),
+    resolveAuthorization(auth, "orqena.use"),
   ]);
   const [
     workIds,
@@ -583,196 +591,116 @@ async function ScopedClientDetail({
       client.id,
     );
   const returnTo = `/clientes/${client.id}`;
+  const aiClientIds = aiDecision.allowed
+    ? await resolveScopedEntityIds(auth, "orqena.use", "Client")
+    : [];
+  const canUseAiForClient =
+    aiDecision.allowed &&
+    (aiClientIds === null || aiClientIds.includes(client.id));
   return (
-    <RecordWorkspace>
-      <EntityHeader
-        back={<ParentNavigation href="/clientes" label="Clientes" />}
-        context={client.origen}
-        title={name}
-        description={`${client.telefono ?? client.email ?? "Sin contacto directo"} · Vista según tu alcance`}
-        status={
-          <StatusPill
-            status={client.archivadoAt ? "archivado" : client.estado}
-          />
-        }
+    <div className="client-360-page">
+      <Client360Restricted
+        client={{
+          id: client.id,
+          displayName: name,
+          legalName: client.razonSocial ?? undefined,
+          origin: client.origen,
+          status: client.estado,
+          archived: Boolean(client.archivadoAt),
+          phone: client.telefono ?? undefined,
+          email: client.email ?? undefined,
+        }}
+        contacts={contacts.map((contact) => ({
+          id: contact.id,
+          name: [contact.nombre, contact.apellidos].filter(Boolean).join(" "),
+          role: contact.cargo ?? "Contacto",
+          phone: contact.telefono ?? undefined,
+          email: contact.email ?? undefined,
+        }))}
+        works={works.map((work) => {
+          const canCreateWorkBudget =
+            budgetCreateDecision.allowed &&
+            pricingDecision.allowed &&
+            relationAllowedForClient(
+              budgetCreateDecision.scope,
+              budgetCreateWorkIds,
+              budgetCreateClientIds,
+              work.id,
+              client.id,
+            ) &&
+            relationAllowedForClient(
+              pricingDecision.scope,
+              pricingWorkIds,
+              pricingClientIds,
+              work.id,
+              client.id,
+            );
+          return {
+            id: work.id,
+            title: work.titulo,
+            status: statusLabel(work.estado),
+            address: work.direccion ?? undefined,
+            createBudgetHref: canCreateWorkBudget
+              ? `/gestion?tipo=presupuesto&clienteId=${client.id}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`
+              : undefined,
+          };
+        })}
+        budgets={budgets.map((budget) => ({
+          id: budget.id,
+          number: budget.numero,
+          title: budget.titulo,
+          status: statusLabel(budget.estado),
+          total:
+            pricingDecision.allowed &&
+            relationAllowedForClient(
+              pricingDecision.scope,
+              pricingWorkIds,
+              pricingClientIds,
+              budget.obraId,
+              client.id,
+            )
+              ? formatCurrency(budget.total)
+              : undefined,
+        }))}
+        invoices={invoices.map((invoice) => ({
+          id: invoice.id,
+          number: invoice.numero,
+          concept: invoice.concepto,
+          status: statusLabel(invoice.estado),
+          total: formatCurrency(invoice.total),
+          pending: formatCurrency(invoice.pendiente),
+        }))}
+        visibility={{
+          works: workDecision.allowed,
+          budgets: budgetDecision.allowed,
+          invoices: invoiceDecision.allowed,
+        }}
+        actions={[
+          ...(canCreateClientBudget
+            ? [{
+                id: "budget" as const,
+                label: "Crear presupuesto",
+                href: `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+              }]
+            : []),
+          ...(canCreateContact
+            ? [{
+                id: "contact" as const,
+                label: "Añadir contacto",
+                href: `/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+              }]
+            : []),
+          ...(canCreateClientFollowup
+            ? [{
+                id: "followup" as const,
+                label: "Crear seguimiento",
+                href: `/gestion?tipo=recordatorio&clienteId=${client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`,
+              }]
+            : []),
+        ]}
+        canUseAi={canUseAiForClient}
       />
-      {canCreateClientBudget || canCreateContact || canCreateClientFollowup ? (
-        <section className="mt-4 flex flex-wrap gap-2">
-          {canCreateClientBudget ? (
-            <Link
-              href={`/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              <FileText size={18} />
-              Crear presupuesto
-            </Link>
-          ) : null}
-          {canCreateContact ? (
-            <Link
-              href={`/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              <Plus size={18} />
-              Añadir contacto
-            </Link>
-          ) : null}
-          {canCreateClientFollowup ? (
-            <Link
-              href={`/gestion?tipo=recordatorio&clienteId=${client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              <MessageCircle size={18} />
-              Crear seguimiento
-            </Link>
-          ) : null}
-        </section>
-      ) : null}
-      <section className="mt-5 grid gap-4 xl:grid-cols-2">
-        <ScopedList title="Contactos" empty="Sin contactos disponibles.">
-          {contacts.map((contact) => (
-            <article
-              key={contact.id}
-              className="rounded-lg border border-slate-200 p-3"
-            >
-              <p className="font-black text-obra-ink">
-                {contact.nombre} {contact.apellidos ?? ""}
-              </p>
-              <p className="text-sm text-slate-500">
-                {contact.cargo ?? "Contacto"} ·{" "}
-                {contact.telefono ?? contact.email ?? "Sin dato"}
-              </p>
-            </article>
-          ))}
-        </ScopedList>
-        {workDecision.allowed ? (
-          <ScopedList
-            title="Trabajos autorizados"
-            empty="Sin trabajos en tu alcance."
-          >
-            {works.map((work) => {
-              const canCreateWorkBudget =
-                budgetCreateDecision.allowed &&
-                pricingDecision.allowed &&
-                relationAllowedForClient(
-                  budgetCreateDecision.scope,
-                  budgetCreateWorkIds,
-                  budgetCreateClientIds,
-                  work.id,
-                  client.id,
-                ) &&
-                relationAllowedForClient(
-                  pricingDecision.scope,
-                  pricingWorkIds,
-                  pricingClientIds,
-                  work.id,
-                  client.id,
-                );
-              return (
-                <article
-                  key={work.id}
-                  className="rounded-lg border border-slate-200 p-3"
-                >
-                  <Link href={`/obras/${work.id}`} className="block">
-                    <p className="font-black text-obra-ink">{work.titulo}</p>
-                    <p className="text-sm text-slate-500">
-                      {statusLabel(work.estado)} · {work.direccion}
-                    </p>
-                  </Link>
-                  {canCreateWorkBudget ? (
-                    <Link
-                      href={`/gestion?tipo=presupuesto&clienteId=${client.id}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`}
-                      className="secondary-button mt-2"
-                    >
-                      Crear presupuesto
-                    </Link>
-                  ) : null}
-                </article>
-              );
-            })}
-          </ScopedList>
-        ) : null}
-        {budgetDecision.allowed ? (
-          <ScopedList
-            title="Presupuestos autorizados"
-            empty="Sin presupuestos en tu alcance."
-          >
-            {budgets.map((budget) => (
-              <Link
-                key={budget.id}
-                href={`/presupuestos/${budget.id}`}
-                className="rounded-lg border border-slate-200 p-3"
-              >
-                <p className="font-black text-obra-ink">
-                  {budget.numero} · {budget.titulo}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {statusLabel(budget.estado)}
-                  {pricingDecision.allowed &&
-                  relationAllowedForClient(
-                    pricingDecision.scope,
-                    pricingWorkIds,
-                    pricingClientIds,
-                    budget.obraId,
-                    client.id,
-                  )
-                    ? ` · ${formatCurrency(budget.total)}`
-                    : ""}
-                </p>
-              </Link>
-            ))}
-          </ScopedList>
-        ) : null}
-        {invoiceDecision.allowed ? (
-          <ScopedList
-            title="Facturas autorizadas"
-            empty="Sin facturas en tu alcance."
-          >
-            {invoices.map((invoice) => (
-              <Link
-                key={invoice.id}
-                href={`/dinero/${invoice.id}`}
-                className="rounded-lg border border-slate-200 p-3"
-              >
-                <p className="font-black text-obra-ink">
-                  {invoice.numero} · {invoice.concepto}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {statusLabel(invoice.estado)} ·{" "}
-                  {formatCurrency(invoice.total)} ·{" "}
-                  {formatCurrency(invoice.pendiente)} pendiente
-                </p>
-              </Link>
-            ))}
-          </ScopedList>
-        ) : null}
-      </section>
-    </RecordWorkspace>
-  );
-}
-
-function ScopedList({
-  title,
-  empty,
-  children,
-}: {
-  title: string;
-  empty: string;
-  children: ReactNode;
-}) {
-  const hasChildren = Array.isArray(children)
-    ? children.length > 0
-    : Boolean(children);
-  return (
-    <section className="card p-4">
-      <h2 className="font-black text-obra-ink">{title}</h2>
-      <div className="mt-3 grid gap-2">
-        {hasChildren ? (
-          children
-        ) : (
-          <p className="text-sm text-slate-500">{empty}</p>
-        )}
-      </div>
-    </section>
+    </div>
   );
 }
 function relatedClientScope(
@@ -827,7 +755,8 @@ function ClientActions({
   return (
     <details className="relative">
       <summary className="secondary-button cursor-pointer list-none">
-        Más acciones
+        <span className="sr-only">Más acciones</span>
+        <ChevronDown size={15} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-20 mt-2 grid min-w-64 gap-1 rounded-xl border border-border bg-surface p-2 shadow-xl [&_a]:justify-start">
         <Link

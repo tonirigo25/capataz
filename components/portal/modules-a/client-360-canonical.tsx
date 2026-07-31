@@ -70,6 +70,7 @@ export type Client360CanonicalProps = {
   activeView?: Client360CanonicalView;
   children?: ReactNode;
   moreActions?: ReactNode;
+  showAiRail?: boolean;
   nextAction?: {
     title: string;
     description?: string;
@@ -131,6 +132,7 @@ export function Client360Canonical({
   incidents = [],
   recommendation,
   hrefs,
+  showAiRail = true,
 }: Client360CanonicalProps) {
   const client = summary.client;
   const displayName = summary.listItem.displayName;
@@ -142,8 +144,9 @@ export function Client360Canonical({
 
   return (
     <div
-      className="client-360-canonical grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_20.25rem]"
+      className="client-360-canonical grid min-w-0 items-stretch gap-4"
       data-client-360-canonical
+      data-has-client-rail={showAiRail ? "true" : "false"}
     >
       <div className="min-w-0 space-y-4">
         <header>
@@ -158,7 +161,7 @@ export function Client360Canonical({
         </header>
 
         <section
-          className="rounded-xl border border-border bg-surface p-4 shadow-soft lg:p-5"
+          className="client-360-canonical__identity rounded-xl border border-border bg-surface p-4 shadow-soft lg:p-5"
           aria-labelledby="client-360-identity"
         >
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(16rem,0.8fr)_auto] xl:items-center">
@@ -177,11 +180,6 @@ export function Client360Canonical({
                   <StatusPill
                     status={client.archivadoAt ? "archivado" : client.estado}
                   />
-                  {moreActions ? (
-                    <span className="client-360-canonical__more-actions">
-                      {moreActions}
-                    </span>
-                  ) : null}
                 </div>
                 <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
                   <Fact label="Segmento" value={summary.listItem.typeLabel} />
@@ -226,9 +224,20 @@ export function Client360Canonical({
                 </Link>
               ) : null}
               {hrefs.newOpportunity ? (
-                <Link href={hrefs.newOpportunity} className="primary-button w-full">
-                  <Plus size={16} aria-hidden="true" /> {hrefs.newOpportunityLabel ?? "Nueva acción"}
-                </Link>
+                <span className="client-360-canonical__primary-action relative block">
+                  <Link href={hrefs.newOpportunity} className="primary-button w-full">
+                    <Plus size={16} aria-hidden="true" /> {hrefs.newOpportunityLabel ?? "Nueva acción"}
+                  </Link>
+                  {moreActions ? (
+                    <span className="client-360-canonical__more-actions">
+                      {moreActions}
+                    </span>
+                  ) : null}
+                </span>
+              ) : moreActions ? (
+                <span className="client-360-canonical__more-actions client-360-canonical__more-actions--standalone">
+                  {moreActions}
+                </span>
               ) : null}
             </nav>
           </div>
@@ -335,7 +344,7 @@ export function Client360Canonical({
           </Panel>
         </div>
 
-        <div className="client-360-canonical__collections grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <div className="client-360-canonical__collections client-360-canonical__collections--primary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <CollectionPanel title="Actividad reciente" href={hrefs.activity} empty="Sin actividad reciente.">
             {summary.activity.slice(0, 5).map((event) => (
               <CompactLink
@@ -381,7 +390,7 @@ export function Client360Canonical({
           </CollectionPanel>
         </div>
 
-        <div className="client-360-canonical__collections grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <div className="client-360-canonical__collections client-360-canonical__collections--secondary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <CollectionPanel title="Cobros" href={hrefs.payments} empty="Sin cobros.">
             {summary.payments.slice(0, 3).map((payment) => (
               <CompactLink
@@ -433,13 +442,15 @@ export function Client360Canonical({
         </> : <div className="client-360-canonical__tab-content min-w-0">{children}</div>}
       </div>
 
-      <Client360RailShell>
-        <ClientRecommendationRail
-          clientName={displayName}
-          recommendation={scopedRecommendation}
-          allRecommendationsHref={hrefs.allRecommendations}
-        />
-      </Client360RailShell>
+      {showAiRail ? (
+        <Client360RailShell>
+          <ClientRecommendationRail
+            clientName={displayName}
+            recommendation={scopedRecommendation}
+            allRecommendationsHref={hrefs.allRecommendations}
+          />
+        </Client360RailShell>
+      ) : null}
     </div>
   );
 }
@@ -454,8 +465,10 @@ function ClientRecommendationRail({
   allRecommendationsHref: string;
 }) {
   return (
-    <aside
-      className="flex min-h-[calc(100dvh-4rem)] flex-col p-5"
+    <div
+      id="client-360-ai-context"
+      className="flex flex-col p-5"
+      role="region"
       aria-label={`Recomendaciones de Orqena IA para ${clientName}`}
     >
       <p className="type-label">Recomendación para {clientName}</p>
@@ -510,7 +523,7 @@ function ClientRecommendationRail({
         Ver más recomendaciones en Orqena IA
         <ArrowUpRight size={15} aria-hidden="true" />
       </Link>
-    </aside>
+    </div>
   );
 }
 

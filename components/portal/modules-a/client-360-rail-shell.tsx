@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { ChevronsRight, Sparkles } from "lucide-react";
 
 const STORAGE_KEY = "orqena.client360.rail-collapsed";
@@ -12,21 +12,29 @@ export function Client360RailShell({
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
-  useEffect(() => {
-    setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "true");
+  useLayoutEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "true");
+    } catch {
+      setCollapsed(false);
+    }
   }, []);
 
   const toggle = () => {
     setCollapsed((current) => {
       const next = !current;
-      window.localStorage.setItem(STORAGE_KEY, String(next));
+      try {
+        window.localStorage.setItem(STORAGE_KEY, String(next));
+      } catch {
+        // El rail sigue siendo funcional aunque el navegador bloquee storage.
+      }
       return next;
     });
   };
 
   return (
     <aside
-      className="client-360-rail-shell min-w-0 self-stretch border-t border-border bg-surface xl:border-l xl:border-t-0"
+      className="client-360-rail-shell min-w-0 self-stretch border-t border-border bg-surface"
       data-client-360-rail
       data-collapsed={collapsed ? "true" : "false"}
       aria-label="Contexto de Orqena IA"
@@ -36,6 +44,7 @@ export function Client360RailShell({
         onClick={toggle}
         className="flex min-h-16 w-full items-center justify-between gap-3 border-b border-border px-5 font-semibold text-content"
         aria-expanded={!collapsed}
+        aria-controls="client-360-ai-context"
       >
         <span className="inline-flex items-center gap-2">
           <Sparkles size={18} className="text-brand-strong" aria-hidden="true" />

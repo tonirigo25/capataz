@@ -4132,9 +4132,10 @@ button:disabled,
 .client-360-canonical > div:first-child { min-width: 0; }
 .client-360-canonical > div:first-child > * + * { margin-top: 10px !important; }
 .client-360-canonical > div:first-child > header > a {
-  min-height: 24px;
+  min-height: 16px;
   color: #647169;
   font-size: 11px;
+  line-height: 16px;
 }
 .client-360-canonical > div:first-child > header > h1 {
   margin-top: 1px;
@@ -4155,17 +4156,62 @@ button:disabled,
   padding-block: 7px;
   font-size: 10px;
 }
-.client-360-canonical__more-actions > details > summary {
-  min-height: 26px;
-  border: 0;
-  padding: 2px 7px;
-  background: #f1f5f2;
+.client-360-canonical__identity dl {
+  margin-top: 10px !important;
+  row-gap: 7px !important;
+}
+.client-360-canonical__identity dt {
   font-size: 9px;
+  line-height: 12px;
+}
+.client-360-canonical__identity dd {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+}
+.client-360-canonical__identity > div > div:nth-child(2) {
+  font-size: 11px;
+}
+.client-360-canonical__identity > div > div:nth-child(2) > div {
+  margin-top: 10px;
+}
+.client-360-canonical__identity > div > div:nth-child(2) p {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+}
+.client-360-canonical__more-actions {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+}
+.client-360-canonical__more-actions > details > summary {
+  width: 34px;
+  min-height: 36px;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: white;
+  font-size: 10px;
 }
 .client-360-canonical__more-actions > details > div {
   top: 100%;
-  right: auto;
-  left: 0;
+  right: 0;
+  left: auto;
+}
+.client-360-canonical__primary-action > .primary-button {
+  padding-right: 34px;
+}
+.client-360-canonical__more-actions--standalone {
+  position: relative;
+  inset: auto;
+}
+.client-360-canonical__more-actions--standalone > details > summary {
+  width: 100%;
+  color: inherit;
+  font-size: 10px;
 }
 .client-360-canonical > div:first-child > nav {
   scrollbar-width: thin;
@@ -4204,6 +4250,17 @@ button:disabled,
   padding-block: 7px;
   font-size: 10px;
 }
+.client-360-canonical__primary > section:first-child dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+}
+.client-360-canonical__collections--primary > section {
+  height: 214px;
+  overflow: hidden;
+}
+.client-360-canonical__collections--secondary > section {
+  min-height: 175px;
+}
 .client-360-canonical__collections > section > div { margin-top: 6px; }
 .client-360-canonical__collections > section > div > a,
 .client-360-canonical__collections > section > div > div {
@@ -4228,34 +4285,38 @@ button:disabled,
   padding-inline: 18px;
   font-size: 12px;
 }
-.client-360-canonical > [data-client-360-rail] > aside {
+.client-360-canonical > [data-client-360-rail] > [role="region"] {
   min-height: 0 !important;
   overflow: visible !important;
   padding: 15px !important;
 }
-.client-360-canonical > [data-client-360-rail] > aside > section {
+.client-360-canonical > [data-client-360-rail] > [role="region"] > section {
   border-radius: 9px;
   box-shadow: none;
 }
-.client-360-canonical > [data-client-360-rail] > aside > section h2 { font-size: 12px; }
-.client-360-canonical > [data-client-360-rail] > aside > section p,
-.client-360-canonical > [data-client-360-rail] > aside > section dt,
-.client-360-canonical > [data-client-360-rail] > aside > section dd { font-size: 10px; line-height: 1.55; }
-.client-360-canonical > [data-client-360-rail] > aside .primary-button,
-.client-360-canonical > [data-client-360-rail] > aside .secondary-button {
+.client-360-canonical > [data-client-360-rail] > [role="region"] > section h2 { font-size: 12px; }
+.client-360-canonical > [data-client-360-rail] > [role="region"] > section p,
+.client-360-canonical > [data-client-360-rail] > [role="region"] > section dt,
+.client-360-canonical > [data-client-360-rail] > [role="region"] > section dd { font-size: 10px; line-height: 1.55; }
+.client-360-canonical > [data-client-360-rail] > [role="region"] .primary-button,
+.client-360-canonical > [data-client-360-rail] > [role="region"] .secondary-button {
   min-height: 34px;
   font-size: 10px;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1440px) {
+  .client-360-canonical[data-has-client-rail="true"] {
+    grid-template-columns: minmax(0, 1fr) 20.25rem;
+  }
   .client-360-canonical > div:first-child { padding-right: 14px; }
   .client-360-canonical > [data-client-360-rail] {
     display: block;
     align-self: stretch;
+    margin-top: -19px;
     border-top: 0;
     border-left: 1px solid #dfe5e1;
   }
-  .client-360-canonical > [data-client-360-rail] > aside { min-height: calc(100dvh - 114px) !important; }
+  .client-360-canonical > [data-client-360-rail] > button { min-height: 71px; }
   .client-360-canonical:has(> [data-client-360-rail][data-collapsed="true"]) {
     grid-template-columns: minmax(0, 1fr) 56px !important;
   }
@@ -4266,7 +4327,7 @@ button:disabled,
   [data-client-360-rail][data-collapsed="true"] .client-360-rail-shell__label { display: none; }
 }
 
-@media (max-width: 1279px) {
+@media (max-width: 1439px) {
   .client-360-page { padding-right: 20px; }
   .client-360-canonical > [data-client-360-rail] {
     margin-top: 12px;
