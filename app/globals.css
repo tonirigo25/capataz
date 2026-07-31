@@ -3732,6 +3732,10 @@ button:disabled,
   .dashboard-card { min-height: 276px; }
 }
 
+@media (min-width: 640px) and (max-width: 900px) {
+  .dashboard-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 520px) {
   .dashboard-page { padding: 16px 14px 7rem !important; }
   .dashboard-header h1 { font-size: 27px; line-height: 32px; }
@@ -3785,6 +3789,67 @@ button:disabled,
 
 @media (max-width: 340px) {
   .dashboard-kpis { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 899px) {
+  .orqena-context-trigger {
+    top: 11px;
+    right: 7.5rem;
+    bottom: auto;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    justify-content: center;
+    border-radius: 10px;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .orqena-context-trigger span,
+  .field-os-workspace > .orqena-context-trigger span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .field-os-mobile-context { padding-right: 48px; }
+}
+
+@media (min-width: 900px) and (max-width: 1439px) {
+  .field-os-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    align-items: start;
+  }
+
+  .orqena-context-trigger {
+    position: sticky;
+    top: calc(var(--fos-layout-topbar) + 12px);
+    right: auto;
+    bottom: auto;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    justify-content: center;
+    margin: 12px 6px 0;
+    border-radius: 10px;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .orqena-context-trigger span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
 }
 
 .hoy-skeleton {
