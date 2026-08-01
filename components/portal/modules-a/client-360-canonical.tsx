@@ -426,23 +426,23 @@ export function Client360Canonical({
             </dl>
           </Panel>
 
-          <Panel title="Insights clave" icon={Lightbulb}>
+          <Panel title="Insights clave" icon={Lightbulb} className="client-360-canonical__insights">
             {insights.length ? (
-              <ul className="grid gap-3">
+              <ul className="client-360-canonical__insights-list grid gap-3">
                 {insights.map((insight) => (
-                  <li key={insight.id} className="flex gap-3">
+                  <li key={insight.id} className="flex min-w-0 gap-3">
                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
                       <Sparkles size={15} aria-hidden="true" />
                     </span>
                     <div className="min-w-0">
                       {insight.href ? (
-                        <Link href={insight.href} className="text-[11px] font-semibold leading-tight text-content hover:underline">
+                        <Link href={insight.href} className="client-360-canonical__insight-title block min-w-0 break-words text-[11px] font-semibold leading-tight text-content hover:underline">
                           {insight.title}
                         </Link>
                       ) : (
-                        <p className="text-[11px] font-semibold leading-tight text-content">{insight.title}</p>
+                        <p className="client-360-canonical__insight-title min-w-0 break-words text-[11px] font-semibold leading-tight text-content">{insight.title}</p>
                       )}
-                      <p className="mt-0.5 line-clamp-2 text-[9px] leading-tight text-content-secondary">{insight.detail}</p>
+                      <p className="client-360-canonical__insight-detail mt-0.5 line-clamp-2 min-w-0 break-words text-[9px] leading-tight text-content-secondary">{insight.detail}</p>
                     </div>
                   </li>
                 ))}
@@ -657,14 +657,16 @@ function Panel({
   icon: Icon,
   href,
   children,
+  className = "",
 }: {
   title: string;
   icon: typeof FileText;
   href?: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft">
+    <section className={`min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft ${className}`}>
       <header className="mb-4 flex items-center justify-between gap-3">
         <h2 className="inline-flex items-center gap-2 font-semibold text-content">
           <Icon size={17} aria-hidden="true" />

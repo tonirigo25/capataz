@@ -4339,6 +4339,15 @@ button:disabled,
   height: 27px;
   border-radius: 7px;
 }
+.client-360-canonical__insights {
+  overflow: hidden;
+}
+.client-360-canonical__insights,
+.client-360-canonical__insights-list,
+.client-360-canonical__insights-list > li,
+.client-360-canonical__insights-list > li > div {
+  min-width: 0;
+}
 .client-360-canonical__primary > section p,
 .client-360-canonical__primary > section dt,
 .client-360-canonical__primary > section dd { font-size: 10px; line-height: 1.45; }
@@ -4823,6 +4832,17 @@ button:disabled,
   }
   .client-360-canonical > div:first-child { padding-right: 14px; }
   .client-360-canonical__primary > section { height: 208px; }
+  .client-360-canonical__insights,
+  .client-360-canonical__insights-list {
+    overflow: hidden;
+  }
+  .client-360-canonical__insight-title,
+  .client-360-canonical__insight-detail {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .client-360-canonical > [data-client-360-rail] {
     display: block;
     align-self: stretch;

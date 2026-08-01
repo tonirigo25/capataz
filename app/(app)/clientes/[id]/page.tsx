@@ -376,9 +376,6 @@ export default async function ClientDetailPage({
           />
         }
       >
-        {activeTab === "resumen" ? (
-          <DataTab summary={summary} returnTo={returnTo} />
-        ) : null}
         {activeTab === "obras" ? (
           <div className="grid gap-4">
             <EntityWorkflowSummary clientId={client.id} />
@@ -1571,66 +1568,6 @@ function NotesTab({
   );
 }
 
-function DataTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  const client = summary.client;
-  return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <SectionList
-        title="Datos fiscales"
-        emptyTitle="Sin datos fiscales."
-        emptyAction={
-          <Link
-            href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            className="secondary-button"
-          >
-            Completar datos
-          </Link>
-        }
-      >
-        <DataGrid
-          rows={[
-            ["Nombre visible", client.nombre],
-            ["Nombre comercial", client.nombreComercial],
-            ["Razón social", client.razonSocial],
-            ["NIF/CIF", client.nifCif],
-            ["Dirección fiscal", client.direccionFiscal],
-            ["Código postal", client.codigoPostal],
-            ["Municipio", client.municipio],
-            ["Provincia", client.provincia],
-            ["País", client.pais],
-            ["Email de facturación", client.emailFacturacion],
-            ["Teléfono de facturación", client.telefonoFacturacion],
-            ["Persona de facturación", client.contactoFacturacionNombre],
-          ]}
-        />
-      </SectionList>
-
-      <SectionList
-        title="Datos pendientes"
-        emptyTitle="No hay datos pendientes."
-      >
-        <div className="grid gap-2">
-          {summary.listItem.pendingFields.map((field) => (
-            <div
-              key={field}
-              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900"
-            >
-              <Bell size={17} />
-              {field}
-            </div>
-          ))}
-        </div>
-      </SectionList>
-    </div>
-  );
-}
-
 function WorkCard({
   work,
   returnTo,
@@ -1915,24 +1852,6 @@ function CompactRow({
     </Link>
   ) : (
     content
-  );
-}
-
-function DataGrid({ rows }: { rows: Array<[string, string | null]> }) {
-  return (
-    <dl className="grid gap-2">
-      {rows.map(([label, value]) => (
-        <div
-          key={label}
-          className="grid gap-1 rounded-lg border border-slate-100 bg-white p-3 sm:grid-cols-[12rem_1fr]"
-        >
-          <dt className="text-xs font-bold uppercase text-slate-500">
-            {label}
-          </dt>
-          <dd className="font-bold text-obra-ink">{value || "Pendiente"}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

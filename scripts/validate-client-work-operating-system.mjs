@@ -55,6 +55,18 @@ check("Cliente 360 elimina la columna global vacía desde tablet horizontal", st
 check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
+check(
+  "Resumen de Cliente 360 no añade los bloques fiscales pendientes ajenos a la referencia",
+  !client.includes('activeTab === "resumen" ? (\n          <DataTab'),
+);
+check(
+  "Insights clave contiene texto largo sin desbordar su tarjeta",
+  clientCanonical.includes('className="client-360-canonical__insights"') &&
+    clientCanonical.includes("client-360-canonical__insight-title") &&
+    clientCanonical.includes("client-360-canonical__insight-detail") &&
+    styles.includes(".client-360-canonical__insights-list > li > div") &&
+    styles.includes("text-overflow: ellipsis;"),
+);
 check("cliente conserva mapa heredado explícito", ["obras", "archivos", "dinero", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "notas"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
 check("listado de clientes prioriza próxima acción", clients.includes("toWorkspaceItem") && clients.includes("nextAction") && clients.includes("activeWorksCount") && clients.includes("pendingTotal"));
 check("listado ofrece seis vistas inteligentes, búsqueda y filtros en sheet", ["Todos", "Seguimiento", "Presupuesto abierto", "Trabajo activo", "Cobro pendiente", "En riesgo"].every((label) => clientFilters.includes(label)) && clientFilters.includes("<FilterSheet") && clientFilters.includes('type="search"'));
