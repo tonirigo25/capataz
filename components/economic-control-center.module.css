@@ -1057,7 +1057,7 @@ a.kpi:hover {
   .panelHeader { min-height: 58px; }
   .panelAction a { min-height: 44px; }
   .inlineTabs { min-height: 44px; }
-  .inlineTabs a { min-height: 44px; }
+  .inlineTabs a { min-height: 44px; padding-inline: 4px; }
   .billingStatus > a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .previewTable > a { min-height: 44px; }
   .upcomingList > a { min-height: 44px; }
