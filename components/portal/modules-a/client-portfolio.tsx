@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
@@ -153,17 +154,147 @@ function ClientTableRow({
 }
 
 function ClientRowActions({ client, canUpdate }: { client: ClientWorkspaceItem; canUpdate: boolean }) {
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number; placement: "top" | "bottom" } | null>(null);
+  const menuItems = [
+    { href: `/clientes/${client.id}`, label: "Abrir Cliente 360" },
+    ...(canUpdate ? [{ href: `/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`, label: "Editar cliente" }] : []),
+    ...(client.email ? [{ href: `mailto:${client.email}`, label: "Enviar mensaje" }] : []),
+    ...(client.phone ? [{ href: `tel:${client.phone}`, label: "Llamar" }] : []),
+  ];
+
+  const closeMenu = useCallback((restoreFocus = false) => {
+    setOpen(false);
+    setPosition(null);
+    if (restoreFocus) triggerRef.current?.focus();
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    setPosition(resolveClientMenuPosition(
+      trigger.getBoundingClientRect(),
+      menuRef.current?.offsetWidth ?? 196,
+      menuRef.current?.offsetHeight ?? menuItems.length * 44 + 12,
+    ));
+  }, [menuItems.length]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+    const frame = window.requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLAnchorElement>('[role="menuitem"]')?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, updatePosition]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) closeMenu();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMenu(true);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [closeMenu, open, updatePosition]);
+
+  function openMenu(trigger: HTMLButtonElement) {
+    setPosition(resolveClientMenuPosition(trigger.getBoundingClientRect(), 196, menuItems.length * 44 + 12));
+    setOpen(true);
+  }
+
+  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]') ?? []);
+    if (!items.length) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLAnchorElement);
+    const target = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : event.key === "ArrowDown"
+          ? (current + 1 + items.length) % items.length
+          : (current - 1 + items.length) % items.length;
+    items[target]?.focus();
+  }
+
   return (
-    <details className="clients-row-actions">
-      <summary aria-label={`Acciones de ${client.displayName}`}><Ellipsis size={17} aria-hidden="true" /></summary>
-      <nav aria-label={`Menú de ${client.displayName}`}>
-        <Link href={`/clientes/${client.id}`}>Abrir Cliente 360</Link>
-        {canUpdate ? <Link href={`/gestion?tipo=cliente&id=${client.id}&returnTo=/clientes`}>Editar cliente</Link> : null}
-        {client.email ? <Link href={`mailto:${client.email}`}>Enviar mensaje</Link> : null}
-        {client.phone ? <Link href={`tel:${client.phone}`}>Llamar</Link> : null}
-      </nav>
-    </details>
+    <div className="clients-row-actions">
+      <button
+        ref={triggerRef}
+        type="button"
+        className="clients-row-actions__trigger"
+        aria-label={`Acciones de ${client.displayName}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={(event) => open ? closeMenu() : openMenu(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            openMenu(event.currentTarget);
+          }
+        }}
+      >
+        <Ellipsis size={18} aria-hidden="true" />
+      </button>
+      {open && position && typeof document !== "undefined" ? createPortal(
+        <nav
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          aria-label={`Menú de ${client.displayName}`}
+          className="clients-row-actions__menu"
+          data-placement={position.placement}
+          data-client-row-menu
+          style={{ top: position.top, left: position.left }}
+          onKeyDown={handleMenuKeyDown}
+        >
+          {menuItems.map((item) => (
+            <Link key={`${item.label}-${item.href}`} href={item.href} role="menuitem" onClick={() => closeMenu()}>
+              {item.label}
+            </Link>
+          ))}
+        </nav>,
+        document.body,
+      ) : null}
+    </div>
   );
+}
+
+function resolveClientMenuPosition(
+  trigger: Pick<DOMRect, "top" | "right" | "bottom">,
+  menuWidth: number,
+  menuHeight: number,
+) {
+  const gutter = 8;
+  const placement = window.innerHeight - trigger.bottom >= menuHeight + gutter ? "bottom" : "top";
+  const top = placement === "bottom"
+    ? trigger.bottom + 6
+    : Math.max(gutter, trigger.top - menuHeight - 6);
+  const left = Math.min(
+    Math.max(gutter, trigger.right - menuWidth),
+    Math.max(gutter, window.innerWidth - menuWidth - gutter),
+  );
+  return { top, left, placement } as const;
 }
 
 function ClientPreview({

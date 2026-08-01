@@ -9,6 +9,7 @@ const styles = read("app/globals.css");
 const clients = read("app/(app)/clientes/page.tsx");
 const clientFilters = read("components/clients/client-filter-bar.tsx");
 const clientSplit = read("components/clients/client-split-view.tsx");
+const clientPortfolio = read("components/portal/modules-a/client-portfolio.tsx");
 const contextDrawer = read("components/context-drawer.tsx");
 const work = read("app/(app)/obras/[id]/page.tsx");
 const works = read("app/(app)/obras/page.tsx");
@@ -56,6 +57,9 @@ check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !
 check("cliente conserva mapa heredado explícito", ["obras", "archivos", "dinero", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "notas"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
 check("listado de clientes prioriza próxima acción", clients.includes("toWorkspaceItem") && clients.includes("nextAction") && clients.includes("activeWorksCount") && clients.includes("pendingTotal"));
 check("listado ofrece seis vistas inteligentes, búsqueda y filtros en sheet", ["Todos", "Seguimiento", "Presupuesto abierto", "Trabajo activo", "Cobro pendiente", "En riesgo"].every((label) => clientFilters.includes(label)) && clientFilters.includes("<FilterSheet") && clientFilters.includes('type="search"'));
+check("rail de vista de cliente nace bajo la barra superior y ocupa la altura útil", styles.includes(".clients-page-content,") && styles.includes(".clients-workspace {\n    display: contents;") && styles.includes("min-height: calc(100dvh - var(--fos-layout-topbar));") && styles.includes("grid-row: 1 / span 2;") && styles.includes("align-self: stretch;"));
+check("acciones de cliente escapan del recorte y mantienen acceso por teclado", clientPortfolio.includes("createPortal") && clientPortfolio.includes('aria-haspopup="menu"') && clientPortfolio.includes('event.key === "Escape"') && clientPortfolio.includes("resolveClientMenuPosition") && styles.includes(".clients-row-actions__menu") && styles.includes("z-index: 90"));
+check("acciones de cliente tienen objetivo táctil mínimo de 44px", styles.includes(".clients-row-actions__trigger") && styles.includes("width: 44px;") && styles.includes("height: 44px;"));
 check("desktop usa split 420-480 y móvil evita tabla", clientSplit.includes("data-client-list-split") && clientSplit.includes("data-client-mobile-cards") && !clientSplit.includes("<table"));
 check("preview cambia por click y foco sin perder deep link", clientSplit.includes("onClick={onSelect}") && clientSplit.includes("onFocusCapture={onSelect}") && clientSplit.includes("Abrir ficha completa"));
 check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('event.key === "Escape"') && contextDrawer.includes("opener.current?.focus()") && contextDrawer.includes('aria-modal="true"'));
