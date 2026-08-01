@@ -336,6 +336,55 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
   return <div><strong className="block text-lg text-content">{value}</strong><span className="type-meta mt-1 block">{label}</span></div>;
 }
 
+function DesktopWorkDetail({ item, onClose }: { item: WorkPortfolioItem; onClose?: () => void }) {
+  const progress = normalizedProgress(item.progressPercent);
+  const timeline = item.timeline?.slice(0, 5) ?? [];
+  const team = item.team?.slice(0, 3) ?? [];
+  const hasFinancialData = item.budget != null || item.cost != null || item.margin != null;
+
+  return <div className="p-4">
+    <header className="flex min-h-[4.5rem] items-start justify-between gap-3 border-b border-border pb-3">
+      <div className="min-w-0"><p className="type-meta">{valueOr(item.code, "Sin código registrado")}</p><h2 className="mt-1 text-lg font-bold leading-tight text-content">{item.title}</h2><p className="type-meta mt-1 truncate">{item.client} · {item.workType ?? "Sin tipo registrado"}</p></div>
+      <div className="flex shrink-0 items-center gap-2"><span className={`inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${item.statusClassName}`}>{item.status}</span>{onClose ? <button type="button" onClick={onClose} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border text-content transition hover:bg-subtle focus-visible:ring-2 focus-visible:ring-brand" aria-label="Cerrar detalle"><X size={18} aria-hidden="true" /></button> : null}</div>
+    </header>
+
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <CompactDetail title="Etapa actual" icon={ClipboardCheck}>
+        <strong className="block text-xs text-content">{valueOr(item.progressLabel, "Sin etapa registrada")}</strong>
+        {progress == null ? <span className="type-meta mt-1 block">Sin avance registrado</span> : <><span className="type-meta mt-1 block">{progress}% registrado</span><progress className="mt-1 h-1.5 w-full accent-brand" max={100} value={progress}>{progress}%</progress></>}
+      </CompactDetail>
+      <CompactDetail title="Próximo hito" icon={CalendarClock}>
+        <strong className="block text-xs text-content">{item.visit ? valueOr(item.visit.label, "Visita registrada") : valueOr(item.nextAction, "Sin siguiente acción")}</strong>
+        <span className="type-meta mt-1 block">{item.visit ? valueOr(item.visit.date, "Sin fecha registrada") : valueOr(item.nextDate, "Sin fecha registrada")}</span>
+      </CompactDetail>
+
+      <CompactDetail title="Línea de tiempo" icon={CheckCircle2} className="row-span-2">
+        {timeline.length ? <ol className="grid gap-2">{timeline.map((entry, index) => <li key={`${entry.label}-${index}`} className="grid grid-cols-[12px_minmax(0,1fr)] gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-brand" aria-hidden="true" /><span className="min-w-0"><strong className="block truncate text-[10px] text-content">{entry.label}</strong><small className="block truncate text-[9px] text-content-secondary">{entry.date ?? "Sin fecha"}{entry.status ? ` · ${entry.status}` : ""}</small></span></li>)}</ol> : <p className="type-meta">Sin hitos registrados.</p>}
+      </CompactDetail>
+      <CompactDetail title="Incidencias abiertas" icon={FileWarning}>
+        {hasIncidentData(item) ? <><strong className={item.risk ? "text-xs text-danger" : "text-xs text-content"}>{incidentSummary(item)}</strong>{item.incidentLabels?.length ? <ul className="mt-1 grid gap-1 text-[9px] text-content-secondary">{item.incidentLabels.slice(0, 2).map((label) => <li key={label} className="truncate">{label}</li>)}</ul> : null}</> : <p className="type-meta">Sin incidencias registradas.</p>}
+      </CompactDetail>
+      <CompactDetail title="Presupuesto vs Real" icon={CircleDollarSign}>
+        {hasFinancialData ? <dl className="grid gap-1 text-[10px]"><CompactAmount label="Presupuesto" value={item.budget} /><CompactAmount label="Real" value={item.cost} /><CompactAmount label="Margen" value={item.margin} danger={item.marginRisk} /></dl> : <p className="type-meta">Datos económicos restringidos.</p>}
+      </CompactDetail>
+      <CompactDetail title="Equipo asignado" icon={UsersRound}>
+        {team.length ? <ul className="grid gap-1">{team.map((member) => <li key={`${member.name}-${member.role}`} className="truncate text-[10px]"><strong>{member.name}</strong><span className="text-content-secondary"> · {member.role ?? "Sin rol"}</span></li>)}</ul> : <p className="type-meta">Sin equipo registrado.</p>}
+      </CompactDetail>
+    </div>
+
+    <section className="mt-3 rounded-lg border border-border p-3" aria-label="Acciones rápidas"><h3 className="text-[10px] font-bold text-content">Acciones rápidas</h3><div className="mt-2 grid grid-cols-3 gap-2"><Link href={`/obras/${item.id}`} className="secondary-button min-h-11 px-2 text-[9px]">Ver ficha completa</Link>{item.actionHrefs?.part ? <Link href={item.actionHrefs.part} className="secondary-button min-h-11 px-2 text-center text-[9px]">Crear parte de obra</Link> : <span aria-disabled="true" className="secondary-button min-h-11 px-2 text-center text-[9px] opacity-60">Parte no disponible</span>}{item.actionHrefs?.incident ? <Link href={item.actionHrefs.incident} className="secondary-button min-h-11 px-2 text-center text-[9px]">Registrar incidencia</Link> : <span aria-disabled="true" className="secondary-button min-h-11 px-2 text-center text-[9px] opacity-60">Incidencia no disponible</span>}</div></section>
+  </div>;
+}
+
+function CompactDetail({ title, icon: Icon, className = "", children }: { title: string; icon: LucideIcon; className?: string; children: React.ReactNode }) {
+  return <section className={`min-w-0 rounded-lg border border-border p-3 ${className}`}><div className="mb-2 flex items-center gap-1.5"><Icon size={14} className="text-brand-strong" aria-hidden="true" /><h3 className="text-[10px] font-bold text-content">{title}</h3></div>{children}</section>;
+}
+
+function CompactAmount({ label, value, danger = false }: { label: string; value: string | null; danger?: boolean }) {
+  if (value == null) return null;
+  return <div className="flex justify-between gap-2"><dt className="text-content-secondary">{label}</dt><dd className={`font-semibold ${danger ? "text-danger" : "text-content"}`}>{value}</dd></div>;
+}
+
 function WorkDetail({
   item,
   compact = false,
@@ -345,6 +394,7 @@ function WorkDetail({
   compact?: boolean;
   onClose?: () => void;
 }) {
+  if (!compact) return <DesktopWorkDetail item={item} onClose={onClose} />;
   const progress = normalizedProgress(item.progressPercent);
   const hasFinancialData =
     item.budget != null ||
