@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -14,12 +15,14 @@ import {
   Camera,
   CheckCircle2,
   ClipboardList,
+  Download,
   Euro,
   FileArchive,
   FileText,
   Filter,
   GitBranch,
   ListChecks,
+  MapPin,
   Package,
   Receipt,
   Settings,
@@ -38,9 +41,7 @@ import { EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/comp
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
-import { OperationalContextSummary } from "@/components/operational-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getWorkOperationalContext } from "@/lib/operational-intelligence/queries";
 import { prisma } from "@/lib/prisma";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import { statusClass, statusLabel } from "@/lib/status";
@@ -54,7 +55,6 @@ import {
   calculateWorkFinancials,
   getWorkNextAction,
   invoicePaid,
-  workPriorityMeta,
   workStatusMeta
 } from "@/lib/works";
 
@@ -81,10 +81,10 @@ const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
 
 const workSubviews: Record<(typeof tabs)[number][0], readonly [string, string][]> = {
   resumen: [["general", "Resumen"]],
-  planificacion: [["gantt", "Gantt"], ["dependencias", "Dependencias"], ["hitos", "Hitos"], ["recursos", "Recursos"], ["linea-base", "Línea base"], ["escenarios", "Escenarios"]],
-  partes: [["resumen", "Resumen"], ["diarios", "Partes diarios"], ["actividades", "Todas las actividades"], ["semanales", "Partes semanales"], ["mensuales", "Partes mensuales"], ["reportes", "Reportes"], ["analisis", "Análisis"]],
-  costes: [["resumen", "Resumen"], ["estructura", "Estructura completa"], ["proveedores", "Proveedores"], ["mano-obra", "Mano de obra"], ["materiales", "Materiales"], ["subcontratas", "Subcontratas"], ["ordenes", "Órdenes"], ["comparativa", "Comparativa"], ["analisis", "Análisis"], ["informes", "Informes"]],
-  documentos: [["documentos", "Documentos"], ["galeria", "Galería y portada"], ["planos", "Planos"], ["certificados", "Certificados"], ["informes", "Informes"], ["otros", "Otros"]],
+  planificacion: [["resumen", "Resumen y cronograma"], ["gantt", "Gantt"], ["calendario", "Calendario"], ["hitos", "Hitos"], ["dependencias", "Dependencias"], ["ruta-critica", "Ruta crítica"], ["carga-trabajo", "Carga de trabajo"], ["recursos", "Recursos"], ["linea-base", "Línea base"], ["escenarios", "Escenarios"]],
+  partes: [["resumen", "Resumen"], ["diarios", "Partes diarios"], ["actividades", "Todas las actividades"], ["nuevo", "Nuevo parte"], ["semanales", "Partes semanales"], ["mensuales", "Partes mensuales"], ["reportes", "Reportes"], ["analisis", "Análisis"]],
+  costes: [["resumen", "Resumen"], ["estructura", "Estructura completa"], ["analisis", "Análisis"], ["incidencias", "Incidencias"], ["ranking", "Ranking"], ["proveedores", "Proveedores"], ["mano-obra", "Mano de obra"], ["materiales", "Materiales"], ["subcontratas", "Subcontratas"], ["ordenes", "Órdenes"], ["comparativa", "Comparativa"], ["informes", "Informes"]],
+  documentos: [["documentos", "Documentos"], ["subir", "Subir"], ["galeria", "Galería y portada"], ["planos", "Planos"], ["certificados", "Certificados"], ["informes", "Informes"], ["otros", "Otros"]],
   equipo: [["equipo", "Equipo"], ["carga", "Carga"], ["turnos", "Turnos"], ["subcontratas", "Subcontratas"], ["formacion", "Formación"], ["permisos", "Permisos"]],
   facturacion: [["resumen", "Resumen"], ["certificaciones", "Certificaciones"], ["facturas", "Facturas emitidas"], ["hitos", "Hitos facturados"], ["retenciones", "Retenciones"], ["cobros", "Cobros pendientes"], ["vencimientos", "Calendario de vencimientos"], ["historico", "Histórico"]],
   incidencias: [["todas", "Todas"]],
@@ -111,12 +111,14 @@ const workTaskInclude = {
 } satisfies Prisma.TaskInclude;
 type WorkTask = Prisma.TaskGetPayload<{ include: typeof workTaskInclude }>;
 
+export type WorkDetailQuery = { vista?: string; tab?: string; modo?: string; subvista?: string; detalle?: string };
+
 export default async function WorkDetailPage({
   params,
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ vista?: string; tab?: string; modo?: string; subvista?: string }>;
+  searchParams: Promise<WorkDetailQuery>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requireCapability("work.view");
@@ -146,13 +148,12 @@ export default async function WorkDetailPage({
   }
   const [taskAccess, taskManageAccess] = await Promise.all([resolveAuthorization(auth, "tasks.view"), resolveAuthorization(auth, "tasks.manage")]);
   const scopedTaskIds = taskAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.view") : [];
-  const [work, treasury, operationalContext, workTasks] = await Promise.all([
+  const [work, treasury, workTasks] = await Promise.all([
     prisma.work.findFirst({
       where: { id, companyId: auth.companyId },
       include: workDetailInclude
     }),
     getEconomicControl({ workId: id, period: "30d" }),
-    getWorkOperationalContext(id),
     taskAccess.allowed ? prisma.task.findMany({
       where: { companyId: auth.companyId, workId: id, archivedAt: null, ...(scopedTaskIds === null ? {} : { id: { in: scopedTaskIds } }) },
       include: workTaskInclude,
@@ -171,36 +172,16 @@ export default async function WorkDetailPage({
   const timeline = buildWorkTimeline(work);
   const documents = buildWorkDocuments(work);
   const nextAction = getWorkNextAction(work);
-  const status = workStatusMeta(work.estado);
-  const priority = workPriorityMeta(work.prioridad);
   const pendingMaterials = work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado));
   const openInvoices = work.invoices.filter((invoice) => Math.max(0, invoice.total - invoicePaid(invoice)) > 0);
 
   return (
     <RecordWorkspace>
-      <EntityHeader
-        back={<ParentNavigation href="/obras" label="Obras" context={work.client.nombre} />}
-        context={work.codigo ?? work.numeroInterno ?? "Espacio de trabajo"}
-        title={work.titulo}
-        description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`}
-        status={<StatusBadge status={work.estado} />}
-        action={<Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=partes`)}`} className="primary-button"><Camera size={18} /> Registrar avance</Link>}
-        menu={<WorkActions workId={work.id} clientId={work.clienteId} />}
-      />
+      <WorkOverviewHeader work={work} />
 
-      <section className="work-360-summary grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Estado real, coste y margen del trabajo">
-        <Kpi icon={Activity} label="Estado real" value={status.label} detail="Sin porcentaje físico inventado" />
-        <Kpi icon={Camera} label="Evidencia" value={String(work.photos.length)} detail={work.photos[0] ? `Última ${formatDate(work.photos[0].tomadaEn)}` : "Sin fotos registradas"} />
-        <Kpi icon={ClipboardList} label="Coste previsto" value={formatCurrency(financial.forecastCost)} detail="Dato registrado" />
-        <Kpi icon={WalletCards} label="Coste real" value={formatCurrency(financial.realCost)} detail={`${work.expenses.length} gastos vinculados`} tone={financial.deviation > 0 ? "warning" : "neutral"} />
-        <Kpi icon={BadgeEuro} label="Margen autorizado" value={`${financial.marginPercent.toFixed(1)} %`} detail={formatCurrency(financial.benefit)} tone={financial.benefit < 0 ? "danger" : "success"} />
-      </section>
-
-      <OperationalContextSummary context={operationalContext} entityType="obra" entityId={work.id} />
-
-      <Tabs label="Secciones de la obra" className="my-5">
+      <Tabs label="Secciones de la obra" className="mb-4 mt-2">
         {tabs.map(([id, label, Icon]) => (
-          <Link key={id} href={`/obras/${work.id}?vista=${id}`} aria-current={activeTab === id ? "page" : undefined}>
+          <Link key={id} href={workViewHref(work.id, id)} aria-current={activeTab === id ? "page" : undefined}>
             <Icon size={16} />
             {label}
           </Link>
@@ -211,46 +192,7 @@ export default async function WorkDetailPage({
 
       <div id="work-360-content">
       {activeTab === "resumen" && query.modo !== "configuracion" ? (
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <section className="grid gap-4">
-            <Section title="Próxima acción">
-              <Notice tone={nextAction.tone === "danger" ? "danger" : nextAction.tone === "warning" ? "warning" : "info"} description={nextAction.label} />
-            </Section>
-            <Section title="Riesgos">
-              {risks.length ? (
-                <div className="grid gap-3">
-                  {risks.map((risk) => <Risk key={risk.key} risk={risk} />)}
-                </div>
-              ) : (
-                <OperationalSetupPanel title="Control preventivo al día" description="Los datos actuales no activan alertas de margen, cobro, materiales o fechas vencidas." count={0} countLabel="alertas calculadas" icon={ShieldCheck} items={["Margen y costes revisados con datos autorizados.", "Vencimientos y materiales permanecen monitorizados.", "Orqena IA sólo propondrá acciones con confirmación humana."]} />
-              )}
-            </Section>
-          </section>
-          <aside className="grid gap-4">
-            <Section title="Estado operativo">
-              <InfoGrid rows={[
-                ["Estado", status.label],
-                ["Prioridad", priority.label],
-                ["Responsable", work.responsable ?? "Sin asignar"],
-                ["Comercial", work.comercial ?? "Sin asignar"],
-                ["Jefe de obra", work.jefeObra ?? "Sin asignar"],
-                ["Inicio previsto", formatDate(work.fechaInicioPrevista ?? work.fechaInicio)],
-                ["Inicio real", formatDate(work.fechaInicioReal)],
-                ["Fin previsto", formatDate(work.fechaFinPrevista)],
-                ["Fin real", formatDate(work.fechaFinReal)]
-              ]} />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <WorkStatusButton id={work.id} estado="en_curso" label="Iniciar" />
-                <WorkStatusButton id={work.id} estado="pendiente_material" label="Bloquear por material" />
-                <WorkStatusButton id={work.id} estado="finalizada" label="Finalizar" />
-                <WorkStatusButton id={work.id} estado="archivada" label="Archivar" />
-              </div>
-            </Section>
-            <Section title="Actividad reciente">
-              <TimelineList items={timeline.slice(0, 5)} />
-            </Section>
-          </aside>
-        </div>
+        <WorkOverviewDashboard work={work} tasks={workTasks} financial={financial} timeline={timeline} risks={risks} nextAction={nextAction} />
       ) : null}
 
       {activeTab === "resumen" && query.modo !== "configuracion" ? <div className="mt-4 grid gap-4"><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /></div> : null}
@@ -304,17 +246,140 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
             {label}
           </Link>
         ))}
+        <div className="mt-1 grid gap-1 border-t border-border pt-2" aria-label="Cambiar estado del trabajo">
+          <WorkStatusButton id={workId} estado="en_curso" label="Marcar en curso" />
+          <WorkStatusButton id={workId} estado="pendiente_material" label="Bloquear por material" />
+          <WorkStatusButton id={workId} estado="finalizada" label="Marcar finalizada" />
+          <WorkStatusButton id={workId} estado="archivada" label="Archivar" />
+        </div>
       </div>
     </details>
   );
 }
 
+function WorkOverviewHeader({ work }: { work: WorkDetail }) {
+  const returnTo = encodeURIComponent(`/obras/${work.id}`);
+  return (
+    <header className="border-b border-border pb-3">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[clamp(1.55rem,2.4vw,2rem)] font-black leading-tight tracking-[-0.035em] text-content">Obra · {work.tipoTrabajo} · {work.titulo}</h1>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-content-secondary">
+            <WorkHeaderMeta icon={UserRound} label="Cliente" value={work.client.nombre} />
+            <WorkHeaderMeta icon={ClipboardList} label="Código" value={work.codigo ?? work.numeroInterno ?? "No registrado"} />
+            <WorkHeaderMeta icon={MapPin} label="Dirección" value={work.direccion || "No registrada"} />
+            <WorkHeaderMeta icon={CalendarClock} label="Inicio" value={formatDate(work.fechaInicioReal ?? work.fechaInicioPrevista ?? work.fechaInicio)} />
+            <WorkHeaderMeta icon={CalendarClock} label="Fin estimado" value={formatDate(work.fechaFinPrevista)} />
+            <WorkHeaderMeta icon={UserRound} label="Responsable" value={work.jefeObra ?? work.responsable ?? "Sin asignar"} />
+            <WorkHeaderMeta icon={Activity} label="Estado actual" value={workStatusMeta(work.estado).label} />
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link href="/inteligencia/export?tipo=works" className="secondary-button"><Download size={16} aria-hidden="true" /> Exportar informe</Link>
+          <WorkActions workId={work.id} clientId={work.clienteId} />
+          <Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${returnTo}`} className="primary-button"><Camera size={17} aria-hidden="true" /> Registrar avance</Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function WorkHeaderMeta({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return <span className="inline-flex min-w-0 items-center gap-1.5"><Icon size={13} className="shrink-0 text-content-secondary" aria-hidden="true" /><span><strong className="font-semibold text-content-secondary">{label}:</strong> {value}</span></span>;
+}
+
+function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAction }: { work: WorkDetail; tasks: WorkTask[]; financial: ReturnType<typeof calculateWorkFinancials>; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; risks: ReturnType<typeof buildWorkRisks>; nextAction: ReturnType<typeof getWorkNextAction> }) {
+  const completedTasks = tasks.filter((task) => task.status === "completed");
+  const activeTasks = tasks.filter((task) => !["completed", "cancelled", "archived"].includes(task.status));
+  const upcomingTasks = activeTasks.filter((task) => task.dueAt).slice(0, 5);
+  const pendingApprovals = activeTasks.filter((task) => task.requiresConfirmation).slice(0, 4);
+  const safePhoto = work.photos.find((photo): photo is typeof photo & { url: string } => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")));
+  const costRatio = financial.budgeted > 0 ? Math.max(0, Math.min(100, (financial.realCost / financial.budgeted) * 100)) : null;
+  const taskRatio = tasks.length ? Math.round((completedTasks.length / tasks.length) * 100) : null;
+  return (
+    <div className="grid gap-3">
+      <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-label="Estado y control económico de la obra">
+        <WorkOverviewMetricCard label="Estado de la obra" value={workStatusMeta(work.estado).label} detail={taskRatio == null ? "Sin porcentaje físico inventado" : `${completedTasks.length} de ${tasks.length} tareas completadas`} tone="info" progress={taskRatio} />
+        <WorkOverviewMetricCard label="Presupuesto total" value={formatCurrency(financial.budgeted)} detail={`${work.budgets.length} presupuestos vinculados`} />
+        <WorkOverviewMetricCard label="Coste acumulado" value={formatCurrency(financial.realCost)} detail={costRatio == null ? "Sin base presupuestaria" : `${costRatio.toFixed(1)}% del presupuesto`} />
+        <WorkOverviewMetricCard label="Margen autorizado" value={`${financial.marginPercent.toFixed(1)}%`} detail={formatCurrency(financial.benefit)} tone={financial.marginPercent < 15 ? "warning" : "success"} />
+        <WorkOverviewMetricCard label="Cobrado / Pendiente" value={formatCurrency(financial.paid)} detail={`Pendiente ${formatCurrency(financial.pending)}`} tone={financial.pending > 0 ? "warning" : "success"} />
+      </section>
+
+      <section className="grid gap-3 xl:grid-cols-[1.25fr_.9fr_.95fr]">
+        <OverviewPanel title="Progreso operativo" action={<Link href={workViewHref(work.id, "planificacion", "gantt")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver planificación completa</Link>}>
+          {tasks.length ? <div className="overflow-x-auto"><table className="w-full min-w-[34rem] border-collapse text-[10px]"><thead><tr className="border-b border-border text-left text-content-secondary"><th className="pb-2 font-semibold">Tarea</th><th className="pb-2 font-semibold">Estado</th><th className="pb-2 font-semibold">Avance verificado</th><th className="pb-2 font-semibold">Inicio</th><th className="pb-2 font-semibold">Fin estimado</th></tr></thead><tbody className="divide-y divide-border">{tasks.slice(0, 6).map((task) => <WorkOverviewTaskRow key={task.id} task={task} />)}</tbody></table></div> : <OperationalSetupPanel title="Planificación preparada" description="Añade tareas con fechas, responsables y checklist para activar el seguimiento operativo." count={0} countLabel="tareas vinculadas" icon={ListChecks} items={["La obra conserva su estado real.", "El avance se calcula sólo desde checklist confirmado.", "Las dependencias no se presuponen."]} action={<Link href={`/tareas?nuevo=1&workId=${work.id}&clientId=${work.clienteId}`} className="primary-button">Nueva tarea</Link>} compact />}
+        </OverviewPanel>
+        <OverviewPanel title="Próximos hitos y tareas" action={<Link href={workViewHref(work.id, "planificacion", "hitos")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver hitos</Link>}>
+          {upcomingTasks.length ? <div className="divide-y divide-border">{upcomingTasks.map((task) => <Link key={task.id} href={`/tareas/${task.id}`} className="grid grid-cols-[5.3rem_minmax(0,1fr)] gap-2 py-2 text-[10px] hover:bg-subtle"><span className="font-semibold text-content">{formatDate(task.dueAt)}</span><span className="min-w-0"><strong className="block truncate text-content">{task.title}</strong><span className="mt-0.5 block truncate text-content-secondary">{statusLabel(task.status)}{task.assignments.length ? ` · ${task.assignments.length} responsables` : " · Sin responsable asignado"}</span></span></Link>)}</div> : <OperationalSetupPanel title="Agenda técnica preparada" description="Las tareas con vencimiento aparecerán aquí por fecha registrada." count={0} countLabel="vencimientos próximos" icon={CalendarClock} items={["No se inventan hitos contractuales.", "Cada fecha conserva su tarea de origen.", "Los cambios requieren confirmación."]} compact />}
+        </OverviewPanel>
+        <OverviewPanel title="Foto destacada de la obra" action={<Link href={workViewHref(work.id, "documentos", "galeria")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver galería completa</Link>}>
+          {safePhoto ? <div><Image src={safePhoto.url} alt={safePhoto.titulo || `Evidencia de ${work.titulo}`} width={960} height={540} unoptimized className="aspect-[16/10] w-full rounded-lg border border-border object-cover" /><p className="mt-2 text-[9px] text-content-secondary">{safePhoto.titulo} · {formatDate(safePhoto.tomadaEn)}</p></div> : <OperationalSetupPanel title="Evidencia visual preparada" description="Registra una fotografía segura para mostrar la portada real de esta obra." count={work.photos.length} countLabel="registros fotográficos" icon={Camera} items={["Sólo se renderizan URLs seguras.", "La fecha y autor se conservan.", "La galería permanece aislada por empresa."]} action={<Link href={`/gestion?tipo=foto&obraId=${work.id}`} className="primary-button">Registrar foto</Link>} compact />}
+        </OverviewPanel>
+      </section>
+
+      <section className="grid gap-3 xl:grid-cols-[1.05fr_.95fr_.95fr]">
+        <OverviewPanel title="Rentabilidad y evolución" action={<Link href={workViewHref(work.id, "costes", "analisis")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver análisis detallado</Link>}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><OverviewMiniMetric label="Coste acumulado" value={formatCurrency(financial.realCost)} /><OverviewMiniMetric label="Presupuesto" value={formatCurrency(financial.budgeted)} /><OverviewMiniMetric label="Previsto" value={formatCurrency(financial.forecastCost)} /><OverviewMiniMetric label="Margen" value={`${financial.marginPercent.toFixed(1)}%`} tone={financial.marginPercent < 15 ? "danger" : "success"} /></div>
+          <div className="mt-4 rounded-lg border border-border bg-subtle p-3"><div className="flex items-center justify-between text-[10px]"><span className="font-semibold text-content">Coste consumido sobre presupuesto</span><strong className="text-content">{costRatio == null ? "Sin base" : `${costRatio.toFixed(1)}%`}</strong></div>{costRatio == null ? <p className="mt-2 text-[10px] text-content-secondary">Registra un presupuesto para activar la comparativa.</p> : <progress className="mt-3 h-2 w-full accent-brand" max={100} value={costRatio}>{costRatio.toFixed(1)}%</progress>}<p className="mt-2 text-[9px] text-content-secondary">{work.expenses.length} gastos reales · última actualización desde registros persistidos</p></div>
+        </OverviewPanel>
+        <OverviewPanel title="Actividad reciente" action={<Link href={workViewHref(work.id, "partes", "actividades")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver toda la actividad</Link>}>
+          {timeline.length ? <div className="divide-y divide-border">{timeline.slice(0, 5).map((item) => <article key={item.key} className="grid grid-cols-[1.65rem_minmax(0,1fr)] gap-2 py-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-strong"><Activity size={12} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate text-[10px] text-content">{item.title}</strong><span className="mt-0.5 block truncate text-[9px] text-content-secondary">{item.detail}</span><span className="mt-0.5 block text-[8px] text-content-tertiary">{formatDate(item.date)}</span></span></article>)}</div> : <OperationalSetupPanel title="Actividad preparada" description="Presupuestos, costes, documentos, fotos y tareas aparecerán cronológicamente." count={0} countLabel="eventos trazables" icon={Activity} items={["Cada evento conserva fuente y fecha.", "No se simula actividad inexistente.", "La lectura permanece disponible."]} compact />}
+        </OverviewPanel>
+        <OverviewPanel title="Aprobaciones pendientes" action={<Link href="/tareas?filtro=confirmacion" className="text-[10px] font-bold text-brand-strong hover:underline">Ver todas</Link>}>
+          {pendingApprovals.length ? <div className="divide-y divide-border">{pendingApprovals.map((task) => <Link key={task.id} href={`/tareas/${task.id}`} className="grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-2 py-2 text-[10px] hover:bg-subtle"><span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10 text-warning"><ClipboardList size={13} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate text-content">{task.title}</strong><span className="mt-0.5 block truncate text-content-secondary">{formatDate(task.dueAt)} · {statusLabel(task.status)}</span></span><span className="rounded-full bg-warning/10 px-2 py-1 text-[8px] font-bold text-warning">Por aprobar</span></Link>)}</div> : <div className="rounded-lg border border-success/25 bg-success/5 p-3"><div className="flex items-center gap-2 text-success"><ShieldCheck size={16} aria-hidden="true" /><strong className="text-[11px]">Sin confirmaciones pendientes</strong></div><p className="mt-2 text-[10px] leading-5 text-content-secondary">{risks.length ? `${risks.length} señales operativas siguen bajo revisión.` : "Los controles actuales no requieren una aprobación adicional."}</p></div>}
+          <div className="mt-3 rounded-lg border border-border p-3"><p className="text-[9px] font-semibold uppercase tracking-wide text-content-tertiary">Próxima acción</p><p className="mt-1 text-[10px] font-bold text-content">{nextAction.label}</p></div>
+        </OverviewPanel>
+      </section>
+    </div>
+  );
+}
+
+function WorkOverviewMetricCard({ label, value, detail, tone = "neutral", progress }: { label: string; value: string; detail: string; tone?: "neutral" | "info" | "warning" | "success"; progress?: number | null }) {
+  const valueTone = tone === "warning" ? "text-warning" : tone === "success" ? "text-success" : "text-content";
+  return <article className="min-w-0 rounded-lg border border-border bg-surface p-3"><div className="flex min-w-0 items-start justify-between gap-2"><h2 className="truncate text-[10px] font-bold text-content">{label}</h2>{tone === "info" ? <span className="rounded-full bg-brand-soft px-2 py-1 text-[8px] font-bold text-brand-strong">Registrado</span> : null}</div><p className={`mt-3 truncate text-xl font-black tabular-nums tracking-[-0.03em] ${valueTone}`}>{value}</p>{progress != null ? <progress className="mt-3 h-1.5 w-full accent-brand" max={100} value={progress}>{progress}%</progress> : null}<p className="mt-2 min-h-8 text-[9px] leading-4 text-content-secondary">{detail}</p></article>;
+}
+
+function OverviewPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return <section className="min-w-0 rounded-lg border border-border bg-surface p-3"><header className="mb-3 flex min-h-6 items-start justify-between gap-3"><h2 className="text-[11px] font-bold text-content">{title}</h2>{action}</header>{children}</section>;
+}
+
+function OverviewMiniMetric({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "success" | "danger" }) {
+  const toneClass = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-content";
+  return <div className="min-w-0"><span className="block truncate text-[8px] font-semibold uppercase tracking-wide text-content-tertiary">{label}</span><strong className={`mt-1 block truncate text-[11px] tabular-nums ${toneClass}`}>{value}</strong></div>;
+}
+
+function WorkOverviewTaskRow({ task }: { task: WorkTask }) {
+  const checklistTotal = task.checklist.length;
+  const checklistDone = task.checklist.filter((item) => item.completed).length;
+  const progress = checklistTotal ? Math.round((checklistDone / checklistTotal) * 100) : task.status === "completed" ? 100 : null;
+  return <tr><td className="max-w-52 py-2 pr-2"><Link href={`/tareas/${task.id}`} className="block truncate font-semibold text-content hover:underline">{task.title}</Link></td><td className="py-2 pr-2"><TaskStatusBadge status={task.status} /></td><td className="py-2 pr-2">{progress == null ? <span className="text-content-secondary">Sin checklist</span> : <span className="flex items-center gap-2"><progress className="h-1.5 w-16 accent-brand" max={100} value={progress}>{progress}%</progress><strong className="tabular-nums text-content">{progress}%</strong></span>}</td><td className="py-2 pr-2 text-content-secondary">{formatDate(task.startsAt)}</td><td className="py-2 text-content-secondary">{formatDate(task.dueAt)}</td></tr>;
+}
+
 function WorkSubnavigation({ workId, activeTab, activeSubview, items }: { workId: string; activeTab: string; activeSubview: string; items: readonly [string, string][] }) {
   return (
     <nav className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1" aria-label={`Vistas de ${activeTab}`}>
-      {items.map(([id, label]) => <Link key={id} href={`/obras/${workId}?vista=${activeTab}&subvista=${id}`} aria-current={activeSubview === id ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs font-semibold ${activeSubview === id ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"}`}>{label}</Link>)}
+      {items.map(([id, label]) => <Link key={id} href={workViewHref(workId, activeTab, id)} aria-current={activeSubview === id ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs font-semibold ${activeSubview === id ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"}`}>{label}</Link>)}
     </nav>
   );
+}
+
+function workViewHref(workId: string, tab: string, subview?: string) {
+  if (tab === "resumen") return `/obras/${workId}`;
+  const base = `/obras/${workId}/${tab}`;
+  if (!subview) return base;
+  const canonical: Record<string, readonly string[]> = {
+    planificacion: ["resumen", "gantt", "calendario", "hitos", "dependencias", "ruta-critica", "carga-trabajo", "recursos"],
+    partes: ["resumen", "actividades", "nuevo", "analisis"],
+    costes: ["resumen", "estructura", "analisis", "incidencias", "ranking"],
+    documentos: ["documentos", "subir", "galeria"],
+    equipo: ["equipo"],
+    facturacion: ["resumen"],
+    incidencias: ["todas"],
+  };
+  if (canonical[tab]?.includes(subview)) return ["resumen", "documentos", "equipo", "todas"].includes(subview) ? base : `${base}/${subview}`;
+  if (tab === "costes" && subview === "ordenes") return `/obras/${workId}/ordenes`;
+  return `/obras/${workId}?vista=${tab}&subvista=${subview}`;
 }
 
 function ClientTab({ work }: { work: WorkDetail }) {

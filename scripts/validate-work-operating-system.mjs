@@ -46,7 +46,7 @@ check(
   ["Resumen", "Planificación", "Partes", "Costes", "Documentos", "Equipo", "Facturación", "Incidencias"].every((label) => work.includes(`"${label}"`)) &&
     work.includes("const workSubviews") &&
     work.includes("function WorkSubnavigation") &&
-    work.includes("subvista=${id}"),
+    (work.includes("subvista=${id}") || work.includes("workViewHref(workId, activeTab, id)")),
 );
 check(
   "el listado no queda precedido por seis KPI ejecutivos",
