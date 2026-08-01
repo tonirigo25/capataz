@@ -80,16 +80,16 @@ export function OrqenaContextRail({
   useEffect(() => setMobileOpen(false), [pathname]);
   useEffect(() => {
     if (!mobileOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const frame = requestAnimationFrame(() => sheetRef.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus());
+    const frame = requestAnimationFrame(() => {
+      sheetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      sheetRef.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMobileOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       cancelAnimationFrame(frame);
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
       triggerRef.current?.focus();
     };
@@ -106,12 +106,10 @@ export function OrqenaContextRail({
       </button>
 
       {mobileOpen ? (
-        <div className="orqena-context-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileOpen(false); }}>
-          <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet" role="dialog" aria-modal="true" aria-labelledby={`${titleId}-mobile`}>
-            <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-            <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} />
-          </aside>
-        </div>
+        <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet orqena-context-sheet--inline" role="region" aria-labelledby={`${titleId}-mobile`}>
+          <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
+          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} />
+        </aside>
       ) : null}
     </>
   );

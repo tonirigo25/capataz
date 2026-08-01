@@ -932,13 +932,20 @@ button:disabled,
 
   .orqena-context-sheet {
     position: relative;
+    grid-column: 1 / -1;
     width: 100%;
-    max-height: 88dvh;
-    overflow-y: auto;
-    border-radius: 1.25rem 1.25rem 0 0;
+    max-height: none;
+    overflow: visible;
+    scroll-margin-top: 76px;
+    border: 1px solid var(--cap-border);
+    border-radius: 1.25rem;
     background: var(--cap-surface);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     box-shadow: var(--fos-shadow-hero);
+  }
+
+  .orqena-context-sheet--inline {
+    margin: 0 1rem calc(5.5rem + env(safe-area-inset-bottom));
   }
 
   .field-os-capture-trigger > span:first-child {
@@ -4307,8 +4314,11 @@ button:disabled,
   min-height: 34px;
   align-items: center;
   justify-content: center;
-  margin-top: auto;
-  margin-bottom: 14px;
+  align-self: stretch;
+  margin-top: 12px;
+  margin-bottom: 0;
+  border-radius: 7px;
+  background: #f5f8f6;
   color: #137449;
   font-size: 10px;
   font-weight: 720;
@@ -4428,11 +4438,11 @@ button:disabled,
   position: absolute;
   right: 0;
   bottom: 0;
-  z-index: 2;
+  z-index: 80;
 }
 .client-360-canonical__more-actions > details > summary {
-  width: 34px;
-  min-height: 36px;
+  width: 44px;
+  min-height: 44px;
   overflow: hidden;
   border: 0;
   padding: 0;
@@ -4444,9 +4454,10 @@ button:disabled,
   top: 100%;
   right: 0;
   left: auto;
+  z-index: 100 !important;
 }
 .client-360-canonical__primary-action > .primary-button {
-  padding-right: 34px;
+  padding-right: 44px;
 }
 .client-360-canonical__more-actions--standalone {
   position: relative;
@@ -4982,6 +4993,10 @@ button:disabled,
 }
 
 @media (min-width: 1440px) {
+  .client-360-page,
+  .client-360-canonical {
+    min-height: calc(100dvh - 66px);
+  }
   .client-360-canonical[data-has-client-rail="true"] {
     grid-template-columns: minmax(0, 1fr) 20.25rem;
   }
@@ -5057,8 +5072,12 @@ button:disabled,
   }
 }
 
+@media (max-width: 899px) {
+  .client-360-page { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+}
+
 @media (max-width: 760px) {
-  .client-360-page { padding: 12px 12px 88px; }
+  .client-360-page { padding: 12px 12px calc(88px + env(safe-area-inset-bottom)); }
   .client-360-canonical > div:first-child > header > h1 { font-size: 25px; }
   .client-360-canonical > div:first-child > section { padding: 12px !important; }
   .client-360-canonical__identity > div { gap: 0; }

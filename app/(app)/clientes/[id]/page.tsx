@@ -7,7 +7,6 @@ import {
   Bot,
   CalendarClock,
   ChevronDown,
-  CircleDollarSign,
   ClipboardList,
   FileText,
   FolderOpen,
@@ -16,20 +15,27 @@ import {
   Receipt,
   RotateCcw,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SectionHeader } from "@/components/section-header";
-import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import {
   EmptyState,
 } from "@/components/ui-primitives";
-import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
 import { Client360Canonical } from "@/components/portal/modules-a/client-360-canonical";
 import { Client360Restricted } from "@/components/portal/modules-a/client-360-restricted";
+import {
+  ClientActivityWorkspace,
+  ClientBudgetsWorkspace,
+  ClientDocumentsWorkspace,
+  ClientConversationsWorkspace,
+  ClientFilesWorkspace,
+  ClientInvoicesWorkspace,
+  ClientOpportunitiesWorkspace,
+  ClientWorksWorkspace,
+} from "@/components/portal/modules-a/client-360-real-workspaces";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
 import type { OperationalSignal } from "@/lib/operational-intelligence/types";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -45,7 +51,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type DetailSearchParams = { vista?: string; tab?: string };
+type DetailSearchParams = { vista?: string; tab?: string; q?: string };
 
 const tabs = [
   { id: "resumen", label: "Resumen" },
@@ -56,6 +62,7 @@ const tabs = [
   { id: "facturas", label: "Facturas" },
   { id: "conversaciones", label: "Conversaciones" },
   { id: "documentos", label: "Documentos" },
+  { id: "archivos", label: "Archivos" },
 ] as const;
 
 const legacyClientAreas = [
@@ -71,7 +78,7 @@ const legacyTabs: Record<string, ClientTabId> = {
   resumen: "resumen",
   trabajos: "obras",
   dinero: "facturas",
-  archivos: "documentos",
+  archivos: "archivos",
   obras: "obras",
   oportunidades: "oportunidades",
   actividad: "actividad",
@@ -94,6 +101,10 @@ function normalizeClientView(value: string | undefined) {
   if (!value) return undefined;
   const knownLegacyArea = legacyClientAreas.find(([id]) => id === value);
   return legacyTabs[knownLegacyArea?.[0] ?? value] ?? value;
+}
+
+function clientViewHref(clientId: string, view: ClientTabId) {
+  return view === "resumen" ? `/clientes/${clientId}` : `/clientes/${clientId}?vista=${view}`;
 }
 
 function signalMatchesClientView(
@@ -120,7 +131,7 @@ function signalMatchesClientView(
   if (view === "facturas") {
     return signal.entity.type === "factura" || signal.category === "cobros";
   }
-  if (view === "documentos") {
+  if (view === "documentos" || view === "archivos") {
     return (
       signal.entity.type === "factura_recibida" ||
       signal.category === "compras_documentacion"
@@ -138,6 +149,8 @@ export default async function ClientDetailPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requireCapability("clients.view");
+  const requestedView = normalizeClientView(query.vista) ?? (query.tab ? normalizeClientView(query.tab) : "resumen");
+  const activeTab = tabs.some(({ id: tab }) => tab === requestedView) ? requestedView as ClientTabId : "resumen";
   const scopedClientIds = await resolveScopedEntityIds(
     auth,
     "clients.view",
@@ -195,11 +208,10 @@ export default async function ClientDetailPage({
       },
     });
     if (!client) notFound();
-    return <ScopedClientDetail auth={auth} client={client} />;
+    return <ScopedClientDetail auth={auth} client={client} activeTab={activeTab} />;
   }
-  const [summary, treasury, operationalContext, archiveDecision, aiDecision, uploadDecision] = await Promise.all([
+  const [summary, operationalContext, archiveDecision, aiDecision, uploadDecision] = await Promise.all([
     getClientCrmSummary(id, auth.companyId),
-    getEconomicControl({ clientId: id, period: "30d" }),
     getClientOperationalContext(id),
     resolveAuthorization(auth, "clients.archive"),
     resolveAuthorization(auth, "orqena.use"),
@@ -213,14 +225,8 @@ export default async function ClientDetailPage({
     aiDecision.allowed &&
     (aiClientIds === null || aiClientIds.includes(summary.client.id));
 
-  const requestedView =
-    normalizeClientView(query.vista) ??
-    (query.tab ? normalizeClientView(query.tab) : "resumen");
-  const activeTab = tabs.some(({ id: tab }) => tab === requestedView)
-    ? (requestedView as ClientTabId)
-    : "resumen";
   const client = summary.client;
-  const returnTo = `/clientes/${client.id}`;
+  const returnTo = clientViewHref(client.id, activeTab);
 
   const timeline = [
     ...summary.upcomingEvents.map((event) => ({
@@ -377,71 +383,28 @@ export default async function ClientDetailPage({
         }
       >
         {activeTab === "obras" ? (
-          <div className="grid gap-4">
-            <EntityWorkflowSummary clientId={client.id} />
-            <WorksTab summary={summary} returnTo={returnTo} />
-          </div>
+          <ClientWorksWorkspace summary={summary} returnTo={returnTo} />
         ) : null}
         {activeTab === "oportunidades" ? (
-          <div className="grid gap-4">
-            <EntityWorkflowSummary clientId={client.id} />
-            <OpportunitiesTab summary={summary} returnTo={returnTo} />
-          </div>
+          <ClientOpportunitiesWorkspace summary={summary} returnTo={returnTo} />
         ) : null}
         {activeTab === "actividad" ? (
-          <div className="grid gap-4">
-            <ActivityTab summary={summary} />
-            <VisitsTab summary={summary} returnTo={returnTo} />
-            <NotesTab summary={summary} returnTo={returnTo} />
-          </div>
+          <ClientActivityWorkspace summary={summary} returnTo={returnTo} />
         ) : null}
         {activeTab === "presupuestos" ? (
-          <BudgetsTab summary={summary} returnTo={returnTo} />
+          <ClientBudgetsWorkspace summary={summary} returnTo={returnTo} />
         ) : null}
         {activeTab === "facturas" ? (
-          <div className="grid gap-4">
-            <section
-              className="grid gap-3 sm:grid-cols-3"
-              aria-label="Economía autorizada del cliente"
-            >
-              <StatCard
-                title="Facturado"
-                value={formatCurrency(summary.kpis.billedTotal)}
-                detail="Sin borradores"
-                icon={Receipt}
-              />
-              <StatCard
-                title="Cobrado"
-                value={formatCurrency(summary.kpis.paidTotal)}
-                detail="Pagos reales"
-                icon={WalletCards}
-                tone="success"
-              />
-              <StatCard
-                title="Pendiente"
-                value={formatCurrency(summary.kpis.pendingTotal)}
-                detail="Total menos pagos"
-                icon={CircleDollarSign}
-                tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"}
-              />
-            </section>
-            <div id="facturas">
-              <InvoicesTab summary={summary} returnTo={returnTo} />
-            </div>
-            <div id="cobros">
-              <PaymentsTab summary={summary} />
-            </div>
-            <ClientFinanceTab treasury={treasury} clientId={client.id} />
-          </div>
+          <div id="facturas"><ClientInvoicesWorkspace summary={summary} returnTo={returnTo} /></div>
         ) : null}
         {activeTab === "conversaciones" ? (
-          <ConversationsTab summary={summary} returnTo={returnTo} />
+          <ClientConversationsWorkspace summary={summary} returnTo={returnTo} />
         ) : null}
         {activeTab === "documentos" ? (
-          <DocumentsTab
-            summary={summary}
-            canUpload={uploadDecision.allowed}
-          />
+          <ClientDocumentsWorkspace summary={summary} returnTo={returnTo} canUpload={uploadDecision.allowed} />
+        ) : null}
+        {activeTab === "archivos" ? (
+          <ClientFilesWorkspace summary={summary} returnTo={returnTo} canUpload={uploadDecision.allowed} companyId={auth.companyId} searchQuery={query.q} />
         ) : null}
       </Client360Canonical>
     </div>
@@ -451,6 +414,7 @@ export default async function ClientDetailPage({
 async function ScopedClientDetail({
   auth,
   client,
+  activeTab,
 }: {
   auth: Awaited<ReturnType<typeof requireCapability>>;
   client: {
@@ -464,6 +428,7 @@ async function ScopedClientDetail({
     telefono: string | null;
     email: string | null;
   };
+  activeTab: ClientTabId;
 }) {
   const name = client.nombreComercial ?? client.razonSocial ?? client.nombre;
   const [
@@ -646,7 +611,7 @@ async function ScopedClientDetail({
       null,
       client.id,
     );
-  const returnTo = `/clientes/${client.id}`;
+  const returnTo = clientViewHref(client.id, activeTab);
   const aiClientIds = aiDecision.allowed
     ? await resolveScopedEntityIds(auth, "orqena.use", "Client")
     : [];
@@ -656,6 +621,7 @@ async function ScopedClientDetail({
   return (
     <div className="client-360-page">
       <Client360Restricted
+        activeView={activeTab}
         client={{
           id: client.id,
           displayName: name,
@@ -984,68 +950,6 @@ function ContactsTab({
   );
 }
 
-function OpportunitiesTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <div className="grid gap-4">
-      <SectionList
-        title="Oportunidades abiertas"
-        description="Presupuestos reales pendientes de decisión. No se calcula una probabilidad comercial ni un valor previsto."
-        emptyTitle="No hay presupuestos pendientes de decisión."
-        emptyAction={
-          <Link
-            href={`/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            className="secondary-button"
-          >
-            Crear presupuesto
-          </Link>
-        }
-      >
-        {summary.pendingBudgets.length ? (
-          <div className="grid gap-3">
-            {summary.pendingBudgets.map((budget) => (
-              <BudgetCard
-                key={budget.id}
-                budget={budget}
-                returnTo={returnTo}
-              />
-            ))}
-          </div>
-        ) : null}
-      </SectionList>
-
-      <SectionList
-        title="Seguimientos pendientes"
-        description="Recordatorios registrados para continuar la relación comercial."
-        emptyTitle="No hay seguimientos pendientes."
-        emptyAction={
-          <Link
-            href={`/gestion?tipo=recordatorio&clienteId=${summary.client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`}
-            className="secondary-button"
-          >
-            Crear seguimiento
-          </Link>
-        }
-      >
-        {summary.pendingReminders.map((reminder) => (
-          <CompactRow
-            key={reminder.id}
-            icon={Bell}
-            title={statusLabel(reminder.tipo)}
-            detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)} · ${reminder.canal}`}
-            href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          />
-        ))}
-      </SectionList>
-    </div>
-  );
-}
-
 function ConversationsTab({
   summary,
   returnTo,
@@ -1073,103 +977,6 @@ function ConversationsTab({
       <ActivityTab summary={summary} />
       <NotesTab summary={summary} returnTo={returnTo} />
     </div>
-  );
-}
-
-function WorksTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <SectionList
-      title="Obras del cliente"
-      emptyTitle="Este cliente todavía no tiene obras."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Crear obra
-        </Link>
-      }
-    >
-      {summary.client.works.length ? (
-        <div className="grid gap-3">
-          {summary.client.works.map((work) => (
-            <WorkCard key={work.id} work={work} returnTo={returnTo} />
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function BudgetsTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <SectionList
-      title="Presupuestos del cliente"
-      emptyTitle="No hay presupuestos registrados."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Crear presupuesto
-        </Link>
-      }
-    >
-      {summary.client.budgets.length ? (
-        <div className="grid gap-3">
-          {summary.client.budgets.map((budget) => (
-            <BudgetCard key={budget.id} budget={budget} returnTo={returnTo} />
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function InvoicesTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <SectionList
-      title="Facturas del cliente"
-      emptyTitle="No hay facturas registradas."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=factura&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Crear factura
-        </Link>
-      }
-    >
-      {summary.client.invoices.length ? (
-        <div className="grid gap-3">
-          {summary.client.invoices.map((invoice) => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              returnTo={returnTo}
-            />
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
   );
 }
 
@@ -1378,58 +1185,6 @@ function VisitsTab({
         ))}
       </SectionList>
     </div>
-  );
-}
-
-function DocumentsTab({
-  summary,
-  canUpload,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  canUpload: boolean;
-}) {
-  const returnTo = `/clientes/${summary.client.id}?tab=documentos`;
-  return (
-    <SectionList
-      title="Documentos"
-      description="Archivos, presupuestos y facturas relacionados con este cliente."
-      emptyTitle="No hay documentos asociados."
-      emptyAction={canUpload ? (
-        <Link
-          href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Registrar documento
-        </Link>
-      ) : undefined}
-    >
-      {summary.documents.length ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {summary.documents.map((document) => (
-            <Link
-              key={document.id}
-              href={
-                document.href ??
-                `/gestion?tipo=documento&id=${document.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`
-              }
-              className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-obra-yellowDark hover:bg-obra-muted"
-            >
-              <p className="label">{document.type}</p>
-              <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
-              <p className="mt-2 text-sm text-slate-500">
-                {document.relatedLabel}
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase text-slate-500">
-                {document.source}
-              </p>
-              <p className="mt-1 text-sm font-bold text-slate-600">
-                {formatDate(document.date)}
-              </p>
-            </Link>
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
   );
 }
 
@@ -1792,6 +1547,13 @@ function InvoiceCard({
     </article>
   );
 }
+
+// Keep the previous compact cards available to the scoped-access fallback while
+// the full Client 360 workspaces remain company-scoped server components.
+void [WorkCard, BudgetCard, InvoiceCard];
+void [PaymentsTab, ClientFinanceTab, FinanceBox];
+void VisitsTab;
+void ConversationsTab;
 
 function SectionList({
   title,

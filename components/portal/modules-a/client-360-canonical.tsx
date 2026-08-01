@@ -40,6 +40,7 @@ export const CLIENT_360_CANONICAL_VIEWS = [
   "facturas",
   "conversaciones",
   "documentos",
+  "archivos",
 ] as const;
 
 export type Client360CanonicalView =
@@ -117,6 +118,7 @@ const viewLabels: Record<Client360CanonicalView, string> = {
   facturas: "Facturas",
   conversaciones: "Conversaciones",
   documentos: "Documentos",
+  archivos: "Archivos",
 };
 
 const viewIcons: Record<Client360CanonicalView, typeof UserRound> = {
@@ -128,6 +130,7 @@ const viewIcons: Record<Client360CanonicalView, typeof UserRound> = {
   facturas: CircleDollarSign,
   conversaciones: MessageCircle,
   documentos: FolderOpen,
+  archivos: FolderOpen,
 };
 
 const railEmptyCopy: Record<
@@ -174,6 +177,11 @@ const railEmptyCopy: Record<
     description:
       "No hay una señal documental validada vinculada a este cliente.",
   },
+  archivos: {
+    title: "Sin recomendación sobre archivos",
+    description:
+      "No hay una señal validada vinculada a los archivos de este cliente.",
+  },
 };
 
 function recommendationMatchesView(
@@ -206,7 +214,7 @@ function recommendationMatchesView(
       recommendation.category === "cobros"
     );
   }
-  if (activeView === "documentos") {
+  if (activeView === "documentos" || activeView === "archivos") {
     return (
       recommendation.entityType === "factura_recibida" ||
       recommendation.category === "compras_documentacion"
@@ -324,12 +332,12 @@ export function Client360Canonical({
             <nav className="grid min-w-48 gap-2" aria-label={`Acciones de ${displayName}`}>
               {hrefs.sendMessage ? (
                 <Link href={hrefs.sendMessage} className="secondary-button w-full">
-                  <MessageCircle size={16} aria-hidden="true" /> Enviar mensaje
+                  <MessageCircle size={16} aria-hidden="true" /> Abrir correo
                 </Link>
               ) : null}
               {hrefs.call ? (
                 <Link href={hrefs.call} className="secondary-button w-full">
-                  <Phone size={16} aria-hidden="true" /> Llamar
+                  <Phone size={16} aria-hidden="true" /> Llamar desde el dispositivo
                 </Link>
               ) : null}
               {hrefs.newOpportunity ? (

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { WorkPortfolio } from "@/components/portal/modules-a/work-portfolio";
 import { EmptyState } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -94,16 +95,20 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     updateWork: (await resolveAuthorization(auth, "work.update")).allowed,
     createBudget: (await resolveAuthorization(auth, "sales.budgets.create")).allowed,
     createInvoice: (await resolveAuthorization(auth, "sales.invoices.create")).allowed,
-    createExpense: (await resolveAuthorization(auth, "purchases.received_invoices.manage")).allowed
+    createExpense: (await resolveAuthorization(auth, "purchases.received_invoices.manage")).allowed,
+    createPhoto: (await resolveAuthorization(auth, "documents.upload")).allowed,
+    manageAgenda: (await resolveAuthorization(auth, "agenda.manage")).allowed
   };
   const scopedEconomicCapabilities = [visibility.budgets ? "sales.budgets.view" : null, visibility.invoices ? "sales.invoices.view" : null, visibility.purchaseCost ? "purchase_cost.view" : null, visibility.internalCost ? "internal_cost.view" : null, visibility.marginPercent ? "margin_percent.view" : null, visibility.marginAmount ? "margin_amount.view" : null, visibility.profit ? "profitability.view" : null, visibility.projectBudget ? "project_budget_control.view" : null].filter((key): key is Parameters<typeof resolveScopedEntityIds>[1] => Boolean(key));
   const economicScopes = await Promise.all(scopedEconomicCapabilities.map((capability) => resolveScopedEntityIds(auth, capability, "Work")));
   const economicScopeByCapability = new Map(scopedEconomicCapabilities.map((capability, index) => [capability, economicScopes[index]]));
-  const [createBudgetScope, createInvoiceScope, createExpenseScope, updateWorkScope] = await Promise.all([
+  const [createBudgetScope, createInvoiceScope, createExpenseScope, updateWorkScope, createPhotoScope, manageAgendaScope] = await Promise.all([
     visibility.createBudget ? resolveScopedEntityIds(auth, "sales.budgets.create", "Work") : Promise.resolve([]),
     visibility.createInvoice ? resolveScopedEntityIds(auth, "sales.invoices.create", "Work") : Promise.resolve([]),
     visibility.createExpense ? resolveScopedEntityIds(auth, "purchases.received_invoices.manage", "Work") : Promise.resolve([]),
-    visibility.updateWork ? resolveScopedEntityIds(auth, "work.update", "Work") : Promise.resolve([])
+    visibility.updateWork ? resolveScopedEntityIds(auth, "work.update", "Work") : Promise.resolve([]),
+    visibility.createPhoto ? resolveScopedEntityIds(auth, "documents.upload", "Work") : Promise.resolve([]),
+    visibility.manageAgenda ? resolveScopedEntityIds(auth, "agenda.manage", "Work") : Promise.resolve([])
   ]);
   const scopeWhere = scopedWorkIds === null ? {} : { id: { in: scopedWorkIds } };
   const works = await prisma.work.findMany({
@@ -125,7 +130,9 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       createBudget: visibility.createBudget && scopeAllows(createBudgetScope, work.id),
       createInvoice: visibility.createInvoice && scopeAllows(createInvoiceScope, work.id),
       createExpense: visibility.createExpense && scopeAllows(createExpenseScope, work.id),
-      updateWork: visibility.updateWork && scopeAllows(updateWorkScope, work.id)
+      updateWork: visibility.updateWork && scopeAllows(updateWorkScope, work.id),
+      createPhoto: visibility.createPhoto && scopeAllows(createPhotoScope, work.id),
+      manageAgenda: visibility.manageAgenda && scopeAllows(manageAgendaScope, work.id)
     };
     const financial = calculateWorkFinancials(work);
     const overduePending = itemVisibility.invoices ? work.invoices.reduce((sum, invoice) => invoice.fechaVencimiento < new Date() ? sum + Math.max(0, invoice.total - invoicePaid(invoice)) : sum, 0) : 0;
@@ -159,6 +166,12 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   const visibleWorks = sortWorks(query.riesgo === "1" ? filteredWorks.filter((item) => item.hasRisk) : filteredWorks, query.orden ?? "riesgo");
   const activeFilterCount = [query.estado, query.tipo, query.prioridad, query.responsable, query.cliente, query.buscar, query.riesgo].filter((value) => Boolean(value) && !["todas", "todos"].includes(value!)).length;
   const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
+  const returnParams = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (typeof value === "string" && value.trim()) returnParams.set(key, value);
+  });
+  const returnTo = `/obras${returnParams.size ? `?${returnParams.toString()}` : ""}`;
+  const encodedReturnTo = encodeURIComponent(returnTo);
   const portfolioItems = visibleWorks.map((item) => {
     const purchaseCost = item.work.gastoReal + item.work.subcontratasCoste + item.work.expenses.reduce((sum, expense) => sum + expense.importe, 0);
     const authorizedCost = item.visibility.purchaseCost && item.visibility.internalCost
@@ -201,6 +214,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       updatedAt: formatDate(item.work.updatedAt),
       responsible: item.work.responsable ?? "Sin asignar",
       margin: item.visibility.marginPercent ? `${item.financial.marginPercent}%` : null,
+      marginBasis: item.visibility.marginPercent ? (item.financial.invoiced > 0 ? "facturado" : "presupuesto") : null,
       budget: item.visibility.budgets ? formatCurrency(item.financial.budgeted) : null,
       budgetAmount: item.visibility.budgets ? item.financial.budgeted : null,
       cost: authorizedCost === null ? null : formatCurrency(authorizedCost),
@@ -209,14 +223,14 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       riskReason: isBlockedWorkStatus(item.work.estado)
         ? `Estado: ${item.status.label}`
         : item.visibility.marginPercent && item.financial.marginPercent < 15
-          ? `Margen previsto · ${item.financial.marginPercent.toFixed(1)} %`
+          ? `Margen sobre ${item.financial.invoiced > 0 ? "facturado" : "presupuesto"} · ${item.financial.marginPercent.toFixed(1)} %`
           : item.overduePending > 0
             ? `Vencido ${formatCurrency(item.overduePending)}`
             : null,
       marginRisk: item.visibility.marginPercent && item.financial.marginPercent < 15,
       pendingMaterials: item.pendingMaterials.length,
       pendingDocuments: item.pendingDocs,
-      closingSoon: ["pendiente_remates", "parcialmente_terminada", "finalizada"].includes(item.work.estado),
+      closingSoon: item.work.estado === "pendiente_remates",
       progressLabel: item.status.label,
       progressPercent: null,
       visit: nextVisit ? {
@@ -228,17 +242,22 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       incidentLabels: incidentPhotos.map((photo) => photo.titulo),
       team,
       timeline,
-      actionHrefs: item.visibility.updateWork ? {
-        part: `/capataz?captura=avance&obraId=${item.work.id}&returnTo=/obras`,
-        incident: `/gestion?tipo=foto&obraId=${item.work.id}&categoria=incidencia&returnTo=/obras`,
-        visit: `/gestion?tipo=eventoAgenda&tipoEvento=visita&obraId=${item.work.id}&returnTo=/obras`,
-        status: `/obras/${item.work.id}?vista=datos`,
-      } : null,
+      actionHrefs: {
+        incident: item.visibility.createPhoto ? `/gestion?tipo=foto&obraId=${item.work.id}&categoria=incidencia&returnTo=${encodedReturnTo}` : null,
+        visit: item.visibility.manageAgenda ? `/gestion?tipo=eventoAgenda&tipoEvento=visita&obraId=${item.work.id}&returnTo=${encodedReturnTo}` : null,
+        status: item.visibility.updateWork ? `/gestion?tipo=obra&id=${item.work.id}&returnTo=${encodedReturnTo}` : null,
+      },
     };
   });
 
-  const exportAccess = await resolveAuthorization(auth, "reports.export");
-  const canExport = exportAccess.allowed
+  const [exportAccess, exportTreasuryAccess, exportPurchasesAccess] = await Promise.all([
+    resolveAuthorization(auth, "reports.export"),
+    resolveAuthorization(auth, "treasury.view"),
+    resolveAuthorization(auth, "purchases.received_invoices.view"),
+  ]);
+  const canExport = [exportAccess, exportTreasuryAccess, exportPurchasesAccess].every(
+    (decision) => decision.allowed && decision.scope === "COMPANY",
+  )
     && scopedWorkIds === null
     && visibility.budgets
     && visibility.invoices
@@ -299,25 +318,27 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link> : undefined}
         />
       ) : view === "tabla" ? (
-        <WorkPortfolio items={portfolioItems} totalAuthorizedCount={works.length} activeFilterCount={activeFilterCount} />
+        <WorkPortfolio items={portfolioItems} totalAuthorizedCount={works.length} activeFilterCount={activeFilterCount} returnTo={returnTo} />
       ) : view === "compacta" ? (
-        <CompactList items={visibleWorks} />
+        <CompactList items={visibleWorks} returnTo={returnTo} />
       ) : view === "kanban" ? (
-        <KanbanView items={visibleWorks} />
+        <KanbanView items={visibleWorks} returnTo={returnTo} />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          {visibleWorks.map((item) => <WorkCard key={item.work.id} item={item} />)}
+          {visibleWorks.map((item) => <WorkCard key={item.work.id} item={item} returnTo={returnTo} />)}
         </div>
       )}
     </main>
   );
 }
 
-type WorkEconomicVisibility = { budgets: boolean; invoices: boolean; purchaseCost: boolean; internalCost: boolean; marginPercent: boolean; marginAmount: boolean; profit: boolean; projectBudget: boolean; createWork: boolean; updateWork: boolean; createBudget: boolean; createInvoice: boolean; createExpense: boolean };
+type WorkEconomicVisibility = { budgets: boolean; invoices: boolean; purchaseCost: boolean; internalCost: boolean; marginPercent: boolean; marginAmount: boolean; profit: boolean; projectBudget: boolean; createWork: boolean; updateWork: boolean; createBudget: boolean; createInvoice: boolean; createExpense: boolean; createPhoto: boolean; manageAgenda: boolean };
 
-function WorkCard({ item }: { item: WorkItem }) {
+function WorkCard({ item, returnTo }: { item: WorkItem; returnTo: string }) {
   const { work, financial, status, priority, nextAction, pendingMaterials } = item;
   const visibility = item.visibility;
+  const detailHref = workDetailHref(work.id, returnTo);
+  const encodedReturnTo = encodeURIComponent(returnTo);
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-obra-yellowDark">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -328,13 +349,13 @@ function WorkCard({ item }: { item: WorkItem }) {
               {priority.label}
             </span>
           </div>
-          <Link href={`/obras/${work.id}`} className="mt-3 block text-xl font-black leading-tight text-obra-ink hover:underline">
+          <Link href={detailHref} className="mt-3 block text-xl font-black leading-tight text-obra-ink hover:underline">
             {work.codigo ? `${work.codigo} · ` : ""}{work.titulo}
           </Link>
           <p className="mt-1 text-sm leading-6 text-slate-600">{work.client.nombre} · {work.tipoTrabajo}</p>
           <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin size={15} /> {work.direccion}</p>
         </div>
-        <Link href={`/obras/${work.id}`} className="secondary-button shrink-0">Abrir <ArrowRight size={17} /></Link>
+        <Link href={detailHref} className="secondary-button shrink-0">Abrir <ArrowRight size={17} /></Link>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
@@ -361,9 +382,9 @@ function WorkCard({ item }: { item: WorkItem }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {visibility.createBudget ? <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><FileText size={17} /> Presupuesto</Link> : null}
-        {visibility.createInvoice ? <Link href={`/gestion?tipo=factura&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Receipt size={17} /> Factura</Link> : null}
-        {visibility.createExpense ? <Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Euro size={17} /> Gasto</Link> : null}
+        {visibility.createBudget ? <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodedReturnTo}`} className="secondary-button"><FileText size={17} /> Presupuesto</Link> : null}
+        {visibility.createInvoice ? <Link href={`/gestion?tipo=factura&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodedReturnTo}`} className="secondary-button"><Receipt size={17} /> Factura</Link> : null}
+        {visibility.createExpense ? <Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=${encodedReturnTo}`} className="secondary-button"><Euro size={17} /> Gasto</Link> : null}
         {visibility.updateWork ? <WorkStatusButton id={work.id} estado="en_curso" label="En curso" /> : null}
         {visibility.updateWork ? <WorkStatusButton id={work.id} estado="finalizada" label="Finalizar" /> : null}
       </div>
@@ -371,11 +392,11 @@ function WorkCard({ item }: { item: WorkItem }) {
   );
 }
 
-function CompactList({ items }: { items: WorkItem[] }) {
+function CompactList({ items, returnTo }: { items: WorkItem[]; returnTo: string }) {
   return (
     <div className="grid gap-2">
       {items.map((item) => (
-        <Link key={item.work.id} href={`/obras/${item.work.id}`} className="rounded-xl border border-slate-200 bg-white p-3 shadow-soft transition hover:border-obra-yellowDark">
+        <Link key={item.work.id} href={workDetailHref(item.work.id, returnTo)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-soft transition hover:border-obra-yellowDark">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-black text-obra-ink">{item.work.titulo}</p>
@@ -394,7 +415,7 @@ function CompactList({ items }: { items: WorkItem[] }) {
   );
 }
 
-function KanbanView({ items }: { items: WorkItem[] }) {
+function KanbanView({ items, returnTo }: { items: WorkItem[]; returnTo: string }) {
   const phases = [
     ["entrada", "Entrada"],
     ["planificacion", "Planificación"],
@@ -414,7 +435,7 @@ function KanbanView({ items }: { items: WorkItem[] }) {
             </div>
             <div className="grid gap-2">
               {phaseItems.map((item) => (
-                <Link key={item.work.id} href={`/obras/${item.work.id}`} className="rounded-lg border border-slate-200 bg-white p-3 shadow-soft">
+                <Link key={item.work.id} href={workDetailHref(item.work.id, returnTo)} className="rounded-lg border border-slate-200 bg-white p-3 shadow-soft">
                   <p className="text-sm font-black text-obra-ink">{item.work.titulo}</p>
                   <p className="mt-1 text-xs text-slate-500">{item.work.client.nombre}</p>
                   <p className="mt-2 text-xs font-bold text-slate-600">{item.nextAction.label}</p>
@@ -434,9 +455,13 @@ function WorkStatusButton({ id, estado, label }: { id: string; estado: string; l
     <form action={updateWorkStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="estado" value={estado} />
-      <button type="submit" className="secondary-button">{label}</button>
+      <ConfirmSubmitButton className="secondary-button" message={`El estado del trabajo cambiará a ${label.toLocaleLowerCase("es-ES")}. La operación quedará registrada y no eliminará su historial.`}>{label}</ConfirmSubmitButton>
     </form>
   );
+}
+
+function workDetailHref(workId: string, returnTo: string) {
+  return `/obras/${workId}?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 function StatusBadge({ status, iconLabel }: { status: string; iconLabel: string }) {

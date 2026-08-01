@@ -37,7 +37,7 @@ import type { LucideIcon } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { RecordWorkspace } from "@/components/workspaces";
-import { EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
+import { EntityHeader, Notice, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { WorkPlanningGantt, WorkPlanningSummary } from "@/components/portal/modules-a/work-planning";
 import { WorkPlanningCalendar } from "@/components/portal/modules-a/work-planning-calendar";
@@ -123,7 +123,7 @@ const workTaskInclude = {
 } satisfies Prisma.TaskInclude;
 type WorkTask = Prisma.TaskGetPayload<{ include: typeof workTaskInclude }>;
 
-export type WorkDetailQuery = { vista?: string; tab?: string; modo?: string; subvista?: string; detalle?: string };
+export type WorkDetailQuery = { vista?: string; tab?: string; modo?: string; subvista?: string; detalle?: string; returnTo?: string };
 
 export default async function WorkDetailPage({
   params,
@@ -133,6 +133,11 @@ export default async function WorkDetailPage({
   searchParams: Promise<WorkDetailQuery>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  const returnTo = normalizeWorkReturnTo(query.returnTo);
+  const requestedView = query.vista ? legacyTabs[query.vista] ?? query.vista : query.tab ? legacyTabs[query.tab] ?? query.tab : "resumen";
+  const activeTab = tabs.some(([tab]) => tab === requestedView) ? requestedView as (typeof tabs)[number][0] : "resumen";
+  const availableSubviews = workSubviews[activeTab];
+  const activeSubview = availableSubviews.some(([viewId]) => viewId === query.subvista) ? query.subvista! : availableSubviews[0][0];
   const auth = await requireCapability("work.view");
   const scopedWorkIds = await resolveScopedEntityIds(auth, "work.view", "Work");
   if (scopedWorkIds !== null && !scopedWorkIds.includes(id)) notFound();
@@ -154,9 +159,9 @@ export default async function WorkDetailPage({
     if (!work) notFound();
     if (projectBudgetAllowedHere) {
       const consumed = work.gastoReal + work.expenses.reduce((sum, item) => sum + item.importe, 0);
-      return <ProjectBudgetWorkDetail work={work} consumed={consumed} />;
+      return <ProjectBudgetWorkDetail work={work} consumed={consumed} returnTo={returnTo} activeTab={activeTab} activeSubview={activeSubview} />;
     }
-    return <RestrictedWorkDetail work={work} />;
+    return <RestrictedWorkDetail work={work} returnTo={returnTo} activeTab={activeTab} activeSubview={activeSubview} />;
   }
   const [taskAccess, taskManageAccess] = await Promise.all([resolveAuthorization(auth, "tasks.view"), resolveAuthorization(auth, "tasks.manage")]);
   const scopedTaskIds = taskAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.view") : [];
@@ -182,10 +187,6 @@ export default async function WorkDetailPage({
   ]);
   if (!work) notFound();
 
-  const requestedView = query.vista ? legacyTabs[query.vista] ?? query.vista : query.tab ? legacyTabs[query.tab] ?? query.tab : "resumen";
-  const activeTab = tabs.some(([tab]) => tab === requestedView) ? requestedView as (typeof tabs)[number][0] : "resumen";
-  const availableSubviews = workSubviews[activeTab];
-  const activeSubview = availableSubviews.some(([id]) => id === query.subvista) ? query.subvista! : availableSubviews[0][0];
   const financial = calculateWorkFinancials(work);
   const risks = buildWorkRisks(work);
   const timeline = buildWorkTimeline(work);
@@ -197,18 +198,18 @@ export default async function WorkDetailPage({
 
   return (
     <RecordWorkspace>
-      <WorkOverviewHeader work={work} />
+      <WorkOverviewHeader work={work} returnTo={returnTo} />
 
       <Tabs label="Secciones de la obra" className="mb-4 mt-2">
         {tabs.map(([id, label, Icon]) => (
-          <Link key={id} href={workViewHref(work.id, id)} aria-current={activeTab === id ? "page" : undefined}>
+          <Link key={id} href={workViewHref(work.id, id, undefined, returnTo)} aria-current={activeTab === id ? "page" : undefined}>
             <Icon size={16} />
             {label}
           </Link>
         ))}
       </Tabs>
 
-      {activeTab !== "resumen" ? <WorkSubnavigation workId={work.id} activeTab={activeTab} activeSubview={activeSubview} items={availableSubviews} /> : null}
+      {activeTab !== "resumen" ? <WorkSubnavigation workId={work.id} activeTab={activeTab} activeSubview={activeSubview} items={availableSubviews} returnTo={returnTo} /> : null}
 
       <div id="work-360-content">
       {activeTab === "resumen" && query.modo !== "configuracion" ? (
@@ -228,14 +229,31 @@ export default async function WorkDetailPage({
   );
 }
 
-function ProjectBudgetWorkDetail({ work, consumed }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; presupuestoAprobado: number; costePrevisto: number; client: { nombre: string } }; consumed: number }) {
+function ProjectBudgetWorkDetail({ work, consumed, returnTo, activeTab, activeSubview }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; presupuestoAprobado: number; costePrevisto: number; client: { nombre: string } }; consumed: number; returnTo: string; activeTab: (typeof tabs)[number][0]; activeSubview: string }) {
   const available = work.presupuestoAprobado - consumed;
   const deviation = consumed - work.costePrevisto;
-  return <RecordWorkspace><ParentNavigation href="/obras" label="Obras" context={work.client.nombre} /><PageHeader eyebrow={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} badge={<StatusBadge status={work.estado} />} /><section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section></RecordWorkspace>;
+  return <RecordWorkspace>
+    <EntityHeader back={<ParentNavigation href={returnTo} label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} />
+    <RestrictedWorkNavigation workId={work.id} activeTab={activeTab} activeSubview={activeSubview} returnTo={returnTo} />
+    {activeTab === "resumen" ? <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section> : <Notice className="mt-4" tone="info" title="Módulo no incluido en tu acceso" description="La arquitectura de la obra se mantiene visible, pero esta sección requiere capacidades adicionales del plan o del rol. No se han cargado datos no autorizados." />}
+  </RecordWorkspace>;
 }
 
-function RestrictedWorkDetail({ work }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } } }) {
-  return <RecordWorkspace><EntityHeader back={<ParentNavigation href="/obras" label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} /><Notice className="mt-4" tone="info" title="Información económica restringida" description="Tu perfil puede consultar el trabajo, pero no presupuestos, facturas, cobros, gastos ni tesorería." /></RecordWorkspace>;
+function RestrictedWorkDetail({ work, returnTo, activeTab, activeSubview }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } }; returnTo: string; activeTab: (typeof tabs)[number][0]; activeSubview: string }) {
+  return <RecordWorkspace>
+    <EntityHeader back={<ParentNavigation href={returnTo} label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} />
+    <RestrictedWorkNavigation workId={work.id} activeTab={activeTab} activeSubview={activeSubview} returnTo={returnTo} />
+    <Notice className="mt-4" tone="info" title="Módulo no incluido en tu acceso" description="La arquitectura de la obra se mantiene visible, pero esta sección requiere capacidades adicionales del plan o del rol. No se han cargado datos no autorizados." />
+  </RecordWorkspace>;
+}
+
+function RestrictedWorkNavigation({ workId, activeTab, activeSubview, returnTo }: { workId: string; activeTab: (typeof tabs)[number][0]; activeSubview: string; returnTo: string }) {
+  return <>
+    <Tabs label="Secciones de la obra" className="mb-4 mt-2">
+      {tabs.map(([id, label, Icon]) => <Link key={id} href={workViewHref(workId, id, undefined, returnTo)} aria-current={activeTab === id ? "page" : undefined}><Icon size={16} />{label}</Link>)}
+    </Tabs>
+    {activeTab !== "resumen" ? <WorkSubnavigation workId={workId} activeTab={activeTab} activeSubview={activeSubview} items={workSubviews[activeTab]} returnTo={returnTo} /> : null}
+  </>;
 }
 
 function WorkActions({ workId, clientId }: { workId: string; clientId: string }) {
@@ -254,7 +272,7 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
     [`/gestion?tipo=documento&clientId=${clientId}&workId=${workId}&category=otro&returnTo=${returnTo}`, "Añadir documento", FileArchive],
     [`/gestion?tipo=notaInterna&clientId=${clientId}&workId=${workId}&returnTo=${returnTo}`, "Añadir nota", ClipboardList],
     [`/gestion?tipo=recordatorio&clienteId=${clientId}&obraId=${workId}&returnTo=${returnTo}`, "Crear recordatorio", Bell],
-    [`/capataz`, "Abrir chat IA", Bot]
+    [`/capataz?obraId=${workId}`, "Abrir chat IA", Bot]
   ] as const;
   return (
     <details className="relative">
@@ -277,9 +295,10 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
   );
 }
 
-function WorkOverviewHeader({ work }: { work: WorkDetail }) {
+function WorkOverviewHeader({ work, returnTo }: { work: WorkDetail; returnTo: string }) {
   return (
     <header className="border-b border-border pb-3">
+      <ParentNavigation href={returnTo} label="Trabajos" context={work.client.nombre} />
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <h1 className="text-[clamp(1.35rem,2vw,1.75rem)] font-black leading-tight tracking-[-0.035em] text-content xl:whitespace-nowrap">Obra · {work.tipoTrabajo} · {work.titulo}</h1>
@@ -382,30 +401,42 @@ function WorkOverviewTaskRow({ task }: { task: WorkTask }) {
   return <tr><td className="max-w-52 py-1.5 pr-2"><Link href={`/tareas/${task.id}`} className="block truncate font-semibold text-content hover:underline">{task.title}</Link></td><td className="py-1.5 pr-2"><span className="inline-flex rounded-full bg-subtle px-2 py-1 text-[9px] font-bold text-content-secondary">{statusLabel(task.status)}</span></td><td className="py-1.5 pr-2">{progress == null ? <span className="text-content-secondary">Sin checklist</span> : <span className="flex items-center gap-2"><progress className="h-1.5 w-16 accent-brand" max={100} value={progress}>{progress}%</progress><strong className="tabular-nums text-content">{progress}%</strong></span>}</td><td className="py-1.5 pr-2 text-content-secondary">{formatDate(task.startsAt)}</td><td className="py-1.5 text-content-secondary">{formatDate(task.dueAt)}</td></tr>;
 }
 
-function WorkSubnavigation({ workId, activeTab, activeSubview, items }: { workId: string; activeTab: string; activeSubview: string; items: readonly [string, string][] }) {
+function WorkSubnavigation({ workId, activeTab, activeSubview, items, returnTo }: { workId: string; activeTab: string; activeSubview: string; items: readonly [string, string][]; returnTo: string }) {
   return (
     <nav className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1" aria-label={`Vistas de ${activeTab}`}>
-      {items.map(([id, label]) => <Link key={id} href={workViewHref(workId, activeTab, id)} aria-current={activeSubview === id ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs font-semibold ${activeSubview === id ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"}`}>{label}</Link>)}
+      {items.map(([id, label]) => <Link key={id} href={workViewHref(workId, activeTab, id, returnTo)} aria-current={activeSubview === id ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs font-semibold ${activeSubview === id ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"}`}>{label}</Link>)}
     </nav>
   );
 }
 
-function workViewHref(workId: string, tab: string, subview?: string) {
-  if (tab === "resumen") return `/obras/${workId}`;
-  const base = `/obras/${workId}/${tab}`;
-  if (!subview) return base;
-  const canonical: Record<string, readonly string[]> = {
-    planificacion: ["resumen", "gantt", "calendario", "hitos", "dependencias", "ruta-critica", "carga-trabajo", "recursos"],
-    partes: ["resumen", "actividades", "nuevo", "analisis"],
-    costes: ["resumen", "estructura", "analisis", "incidencias", "ranking"],
-    documentos: ["documentos", "subir", "galeria"],
-    equipo: ["equipo"],
-    facturacion: ["resumen"],
-    incidencias: ["todas"],
-  };
-  if (canonical[tab]?.includes(subview)) return ["resumen", "documentos", "equipo", "todas"].includes(subview) ? base : `${base}/${subview}`;
-  if (tab === "costes" && subview === "ordenes") return `/obras/${workId}/ordenes`;
-  return `/obras/${workId}?vista=${tab}&subvista=${subview}`;
+function workViewHref(workId: string, tab: string, subview?: string, returnTo?: string) {
+  let href: string;
+  if (tab === "resumen") href = `/obras/${workId}`;
+  else {
+    const base = `/obras/${workId}/${tab}`;
+    if (!subview) href = base;
+    else {
+      const canonical: Record<string, readonly string[]> = {
+        planificacion: ["resumen", "gantt", "calendario", "hitos", "dependencias", "ruta-critica", "carga-trabajo", "recursos"],
+        partes: ["resumen", "actividades", "nuevo", "analisis"],
+        costes: ["resumen", "estructura", "analisis", "incidencias", "ranking"],
+        documentos: ["documentos", "subir", "galeria"],
+        equipo: ["equipo"],
+        facturacion: ["resumen"],
+        incidencias: ["todas"],
+      };
+      if (canonical[tab]?.includes(subview)) href = ["resumen", "documentos", "equipo", "todas"].includes(subview) ? base : `${base}/${subview}`;
+      else if (tab === "costes" && subview === "ordenes") href = `/obras/${workId}/ordenes`;
+      else href = `/obras/${workId}?vista=${tab}&subvista=${subview}`;
+    }
+  }
+  if (!returnTo) return href;
+  return `${href}${href.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+function normalizeWorkReturnTo(value: string | undefined) {
+  if (!value || !value.startsWith("/obras") || value.startsWith("//")) return "/obras";
+  return value;
 }
 
 function ClientTab({ work }: { work: WorkDetail }) {
@@ -1259,22 +1290,16 @@ function TimelineList({ items }: { items: Array<{ key: string; date: Date; title
 }
 
 function WorkStatusButton({ id, estado, label }: { id: string; estado: string; label: string }) {
-  const button = estado === "archivada" ? (
-    <ConfirmSubmitButton
-      className="danger-button"
-      message="El trabajo se marcará como archivado. Su historial, documentos e importes se conservarán."
-    >
-      {label}
-    </ConfirmSubmitButton>
-  ) : (
-    <button className="secondary-button" type="submit">{label}</button>
-  );
+  const archived = estado === "archivada";
+  const message = archived
+    ? "El trabajo se marcará como archivado. Su historial, documentos e importes se conservarán."
+    : `El estado del trabajo cambiará a ${label.toLocaleLowerCase("es-ES")}. La operación quedará registrada y conservará todo su historial.`;
 
   return (
     <form action={updateWorkStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="estado" value={estado} />
-      {button}
+      <ConfirmSubmitButton className={archived ? "danger-button" : "secondary-button"} message={message}>{label}</ConfirmSubmitButton>
     </form>
   );
 }

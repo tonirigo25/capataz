@@ -21,6 +21,8 @@ const directRoutes: Record<string, WorkDetailQuery> = {
   "costes/analisis": { vista: "costes", subvista: "analisis" },
   "costes/incidencias": { vista: "costes", subvista: "incidencias" },
   "costes/ranking": { vista: "costes", subvista: "ranking" },
+  "costes/materiales": { vista: "costes", subvista: "materiales" },
+  "costes/ordenes": { vista: "costes", subvista: "ordenes" },
   documentos: { vista: "documentos", subvista: "documentos" },
   "documentos/subir": { vista: "documentos", subvista: "subir" },
   "documentos/galeria": { vista: "documentos", subvista: "galeria" },
@@ -35,7 +37,7 @@ export default async function WorkSectionPage({
   searchParams,
 }: {
   params: Promise<{ id: string; section: string[] }>;
-  searchParams: Promise<{ modo?: string }>;
+  searchParams: Promise<{ modo?: string; returnTo?: string }>;
 }) {
   const [{ id, section }, existing] = await Promise.all([params, searchParams]);
   const route = section.join("/");
@@ -45,5 +47,5 @@ export default async function WorkSectionPage({
     : null;
   const query = direct ?? detail;
   if (!query) notFound();
-  return WorkDetailPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({ ...query, modo: existing.modo }) });
+  return WorkDetailPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({ ...query, modo: existing.modo, returnTo: existing.returnTo }) });
 }

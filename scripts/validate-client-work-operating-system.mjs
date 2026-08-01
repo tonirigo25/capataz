@@ -33,9 +33,9 @@ const ordered = (source, tokens) => {
 };
 
 check(
-  "cliente expone los ocho submenús 360 canónicos exactos",
-  (client.match(/^  \{ id: "(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos)"/gm) ?? []).length === 8 &&
-    (clientCanonical.match(/^  "(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos)",/gm) ?? []).length === 8,
+  "cliente expone los nueve submenús 360 canónicos exactos",
+  (client.match(/^  \{ id: "(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos|archivos)"/gm) ?? []).length === 9 &&
+    (clientCanonical.match(/^  "(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos|archivos)",/gm) ?? []).length === 9,
 );
 check("cliente abre Resumen por defecto", client.includes(': "resumen");') && client.includes('requestedView'));
 check(
@@ -52,7 +52,7 @@ check("insights de cliente quedan aislados por cliente u obra autorizada", clien
 check("rail de Cliente 360 se oculta, expande y persiste sin scroll propio", clientRail.includes("localStorage.setItem") && clientRail.includes('data-collapsed={collapsed ? "true" : "false"}') && styles.includes('.client-360-canonical:has(> [data-client-360-rail][data-collapsed="true"])'));
 check("rail de Cliente 360 cambia con la vista sin reutilizar señales no relacionadas", client.includes("signalMatchesClientView") && client.includes("const activeSignal") && clientCanonical.includes("recommendationMatchesView") && clientCanonical.includes("railEmptyCopy[activeView]"));
 check("Cliente 360 elimina la columna global vacía desde tablet horizontal", styles.includes('@media (min-width: 900px)') && styles.includes('.field-os-workspace[data-embedded-context="client"]'));
-check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
+check("cliente conecta workspaces canónicos sin mezclar pantallas", ordered(client, ["<ClientWorksWorkspace", "<ClientOpportunitiesWorkspace", "<ClientActivityWorkspace", "<ClientBudgetsWorkspace", "<ClientInvoicesWorkspace", "<ClientConversationsWorkspace", "<ClientDocumentsWorkspace", "<ClientFilesWorkspace"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
 check(
@@ -79,7 +79,7 @@ check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('e
 
 check("obra expone ocho áreas 360 exactas", (work.match(/^  \["(resumen|planificacion|partes|costes|documentos|equipo|facturacion|incidencias)"/gm) ?? []).length === 8);
 check("obra abre Resumen por defecto", work.includes("const activeTab") && work.includes(': "resumen"'));
-check("obra usa ParentNavigation y EntityHeader", work.includes("<EntityHeader") && work.includes('<ParentNavigation href="/obras"'));
+check("obra usa ParentNavigation y EntityHeader", work.includes("<EntityHeader") && work.includes("<ParentNavigation href={returnTo}"));
 check("obra conserva Registrar avance como acción contextual real", work.includes('"Registrar avance", Camera') && work.includes("<WorkActions"));
 check("Partes conserva modo en URL", work.includes("vista=partes&subvista=diarios&modo=cronologia") && work.includes("vista=partes&subvista=diarios&modo=galeria") && work.includes('query.modo === "galeria"'));
 check("Partes integra cronología, galería y notas", work.includes("TimelineList") && work.includes("WorkProgressGallery") && work.includes("<NotesTab"));
@@ -103,15 +103,15 @@ check("cliente y obra por ID están company-scoped", crm.includes("where: { id, 
 check("formularios mantienen orden semántico y targets", forms.includes("Identidad del cliente") && forms.includes("Contacto operativo") && forms.includes("Fiscal y condiciones comerciales") && forms.includes("StickyFormActions"));
 check("Editar cliente usa identidad, métricas y formulario responsive canónico", forms.includes("client-edit-reference__identity") && forms.includes("client-edit-reference__field-grid--three") && styles.includes(".client-edit-reference__identity") && styles.includes("@media (max-width: 767px)"));
 check(
-  "Editar cliente expone los ocho submenús canónicos con destinos reales",
-  (forms.match(/^  \["(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos)"/gm) ?? []).length === 8 &&
+  "Editar cliente expone los nueve submenús canónicos con destinos reales",
+  (forms.match(/^  \["(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos|archivos)"/gm) ?? []).length === 9 &&
     forms.includes('href={`/clientes/${clientId}?vista=${view}`}'),
 );
 check("Editar cliente no inventa campos comerciales o RGPD sin persistencia", !forms.includes('name="sector"') && !forms.includes('name="sitioWeb"') && !forms.includes('name="condicionesPago"') && !forms.includes('name="consentimientoComercial"'));
 check("métricas de Editar cliente usan scopes propios y excluyen borradores", forms.includes('resolveScopedEntityIds(auth, "work.view", "Work")') && forms.includes('resolveScopedEntityIds(auth, "sales.invoices.view", "Client")') && forms.includes("relationAllowedForClient(") && forms.includes("invoiceAccess.scope") && forms.includes('invoice.estado !== "borrador"'));
 check("Editar cliente normaliza retorno y rechaza IDs inexistentes", forms.includes("normalizeLoginReturnPath") && forms.includes("if (query.id && !record) notFound()") && management.includes("normalizeLoginReturnPath") && management.includes("result.count !== 1"));
 check("rail global reconoce Editar cliente sin duplicar contexto", chrome.includes("railPathname") && chrome.includes("editedClientId") && contextRail.includes("Completar ficha del cliente") && contextRail.includes('pathname.endsWith("/editar")'));
-check("navegación secundaria usa URL canónica, aria-current y targets", clientCanonical.includes("?vista=${view}") && work.includes("workViewHref(workId, activeTab, id)") && clientCanonical.includes("aria-current") && work.includes("aria-current"));
+check("navegación secundaria usa URL canónica, aria-current y targets", clientCanonical.includes("?vista=${view}") && work.includes("workViewHref(workId, activeTab, id, returnTo)") && clientCanonical.includes("aria-current") && work.includes("aria-current"));
 check("composición responsive cubre móvil, tablet y escritorio", gallery.includes("grid-cols-2") && gallery.includes("sm:grid-cols-3") && gallery.includes("xl:grid-cols-4") && work.includes("xl:grid-cols"));
 check("avisos PWA respetan la navegación y las acciones móviles", pwa.includes("pwa-status-stack") && styles.includes("body:has(.field-os-bottom-nav):has(.sticky-form-actions, .client-edit-reference__actions)") && styles.includes("min-height: 44px"));
 check("navegación y paginación móvil conservan objetivos táctiles completos", chrome.includes("grid-cols-5") && styles.includes("min-h-16 w-full min-w-0") && styles.includes(".clients-pagination--mobile nav a,") && styles.includes("width: 44px;") && styles.includes("height: 44px;"));

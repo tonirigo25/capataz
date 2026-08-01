@@ -5,12 +5,15 @@ import {
   ArrowUpRight,
   BriefcaseBusiness,
   Building2,
+  CalendarClock,
   CircleDollarSign,
   FileText,
+  FolderOpen,
   Mail,
   MessageCircle,
   Phone,
   Plus,
+  Receipt,
   Sparkles,
   UserRound,
   UsersRound,
@@ -57,7 +60,10 @@ type RestrictedAction = {
   href: string;
 };
 
+type Client360RestrictedView = "resumen" | "obras" | "oportunidades" | "actividad" | "presupuestos" | "facturas" | "conversaciones" | "documentos" | "archivos";
+
 export function Client360Restricted({
+  activeView,
   client,
   contacts,
   works,
@@ -67,6 +73,7 @@ export function Client360Restricted({
   actions,
   canUseAi,
 }: {
+  activeView: Client360RestrictedView;
   client: {
     id: string;
     displayName: string;
@@ -90,21 +97,16 @@ export function Client360Restricted({
   canUseAi: boolean;
 }) {
   const areas = [
-    { id: "resumen", label: "Resumen", icon: Building2, visible: true },
-    { id: "relacion", label: "Relación", icon: UsersRound, visible: true },
-    {
-      id: "operacion",
-      label: "Operación",
-      icon: BriefcaseBusiness,
-      visible: visibility.works,
-    },
-    {
-      id: "dinero",
-      label: "Dinero",
-      icon: CircleDollarSign,
-      visible: visibility.budgets || visibility.invoices,
-    },
-  ].filter((area) => area.visible);
+    { id: "resumen", label: "Resumen", icon: Building2 },
+    { id: "obras", label: "Obras", icon: BriefcaseBusiness },
+    { id: "oportunidades", label: "Oportunidades", icon: ArrowUpRight },
+    { id: "actividad", label: "Actividad", icon: CalendarClock },
+    { id: "presupuestos", label: "Presupuestos", icon: FileText },
+    { id: "facturas", label: "Facturas", icon: Receipt },
+    { id: "conversaciones", label: "Conversaciones", icon: MessageCircle },
+    { id: "documentos", label: "Documentos", icon: FileText },
+    { id: "archivos", label: "Archivos", icon: FolderOpen },
+  ] as const;
   const directContact = contacts[0];
   const identityContact =
     directContact?.email ??
@@ -187,7 +189,7 @@ export function Client360Restricted({
             <nav className="grid min-w-48 content-start gap-2" aria-label={`Acciones de ${client.displayName}`}>
               {client.email ? (
                 <Link href={`mailto:${client.email}`} className="secondary-button w-full">
-                  <Mail size={16} aria-hidden="true" /> Enviar mensaje
+                  <Mail size={16} aria-hidden="true" /> Abrir correo
                 </Link>
               ) : null}
               {client.phone ? (
@@ -195,7 +197,7 @@ export function Client360Restricted({
                   href={`tel:${client.phone.replace(/\s+/g, "")}`}
                   className="secondary-button w-full"
                 >
-                  <Phone size={16} aria-hidden="true" /> Llamar
+                  <Phone size={16} aria-hidden="true" /> Llamar desde el dispositivo
                 </Link>
               ) : null}
               {actions.map((action) => (
@@ -214,29 +216,29 @@ export function Client360Restricted({
 
         <nav
           className="flex min-w-0 gap-1 overflow-x-auto border-b border-border"
-          aria-label="Áreas autorizadas de Cliente 360"
+          aria-label="Áreas de Cliente 360"
         >
-          {areas.map((area, index) => {
+          {areas.map((area) => {
             const Icon = area.icon;
             return (
-              <a
+              <Link
                 key={area.id}
-                href={`#${area.id}`}
-                aria-current={index === 0 ? "location" : undefined}
+                href={`/clientes/${client.id}?vista=${area.id}`}
+                aria-current={activeView === area.id ? "page" : undefined}
                 className={`inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors ${
-                  index === 0
+                  activeView === area.id
                     ? "border-brand text-brand-strong"
                     : "border-transparent text-content-secondary hover:text-content"
                 }`}
               >
                 <Icon size={16} aria-hidden="true" />
                 {area.label}
-              </a>
+              </Link>
             );
           })}
         </nav>
 
-        <section id="resumen" className="scroll-mt-24" aria-labelledby="restricted-summary-title">
+        {activeView === "resumen" ? <section id="resumen" className="scroll-mt-24" aria-labelledby="restricted-summary-title">
           <h2 id="restricted-summary-title" className="sr-only">
             Resumen autorizado
           </h2>
@@ -249,10 +251,10 @@ export function Client360Restricted({
                 {identityContact}
               </p>
             </SummaryCard>
-            <SummaryCard title="Áreas visibles" icon={Building2}>
+            <SummaryCard title="Módulos de Cliente 360" icon={Building2}>
               <p className="text-2xl font-bold tabular-nums text-content">{areas.length}</p>
               <p className="mt-1 text-sm text-content-secondary">
-                {areas.map((area) => area.label).join(" · ")}
+                Arquitectura común; el acceso se aplica dentro de cada módulo.
               </p>
             </SummaryCard>
             <SummaryCard title="Acciones disponibles" icon={Plus}>
@@ -264,9 +266,9 @@ export function Client360Restricted({
               </p>
             </SummaryCard>
           </div>
-        </section>
+        </section> : null}
 
-        <section id="relacion" className="scroll-mt-24" aria-labelledby="restricted-contacts-title">
+        {activeView === "actividad" ? <section id="actividad" className="scroll-mt-24" aria-labelledby="restricted-contacts-title">
           <CollectionCard
             title="Contactos"
             icon={UsersRound}
@@ -282,10 +284,10 @@ export function Client360Restricted({
               </article>
             ))}
           </CollectionCard>
-        </section>
+        </section> : null}
 
-        {visibility.works ? (
-          <section id="operacion" className="scroll-mt-24" aria-labelledby="restricted-works-title">
+        {activeView === "obras" && visibility.works ? (
+          <section id="obras" className="scroll-mt-24" aria-labelledby="restricted-works-title">
             <CollectionCard
               title="Trabajos autorizados"
               icon={BriefcaseBusiness}
@@ -309,63 +311,20 @@ export function Client360Restricted({
               ))}
             </CollectionCard>
           </section>
-        ) : null}
+        ) : activeView === "obras" ? <RestrictedModuleNotice title="Obras no incluidas en tu acceso" /> : null}
 
-        {visibility.budgets || visibility.invoices ? (
-          <section id="dinero" className="scroll-mt-24" aria-labelledby="restricted-money-title">
-            <h2 id="restricted-money-title" className="sr-only">
-              Información económica autorizada
-            </h2>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {visibility.budgets ? (
-                <CollectionCard
-                  title="Presupuestos autorizados"
-                  icon={FileText}
-                  empty="Sin presupuestos en tu alcance."
-                  count={budgets.length}
-                >
-                  {budgets.map((budget) => (
-                    <Link
-                      key={budget.id}
-                      href={`/presupuestos/${budget.id}`}
-                      className="block py-3 hover:underline"
-                    >
-                      <p className="font-semibold text-content">
-                        {budget.number} · {budget.title}
-                      </p>
-                      <p className="mt-1 text-sm text-content-secondary">
-                        {[budget.status, budget.total].filter(Boolean).join(" · ")}
-                      </p>
-                    </Link>
-                  ))}
-                </CollectionCard>
-              ) : null}
-              {visibility.invoices ? (
-                <CollectionCard
-                  title="Facturas autorizadas"
-                  icon={CircleDollarSign}
-                  empty="Sin facturas en tu alcance."
-                  count={invoices.length}
-                >
-                  {invoices.map((invoice) => (
-                    <Link
-                      key={invoice.id}
-                      href={`/dinero/${invoice.id}`}
-                      className="block py-3 hover:underline"
-                    >
-                      <p className="font-semibold text-content">
-                        {invoice.number} · {invoice.concept}
-                      </p>
-                      <p className="mt-1 text-sm text-content-secondary">
-                        {invoice.status} · {invoice.total} · {invoice.pending} pendiente
-                      </p>
-                    </Link>
-                  ))}
-                </CollectionCard>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
+        {activeView === "presupuestos" && visibility.budgets ? <CollectionCard title="Presupuestos autorizados" icon={FileText} empty="Sin presupuestos en tu alcance." count={budgets.length}>
+          {budgets.map((budget) => <Link key={budget.id} href={`/presupuestos/${budget.id}`} className="block py-3 hover:underline"><p className="font-semibold text-content">{budget.number} · {budget.title}</p><p className="mt-1 text-sm text-content-secondary">{[budget.status, budget.total].filter(Boolean).join(" · ")}</p></Link>)}
+        </CollectionCard> : activeView === "presupuestos" ? <RestrictedModuleNotice title="Presupuestos no incluidos en tu acceso" /> : null}
+
+        {activeView === "facturas" && visibility.invoices ? <CollectionCard title="Facturas autorizadas" icon={CircleDollarSign} empty="Sin facturas en tu alcance." count={invoices.length}>
+          {invoices.map((invoice) => <Link key={invoice.id} href={`/dinero/${invoice.id}`} className="block py-3 hover:underline"><p className="font-semibold text-content">{invoice.number} · {invoice.concept}</p><p className="mt-1 text-sm text-content-secondary">{invoice.status} · {invoice.total} · {invoice.pending} pendiente</p></Link>)}
+        </CollectionCard> : activeView === "facturas" ? <RestrictedModuleNotice title="Facturas no incluidas en tu acceso" /> : null}
+
+        {activeView === "oportunidades" ? <RestrictedModuleNotice title="Oportunidades no incluidas en tu acceso" /> : null}
+        {activeView === "conversaciones" ? <RestrictedModuleNotice title="Conversaciones no incluidas en tu acceso" /> : null}
+        {activeView === "documentos" ? <RestrictedModuleNotice title="Documentos no incluidos en tu acceso" /> : null}
+        {activeView === "archivos" ? <RestrictedModuleNotice title="Archivos no incluidos en tu acceso" /> : null}
       </div>
 
       {canUseAi ? (
@@ -412,6 +371,10 @@ export function Client360Restricted({
       ) : null}
     </div>
   );
+}
+
+function RestrictedModuleNotice({ title }: { title: string }) {
+  return <section className="rounded-xl border border-border bg-surface p-5 shadow-soft"><h2 className="font-semibold text-content">{title}</h2><p className="mt-2 text-sm leading-6 text-content-secondary">La arquitectura de Cliente 360 se mantiene, pero este módulo requiere capacidades adicionales del plan o del rol. No se han cargado datos fuera de tu alcance.</p></section>;
 }
 
 function ActionIcon({ action }: { action: RestrictedAction["id"] }) {

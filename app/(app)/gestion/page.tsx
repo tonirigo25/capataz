@@ -211,6 +211,7 @@ const clientEditTabs = [
   ["facturas", "Facturas"],
   ["conversaciones", "Conversaciones"],
   ["documentos", "Documentos"],
+  ["archivos", "Archivos"],
 ] as const;
 
 export default async function ManualManagementPage({
