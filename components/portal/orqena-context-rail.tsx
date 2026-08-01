@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, ExternalLink, FileText, Info, ShieldCheck, Sparkles, TriangleAlert, X } from "lucide-react";
 import type { PortalRailArea, PortalRailRecommendations, TodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
 import type { BudgetRailContextValue } from "@/components/portal/budget-rail-context";
+import type { MoneyRailContextValue } from "@/components/portal/money-rail-context";
 import {
   acceptTodayRecommendationAction,
   dismissTodayRecommendationAction,
@@ -85,6 +86,7 @@ export function OrqenaContextRail({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [documentContext, setDocumentContext] = useState<DocumentRailContext | null>(null);
   const [budgetContext, setBudgetContext] = useState<BudgetRailContextValue | null>(null);
+  const [moneyContext, setMoneyContext] = useState<MoneyRailContextValue | null>(null);
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
@@ -112,6 +114,18 @@ export function OrqenaContextRail({
     };
     window.addEventListener("orqena:document-context", onDocumentContext);
     return () => window.removeEventListener("orqena:document-context", onDocumentContext);
+  }, [pathname]);
+  useEffect(() => {
+    if (pathname !== "/dinero") {
+      setMoneyContext(null);
+      return;
+    }
+    const onMoneyContext = (event: Event) => {
+      const detail = (event as CustomEvent<MoneyRailContextValue | null>).detail;
+      setMoneyContext(isMoneyRailContext(detail) ? detail : null);
+    };
+    window.addEventListener("orqena:money-context", onMoneyContext);
+    return () => window.removeEventListener("orqena:money-context", onMoneyContext);
   }, [pathname]);
   useEffect(() => {
     if (!pathname.startsWith("/presupuestos")) {
@@ -145,7 +159,7 @@ export function OrqenaContextRail({
   return (
     <>
       <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/dashboard" ? "dashboard" : undefined}>
-        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} onToggleCollapsed={onToggleCollapsed} />}
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
       <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
@@ -155,14 +169,14 @@ export function OrqenaContextRail({
       {mobileOpen ? (
         <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet orqena-context-sheet--inline" role="region" aria-labelledby={`${titleId}-mobile`}>
           <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} />
+          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} />
         </aside>
       ) : null}
     </>
   );
 }
 
-function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, budgetContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; budgetContext: BudgetRailContextValue | null; onToggleCollapsed?: () => void }) {
+function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, budgetContext, moneyContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; budgetContext: BudgetRailContextValue | null; moneyContext: MoneyRailContextValue | null; onToggleCollapsed?: () => void }) {
   if (isDashboard) {
     return <DashboardRailContent context={context} titleId={titleId} recommendation={recommendation} alerts={dashboardAlerts} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
   }
@@ -171,6 +185,9 @@ function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse
   }
   if (budgetContext && canUse) {
     return <BudgetRailContent context={budgetContext} titleId={titleId} onToggleCollapsed={onToggleCollapsed} />;
+  }
+  if (moneyContext && canUse) {
+    return <MoneyRailContent context={moneyContext} titleId={titleId} onToggleCollapsed={onToggleCollapsed} />;
   }
   const title = canUse ? recommendation?.title ?? context.title : "Orqena IA no disponible";
   const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
@@ -245,6 +262,35 @@ function BudgetRailContent({ context, titleId, onToggleCollapsed }: { context: B
   </div>;
 }
 
+function MoneyRailContent({ context, titleId, onToggleCollapsed }: { context: MoneyRailContextValue; titleId: string; onToggleCollapsed?: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  const isRisk = context.status === "risk";
+  return <div className="orqena-context-rail__inner" data-money-context={context.status}>
+    <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+    <p className="orqena-context-eyebrow">{isRisk ? "Alerta financiera" : "Control financiero"}</p>
+    {dismissed ? <article className="orqena-context-card">
+      <span className="orqena-context-card__icon"><ShieldCheck size={22} aria-hidden="true" /></span>
+      <h2 id={titleId}>Alerta ocultada en esta sesión</h2>
+      <p className="orqena-context-description">No se ha modificado ningún dato. Puedes abrir el detalle financiero o recuperar la alerta recargando la vista.</p>
+      <Link href={context.detailHref} className="orqena-context-primary">Abrir detalle financiero<ChevronRight size={16} aria-hidden="true" /></Link>
+    </article> : <article className="orqena-context-card">
+      <span className="orqena-context-card__icon">{isRisk ? <CircleAlert size={22} aria-hidden="true" /> : <ShieldCheck size={22} aria-hidden="true" />}</span>
+      <h2 id={titleId}>{context.title}</h2>
+      <p className="orqena-context-description">{context.description}</p>
+      <div className="orqena-context-source"><strong>Recomendaciones</strong><ul className="mt-2 list-disc space-y-1 pl-4">{context.recommendations.map((item) => <li key={item}>{item}</li>)}</ul></div>
+      <dl className="orqena-context-impact">
+        <div className="orqena-context-impact__title"><dt>Impacto registrado</dt><dd>{context.status === "stable" ? "Estable" : "Requiere revisión"}</dd></div>
+        <div><dt>{context.amountLabel}</dt><dd>{context.amount}</dd></div>
+        <div><dt>{context.periodLabel}</dt><dd>{context.periodValue}</dd></div>
+      </dl>
+      <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>Orqena IA no ejecuta cobros, pagos ni ajustes. La revisión y confirmación siguen siendo humanas.</p></div>
+      <Link href={context.detailHref} className="orqena-context-primary">Ver detalle y plan de acción<ChevronRight size={16} aria-hidden="true" /></Link>
+      <button type="button" className="orqena-context-secondary" onClick={() => setDismissed(true)}>Descartar alerta</button>
+    </article>}
+    <Link href="/orqena-ia/finanzas" className="orqena-context-more">Ver más recomendaciones financieras <ExternalLink size={13} aria-hidden="true" /></Link>
+  </div>;
+}
+
 function DocumentRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: DocumentRailContext; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
   const attentionItems = context.attentionItems?.filter(Boolean).slice(0, 3) ?? [];
   const reviewHref = safeInternalHref(context.reviewHref);
@@ -284,6 +330,17 @@ function isBudgetRailContext(value: unknown): value is BudgetRailContextValue {
     && typeof record.client === "string"
     && typeof record.reviewHref === "string"
     && typeof record.lineCount === "number";
+}
+
+function isMoneyRailContext(value: unknown): value is MoneyRailContextValue {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.title === "string"
+    && typeof record.description === "string"
+    && typeof record.status === "string"
+    && typeof record.amount === "string"
+    && typeof record.detailHref === "string"
+    && Array.isArray(record.recommendations);
 }
 
 function safeInternalHref(value: string | null | undefined) {

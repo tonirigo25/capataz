@@ -11,6 +11,11 @@ import {
   WalletCards,
 } from "lucide-react";
 import { prepareCollectionReminder } from "@/app/(app)/dinero/actions";
+import { EconomicControlCenter } from "@/components/economic-control-center";
+import {
+  MoneyRailContext,
+  type MoneyRailContextValue,
+} from "@/components/portal/money-rail-context";
 import { ListWorkspace } from "@/components/workspaces";
 import { StatusPill } from "@/components/status-pill";
 import {
@@ -33,6 +38,9 @@ import {
   ResultCount,
 } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getTreasuryRecommendations } from "@/lib/business-recommendations";
+import { getEconomicControl } from "@/lib/economic-control/queries";
+import type { EconomicControlData } from "@/lib/economic-control/types";
 import { prisma } from "@/lib/prisma";
 import { deriveInvoiceStatus } from "@/lib/status";
 import {
@@ -82,12 +90,61 @@ type InvoiceListItem = {
 export default async function MoneyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filtro?: string; buscar?: string }>;
+  searchParams: Promise<{ filtro?: string; buscar?: string; periodo?: string }>;
 }) {
   const query = await searchParams;
   const filter = query.filtro ?? "pendientes";
   const auth = await requireCapability("sales.invoices.view");
   const { companyId } = auth;
+  const economicCapabilities = [
+    "treasury.view",
+    "banking.view",
+    "purchases.received_invoices.view",
+    "purchase_cost.view",
+    "internal_cost.view",
+    "margin_percent.view",
+    "margin_amount.view",
+    "profitability.view",
+  ] as const;
+  const economicAccess = await Promise.all(
+    economicCapabilities.map((capability) =>
+      resolveAuthorization(auth, capability),
+    ),
+  );
+  const canSeeCompanyEconomicCenter =
+    auth.scope === "COMPANY" &&
+    economicAccess.every(
+      (decision) => decision.allowed && decision.scope === "COMPANY",
+    );
+
+  if (canSeeCompanyEconomicCenter) {
+    const [exportDecision, manageDecision, invoiceCreateDecision, purchaseManageDecision, data, recommendations] =
+      await Promise.all([
+        resolveAuthorization(auth, "reports.export"),
+        resolveAuthorization(auth, "treasury.manage"),
+        resolveAuthorization(auth, "sales.invoices.create"),
+        resolveAuthorization(auth, "purchases.received_invoices.manage"),
+        getEconomicControl({ area: "resumen", period: query.periodo }),
+        getTreasuryRecommendations(5, companyId),
+      ]);
+    const railContext = buildMoneyRailContext(data);
+
+    return (
+      <>
+        <MoneyRailContext context={railContext} />
+        <EconomicControlCenter
+          surface="money"
+          data={data}
+          recommendations={recommendations.recommendations}
+          canExport={exportDecision.allowed && exportDecision.scope === "COMPANY"}
+          canManage={manageDecision.allowed && manageDecision.scope === "COMPANY"}
+          canCreateInvoice={invoiceCreateDecision.allowed && invoiceCreateDecision.scope === "COMPANY"}
+          canManagePurchases={purchaseManageDecision.allowed && purchaseManageDecision.scope === "COMPANY"}
+        />
+      </>
+    );
+  }
+
   const [workIds, clientIds] = await Promise.all([
     resolveScopedEntityIds(auth, "sales.invoices.view", "Work"),
     resolveScopedEntityIds(auth, "sales.invoices.view", "Client"),
@@ -655,6 +712,76 @@ function normalize(value: string) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+function buildMoneyRailContext(
+  data: EconomicControlData,
+): MoneyRailContextValue {
+  const negativeForecast = data.forecast.points.filter(
+    (point) => point.balance != null && point.balance < 0,
+  );
+  const minimumBalance = negativeForecast.reduce<number | null>(
+    (minimum, point) =>
+      minimum == null || (point.balance ?? 0) < minimum
+        ? point.balance
+        : minimum,
+    null,
+  );
+
+  if (minimumBalance != null) {
+    return {
+      title: "Riesgo de falta de liquidez detectado",
+      description: `La previsión registrada alcanza un saldo mínimo de ${formatCurrency(minimumBalance)} dentro del periodo seleccionado.`,
+      status: "risk",
+      amountLabel: "Déficit máximo previsto",
+      amount: formatCurrency(minimumBalance),
+      periodLabel: "Tramos en riesgo",
+      periodValue: String(negativeForecast.length),
+      recommendations: [
+        "Prioriza las facturas vencidas con mayor saldo.",
+        "Revisa los pagos programados del periodo.",
+        "Confirma compras no esenciales antes de ejecutarlas.",
+      ],
+      detailHref: "/tesoreria?vista=prevision&periodo=90d",
+    };
+  }
+
+  if (data.receivableSummary.overdue > 0) {
+    return {
+      title: "Cobros vencidos que requieren revisión",
+      description: `${data.receivableSummary.overdueCount} facturas acumulan ${formatCurrency(data.receivableSummary.overdue)} pendientes fuera de plazo.`,
+      status: "attention",
+      amountLabel: "Saldo vencido",
+      amount: formatCurrency(data.receivableSummary.overdue),
+      periodLabel: "Facturas afectadas",
+      periodValue: String(data.receivableSummary.overdueCount),
+      recommendations: [
+        "Revisa primero los saldos vencidos de mayor importe.",
+        "Comprueba el historial antes de preparar recordatorios.",
+        "Confirma cada comunicación antes de enviarla.",
+      ],
+      detailHref: "/tesoreria?vista=cobros&estado=vencido",
+    };
+  }
+
+  return {
+    title: "Posición financiera sin alertas críticas",
+    description:
+      "La información registrada no muestra déficits previstos ni cobros vencidos dentro del periodo seleccionado.",
+    status: "stable",
+    amountLabel: "Saldo previsto",
+    amount:
+      data.forecast.closingBalance == null
+        ? "Sin saldo registrado"
+        : formatCurrency(data.forecast.closingBalance),
+    periodLabel: "Alertas críticas",
+    periodValue: "0",
+    recommendations: [
+      "Mantén actualizados los vencimientos de cobros y pagos.",
+      "Revisa la rentabilidad registrada por obra.",
+      "Confirma cualquier ajuste financiero antes de aplicarlo.",
+    ],
+    detailHref: "/tesoreria?vista=prevision&periodo=90d",
+  };
 }
 function relationScope(
   scope: string,

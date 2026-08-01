@@ -21,7 +21,7 @@ const primaryOrder = [
   'label: "Clientes"',
   'label: "Trabajos"',
   'label: "Presupuestos"',
-  'label: "Facturas y cobros"'
+  'label: "Dinero"'
 ];
 const primaryIndexes = primaryOrder.map((token) => navigation.indexOf(token));
 const navigationOnly = navigation.slice(navigation.indexOf("export const primaryNavigation"), navigation.indexOf("export const createActions"));
@@ -32,10 +32,10 @@ check("navegación principal tiene seis destinos en orden", primaryIndexes.every
 check("Agenda permanece disponible en navegación adaptativa", navigation.indexOf('label: "Agenda"') > navigation.indexOf('label: "Control"'));
 check("menú móvil conserva tres grupos aprobados", ['label: "Compras"', 'label: "Control"', 'label: "Administración"'].every((token) => navigation.includes(token)));
 check("sidebar escritorio elimina Más áreas", !chrome.includes('id="desktop-more-navigation"') && !chrome.includes('onOpenMore') && !chrome.includes('aria-controls="desktop-more-navigation"'));
-check("sidebar despliega submódulos estables bajo su módulo principal", navigation.includes("export const productSubnavigation") && ["/oportunidades", "/seguimientos", "/tareas", "/actividad", "/tesoreria", "/proveedores", "/subcontratas", "/facturas-proveedor", "/facturas-subcontratas", "/gastos-materiales", "/recordatorios", "/equipos", "/automatizaciones", "/plan-y-uso", "/auditoria"].every((route) => navigation.includes(`href: "${route}"`)) && chrome.includes("<NavigationBranch") && chrome.includes("Submenús de ${item.label}"));
+check("sidebar despliega submódulos estables bajo su módulo principal", navigation.includes("export const productSubnavigation") && ["/oportunidades", "/seguimientos", "/tareas", "/actividad", "/proveedores", "/subcontratas", "/facturas-proveedor", "/facturas-subcontratas", "/gastos-materiales", "/recordatorios", "/equipos", "/automatizaciones", "/plan-y-uso", "/auditoria"].every((route) => navigation.includes(`href: "${route}"`)) && chrome.includes("<NavigationBranch") && chrome.includes("Submenús de ${item.label}"));
 check("submenús respetan capacidades, contexto y semántica expandida", chrome.includes("capabilitySet.has(item.capability)") && chrome.includes("parentActive || childActive") && chrome.includes("children.length > 0") && chrome.includes('data-expanded={expanded ? "true" : "false"}') && chrome.includes("aria-expanded={expanded}") && chrome.includes("aria-controls={controls}"));
 check("Actividad estricta sólo se ofrece cuando capacidades y scopes equivalen a la ruta", navigation.slice(navigation.indexOf('"/obras": ['), navigation.indexOf('"/dinero": [')).includes('href: "/actividad"') && ["reports.view", "clients.view", "work.view", "sales.budgets.view", "sales.invoices.view", "treasury.view", "purchase_cost.view", "agenda.view", "documents.view"].every((capability) => chrome.includes(`"${capability}"`)) && chrome.includes('scope.scope !== "COMPANY"') && chrome.includes('item.href !== "/actividad" || activityRouteAvailable'));
-check("perfiles de compras sin Dinero conservan un acceso principal", chrome.includes('label: "Compras"') && chrome.includes("purchaseDestinations") && chrome.includes('item.href !== "/tesoreria"'));
+check("perfiles de compras sin Dinero conservan un acceso principal", chrome.includes('label: "Compras"') && chrome.includes("const [landing, ...purchaseChildren] = children"));
 check("Más excluye rutas ocultas históricas", ["/tareas", "/seguimientos", "/automatizaciones", "/alertas", "/recomendaciones", "/inteligencia"].every((route) => !navigationOnly.includes(`href: "${route}"`)));
 check("rutas centrales no están bloqueadas por middleware", !middleware.includes("modulo-no-disponible") && middleware.includes("isProtectedPage"));
 check("contexto de ruta central cubre áreas, detalles, formularios, documentos y desconocidas", ["areaContexts", "detailContexts", 'kind: "form"', 'kind: "document"', 'kind: "unknown"'].every((token) => navigation.includes(token)));

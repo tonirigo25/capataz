@@ -39,7 +39,6 @@ export const productSubnavigation: Record<string, ProductDestination[]> = {
     { href: "/actividad", label: "Actividad", icon: "activity", capability: "reports.view" },
   ],
   "/dinero": [
-    { href: "/tesoreria", label: "Tesorería", icon: "landmark", capability: "treasury.view" },
     { href: "/proveedores", label: "Proveedores", icon: "client", capability: "purchases.suppliers.view" },
     { href: "/subcontratas", label: "Subcontratas", icon: "building", capability: "purchases.suppliers.view" },
     { href: "/facturas-proveedor", label: "Facturas proveedor", icon: "receipt", capability: "purchases.received_invoices.view" },
@@ -67,7 +66,7 @@ export const primaryNavigation: ProductDestination[] = [
   { href: "/clientes", label: "Clientes", icon: "client", capability: "clients.view" },
   { href: "/obras", label: "Trabajos", icon: "briefcase", capability: "work.view" },
   { href: "/presupuestos", label: "Presupuestos", icon: "document", capability: "sales.budgets.view" },
-  { href: "/dinero", label: "Facturas y cobros", icon: "invoice", capability: "sales.invoices.view" }
+  { href: "/dinero", label: "Dinero", icon: "invoice", capability: "sales.invoices.view" }
 ];
 
 export const secondaryNavigation: ProductNavigationGroup[] = [
@@ -85,7 +84,6 @@ export const secondaryNavigation: ProductNavigationGroup[] = [
     label: "Control",
     items: [
       { href: "/agenda", label: "Agenda", icon: "agenda", capability: "agenda.view" },
-      { href: "/tesoreria", label: "Tesorería", icon: "landmark", capability: "treasury.view" },
       { href: "/documentos", label: "Documentos", icon: "document", capability: "documents.view" },
       { href: "/recordatorios", label: "Recordatorios", icon: "agenda", capability: "followups.view" },
       { href: "/actividad", label: "Actividad", icon: "activity", capability: "reports.view" },
@@ -151,7 +149,7 @@ const detailContexts: Array<{ pattern: RegExp; context: RouteContext }> = [
   { pattern: /^\/clientes\/[^/]+/, context: { label: "Cliente", parentHref: "/clientes", parentLabel: "Clientes", kind: "detail" } },
   { pattern: /^\/obras\/[^/]+/, context: { label: "Obra", parentHref: "/obras", parentLabel: "Obras", kind: "detail" } },
   { pattern: /^\/presupuestos\/[^/]+/, context: { label: "Presupuesto", parentHref: "/presupuestos", parentLabel: "Presupuestos", kind: "detail" } },
-  { pattern: /^\/dinero\/[^/]+/, context: { label: "Factura", parentHref: "/dinero", parentLabel: "Facturas y cobros", kind: "detail" } },
+  { pattern: /^\/dinero\/[^/]+/, context: { label: "Factura", parentHref: "/dinero", parentLabel: "Dinero", kind: "detail" } },
   { pattern: /^\/proveedores\/[^/]+/, context: { label: "Proveedor", parentHref: "/proveedores", parentLabel: "Proveedores", kind: "detail" } },
   { pattern: /^\/subcontratas\/[^/]+/, context: { label: "Subcontrata", parentHref: "/subcontratas", parentLabel: "Subcontratas", kind: "detail" } },
   { pattern: /^\/facturas-proveedor\/[^/]+/, context: { label: "Factura proveedor", parentHref: "/facturas-proveedor", parentLabel: "Facturas proveedor", kind: "detail" } },

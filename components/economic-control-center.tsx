@@ -35,6 +35,7 @@ const AREAS: Array<{ id: EconomicArea; label: string }> = [
 ];
 
 export function EconomicControlCenter({
+  surface = "treasury",
   data,
   recommendations = [],
   canExport = false,
@@ -42,6 +43,7 @@ export function EconomicControlCenter({
   canCreateInvoice = false,
   canManagePurchases = false,
 }: {
+  surface?: "money" | "treasury";
   data: EconomicControlData;
   recommendations?: BusinessRecommendation[];
   canExport?: boolean;
@@ -50,18 +52,18 @@ export function EconomicControlCenter({
   canManagePurchases?: boolean;
 }) {
   const profitability = summarizeProfitability(data.profitability);
-  const isSummary = data.area === "resumen";
+  const isMoney = surface === "money";
 
   return (
     <ProductPage layout="analytical">
-      <div className={`${styles.page} ${isSummary ? styles.summaryPage : ""}`}>
+      <div className={`${styles.page} ${isMoney ? styles.summaryPage : ""}`} data-economic-surface={surface}>
         <header className={styles.header}>
-          {!isSummary ? <InternalBreadcrumbs items={[{ label: "Dinero", href: "/dinero" }, { label: "Tesorería" }]} /> : null}
+          {!isMoney ? <InternalBreadcrumbs items={[{ label: "Dinero", href: "/dinero" }, { label: "Detalle financiero" }]} /> : null}
           <div className={styles.headerRow}>
             <div className={styles.headerCopy}>
-              {!isSummary ? <p className={styles.eyebrow}>Control económico</p> : null}
-              <h1>{isSummary ? "Dinero" : "Tesorería"}</h1>
-              <p>{isSummary ? "Tesorería, facturas y rentabilidad en tiempo real." : "Caja, cobros, pagos, vencimientos y rentabilidad conectados con su documento de origen."}</p>
+              {!isMoney ? <p className={styles.eyebrow}>Control económico</p> : null}
+              <h1>{isMoney ? "Dinero" : "Detalle financiero"}</h1>
+              <p>{isMoney ? "Tesorería, facturas y rentabilidad en tiempo real." : "Caja, cobros, pagos, vencimientos y rentabilidad conectados con su documento de origen."}</p>
             </div>
             <div className={styles.headerActions}>
               {canExport ? (
@@ -70,9 +72,9 @@ export function EconomicControlCenter({
                   Ver informe completo
                 </Link>
               ) : null}
-              {!isSummary && canCreateInvoice ? <Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="secondary-button">Nueva factura</Link> : null}
-              {!isSummary && canManagePurchases ? <Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Factura recibida</Link> : null}
-              {!isSummary && canManage ? <Link href="#treasury-registration" className="primary-button">Registrar movimiento</Link> : null}
+              {!isMoney && canCreateInvoice ? <Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="secondary-button">Nueva factura</Link> : null}
+              {!isMoney && canManagePurchases ? <Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Factura recibida</Link> : null}
+              {!isMoney && canManage ? <Link href="#treasury-registration" className="primary-button">Registrar movimiento</Link> : null}
             </div>
           </div>
         </header>
@@ -80,7 +82,7 @@ export function EconomicControlCenter({
         <section className={styles.kpiStrip} aria-label="Posición económica documentada">
           <TreasuryKpi
             icon={WalletCards}
-            label="Caja registrada"
+            label={isMoney ? "Caja disponible" : "Caja registrada"}
             value={data.registeredBalance === null ? "Sin saldo" : formatCurrency(data.registeredBalance)}
             detail={data.registeredBalance === null ? "Sin posición bancaria inventada" : `${data.accounts.length} cuentas activas`}
             tone="green"
@@ -111,7 +113,7 @@ export function EconomicControlCenter({
           />
           <TreasuryKpi
             icon={TrendingUp}
-            label="Rentabilidad registrada"
+            label={isMoney ? "Rentabilidad media" : "Rentabilidad registrada"}
             value={profitability.margin === null ? "Sin datos" : `${profitability.margin.toFixed(1)} %`}
             detail={`${profitability.count} obras comparables`}
             href={economicHref(data, { vista: "rentabilidad" })}
@@ -119,7 +121,7 @@ export function EconomicControlCenter({
           />
         </section>
 
-        {!isSummary ? <nav className={styles.tabs} aria-label="Áreas de control económico">
+        {!isMoney ? <nav className={styles.tabs} aria-label="Áreas de control económico">
           {AREAS.map((area) => (
             <Link
               key={area.id}
@@ -131,9 +133,9 @@ export function EconomicControlCenter({
           ))}
         </nav> : null}
 
-        {!isSummary ? <EconomicFilters data={data} /> : null}
+        {!isMoney ? <EconomicFilters data={data} /> : null}
 
-        {data.area === "resumen" ? <SummaryArea data={data} recommendations={recommendations} profitability={profitability} canManage={canManage} /> : null}
+        {data.area === "resumen" ? <SummaryArea data={data} recommendations={recommendations} profitability={profitability} canManage={canManage} compact={isMoney} /> : null}
         {data.area === "cobros" ? <DocumentsArea direction="entrada" data={data} /> : null}
         {data.area === "pagos" ? <DocumentsArea direction="salida" data={data} /> : null}
         {data.area === "prevision" ? <ForecastArea forecast={data.forecast} /> : null}
@@ -186,11 +188,13 @@ function SummaryArea({
   recommendations,
   profitability,
   canManage,
+  compact,
 }: {
   data: EconomicControlData;
   recommendations: BusinessRecommendation[];
   profitability: ReturnType<typeof summarizeProfitability>;
   canManage: boolean;
+  compact: boolean;
 }) {
   const upcoming = nextDocuments(data.forecast);
   const receivables = data.receivables.filter((document) => document.pending > 0).slice(0, 5);
@@ -246,7 +250,7 @@ function SummaryArea({
         </Panel>
       </div>
 
-      <div className={styles.secondaryGrid}>
+      {!compact ? <div className={styles.secondaryGrid}>
         <Panel id="treasury-position" title="Caja y movimientos" description="Sólo cuentas y movimientos registrados.">
           <CashPosition data={data} />
         </Panel>
@@ -258,16 +262,16 @@ function SummaryArea({
         >
           <AttentionList data={data} recommendations={recommendations} />
         </Panel>
-      </div>
+      </div> : null}
 
-      {canManage ? <div className={styles.registration}>
+      {!compact && canManage ? <div className={styles.registration}>
         <TreasuryRegistration accounts={data.accounts} returnTo={economicHref(data, {})} />
       </div> : null}
 
-      <div className={styles.secondaryGrid}>
+      {!compact ? <div className={styles.secondaryGrid}>
         <Concentration title="Saldo pendiente por cliente" rows={data.clientConcentration} empty="No hay saldos de clientes pendientes." />
         <Concentration title="Saldo pendiente por proveedor" rows={data.supplierConcentration} empty="No hay saldos de proveedores pendientes." />
-      </div>
+      </div> : null}
     </div>
   );
 }

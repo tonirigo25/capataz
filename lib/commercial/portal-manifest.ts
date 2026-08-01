@@ -96,7 +96,7 @@ function scalarString(value: unknown) { return typeof value === "string" || type
 
 function mobileRoutes(profile: string) {
   if (profile === "WORKER") return ["/hoy", "/obras", "/tareas", "/orqena-ia"];
-  if (profile === "FINANCE") return ["/hoy", "/dinero", "/tesoreria", "/orqena-ia"];
+  if (profile === "FINANCE") return ["/hoy", "/dinero", "/orqena-ia"];
   if (["SALES", "SALES_MANAGER"].includes(profile)) return ["/hoy", "/clientes", "/presupuestos", "/orqena-ia"];
   return ["/hoy", "/clientes", "/obras", "/orqena-ia"];
 }

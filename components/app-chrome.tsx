@@ -482,11 +482,8 @@ function buildCanonicalDesktopNavigation(
       (item.href !== "/actividad" || activityRouteAvailable),
     );
     if (!source && target.href === "/dinero" && children.length > 0) {
-      const purchaseDestinations = children.filter((item) => item.href !== "/tesoreria");
-      const [landing, ...purchaseChildren] = purchaseDestinations;
+      const [landing, ...purchaseChildren] = children;
       if (landing) return [{ ...landing, label: "Compras", icon: "expense", children: purchaseChildren }];
-      const treasury = children.find((item) => item.href === "/tesoreria");
-      if (treasury) return [{ ...treasury, label: "Tesorería", icon: "landmark", children: [] }];
     }
     if (!source) return [];
     return [{ ...source, label: target.label, icon: target.icon, children }];
