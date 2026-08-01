@@ -51,7 +51,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type DetailSearchParams = { vista?: string; tab?: string; q?: string };
+type DetailSearchParams = { vista?: string; tab?: string; q?: string; modo?: string };
 
 const tabs = [
   { id: "resumen", label: "Resumen" },
@@ -151,6 +151,7 @@ export default async function ClientDetailPage({
   const auth = await requireCapability("clients.view");
   const requestedView = normalizeClientView(query.vista) ?? (query.tab ? normalizeClientView(query.tab) : "resumen");
   const activeTab = tabs.some(({ id: tab }) => tab === requestedView) ? requestedView as ClientTabId : "resumen";
+  const worksMode = query.modo === "tarjetas" || query.modo === "portfolio" ? query.modo : "lista";
   const scopedClientIds = await resolveScopedEntityIds(
     auth,
     "clients.view",
@@ -383,7 +384,7 @@ export default async function ClientDetailPage({
         }
       >
         {activeTab === "obras" ? (
-          <ClientWorksWorkspace summary={summary} returnTo={returnTo} />
+          <ClientWorksWorkspace summary={summary} returnTo={returnTo} worksMode={worksMode} />
         ) : null}
         {activeTab === "oportunidades" ? (
           <ClientOpportunitiesWorkspace summary={summary} returnTo={returnTo} />

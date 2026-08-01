@@ -10,6 +10,8 @@ const clients = read("app/(app)/clientes/page.tsx");
 const clientFilters = read("components/clients/client-filter-bar.tsx");
 const clientSplit = read("components/clients/client-split-view.tsx");
 const clientPortfolio = read("components/portal/modules-a/client-portfolio.tsx");
+const clientWorkspaces = read("components/portal/modules-a/client-360-real-workspaces.tsx");
+const clientWorksOverview = read("components/portal/modules-a/client-360-works-overview.tsx");
 const contextDrawer = read("components/context-drawer.tsx");
 const work = read("app/(app)/obras/[id]/page.tsx");
 const works = read("app/(app)/obras/page.tsx");
@@ -53,6 +55,17 @@ check("rail de Cliente 360 se oculta, expande y persiste sin scroll propio", cli
 check("rail de Cliente 360 cambia con la vista sin reutilizar señales no relacionadas", client.includes("signalMatchesClientView") && client.includes("const activeSignal") && clientCanonical.includes("recommendationMatchesView") && clientCanonical.includes("railEmptyCopy[activeView]"));
 check("Cliente 360 elimina la columna global vacía desde tablet horizontal", styles.includes('@media (min-width: 900px)') && styles.includes('.field-os-workspace[data-embedded-context="client"]'));
 check("cliente conecta workspaces canónicos sin mezclar pantallas", ordered(client, ["<ClientWorksWorkspace", "<ClientOpportunitiesWorkspace", "<ClientActivityWorkspace", "<ClientBudgetsWorkspace", "<ClientInvoicesWorkspace", "<ClientConversationsWorkspace", "<ClientDocumentsWorkspace", "<ClientFilesWorkspace"]));
+check(
+  "obras de Cliente 360 enlaza tarjetas, lista y portfolio sin inventar datos",
+  client.includes('query.modo === "tarjetas" || query.modo === "portfolio"') &&
+    client.includes("worksMode={worksMode}") &&
+    ['"tarjetas"', '"lista"', '"portfolio"'].every((mode) => clientWorksOverview.includes(mode)) &&
+    clientWorksOverview.includes("WorksReferenceCards") &&
+    clientWorksOverview.includes("WorksOperationalList") &&
+    clientWorksOverview.includes("WorksDesktopTable") &&
+    clientWorkspaces.includes("progressPercent: null") &&
+    clientWorkspaces.includes("estimatedMarginPercent: null"),
+);
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
 check(

@@ -14,16 +14,20 @@ import {
   FileText,
   Flag,
   ListFilter,
+  LayoutGrid,
   MoreHorizontal,
   Plus,
+  Rows3,
   Search,
   Star,
+  TableProperties,
   TrendingUp,
   UserRound,
   WalletCards,
 } from "lucide-react";
 
 export type ClientWorkTone = "neutral" | "info" | "success" | "warning" | "danger";
+export type ClientWorksMode = "tarjetas" | "lista" | "portfolio";
 export type ClientWorksMetricKind = "active" | "contracted" | "estimated_margin" | "upcoming_milestones";
 
 export type ClientWorksMetric = {
@@ -104,6 +108,7 @@ export type Client360WorksOverviewProps = {
   currency?: string;
   metrics: ClientWorksMetric[];
   works: ClientWorkRecord[];
+  mode?: ClientWorksMode;
   createHref?: string | null;
   allWorksHref?: string | null;
   exportHref?: string | null;
@@ -126,6 +131,7 @@ export function Client360WorksOverview({
   currency = "EUR",
   metrics,
   works,
+  mode = "lista",
   createHref,
   allWorksHref,
   exportHref,
@@ -154,21 +160,22 @@ export function Client360WorksOverview({
   const currentPage = Math.min(page, pageCount);
   const start = (currentPage - 1) * pageSize;
   const pageWorks = filteredWorks.slice(start, start + pageSize);
+  const modeBaseHref = `/clientes/${clientId}?vista=obras&modo=`;
 
   return (
     <section className={`grid min-w-0 gap-4 ${className}`} aria-labelledby={`client-works-${clientId}`}>
       <header className="sr-only"><h2 id={`client-works-${clientId}`}>Cartera de obras de este cliente</h2><p>Resumen de obras enlazadas al cliente. Cada obra conserva su identidad, permisos y datos propios.</p></header>
 
-      {metrics.length ? <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Indicadores recibidos de la cartera del cliente">{metrics.map((metric) => <WorksMetricCard key={metric.kind} metric={metric} money={money} />)}</div> : <HonestEmpty icon={Building2} title="Sin indicadores de cartera" detail="No se han recibido métricas autorizadas para este cliente." compact />}
+      {mode === "portfolio" ? (metrics.length ? <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Indicadores recibidos de la cartera del cliente">{metrics.map((metric) => <WorksMetricCard key={metric.kind} metric={metric} money={money} />)}</div> : <HonestEmpty icon={Building2} title="Sin indicadores de cartera" detail="No se han recibido métricas autorizadas para este cliente." compact />) : null}
 
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-2">{createHref ? <ActionLink href={createHref} label="Nueva obra" icon={Plus} primary /> : null}{allWorksHref ? <ActionLink href={allWorksHref} label="Ver todas" icon={BriefcaseBusiness} /> : null}<label className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-[10px] text-content-secondary"><span className="font-semibold">Estado:</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="max-w-36 border-0 bg-transparent font-bold text-content outline-none"><option value="">Todos</option>{statuses.map((option) => <option key={option} value={option}>{option}</option>)}</select></label></div>
-        <div className="flex flex-wrap gap-2"><label className="flex min-h-11 min-w-[14rem] flex-1 items-center gap-2 rounded-lg border border-border px-3 text-content-secondary lg:flex-none"><Search size={15} aria-hidden="true" /><span className="sr-only">Buscar obra</span><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} className="min-w-0 flex-1 border-0 bg-transparent text-[10px] text-content outline-none" placeholder="Buscar obra…" /></label>{exportHref ? <ActionLink href={exportHref} label="Exportar" icon={Download} /> : null}{moreFiltersHref ? <ActionLink href={moreFiltersHref} label="Filtros" icon={ListFilter} /> : null}{query || status ? <button type="button" onClick={() => { setQuery(""); setStatus(""); setPage(1); }} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-[10px] font-bold text-content-secondary hover:bg-subtle">Limpiar</button> : null}</div>
+        <div className="flex flex-wrap gap-2"><label className="flex min-h-11 min-w-[14rem] flex-1 items-center gap-2 rounded-lg border border-border px-3 text-content-secondary lg:flex-none"><Search size={15} aria-hidden="true" /><span className="sr-only">Buscar obra</span><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} className="min-w-0 flex-1 border-0 bg-transparent text-[10px] text-content outline-none" placeholder="Buscar obra…" /></label><nav className="flex min-h-11 overflow-hidden rounded-lg border border-border bg-surface" aria-label="Vista de obras del cliente">{([['tarjetas','Tarjetas',LayoutGrid],['lista','Lista',Rows3],['portfolio','Portfolio',TableProperties]] as const).map(([value,label,Icon]) => <Link key={value} href={`${modeBaseHref}${value}`} aria-current={mode === value ? 'page' : undefined} className={`inline-flex min-h-11 items-center gap-1.5 px-3 text-[10px] font-bold ${mode === value ? 'bg-brand text-on-brand' : 'text-content-secondary hover:bg-subtle'}`}><Icon size={14} aria-hidden="true" /><span className="hidden xl:inline">{label}</span><span className="sr-only xl:hidden">{label}</span></Link>)}</nav>{exportHref ? <ActionLink href={exportHref} label="Exportar" icon={Download} /> : null}{moreFiltersHref ? <ActionLink href={moreFiltersHref} label="Filtros" icon={ListFilter} /> : null}{query || status ? <button type="button" onClick={() => { setQuery(""); setStatus(""); setPage(1); }} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-[10px] font-bold text-content-secondary hover:bg-subtle">Limpiar</button> : null}</div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <p className="sr-only" aria-live="polite">{filteredWorks.length} obras visibles de {works.length} recibidas.</p>
-        {pageWorks.length ? <><WorksDesktopTable works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /><WorksMobileList works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /><WorksPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} pageSizes={safePageSizes} start={start} visibleCount={pageWorks.length} total={filteredWorks.length} onPage={setPage} onPageSize={(value) => { setPageSize(value); setPage(1); }} /></> : <HonestEmpty icon={BriefcaseBusiness} title="No hay obras para estos filtros" detail="Cambia la búsqueda o el estado para revisar la cartera recibida." />}
+        {pageWorks.length ? <>{mode === "tarjetas" ? <WorksReferenceCards works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /> : mode === "lista" ? <><WorksOperationalList works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /><div className="md:hidden"><WorksMobileList works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /></div></> : <><WorksDesktopTable works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /><WorksMobileList works={pageWorks} expandedWorkId={expandedWorkId} onExpand={setExpandedWorkId} money={money} /></>}<WorksPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} pageSizes={safePageSizes} start={start} visibleCount={pageWorks.length} total={filteredWorks.length} onPage={setPage} onPageSize={(value) => { setPageSize(value); setPage(1); }} /></> : <HonestEmpty icon={BriefcaseBusiness} title="No hay obras para estos filtros" detail="Cambia la búsqueda o el estado para revisar la cartera recibida." />}
       </div>
     </section>
   );
@@ -180,6 +187,18 @@ function WorksMetricCard({ metric, money }: { metric: ClientWorksMetric; money: 
   const body = <><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-[10px] font-semibold text-content-secondary">{presentation.label}</h3><strong className="mt-2 block truncate text-xl font-black tabular-nums text-content" title={formatMetric(metric, presentation.format, money)}>{formatMetric(metric, presentation.format, money)}</strong>{metric.detail ? <p className={`mt-1 truncate text-[9px] ${toneText(metric.tone, true)}`}>{metric.detail}</p> : null}</div><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${toneSurface(metric.tone)}`}><Icon size={18} aria-hidden="true" /></span></div>{metric.href ? <span className="mt-3 block border-t border-border pt-2 text-[9px] font-bold text-brand-strong">{metric.hrefLabel ?? "Ver detalle"} →</span> : null}</>;
   const className = "block min-w-0 rounded-xl border border-border bg-surface p-3 text-left hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
   return metric.href ? <Link href={metric.href} className={className}>{body}</Link> : <article className={className}>{body}</article>;
+}
+
+function WorksReferenceCards({ works, expandedWorkId, onExpand, money }: { works: ClientWorkRecord[]; expandedWorkId: string | null; onExpand: (id: string | null) => void; money: Intl.NumberFormat }) {
+  return <div className="grid gap-3 p-3" role="list">{works.map((work) => { const expanded = expandedWorkId === work.id; const image = safeImageUrl(work.imageUrl); return <article key={work.id} role="listitem" className="overflow-hidden rounded-xl border border-border bg-surface"><div className="grid min-w-0 md:grid-cols-[15rem_minmax(0,1fr)]"><div className="min-h-44 bg-subtle">{image ? <Image src={image} alt={work.imageAlt?.trim() || `Vista registrada de ${work.title}`} width={480} height={320} unoptimized className="h-full min-h-44 w-full object-cover" /> : <span className="flex h-full min-h-44 items-center justify-center text-content-tertiary"><Building2 size={34} aria-hidden="true" /></span>}</div><div className="grid min-w-0 gap-3 p-4"><header className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="text-lg font-black text-content">{work.href ? <Link href={work.href} className="hover:text-brand-strong hover:underline">{work.title}</Link> : work.title}</h3><p className="mt-1 text-[10px] text-content-secondary">{[work.segment, work.address].filter(Boolean).join(" · ") || "Datos no informados"}</p></div>{work.status ? <StatusBadge label={work.status} tone={work.statusTone} /> : null}</header><dl className="grid grid-cols-2 gap-3 text-[10px] lg:grid-cols-4"><CardFact label="Avance" value={formatPercent(work.progressPercent)} /><CardFact label="Margen estimado" value={formatPercent(work.estimatedMarginPercent)} tone={work.marginTone} /><CardFact label={work.contractedLabel ?? "Presupuesto"} value={formatMoney(work.contractedAmount, money)} /><CardFact label="Fecha fin" value={formatDate(work.endAt)} /></dl><div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3"><span className="text-[9px] text-content-secondary">Responsable: <strong className="text-content">{work.responsibleName ?? "No informado"}</strong></span><WorkActions work={work} expanded={expanded} onExpand={() => onExpand(expanded ? null : work.id)} mobile /></div></div></div>{expanded && work.details ? <div className="border-t border-border"><WorkExpandedDetails details={work.details} /></div> : null}</article>; })}</div>;
+}
+
+function WorksOperationalList({ works, expandedWorkId, onExpand, money }: { works: ClientWorkRecord[]; expandedWorkId: string | null; onExpand: (id: string | null) => void; money: Intl.NumberFormat }) {
+  return <div className="hidden divide-y divide-border md:block" role="list">{works.map((work) => { const expanded = expandedWorkId === work.id; const image = safeImageUrl(work.imageUrl); return <article key={work.id} role="listitem"><div className="grid min-w-0 items-center gap-3 p-3 lg:grid-cols-[minmax(16rem,1.45fr)_minmax(9rem,.7fr)_minmax(10rem,.8fr)_minmax(8rem,.65fr)_auto]"><div className="flex min-w-0 items-center gap-3">{image ? <Image src={image} alt={work.imageAlt?.trim() || `Vista registrada de ${work.title}`} width={148} height={92} unoptimized className="h-[5.75rem] w-[9.25rem] shrink-0 rounded-lg border border-border object-cover" /> : <span className="flex h-[5.75rem] w-[9.25rem] shrink-0 items-center justify-center rounded-lg border border-border bg-subtle text-content-tertiary"><Building2 size={24} aria-hidden="true" /></span>}<div className="min-w-0"><h3 className="truncate text-sm font-black text-content">{work.href ? <Link href={work.href} className="hover:text-brand-strong hover:underline">{work.title}</Link> : work.title}</h3><p className="mt-1 truncate text-[9px] text-content-secondary">{work.address ?? work.segment ?? "Datos no informados"}</p><div className="mt-2 flex flex-wrap gap-2">{work.status ? <StatusBadge label={work.status} tone={work.statusTone} /> : null}</div></div></div><div><p className="text-[8px] font-semibold uppercase tracking-wide text-content-tertiary">Estado y avance</p><div className="mt-2"><ProgressValue value={work.progressPercent} /></div></div><div><p className="text-[8px] font-semibold uppercase tracking-wide text-content-tertiary">Presupuesto</p><strong className="mt-2 block text-[11px] tabular-nums text-content">{formatMoney(work.contractedAmount, money)}</strong><span className={`mt-1 block text-[9px] ${toneText(work.marginTone, true)}`}>Margen: {formatPercent(work.estimatedMarginPercent)}</span></div><div><p className="text-[8px] font-semibold uppercase tracking-wide text-content-tertiary">Responsable</p><strong className="mt-2 block truncate text-[10px] text-content">{work.responsibleName ?? "No informado"}</strong><span className="mt-1 block text-[9px] text-content-secondary">Fin: {formatDate(work.endAt)}</span></div><WorkActions work={work} expanded={expanded} onExpand={() => onExpand(expanded ? null : work.id)} /></div>{expanded && work.details ? <div className="border-t border-border"><WorkExpandedDetails details={work.details} /></div> : null}</article>; })}</div>;
+}
+
+function CardFact({ label, value, tone }: { label: string; value: string; tone?: ClientWorkTone }) {
+  return <div className="min-w-0"><dt className="truncate text-[8px] text-content-tertiary">{label}</dt><dd className={`mt-1 truncate text-sm font-black tabular-nums ${toneText(tone)}`}>{value}</dd></div>;
 }
 
 function WorksDesktopTable({ works, expandedWorkId, onExpand, money }: { works: ClientWorkRecord[]; expandedWorkId: string | null; onExpand: (id: string | null) => void; money: Intl.NumberFormat }) {

@@ -12,7 +12,7 @@ import { Client360InvoicesOverview } from "@/components/portal/modules-a/client-
 import { Client360FilesOverview, type ClientFileKind } from "@/components/portal/modules-a/client-360-files-overview";
 import { Client360OpportunitiesOverview } from "@/components/portal/modules-a/client-360-opportunities-overview";
 import { Client360ConversationsOverview } from "@/components/portal/modules-a/client-360-conversations-overview";
-import { Client360WorksOverview } from "@/components/portal/modules-a/client-360-works-overview";
+import { Client360WorksOverview, type ClientWorksMode } from "@/components/portal/modules-a/client-360-works-overview";
 
 type Summary = NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
 
@@ -22,6 +22,7 @@ type WorkspaceProps = {
   canUpload?: boolean;
   companyId?: string;
   searchQuery?: string;
+  worksMode?: ClientWorksMode;
 };
 
 const pendingBudgetStatuses = new Set(["borrador", "enviado", "pendiente", "en_revision"]);
@@ -38,7 +39,7 @@ function iso(value: Date | null | undefined) {
   return value?.toISOString() ?? null;
 }
 
-export function ClientWorksWorkspace({ summary, returnTo }: WorkspaceProps) {
+export function ClientWorksWorkspace({ summary, returnTo, worksMode = "lista" }: WorkspaceProps) {
   const now = Date.now();
   const works = summary.client.works;
   const active = works.filter((work) => !["finalizada", "cancelada"].includes(work.estado));
@@ -59,11 +60,14 @@ export function ClientWorksWorkspace({ summary, returnTo }: WorkspaceProps) {
       works={works.map((work) => {
         const nextMilestone = work.agendaEvents.find((event) => isMilestoneEvent(event.tipo, event.titulo) && event.fechaInicio.getTime() >= now) ?? null;
         const incidents = work.photos.filter((photo) => photo.categoria === "incidencia");
+        const coverPhoto = work.photos.find((photo) => Boolean(photo.url));
         return {
           id: work.id,
           title: work.titulo,
           segment: work.tipoTrabajo,
           address: work.direccion,
+          imageUrl: coverPhoto?.url ?? null,
+          imageAlt: coverPhoto?.titulo ?? null,
           status: statusLabel(work.estado),
           statusTone: toneForStatus(work.estado),
           progressPercent: null,
@@ -96,8 +100,8 @@ export function ClientWorksWorkspace({ summary, returnTo }: WorkspaceProps) {
           },
         };
       })}
-      createHref={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-      allWorksHref="/obras"
+      mode={worksMode}
+      createHref={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(`${returnTo}&modo=${worksMode}`)}`}
     />
   );
 }
