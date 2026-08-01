@@ -4165,6 +4165,50 @@ button:disabled,
   box-shadow: none;
 }
 
+.orqena-context-rail__inner[data-money-context="risk"] .orqena-context-card {
+  border-color: #f2b8b5;
+  background: #fffdfd;
+}
+
+.orqena-context-rail__inner[data-money-context="risk"] .orqena-context-card__icon {
+  background: #fee8e7;
+  color: #b42318;
+}
+
+.orqena-context-rail__inner[data-money-context="risk"] .orqena-context-card__spark,
+.orqena-context-rail__inner[data-money-context="risk"] .orqena-context-safeguard svg {
+  color: #b42318;
+}
+
+.orqena-context-rail__inner[data-money-context="risk"] .orqena-context-impact {
+  background: #fff3f1;
+}
+
+.orqena-context-rail__inner[data-money-context="attention"] .orqena-context-card {
+  border-color: #efcf9e;
+  background: #fffefb;
+}
+
+.orqena-context-rail__inner[data-money-context="attention"] .orqena-context-card__icon {
+  background: #fff1db;
+  color: #b45309;
+}
+
+.orqena-context-rail__inner[data-money-context="attention"] .orqena-context-card__spark,
+.orqena-context-rail__inner[data-money-context="attention"] .orqena-context-safeguard svg {
+  color: #b45309;
+}
+
+.orqena-context-rail__inner[data-money-context="attention"] .orqena-context-impact {
+  background: #fff7e8;
+}
+
+@media (min-width: 1181px) and (min-height: 900px) {
+  .orqena-context-rail__inner[data-money-context] .orqena-context-card {
+    min-height: 710px;
+  }
+}
+
 .orqena-context-card[data-today="true"] {
   min-height: 666px;
 }

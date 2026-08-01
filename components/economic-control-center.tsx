@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Banknote,
   BriefcaseBusiness,
+  ChevronDown,
   Download,
   ReceiptText,
   TrendingUp,
@@ -67,7 +68,7 @@ export function EconomicControlCenter({
             </div>
             <div className={styles.headerActions}>
               {canExport ? (
-                <Link href={economicExportHref(data)} className="secondary-button">
+                <Link href={economicExportHref(data)} className={isMoney ? styles.reportLink : "secondary-button"}>
                   <Download size={15} aria-hidden="true" />
                   Ver informe completo
                 </Link>
@@ -207,7 +208,7 @@ function SummaryArea({
           id="treasury-forecast-summary"
           title="Flujo de caja proyectado"
           description={`${periodLabel(data.period)} · entradas, salidas y saldo a partir de vencimientos reales.`}
-          action={<Link href={economicHref(data, { vista: "prevision", periodo: "90d" })}>Ver 90 días</Link>}
+          action={<Link href={economicHref(data, { vista: "prevision", periodo: "90d" })}>Próximos 90 días <ChevronDown size={12} aria-hidden="true" /></Link>}
         >
           <ForecastVisualization forecast={data.forecast} />
         </Panel>
@@ -235,18 +236,18 @@ function SummaryArea({
           id="treasury-work-profitability"
           title="Rentabilidad por obra"
           description="Resultado calculado con importes registrados."
-          action={<Link href={economicHref(data, { vista: "rentabilidad" })}>Ver análisis</Link>}
         >
           {profitability.rows.length ? <ProfitabilityPreview rows={profitability.rows} /> : <CompactEmpty>Datos insuficientes para comparar obras.</CompactEmpty>}
+          <PanelFooter href={economicHref(data, { vista: "rentabilidad" })}>Ver análisis por obra</PanelFooter>
         </Panel>
 
         <Panel
           id="treasury-next-due"
           title="Próximos vencimientos"
           description="Calendario de cobros y pagos documentados."
-          action={<Link href={economicHref(data, { vista: "prevision" })}>Ver calendario</Link>}
         >
           {upcoming.length ? <UpcomingList documents={upcoming.slice(0, 5)} /> : <CompactEmpty>Sin vencimientos próximos.</CompactEmpty>}
+          <PanelFooter href={economicHref(data, { vista: "prevision" })}>Ver calendario completo</PanelFooter>
         </Panel>
       </div>
 
@@ -583,12 +584,14 @@ function BillingStatus({ data }: { data: EconomicControlData }) {
 function ProfitabilityPreview({ rows }: { rows: EconomicProfitabilityRow[] }) {
   return (
     <div className={styles.previewTable}>
-      <div className={styles.previewHead}><span>Obra</span><span>Beneficio</span><span>Margen</span></div>
+      <div className={styles.previewHead}><span>Obra</span><span>Ingresos</span><span>Costes</span><span>Margen</span><span>Margen %</span></div>
       {rows.slice(0, 5).map((row) => (
         <Link href={row.href} key={row.workId}>
           <span>{row.workTitle}<small>{row.clientName}</small></span>
-          <strong>{row.profit === null ? "—" : formatCurrency(row.profit)}</strong>
-          <em data-tone={(row.margin ?? 0) < 0 ? "danger" : "success"}>{row.margin === null ? "—" : `${row.margin.toFixed(1)} %`}</em>
+          <strong data-label="Ingresos">{formatCurrency(row.invoiced)}</strong>
+          <strong data-label="Costes">{formatCurrency(row.realCost)}</strong>
+          <strong data-label="Margen">{row.profit === null ? "—" : formatCurrency(row.profit)}</strong>
+          <em data-label="Margen %" data-tone={(row.margin ?? 0) < 0 ? "danger" : "success"}>{row.margin === null ? "—" : `${row.margin.toFixed(1)} %`}</em>
         </Link>
       ))}
     </div>
@@ -660,14 +663,22 @@ function AttentionList({ data, recommendations }: { data: EconomicControlData; r
 function CompactDocumentTable({ documents }: { documents: EconomicDocument[] }) {
   return (
     <div className={styles.compactDocuments}>
-      <div className={styles.compactDocumentHead}><span>Entidad</span><span>Documento</span><span>Vencimiento</span><span>Importe</span></div>
-      {documents.map((document) => (
-        <Link href={document.href} key={document.id}>
-          <span>{document.partyName}</span><span>{document.number}</span><span>{document.dueDate ? formatDate(document.dueDate) : "Sin fecha"}</span><strong>{formatCurrency(document.pending)}</strong>
-        </Link>
-      ))}
+      <div className={styles.compactDocumentHead}><span>Entidad</span><span>Documento</span><span>Vencimiento</span><span>Importe</span><span>Estado</span></div>
+      {documents.map((document) => {
+        const overdue = isOverdue(document);
+        return (
+          <Link href={document.href} key={document.id}>
+            <span>{document.partyName}</span><span>{document.number}</span><span>{document.dueDate ? formatDate(document.dueDate) : "Sin fecha"}</span><strong>{formatCurrency(document.pending)}</strong>
+            <Status tone={overdue ? "risk" : "attention"}>{overdue ? "Vencido" : document.paid > 0 ? "Parcial" : "Pendiente"}</Status>
+          </Link>
+        );
+      })}
     </div>
   );
+}
+
+function PanelFooter({ href, children }: { href: string; children: ReactNode }) {
+  return <div className={styles.panelFooter}><Link href={href}>{children}</Link></div>;
 }
 
 function DocumentTable({ documents }: { documents: EconomicDocument[] }) {

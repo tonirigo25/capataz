@@ -20,12 +20,26 @@
 
 .summaryPage .kpiStrip {
   min-height: 150px;
+  overflow: visible;
+  gap: 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .summaryPage .kpi {
   min-height: 148px;
   gap: 8px;
+  border: 1px solid var(--cap-border);
+  border-radius: var(--fos-radius-md);
   padding: 14px 15px;
+  background: var(--cap-surface);
+  box-shadow: var(--cap-shadow-subtle);
+}
+
+.summaryPage .kpi:first-child {
+  border-left: 1px solid var(--cap-border);
 }
 
 .summaryPage .kpiLabel {
@@ -49,8 +63,29 @@
   grid-template-columns: minmax(0, 1.04fr) minmax(23rem, .96fr);
 }
 
+.summaryPage .summaryGrid {
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.05fr) minmax(0, 1.1fr);
+}
+
+.summaryPage .panelHeader p {
+  display: none;
+}
+
+.summaryPage .summaryGrid .panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.summaryPage .summaryGrid .panelBody {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
 @media (min-width: 1181px) {
   .moneyProductPage {
+    min-height: calc(100dvh - 67px);
     padding: 21px 26px 24px;
   }
 
@@ -136,6 +171,22 @@
   min-height: 36px;
   padding: 7px 11px;
   font-size: 11px;
+}
+
+.reportLink {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cap-brand);
+  font-size: 10px;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.reportLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .kpiStrip {
@@ -304,6 +355,26 @@ a.kpi:hover {
   min-width: 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.panelFooter {
+  min-height: 30px;
+  display: grid;
+  margin-top: auto;
+  place-items: end center;
+}
+
+.panelFooter a {
+  color: var(--cap-brand);
+  font-size: 9px;
+  font-weight: 740;
+  text-align: center;
+  text-decoration: none;
+}
+
+.panelFooter a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .secondaryGrid {
@@ -633,7 +704,7 @@ a.kpi:hover {
 .compactDocumentHead,
 .compactDocuments > a {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(5.2rem, .75fr) minmax(5.2rem, .75fr) minmax(5rem, .65fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(4.5rem, .72fr) minmax(4.8rem, .72fr) minmax(4.6rem, .62fr) minmax(4.2rem, .58fr);
   align-items: center;
   gap: 8px;
 }
@@ -668,6 +739,10 @@ a.kpi:hover {
 
 .compactDocuments > a > strong {
   text-align: right;
+}
+
+.compactDocuments > a > :last-child {
+  justify-self: end;
 }
 
 .billingStatus {
@@ -790,7 +865,7 @@ a.kpi:hover {
 .previewHead,
 .previewTable > a {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 5.6rem 3.8rem;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(3.7rem, .62fr)) minmax(3.1rem, .48fr);
   align-items: center;
   gap: 6px;
 }
@@ -1034,7 +1109,11 @@ a.kpi:hover {
   .kpi:nth-child(5) { border-top: 1px solid var(--cap-border); }
   .primaryGrid { grid-template-columns: 1fr; }
   .summaryPage .primaryGrid { grid-template-columns: 1fr; }
-  .summaryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summaryGrid,
+  .summaryPage .summaryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summaryPage .kpiStrip { gap: 10px; }
+  .summaryPage .kpi:nth-child(4),
+  .summaryPage .kpi:nth-child(5) { border: 1px solid var(--cap-border); }
   .dueGroups { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
@@ -1043,17 +1122,20 @@ a.kpi:hover {
   .headerRow { align-items: start; flex-direction: column; }
   .headerActions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .headerActions :global(.primary-button) { grid-column: 1 / -1; }
-  .headerActions :global(.primary-button), .headerActions :global(.secondary-button) { min-height: 44px; }
+  .headerActions :global(.primary-button), .headerActions :global(.secondary-button), .reportLink { min-height: 44px; }
   .kpiStrip { grid-template-columns: 1fr 1fr; border-radius: 10px; }
-  .kpi { min-height: 82px; border-top: 1px solid var(--cap-border); }
+  .kpi,
+  .summaryPage .kpi { min-height: 82px; border-top: 1px solid var(--cap-border); }
+  .summaryPage .kpiStrip { gap: 8px; }
   .kpi:nth-child(-n + 2) { border-top: 0; }
   .kpi:nth-child(odd) { border-left: 0; }
   .kpi:last-child { grid-column: 1 / -1; }
+  .summaryPage .kpi:nth-child(n) { border: 1px solid var(--cap-border); }
   .tabs a { min-height: 44px; padding-inline: 13px; font-size: 12px; }
   .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filters :global(.field), .filters :global(.secondary-button) { min-height: 44px; height: 44px; font-size: 12px; }
   .filters :global(.secondary-button) { grid-column: 1 / -1; }
-  .summaryGrid, .secondaryGrid { grid-template-columns: 1fr; }
+  .summaryGrid, .summaryPage .summaryGrid, .secondaryGrid { grid-template-columns: 1fr; }
   .panelHeader { min-height: 58px; }
   .panelAction a { min-height: 44px; }
   .inlineTabs { min-height: 44px; }
@@ -1065,6 +1147,8 @@ a.kpi:hover {
   .areaKpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dueGroups { grid-template-columns: 1fr; }
   .compactDocuments > a { min-height: 44px; }
+  .panelFooter { min-height: 44px; place-items: stretch; }
+  .panelFooter a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding-inline: 10px; }
 }
 
 @media (max-width: 480px) {
@@ -1078,7 +1162,15 @@ a.kpi:hover {
   .compactDocuments > a { grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; padding-block: 7px; }
   .compactDocuments > a > span:nth-child(2) { grid-column: 1; grid-row: 2; color: var(--cap-text-muted); }
   .compactDocuments > a > span:nth-child(3) { display: none; }
-  .compactDocuments > a > strong { grid-column: 2; grid-row: 1 / span 2; }
+  .compactDocuments > a > strong { grid-column: 2; grid-row: 1; }
+  .compactDocuments > a > :last-child { grid-column: 2; grid-row: 2; }
+  .previewHead { display: none; }
+  .previewTable > a { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding-block: 10px; }
+  .previewTable > a > span { grid-column: 1 / -1; }
+  .previewTable > a > strong,
+  .previewTable > a > em { display: grid; gap: 2px; text-align: left; }
+  .previewTable > a > strong::before,
+  .previewTable > a > em::before { color: var(--cap-text-muted); content: attr(data-label); font-size: 7px; font-style: normal; font-weight: 650; }
   .upcomingList > a { min-height: 52px; }
   .attentionList > a { grid-template-columns: 1fr; padding-block: 8px; }
   .attentionList > a > span:last-child { justify-content: space-between; }
