@@ -713,7 +713,7 @@ function recommendationFromSignal(signal: BusinessSignal, now: Date): Recommenda
 
 function recommendationSpec(signal: BusinessSignal, ids: ReturnType<typeof idsFromSignal>) {
   const key = ids.invoiceId ?? ids.budgetId ?? ids.workId ?? ids.clientId ?? signal.entity?.id ?? stableSignalSuffix(signal.fingerprint);
-  const isInvoice = ids.invoiceId || signal.entity?.type === "factura" || ["facturas", "cobros"].includes(signal.source);
+  const isInvoice = ids.invoiceId || signal.entity?.type === "factura" || signal.source === "facturas";
   const isBudget = ids.budgetId || signal.entity?.type === "presupuesto" || signal.source === "presupuestos";
   const isWork = ids.workId || signal.entity?.type === "obra" || ["obras", "rentabilidad", "materiales"].includes(signal.source);
   const isClient = ids.clientId || signal.entity?.type === "cliente" || ["crm", "datos"].includes(signal.source);
