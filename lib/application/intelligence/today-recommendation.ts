@@ -89,8 +89,9 @@ export async function getPersistedPortalRailRecommendations(
     const serialized = serializeRecommendation(item);
     if (!recommendations.hoy) recommendations.hoy = serialized;
     if (!recommendations[area]) recommendations[area] = serialized;
-    if (area === "dashboard") dashboardRecommendations.push(serialized);
+    if (canReadExecutiveDashboard && (area === "dashboard" || area === "finance")) dashboardRecommendations.push(serialized);
   }
+  if (!recommendations.dashboard && dashboardRecommendations.length) recommendations.dashboard = dashboardRecommendations[0];
   if (dashboardRecommendations.length > 1) recommendations.dashboardAlerts = dashboardRecommendations.slice(1, 5);
   return recommendations;
 }
