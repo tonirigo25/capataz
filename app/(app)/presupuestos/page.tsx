@@ -527,7 +527,7 @@ function BudgetActions({
   returnTo: string;
 }) {
   return (
-    <ActionMenu>
+    <ActionMenu className={styles.rowActionMenu}>
       <Link href={`/presupuestos/${budget.id}?returnTo=${encodeURIComponent(returnTo)}`}>
         <Eye size={16} /> Abrir presupuesto
       </Link>

@@ -110,6 +110,8 @@
   background: #fff;
 }
 
+.listPanel { overflow: visible; }
+
 .panelHeader {
   min-height: 58px;
   display: flex;
@@ -233,7 +235,7 @@
 
 .newBudgetPanel > * { width: 100%; justify-content: flex-start; }
 
-.tableWrap { overflow-x: auto; }
+.tableWrap { overflow: visible; }
 .table { width: 100%; min-width: 940px; table-layout: fixed; border-collapse: collapse; font-size: 0.64rem; }
 .table th { padding: 8px 9px; background: #fbfcfb; color: #59665f; text-align: left; font-size: 0.58rem; font-weight: 800; white-space: nowrap; }
 .table td { max-width: 155px; padding: 7px 9px; border-top: 1px solid #edf0ee; color: #33413a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
@@ -245,7 +247,17 @@
 .numericStrong { text-align: right; color: #14251d !important; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .budgetNumber { display: block; color: #12251b; font-weight: 850; }
 .budgetNumber:hover { color: #087b3e; text-decoration: underline; }
-.actionCell { width: 42px; max-width: 42px !important; text-align: right; }
+.actionCell { width: 42px; max-width: 42px !important; overflow: visible !important; text-align: right; }
+.rowActionMenu > summary {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+.rowActionMenu > summary span,
+.rowActionMenu > summary svg:last-child { display: none; }
 .contextCell strong { display: block; overflow: hidden; color: #2b3b33; font-size: 0.62rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .contextCell small { display: block; margin-top: 2px; overflow: hidden; color: #7c8882; font-size: 0.55rem; text-overflow: ellipsis; white-space: nowrap; }
 .emptyList { padding: 20px; }
@@ -359,6 +371,7 @@
   .kpiGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panelHeader { align-items: flex-start; }
   .analysisGrid { grid-template-columns: 1fr; }
+  .tableWrap { overflow-x: auto; overflow-y: visible; }
 }
 
 @media (max-width: 640px) {
