@@ -258,7 +258,7 @@ body {
   }
 
   body:has(.field-os-bottom-nav):has(.sticky-form-actions, .client-edit-reference__actions) .pwa-status-stack {
-    bottom: calc(10.25rem + env(safe-area-inset-bottom));
+    bottom: calc(14rem + env(safe-area-inset-bottom));
   }
 }
 
