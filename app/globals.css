@@ -4606,13 +4606,14 @@ button:disabled,
   line-height: 31px;
 }
 .client-360-shell-summary .client-360-shell-summary__identity {
+  height: 148px;
   min-height: 148px;
   border-radius: 9px !important;
   padding: 12px !important;
   box-shadow: none !important;
 }
 .client-360-shell-summary__identity > div {
-  grid-template-columns: minmax(0, 1.28fr) minmax(0, 1fr) 156px !important;
+  grid-template-columns: minmax(0, 1.28fr) minmax(0, 1fr) 164px !important;
   gap: 12px !important;
 }
 .client-360-shell-summary__identity-meta {
@@ -4663,6 +4664,11 @@ button:disabled,
   padding-block: 7px !important;
   font-size: 10px !important;
 }
+.client-360-shell-summary__identity .client-360-canonical__primary-action > .primary-button {
+  gap: 4px;
+  padding-right: 40px;
+  white-space: nowrap;
+}
 .client-360-shell-summary__tabs {
   position: relative;
   z-index: 30;
@@ -4694,7 +4700,10 @@ button:disabled,
   min-height: 208px;
 }
 .client-360-shell-summary .client-360-canonical__collections--primary > section { min-height: 208px; }
-.client-360-shell-summary .client-360-canonical__collections--secondary > section { min-height: 180px; }
+.client-360-shell-summary .client-360-canonical__collections--secondary > section {
+  height: 176px;
+  min-height: 176px;
+}
 .client-360-shell-summary__economic { gap: 8px; }
 .client-360-shell-summary__risk {
   display: flex;
