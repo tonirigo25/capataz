@@ -51,9 +51,6 @@ import { WorkCostsIncidentsRanking } from "@/components/portal/modules-a/work-co
 import { WorkBillingOverview } from "@/components/portal/modules-a/work-billing-overview";
 import { WorkTeamOverview, type WorkTeamApprover, type WorkTeamPerson } from "@/components/portal/modules-a/work-team-overview";
 import { WorkDocumentsWorkspace as WorkDocumentsReferenceWorkspace } from "@/components/portal/modules-a/work-documents-workspace";
-import { WorkOrderDetailOverview } from "@/components/portal/modules-a/work-order-detail-overview";
-import { WorkOrdersListOverview } from "@/components/portal/modules-a/work-orders-list-overview";
-import { WorkPartsRegister } from "@/components/portal/modules-a/work-parts-register";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
@@ -79,7 +76,7 @@ export const dynamic = "force-dynamic";
 const tabs = [
   ["resumen", "Resumen", BriefcaseBusiness],
   ["planificacion", "Planificación", CalendarClock],
-  ["partes", "Partes", ClipboardList],
+  ["actividad", "Actividad", ClipboardList],
   ["costes", "Costes", Euro],
   ["documentos", "Documentos", FileArchive],
   ["equipo", "Equipo", Users],
@@ -89,7 +86,7 @@ const tabs = [
 
 const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
   cliente: "resumen", configuracion: "resumen", ia: "resumen",
-  progreso: "partes", fotografias: "documentos", notas: "partes", cronologia: "partes",
+  progreso: "actividad", partes: "actividad", fotografias: "documentos", notas: "actividad", cronologia: "actividad",
   economia: "costes", dinero: "facturacion", presupuestos: "costes", facturas: "facturacion", cobros: "facturacion", tesoreria: "facturacion", gastos: "costes", materiales: "costes", horas: "costes", subcontratas: "costes",
   visitas: "planificacion", recordatorios: "planificacion",
   archivos: "documentos", contactos: "equipo", personal: "equipo"
@@ -98,8 +95,8 @@ const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
 const workSubviews: Record<(typeof tabs)[number][0], readonly [string, string][]> = {
   resumen: [["general", "Resumen"]],
   planificacion: [["resumen", "Resumen y cronograma"], ["gantt", "Gantt"], ["calendario", "Calendario"], ["hitos", "Hitos"], ["dependencias", "Dependencias"], ["ruta-critica", "Ruta crítica"], ["carga-trabajo", "Carga de trabajo"], ["recursos", "Recursos"], ["linea-base", "Línea base"], ["escenarios", "Escenarios"]],
-  partes: [["resumen", "Resumen"], ["listado", "Listado"], ["actividades", "Actividades"], ["nuevo", "Nuevo parte"], ["analisis", "Análisis"], ["semanales", "Partes semanales"], ["mensuales", "Partes mensuales"], ["reportes", "Reportes"]],
-  costes: [["resumen", "Resumen"], ["estructura", "Estructura completa"], ["analisis", "Análisis"], ["incidencias", "Incidencias"], ["ranking", "Ranking"], ["proveedores", "Proveedores"], ["mano-obra", "Mano de obra"], ["materiales", "Materiales"], ["subcontratas", "Subcontratas"], ["ordenes", "Órdenes"], ["comparativa", "Comparativa"], ["informes", "Informes"]],
+  actividad: [["cronologia", "Cronología"], ["galeria", "Galería"]],
+  costes: [["resumen", "Resumen"], ["estructura", "Estructura completa"], ["analisis", "Análisis"], ["incidencias", "Incidencias"], ["ranking", "Ranking"], ["proveedores", "Proveedores"], ["mano-obra", "Mano de obra"], ["materiales", "Materiales"], ["subcontratas", "Subcontratas"], ["comparativa", "Comparativa"], ["informes", "Informes"]],
   documentos: [["documentos", "Documentos"], ["subir", "Subir"], ["galeria", "Galería y portada"], ["planos", "Planos"], ["certificados", "Certificados"], ["informes", "Informes"], ["otros", "Otros"]],
   equipo: [["equipo", "Equipo"], ["carga", "Carga"], ["turnos", "Turnos"], ["subcontratas", "Subcontratas"], ["formacion", "Formación"], ["permisos", "Permisos"]],
   facturacion: [["resumen", "Resumen"], ["certificaciones", "Certificaciones"], ["facturas", "Facturas emitidas"], ["hitos", "Hitos facturados"], ["retenciones", "Retenciones"], ["cobros", "Cobros pendientes"], ["vencimientos", "Calendario de vencimientos"], ["historico", "Histórico"]],
@@ -222,8 +219,8 @@ export default async function WorkDetailPage({
       ) : null}
 
       {activeTab === "resumen" && query.modo === "configuracion" ? <div className="grid gap-4"><ClientTab work={work} /><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
-      {activeTab === "partes" ? <PartsWorkspace work={work} timeline={timeline} subview={activeSubview} detailId={query.detalle} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
-      {activeTab === "costes" ? <CostsWorkspace work={work} financial={financial} pendingMaterials={pendingMaterials.length} subview={activeSubview} detailId={query.detalle} /> : null}
+      {activeTab === "actividad" ? <ProgressTab work={work} timeline={timeline} mode={activeSubview === "galeria" || query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
+      {activeTab === "costes" ? <CostsWorkspace work={work} financial={financial} pendingMaterials={pendingMaterials.length} subview={activeSubview} /> : null}
       {activeTab === "facturacion" ? <BillingWorkspace work={work} treasury={treasury} financial={financial} subview={activeSubview} /> : null}
       {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={canManageAllTasks} memberNames={memberNames} subview={activeSubview} /> : null}
       {activeTab === "documentos" ? <DocumentsWorkspace work={work} documents={documents} subview={activeSubview} /> : null}
@@ -395,7 +392,7 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><OverviewMiniMetric label="Coste acumulado" value={formatCurrency(financial.realCost)} /><OverviewMiniMetric label="Presupuesto" value={formatCurrency(financial.budgeted)} /><OverviewMiniMetric label="Previsto" value={formatCurrency(financial.forecastCost)} /><OverviewMiniMetric label="Margen" value={`${financial.marginPercent.toFixed(1)}%`} tone={financial.marginPercent < 15 ? "danger" : "success"} /></div>
           <WorkProfitabilityEvolution expenses={work.expenses} budget={financial.budgeted} total={financial.realCost} />
         </OverviewPanel>
-        <OverviewPanel title="Actividad reciente" action={<Link href={workViewHref(work.id, "partes", "actividades")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver toda la actividad</Link>}>
+        <OverviewPanel title="Actividad reciente" action={<Link href={workViewHref(work.id, "actividad", "cronologia")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver toda la actividad</Link>}>
           {timeline.length ? <div className="divide-y divide-border">{timeline.slice(0, 5).map((item) => <article key={item.key} className="grid grid-cols-[1.65rem_minmax(0,1fr)] gap-2 py-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-strong"><Activity size={12} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate text-[10px] text-content">{item.title}</strong><span className="mt-0.5 block truncate text-[9px] text-content-secondary">{item.detail}</span><span className="mt-0.5 block text-[8px] text-content-tertiary">{formatDate(item.date)}</span></span></article>)}</div> : <OperationalSetupPanel title="Actividad preparada" description="Presupuestos, costes, documentos, fotos y tareas aparecerán cronológicamente." count={0} countLabel="eventos trazables" icon={Activity} items={["Cada evento conserva fuente y fecha.", "No se simula actividad inexistente.", "La lectura permanece disponible."]} compact />}
         </OverviewPanel>
         <OverviewPanel title="Aprobaciones pendientes" action={<Link href="/tareas?filtro=confirmacion" className="text-[10px] font-bold text-brand-strong hover:underline">Ver todas</Link>}>
@@ -479,7 +476,7 @@ function workViewHref(workId: string, tab: string, subview?: string, returnTo?: 
     else {
       const canonical: Record<string, readonly string[]> = {
         planificacion: ["resumen", "gantt", "calendario", "hitos", "dependencias", "ruta-critica", "carga-trabajo", "recursos", "linea-base", "escenarios"],
-        partes: ["resumen", "listado", "actividades", "nuevo", "analisis", "semanales", "mensuales", "reportes"],
+        actividad: ["cronologia", "galeria"],
         costes: ["resumen", "estructura", "analisis", "incidencias", "ranking", "proveedores", "mano-obra", "materiales", "subcontratas", "comparativa", "informes"],
         documentos: ["documentos", "subir", "galeria", "planos", "certificados", "informes", "otros"],
         equipo: ["equipo", "carga", "turnos", "subcontratas", "formacion", "permisos"],
@@ -487,7 +484,6 @@ function workViewHref(workId: string, tab: string, subview?: string, returnTo?: 
         incidencias: ["todas"],
       };
       if (canonical[tab]?.includes(subview)) href = ["resumen", "documentos", "equipo", "todas"].includes(subview) ? base : `${base}/${subview}`;
-      else if (tab === "costes" && subview === "ordenes") href = `/obras/${workId}/ordenes`;
       else href = `/obras/${workId}?vista=${tab}&subvista=${subview}`;
     }
   }
@@ -799,31 +795,10 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
   return <div className="grid gap-4"><Section title={title}><div className="mb-4 flex justify-end"><Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=planificacion&subvista=${subview}`)}`} className="primary-button"><CalendarClock size={17} aria-hidden="true" /> Nuevo evento</Link></div><CardsTab items={work.agendaEvents} empty="No hay eventos o fechas clave registrados." render={(event) => <EventCard key={event.id} event={event} />} /></Section><CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} /></div>;
 }
 
-function PartsWorkspace({ work, timeline, subview, detailId, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; subview: string; detailId?: string; mode: "cronologia" | "galeria" }) {
-  const workContext = { id: work.id, title: work.titulo, code: work.codigo ?? work.numeroInterno, client: work.client.nombre, address: work.direccion, responsible: work.responsable };
-  const listHref = `/obras/${work.id}/partes/listado`;
-  if (detailId) return <WorkPartsRegister view="unavailable" work={workContext} routes={{ listHref }} title="Parte no disponible" description={`No existe un parte diario persistido y autorizado con el identificador ${detailId}. Las notas, fotografías, tareas y costes conservan su entidad de origen y no se presentan como un parte.`} backHref={listHref} />;
-  if (subview === "listado" || subview === "diarios") return <WorkPartsRegister view="list" work={workContext} routes={{ listHref }} parts={[]} emptyDescription="La obra todavía no tiene partes diarios persistidos. Las actividades, fotos y costes visibles en otras pestañas conservan su registro original y no se convierten en partes de forma automática." />;
-  if (subview === "nuevo") return <WorkPartsRegister view="unavailable" work={workContext} routes={{ listHref }} title="Alta de parte pendiente de persistencia" description="El formulario no se habilita hasta disponer de una entidad de parte diario con validación, permisos y trazabilidad propios. No se guardarán partes como notas, gastos o documentos genéricos." backHref={listHref} />;
-  if (subview === "resumen") {
-    const incidentCount = work.photos.filter((photo) => photo.categoria.trim().toLocaleLowerCase("es-ES") === "incidencia").length;
-    const activeNotes = work.internalNotes.filter((note) => !note.archivedAt).length;
-    return <div className="grid gap-4"><Section title="Resumen operativo documentado"><div className="grid grid-cols-2 gap-2 md:grid-cols-4"><WorkOverviewMetricCard label="Actividad trazable" value={String(timeline.length)} detail="Eventos con fuente y fecha" /><WorkOverviewMetricCard label="Evidencias visuales" value={String(work.photos.length)} detail="Fotografías vinculadas a la obra" /><WorkOverviewMetricCard label="Incidencias" value={String(incidentCount)} detail="Evidencias clasificadas como incidencia" tone={incidentCount ? "warning" : "success"} /><WorkOverviewMetricCard label="Notas internas" value={String(activeNotes)} detail="Entradas activas de la bitácora" /></div><p className="mt-3 text-[10px] leading-5 text-content-secondary">El resumen no inventa partes diarios ni porcentajes de avance: consolida únicamente actividad, evidencias y notas ya persistidas.</p></Section><ProgressTab work={work} timeline={timeline} mode={mode} /></div>;
-  }
-  if (subview === "analisis") return <div className="grid gap-4"><HoursTab work={work} /><Section title="Actividad documentada"><PlainMetric label="Registros de actividad" value={String(timeline.length)} /><p className="type-secondary mt-3">El avance físico no se calcula porque la obra no dispone de un porcentaje persistido.</p></Section></div>;
-  if (subview === "reportes") return <OperationalSetupPanel title="Reportes de partes" description="Consolida la actividad registrada de la obra sin sustituir la validación del responsable." count={timeline.length} countLabel="actividades trazables" icon={Table2} items={["Partes diarios, semanales y mensuales en una única lectura.", "Horas, evidencias y responsables conservan su origen.", "La exportación no inventa porcentajes de avance."]} action={<Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="primary-button">Exportar reporte</Link>} />;
-  if (["semanales", "mensuales"].includes(subview)) return <Section title={subview === "semanales" ? "Actividad semanal documentada" : "Actividad mensual documentada"}><p className="mb-3 text-[10px] leading-5 text-content-secondary">Agrupación temporal de registros existentes; no equivale a partes diarios validados.</p><TimelineList items={timeline} /></Section>;
-  if (subview === "actividades") return <Section title="Todas las actividades registradas"><TimelineList items={timeline} /></Section>;
-  return <WorkPartsRegister view="list" work={workContext} routes={{ listHref }} parts={[]} />;
-}
-
-function CostsWorkspace({ work, financial, pendingMaterials, subview, detailId }: { work: WorkDetail; financial: ReturnType<typeof calculateWorkFinancials>; pendingMaterials: number; subview: string; detailId?: string }) {
+function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: WorkDetail; financial: ReturnType<typeof calculateWorkFinancials>; pendingMaterials: number; subview: string }) {
   if (subview === "materiales") return <MaterialsTab materials={work.materials} pendingCount={pendingMaterials} workId={work.id} />;
   if (subview === "mano-obra") return <HoursTab work={work} />;
   if (subview === "subcontratas") return <SubcontractTab work={work} expenses={work.expenses} />;
-  if (subview === "ordenes") return detailId
-    ? <WorkOrderDetailOverview order={null} breadcrumbs={[{ label: "Trabajo", href: `/obras/${work.id}`, allowed: true }, { label: "Órdenes", href: `/obras/${work.id}/ordenes`, allowed: true }, { label: detailId, href: null, allowed: true }]} />
-    : <WorkOrdersListOverview workId={work.id} metrics={[]} orders={[]} />;
   if (subview === "informes") return <Section title="Informes de costes"><p className="type-secondary">La exportación utiliza exclusivamente los costes autorizados de esta obra.</p><Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="primary-button mt-4 inline-flex">Exportar informe</Link></Section>;
   const groupedExpenses = new Map<string, WorkDetail["expenses"]>();
   for (const expense of work.expenses) {
@@ -1224,13 +1199,13 @@ function ProgressTab({ work, timeline, mode }: { work: WorkDetail; timeline: Arr
     <div className="grid gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex w-fit rounded-xl bg-subtle p-1" aria-label="Vista de progreso">
-          <Link href={`/obras/${work.id}/partes?modo=cronologia`} aria-current={mode === "cronologia" ? "page" : undefined} className={mode === "cronologia" ? "primary-button" : "ghost-button"}>Cronología</Link>
-          <Link href={`/obras/${work.id}/partes?modo=galeria`} aria-current={mode === "galeria" ? "page" : undefined} className={mode === "galeria" ? "primary-button" : "ghost-button"}>Galería</Link>
+          <Link href={`/obras/${work.id}/actividad/cronologia`} aria-current={mode === "cronologia" ? "page" : undefined} className={mode === "cronologia" ? "primary-button" : "ghost-button"}>Cronología</Link>
+          <Link href={`/obras/${work.id}/actividad/galeria`} aria-current={mode === "galeria" ? "page" : undefined} className={mode === "galeria" ? "primary-button" : "ghost-button"}>Galería</Link>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=partes&modo=${mode}`)}`} className="secondary-button"><Camera size={17} aria-hidden="true" /> Registrar foto</Link>
-          <Link href={`/gestion?tipo=notaInterna&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=partes&modo=${mode}`)}`} className="secondary-button"><ClipboardList size={17} aria-hidden="true" /> Añadir nota</Link>
-          <Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&tipoEvento=visita&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=partes&modo=${mode}`)}`} className="secondary-button"><CalendarClock size={17} aria-hidden="true" /> Registrar visita</Link>
+          <Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}/actividad/${mode}`)}`} className="secondary-button"><Camera size={17} aria-hidden="true" /> Registrar foto</Link>
+          <Link href={`/gestion?tipo=notaInterna&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}/actividad/${mode}`)}`} className="secondary-button"><ClipboardList size={17} aria-hidden="true" /> Añadir nota</Link>
+          <Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&tipoEvento=visita&returnTo=${encodeURIComponent(`/obras/${work.id}/actividad/${mode}`)}`} className="secondary-button"><CalendarClock size={17} aria-hidden="true" /> Registrar visita</Link>
         </div>
       </div>
       {mode === "galeria" ? (

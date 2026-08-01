@@ -304,7 +304,7 @@ export function WorkCostsOverview({ workId, currency = "EUR", summary, lines, ex
           {expenses.length ? <div className="grid gap-1">{[...expenses].filter((expense) => safeDate(expense.date)).sort((left, right) => right.date.localeCompare(left.date)).slice(0, 6).map((expense) => <div key={expense.id} className="grid min-h-10 grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-border text-[9px] last:border-0"><span className="text-content-secondary">{formatDate(expense.date)}</span><span className="min-w-0 truncate font-semibold text-content" title={expense.concept}>{expense.concept}</span><strong className="tabular-nums text-content">{formatMoney(expense.amount)}</strong></div>)}</div> : <HonestEmpty icon={CalendarDays} text="No hay gastos recibidos para ordenar cronológicamente." />}
         </CostPanel>
 
-        <CostPanel title="Control de compromisos" action={<Link href={`/obras/${workId}/ordenes`}>Abrir órdenes</Link>}>
+        <CostPanel title="Control de compromisos" action={<Link href={`/obras/${workId}/costes/estructura`}>Ver costes</Link>}>
           <dl className="grid gap-3 text-[10px]"><CostRow label="Comprometido" value={formatMoney(summary.committedCost)} /><CostRow label="Coste acumulado" value={formatMoney(summary.actualCost)} /><CostRow label="Estimado a fin" value={formatMoney(summary.estimatedFinalCost)} /><CostRow label="Partidas con sobrecoste" value={String(overBudgetLines.length)} tone={overBudgetLines.length ? "danger" : "success"} /></dl>
         </CostPanel>
 

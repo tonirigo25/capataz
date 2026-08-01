@@ -14,15 +14,10 @@ const directRoutes: Record<string, WorkDetailQuery> = {
   "planificacion/recursos": { vista: "planificacion", subvista: "recursos" },
   "planificacion/linea-base": { vista: "planificacion", subvista: "linea-base" },
   "planificacion/escenarios": { vista: "planificacion", subvista: "escenarios" },
-  partes: { vista: "partes", subvista: "resumen" },
-  "partes/listado": { vista: "partes", subvista: "listado" },
-  "partes/diarios": { vista: "partes", subvista: "listado" },
-  "partes/actividades": { vista: "partes", subvista: "actividades" },
-  "partes/nuevo": { vista: "partes", subvista: "nuevo" },
-  "partes/analisis": { vista: "partes", subvista: "analisis" },
-  "partes/semanales": { vista: "partes", subvista: "semanales" },
-  "partes/mensuales": { vista: "partes", subvista: "mensuales" },
-  "partes/reportes": { vista: "partes", subvista: "reportes" },
+  actividad: { vista: "actividad", subvista: "cronologia" },
+  "actividad/cronologia": { vista: "actividad", subvista: "cronologia" },
+  "actividad/galeria": { vista: "actividad", subvista: "galeria" },
+  partes: { vista: "actividad", subvista: "cronologia" },
   costes: { vista: "costes", subvista: "resumen" },
   "costes/estructura": { vista: "costes", subvista: "estructura" },
   "costes/analisis": { vista: "costes", subvista: "analisis" },
@@ -34,7 +29,6 @@ const directRoutes: Record<string, WorkDetailQuery> = {
   "costes/subcontratas": { vista: "costes", subvista: "subcontratas" },
   "costes/comparativa": { vista: "costes", subvista: "comparativa" },
   "costes/informes": { vista: "costes", subvista: "informes" },
-  "costes/ordenes": { vista: "costes", subvista: "ordenes" },
   documentos: { vista: "documentos", subvista: "documentos" },
   "documentos/subir": { vista: "documentos", subvista: "subir" },
   "documentos/galeria": { vista: "documentos", subvista: "galeria" },
@@ -57,7 +51,6 @@ const directRoutes: Record<string, WorkDetailQuery> = {
   "facturacion/vencimientos": { vista: "facturacion", subvista: "vencimientos" },
   "facturacion/historico": { vista: "facturacion", subvista: "historico" },
   incidencias: { vista: "incidencias", subvista: "todas" },
-  ordenes: { vista: "costes", subvista: "ordenes" },
 };
 
 export default async function WorkSectionPage({
@@ -70,8 +63,8 @@ export default async function WorkSectionPage({
   const [{ id, section }, existing] = await Promise.all([params, searchParams]);
   const route = section.join("/");
   const direct = directRoutes[route];
-  const detail = section.length === 2 && ["partes", "incidencias", "ordenes"].includes(section[0]) && !direct
-    ? { vista: section[0] === "partes" ? "partes" : section[0] === "incidencias" ? "incidencias" : "costes", subvista: section[0] === "ordenes" ? "ordenes" : section[0] === "partes" ? "listado" : "todas", detalle: section[1] }
+  const detail = section.length === 2 && section[0] === "incidencias" && !direct
+    ? { vista: "incidencias", subvista: "todas", detalle: section[1] }
     : null;
   const query = direct ?? detail;
   if (!query) notFound();

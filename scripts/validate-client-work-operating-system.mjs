@@ -115,12 +115,12 @@ check("móvil no privilegia el primer cliente", !clientPortfolio.includes("prima
 check("clientes ofrece importación segura solo mediante autorización resuelta en servidor", clients.includes('auth.role === "OWNER" || auth.role === "ADMIN"') && clients.includes("canImport={canImportClient}") && clientFilters.includes("canImport: boolean") && clientFilters.includes('href="/configuracion/importar"'));
 check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('event.key === "Escape"') && contextDrawer.includes("opener.current?.focus()") && contextDrawer.includes('aria-modal="true"'));
 
-check("obra expone ocho áreas 360 exactas", (work.match(/^  \["(resumen|planificacion|partes|costes|documentos|equipo|facturacion|incidencias)"/gm) ?? []).length === 8);
+check("obra expone ocho áreas 360 exactas", (work.match(/^  \["(resumen|planificacion|actividad|costes|documentos|equipo|facturacion|incidencias)"/gm) ?? []).length === 8);
 check("obra abre Resumen por defecto", work.includes("const activeTab") && work.includes(': "resumen"'));
 check("obra usa ParentNavigation y EntityHeader", work.includes("<EntityHeader") && work.includes("<ParentNavigation href={returnTo}"));
 check("obra conserva Registrar avance como acción contextual real", work.includes('"Registrar avance", Camera') && work.includes("<WorkActions"));
-check("Partes conserva modo en URL", work.includes("vista=partes&subvista=diarios&modo=cronologia") && work.includes("vista=partes&subvista=diarios&modo=galeria") && work.includes('query.modo === "galeria"'));
-check("Partes integra cronología, galería y notas", work.includes("TimelineList") && work.includes("WorkProgressGallery") && work.includes("<NotesTab"));
+check("Actividad conserva cronología y galería en URL", work.includes("/actividad/cronologia") && work.includes("/actividad/galeria") && work.includes('query.modo === "galeria"'));
+check("Actividad integra cronología, galería y notas", work.includes("TimelineList") && work.includes("WorkProgressGallery") && work.includes("<NotesTab"));
 check("galería usa miniaturas reales y carga diferida", gallery.includes("<Image") && gallery.includes("aspect-[4/3]") && !gallery.includes('priority'));
 check("visor permite anterior, siguiente y teclado", gallery.includes("ArrowLeft") && gallery.includes("ArrowRight") && gallery.includes("Anterior") && gallery.includes("Siguiente"));
 check("visor cierra, restaura foco y atrapa Tab", dialog.includes('event.key === "Escape"') && dialog.includes("previousFocus.current?.focus()") && dialog.includes('event.key !== "Tab"'));
