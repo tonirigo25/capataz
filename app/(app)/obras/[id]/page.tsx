@@ -981,26 +981,35 @@ function TeamWorkspace({ work, tasks, memberNames, subview }: { work: WorkDetail
   addPerson(work.responsable, "Responsable", `responsible-${work.id}`);
   addPerson(work.comercial, "Comercial", `commercial-${work.id}`);
   const assignedUserIds = new Set(tasks.flatMap((task) => [task.assigneeId, ...task.assignments.filter((assignment) => !assignment.removedAt).map((assignment) => assignment.userId)].filter((value): value is string => Boolean(value))));
-  assignedUserIds.forEach((userId) => addPerson(memberNames[userId] ?? "Responsable asignado", "Asignado a tareas", userId));
+  const namedAssignedUserIds = Array.from(assignedUserIds).filter((userId) => Boolean(memberNames[userId]));
+  namedAssignedUserIds.forEach((userId) => addPerson(memberNames[userId], "Asignado a tareas", userId));
   const people = Array.from(peopleByName.values());
   const tasksWithEstimate = tasks.filter((task) => task.estimatedMinutes != null);
   const tasksWithActual = tasks.filter((task) => task.actualMinutes != null);
   const plannedHours = tasksWithEstimate.length ? tasksWithEstimate.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0) / 60 : null;
   const recordedHours = tasksWithActual.length ? tasksWithActual.reduce((sum, task) => sum + (task.actualMinutes ?? 0), 0) / 60 : null;
-  const loads = Array.from(assignedUserIds).map((userId) => {
+  const loads = namedAssignedUserIds.map((userId) => {
     const assigned = tasks.filter((task) => task.assigneeId === userId || task.assignments.some((assignment) => !assignment.removedAt && assignment.userId === userId));
     const hasPlanned = assigned.some((task) => task.estimatedMinutes != null);
     const hasActual = assigned.some((task) => task.actualMinutes != null);
-    return { id: userId, name: memberNames[userId] ?? "Responsable asignado", peopleCount: 1, loadPercent: null, assignedHours: hasActual ? assigned.reduce((sum, task) => sum + (task.actualMinutes ?? 0), 0) / 60 : null, plannedHours: hasPlanned ? assigned.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0) / 60 : null, statusLabel: `${assigned.length} tareas vinculadas` };
+    return { id: userId, name: memberNames[userId], peopleCount: 1, loadPercent: null, assignedHours: hasActual ? assigned.reduce((sum, task) => sum + (task.actualMinutes ?? 0), 0) / 60 : null, plannedHours: hasPlanned ? assigned.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0) / 60 : null, statusLabel: `${assigned.length} tareas vinculadas` };
   });
   const subcontractors = Array.from(new Map(work.expenses.filter((expense) => expense.businessPartner?.kind === "SUBCONTRACTOR").map((expense) => [expense.businessPartner!.id, { id: expense.businessPartner!.id, companyName: expense.businessPartner!.commercialName, statusLabel: "Vinculada por coste registrado", statusTone: "neutral" as const }])).values());
-  const approvers: WorkTeamApprover[] = [];
-  if (work.jefeObra) approvers.push({ id: `chief-${work.id}`, name: work.jefeObra, role: "Jefe de obra", responsibility: "Supervisión operativa de la obra" });
-  if (work.responsable) approvers.push({ id: `responsible-${work.id}`, name: work.responsable, role: "Responsable", responsibility: "Coordinación registrada de la obra" });
-  if (work.comercial) approvers.push({ id: `commercial-${work.id}`, name: work.comercial, role: "Comercial", responsibility: "Seguimiento comercial vinculado" });
+  const approversByName = new Map<string, WorkTeamApprover>();
+  const addApprover = (name: string | null | undefined, role: string, responsibility: string, id: string) => {
+    const normalized = name?.trim();
+    if (!normalized) return;
+    const key = normalized.toLocaleLowerCase("es-ES");
+    const existing = approversByName.get(key);
+    approversByName.set(key, existing ? { ...existing, role: `${existing.role} · ${role}`, responsibility: `${existing.responsibility}. ${responsibility}` } : { id, name: normalized, role, responsibility });
+  };
+  addApprover(work.jefeObra, "Jefe de obra", "Supervisión operativa de la obra", `chief-${work.id}`);
+  addApprover(work.responsable, "Responsable", "Coordinación registrada de la obra", `responsible-${work.id}`);
+  addApprover(work.comercial, "Comercial", "Seguimiento comercial vinculado", `commercial-${work.id}`);
+  const approvers = Array.from(approversByName.values());
   const returnTo = `/obras/${work.id}?vista=equipo&subvista=equipo`;
   return <WorkTeamOverview
-    summary={{ assignedPeople: people.length, assignedPeopleDetail: `${assignedUserIds.size} personas con tareas asignadas`, coveredProfilesPercent: null, coveredProfilesDetail: "Sin catálogo de perfiles requeridos", overloadedPeople: null, overloadedPeopleDetail: "Sin capacidad laboral persistida", uncoveredCriticalProfiles: null, uncoveredCriticalProfilesDetail: "Sin perfiles críticos persistidos", plannedHours, plannedHoursDetail: `${tasksWithEstimate.length} tareas con estimación`, recordedHours, recordedHoursDetail: `${tasksWithActual.length} tareas con horas registradas` }}
+    summary={{ assignedPeople: people.length, assignedPeopleDetail: `${assignedUserIds.size} asignaciones de usuario en tareas`, coveredProfilesPercent: null, coveredProfilesDetail: "Sin catálogo de perfiles requeridos", overloadedPeople: null, overloadedPeopleDetail: "Sin capacidad laboral persistida", uncoveredCriticalProfiles: null, uncoveredCriticalProfilesDetail: "Sin perfiles críticos persistidos", plannedHours, plannedHoursDetail: `${tasksWithEstimate.length} tareas con estimación`, recordedHours, recordedHoursDetail: `${tasksWithActual.length} tareas con horas registradas` }}
     people={people}
     peopleTotal={people.length}
     loads={loads}
