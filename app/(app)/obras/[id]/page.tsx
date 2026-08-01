@@ -39,6 +39,7 @@ import { updateWorkStatus } from "@/app/(app)/obras/actions";
 import { RecordWorkspace } from "@/components/workspaces";
 import { EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
+import { WorkPlanningGantt, WorkPlanningSummary } from "@/components/portal/modules-a/work-planning";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -148,7 +149,7 @@ export default async function WorkDetailPage({
   }
   const [taskAccess, taskManageAccess] = await Promise.all([resolveAuthorization(auth, "tasks.view"), resolveAuthorization(auth, "tasks.manage")]);
   const scopedTaskIds = taskAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.view") : [];
-  const [work, treasury, workTasks] = await Promise.all([
+  const [work, treasury, workTasks, activeMembers] = await Promise.all([
     prisma.work.findFirst({
       where: { id, companyId: auth.companyId },
       include: workDetailInclude
@@ -160,6 +161,11 @@ export default async function WorkDetailPage({
       orderBy: [{ startsAt: "asc" }, { dueAt: "asc" }, { createdAt: "asc" }],
       take: 200,
     }) : Promise.resolve([] as WorkTask[]),
+    prisma.companyMembership.findMany({
+      where: { companyId: auth.companyId, status: "active" },
+      select: { userId: true, user: { select: { displayName: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
   if (!work) notFound();
 
@@ -174,6 +180,7 @@ export default async function WorkDetailPage({
   const nextAction = getWorkNextAction(work);
   const pendingMaterials = work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado));
   const openInvoices = work.invoices.filter((invoice) => Math.max(0, invoice.total - invoicePaid(invoice)) > 0);
+  const memberNames = Object.fromEntries(activeMembers.map((membership) => [membership.userId, membership.user.displayName]));
 
   return (
     <RecordWorkspace>
@@ -195,12 +202,11 @@ export default async function WorkDetailPage({
         <WorkOverviewDashboard work={work} tasks={workTasks} financial={financial} timeline={timeline} risks={risks} nextAction={nextAction} />
       ) : null}
 
-      {activeTab === "resumen" && query.modo !== "configuracion" ? <div className="mt-4 grid gap-4"><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /></div> : null}
-      {activeTab === "resumen" && query.modo === "configuracion" ? <div className="grid gap-4"><ClientTab work={work} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
+      {activeTab === "resumen" && query.modo === "configuracion" ? <div className="grid gap-4"><ClientTab work={work} /><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
       {activeTab === "partes" ? <PartsWorkspace work={work} timeline={timeline} subview={activeSubview} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
       {activeTab === "costes" ? <CostsWorkspace work={work} financial={financial} pendingMaterials={pendingMaterials.length} subview={activeSubview} /> : null}
       {activeTab === "facturacion" ? <BillingWorkspace work={work} treasury={treasury} financial={financial} subview={activeSubview} /> : null}
-      {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={taskManageAccess.allowed} subview={activeSubview} /> : null}
+      {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={taskManageAccess.allowed} memberNames={memberNames} subview={activeSubview} /> : null}
       {activeTab === "documentos" ? <DocumentsWorkspace work={work} documents={documents} subview={activeSubview} /> : null}
       {activeTab === "equipo" ? <TeamWorkspace work={work} subview={activeSubview} /> : null}
       {activeTab === "incidencias" ? <IncidentsTab work={work} risks={risks} /> : null}
@@ -636,7 +642,32 @@ function OperationalSetupPanel({ title, description, count, countLabel, icon: Ic
   );
 }
 
-function PlanningWorkspace({ work, tasks, canManageTasks, subview }: { work: WorkDetail; tasks: WorkTask[]; canManageTasks: boolean; subview: string }) {
+function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }: { work: WorkDetail; tasks: WorkTask[]; canManageTasks: boolean; memberNames: Record<string, string>; subview: string }) {
+  const planningTasks = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    parentTaskId: task.parentTaskId,
+    startsAt: task.startsAt?.toISOString() ?? null,
+    dueAt: task.dueAt?.toISOString() ?? null,
+    completedAt: task.completedAt?.toISOString() ?? null,
+    assigneeName: task.assigneeId ? memberNames[task.assigneeId] ?? "Responsable asignado" : null,
+    estimatedMinutes: task.estimatedMinutes,
+    actualMinutes: task.actualMinutes,
+    progress: task.checklist.length ? Math.round((task.checklist.filter((item) => item.completed).length / task.checklist.length) * 100) : task.status === "completed" ? 100 : null,
+    dependencies: task.dependencies.map((dependency) => ({ taskId: dependency.dependsOnTaskId, type: dependency.type })),
+  }));
+  const planningWork = {
+    id: work.id,
+    clientId: work.clienteId,
+    startsAt: (work.fechaInicioReal ?? work.fechaInicioPrevista ?? work.fechaInicio)?.toISOString() ?? null,
+    dueAt: work.fechaFinPrevista?.toISOString() ?? null,
+    responsible: work.jefeObra ?? work.responsable ?? null,
+    materials: work.materials.map((material) => ({ id: material.id, name: material.nombre, status: material.estado, quantity: material.cantidad })),
+    events: work.agendaEvents.map((event) => ({ id: event.id, title: event.titulo, startsAt: event.fechaInicio.toISOString(), endsAt: event.fechaFin?.toISOString() ?? null })),
+  };
+  if (subview === "resumen") return <WorkPlanningSummary work={planningWork} tasks={planningTasks} canManage={canManageTasks} />;
+  if (subview === "gantt") return <WorkPlanningGantt work={planningWork} tasks={planningTasks} canManage={canManageTasks} />;
   if (["dependencias", "ruta-critica"].includes(subview)) return <PlanningDependencyWorkspace work={work} tasks={tasks} canManageTasks={canManageTasks} mode={subview === "dependencias" ? "dependencies" : "critical-path"} />;
   if (subview === "recursos") return <div className="grid gap-4"><PeopleTab work={work} /><MaterialsTab materials={work.materials} pendingCount={work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado)).length} workId={work.id} /></div>;
   if (["linea-base", "escenarios"].includes(subview)) return <OperationalSetupPanel title={subview === "linea-base" ? "Línea base de planificación" : "Escenarios de planificación"} description={subview === "linea-base" ? "Compara las fechas actuales con una referencia aprobada cuando exista una línea base persistida." : "Evalúa alternativas sobre tareas reales sin sustituir el calendario aprobado."} count={tasks.length} countLabel="tareas de referencia" icon={subview === "linea-base" ? TimerReset : GitBranch} items={["Las fechas proceden de tareas vinculadas a la obra.", "No se calcula desviación sin referencia persistida.", "Toda propuesta de cambio conserva confirmación humana."]} action={canManageTasks ? <Link href={`/tareas?filtro=team&nuevo=1&workId=${work.id}&clientId=${work.clienteId}`} className="primary-button">Gestionar tareas</Link> : <Link href={`/tareas?workId=${work.id}`} className="secondary-button">Consultar tareas</Link>} />;
