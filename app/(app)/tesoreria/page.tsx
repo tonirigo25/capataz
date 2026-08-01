@@ -222,7 +222,13 @@ export default async function TreasuryPage({
       </main>
     );
   }
-  const exportDecision = await resolveAuthorization(auth, "reports.export");
+  const [exportDecision, manageDecision, invoiceCreateDecision, purchaseManageDecision] =
+    await Promise.all([
+      resolveAuthorization(auth, "reports.export"),
+      resolveAuthorization(auth, "treasury.manage"),
+      resolveAuthorization(auth, "sales.invoices.create"),
+      resolveAuthorization(auth, "purchases.received_invoices.manage"),
+    ]);
   const [data, recommendations] = await Promise.all([
     getEconomicControl({
       area: query.vista,
@@ -242,6 +248,21 @@ export default async function TreasuryPage({
         auth.scope === "COMPANY" &&
         exportDecision.allowed &&
         exportDecision.scope === "COMPANY"
+      }
+      canManage={
+        auth.scope === "COMPANY" &&
+        manageDecision.allowed &&
+        manageDecision.scope === "COMPANY"
+      }
+      canCreateInvoice={
+        auth.scope === "COMPANY" &&
+        invoiceCreateDecision.allowed &&
+        invoiceCreateDecision.scope === "COMPANY"
+      }
+      canManagePurchases={
+        auth.scope === "COMPANY" &&
+        purchaseManageDecision.allowed &&
+        purchaseManageDecision.scope === "COMPANY"
       }
     />
   );

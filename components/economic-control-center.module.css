@@ -5,6 +5,50 @@
   color: var(--cap-text);
 }
 
+.summaryPage {
+  gap: 15px;
+}
+
+.summaryPage .header {
+  min-height: 61px;
+  justify-content: center;
+}
+
+.summaryPage .headerCopy h1 {
+  font-size: 31px;
+}
+
+.summaryPage .kpiStrip {
+  min-height: 150px;
+}
+
+.summaryPage .kpi {
+  min-height: 148px;
+  gap: 8px;
+  padding: 14px 15px;
+}
+
+.summaryPage .kpiLabel {
+  font-size: 11px;
+}
+
+.summaryPage .kpiLabel i {
+  width: 34px;
+  height: 34px;
+}
+
+.summaryPage .kpi > strong {
+  font-size: clamp(20px, 1.7vw, 25px);
+}
+
+.summaryPage .kpi > small {
+  font-size: 9px;
+}
+
+.summaryPage .primaryGrid {
+  grid-template-columns: minmax(0, 1.04fr) minmax(23rem, .96fr);
+}
+
 .header {
   display: grid;
   min-width: 0;

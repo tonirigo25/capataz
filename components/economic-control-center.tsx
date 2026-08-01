@@ -38,23 +38,30 @@ export function EconomicControlCenter({
   data,
   recommendations = [],
   canExport = false,
+  canManage = false,
+  canCreateInvoice = false,
+  canManagePurchases = false,
 }: {
   data: EconomicControlData;
   recommendations?: BusinessRecommendation[];
   canExport?: boolean;
+  canManage?: boolean;
+  canCreateInvoice?: boolean;
+  canManagePurchases?: boolean;
 }) {
   const profitability = summarizeProfitability(data.profitability);
+  const isSummary = data.area === "resumen";
 
   return (
     <ProductPage layout="analytical">
-      <div className={styles.page}>
+      <div className={`${styles.page} ${isSummary ? styles.summaryPage : ""}`}>
         <header className={styles.header}>
-          <InternalBreadcrumbs items={[{ label: "Dinero", href: "/dinero" }, { label: "Tesorería" }]} />
+          {!isSummary ? <InternalBreadcrumbs items={[{ label: "Dinero", href: "/dinero" }, { label: "Tesorería" }]} /> : null}
           <div className={styles.headerRow}>
             <div className={styles.headerCopy}>
-              <p className={styles.eyebrow}>Control económico</p>
-              <h1>Tesorería</h1>
-              <p>Caja, cobros, pagos, vencimientos y rentabilidad conectados con su documento de origen.</p>
+              {!isSummary ? <p className={styles.eyebrow}>Control económico</p> : null}
+              <h1>{isSummary ? "Dinero" : "Tesorería"}</h1>
+              <p>{isSummary ? "Tesorería, facturas y rentabilidad en tiempo real." : "Caja, cobros, pagos, vencimientos y rentabilidad conectados con su documento de origen."}</p>
             </div>
             <div className={styles.headerActions}>
               {canExport ? (
@@ -63,9 +70,9 @@ export function EconomicControlCenter({
                   Ver informe completo
                 </Link>
               ) : null}
-              <Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="secondary-button">Nueva factura</Link>
-              <Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Factura recibida</Link>
-              <Link href="#treasury-registration" className="primary-button">Registrar movimiento</Link>
+              {!isSummary && canCreateInvoice ? <Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="secondary-button">Nueva factura</Link> : null}
+              {!isSummary && canManagePurchases ? <Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Factura recibida</Link> : null}
+              {!isSummary && canManage ? <Link href="#treasury-registration" className="primary-button">Registrar movimiento</Link> : null}
             </div>
           </div>
         </header>
@@ -112,7 +119,7 @@ export function EconomicControlCenter({
           />
         </section>
 
-        <nav className={styles.tabs} aria-label="Áreas de control económico">
+        {!isSummary ? <nav className={styles.tabs} aria-label="Áreas de control económico">
           {AREAS.map((area) => (
             <Link
               key={area.id}
@@ -122,11 +129,11 @@ export function EconomicControlCenter({
               {area.label}
             </Link>
           ))}
-        </nav>
+        </nav> : null}
 
-        <EconomicFilters data={data} />
+        {!isSummary ? <EconomicFilters data={data} /> : null}
 
-        {data.area === "resumen" ? <SummaryArea data={data} recommendations={recommendations} profitability={profitability} /> : null}
+        {data.area === "resumen" ? <SummaryArea data={data} recommendations={recommendations} profitability={profitability} canManage={canManage} /> : null}
         {data.area === "cobros" ? <DocumentsArea direction="entrada" data={data} /> : null}
         {data.area === "pagos" ? <DocumentsArea direction="salida" data={data} /> : null}
         {data.area === "prevision" ? <ForecastArea forecast={data.forecast} /> : null}
@@ -178,10 +185,12 @@ function SummaryArea({
   data,
   recommendations,
   profitability,
+  canManage,
 }: {
   data: EconomicControlData;
   recommendations: BusinessRecommendation[];
   profitability: ReturnType<typeof summarizeProfitability>;
+  canManage: boolean;
 }) {
   const upcoming = nextDocuments(data.forecast);
   const receivables = data.receivables.filter((document) => document.pending > 0).slice(0, 5);
@@ -251,9 +260,9 @@ function SummaryArea({
         </Panel>
       </div>
 
-      <div className={styles.registration}>
+      {canManage ? <div className={styles.registration}>
         <TreasuryRegistration accounts={data.accounts} returnTo={economicHref(data, {})} />
-      </div>
+      </div> : null}
 
       <div className={styles.secondaryGrid}>
         <Concentration title="Saldo pendiente por cliente" rows={data.clientConcentration} empty="No hay saldos de clientes pendientes." />
