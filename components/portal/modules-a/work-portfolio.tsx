@@ -9,10 +9,15 @@ import {
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
+  ChevronRight,
   CircleDollarSign,
   ClipboardCheck,
+  ClipboardPenLine,
+  FilePlus2,
+  FileText,
   FileWarning,
   MapPin,
+  UserRound,
   UsersRound,
   X,
   type LucideIcon,
@@ -79,6 +84,7 @@ export type WorkPortfolioItem = {
 
 export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   const [selectedId, setSelectedId] = useState(items[0]?.id ?? "");
+  const [markedIds, setMarkedIds] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -94,6 +100,14 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
     if (!items.some((item) => item.id === selectedId))
       setSelectedId(items[0].id);
   }, [items, selectedId]);
+
+  useEffect(() => {
+    const visibleIds = new Set(items.map((item) => item.id));
+    setMarkedIds((current) => {
+      const next = new Set([...current].filter((id) => visibleIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [items]);
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1440px)");
@@ -163,6 +177,20 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
     window.requestAnimationFrame(() => lastTriggerRef.current?.focus());
   }
 
+  function toggleMarked(id: string) {
+    setMarkedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllMarked() {
+    const allVisibleMarked = items.length > 0 && items.every((item) => markedIds.has(item.id));
+    setMarkedIds(allVisibleMarked ? new Set() : new Set(items.map((item) => item.id)));
+  }
+
   return (
     <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1440px]:grid min-[1440px]:grid-cols-[minmax(0,1fr)_minmax(19rem,20rem)]" : ""}`}>
       <section className={`min-w-0 border-border ${selected ? "min-[1440px]:border-r" : ""}`} aria-label="Trabajos filtrados">
@@ -179,21 +207,26 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
         {items.length ? (
           <>
             <div className="hidden min-[1440px]:block" aria-label="Listado de trabajos">
-              <div aria-hidden="true" className="grid min-h-11 grid-cols-[minmax(7rem,2fr)_3.7rem_3.5rem_4.2rem_4.5rem_3.7rem_5.3rem] items-center gap-1 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
-                <span>Obra</span>
-                <span>Estado</span>
-                <span>Avance</span>
-                <span>Equipo</span>
-                <span>Próxima visita</span>
-                <span>Incidencias</span>
-                <span>Presupuesto vs Real</span>
+              <div className="grid min-h-11 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
+                <input type="checkbox" checked={items.length > 0 && items.every((item) => markedIds.has(item.id))} onChange={toggleAllMarked} className="h-4 w-4 accent-brand" aria-label="Seleccionar todos los trabajos visibles" />
+                <div aria-hidden="true" className="grid grid-cols-[minmax(6.1rem,2fr)_3.8rem_3.2rem_4rem_4.5rem_2.7rem_5.2rem_0.9rem] items-center gap-1">
+                  <span>Obra</span>
+                  <span>Estado</span>
+                  <span>Avance</span>
+                  <span>Equipo</span>
+                  <span>Próxima visita</span>
+                  <span>Incidencias</span>
+                  <span>Presupuesto vs Real</span>
+                  <span />
+                </div>
               </div>
               <div className="divide-y divide-border" role="list">
                 {items.map((item) => {
                   const active = selected?.id === item.id;
                   return (
-                    <article key={item.id} role="listitem">
-                    <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className={`grid min-h-[4.65rem] w-full grid-cols-[minmax(7rem,2fr)_3.7rem_3.5rem_4.2rem_4.5rem_3.7rem_5.3rem] items-center gap-1 px-3 text-left text-[10px] outline-none transition-colors hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand ${active ? "bg-brand-soft" : "bg-surface"}`}>
+                    <article key={item.id} role="listitem" className={`grid min-h-[4.65rem] grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 px-3 transition-colors ${active ? "bg-brand-soft" : "bg-surface"}`}>
+                      <input type="checkbox" checked={markedIds.has(item.id)} onChange={() => toggleMarked(item.id)} className="h-4 w-4 accent-brand" aria-label={`Seleccionar ${item.title}`} />
+                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="grid min-h-[4.65rem] w-full grid-cols-[minmax(6.1rem,2fr)_3.8rem_3.2rem_4rem_4.5rem_2.7rem_5.2rem_0.9rem] items-center gap-1 text-left text-[10px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
                       <span className="flex min-w-0 items-center gap-2">
                         <WorkThumbnail item={item} />
                         <span className="min-w-0">
@@ -205,9 +238,10 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
                       <span className="min-w-0"><TableProgress item={item} /></span>
                       <span className="min-w-0"><span className="block truncate font-semibold text-content">{teamSummary(item)}</span><span className="mt-0.5 block truncate text-content-secondary">{valueOr(item.responsible, "Sin responsable registrado")}</span></span>
                       <span className="min-w-0"><span className="block truncate font-semibold text-content">{visitSummary(item)}</span><span className="mt-0.5 block truncate text-content-secondary">{item.visit ? valueOr(item.visit.label, "Sin detalle registrado") : "Sin visita registrada"}</span></span>
-                      <span className={item.risk ? "font-semibold text-danger" : "text-content-secondary"}>{incidentSummary(item)}</span>
+                      <IncidentCell item={item} />
                       <span className="min-w-0"><FinancialSummary item={item} /></span>
-                    </button>
+                      <ChevronRight size={14} className="text-content-secondary" aria-hidden="true" />
+                      </button>
                     </article>
                   );
                 })}
@@ -302,8 +336,15 @@ function WorkThumbnail({ item, large = false }: { item: WorkPortfolioItem; large
 
 function TableProgress({ item }: { item: WorkPortfolioItem }) {
   const progress = normalizedProgress(item.progressPercent);
-  if (progress == null) return <span className="text-content-secondary">Sin avance registrado</span>;
+  if (progress == null) return <span className="block" aria-label="Avance no registrado"><strong className="block text-content-secondary">—</strong><span className="mt-1 block h-1.5 w-full rounded-full bg-border" /></span>;
   return <span><strong className="block text-content">{progress}%</strong><progress className="mt-1 h-1.5 w-full accent-brand" max={100} value={progress}>{progress}%</progress></span>;
+}
+
+function IncidentCell({ item }: { item: WorkPortfolioItem }) {
+  const count = item.incidentCount ?? item.incidentLabels?.length ?? 0;
+  const tone = count > 1 ? "bg-danger" : count === 1 ? "bg-warning" : "bg-success";
+  const textTone = count > 1 ? "text-danger" : count === 1 ? "text-warning" : "text-success";
+  return <span className={`inline-flex items-center gap-1 font-bold ${textTone}`} aria-label={`${count} incidencias abiertas`}><span className={`h-1.5 w-1.5 rounded-full ${tone}`} aria-hidden="true" />{count}</span>;
 }
 
 function FinancialSummary({ item }: { item: WorkPortfolioItem }) {
@@ -346,43 +387,49 @@ function DesktopWorkDetail({ item, onClose }: { item: WorkPortfolioItem; onClose
   const timeline = item.timeline?.slice(0, 5) ?? [];
   const team = item.team?.slice(0, 3) ?? [];
   const hasFinancialData = item.budget != null || item.cost != null || item.margin != null;
+  const incidentCount = item.incidentCount ?? item.incidentLabels?.length ?? 0;
 
   return <div className="p-4">
     <header className="flex min-h-[4.5rem] items-start justify-between gap-3 border-b border-border pb-3">
-      <div className="min-w-0"><p className="type-meta">{valueOr(item.code, "Sin código registrado")}</p><h2 className="mt-1 text-lg font-bold leading-tight text-content">{item.title}</h2><p className="type-meta mt-1 truncate">{item.client} · {item.workType ?? "Sin tipo registrado"}</p></div>
-      <div className="flex shrink-0 items-center gap-2"><span className={`inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${item.statusClassName}`}>{item.status}</span>{onClose ? <button type="button" onClick={onClose} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border text-content transition hover:bg-subtle focus-visible:ring-2 focus-visible:ring-brand" aria-label="Cerrar detalle"><X size={18} aria-hidden="true" /></button> : null}</div>
+      <div className="min-w-0"><h2 className="text-lg font-bold leading-tight text-content">{item.title}</h2><p className="type-meta mt-1 truncate">{item.client} · Ref. {valueOr(item.code, "sin código")}</p><span className={`mt-2 inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${item.statusClassName}`}>{item.status}</span></div>
+      {onClose ? <button type="button" onClick={onClose} className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-border text-content transition hover:bg-subtle focus-visible:ring-2 focus-visible:ring-brand" aria-label="Cerrar detalle"><X size={18} aria-hidden="true" /></button> : null}
     </header>
 
     <div className="mt-3 grid grid-cols-2 gap-2">
       <CompactDetail title="Etapa actual" icon={ClipboardCheck}>
-        <strong className="block text-xs text-content">{valueOr(item.progressLabel, "Sin etapa registrada")}</strong>
-        {progress == null ? <span className="type-meta mt-1 block">Sin avance registrado</span> : <><span className="type-meta mt-1 block">{progress}% registrado</span><progress className="mt-1 h-1.5 w-full accent-brand" max={100} value={progress}>{progress}%</progress></>}
+        <strong className="flex items-center gap-2 text-xs text-content"><span className="h-2 w-2 rounded-full bg-blue-600" aria-hidden="true" />{valueOr(item.progressLabel, "Sin etapa registrada")}</strong>
+        {progress == null ? <span className="type-meta mt-1 block">Avance físico no registrado</span> : <><span className="type-meta mt-1 block">{progress}% registrado</span><progress className="mt-1 h-1.5 w-full accent-brand" max={100} value={progress}>{progress}%</progress></>}
       </CompactDetail>
       <CompactDetail title="Próximo hito" icon={CalendarClock}>
-        <strong className="block text-xs text-content">{item.visit ? valueOr(item.visit.label, "Visita registrada") : valueOr(item.nextAction, "Sin siguiente acción")}</strong>
+        <strong className="flex items-start gap-2 text-xs text-content"><CalendarClock size={14} className="mt-0.5 shrink-0 text-blue-600" aria-hidden="true" />{item.visit ? valueOr(item.visit.label, "Visita registrada") : valueOr(item.nextAction, "Sin siguiente acción")}</strong>
         <span className="type-meta mt-1 block">{item.visit ? valueOr(item.visit.date, "Sin fecha registrada") : valueOr(item.nextDate, "Sin fecha registrada")}</span>
       </CompactDetail>
 
       <CompactDetail title="Línea de tiempo" icon={CheckCircle2} className="row-span-2">
-        {timeline.length ? <ol className="grid gap-2">{timeline.map((entry, index) => <li key={`${entry.label}-${index}`} className="grid grid-cols-[12px_minmax(0,1fr)] gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-brand" aria-hidden="true" /><span className="min-w-0"><strong className="block truncate text-[10px] text-content">{entry.label}</strong><small className="block truncate text-[9px] text-content-secondary">{entry.date ?? "Sin fecha"}{entry.status ? ` · ${entry.status}` : ""}</small></span></li>)}</ol> : <p className="type-meta">Sin hitos registrados.</p>}
+        {timeline.length ? <WorkTimeline entries={timeline} /> : <p className="type-meta">Sin hitos registrados.</p>}
       </CompactDetail>
-      <CompactDetail title="Incidencias abiertas" icon={FileWarning}>
-        {hasIncidentData(item) ? <><strong className={item.risk ? "text-xs text-danger" : "text-xs text-content"}>{incidentSummary(item)}</strong>{item.incidentLabels?.length ? <ul className="mt-1 grid gap-1 text-[9px] text-content-secondary">{item.incidentLabels.slice(0, 2).map((label) => <li key={label} className="truncate">{label}</li>)}</ul> : null}</> : <p className="type-meta">Sin incidencias registradas.</p>}
+      <CompactDetail title="Incidencias abiertas" icon={FileWarning} badge={String(incidentCount)}>
+        {item.incidentLabels?.length ? <ul className="grid gap-2 text-[9px] text-content-secondary">{item.incidentLabels.slice(0, 2).map((label, index) => <li key={label} className="flex min-w-0 items-center gap-2"><FileWarning size={12} className={index === 0 ? "shrink-0 text-danger" : "shrink-0 text-warning"} aria-hidden="true" /><span className="truncate">{label}</span></li>)}</ul> : <p className="type-meta">0 incidencias activas</p>}
+        <Link href={`/obras/${item.id}?vista=incidencias`} className="mt-2 inline-flex min-h-7 items-center text-[9px] font-semibold text-brand-strong hover:underline">Ver todas</Link>
       </CompactDetail>
       <CompactDetail title="Presupuesto vs Real" icon={CircleDollarSign}>
         {hasFinancialData ? <dl className="grid gap-1 text-[10px]"><CompactAmount label="Presupuesto" value={item.budget} /><CompactAmount label="Real" value={item.cost} /><CompactAmount label="Margen" value={item.margin} danger={item.marginRisk} /></dl> : <p className="type-meta">Datos económicos restringidos.</p>}
       </CompactDetail>
       <CompactDetail title="Equipo asignado" icon={UsersRound}>
-        {team.length ? <ul className="grid gap-1">{team.map((member) => <li key={`${member.name}-${member.role}`} className="truncate text-[10px]"><strong>{member.name}</strong><span className="text-content-secondary"> · {member.role ?? "Sin rol"}</span></li>)}</ul> : <p className="type-meta">Sin equipo registrado.</p>}
+        {team.length ? <ul className="grid gap-2">{team.map((member) => <li key={`${member.name}-${member.role}`} className="flex min-w-0 items-center gap-2 text-[10px]"><span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-subtle text-content-secondary"><UserRound size={13} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate">{member.name}</strong><span className="block truncate text-[9px] text-content-secondary">{member.role ?? "Sin rol"}</span></span></li>)}</ul> : <p className="type-meta">Sin equipo registrado.</p>}
       </CompactDetail>
     </div>
 
-    <section className="mt-3 rounded-lg border border-border p-3" aria-label="Acciones rápidas"><h3 className="text-[10px] font-bold text-content">Acciones rápidas</h3><div className="mt-2 grid grid-cols-3 gap-2"><Link href={`/obras/${item.id}`} className="secondary-button min-h-11 px-2 text-[9px]">Ver ficha completa</Link>{item.actionHrefs?.part ? <Link href={item.actionHrefs.part} className="secondary-button min-h-11 px-2 text-center text-[9px]">Crear parte de obra</Link> : <span aria-disabled="true" className="secondary-button min-h-11 px-2 text-center text-[9px] opacity-60">Parte no disponible</span>}{item.actionHrefs?.incident ? <Link href={item.actionHrefs.incident} className="secondary-button min-h-11 px-2 text-center text-[9px]">Registrar incidencia</Link> : <span aria-disabled="true" className="secondary-button min-h-11 px-2 text-center text-[9px] opacity-60">Incidencia no disponible</span>}</div></section>
+    <section className="mt-3 rounded-lg border border-border p-3" aria-label="Acciones rápidas"><h3 className="text-[10px] font-bold text-content">Acciones rápidas</h3><div className="mt-2 grid grid-cols-3 gap-2"><Link href={`/obras/${item.id}`} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><FileText size={16} aria-hidden="true" />Ver ficha completa</Link>{item.actionHrefs?.part ? <Link href={item.actionHrefs.part} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><FilePlus2 size={16} aria-hidden="true" />Crear parte de obra</Link> : <span aria-disabled="true" className="secondary-button min-h-14 flex-col px-2 text-center text-[9px] opacity-60"><FilePlus2 size={16} aria-hidden="true" />Parte no disponible</span>}{item.actionHrefs?.incident ? <Link href={item.actionHrefs.incident} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><ClipboardPenLine size={16} aria-hidden="true" />Registrar incidencia</Link> : <span aria-disabled="true" className="secondary-button min-h-14 flex-col px-2 text-center text-[9px] opacity-60"><ClipboardPenLine size={16} aria-hidden="true" />Incidencia no disponible</span>}</div></section>
   </div>;
 }
 
-function CompactDetail({ title, icon: Icon, className = "", children }: { title: string; icon: LucideIcon; className?: string; children: React.ReactNode }) {
-  return <section className={`min-w-0 rounded-lg border border-border p-3 ${className}`}><div className="mb-2 flex items-center gap-1.5"><Icon size={14} className="text-brand-strong" aria-hidden="true" /><h3 className="text-[10px] font-bold text-content">{title}</h3></div>{children}</section>;
+function CompactDetail({ title, icon: Icon, badge, className = "", children }: { title: string; icon: LucideIcon; badge?: string; className?: string; children: React.ReactNode }) {
+  return <section className={`min-w-0 rounded-lg border border-border p-3 ${className}`}><div className="mb-2 flex items-center gap-1.5"><Icon size={14} className="text-brand-strong" aria-hidden="true" /><h3 className="text-[10px] font-bold text-content">{title}</h3>{badge != null ? <span className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-warning/10 px-1.5 text-[9px] font-bold text-warning">{badge}</span> : null}</div>{children}</section>;
+}
+
+function WorkTimeline({ entries }: { entries: WorkPortfolioTimelineItem[] }) {
+  return <ol className="relative grid gap-0 before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-px before:bg-border">{entries.map((entry, index) => <li key={`${entry.label}-${index}`} className="relative grid min-h-11 grid-cols-[14px_minmax(0,1fr)] gap-2 pb-2 last:pb-0"><span className="relative z-[1] mt-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-success bg-surface text-success" aria-hidden="true"><CheckCircle2 size={10} /></span><span className="min-w-0"><strong className="block truncate text-[10px] text-content">{entry.label}</strong><small className="mt-0.5 block truncate text-[9px] text-content-secondary">{entry.date ?? "Sin fecha"}</small>{entry.status ? <small className="block truncate text-[8px] text-content-secondary">{entry.status}</small> : null}</span></li>)}</ol>;
 }
 
 function CompactAmount({ label, value, danger = false }: { label: string; value: string | null; danger?: boolean }) {
@@ -796,10 +843,10 @@ function hasIncidentData(item: WorkPortfolioItem) {
 }
 
 function incidentSummary(item: WorkPortfolioItem) {
-  if (item.incidentCount != null) return `${item.incidentCount} registradas`;
+  if (item.incidentCount != null) return `${item.incidentCount} abiertas`;
   if (item.incidentLabels?.length)
-    return `${item.incidentLabels.length} registradas`;
-  return "Sin incidencias registradas";
+    return `${item.incidentLabels.length} abiertas`;
+  return "0 abiertas";
 }
 
 function teamSummary(item: WorkPortfolioItem) {

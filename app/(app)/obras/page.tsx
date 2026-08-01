@@ -165,6 +165,9 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     const nextVisit = item.work.agendaEvents.find((event) => event.tipo === "visita" && !["cancelado", "realizado"].includes(event.estado))
       ?? item.work.agendaEvents.find((event) => !["cancelado", "realizado"].includes(event.estado));
     const thumbnailUrl = item.work.photos.find((photo) => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")))?.url ?? null;
+    const incidentPhotos = item.work.photos.filter(
+      (photo) => photo.categoria.trim().toLowerCase() === "incidencia",
+    );
     const team = [
       item.work.responsable ? { name: item.work.responsable, role: "Responsable" } : null,
       item.work.jefeObra ? { name: item.work.jefeObra, role: "Jefe de obra" } : null,
@@ -208,8 +211,8 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         date: formatDate(nextVisit.fechaInicio),
         href: "/agenda",
       } : null,
-      incidentCount: null,
-      incidentLabels: null,
+      incidentCount: incidentPhotos.length,
+      incidentLabels: incidentPhotos.map((photo) => photo.titulo),
       team,
       timeline,
       actionHrefs: item.visibility.updateWork ? {

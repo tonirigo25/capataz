@@ -75,6 +75,24 @@ check(
     !portfolio.includes("onMouseEnter=") &&
     !portfolio.includes("onMouseOver="),
 );
+check(
+  "el listado replica selección, apertura e incidencias numéricas con controles reales",
+  portfolio.includes("toggleAllMarked") &&
+    portfolio.includes("toggleMarked") &&
+    portfolio.includes("Seleccionar todos los trabajos visibles") &&
+    portfolio.includes("<ChevronRight") &&
+    portfolio.includes("<IncidentCell") &&
+    works.includes('photo.categoria.trim().toLowerCase() === "incidencia"') &&
+    works.includes("incidentCount: incidentPhotos.length"),
+);
+check(
+  "el detalle usa cronología vertical e iconos funcionales canónicos",
+  portfolio.includes("function WorkTimeline") &&
+    portfolio.includes("before:absolute") &&
+    portfolio.includes("<FileText") &&
+    portfolio.includes("<FilePlus2") &&
+    portfolio.includes("<ClipboardPenLine"),
+);
 
 const usesSharedDrawer = portfolio.includes("ContextDrawer") && contextDrawer.includes("export function ContextDrawer");
 const ownsAccessibleDrawer =
