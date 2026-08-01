@@ -680,10 +680,10 @@ export async function provisionReviewRigoHoy(
     ];
     const planningLabels = [
       "Preparación y replanteo", "Demoliciones y retirada", "Estructura y cerramientos", "Instalaciones eléctricas",
-      "Fontanería y saneamiento", "Climatización y ventilación", "Acabados interiores", "Hito · Inspección técnica",
-      "Carpintería y cerrajería", "Pintura y revestimientos", "Equipamiento", "Hito · Pruebas de instalaciones",
+      "Fontanería y saneamiento", "Climatización y ventilación", "Acabados interiores", "Hito: Inspección técnica",
+      "Carpintería y cerrajería", "Pintura y revestimientos", "Equipamiento", "Hito: Pruebas de instalaciones",
       "Limpieza técnica", "Revisión de calidad", "Corrección de remates", "Documentación de cierre",
-      "Formación y entrega", "Inspección final", "Recepción provisional", "Hito · Entrega y cierre",
+      "Formación y entrega", "Inspección final", "Recepción provisional", "Hito: Entrega y cierre",
     ];
     const foreignTask = await transaction.task.findFirst({
       where: {

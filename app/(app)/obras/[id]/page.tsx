@@ -40,6 +40,10 @@ import { RecordWorkspace } from "@/components/workspaces";
 import { EntityHeader, Notice, PageHeader, ParentNavigation, Tabs } from "@/components/ui-primitives";
 import { WorkProgressGallery } from "@/components/work-progress-gallery";
 import { WorkPlanningGantt, WorkPlanningSummary } from "@/components/portal/modules-a/work-planning";
+import { WorkPlanningCalendar } from "@/components/portal/modules-a/work-planning-calendar";
+import { WorkPlanningLoad, WorkPlanningResources } from "@/components/portal/modules-a/work-planning-capacity";
+import { WorkPlanningMilestones } from "@/components/portal/modules-a/work-planning-milestones";
+import { WorkPlanningNetwork } from "@/components/portal/modules-a/work-planning-network";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -618,6 +622,9 @@ function PlanningDependencyWorkspace({ work, tasks, canManageTasks, mode }: { wo
   );
 }
 
+// Retained as a non-rendered compatibility implementation while the new network workspace is validated in Review.
+void PlanningDependencyWorkspace;
+
 function TaskStatusBadge({ status }: { status: WorkTask["status"] }) {
   const className = status === "completed" ? "bg-success/10 text-success" : status === "blocked" ? "bg-danger/10 text-danger" : status === "in_progress" ? "bg-brand-soft text-brand-strong" : "bg-subtle text-content-secondary";
   return <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold ${className}`}>{statusLabel(status)}</span>;
@@ -671,10 +678,40 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
     materials: work.materials.map((material) => ({ id: material.id, name: material.nombre, status: material.estado, quantity: material.cantidad })),
     events: work.agendaEvents.map((event) => ({ id: event.id, title: event.titulo, startsAt: event.fechaInicio.toISOString(), endsAt: event.fechaFin?.toISOString() ?? null })),
   };
+  const resourcePeople = Array.from(new Set([
+    ...planningTasks.map((task) => task.assigneeName).filter((name): name is string => Boolean(name)),
+    work.jefeObra,
+    work.responsable,
+    work.comercial,
+  ].filter((name): name is string => Boolean(name)))).map((name) => {
+    const assigned = planningTasks.filter((task) => task.assigneeName === name);
+    const role = name === work.jefeObra ? "Jefe de obra" : name === work.responsable ? "Responsable" : name === work.comercial ? "Comercial" : "Miembro asignado";
+    return { id: name, name, role, taskCount: assigned.length, plannedMinutes: assigned.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0), actualMinutes: assigned.reduce((sum, task) => sum + (task.actualMinutes ?? 0), 0) };
+  });
+  const networkTasks = planningTasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    startsAt: task.startsAt,
+    dueAt: task.dueAt,
+    durationDays: task.estimatedMinutes ? Math.max(1, Math.ceil(task.estimatedMinutes / 480)) : null,
+    progress: task.progress,
+    assigneeName: task.assigneeName,
+  }));
+  const networkEdges = planningTasks.flatMap((task) => task.dependencies.map((dependency) => ({
+    id: `${dependency.taskId}-${task.id}`,
+    predecessorTaskId: dependency.taskId,
+    successorTaskId: task.id,
+    type: dependency.type,
+    lagDays: null,
+  })));
   if (subview === "resumen") return <WorkPlanningSummary work={planningWork} tasks={planningTasks} canManage={canManageTasks} />;
   if (subview === "gantt") return <WorkPlanningGantt work={planningWork} tasks={planningTasks} canManage={canManageTasks} />;
-  if (["dependencias", "ruta-critica"].includes(subview)) return <PlanningDependencyWorkspace work={work} tasks={tasks} canManageTasks={canManageTasks} mode={subview === "dependencias" ? "dependencies" : "critical-path"} />;
-  if (subview === "recursos") return <div className="grid gap-4"><PeopleTab work={work} /><MaterialsTab materials={work.materials} pendingCount={work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado)).length} workId={work.id} /></div>;
+  if (subview === "calendario") return <WorkPlanningCalendar workId={work.id} tasks={planningTasks} events={planningWork.events} nowIso={planningWork.nowIso} createEventHref={canManageTasks ? `/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}/planificacion/calendario`)}` : undefined} />;
+  if (subview === "hitos") return <WorkPlanningMilestones work={planningWork} tasks={planningTasks} canManage={canManageTasks} createHref={canManageTasks ? `/tareas?filtro=team&nuevo=1&workId=${work.id}&clientId=${work.clienteId}` : undefined} />;
+  if (subview === "carga-trabajo") return <WorkPlanningLoad workId={work.id} tasks={planningTasks} />;
+  if (subview === "recursos") return <WorkPlanningResources workId={work.id} people={resourcePeople} materials={planningWork.materials} canManage={canManageTasks} />;
+  if (["dependencias", "ruta-critica"].includes(subview)) return <WorkPlanningNetwork mode={subview === "dependencias" ? "dependencies" : "critical-path"} workId={work.id} clientId={work.clienteId} tasks={networkTasks} edges={networkEdges} canManage={canManageTasks} />;
   if (["linea-base", "escenarios"].includes(subview)) return <OperationalSetupPanel title={subview === "linea-base" ? "Línea base de planificación" : "Escenarios de planificación"} description={subview === "linea-base" ? "Compara las fechas actuales con una referencia aprobada cuando exista una línea base persistida." : "Evalúa alternativas sobre tareas reales sin sustituir el calendario aprobado."} count={tasks.length} countLabel="tareas de referencia" icon={subview === "linea-base" ? TimerReset : GitBranch} items={["Las fechas proceden de tareas vinculadas a la obra.", "No se calcula desviación sin referencia persistida.", "Toda propuesta de cambio conserva confirmación humana."]} action={canManageTasks ? <Link href={`/tareas?filtro=team&nuevo=1&workId=${work.id}&clientId=${work.clienteId}`} className="primary-button">Gestionar tareas</Link> : <Link href={`/tareas?workId=${work.id}`} className="secondary-button">Consultar tareas</Link>} />;
   const title = subview === "calendario" ? "Calendario registrado" : subview === "hitos" ? "Fechas clave e hitos registrados" : "Cronograma registrado";
   return <div className="grid gap-4"><Section title={title}><div className="mb-4 flex justify-end"><Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=planificacion&subvista=${subview}`)}`} className="primary-button"><CalendarClock size={17} aria-hidden="true" /> Nuevo evento</Link></div><CardsTab items={work.agendaEvents} empty="No hay eventos o fechas clave registrados." render={(event) => <EventCard key={event.id} event={event} />} /></Section><CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} /></div>;
