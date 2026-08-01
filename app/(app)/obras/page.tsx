@@ -206,7 +206,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       riskReason: isBlockedWorkStatus(item.work.estado)
         ? `Estado: ${item.status.label}`
         : item.visibility.marginPercent && item.financial.marginPercent < 15
-          ? `Margen ${item.financial.marginPercent.toFixed(1)} %`
+          ? `Margen previsto · ${item.financial.marginPercent.toFixed(1)} %`
           : item.overduePending > 0
             ? `Vencido ${formatCurrency(item.overduePending)}`
             : null,

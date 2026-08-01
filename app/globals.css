@@ -328,13 +328,31 @@ body {
   .planning-summary-metrics,
   .planning-summary-grid > .planning-card:nth-child(n+3),
   .planning-summary-grid > .planning-card:nth-child(n+6) { grid-column: 1; }
-  .planning-summary-timeline { overflow-x: auto; }
-  .planning-summary-timeline .planning-gantt-shell { min-width: 760px; }
+  .planning-summary-timeline { overflow-x: visible; }
+  .planning-summary-controls { display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch; }
+  .planning-summary-controls select { width: 100%; min-height: 44px; }
+  .planning-summary-controls .planning-legend { margin-left: 0; }
+  .planning-summary-zoom { width: fit-content; min-height: 44px; }
+  .planning-summary-zoom button { width: 44px; height: 44px; }
   .planning-metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .planning-gantt-shell { grid-template-columns: 330px minmax(570px,1fr); overflow-x: auto; }
-  .planning-gantt-table { min-width: 330px; }
+  .planning-metric > span { min-height: 2.2em; overflow: visible; line-height: 1.1; text-overflow: clip; white-space: normal; }
+  .planning-gantt-shell { grid-template-columns: 354px 570px; overflow-x: auto; overflow-y: hidden; }
+  .planning-gantt-table { min-width: 354px; }
   .planning-gantt-heading,
-  .planning-gantt-task-row { grid-template-columns: minmax(150px,1fr) 80px 62px 62px; }
+  .planning-gantt-task-row { grid-template-columns: 150px 80px 62px 62px; }
+  .planning-gantt-scroll { overflow: visible; }
+  .planning-summary-grid > .planning-card:nth-child(n+6) { min-height: auto; }
+  .planning-control-state { min-height: auto; padding-block: 12px; }
+  .planning-card > header { flex-wrap: wrap; }
+  .planning-card > header a,
+  .planning-card > header button,
+  .planning-list > a,
+  .planning-list > span,
+  .planning-list--compact > a,
+  .planning-list--compact > span { min-height: 44px; }
+  .planning-gantt-toolbar label,
+  .planning-gantt-toolbar .planning-zoom,
+  .planning-zoom button { min-height: 44px; }
   .planning-gantt-bottom { grid-template-columns: minmax(0,1fr); }
   .planning-zoom { margin-left: 0; }
 }

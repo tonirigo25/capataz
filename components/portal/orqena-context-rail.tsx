@@ -25,6 +25,8 @@ const contexts: Array<{ match: (pathname: string) => boolean; area: PortalRailAr
   { match: (path) => path === "/clientes", area: "clients", value: contextual("Clientes", "Prioriza seguimientos y oportunidades con la información que tu rol puede consultar.", "Cartera visible para tu perfil", "Analizar cartera", "/orqena-ia/comercial") },
   { match: (path) => path === "/hoy", area: "hoy", value: contextual("Recomendación para hoy", "No hay recomendaciones activas dentro de tu alcance. Orqena IA volverá a comprobar las señales registradas.", "Datos autorizados de tu empresa", "Revisar prioridades", "/recomendaciones") },
   { match: (path) => path === "/dashboard", area: "dashboard", value: contextual("Lectura ejecutiva", "Explica tendencias y riesgos usando sólo indicadores que tu perfil puede ver.", "Indicadores agregados del periodo", "Analizar indicadores", "/orqena-ia") },
+  { match: (path) => /^\/obras\/[^/]+\/planificacion(?:\/|$)/.test(path), area: "work", value: contextual("Planificación de la obra", "Revisa tareas, fechas, responsables y dependencias registradas antes de preparar cualquier ajuste. Orqena IA no reprograma ni asigna recursos por sí sola.", "Obra activa, planificación visible y permisos vigentes", "Abrir ayuda de planificación", "/orqena-ia/operaciones") },
+  { match: (path) => /^\/obras\/[^/]+(?:\/|$)/.test(path), area: "work", value: contextual("Trabajo seleccionado", "Contrasta el estado, el avance registrado, los hitos y las incidencias de esta obra antes de preparar una recomendación.", "Obra activa y datos autorizados para tu perfil", "Abrir ayuda operativa", "/orqena-ia/operaciones") },
   { match: (path) => path === "/obras" || path.startsWith("/obras/"), area: "work", value: contextual("Recomendación para hoy", "Contrasta avance, hitos e incidencias antes de preparar una recomendación.", "Trabajo seleccionado y actividad registrada", "Revisar trabajo", "/orqena-ia/operaciones") },
   { match: (path) => path.startsWith("/presupuestos"), area: "budgets", value: contextual("Presupuesto revisable", "Comprueba partidas, margen y condiciones sin modificar cálculos ni fiscalidad.", "Versión visible del presupuesto", "Preparar revisión", "/orqena-ia/comercial") },
   { match: (path) => path.startsWith("/dinero") || path.startsWith("/tesoreria"), area: "finance", value: contextual("Control financiero", "Ordena vencimientos y riesgos con importes protegidos por permisos financieros.", "Tesorería autorizada para tu perfil", "Preparar plan financiero", "/orqena-ia/finanzas") },
@@ -62,7 +64,7 @@ export function OrqenaContextRail({
   const sheetRef = useRef<HTMLElement>(null);
   const matched = contexts.find((entry) => entry.match(pathname));
   const context = matched?.value ?? fallbackContext;
-  const contextOnly = pathname.endsWith("/editar");
+  const contextOnly = pathname.endsWith("/editar") || /^\/obras\/[^/]+(?:\/|$)/.test(pathname);
   const recommendation =
     canUse && matched && !contextOnly
       ? recommendations[matched.area] ?? null

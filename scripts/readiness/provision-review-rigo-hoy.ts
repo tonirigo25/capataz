@@ -678,6 +678,13 @@ export async function provisionReviewRigoHoy(
       { id: REVIEW_RIGO_HOY_IDS.workOficinasCentral, clienteId: REVIEW_RIGO_HOY_IDS.clientBeta, numeroInterno: "OB-0105", titulo: "Oficinas Central", direccion: "Paseo Central 5, Madrid", estado: "pendiente_remates" as const, presupuestoAprobado: 76000, responsable: "Marta Ruiz", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 9, total: 10 },
       { id: REVIEW_RIGO_HOY_IDS.workReformaBravo, clienteId: REVIEW_RIGO_HOY_IDS.clientGamma, numeroInterno: "OB-0099", titulo: "Reforma Integral Bravo", direccion: "Plaza Sintética 3, Madrid", estado: "pausada" as const, presupuestoAprobado: 92000, responsable: "Diego Martín", comercial: "Laura Soto", jefeObra: "Diego Martín", completed: 3, total: 8 },
     ];
+    const planningLabels = [
+      "Preparación y replanteo", "Demoliciones y retirada", "Estructura y cerramientos", "Instalaciones eléctricas",
+      "Fontanería y saneamiento", "Climatización y ventilación", "Acabados interiores", "Hito · Inspección técnica",
+      "Carpintería y cerrajería", "Pintura y revestimientos", "Equipamiento", "Hito · Pruebas de instalaciones",
+      "Limpieza técnica", "Revisión de calidad", "Corrección de remates", "Documentación de cierre",
+      "Formación y entrega", "Inspección final", "Recepción provisional", "Hito · Entrega y cierre",
+    ];
     const foreignTask = await transaction.task.findFirst({
       where: {
         workId: { in: workFixtures.map((work) => work.id) },
@@ -688,6 +695,8 @@ export async function provisionReviewRigoHoy(
     if (foreignTask) throw new Error("REVIEW_RIGO_HOY_WORK_TASK_CONFLICT");
     for (const [index, work] of workFixtures.entries()) {
       const updatedAt = new Date(now.getTime() - index * 60_000);
+      const workStartsAt = addDays(now, -Math.max(14, work.completed * 4));
+      const workEndsAt = addDays(workStartsAt, Math.max(28, work.total * 4));
       await transaction.work.upsert({
         where: { id: work.id },
         update: {
@@ -702,6 +711,9 @@ export async function provisionReviewRigoHoy(
           comercial: work.comercial,
           jefeObra: work.jefeObra,
           presupuestoAprobado: work.presupuestoAprobado,
+          fechaInicioPrevista: workStartsAt,
+          fechaInicioReal: work.completed > 0 ? workStartsAt : null,
+          fechaFinPrevista: workEndsAt,
           archivada: false,
           archivadaAt: null,
           updatedAt,
@@ -719,31 +731,59 @@ export async function provisionReviewRigoHoy(
           responsable: work.responsable,
           comercial: work.comercial,
           jefeObra: work.jefeObra,
+          fechaInicioPrevista: workStartsAt,
+          fechaInicioReal: work.completed > 0 ? workStartsAt : null,
+          fechaFinPrevista: workEndsAt,
           updatedAt,
         },
       });
       const taskIds = Array.from({ length: work.total }, (_, taskIndex) => `${work.id}-task-${taskIndex + 1}`);
       for (const [taskIndex, taskId] of taskIds.entries()) {
+        const startsAt = addDays(workStartsAt, taskIndex * 4);
+        const dueAt = addDays(startsAt, 3, 17);
+        const taskStatus = taskIndex < work.completed ? "completed" : taskIndex === work.completed ? work.estado === "pausada" ? "blocked" : "in_progress" : "planned";
+        const parentTaskId = taskIndex % 4 === 0 ? null : taskIds[taskIndex - (taskIndex % 4)];
+        const taskTitle = planningLabels[taskIndex] ?? `${work.titulo} · actividad ${taskIndex + 1}`;
+        const assigneeId = taskIndex % 2 === 0 ? diego.id : laura.id;
         await transaction.task.upsert({
           where: { id: taskId },
           update: {
             companyId: company.id,
             workId: work.id,
-            title: `${work.titulo} · hito ${taskIndex + 1}`,
+            title: taskTitle,
             origin: "review-rigo-hoy",
-            status: taskIndex < work.completed ? "completed" : "planned",
-            completedAt: taskIndex < work.completed ? addDays(now, -1) : null,
+            status: taskStatus,
+            parentTaskId,
+            assigneeId,
+            startsAt,
+            dueAt,
+            estimatedMinutes: 4 * 480,
+            actualMinutes: taskStatus === "completed" ? 4 * 480 : taskStatus === "in_progress" || taskStatus === "blocked" ? 2 * 480 : null,
+            completedAt: taskStatus === "completed" ? dueAt : null,
             archivedAt: null,
           },
           create: {
             id: taskId,
             companyId: company.id,
             workId: work.id,
-            title: `${work.titulo} · hito ${taskIndex + 1}`,
+            title: taskTitle,
             origin: "review-rigo-hoy",
-            status: taskIndex < work.completed ? "completed" : "planned",
-            completedAt: taskIndex < work.completed ? addDays(now, -1) : null,
+            status: taskStatus,
+            parentTaskId,
+            assigneeId,
+            startsAt,
+            dueAt,
+            estimatedMinutes: 4 * 480,
+            actualMinutes: taskStatus === "completed" ? 4 * 480 : taskStatus === "in_progress" || taskStatus === "blocked" ? 2 * 480 : null,
+            completedAt: taskStatus === "completed" ? dueAt : null,
           },
+        });
+      }
+      for (let taskIndex = 1; taskIndex < taskIds.length; taskIndex += 1) {
+        await transaction.taskDependency.upsert({
+          where: { taskId_dependsOnTaskId: { taskId: taskIds[taskIndex], dependsOnTaskId: taskIds[taskIndex - 1] } },
+          update: { type: "finish_to_start" },
+          create: { taskId: taskIds[taskIndex], dependsOnTaskId: taskIds[taskIndex - 1], type: "finish_to_start" },
         });
       }
       await transaction.task.deleteMany({

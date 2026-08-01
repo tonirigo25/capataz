@@ -111,7 +111,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   }, [items]);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1560px)");
+    const desktop = window.matchMedia("(min-width: 1800px)");
     const closeAtDesktop = (event: MediaQueryListEvent) => {
       if (event.matches) setDrawerOpen(false);
     };
@@ -160,7 +160,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   function selectWork(item: WorkPortfolioItem, trigger: HTMLButtonElement) {
     setSelectedId(item.id);
     lastTriggerRef.current = trigger;
-    if (window.matchMedia("(max-width: 1559px)").matches) setDrawerOpen(true);
+    if (window.matchMedia("(max-width: 1799px)").matches) setDrawerOpen(true);
   }
 
   function closeDesktopDetail() {
@@ -193,11 +193,11 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   }
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1560px]:grid min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
-      <section className={`min-w-0 border-border ${selected ? "min-[1560px]:border-r" : ""}`} aria-label="Trabajos filtrados">
+    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1800px]:grid min-[1800px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
+      <section className={`min-w-0 border-border ${selected ? "min-[1800px]:border-r" : ""}`} aria-label="Trabajos filtrados">
         {items.length ? (
           <>
-            <div className="hidden min-[1560px]:block" aria-label="Listado de trabajos">
+            <div className="hidden min-[1200px]:block" aria-label="Listado de trabajos">
               <div className="grid min-h-11 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
                 <input type="checkbox" checked={items.length > 0 && items.every((item) => markedIds.has(item.id))} onChange={toggleAllMarked} className="h-4 w-4 accent-brand" aria-label="Seleccionar todos los trabajos visibles" />
                 <div aria-hidden="true" className="grid grid-cols-[minmax(7.2rem,2fr)_4.2rem_3.5rem_4.5rem_5rem_3.6rem_6.7rem_0.9rem] items-center gap-1 leading-tight">
@@ -240,7 +240,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
               <div className="flex min-h-11 items-center border-t border-border px-3 text-[10px] text-content-secondary">1–{items.length} de {items.length} obras</div>
             </div>
 
-            <div className="divide-y divide-border min-[1560px]:hidden" role="list">
+            <div className="divide-y divide-border min-[1200px]:hidden" role="list">
               {items.map((item) => {
                 const active = selected?.id === item.id;
                 return (
@@ -272,11 +272,11 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
         ) : <p className="type-secondary p-6">Sin trabajos registrados.</p>}
       </section>
 
-      {selected ? <aside className="hidden min-w-0 bg-surface min-[1560px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} onClose={closeDesktopDetail} /></aside> : null}
+      {selected ? <aside className="hidden min-w-0 bg-surface min-[1800px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} onClose={closeDesktopDetail} /></aside> : null}
 
       {selected && drawerOpen ? (
         <div
-          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1560px]:hidden sm:p-4"
+          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1800px]:hidden sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeDrawer();
           }}
@@ -357,7 +357,7 @@ function PortfolioSummary({ items }: { items: WorkPortfolioItem[] }) {
 
   return <div className="grid grid-cols-1 gap-2 border-t border-border bg-subtle p-3 md:grid-cols-2 min-[1200px]:grid-cols-3">
     <SummaryCard title="Trabajos en riesgo" count={allRiskItems.length}>
-      {riskItems.length ? <ul className="space-y-1">{riskItems.map((item) => <li key={item.id}><Link href={`/obras/${item.id}`} className="grid min-h-7 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-[10px] font-semibold text-content hover:underline"><span className="truncate">{item.title}</span><span className="max-w-[8rem] truncate text-right text-danger">{item.riskReason ?? "Revisión operativa"}</span></Link></li>)}</ul> : <p className="type-meta">Sin trabajos en riesgo registrados.</p>}
+      {riskItems.length ? <ul className="space-y-1">{riskItems.map((item) => <li key={item.id}><Link href={`/obras/${item.id}`} className="grid min-h-8 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-2 text-[10px] font-semibold text-content hover:underline"><span className="truncate">{item.title}</span><span className="min-w-0 text-right"><small className="block text-[8px] font-medium uppercase tracking-wide text-content-tertiary">Motivo</small><span className="block truncate text-danger">{item.riskReason ?? "Revisión operativa"}</span></span></Link></li>)}</ul> : <p className="type-meta">Sin trabajos en riesgo registrados.</p>}
     </SummaryCard>
     <SummaryCard title="Trabajos en curso" count={activeItems.length}>
       <div className="grid grid-cols-2 gap-3"><SummaryMetric label={averageProgress == null ? "Avance medio no calculado" : "Avance medio registrado"} value={averageProgress == null ? "—" : `${averageProgress}%`} /><SummaryMetric label={totalBudget == null ? "Presupuesto no disponible" : "Presupuesto registrado"} value={totalBudget == null ? "—" : formatCurrencyAmount(totalBudget)} /></div>
