@@ -45,7 +45,6 @@ import { WorkPlanningLoad, WorkPlanningResources } from "@/components/portal/mod
 import { WorkPlanningMilestones } from "@/components/portal/modules-a/work-planning-milestones";
 import { WorkPlanningNetwork } from "@/components/portal/modules-a/work-planning-network";
 import { WorkCostsOverview } from "@/components/portal/modules-a/work-costs-overview";
-import { WorkPartsSummary } from "@/components/portal/modules-a/work-parts-summary";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -720,7 +719,6 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
 }
 
 function PartsWorkspace({ work, timeline, subview, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; subview: string; mode: "cronologia" | "galeria" }) {
-  if (subview === "resumen") return <WorkPartsSummary parts={[]} nowIso={new Date().toISOString()} />;
   if (subview === "analisis") return <div className="grid gap-4"><HoursTab work={work} /><Section title="Actividad documentada"><PlainMetric label="Registros de actividad" value={String(timeline.length)} /><p className="type-secondary mt-3">El avance físico no se calcula porque la obra no dispone de un porcentaje persistido.</p></Section></div>;
   if (subview === "reportes") return <OperationalSetupPanel title="Reportes de partes" description="Consolida la actividad registrada de la obra sin sustituir la validación del responsable." count={timeline.length} countLabel="actividades trazables" icon={Table2} items={["Partes diarios, semanales y mensuales en una única lectura.", "Horas, evidencias y responsables conservan su origen.", "La exportación no inventa porcentajes de avance."]} action={<Link href="/inteligencia/export?tipo=works" className="primary-button">Exportar reporte</Link>} />;
   if (["semanales", "mensuales"].includes(subview)) return <Section title={subview === "semanales" ? "Partes semanales registrados" : "Partes mensuales registrados"}><TimelineList items={timeline} /></Section>;
