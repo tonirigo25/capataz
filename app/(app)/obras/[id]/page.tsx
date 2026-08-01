@@ -49,6 +49,7 @@ import { WorkCostsStructure } from "@/components/portal/modules-a/work-costs-str
 import { WorkCostsAnalysis } from "@/components/portal/modules-a/work-costs-analysis";
 import { WorkCostsIncidentsRanking } from "@/components/portal/modules-a/work-costs-incidents-ranking";
 import { WorkBillingOverview } from "@/components/portal/modules-a/work-billing-overview";
+import { WorkTeamOverview, type WorkTeamApprover, type WorkTeamPerson } from "@/components/portal/modules-a/work-team-overview";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -219,7 +220,7 @@ export default async function WorkDetailPage({
       {activeTab === "facturacion" ? <BillingWorkspace work={work} treasury={treasury} financial={financial} subview={activeSubview} /> : null}
       {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={canManageAllTasks} memberNames={memberNames} subview={activeSubview} /> : null}
       {activeTab === "documentos" ? <DocumentsWorkspace work={work} documents={documents} subview={activeSubview} /> : null}
-      {activeTab === "equipo" ? <TeamWorkspace work={work} subview={activeSubview} /> : null}
+      {activeTab === "equipo" ? <TeamWorkspace work={work} tasks={workTasks} memberNames={memberNames} subview={activeSubview} /> : null}
       {activeTab === "incidencias" ? <IncidentsTab work={work} risks={risks} /> : null}
       </div>
     </RecordWorkspace>
@@ -419,23 +420,6 @@ function ClientTab({ work }: { work: WorkDetail }) {
         ["Estado CRM", work.client.estado]
       ]} />
       <Link href={`/clientes/${work.clienteId}`} className="primary-button mt-4 inline-flex">Abrir ficha cliente</Link>
-    </Section>
-  );
-}
-
-function ContactsTab({ work }: { work: WorkDetail }) {
-  const rows: Array<[string, string]> = [
-    ["Contacto de obra", work.contact ? `${work.contact.nombre}${work.contact.apellidos ? ` ${work.contact.apellidos}` : ""}` : work.contactoPrincipal ?? work.client.contactoPrincipalNombre ?? "No registrado"],
-    ["Teléfono obra", work.contact?.telefono ?? work.contactoTelefono ?? work.client.contactoPrincipalTelefono ?? work.client.telefono ?? "No registrado"],
-    ["Email obra", work.contact?.email ?? work.contactoEmail ?? work.client.contactoPrincipalEmail ?? work.client.email ?? "No registrado"],
-    ["Facturación", work.client.contactoFacturacionNombre ?? "No registrado"],
-    ["Email facturación", work.client.emailFacturacion ?? "No registrado"],
-    ["Teléfono facturación", work.client.telefonoFacturacion ?? "No registrado"]
-  ];
-  return (
-    <Section title="Contactos">
-      <InfoGrid rows={rows} />
-      <Link href={`/gestion?tipo=contacto&clientId=${work.clienteId}&returnTo=/obras/${work.id}?tab=contactos`} className="secondary-button mt-4 inline-flex">Añadir contacto</Link>
     </Section>
   );
 }
@@ -950,11 +934,64 @@ function DocumentsWorkspace({ work, documents, subview }: { work: WorkDetail; do
   return <DocumentsTab documents={filtered} workId={work.id} clientId={work.clienteId} />;
 }
 
-function TeamWorkspace({ work, subview }: { work: WorkDetail; subview: string }) {
+function TeamWorkspace({ work, tasks, memberNames, subview }: { work: WorkDetail; tasks: WorkTask[]; memberNames: Record<string, string>; subview: string }) {
   if (subview === "carga") return <HoursTab work={work} />;
   if (subview === "subcontratas") return <SubcontractTab work={work} expenses={work.expenses} />;
   if (["turnos", "formacion", "permisos"].includes(subview)) return <div className="grid gap-4"><PeopleTab work={work} /><OperationalSetupPanel title={subview === "turnos" ? "Cobertura de turnos" : subview === "formacion" ? "Formación y aptitudes" : "Permisos del equipo"} description="Organiza esta capa operativa sobre las personas vinculadas a la obra, sin crear identidades o habilitaciones ficticias." count={[work.responsable, work.comercial, work.jefeObra].filter(Boolean).length} countLabel="responsables vinculados" icon={Users} items={["Cada persona conserva su rol y relación real con la obra.", "Los cambios quedan preparados para revisión del responsable.", "La ausencia de datos se muestra como cobertura pendiente, no como dato supuesto."]} action={<Link href={`/gestion?tipo=obra&id=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=equipo&subvista=${subview}`)}`} className="primary-button">Configurar equipo</Link>} /></div>;
-  return <div className="grid gap-4"><ContactsTab work={work} /><PeopleTab work={work} /></div>;
+  const peopleByName = new Map<string, WorkTeamPerson>();
+  const addPerson = (name: string | null | undefined, role: string, id: string) => {
+    const normalized = name?.trim();
+    if (!normalized) return;
+    const key = normalized.toLocaleLowerCase("es-ES");
+    const existing = peopleByName.get(key);
+    peopleByName.set(key, existing ? { ...existing, role: existing.role?.includes(role) ? existing.role : `${existing.role} · ${role}` } : { id, name: normalized, role, team: "Obra", statusLabel: "Vinculado a esta obra", statusTone: "success" });
+  };
+  addPerson(work.jefeObra, "Jefe de obra", `chief-${work.id}`);
+  addPerson(work.responsable, "Responsable", `responsible-${work.id}`);
+  addPerson(work.comercial, "Comercial", `commercial-${work.id}`);
+  const assignedUserIds = new Set(tasks.flatMap((task) => [task.assigneeId, ...task.assignments.filter((assignment) => !assignment.removedAt).map((assignment) => assignment.userId)].filter((value): value is string => Boolean(value))));
+  assignedUserIds.forEach((userId) => addPerson(memberNames[userId] ?? "Responsable asignado", "Asignado a tareas", userId));
+  const people = Array.from(peopleByName.values());
+  const tasksWithEstimate = tasks.filter((task) => task.estimatedMinutes != null);
+  const tasksWithActual = tasks.filter((task) => task.actualMinutes != null);
+  const plannedHours = tasksWithEstimate.length ? tasksWithEstimate.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0) / 60 : null;
+  const recordedHours = tasksWithActual.length ? tasksWithActual.reduce((sum, task) => sum + (task.actualMinutes ?? 0), 0) / 60 : null;
+  const loads = Array.from(assignedUserIds).map((userId) => {
+    const assigned = tasks.filter((task) => task.assigneeId === userId || task.assignments.some((assignment) => !assignment.removedAt && assignment.userId === userId));
+    const hasPlanned = assigned.some((task) => task.estimatedMinutes != null);
+    const hasActual = assigned.some((task) => task.actualMinutes != null);
+    return { id: userId, name: memberNames[userId] ?? "Responsable asignado", peopleCount: 1, loadPercent: null, assignedHours: hasActual ? assigned.reduce((sum, task) => sum + (task.actualMinutes ?? 0), 0) / 60 : null, plannedHours: hasPlanned ? assigned.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0) / 60 : null, statusLabel: `${assigned.length} tareas vinculadas` };
+  });
+  const subcontractors = Array.from(new Map(work.expenses.filter((expense) => expense.businessPartner?.kind === "SUBCONTRACTOR").map((expense) => [expense.businessPartner!.id, { id: expense.businessPartner!.id, companyName: expense.businessPartner!.commercialName, statusLabel: "Vinculada por coste registrado", statusTone: "neutral" as const }])).values());
+  const approvers: WorkTeamApprover[] = [];
+  if (work.jefeObra) approvers.push({ id: `chief-${work.id}`, name: work.jefeObra, role: "Jefe de obra", responsibility: "Supervisión operativa de la obra" });
+  if (work.responsable) approvers.push({ id: `responsible-${work.id}`, name: work.responsable, role: "Responsable", responsibility: "Coordinación registrada de la obra" });
+  if (work.comercial) approvers.push({ id: `commercial-${work.id}`, name: work.comercial, role: "Comercial", responsibility: "Seguimiento comercial vinculado" });
+  const returnTo = `/obras/${work.id}?vista=equipo&subvista=equipo`;
+  return <WorkTeamOverview
+    summary={{ assignedPeople: people.length, assignedPeopleDetail: `${assignedUserIds.size} personas con tareas asignadas`, coveredProfilesPercent: null, coveredProfilesDetail: "Sin catálogo de perfiles requeridos", overloadedPeople: null, overloadedPeopleDetail: "Sin capacidad laboral persistida", uncoveredCriticalProfiles: null, uncoveredCriticalProfilesDetail: "Sin perfiles críticos persistidos", plannedHours, plannedHoursDetail: `${tasksWithEstimate.length} tareas con estimación`, recordedHours, recordedHoursDetail: `${tasksWithActual.length} tareas con horas registradas` }}
+    people={people}
+    peopleTotal={people.length}
+    loads={loads}
+    schedule={{ days: [], rows: [] }}
+    subcontractors={subcontractors}
+    subcontractorsTotal={subcontractors.length}
+    requirements={[]}
+    accesses={[]}
+    approvers={approvers}
+    notes={work.internalNotes.filter((note) => !note.archivedAt).map((note) => ({ id: note.id, author: note.authorId ? memberNames[note.authorId] ?? "Autor registrado" : "Autor no informado", createdAtLabel: formatDate(note.createdAt), content: note.content, href: `/gestion?tipo=notaInterna&id=${note.id}&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(returnTo)}` }))}
+    actions={{
+      organization: { label: "Organización", href: "/equipo", icon: "users" },
+      allPeople: { label: "Ver todas las personas", href: "/equipo", icon: "users" },
+      resourcePlan: { label: "Planificación de recursos", href: `/obras/${work.id}?vista=planificacion&subvista=recursos`, icon: "calendar" },
+      calendar: { label: "Ver agenda", href: `/agenda?obraId=${work.id}`, icon: "calendar" },
+      subcontractors: { label: "Ver subcontratas", href: `/obras/${work.id}?vista=equipo&subvista=subcontratas`, icon: "users" },
+      training: { label: "Revisar formación", href: `/obras/${work.id}?vista=equipo&subvista=formacion`, icon: "settings" },
+      accesses: { label: "Revisar permisos", href: `/obras/${work.id}?vista=equipo&subvista=permisos`, icon: "settings" },
+      addNote: { label: "Añadir nota", href: `/gestion?tipo=notaInterna&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`, icon: "message" },
+      communication: [{ label: "Añadir nota interna", href: `/gestion?tipo=notaInterna&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`, icon: "message", variant: "secondary" }],
+    }}
+  />;
 }
 
 function workPhotoGallery(work: WorkDetail) {
