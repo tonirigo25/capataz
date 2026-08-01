@@ -13,6 +13,8 @@ import {
   resolveAuthorization,
   resolveScopedEntityIds,
 } from "@/lib/commercial/authorization";
+import { documentTemplateAssets } from "@/lib/document-templates";
+import { normalizeExpenseExtraction } from "@/lib/expense-document";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -30,22 +32,27 @@ const documentInclude = {
 
 type DocumentRecord = Prisma.DocumentGetPayload<{ include: typeof documentInclude }>;
 
-export default async function DocumentsPage() {
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ documento?: string }>;
+}) {
+  const query = await searchParams;
   const auth = await requireCapability("documents.view");
   const manifest = await buildPortalManifest(auth);
-  const [canUpload, canManage, canManageReceivedInvoices, canSeeFinancialData, scopedWorkIds] = await Promise.all([
+  const [canUpload, canManage, canManageReceivedInvoices, canSeeFinancialData, scopedDocumentIds] = await Promise.all([
     resolveAuthorization(auth, "documents.upload"),
     resolveAuthorization(auth, "documents.manage"),
     resolveAuthorization(auth, "purchases.received_invoices.manage"),
     resolveAuthorization(auth, "reports.view"),
-    resolveScopedEntityIds(auth, "documents.view", "Work"),
+    resolveScopedEntityIds(auth, "documents.view", "Document"),
   ]);
   const documents = await prisma.document.findMany({
     where: {
       companyId: auth.companyId,
       archivedAt: null,
       classification: { in: manifest.documentClasses },
-      ...(scopedWorkIds === null ? {} : { workId: { in: scopedWorkIds } }),
+      ...(scopedDocumentIds === null ? {} : { id: { in: scopedDocumentIds } }),
     },
     include: documentInclude,
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
@@ -59,18 +66,29 @@ export default async function DocumentsPage() {
       canSeeFinancialData: canSeeFinancialData.allowed,
     }),
   );
-  const selected = workspaceDocuments.find((document) => document.requiresReview)?.id ?? null;
+  const requestedSelection = query.documento?.slice(0, 160) ?? null;
+  const selected = workspaceDocuments.some((document) => document.id === requestedSelection)
+    ? requestedSelection
+    : workspaceDocuments.find((document) => document.requiresReview)?.id ?? null;
 
   return (
     <ListWorkspace>
       <GlobalDocumentsWorkspace
         documents={workspaceDocuments}
         selectedId={selected}
-        primaryAction={canManageReceivedInvoices.allowed
-          ? { href: "/gastos-materiales/lector", label: "Subir documento" }
-          : canUpload.allowed
-            ? { href: "/gestion?tipo=documento&returnTo=/documentos", label: "Añadir documento" }
-            : null}
+        primaryAction={canUpload.allowed
+          ? { href: "/documentos/subir", label: "Subir documento" }
+          : null}
+        templates={documentTemplateAssets.map((asset) => ({
+          id: asset.slug,
+          label: asset.label,
+          kindLabel: asset.kind === "budget" ? "Presupuesto" : "Factura",
+          formatLabel: asset.format.toUpperCase(),
+          previewAction: asset.format === "pdf"
+            ? { href: `/documentos/plantillas/${asset.slug}?preview=1`, label: "Vista previa", target: "_blank" }
+            : null,
+          downloadAction: { href: `/documentos/plantillas/${asset.slug}`, label: "Descargar", target: "_blank", download: true },
+        }))}
         emptyTitle="Todavía no hay documentos"
         emptyDescription="Incorpora el primer archivo desde una acción autorizada. No se crean muestras ni registros de demostración."
       />
@@ -85,7 +103,9 @@ function toWorkspaceDocument(
   const source = metadataSource(document.metadata);
   const readerDocument = source === "expense_document_reader";
   const reviewHref = readerDocument ? `/gastos-materiales/lector/${document.id}` : null;
-  const originalHref = readerDocument && document.storageKey ? `${reviewHref}/archivo` : safeResourceHref(document.url);
+  const privateFileHref = document.storageKey ? `/documentos/${document.id}/archivo` : null;
+  const originalHref = privateFileHref ?? safeResourceHref(document.url);
+  const downloadHref = privateFileHref ? `${privateFileHref}?download=1` : originalHref;
   const kind = documentKind(document);
   const status = documentStatus(document.status);
   const related = relatedLabel(document);
@@ -96,9 +116,39 @@ function toWorkspaceDocument(
   const issuer = access.canSeeFinancialData
     ? document.businessPartner?.commercialName ?? document.extractedIssuer
     : document.businessPartner?.commercialName ?? null;
-  const reviewAction = access.canManageReceivedInvoices && reviewHref
-    ? { href: reviewHref, label: "Revisar documento" }
+  const proposal = document.extractedData ? normalizeExpenseExtraction(document.extractedData) : null;
+  const canReviewReader = access.canManageReceivedInvoices && reviewHref && !document.expenseId;
+  const reviewAction = canReviewReader
+    ? { href: intentHref(reviewHref, "review", "document-review"), label: "Revisar documento" }
     : null;
+  const genericEditHref = `/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`;
+  const previewTable = access.canSeeFinancialData && proposal?.lines.length
+    ? {
+        columns: ["Concepto", "Cantidad", "Precio", "Importe"],
+        rows: proposal.lines.map((line, index) => ({
+          id: `${document.id}-line-${index}`,
+          cells: [
+            line.description,
+            line.quantity == null ? "—" : formatNumber(line.quantity),
+            line.unitPrice == null ? "—" : formatCurrency(line.unitPrice),
+            line.total == null ? "—" : formatCurrency(line.total),
+          ],
+        })),
+      }
+    : null;
+  const previewTotals = access.canSeeFinancialData && proposal
+    ? compactFields([
+        field("taxable-base", "Base imponible", money(proposal.taxableBase)),
+        field("vat", proposal.vatRate == null ? "IVA" : `IVA (${formatNumber(proposal.vatRate)} %)`, money(proposal.vatAmount)),
+        field("withholding", "Retención", proposal.withholdingAmount == null ? null : `−${formatCurrency(proposal.withholdingAmount)}`),
+        field("total", "Total", money(proposal.total) ?? amount),
+      ])
+    : compactFields([field("total", "Total extraído", amount)]);
+  const attentionItems = [
+    ...(proposal?.warnings ?? []),
+    ...(document.status === "AWAITING_PARTNER" ? ["Falta confirmar el proveedor relacionado."] : []),
+    ...(document.status === "AWAITING_WORK" ? ["Falta confirmar el trabajo relacionado."] : []),
+  ].slice(0, 3);
 
   return {
     id: document.id,
@@ -118,16 +168,22 @@ function toWorkspaceDocument(
       subtitle: related,
       facts: compactFields([
         field("issuer", "Proveedor / emisor", issuer),
+        field("tax-id", "NIF / VAT", access.canSeeFinancialData ? document.extractedIssuerTaxId : null),
         field("invoice", "Número", access.canSeeFinancialData ? document.extractedInvoiceNo : null),
         field("date", "Fecha", extractedDate),
+        field("due-date", "Vencimiento", proposal?.dueDate ? formatDate(new Date(`${proposal.dueDate}T00:00:00Z`)) : null),
         field("type", "Tipo", documentTypeLabel(document)),
       ]),
-      totals: compactFields([
-        field("total", "Total extraído", amount),
-      ]),
-      notes: document.storageKey
-        ? ["El original se sirve mediante una ruta privada y autenticada.", "La extracción es una propuesta y requiere revisión humana."]
-        : ["Este registro no contiene un binario privado disponible."],
+      table: previewTable,
+      totals: previewTotals,
+      notes: [
+        ...(proposal?.paymentMethod ? [`Forma de pago: ${proposal.paymentMethod}.`] : []),
+        ...(attentionItems.length ? attentionItems.map((item) => `Revisión: ${item}`) : []),
+        document.storageKey
+          ? "El original se sirve mediante una ruta privada y autenticada."
+          : "Este registro no contiene un binario privado disponible.",
+        "La extracción es una propuesta y requiere revisión humana.",
+      ],
     },
     ocrFields: compactFields([
       field("document-type", "Tipo de documento", documentTypeLabel(document)),
@@ -141,6 +197,15 @@ function toWorkspaceDocument(
     reviewDescription: status.requiresReview
       ? "Pendiente de revisión humana. Ningún dato se registra automáticamente."
       : "El estado mostrado procede del registro documental de la empresa.",
+    aiContext: {
+      documentId: document.id,
+      title: document.originalName || document.name,
+      statusLabel: status.label,
+      relationLabel: related,
+      confidenceLabel: confidenceLabel(document.extractionConfidence),
+      attentionItems,
+      reviewHref: reviewAction?.href ?? null,
+    },
     history: compactHistory([
       {
         id: `${document.id}-created`,
@@ -166,16 +231,32 @@ function toWorkspaceDocument(
     ]),
     actions: {
       original: originalHref ? { href: originalHref, label: "Abrir original", target: "_blank" } : null,
-      download: originalHref ? { href: originalHref, label: "Descargar", target: "_blank", download: true } : null,
+      download: downloadHref ? { href: downloadHref, label: "Descargar", target: "_blank", download: true } : null,
       edit: access.canManage && !readerDocument
-        ? { href: `/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`, label: "Editar ficha" }
+        ? { href: `${genericEditHref}#document-details`, label: "Editar ficha" }
         : reviewAction,
-      linkWork: reviewAction ? { ...reviewAction, label: "Vincular a trabajo" } : null,
-      linkPartner: reviewAction ? { ...reviewAction, label: "Vincular a proveedor" } : null,
+      linkWork: canReviewReader ? { href: intentHref(reviewHref, "link-work", "document-work"), label: "Vincular a trabajo" } : null,
+      linkPartner: canReviewReader ? { href: intentHref(reviewHref, "link-partner", "document-partner"), label: "Vincular a proveedor" } : null,
       confirm: reviewAction,
-      correct: reviewAction ? { ...reviewAction, label: "Corregir datos" } : null,
+      correct: canReviewReader
+        ? { href: intentHref(reviewHref, "correct", "document-fields"), label: "Corregir datos" }
+        : access.canManage && !readerDocument
+          ? { href: `${genericEditHref}#document-details`, label: "Corregir datos" }
+          : null,
     },
   };
+}
+
+function intentHref(base: string, intent: "review" | "link-work" | "link-partner" | "correct", anchor: string) {
+  return `${base}?intent=${intent}&returnTo=${encodeURIComponent("/documentos")}#${anchor}`;
+}
+
+function money(value: number | null | undefined) {
+  return value == null ? null : formatCurrency(value);
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value);
 }
 
 function documentKind(document: DocumentRecord): GlobalDocumentKind {

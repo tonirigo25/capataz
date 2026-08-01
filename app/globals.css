@@ -7065,3 +7065,65 @@ button:disabled,
   .works-export,
   .works-filter-submit { min-width: 0; padding-inline: 8px; }
 }
+
+/* Documentos adapta sus tres paneles al ancho útil entre sidebar y rail IA. */
+.global-documents-workspace {
+  container: global-documents / inline-size;
+}
+
+.global-documents-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.global-documents-pane {
+  display: none;
+  min-width: 0;
+}
+
+.global-documents-panes[data-mobile-step="list"] .global-documents-pane--list,
+.global-documents-panes[data-mobile-step="viewer"] .global-documents-pane--viewer {
+  display: flex;
+}
+
+.global-documents-panes[data-mobile-step="review"] .global-documents-pane--review {
+  display: block;
+}
+
+@container global-documents (min-width: 48rem) {
+  .global-documents-mobile-nav,
+  .global-documents-mobile-only {
+    display: none !important;
+  }
+
+  .global-documents-panes {
+    grid-template-columns: minmax(15rem, 0.72fr) minmax(22rem, 1.28fr);
+  }
+
+  .global-documents-pane--list,
+  .global-documents-pane--viewer {
+    display: flex;
+  }
+
+  .global-documents-pane--list {
+    border-right: 1px solid var(--color-border, #dfe5e1);
+  }
+
+  .global-documents-pane--review {
+    display: block;
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--color-border, #dfe5e1);
+  }
+}
+
+@container global-documents (min-width: 56rem) {
+  .global-documents-panes {
+    grid-template-columns: minmax(14.5rem, 0.72fr) minmax(21rem, 1.35fr) minmax(13.5rem, 0.68fr);
+  }
+
+  .global-documents-pane--review {
+    grid-column: auto;
+    border-top: 0;
+    border-left: 1px solid var(--color-border, #dfe5e1);
+  }
+}

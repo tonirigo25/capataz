@@ -19,6 +19,16 @@ type RailContext = {
   href: string;
 };
 
+type DocumentRailContext = {
+  documentId: string;
+  title: string;
+  statusLabel: string;
+  relationLabel?: string | null;
+  confidenceLabel?: string | null;
+  attentionItems?: string[];
+  reviewHref?: string | null;
+};
+
 const contexts: Array<{ match: (pathname: string) => boolean; area: PortalRailArea; value: RailContext }> = [
   { match: (path) => path === "/orqena-ia/comercial", area: "clients", value: contextual("Guía comercial para hoy", "Prioriza clientes, presupuestos y seguimientos registrados. Orqena IA prepara la revisión, pero no contacta ni modifica oportunidades sin confirmación humana.", "Cartera, presupuestos y recomendaciones dentro de tu alcance", "Abrir prioridades comerciales", "/presupuestos") },
   { match: (path) => path === "/orqena-ia/operaciones", area: "work", value: contextual("Enfocado en operaciones", "Contrasta trabajo, tareas, bloqueos e incidencias registradas para coordinar mejor sin reasignar personas o fechas automáticamente.", "Obras y tareas autorizadas para tu perfil", "Abrir prioridades operativas", "/obras") },
@@ -72,6 +82,7 @@ export function OrqenaContextRail({
   onToggleCollapsed: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [documentContext, setDocumentContext] = useState<DocumentRailContext | null>(null);
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
@@ -88,6 +99,18 @@ export function OrqenaContextRail({
   const dashboardAlerts = canUse && pathname === "/dashboard" ? recommendations.dashboardAlerts ?? [] : [];
 
   useEffect(() => setMobileOpen(false), [pathname]);
+  useEffect(() => {
+    if (!pathname.startsWith("/documentos")) {
+      setDocumentContext(null);
+      return;
+    }
+    const onDocumentContext = (event: Event) => {
+      const detail = (event as CustomEvent<DocumentRailContext | null>).detail;
+      setDocumentContext(isDocumentRailContext(detail) ? detail : null);
+    };
+    window.addEventListener("orqena:document-context", onDocumentContext);
+    return () => window.removeEventListener("orqena:document-context", onDocumentContext);
+  }, [pathname]);
   useEffect(() => {
     if (!mobileOpen) return;
     const frame = requestAnimationFrame(() => {
@@ -108,7 +131,7 @@ export function OrqenaContextRail({
   return (
     <>
       <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/dashboard" ? "dashboard" : undefined}>
-        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} onToggleCollapsed={onToggleCollapsed} />}
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
       <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
@@ -118,16 +141,19 @@ export function OrqenaContextRail({
       {mobileOpen ? (
         <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet orqena-context-sheet--inline" role="region" aria-labelledby={`${titleId}-mobile`}>
           <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} />
+          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} />
         </aside>
       ) : null}
     </>
   );
 }
 
-function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; onToggleCollapsed?: () => void }) {
+function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; onToggleCollapsed?: () => void }) {
   if (isDashboard) {
     return <DashboardRailContent context={context} titleId={titleId} recommendation={recommendation} alerts={dashboardAlerts} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
+  }
+  if (documentContext) {
+    return <DocumentRailContent context={documentContext} titleId={titleId} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
   }
   const title = canUse ? recommendation?.title ?? context.title : "Orqena IA no disponible";
   const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
@@ -172,6 +198,41 @@ function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse
       {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver todas las recomendaciones <ExternalLink size={13} aria-hidden="true" /></Link> : null}
     </div>
   );
+}
+
+function DocumentRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: DocumentRailContext; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
+  const attentionItems = context.attentionItems?.filter(Boolean).slice(0, 3) ?? [];
+  const reviewHref = safeInternalHref(context.reviewHref);
+  return <div className="orqena-context-rail__inner" data-document-context={context.documentId}>
+    <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+    <p className="orqena-context-eyebrow">Recomendación para este documento</p>
+    <article className="orqena-context-card">
+      <span className="orqena-context-card__icon"><FileText size={22} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={13} aria-hidden="true" /></span>
+      <h2 id={titleId}>{context.title}</h2>
+      <p className="orqena-context-description">Revisa los datos extraídos y sus relaciones antes de confirmar. Orqena IA no registra cambios automáticamente.</p>
+      <dl className="orqena-context-impact">
+        <div className="orqena-context-impact__title"><dt>Contexto verificado</dt><dd>{context.statusLabel}</dd></div>
+        {context.relationLabel ? <div><dt>Relación</dt><dd>{context.relationLabel}</dd></div> : null}
+        {context.confidenceLabel ? <div><dt>Confianza OCR</dt><dd>{context.confidenceLabel}</dd></div> : null}
+        <div><dt>Control</dt><dd>Revisión humana</dd></div>
+      </dl>
+      {attentionItems.length ? <div className="orqena-context-safeguard"><TriangleAlert size={17} aria-hidden="true" /><div><strong>Campos a revisar</strong><ul className="mt-1 list-disc pl-4">{attentionItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div> : <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>No hay advertencias extraídas activas. La confirmación sigue siendo humana.</p></div>}
+      {!canUse ? <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">No disponible en tu acceso</span> : reviewHref ? <Link href={reviewHref} className="orqena-context-primary">Revisar documento<ChevronRight size={16} aria-hidden="true" /></Link> : <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">Sin acción pendiente</span>}
+    </article>
+    {canUse ? <Link href="/orqena-ia/documentos" className="orqena-context-more">Ver ayuda documental <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+  </div>;
+}
+
+function isDocumentRailContext(value: unknown): value is DocumentRailContext {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.documentId === "string"
+    && typeof record.title === "string"
+    && typeof record.statusLabel === "string";
+}
+
+function safeInternalHref(value: string | null | undefined) {
+  return value?.startsWith("/") && !value.startsWith("//") ? value : null;
 }
 
 function DashboardRailContent({ context, titleId, recommendation, alerts, canUse, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; alerts: TodayRailRecommendation[]; canUse: boolean; onToggleCollapsed?: () => void }) {

@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(path, "utf8");
 const documents = read("app/(app)/documentos/page.tsx");
+const documentsWorkspace = read("components/portal/modules-a/global-documents-workspace.tsx");
+const globalStyles = read("app/globals.css");
+const schema = read("prisma/schema.prisma");
 const reader = read("app/(app)/gastos-materiales/lector/[id]/page.tsx");
 const expenseUseCases = read("lib/application/finance/expense-use-cases.ts");
 const expenseDocument = read("lib/expense-document.ts");
@@ -20,14 +23,17 @@ function test(name, check) {
 }
 
 test("Documentos integra bandeja, original y revisión en tres paneles", () => {
-  for (const term of ["Bandeja documental", "Documento original", "Datos extraídos", "lg:grid-cols-[17rem_minmax(0,1fr)_21rem]"]) assert.ok(documents.includes(term), `Falta ${term}`);
+  for (const term of ["Lista de documentos", "Datos extraídos (OCR)", "global-documents-panes", "DocumentViewer", "DocumentReviewPanel"]) assert.ok(documentsWorkspace.includes(term), `Falta ${term}`);
 });
-test("Documentos conserva la secuencia móvil por apilado responsivo", () => {
-  assert.match(documents, /lg:grid lg:min-h/);
-  assert.doesNotMatch(documents, /overflow-x-auto[^]*Documento original/);
+test("Documentos adapta paneles al ancho útil y conserva el flujo móvil", () => {
+  assert.match(documentsWorkspace, /data-mobile-step/);
+  assert.match(globalStyles, /container: global-documents \/ inline-size/);
+  assert.match(globalStyles, /@container global-documents \(min-width: 56rem\)/);
+  assert.match(globalStyles, /grid-template-columns: minmax\(14\.5rem/);
 });
 test("La bandeja representa todos los estados D6 en lenguaje de producto", () => {
-  for (const state of ["UPLOADED", "PROCESSING", "REVIEW_REQUIRED", "POSSIBLE_DUPLICATE", "READY", "REGISTERED", "FAILED"]) assert.match(documents, new RegExp(state));
+  for (const state of ["UPLOADED", "PROCESSING", "REVIEW_REQUIRED", "POSSIBLE_DUPLICATE", "READY", "REGISTERED", "FAILED"]) assert.match(schema, new RegExp(`\\b${state}\\b`));
+  for (const label of ["Procesando", "Revisión pendiente", "Posible duplicado", "Confirmado", "Error", "Recibido"]) assert.match(documents, new RegExp(label));
 });
 test("La extracción sigue siendo propuesta y exige confirmación humana", () => {
   assert.match(documents, /La extracción es una propuesta/);

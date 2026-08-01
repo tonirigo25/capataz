@@ -11,8 +11,10 @@ import {
   ClipboardList,
   Download,
   ExternalLink,
+  Eye,
   FileCheck2,
   FileImage,
+  Files,
   FileText,
   Filter,
   Maximize2,
@@ -84,6 +86,25 @@ export type GlobalDocumentAction = {
   download?: boolean;
 };
 
+export type GlobalDocumentAiContext = {
+  documentId: string;
+  title: string;
+  statusLabel: string;
+  relationLabel?: string | null;
+  confidenceLabel?: string | null;
+  attentionItems?: string[];
+  reviewHref?: string | null;
+};
+
+export type GlobalDocumentTemplate = {
+  id: string;
+  label: string;
+  kindLabel: string;
+  formatLabel: string;
+  previewAction?: GlobalDocumentAction | null;
+  downloadAction: GlobalDocumentAction;
+};
+
 export type GlobalDocumentWorkspaceItem = {
   id: string;
   name: string;
@@ -99,6 +120,7 @@ export type GlobalDocumentWorkspaceItem = {
   preview?: GlobalDocumentPreview | null;
   ocrFields?: GlobalDocumentField[];
   reviewDescription?: string | null;
+  aiContext?: GlobalDocumentAiContext | null;
   history?: GlobalDocumentHistoryItem[];
   actions?: {
     original?: GlobalDocumentAction | null;
@@ -116,6 +138,7 @@ export type GlobalDocumentsWorkspaceProps = {
   documents: GlobalDocumentWorkspaceItem[];
   selectedId?: string | null;
   primaryAction?: GlobalDocumentAction | null;
+  templates?: GlobalDocumentTemplate[];
   pageSize?: number;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -123,7 +146,7 @@ export type GlobalDocumentsWorkspaceProps = {
 };
 
 type TabId =
-  "all" | "invoice" | "ticket" | "contract" | "work_part" | "pending";
+  "all" | "invoice" | "ticket" | "contract" | "work_part" | "pending" | "templates";
 
 type MobileStep = "list" | "viewer" | "review";
 type SortId = "newest" | "oldest" | "name";
@@ -135,12 +158,14 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: "contract", label: "Contratos" },
   { id: "work_part", label: "Partes" },
   { id: "pending", label: "Pendientes de revisión" },
+  { id: "templates", label: "Plantillas" },
 ];
 
 export function GlobalDocumentsWorkspace({
   documents,
   selectedId,
   primaryAction,
+  templates = [],
   pageSize = 7,
   emptyTitle = "No hay documentos en esta vista",
   emptyDescription = "Cambia los filtros o incorpora documentación desde una acción autorizada.",
@@ -243,6 +268,17 @@ export function GlobalDocumentsWorkspace({
   ).length;
   const previewHref = safeHref(selectedDocument?.preview?.href);
 
+  useEffect(() => {
+    const detail = activeTab === "templates" ? null : selectedDocument?.aiContext ?? null;
+    const publish = () => window.dispatchEvent(new CustomEvent("orqena:document-context", { detail }));
+    publish();
+    const frame = window.requestAnimationFrame(publish);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.dispatchEvent(new CustomEvent("orqena:document-context", { detail: null }));
+    };
+  }, [activeTab, selectedDocument]);
+
   function selectDocument(id: string) {
     setActiveId(id);
     setMobileStep("viewer");
@@ -275,9 +311,9 @@ export function GlobalDocumentsWorkspace({
   }
 
   return (
-    <section className="grid gap-4" aria-labelledby="global-documents-title">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+    <section className="global-documents-workspace grid min-w-0 w-full grid-cols-[minmax(0,1fr)] gap-4" aria-labelledby="global-documents-title">
+      <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1
             id="global-documents-title"
             className="type-page-title text-content"
@@ -289,13 +325,15 @@ export function GlobalDocumentsWorkspace({
             archivo.
           </p>
         </div>
-        {validAction(primaryAction) ? <ActionLink action={primaryAction!} icon={Plus} primary /> : null}
+        <div className="flex min-w-0 flex-wrap gap-2">
+          {validAction(primaryAction) ? <ActionLink action={primaryAction!} icon={Plus} primary /> : null}
+        </div>
       </header>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <nav
           aria-label="Tipos de documento"
-          className="flex gap-1 overflow-x-auto pb-1"
+          className="flex min-w-0 gap-1 overflow-x-auto pb-1"
         >
           {tabs.map((tab) => (
             <button
@@ -320,7 +358,7 @@ export function GlobalDocumentsWorkspace({
           ))}
         </nav>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button
             type="button"
             className="secondary-button"
@@ -408,15 +446,21 @@ export function GlobalDocumentsWorkspace({
         </div>
       ) : null}
 
+      {activeTab === "templates" ? (
+        <DocumentTemplatesPanel templates={templates} />
+      ) : <>
       <MobileFlowNavigation
         step={mobileStep}
         hasSelection={Boolean(selectedDocument)}
         onStepChange={setMobileStep}
       />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-soft lg:grid lg:grid-cols-[19rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)_17rem]">
+      <div
+        className="global-documents-panes min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-soft"
+        data-mobile-step={mobileStep}
+      >
         <DocumentList
-          className={clsx(mobileStep !== "list" && "max-lg:hidden")}
+          className="global-documents-pane global-documents-pane--list"
           documents={visibleDocuments}
           selectedId={activeId}
           total={filteredDocuments.length}
@@ -430,7 +474,7 @@ export function GlobalDocumentsWorkspace({
         />
 
         <DocumentViewer
-          className={clsx(mobileStep !== "viewer" && "max-lg:hidden")}
+          className="global-documents-pane global-documents-pane--viewer"
           document={selectedDocument}
           previewHref={previewHref}
           zoom={zoom}
@@ -446,14 +490,55 @@ export function GlobalDocumentsWorkspace({
         />
 
         <DocumentReviewPanel
-          className={clsx(
-            "lg:col-span-2 xl:col-span-1",
-            mobileStep !== "review" && "max-lg:hidden",
-          )}
+          className="global-documents-pane global-documents-pane--review"
           document={selectedDocument}
           onBack={() => setMobileStep("viewer")}
         />
       </div>
+      </>}
+    </section>
+  );
+}
+
+function DocumentTemplatesPanel({ templates }: { templates: GlobalDocumentTemplate[] }) {
+  return (
+    <section className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft sm:p-5" aria-labelledby="document-templates-title">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h2 id="document-templates-title" className="text-base font-semibold text-content">Plantillas autorizadas</h2>
+          <p className="mt-1 text-xs leading-5 text-content-secondary">
+            Previsualiza o descarga los modelos oficiales sin crear registros ni modificar documentos existentes.
+          </p>
+        </div>
+        <span className="type-meta shrink-0">{templates.length} formatos</span>
+      </div>
+      {templates.length ? (
+        <ul className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {templates.map((template) => (
+            <li key={template.id} className="grid min-w-0 content-between gap-4 rounded-xl border border-border bg-subtle/45 p-4">
+              <div className="min-w-0">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand-strong">
+                  <Files size={19} aria-hidden="true" />
+                </span>
+                <h3 className="mt-3 break-words text-sm font-semibold text-content">{template.label}</h3>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+                  {template.kindLabel} · {template.formatLabel}
+                </p>
+              </div>
+              <div className="grid gap-2">
+                {validAction(template.previewAction) ? (
+                  <ActionLink action={template.previewAction!} icon={Eye} full />
+                ) : null}
+                <ActionLink action={template.downloadAction} icon={Download} full primary={!template.previewAction} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 rounded-xl border border-dashed border-border p-5 text-center text-xs text-content-secondary">
+          No hay plantillas autorizadas disponibles.
+        </p>
+      )}
     </section>
   );
 }
@@ -470,7 +555,7 @@ function MobileFlowNavigation({
   return (
     <nav
       aria-label="Flujo documental móvil"
-      className="grid grid-cols-3 gap-1 lg:hidden"
+      className="global-documents-mobile-nav grid min-w-0 grid-cols-3 gap-1"
     >
       {(
         [
@@ -528,7 +613,7 @@ function DocumentList({
   return (
     <section
       className={clsx(
-        "flex min-h-[38rem] flex-col border-border lg:border-r",
+        "min-w-0 flex min-h-[38rem] flex-col border-border",
         className,
       )}
     >
@@ -722,7 +807,7 @@ function DocumentViewer({
           <button
             type="button"
             onClick={onBack}
-            className="ghost-button lg:hidden"
+            className="global-documents-mobile-only ghost-button"
           >
             <ArrowLeft size={16} aria-hidden="true" />
             Lista
@@ -851,7 +936,7 @@ function DocumentViewer({
         <button
           type="button"
           onClick={onReview}
-          className="secondary-button ml-auto lg:hidden"
+          className="global-documents-mobile-only secondary-button ml-auto"
         >
           Revisar datos
           <ChevronRight size={16} aria-hidden="true" />
@@ -890,7 +975,7 @@ function StructuredDocumentPreview({
   }
 
   return (
-    <article className="w-full max-w-[46rem] bg-white p-5 shadow-sm sm:p-7">
+    <article className="min-w-0 w-full max-w-[46rem] bg-white p-5 shadow-sm sm:p-7">
       <header className="border-b border-border pb-4">
         {preview.title ? (
           <h3 className="text-lg font-bold text-content">{preview.title}</h3>
@@ -901,14 +986,14 @@ function StructuredDocumentPreview({
           </p>
         ) : null}
         {preview.facts?.length ? (
-          <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
+          <dl className="mt-4 grid min-w-0 gap-2 text-xs">
             {preview.facts.map((field) => (
               <div
                 key={field.id}
-                className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2"
+                className="grid min-w-0 grid-cols-[minmax(6rem,.42fr)_minmax(0,1fr)] gap-2"
               >
                 <dt className="text-content-tertiary">{field.label}</dt>
-                <dd className="font-semibold text-content">{field.value}</dd>
+                <dd className="min-w-0 break-words font-semibold text-content">{field.value}</dd>
               </div>
             ))}
           </dl>
@@ -983,7 +1068,7 @@ function DocumentReviewPanel({
     return (
       <aside
         className={clsx(
-          "grid min-h-[38rem] place-items-center border-border bg-surface p-5 xl:border-l",
+          "grid min-h-[38rem] place-items-center border-border bg-surface p-5",
           className,
         )}
       >
@@ -1012,7 +1097,7 @@ function DocumentReviewPanel({
   return (
     <aside
       className={clsx(
-        "min-h-[38rem] border-border bg-surface xl:border-l",
+        "min-h-[38rem] min-w-0 border-border bg-surface",
         className,
       )}
       aria-label={`Revisión de ${document.name}`}
@@ -1021,7 +1106,7 @@ function DocumentReviewPanel({
         <button
           type="button"
           onClick={onBack}
-          className="ghost-button lg:hidden"
+          className="global-documents-mobile-only ghost-button"
         >
           <ArrowLeft size={16} aria-hidden="true" />
           Visor
