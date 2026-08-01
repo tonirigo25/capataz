@@ -127,13 +127,16 @@ export function AppChrome({
   const dialogRef = useRef<HTMLDivElement>(null);
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
-  const desktopNavigation = useMemo(() => buildCanonicalDesktopNavigation(portalManifest, capabilities), [portalManifest, capabilities]);
   const activityRouteAvailable = useMemo(() => {
     const capabilitySet = new Set(capabilities);
     const required = new Set<string>(activityRouteCapabilities);
     return activityRouteCapabilities.every((capability) => capabilitySet.has(capability)) &&
       !portalManifest.scopes.some((scope) => required.has(scope.capabilityKey) && scope.scope !== "COMPANY");
   }, [capabilities, portalManifest.scopes]);
+  const desktopNavigation = useMemo(
+    () => buildCanonicalDesktopNavigation(portalManifest, capabilities, activityRouteAvailable),
+    [activityRouteAvailable, capabilities, portalManifest],
+  );
   const shellNavigationGroups = useMemo(
     () => portalManifest.navigationGroups
       .map((group) => ({ ...group, items: group.items.filter((item) => item.href !== "/actividad" || activityRouteAvailable) }))
@@ -387,6 +390,7 @@ export function AppChrome({
         capabilities={capabilities}
         canCapture={canCreate}
         pathname={pathname}
+        activityRouteAvailable={activityRouteAvailable}
         overlay={overlay}
         onOpen={openOverlay}
       />
@@ -462,7 +466,11 @@ export function AppChrome({
   );
 }
 
-function buildCanonicalDesktopNavigation(portalManifest: PortalManifest, capabilities: string[]): ShellDestination[] {
+function buildCanonicalDesktopNavigation(
+  portalManifest: PortalManifest,
+  capabilities: string[],
+  activityRouteAvailable: boolean,
+): ShellDestination[] {
   const allowed = new Map(
     [...portalManifest.navigation, ...portalManifest.navigationGroups.flatMap((group) => group.items)]
       .map((item) => [item.href, item] as const),
@@ -486,7 +494,10 @@ function buildCanonicalDesktopNavigation(portalManifest: PortalManifest, capabil
     const source = allowed.get(target.href);
     if (target.href === "/orqena-ia" && !source) return [{ ...target, capability: "orqena.use", unavailable: true }];
     if (!source) return [];
-    const children = (productSubnavigation[target.href] ?? []).filter((item) => !item.capability || capabilitySet.has(item.capability));
+    const children = (productSubnavigation[target.href] ?? []).filter((item) =>
+      (!item.capability || capabilitySet.has(item.capability)) &&
+      (item.href !== "/actividad" || activityRouteAvailable),
+    );
     return [{ ...source, label: target.label, icon: target.icon, children }];
   });
 }
@@ -686,6 +697,7 @@ function MobileBottomNavigation({
   capabilities,
   canCapture,
   pathname,
+  activityRouteAvailable,
   overlay,
   onOpen
 }: {
@@ -693,6 +705,7 @@ function MobileBottomNavigation({
   capabilities: string[];
   canCapture: boolean;
   pathname: string;
+  activityRouteAvailable: boolean;
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
@@ -704,7 +717,7 @@ function MobileBottomNavigation({
       aria-label="Navegación móvil"
     >
       <div className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1">
-        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} />)}
+        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} activityRouteAvailable={activityRouteAvailable} />)}
         {canCapture ? <button
           type="button"
           className={clsx("field-os-capture-trigger shell-bottom-item", overlay === "capture" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
@@ -717,7 +730,7 @@ function MobileBottomNavigation({
           </span>
           <span>Nuevo</span>
         </button> : null}
-        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} />)}
+        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} activityRouteAvailable={activityRouteAvailable} />)}
         <button
           type="button"
           className={clsx("shell-bottom-item", overlay === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
@@ -733,10 +746,22 @@ function MobileBottomNavigation({
   );
 }
 
-function BottomLink({ item, pathname, capabilitySet }: { item: ProductDestination; pathname: string; capabilitySet: Set<string> }) {
+function BottomLink({
+  item,
+  pathname,
+  capabilitySet,
+  activityRouteAvailable,
+}: {
+  item: ProductDestination;
+  pathname: string;
+  capabilitySet: Set<string>;
+  activityRouteAvailable: boolean;
+}) {
   const active = isProductDestinationActive(pathname, item.href) ||
     (productSubnavigation[item.href] ?? []).some((child) =>
-      (!child.capability || capabilitySet.has(child.capability)) && isProductDestinationActive(pathname, child.href),
+      (!child.capability || capabilitySet.has(child.capability)) &&
+      (child.href !== "/actividad" || activityRouteAvailable) &&
+      isProductDestinationActive(pathname, child.href),
     );
   const Icon = icons[item.icon];
   return (
