@@ -224,7 +224,7 @@ export function Client360ActivityOverview({
       {metrics.length === 0 ? <div className="col-span-full rounded-xl border border-dashed border-border bg-surface p-5 text-center text-xs text-content-secondary">No hay indicadores de actividad autorizados.</div> : null}
     </section>
 
-    <section className="rounded-xl border border-border bg-surface p-2 lg:p-1.5" aria-label="Filtros de actividad">
+    <section className="rounded-xl border border-border bg-surface p-2 lg:p-0.5" aria-label="Filtros de actividad">
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.35fr)_minmax(8rem,.8fr)_minmax(8rem,.8fr)_minmax(8rem,.8fr)_auto_auto_auto]">
         <label htmlFor={`${id}-search`} className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-border px-3 lg:min-h-8 lg:px-2.5"><Search size={14} className="shrink-0 text-content-tertiary" aria-hidden="true" /><span className="sr-only">Buscar actividad</span><input id={`${id}-search`} value={filters.query} onChange={(event) => updateFilter("query", event.target.value)} className="min-w-0 flex-1 bg-transparent text-[10px] text-content outline-none" placeholder="Buscar en la actividad…" /></label>
         <SelectFilter id={`${id}-type`} icon={Activity} label="Tipo" value={filters.type} options={options.types} onChange={(value) => updateFilter("type", value)} />
@@ -263,7 +263,7 @@ function ActivityRow({ event, isLast }: { event: ClientActivityEvent; isLast: bo
   const href = safeAppHref(event.href);
   const avatar = safeImageUrl(event.actor?.avatarUrl);
   const statusTone = event.status?.tone ?? "neutral";
-  return <li className="grid min-w-0 grid-cols-[4.2rem_1rem_2.25rem_minmax(0,1fr)] items-start gap-2 px-3 py-3 lg:grid-cols-[5rem_1rem_1.75rem_minmax(0,1fr)_auto_auto_auto] lg:items-center lg:gap-2 lg:py-1">
+  return <li className="grid min-w-0 grid-cols-[4.2rem_1rem_2.25rem_minmax(0,1fr)] items-start gap-2 px-3 py-3 lg:grid-cols-[5rem_1rem_1.75rem_minmax(0,1fr)_auto_auto_auto] lg:items-center lg:gap-2 lg:py-0.5">
     <time dateTime={event.occurredAt} className="pt-0.5 text-[8px] leading-4 text-content-secondary lg:pt-0"><strong className="block font-semibold text-content-secondary">{dateFormatter.format(date)}</strong><span>{timeFormatter.format(date)}</span></time>
     <span className="relative flex h-full min-h-9 justify-center pt-3 lg:min-h-8 lg:items-center lg:pt-0"><span className="h-2 w-2 rounded-full bg-brand ring-2 ring-brand-soft" aria-hidden="true" />{!isLast ? <span className="absolute bottom-[-1.05rem] top-5 border-l border-brand/30 lg:bottom-[-.8rem] lg:top-1/2" aria-hidden="true" /> : null}</span>
     <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl lg:h-6 lg:w-6 lg:rounded-lg ${eventIconTones[event.kind]}`}><Icon size={13} aria-hidden="true" /></span>
