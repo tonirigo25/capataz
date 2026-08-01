@@ -43,10 +43,20 @@ check(
 );
 check(
   "Trabajo 360 expone las ocho pestañas canónicas y submenús persistentes",
-  ["Resumen", "Planificación", "Partes", "Costes", "Documentos", "Equipo", "Facturación", "Incidencias"].every((label) => work.includes(`"${label}"`)) &&
+  ["Resumen", "Planificación", "Actividad", "Costes", "Documentos", "Equipo", "Facturación", "Incidencias"].every((label) => work.includes(`"${label}"`)) &&
     work.includes("const workSubviews") &&
     work.includes("function WorkSubnavigation") &&
     (work.includes("subvista=${id}") || work.includes("workViewHref(workId, activeTab, id)")),
+);
+check(
+  "Actividad sustituye Partes y Órdenes con cronología, galería y notas reales",
+  !/\["partes",\s*"Partes"/.test(work) &&
+    !/\["ordenes",\s*"Órdenes"/.test(work) &&
+    work.includes("/actividad/cronologia") &&
+    work.includes("/actividad/galeria") &&
+    work.includes("TimelineList") &&
+    work.includes("WorkProgressGallery") &&
+    work.includes("<NotesTab"),
 );
 check(
   "el listado no queda precedido por seis KPI ejecutivos",
