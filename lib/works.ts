@@ -338,7 +338,7 @@ export function validWorkPriority(value: string | null | undefined): WorkPriorit
   return ["baja", "media", "alta", "urgente"].includes(normalized) ? normalized as WorkPriority : "media";
 }
 
-export function validWorkStatus(value: string | null | undefined): WorkStatus {
+export function validWorkStatus(value: string | null | undefined): WorkStatus | null {
   const normalized = normalizeStatus(value);
-  return Object.keys(WORK_STATUS_META).includes(normalized) ? normalized as WorkStatus : "pendiente_inicio";
+  return Object.keys(WORK_STATUS_META).includes(normalized) ? normalized as WorkStatus : null;
 }

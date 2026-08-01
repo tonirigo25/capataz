@@ -5838,3 +5838,177 @@ button:disabled,
   }
   .clients-pagination--mobile > span:last-child { display: none; }
 }
+
+/* Portal interno: Trabajo / Obras canónico. */
+.works-page {
+  min-width: 0;
+  min-height: calc(100dvh - var(--fos-layout-topbar));
+  background: #fbfcfb;
+  padding: 20px 20px 30px 24px;
+  color: #111b16;
+}
+
+.works-page__header h1 {
+  margin: 0;
+  font-size: 29px;
+  font-weight: 820;
+  letter-spacing: -.035em;
+  line-height: 1.05;
+}
+
+.works-page__header p {
+  margin: 5px 0 0;
+  color: #506058;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.works-filterbar {
+  position: relative;
+  z-index: 12;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(100px, 1fr)) auto auto auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.works-filterbar > label,
+.works-more-filters { min-width: 0; }
+
+.works-filterbar > label > span,
+.works-filterbar .label {
+  display: block;
+  margin: 0 0 4px;
+  color: #55635c;
+  font-size: 9px;
+  font-weight: 720;
+  line-height: 12px;
+}
+
+.works-filterbar .field,
+.works-view-select,
+.works-export,
+.works-filter-submit,
+.works-more-filters > summary {
+  min-height: 46px;
+  border: 1px solid #dfe5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #203029;
+  font-size: 11px;
+  font-weight: 690;
+}
+
+.works-filterbar .field {
+  width: 100%;
+  padding: 0 31px 0 10px;
+}
+
+.works-filterbar .field:focus,
+.works-view-select:focus-within,
+.works-more-filters > summary:focus-visible,
+.works-export:focus-visible,
+.works-filter-submit:focus-visible {
+  border-color: #269650;
+  outline: 3px solid rgb(31 157 79 / 14%);
+  outline-offset: 1px;
+}
+
+.works-more-filters { position: relative; }
+
+.works-more-filters > summary,
+.works-export,
+.works-filter-submit {
+  display: inline-flex;
+  min-width: 122px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  list-style: none;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.works-more-filters > summary::-webkit-details-marker { display: none; }
+.works-more-filters[open] > summary { border-color: #269650; background: #f2faf4; }
+
+.works-more-filters__panel {
+  position: absolute;
+  z-index: 85;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: min(560px, calc(100vw - 40px));
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(120px, .55fr));
+  gap: 12px;
+  border: 1px solid #dfe5e1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 14px;
+  box-shadow: 0 18px 45px rgb(21 39 29 / 16%);
+}
+
+.works-more-filters__actions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.works-more-filters__actions .primary-button,
+.works-more-filters__actions .secondary-button { min-height: 44px; }
+
+.works-view-select {
+  display: grid;
+  grid-template-columns: auto minmax(72px, 1fr);
+  min-width: 132px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px 0 12px;
+}
+
+.works-view-select > span { margin: 0 !important; color: #17231c !important; font-size: 11px !important; }
+.works-view-select select { min-width: 0; border: 0; outline: 0; background: transparent; color: #4b5a52; font-size: 11px; }
+
+.works-export { min-width: 108px; }
+.works-filter-submit { min-width: 88px; border-color: #078b38; background: #078f39; color: #fff; }
+.works-filter-submit:hover { background: #087b34; }
+
+.works-result-meta {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #68756e;
+  font-size: 10px;
+}
+
+.works-result-meta a { color: #087b39; font-weight: 720; }
+
+@media (max-width: 1439px) {
+  .works-page { padding: 18px clamp(14px, 2.4vw, 24px) 94px; }
+  .works-filterbar { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+  .works-more-filters,
+  .works-view-select,
+  .works-export,
+  .works-filter-submit { min-width: 0; }
+}
+
+@media (max-width: 820px) {
+  .works-filterbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .works-more-filters__panel { position: fixed; top: 92px; right: 12px; left: 12px; width: auto; grid-template-columns: 1fr; }
+  .works-more-filters__actions { grid-column: 1; }
+}
+
+@media (max-width: 480px) {
+  .works-page { padding-inline: 12px; }
+  .works-page__header h1 { font-size: 25px; }
+  .works-filterbar { gap: 8px; }
+  .works-more-filters > summary,
+  .works-export,
+  .works-filter-submit { min-width: 0; padding-inline: 8px; }
+}

@@ -6,7 +6,8 @@ import { assertScopedEntityAccess, requireCapability } from "@/lib/commercial/au
 
 export async function updateWorkStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const estado = validWorkStatus(String(formData.get("estado") ?? ""));
+  const rawStatus = formData.get("estado");
+  const estado = typeof rawStatus === "string" ? validWorkStatus(rawStatus) : null;
   if (!id || !estado) return;
 
   const auth = await requireCapability("work.update");

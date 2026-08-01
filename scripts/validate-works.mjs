@@ -5,6 +5,7 @@ import ts from "typescript";
 
 const require = createRequire(import.meta.url);
 const source = fs.readFileSync("lib/works.ts", "utf8");
+const useCaseSource = fs.readFileSync("lib/application/operations/work-use-cases.ts", "utf8");
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
 }).outputText;
@@ -39,7 +40,14 @@ expect(ACTIVE_WORK_STATUSES.includes("preparacion"), "new active state preparaci
 expect(isActiveWorkStatus("en_curso") === true, "en_curso must be active");
 expect(isActiveWorkStatus("cerrada") === false, "cerrada must not be active");
 expect(isBlockedWorkStatus("parada") === true, "parada must be blocked");
-expect(validWorkStatus("estado_raro") === "pendiente_inicio", "invalid work status must fallback safely");
+expect(validWorkStatus(" EN_CURSO ") === "en_curso", "valid work status must normalize safely");
+expect(validWorkStatus("estado_raro") === null, "unknown work status must be rejected before persistence");
+expect(validWorkStatus("") === null, "empty work status must be rejected before persistence");
+expect(validWorkStatus(null) === null, "missing work status must be rejected before persistence");
+const invalidStatusGuardIndex = useCaseSource.indexOf("if (!id || !estado) return;");
+const firstDatabaseAccessIndex = useCaseSource.indexOf("prisma.work.");
+expect(invalidStatusGuardIndex >= 0, "work status mutation must keep a fail-closed input guard");
+expect(firstDatabaseAccessIndex >= 0 && invalidStatusGuardIndex < firstDatabaseAccessIndex, "invalid work status must be rejected before database access");
 expect(validWorkPriority("urgente") === "urgente", "valid priority must be preserved");
 expect(validWorkPriority("otra") === "media", "invalid priority must fallback safely");
 

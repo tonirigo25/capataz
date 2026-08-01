@@ -13,6 +13,7 @@ const clientPortfolio = read("components/portal/modules-a/client-portfolio.tsx")
 const contextDrawer = read("components/context-drawer.tsx");
 const work = read("app/(app)/obras/[id]/page.tsx");
 const works = read("app/(app)/obras/page.tsx");
+const workPortfolio = read("components/portal/modules-a/work-portfolio.tsx");
 const gallery = read("components/work-progress-gallery.tsx");
 const dialog = read("components/accessible-dialog.tsx");
 const workflow = read("components/entity-workflow-summary.tsx");
@@ -82,7 +83,7 @@ check("Documentos y Equipo permanecen accesibles", work.includes('activeTab === 
 check("Capataz es contextual y no pestaña", work.includes("<AiTab") && !work.match(/^  \["ia"/m));
 check("obra conserva mapa heredado explícito", ["fotografias", "cronologia", "tesoreria", "materiales", "subcontratas", "configuracion"].every((tab) => work.includes(`${tab}:`)));
 check("no se inventa porcentaje físico", !work.includes("porcentajeAvance") && !work.includes("progresoFisico"));
-check("listado de obras prioriza filas y riesgo real", works.includes(': "tabla"') && works.includes("Última actualización") && works.includes("item.hasRisk") && works.includes("item.nextAction.label"));
+check("listado de obras prioriza filas y riesgo real", works.includes(': "tabla"') && workPortfolio.includes("Última actualización") && works.includes("item.hasRisk") && works.includes("item.nextAction.label") && ["Obra", "Estado", "Avance", "Equipo", "Próxima visita", "Incidencias", "Presupuesto vs Real"].every((label) => workPortfolio.includes(label)));
 
 check("consultas de entidad derivan companyId de sesión", client.includes("requireCapability") && work.includes("requireCapability") && workflow.includes("requireCompanyContext"));
 check("tareas y seguimientos están aislados por companyId", workflow.includes("where: { companyId, ...entityWhere"));
