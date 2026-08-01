@@ -340,8 +340,6 @@
   .filterField:nth-child(3),
   .filterButton { grid-column: 1 / -1; }
   .metric p { white-space: normal; }
-  .rowActions { grid-template-columns: 1fr; }
-  .rowActions > form:last-child { grid-column: auto; }
   .followupActions > div,
   .followupActions form { grid-template-columns: 1fr; }
 }
