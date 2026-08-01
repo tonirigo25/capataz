@@ -46,18 +46,15 @@ test("pasada 1/5: Dashboard conserva seis KPI canónicos y trazables", () => {
   );
 });
 
-test("pasada 2/5: el escritorio del propietario mantiene los seis KPI en una fila", () => {
+test("pasada 2/5: el escritorio del propietario organiza los seis KPI en una matriz 3 por 2", () => {
   const kpiRule = firstCssRule(css, ".dashboard-kpis");
   const columns = declaration(kpiRule, "grid-template-columns");
-  const explicitColumns = (columns.match(/minmax\(/g) ?? []).length;
   const repeatedColumns = Number(columns.match(/repeat\(\s*(\d+)/)?.[1] ?? 0);
 
-  assert.ok(
-    explicitColumns === 6 || repeatedColumns === 6,
-    `El grid base debe declarar seis columnas de escritorio; recibido: ${columns}`,
-  );
+  assert.equal(repeatedColumns, 3, `El grid base debe declarar tres columnas de escritorio; recibido: ${columns}`);
+  assert.match(declaration(kpiRule, "grid-auto-rows"), /minmax\(148px,\s*auto\)/);
 
-  const desktop = cssAtRule(css, "@media (min-width: 1440px)");
+  const desktop = cssAtRule(css, "@media (min-width: 1200px)");
   const workspace = firstCssRule(desktop, ".field-os-workspace");
   const rail = firstCssRule(desktop, ".orqena-context-rail");
 
@@ -70,7 +67,7 @@ test("pasada 3/5: página y rail comparten el recorrido vertical sin scroll inde
   assert.equal(declaration(page, "height"), "auto");
   assert.equal(declaration(page, "overflow"), "visible");
 
-  const desktop = cssAtRule(css, "@media (min-width: 1440px)");
+  const desktop = cssAtRule(css, "@media (min-width: 1200px)");
   const rail = firstCssRule(desktop, ".orqena-context-rail");
   assert.equal(declaration(rail, "position"), "relative");
   assert.equal(declaration(rail, "height"), "auto");
@@ -122,6 +119,8 @@ test("pasada 5/5: periodos, filtros, gráficos y detalle siguen siendo interacti
   assert.match(dashboardVisuals, /onMouseEnter=/);
   assert.match(dashboardPage, /<DashboardCardHeading[^>]*href=/);
   assert.match(dashboardPage, /data-dashboard-profitability-row/);
+  assert.doesNotMatch(dashboardOverview, /\/inteligencia#rentabilidad/);
+  assert.match(dashboardOverview, /\/inteligencia\?vista=rentabilidad/);
 });
 
 function firstCssRule(source, selector) {

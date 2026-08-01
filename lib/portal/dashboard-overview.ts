@@ -144,8 +144,8 @@ export async function getDashboardOverview({
   const kpis: DashboardKpi[] = [
     moneyKpi("income", "Ingresos", summary.money.invoiced, kpiMap.get("invoiced")?.comparison, "/dinero"),
     moneyKpi("expenses", "Gastos", summary.money.expenses, kpiMap.get("expenses")?.comparison, "/gastos-materiales"),
-    moneyKpi("profit", "Beneficio", summary.money.profitOnInvoiced, kpiMap.get("profit_invoiced")?.comparison, "/inteligencia#rentabilidad"),
-    percentKpi("margin", "Margen", summary.money.marginOnInvoiced, kpiMap.get("margin_invoiced")?.comparison, "/inteligencia#rentabilidad"),
+    moneyKpi("profit", "Beneficio", summary.money.profitOnInvoiced, kpiMap.get("profit_invoiced")?.comparison, "/inteligencia?vista=rentabilidad"),
+    percentKpi("margin", "Margen", summary.money.marginOnInvoiced, kpiMap.get("margin_invoiced")?.comparison, "/inteligencia?vista=rentabilidad"),
     { id: "receivable", label: "Pendiente de cobro", value: formatCurrency(treasury.invoices.pending), comparison: "Estado actual", tone: "neutral", href: "/tesoreria?vista=cobros&periodo=30d&estado=pendiente" },
     {
       id: "cash-forecast",
@@ -180,7 +180,7 @@ export async function getDashboardOverview({
         title: "Margen por debajo del objetivo",
         detail: `${lowMarginCount} ${lowMarginCount === 1 ? "obra" : "obras"} < 30% de margen`,
         tone: "attention",
-        href: "/inteligencia#rentabilidad",
+        href: "/inteligencia?vista=rentabilidad",
       },
       {
         id: "supplier-payments",
