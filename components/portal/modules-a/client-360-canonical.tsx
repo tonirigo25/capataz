@@ -465,6 +465,7 @@ function Client360ReferenceSummary({
   const activeContacts = summary.contacts.filter((contact) => !contact.archivedAt);
   const returnTo = `/clientes/${client.id}`;
   const profileEditHref = `/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`;
+  const openIncidents = incidents.filter((incident) => !["cerrada", "cerrado", "resuelta", "resuelto"].includes((incident.status ?? "").toLowerCase()));
 
   return (
     <div className="client-360-shell-summary">
@@ -478,10 +479,10 @@ function Client360ReferenceSummary({
       </header>
 
       <section
-        className="client-360-canonical__identity rounded-xl border border-border bg-surface p-4 shadow-soft lg:p-5"
+        className="client-360-canonical__identity client-360-shell-summary__identity border border-border bg-surface"
         aria-labelledby="client-360-summary-identity"
       >
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(16rem,0.8fr)_auto] xl:items-center">
+        <div className="grid items-center">
           <div className="flex min-w-0 gap-4">
             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong">
               <Building2 size={30} aria-hidden="true" />
@@ -491,28 +492,26 @@ function Client360ReferenceSummary({
                 <h2 id="client-360-summary-identity" className="type-section-title truncate text-content">{displayName}</h2>
                 <StatusPill status={client.archivadoAt ? "archivado" : client.estado} />
               </div>
-              <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
+              <dl className="client-360-shell-summary__identity-meta grid text-sm">
                 <Fact label="Segmento" value={summary.listItem.typeLabel} />
-                <Fact label="Origen" value={client.origen} />
+                <Fact label="Tipo" value={summary.listItem.typeRaw || summary.listItem.typeLabel} />
                 <Fact label="Desde" value={formatDate(client.fechaCreacion)} />
                 {summary.listItem.fiscalId ? <Fact label="Código" value={summary.listItem.fiscalId} /> : null}
               </dl>
             </div>
           </div>
 
-          <div className="border-t border-border pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
-            <Fact label="Responsable" value={summary.listItem.responsible ?? "Sin responsable asignado"} />
-            <div className="mt-4">
-              <p className="type-label">Contacto principal</p>
-              <p className="mt-1 font-semibold text-content">{primaryContact?.name ?? summary.listItem.primaryContact}</p>
-              <p className="mt-1 break-words text-sm text-content-secondary">
-                {[primaryContact?.role, primaryContact?.email, primaryContact?.phone].filter(Boolean).join(" · ") || summary.listItem.primaryContactDetail}
-              </p>
-            </div>
+          <div className="client-360-shell-summary__people border-l border-border pl-5">
+            <PersonLine label="Responsable" name={summary.listItem.responsible ?? "Sin responsable asignado"} />
+            <PersonLine
+              label="Contacto principal"
+              name={primaryContact?.name ?? summary.listItem.primaryContact}
+              detail={[primaryContact?.email, primaryContact?.phone].filter(Boolean).join(" · ") || summary.listItem.primaryContactDetail}
+            />
           </div>
 
           <nav className="grid min-w-48 gap-2" aria-label={`Acciones de ${displayName}`} data-profile-edit-href={profileEditHref}>
-            {hrefs.sendMessage ? <Link href={hrefs.sendMessage} className="secondary-button w-full"><MessageCircle size={16} aria-hidden="true" /> Abrir correo</Link> : null}
+            {hrefs.sendMessage ? <Link href={hrefs.sendMessage} className="secondary-button w-full"><MessageCircle size={16} aria-hidden="true" /> Enviar mensaje</Link> : null}
             {hrefs.call ? <Link href={hrefs.call} className="secondary-button w-full"><Phone size={16} aria-hidden="true" /> Llamar</Link> : null}
             {hrefs.newOpportunity ? (
               <span className="client-360-canonical__primary-action relative block">
@@ -547,43 +546,52 @@ function Client360ReferenceSummary({
         </Panel>
 
         <Panel title="Resumen económico" icon={WalletCards} href={hrefs.payments}>
-          <dl className="grid gap-3 text-sm">
-            <Metric label="Facturado" value={formatCurrency(summary.kpis.billedTotal)} />
-            <Metric label="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} />
+          <dl className="client-360-shell-summary__economic grid text-sm">
+            <Metric label="Facturado (total)" value={formatCurrency(summary.kpis.billedTotal)} />
+            <Metric label="Cobrado (total)" value={formatCurrency(summary.kpis.paidTotal)} />
             <Metric label="Pendiente de cobro" value={formatCurrency(summary.kpis.pendingTotal)} danger={summary.kpis.pendingTotal > 0} />
-            <Metric label="Facturas vencidas" value={String(summary.kpis.overdueInvoices)} danger={summary.kpis.overdueInvoices > 0} />
+          </dl>
+          <div className="client-360-shell-summary__risk">
+            <span>Riesgo de impago</span>
+            <strong>{summary.listItem.riskLevel}</strong>
+          </div>
+          <dl className="client-360-shell-summary__economic-footer">
+            <Fact label="Facturas abiertas" value={String(summary.pendingInvoices.length)} />
+            <Fact label="Facturas vencidas" value={String(summary.kpis.overdueInvoices)} />
           </dl>
         </Panel>
 
         <Panel title="Insights clave" icon={Lightbulb} className="client-360-canonical__insights">
           {insights.length ? (
             <ul className="client-360-canonical__insights-list grid gap-3">
-              {insights.slice(0, 4).map((insight) => (
+              {insights.slice(0, 4).map((insight, index) => {
+                const InsightIcon = [Building2, CheckCircle2, BriefcaseBusiness, Lightbulb][index % 4];
+                return (
                 <li key={insight.id} className="flex min-w-0 gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong"><Sparkles size={15} aria-hidden="true" /></span>
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong"><InsightIcon size={15} aria-hidden="true" /></span>
                   <div className="min-w-0">
                     {insight.href ? <Link href={insight.href} className="client-360-canonical__insight-title block min-w-0 break-words text-[11px] font-semibold leading-tight text-content hover:underline">{insight.title}</Link> : <p className="client-360-canonical__insight-title min-w-0 break-words text-[11px] font-semibold leading-tight text-content">{insight.title}</p>}
                     <p className="client-360-canonical__insight-detail mt-0.5 line-clamp-2 min-w-0 break-words text-[9px] leading-tight text-content-secondary">{insight.detail}</p>
                   </div>
                 </li>
-              ))}
+              )})}
             </ul>
           ) : <EmptyText>No hay insights documentados para este cliente.</EmptyText>}
         </Panel>
       </div>
 
       <div className="client-360-canonical__collections client-360-canonical__collections--primary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-        <CollectionPanel title="Actividad reciente" href={hrefs.activity} empty="Sin actividad reciente.">{summary.activity.slice(0, 5).map((event) => <CompactLink key={event.id} href={event.href} title={event.text} meta={`${event.type} · ${formatDate(event.date)}`} />)}</CollectionPanel>
-        <CollectionPanel title="Presupuestos" href={hrefs.budgets} empty="Sin presupuestos.">{summary.recentBudgets.slice(0, 3).map((budget) => <CompactLink key={budget.id} href={`/presupuestos/${budget.id}`} title={budget.numero} meta={`${statusLabel(budget.estado)} · ${formatCurrency(budget.total)}`} />)}</CollectionPanel>
-        <CollectionPanel title="Trabajos" href={hrefs.works} empty="Sin trabajos.">{summary.client.works.slice(0, 3).map((work) => <CompactLink key={work.id} href={`/obras/${work.id}`} title={work.titulo} meta={statusLabel(work.estado)} />)}</CollectionPanel>
-        <CollectionPanel title="Facturas" href={hrefs.invoices} empty="Sin facturas.">{summary.client.invoices.slice(0, 3).map((invoice) => <CompactLink key={invoice.id} href={`/dinero/${invoice.id}`} title={invoice.numero} meta={`${statusLabel(invoice.estado)} · ${formatCurrency(invoice.total)}`} />)}</CollectionPanel>
+        <CollectionPanel title="Actividad reciente" href={hrefs.activity} actionLabel="Ver toda" empty="Sin actividad reciente." className="client-360-shell-summary__activity">{summary.activity.slice(0, 5).map((event) => <CompactLink key={event.id} href={event.href} title={event.text} meta={`${event.type} · ${formatDate(event.date)}`} leading={<span className="client-360-shell-summary__timeline-dot" />} />)}</CollectionPanel>
+        <CollectionPanel title="Presupuestos" href={hrefs.budgets} empty="Sin presupuestos." summary={<SummaryPair first={{ label: "Total", value: String(summary.recentBudgets.length) }} second={{ label: "Valor total", value: formatCurrency(summary.kpis.budgetedTotal) }} />}>{summary.recentBudgets.slice(0, 3).map((budget) => <CompactLink key={budget.id} href={`/presupuestos/${budget.id}`} title={budget.numero} meta={`${statusLabel(budget.estado)} · ${formatDate(budget.fechaCreacion)}`} value={formatCurrency(budget.total)} />)}</CollectionPanel>
+        <CollectionPanel title="Trabajos" href={hrefs.works} empty="Sin trabajos." summary={<SummaryPair first={{ label: "Total", value: String(summary.client.works.length) }} second={{ label: "En curso", value: String(summary.kpis.activeWorks) }} />}>{summary.client.works.slice(0, 3).map((work) => <CompactLink key={work.id} href={`/obras/${work.id}`} title={work.titulo} meta={statusLabel(work.estado)} value={work.presupuestoAprobado != null ? formatCurrency(work.presupuestoAprobado) : "Sin presupuesto"} />)}</CollectionPanel>
+        <CollectionPanel title="Facturas" href={hrefs.invoices} empty="Sin facturas." summary={<SummaryPair first={{ label: "Emitidas", value: String(summary.client.invoices.length) }} second={{ label: "Pendiente", value: formatCurrency(summary.kpis.pendingTotal) }} />}>{summary.client.invoices.slice(0, 3).map((invoice) => <CompactLink key={invoice.id} href={`/dinero/${invoice.id}`} title={invoice.numero} meta={`${statusLabel(invoice.estado)} · ${formatDate(invoice.fechaVencimiento)}`} value={formatCurrency(invoice.total)} />)}</CollectionPanel>
       </div>
 
       <div className="client-360-canonical__collections client-360-canonical__collections--secondary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-        <CollectionPanel title="Cobros" href={hrefs.payments} empty="Sin cobros.">{summary.payments.slice(0, 3).map((payment) => <CompactLink key={payment.id} href={`/dinero/${payment.invoice.id}`} title={payment.invoice.numero} meta={`${formatCurrency(payment.importe)} · ${formatDate(payment.fecha)}`} />)}</CollectionPanel>
-        <CollectionPanel title="Incidencias" empty="Sin incidencias vinculadas.">{incidents.slice(0, 3).map((incident) => <CompactLink key={incident.id} href={incident.href} title={incident.title} meta={incident.status ? `${statusLabel(incident.status)} · ${incident.detail}` : incident.detail} />)}</CollectionPanel>
-        <CollectionPanel title="Contactos clave" href={hrefs.contacts} empty="Sin contactos.">{activeContacts.slice(0, 3).map((contact) => <CompactLink key={contact.id} href={contact.source === "real" ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}` : undefined} title={contact.name} meta={contact.role} />)}</CollectionPanel>
-        <CollectionPanel title="Documentos recientes" href={hrefs.documents} empty="Sin documentos.">{summary.documents.slice(0, 3).map((document) => <CompactLink key={document.id} href={document.href ?? undefined} title={document.name} meta={`${document.type} · ${formatDate(document.date)}`} />)}</CollectionPanel>
+        <CollectionPanel title="Cobros" href={hrefs.payments} empty="Sin cobros." summary={<SummaryPair first={{ label: "Cobrado", value: formatCurrency(summary.kpis.paidTotal) }} second={{ label: "Registros", value: String(summary.payments.length) }} />}>{summary.payments.slice(0, 3).map((payment) => <CompactLink key={payment.id} href={`/dinero/${payment.invoice.id}`} title={payment.invoice.numero} meta={formatDate(payment.fecha)} value={formatCurrency(payment.importe)} />)}</CollectionPanel>
+        <CollectionPanel title="Incidencias" href={hrefs.activity} empty="Sin incidencias vinculadas." summary={<SummaryPair first={{ label: "Abiertas", value: String(openIncidents.length) }} second={{ label: "Registradas", value: String(incidents.length) }} />}>{incidents.slice(0, 3).map((incident) => <CompactLink key={incident.id} href={incident.href} title={incident.title} meta={incident.status ? `${statusLabel(incident.status)} · ${incident.detail}` : incident.detail} />)}</CollectionPanel>
+        <CollectionPanel title="Contactos clave" href={hrefs.contacts} actionLabel="+ Añadir" empty="Sin contactos.">{activeContacts.slice(0, 3).map((contact) => <CompactLink key={contact.id} href={contact.source === "real" ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}` : undefined} title={contact.name} meta={contact.role} leading={<span className="client-360-shell-summary__person-icon"><UserRound size={14} /></span>} value={[contact.phone ? "Tel." : "", contact.email ? "Email" : ""].filter(Boolean).join(" · ")} />)}</CollectionPanel>
+        <CollectionPanel title="Documentos recientes" href={hrefs.documents} empty="Sin documentos.">{summary.documents.slice(0, 3).map((document) => <CompactLink key={document.id} href={document.href ?? undefined} title={document.name} meta={document.type} value={formatDate(document.date)} leading={<FileText size={15} aria-hidden="true" />} />)}</CollectionPanel>
       </div>
 
     </div>
@@ -617,21 +625,28 @@ function Panel({
 function CollectionPanel({
   title,
   href,
+  actionLabel = "Ver todos",
   empty,
+  summary,
   children,
+  className = "",
 }: {
   title: string;
   href?: string;
+  actionLabel?: string;
   empty: string;
+  summary?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
-    <section className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft">
+    <section className={`min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft ${className}`}>
       <header className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-content">{title}</h2>
-        {href ? <Link href={href} className="text-xs font-semibold text-brand-strong hover:underline">Ver todos</Link> : null}
+        {href ? <Link href={href} className="text-xs font-semibold text-brand-strong hover:underline">{actionLabel}</Link> : null}
       </header>
+      {summary}
       <div className="mt-3 divide-y divide-border">{hasChildren ? children : <EmptyText>{empty}</EmptyText>}</div>
     </section>
   );
@@ -741,16 +756,24 @@ function CompactLink({
   href,
   title,
   meta,
+  value,
+  leading,
 }: {
   href?: string;
   title: string;
   meta: string;
+  value?: string;
+  leading?: ReactNode;
 }) {
   const content = (
-    <>
-      <span className="block truncate font-semibold text-content">{title}</span>
-      <span className="mt-0.5 block truncate text-xs text-content-secondary">{meta}</span>
-    </>
+    <span className="client-360-shell-summary__row-inner">
+      {leading ? <span className="client-360-shell-summary__row-leading">{leading}</span> : null}
+      <span className="min-w-0">
+        <span className="block truncate font-semibold text-content">{title}</span>
+        <span className="mt-0.5 block truncate text-xs text-content-secondary">{meta}</span>
+      </span>
+      {value ? <span className="client-360-shell-summary__row-value">{value}</span> : null}
+    </span>
   );
   return href ? (
     <Link href={href} className="block min-w-0 py-3 hover:bg-subtle">
@@ -758,6 +781,40 @@ function CompactLink({
     </Link>
   ) : (
     <div className="block min-w-0 py-3">{content}</div>
+  );
+}
+
+function PersonLine({ label, name, detail }: { label: string; name: string; detail?: string }) {
+  return (
+    <div className="client-360-shell-summary__person-line">
+      <p className="type-label">{label}</p>
+      <div>
+        <span className="client-360-shell-summary__person-icon"><UserRound size={14} aria-hidden="true" /></span>
+        <span className="min-w-0">
+          <strong>{name}</strong>
+          {detail ? <small>{detail}</small> : null}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SummaryPair({
+  first,
+  second,
+}: {
+  first: { label: string; value: string };
+  second: { label: string; value: string };
+}) {
+  return (
+    <dl className="client-360-shell-summary__summary-pair">
+      {[first, second].map((item) => (
+        <div key={item.label}>
+          <dd>{item.value}</dd>
+          <dt>{item.label}</dt>
+        </div>
+      ))}
+    </dl>
   );
 }
 

@@ -4581,7 +4581,7 @@ button:disabled,
   display: grid;
   min-width: 0;
   gap: 10px;
-  padding: 12px 6px 24px 20px;
+  padding: 0 0 24px;
 }
 .client-360-shell-summary__heading > div {
   display: flex;
@@ -4595,10 +4595,65 @@ button:disabled,
 .client-360-shell-summary__heading h1 {
   margin-top: 3px;
   color: #111b16;
-  font-size: 26px;
+  font-size: 29px;
   font-weight: 850;
   letter-spacing: -.035em;
   line-height: 31px;
+}
+.client-360-shell-summary .client-360-shell-summary__identity {
+  min-height: 148px;
+  border-radius: 9px !important;
+  padding: 12px !important;
+  box-shadow: none !important;
+}
+.client-360-shell-summary__identity > div {
+  grid-template-columns: minmax(0, 445px) minmax(0, 330px) minmax(150px, 1fr) !important;
+  gap: 12px !important;
+}
+.client-360-shell-summary__identity-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 7px 20px !important;
+  margin-top: 10px !important;
+}
+.client-360-shell-summary__identity-meta > div:last-child { grid-column: 1; }
+.client-360-shell-summary__people {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+}
+.client-360-shell-summary__person-line > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+.client-360-shell-summary__person-line strong,
+.client-360-shell-summary__person-line small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-360-shell-summary__person-line strong { font-size: 10px; line-height: 14px; }
+.client-360-shell-summary__person-line small { color: #647169; font-size: 8px; line-height: 12px; }
+.client-360-shell-summary__person-icon {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef8f1;
+  color: #168346;
+}
+.client-360-shell-summary__identity > div > nav { gap: 7px !important; }
+.client-360-shell-summary__identity > div > nav .primary-button,
+.client-360-shell-summary__identity > div > nav .secondary-button {
+  min-height: 36px !important;
+  padding-block: 7px !important;
+  font-size: 10px !important;
 }
 .client-360-shell-summary__tabs {
   position: relative;
@@ -4632,6 +4687,87 @@ button:disabled,
 }
 .client-360-shell-summary .client-360-canonical__collections--primary > section { min-height: 208px; }
 .client-360-shell-summary .client-360-canonical__collections--secondary > section { min-height: 180px; }
+.client-360-shell-summary__economic { gap: 8px; }
+.client-360-shell-summary__risk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: linear-gradient(90deg, #eaf8ee, #f5fbf6);
+  color: #176f3c;
+  font-size: 9px;
+  font-weight: 700;
+}
+.client-360-shell-summary__risk strong { color: #17231c; }
+.client-360-shell-summary__economic-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 9px;
+}
+.client-360-shell-summary__economic-footer > div + div {
+  border-left: 1px solid #dfe5e1;
+  padding-left: 14px;
+}
+.client-360-shell-summary__summary-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 !important;
+  border-bottom: 1px solid #e7ebe8;
+  padding: 0 0 7px;
+}
+.client-360-shell-summary__summary-pair > div + div {
+  border-left: 1px solid #e7ebe8;
+  padding-left: 12px;
+}
+.client-360-shell-summary__summary-pair dd {
+  color: #111b16;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 16px;
+}
+.client-360-shell-summary__summary-pair dt {
+  margin-top: 1px;
+  color: #647169;
+  font-size: 8px;
+  line-height: 11px;
+}
+.client-360-shell-summary__row-inner {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.client-360-shell-summary__row-inner:has(.client-360-shell-summary__row-leading) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.client-360-shell-summary__row-leading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #168346;
+}
+.client-360-shell-summary__row-value {
+  max-width: 90px;
+  overflow: hidden;
+  color: #28362e;
+  font-size: 8px !important;
+  font-weight: 650;
+  line-height: 12px !important;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-360-shell-summary__timeline-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+  background: #17a34a;
+}
 
 .client-360-ref {
   display: grid;
