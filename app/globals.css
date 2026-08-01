@@ -5721,6 +5721,10 @@ button:disabled,
 }
 
 @media (min-width: 900px) and (max-width: 1199px) {
+  .client-360-shell-summary__identity > div {
+    grid-template-columns: minmax(0, 1fr) 164px !important;
+  }
+  .client-360-shell-summary__identity > div > div:nth-child(2) { display: none; }
   .client-360-canonical[data-has-client-rail="true"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
