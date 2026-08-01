@@ -128,10 +128,10 @@ export default async function DashboardPage({
       </section>
 
       <section className="dashboard-top-grid" aria-label="Gráficos principales">
-        <DashboardChartCard title="Ingresos vs. gastos por semana" href="/inteligencia#evolucion" chartId="income-expenses-weekly">
+        <DashboardChartCard title="Ingresos vs. gastos por semana" href="/inteligencia?vista=evolucion" chartId="income-expenses-weekly">
           <IncomeExpensesChart points={dashboard.weeklyTrend} />
         </DashboardChartCard>
-        <DashboardChartCard title="Margen por obra (Top 5)" href="/inteligencia#rentabilidad" chartId="margin-top-5">
+        <DashboardChartCard title="Margen por obra (Top 5)" href="/inteligencia?vista=rentabilidad" chartId="margin-top-5">
           <MarginBars rows={marginWorks} />
         </DashboardChartCard>
         <DashboardChartCard title="Caja prevista – Próximas 8 semanas" href="/tesoreria?vista=prevision&periodo=90d" chartId="cash-forecast-8-weeks">
@@ -146,7 +146,7 @@ export default async function DashboardPage({
           <p className="dashboard-pipeline-footer">Peso adjudicado y en ejecución: <strong>{pipelineConversion(dashboard.pipeline)}</strong></p>
         </article>
         <article className="dashboard-card dashboard-profitability" data-dashboard-profitability>
-          <DashboardCardHeading title="Rentabilidad por obra" href="/inteligencia#rentabilidad" label="Ver todo" />
+          <DashboardCardHeading title="Rentabilidad por obra" href="/inteligencia?vista=rentabilidad" label="Ver todo" />
           <ProfitabilityTable rows={profitability} totals={riskFocus ? profitabilityTotals : dashboard.totals} />
         </article>
       </section>

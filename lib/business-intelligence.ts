@@ -257,9 +257,9 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
     kpi("outstanding", "Pendiente", outstandingMetrics.pending, previousOutstandingMetrics.pending, "/dinero?filtro=pendientes", "Saldo abierto de facturas válidas hasta el final del periodo."),
     kpi("overdue", "Vencido", outstandingMetrics.overdue, previousOutstandingMetrics.overdue, "/dinero?filtro=vencidas", "Saldo pendiente con vencimiento anterior a hoy."),
     kpi("expenses", "Gastos", currentExpenseMetrics.total, previousExpenseMetrics.total, "/gastos-materiales", "Gastos reales registrados en el periodo."),
-    kpi("profit_invoiced", "Beneficio facturado", currentProfit.profitOnInvoiced, previousProfit.profitOnInvoiced, "/inteligencia#rentabilidad", "Facturado menos gastos reales."),
-    kpi("profit_collected", "Beneficio cobrado", currentProfit.profitOnCollected, previousProfit.profitOnCollected, "/inteligencia#rentabilidad", "Cobrado menos gastos reales."),
-    kpi("margin_invoiced", "Margen", currentProfit.marginOnInvoiced, previousProfit.marginOnInvoiced, "/inteligencia#rentabilidad", "Beneficio sobre facturado dividido entre facturado.", true),
+    kpi("profit_invoiced", "Beneficio facturado", currentProfit.profitOnInvoiced, previousProfit.profitOnInvoiced, "/inteligencia?vista=rentabilidad", "Facturado menos gastos reales."),
+    kpi("profit_collected", "Beneficio cobrado", currentProfit.profitOnCollected, previousProfit.profitOnCollected, "/inteligencia?vista=rentabilidad", "Cobrado menos gastos reales."),
+    kpi("margin_invoiced", "Margen", currentProfit.marginOnInvoiced, previousProfit.marginOnInvoiced, "/inteligencia?vista=rentabilidad", "Beneficio sobre facturado dividido entre facturado.", true),
     kpi("quote_conversion", "Conversión", currentQuoteMetrics.conversionRate ?? 0, previousQuoteMetrics.conversionRate ?? null, "/presupuestos", "Aceptados dividido entre presupuestos decididos.", true)
   ];
 
