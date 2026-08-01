@@ -1033,6 +1033,7 @@ a.kpi:hover {
   .kpi:nth-child(4) { border-left: 0; border-top: 1px solid var(--cap-border); }
   .kpi:nth-child(5) { border-top: 1px solid var(--cap-border); }
   .primaryGrid { grid-template-columns: 1fr; }
+  .summaryPage .primaryGrid { grid-template-columns: 1fr; }
   .summaryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dueGroups { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -1055,6 +1056,11 @@ a.kpi:hover {
   .summaryGrid, .secondaryGrid { grid-template-columns: 1fr; }
   .panelHeader { min-height: 58px; }
   .panelAction a { min-height: 44px; }
+  .inlineTabs { min-height: 44px; }
+  .inlineTabs a { min-height: 44px; }
+  .billingStatus > a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .previewTable > a { min-height: 44px; }
+  .upcomingList > a { min-height: 44px; }
   .chartSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .areaKpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dueGroups { grid-template-columns: 1fr; }
