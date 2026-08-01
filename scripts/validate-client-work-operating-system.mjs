@@ -77,12 +77,12 @@ check("desktop usa split 420-480 y móvil evita tabla", clientSplit.includes("da
 check("preview cambia por click y foco sin perder deep link", clientSplit.includes("onClick={onSelect}") && clientSplit.includes("onFocusCapture={onSelect}") && clientSplit.includes("Abrir ficha completa"));
 check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('event.key === "Escape"') && contextDrawer.includes("opener.current?.focus()") && contextDrawer.includes('aria-modal="true"'));
 
-check("obra expone siete áreas 360 exactas", (work.match(/^  \["(resumen|progreso|planificacion|equipo|documentos|datos|economia)"/gm) ?? []).length === 7);
-check("obra abre Resumen por defecto", work.includes(': "resumen");') && work.includes("requestedView"));
+check("obra expone ocho áreas 360 exactas", (work.match(/^  \["(resumen|planificacion|partes|costes|documentos|equipo|facturacion|incidencias)"/gm) ?? []).length === 8);
+check("obra abre Resumen por defecto", work.includes("const activeTab") && work.includes(': "resumen"'));
 check("obra usa ParentNavigation y EntityHeader", work.includes("<EntityHeader") && work.includes('<ParentNavigation href="/obras"'));
 check("obra ofrece Registrar avance como acción principal", work.includes("Registrar avance") && work.includes("menu={<WorkActions"));
-check("Progreso conserva modo en URL", work.includes("modo=cronologia") && work.includes("modo=galeria") && work.includes('query.modo === "galeria"'));
-check("Progreso integra cronología, galería y notas", work.includes("TimelineList") && work.includes("WorkProgressGallery") && work.includes("<NotesTab"));
+check("Partes conserva modo en URL", work.includes("vista=partes&subvista=diarios&modo=cronologia") && work.includes("vista=partes&subvista=diarios&modo=galeria") && work.includes('query.modo === "galeria"'));
+check("Partes integra cronología, galería y notas", work.includes("TimelineList") && work.includes("WorkProgressGallery") && work.includes("<NotesTab"));
 check("galería usa miniaturas reales y carga diferida", gallery.includes("<Image") && gallery.includes("aspect-[4/3]") && !gallery.includes('priority'));
 check("visor permite anterior, siguiente y teclado", gallery.includes("ArrowLeft") && gallery.includes("ArrowRight") && gallery.includes("Anterior") && gallery.includes("Siguiente"));
 check("visor cierra, restaura foco y atrapa Tab", dialog.includes('event.key === "Escape"') && dialog.includes("previousFocus.current?.focus()") && dialog.includes('event.key !== "Tab"'));

@@ -37,6 +37,7 @@ import {
   calculateWorkFinancials,
   buildWorkTimeline,
   getWorkNextAction,
+  invoicePaid,
   isActiveWorkStatus,
   isBlockedWorkStatus,
   workPriorityMeta,
@@ -60,7 +61,7 @@ const sortOptions = [
   ["importe", "Importe"],
   ["cliente", "Cliente"]
 ];
-const workListInclude = { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: { orderBy: { fechaInicio: "asc" as const } }, documents: true, photos: true } satisfies Prisma.WorkInclude;
+const workListInclude = { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: { orderBy: { fechaInicio: "asc" as const } }, documents: true, photos: { orderBy: { tomadaEn: "desc" as const } } } satisfies Prisma.WorkInclude;
 type WorkListRecord = Prisma.WorkGetPayload<{ include: typeof workListInclude }>;
 
 type WorksQuery = {
@@ -126,6 +127,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       updateWork: visibility.updateWork && scopeAllows(updateWorkScope, work.id)
     };
     const financial = calculateWorkFinancials(work);
+    const overduePending = itemVisibility.invoices ? work.invoices.reduce((sum, invoice) => invoice.fechaVencimiento < new Date() ? sum + Math.max(0, invoice.total - invoicePaid(invoice)) : sum, 0) : 0;
     const nextAction: ReturnType<typeof getWorkNextAction> = isBlockedWorkStatus(work.estado)
       ? { label: "Revisar bloqueo operativo", tone: "danger", href: "resumen" }
       : isActiveWorkStatus(work.estado)
@@ -143,8 +145,9 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       priority,
       pendingMaterials,
       pendingDocs,
+      overduePending,
       visibility: itemVisibility,
-      hasRisk: isBlockedWorkStatus(work.estado) || (itemVisibility.marginPercent && financial.marginPercent < 15) || (itemVisibility.invoices && financial.pending > 0)
+      hasRisk: isBlockedWorkStatus(work.estado) || (itemVisibility.marginPercent && financial.marginPercent < 15) || overduePending > 0
     };
   });
 
@@ -162,9 +165,9 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         : item.visibility.internalCost
           ? item.work.costePrevisto
           : null;
-    const nextVisit = item.work.agendaEvents.find((event) => event.tipo === "visita" && !["cancelado", "realizado"].includes(event.estado))
-      ?? item.work.agendaEvents.find((event) => !["cancelado", "realizado"].includes(event.estado));
-    const thumbnailUrl = item.work.photos.find((photo) => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")))?.url ?? null;
+    const nextVisit = item.work.agendaEvents.find((event) => event.tipo === "visita" && !["cancelado", "realizado"].includes(event.estado) && event.fechaInicio >= new Date());
+    const safePhotos = item.work.photos.filter((photo) => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")));
+    const thumbnailUrl = safePhotos.find((photo) => photo.categoria.trim().toLowerCase() !== "incidencia")?.url ?? safePhotos[0]?.url ?? null;
     const incidentPhotos = item.work.photos.filter(
       (photo) => photo.categoria.trim().toLowerCase() === "incidencia",
     );
@@ -200,6 +203,13 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       cost: authorizedCost === null ? null : formatCurrency(authorizedCost),
       pending: item.visibility.invoices ? formatCurrency(item.financial.pending) : null,
       risk: item.hasRisk,
+      riskReason: isBlockedWorkStatus(item.work.estado)
+        ? `Estado: ${item.status.label}`
+        : item.visibility.marginPercent && item.financial.marginPercent < 15
+          ? `Margen ${item.financial.marginPercent.toFixed(1)} %`
+          : item.overduePending > 0
+            ? `Vencido ${formatCurrency(item.overduePending)}`
+            : null,
       marginRisk: item.visibility.marginPercent && item.financial.marginPercent < 15,
       pendingMaterials: item.pendingMaterials.length,
       pendingDocuments: item.pendingDocs,
@@ -217,7 +227,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       timeline,
       actionHrefs: item.visibility.updateWork ? {
         part: `/capataz?captura=avance&obraId=${item.work.id}&returnTo=/obras`,
-        incident: `/capataz?captura=incidencia&obraId=${item.work.id}&returnTo=/obras`,
+        incident: `/gestion?tipo=foto&obraId=${item.work.id}&categoria=incidencia&returnTo=/obras`,
         visit: `/gestion?tipo=eventoAgenda&tipoEvento=visita&obraId=${item.work.id}&returnTo=/obras`,
         status: `/obras/${item.work.id}?vista=datos`,
       } : null,
@@ -273,7 +283,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         <button className="works-filter-submit" type="submit">Actualizar</button>
       </form>
 
-      <div className="works-result-meta" aria-live="polite">
+      <div className="sr-only" aria-live="polite">
         <span>{visibleWorks.length} de {works.length} obras</span>
         {(query.estado || query.tipo || query.responsable || query.cliente || query.buscar || query.prioridad) ? <Link href="/obras">Limpiar filtros</Link> : null}
       </div>
@@ -530,6 +540,7 @@ type WorkItem = {
   priority: ReturnType<typeof workPriorityMeta>;
   pendingMaterials: WorkListRecord["materials"];
   pendingDocs: number;
+  overduePending: number;
   visibility: WorkEconomicVisibility;
   hasRisk: boolean;
 };

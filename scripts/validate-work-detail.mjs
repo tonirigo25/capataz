@@ -15,12 +15,13 @@ function expect(condition, message, details) {
 
 const requiredTabs = [
   "Resumen",
-  "Progreso",
   "Planificación",
-  "Equipo",
+  "Partes",
+  "Costes",
   "Documentos",
-  "Datos",
-  "Economía"
+  "Equipo",
+  "Facturación",
+  "Incidencias"
 ];
 
 for (const tab of requiredTabs) expect(page.includes(tab), `missing tab ${tab}`);
@@ -37,4 +38,4 @@ expect(schema.includes("model WorkDocument"), "missing WorkDocument structure");
 expect(schema.includes("model WorkPhoto"), "missing WorkPhoto structure");
 expect(page.includes("No se muestran placeholders") || page.includes("No se muestran datos inventados") || page.includes("No hay"), "detail page must use real empty states");
 
-console.log("[work-detail] OK seven-area 360 workspace, real actions, visual progress, list views and schema fields");
+console.log("[work-detail] OK eight-area 360 workspace, real actions, visual evidence, list views and schema fields");

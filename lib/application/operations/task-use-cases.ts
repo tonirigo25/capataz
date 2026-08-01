@@ -25,6 +25,15 @@ export async function createTaskAction(data: FormData) {
   const auth=await requireCapability("tasks.manage");
   const title = String(data.get("title") ?? "").trim();
   if (!title) return;
+  const requestedWorkId = String(data.get("workId") ?? "").trim() || undefined;
+  const requestedClientId = String(data.get("clientId") ?? "").trim() || undefined;
+  const linkedWork = requestedWorkId ? await prisma.work.findFirst({ where: { id: requestedWorkId, companyId: auth.companyId }, select: { id: true, clienteId: true } }) : null;
+  if (requestedWorkId && !linkedWork) throw new Error("WORK_NOT_AVAILABLE");
+  const clientId = linkedWork?.clienteId ?? requestedClientId;
+  if (clientId) {
+    const clientExists = await prisma.client.count({ where: { id: clientId, companyId: auth.companyId } });
+    if (!clientExists) throw new Error("CLIENT_NOT_AVAILABLE");
+  }
   await createTask({
     companyId:auth.companyId,
     title,
@@ -36,9 +45,12 @@ export async function createTaskAction(data: FormData) {
       | "high"
       | "urgent",
     assigneeId: auth.scope === "COMPANY" ? undefined : auth.userId,
+    workId: linkedWork?.id,
+    clientId,
   });
   revalidatePath("/tareas");
   revalidatePath("/hoy");
+  if (linkedWork) revalidatePath(`/obras/${linkedWork.id}`);
 }
 export async function completeTaskAction(data: FormData) {
   await taskGuard(data);

@@ -42,6 +42,13 @@ check(
   works.includes('title="Trabajo"') || /<h1[^>]*>\s*Trabajo\s*<\/h1>/.test(works),
 );
 check(
+  "Trabajo 360 expone las ocho pestañas canónicas y submenús persistentes",
+  ["Resumen", "Planificación", "Partes", "Costes", "Documentos", "Equipo", "Facturación", "Incidencias"].every((label) => work.includes(`"${label}"`)) &&
+    work.includes("const workSubviews") &&
+    work.includes("function WorkSubnavigation") &&
+    work.includes("subvista=${id}"),
+);
+check(
   "el listado no queda precedido por seis KPI ejecutivos",
   portfolioIndex >= 0 && count(beforePortfolio, /<ExecutiveMetric\b/g) < 6 && !beforePortfolio.includes("grid-cols-6"),
 );

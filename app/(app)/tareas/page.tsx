@@ -87,6 +87,8 @@ export default async function TasksPage({
         className="card grid gap-3 p-4 md:grid-cols-4"
         aria-label="Nueva tarea"
       >
+        {query.workId ? <input type="hidden" name="workId" value={query.workId} /> : null}
+        {query.clientId ? <input type="hidden" name="clientId" value={query.clientId} /> : null}
         <label className="text-sm font-bold">
           Título
           <input className="field mt-1" name="title" required />
