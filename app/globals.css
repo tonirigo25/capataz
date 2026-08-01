@@ -4653,7 +4653,10 @@ button:disabled,
   background: #eef8f1;
   color: #168346;
 }
-.client-360-shell-summary__identity > div > nav { gap: 7px !important; }
+.client-360-shell-summary__identity > div > nav {
+  min-width: 0 !important;
+  gap: 7px !important;
+}
 .client-360-shell-summary__identity > div > nav .primary-button,
 .client-360-shell-summary__identity > div > nav .secondary-button {
   min-height: 36px !important;
