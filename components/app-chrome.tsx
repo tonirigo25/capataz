@@ -54,6 +54,18 @@ type DesktopPanel = "more" | "create" | "user" | null;
 type Overlay = "search" | "capture" | "more" | null;
 type ShellDestination = ProductDestination & { unavailable?: boolean; children?: ProductDestination[] };
 
+const activityRouteCapabilities = [
+  "reports.view",
+  "clients.view",
+  "work.view",
+  "sales.budgets.view",
+  "sales.invoices.view",
+  "treasury.view",
+  "purchase_cost.view",
+  "agenda.view",
+  "documents.view",
+] as const;
+
 const icons: Record<ProductIcon, LucideIcon> = {
   activity: Activity,
   agenda: CalendarDays,
@@ -116,6 +128,18 @@ export function AppChrome({
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
   const desktopNavigation = useMemo(() => buildCanonicalDesktopNavigation(portalManifest, capabilities), [portalManifest, capabilities]);
+  const activityRouteAvailable = useMemo(() => {
+    const capabilitySet = new Set(capabilities);
+    const required = new Set<string>(activityRouteCapabilities);
+    return activityRouteCapabilities.every((capability) => capabilitySet.has(capability)) &&
+      !portalManifest.scopes.some((scope) => required.has(scope.capabilityKey) && scope.scope !== "COMPANY");
+  }, [capabilities, portalManifest.scopes]);
+  const shellNavigationGroups = useMemo(
+    () => portalManifest.navigationGroups
+      .map((group) => ({ ...group, items: group.items.filter((item) => item.href !== "/actividad" || activityRouteAvailable) }))
+      .filter((group) => group.items.length > 0),
+    [activityRouteAvailable, portalManifest.navigationGroups],
+  );
   const contextLabel = editedClientId
     ? "Clientes"
     : pathname === "/capataz" || pathname.startsWith("/orqena-ia")
@@ -143,6 +167,9 @@ export function AppChrome({
 
   useEffect(() => {
     if (!desktopPanel) return;
+    const frame = desktopPanel === "more"
+      ? requestAnimationFrame(() => panelRef.current?.focus())
+      : null;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!panelRef.current?.contains(target) && !activeTriggerRef.current?.contains(target)) {
@@ -155,6 +182,7 @@ export function AppChrome({
     document.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
       document.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
@@ -356,6 +384,7 @@ export function AppChrome({
 
       <MobileBottomNavigation
         items={portalManifest.mobileNavigation}
+        capabilities={capabilities}
         canCapture={canCreate}
         pathname={pathname}
         overlay={overlay}
@@ -364,7 +393,8 @@ export function AppChrome({
 
       {desktopPanel === "more" ? (
         <DesktopMorePanel
-          groups={portalManifest.navigationGroups}
+          groups={shellNavigationGroups}
+          sidebarNavigation={desktopNavigation}
           ref={panelRef}
           pathname={pathname}
           unread={unreadNotifications}
@@ -412,7 +442,7 @@ export function AppChrome({
             ) : (
               <MobileMoreSheet
                 navigation={portalManifest.navigation}
-                groups={portalManifest.navigationGroups}
+                groups={shellNavigationGroups}
                 id={dialogId}
                 pathname={pathname}
                 unread={unreadNotifications}
@@ -542,25 +572,20 @@ function NavigationBranch({ item, pathname, collapsed }: { item: ShellDestinatio
 
 const DesktopMorePanel = forwardRef<HTMLDivElement, {
   groups: PortalManifest["navigationGroups"];
+  sidebarNavigation: ShellDestination[];
   pathname: string;
   unread: number;
   onClose: () => void;
 }>(function DesktopMorePanel({
   groups,
+  sidebarNavigation,
   pathname,
   unread,
   onClose
 }, ref) {
   const destinationsShownElsewhere = new Set([
-    "/actividad",
-    "/agenda",
-    "/configuracion",
-    "/documentos",
-    "/equipo",
-    "/equipos",
     "/notificaciones",
-    "/recordatorios",
-    "/tesoreria",
+    ...sidebarNavigation.flatMap((item) => [item.href, ...(item.children ?? []).map((child) => child.href)]),
   ]);
   const visibleGroups = groups
     .map((group) => ({ ...group, items: group.items.filter((item) => !destinationsShownElsewhere.has(item.href)) }))
@@ -569,6 +594,9 @@ const DesktopMorePanel = forwardRef<HTMLDivElement, {
     <div
       ref={ref}
       id="desktop-more-navigation"
+      role="region"
+      aria-label="Más áreas"
+      tabIndex={-1}
       className="field-os-sidebar-panel fixed bottom-5 top-20 z-50 w-[25rem] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-card"
     >
       <div className="mb-3 flex items-center justify-between">
@@ -655,25 +683,28 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
 
 function MobileBottomNavigation({
   items,
+  capabilities,
   canCapture,
   pathname,
   overlay,
   onOpen
 }: {
   items: ProductDestination[];
+  capabilities: string[];
   canCapture: boolean;
   pathname: string;
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
   const mobileItems = items.slice(0, canCapture ? 3 : 4);
+  const capabilitySet = new Set(capabilities);
   return (
     <nav
       className="field-os-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)]"
       aria-label="Navegación móvil"
     >
       <div className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1">
-        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
+        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} />)}
         {canCapture ? <button
           type="button"
           className={clsx("field-os-capture-trigger shell-bottom-item", overlay === "capture" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
@@ -686,7 +717,7 @@ function MobileBottomNavigation({
           </span>
           <span>Nuevo</span>
         </button> : null}
-        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
+        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} />)}
         <button
           type="button"
           className={clsx("shell-bottom-item", overlay === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
@@ -702,8 +733,11 @@ function MobileBottomNavigation({
   );
 }
 
-function BottomLink({ item, pathname }: { item: ProductDestination; pathname: string }) {
-  const active = isProductDestinationActive(pathname, item.href);
+function BottomLink({ item, pathname, capabilitySet }: { item: ProductDestination; pathname: string; capabilitySet: Set<string> }) {
+  const active = isProductDestinationActive(pathname, item.href) ||
+    (productSubnavigation[item.href] ?? []).some((child) =>
+      (!child.capability || capabilitySet.has(child.capability)) && isProductDestinationActive(pathname, child.href),
+    );
   const Icon = icons[item.icon];
   return (
     <Link
