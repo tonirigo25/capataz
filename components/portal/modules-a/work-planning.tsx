@@ -15,7 +15,6 @@ import {
   Search,
   Users,
 } from "lucide-react";
-import { formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 
 export type PlanningTaskView = {
@@ -87,7 +86,7 @@ function taskTone(task: PlanningTaskView, now = new Date()) {
 
 function formatCompactDate(value: string | null) {
   if (!value) return "Sin fecha";
-  return formatDate(new Date(value));
+  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short" }).format(new Date(value));
 }
 
 function durationDays(task: PlanningTaskView) {
