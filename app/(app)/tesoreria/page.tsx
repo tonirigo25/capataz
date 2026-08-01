@@ -222,6 +222,7 @@ export default async function TreasuryPage({
       </main>
     );
   }
+  const exportDecision = await resolveAuthorization(auth, "reports.export");
   const [data, recommendations] = await Promise.all([
     getEconomicControl({
       area: query.vista,
@@ -237,6 +238,11 @@ export default async function TreasuryPage({
     <EconomicControlCenter
       data={data}
       recommendations={recommendations.recommendations}
+      canExport={
+        auth.scope === "COMPANY" &&
+        exportDecision.allowed &&
+        exportDecision.scope === "COMPANY"
+      }
     />
   );
 }

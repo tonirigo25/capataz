@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Banknote,
   BriefcaseBusiness,
+  Download,
   ReceiptText,
   TrendingUp,
   WalletCards,
@@ -36,9 +37,11 @@ const AREAS: Array<{ id: EconomicArea; label: string }> = [
 export function EconomicControlCenter({
   data,
   recommendations = [],
+  canExport = false,
 }: {
   data: EconomicControlData;
   recommendations?: BusinessRecommendation[];
+  canExport?: boolean;
 }) {
   const profitability = summarizeProfitability(data.profitability);
 
@@ -54,6 +57,12 @@ export function EconomicControlCenter({
               <p>Caja, cobros, pagos, vencimientos y rentabilidad conectados con su documento de origen.</p>
             </div>
             <div className={styles.headerActions}>
+              {canExport ? (
+                <Link href={economicExportHref(data)} className="secondary-button">
+                  <Download size={15} aria-hidden="true" />
+                  Ver informe completo
+                </Link>
+              ) : null}
               <Link href="/gestion?tipo=factura&returnTo=/tesoreria" className="secondary-button">Nueva factura</Link>
               <Link href="/facturas-proveedor?nuevo=1#factura" className="secondary-button">Factura recibida</Link>
               <Link href="#treasury-registration" className="primary-button">Registrar movimiento</Link>
@@ -322,11 +331,34 @@ function ForecastVisualization({ forecast, expanded = false }: { forecast: Econo
   }
 
   const points = forecast.points.slice(0, expanded ? 18 : 12);
-  const maxFlow = Math.max(1, ...points.flatMap((point) => [point.inflows, point.outflows]));
-  const balances = points.map((point) => point.balance).filter((value): value is number => value !== null);
-  const minBalance = balances.length ? Math.min(...balances, 0) : 0;
-  const maxBalance = balances.length ? Math.max(...balances, 0) : 1;
-  const balanceRange = Math.max(1, maxBalance - minBalance);
+  const balancePoints = points.filter(
+    (point): point is (typeof points)[number] & { balance: number } =>
+      point.balance !== null,
+  );
+  const domainMin = Math.min(
+    0,
+    ...points.map((point) => -point.outflows),
+    ...balancePoints.map((point) => point.balance),
+  );
+  const domainMax = Math.max(
+    1,
+    ...points.map((point) => point.inflows),
+    ...balancePoints.map((point) => point.balance),
+  );
+  const domainRange = Math.max(1, domainMax - domainMin);
+  const positionFor = (value: number) =>
+    ((value - domainMin) / domainRange) * 100;
+  const zeroPosition = positionFor(0);
+  const axisValues = [0, 1, 2, 3].map(
+    (index) => domainMax - (domainRange * index) / 3,
+  );
+  const minimumBalancePoint = balancePoints.reduce<
+    (typeof balancePoints)[number] | null
+  >(
+    (minimum, point) =>
+      !minimum || point.balance < minimum.balance ? point : minimum,
+    null,
+  );
 
   return (
     <div className={styles.forecastVisual} role="img" aria-label="Previsión de entradas, salidas y saldo acumulado por vencimiento">
@@ -335,24 +367,81 @@ function ForecastVisualization({ forecast, expanded = false }: { forecast: Econo
         <span data-tone="outflow">Salidas</span>
         <span data-tone="balance">Saldo</span>
       </div>
-      <div className={styles.chartScroll}>
-        <div className={styles.chartPlot} style={{ "--chart-columns": points.length } as CSSProperties}>
-          {points.map((point) => {
-            const balancePosition = point.balance === null ? null : (point.balance - minBalance) / balanceRange * 100;
-            return (
-              <div className={styles.chartColumn} key={point.date.toISOString()}>
-                <div className={styles.barStage}>
-                  <span className={styles.inflowBar} style={{ height: `${Math.max(2, point.inflows / maxFlow * 100)}%` }} />
-                  <span className={styles.outflowBar} style={{ height: `${Math.max(2, point.outflows / maxFlow * 100)}%` }} />
-                  {balancePosition !== null ? <span className={styles.balancePoint} style={{ bottom: `${Math.max(3, Math.min(97, balancePosition))}%` }} /> : null}
+      <div className={styles.chartCanvas}>
+        <div className={styles.chartAxis} aria-hidden="true">
+          {axisValues.map((value, index) => (
+            <span key={`${index}-${value}`}>{formatCompactCurrency(value)}</span>
+          ))}
+        </div>
+        <div className={styles.chartScroll}>
+          <div className={styles.chartPlot} style={{ "--chart-columns": points.length } as CSSProperties}>
+            {points.map((point, index) => {
+              const balancePosition = point.balance === null ? null : positionFor(point.balance);
+              const nextBalance = points[index + 1]?.balance ?? null;
+              const nextBalancePosition = nextBalance === null ? null : positionFor(nextBalance);
+              const inflowPosition = positionFor(point.inflows);
+              const outflowPosition = positionFor(-point.outflows);
+              return (
+                <div className={styles.chartColumn} key={point.date.toISOString()}>
+                  <div className={styles.barStage}>
+                    <span
+                      className={styles.inflowBar}
+                      style={{
+                        bottom: `${zeroPosition}%`,
+                        height: `${Math.max(1.5, inflowPosition - zeroPosition)}%`,
+                      }}
+                    />
+                    <span
+                      className={styles.outflowBar}
+                      style={{
+                        bottom: `${outflowPosition}%`,
+                        height: `${Math.max(1.5, zeroPosition - outflowPosition)}%`,
+                      }}
+                    />
+                    {balancePosition !== null && nextBalancePosition !== null ? (
+                      <span
+                        className={styles.balanceSegment}
+                        style={
+                          {
+                            "--balance-start": `${balancePosition}%`,
+                            "--balance-end": `${nextBalancePosition}%`,
+                          } as CSSProperties
+                        }
+                      />
+                    ) : null}
+                    {balancePosition !== null ? (
+                      <span
+                        className={styles.balancePoint}
+                        style={{ bottom: `${balancePosition}%` }}
+                      />
+                    ) : null}
+                  </div>
+                  <span className={styles.chartDate}>{formatShortDate(point.date)}</span>
+                  <span className="sr-only">Entrada {formatCurrency(point.inflows)}; salida {formatCurrency(point.outflows)}; saldo {point.balance === null ? "sin saldo inicial" : formatCurrency(point.balance)}</span>
                 </div>
-                <span className={styles.chartDate}>{formatShortDate(point.date)}</span>
-                <span className="sr-only">Entrada {formatCurrency(point.inflows)}; salida {formatCurrency(point.outflows)}; saldo {point.balance === null ? "sin saldo inicial" : formatCurrency(point.balance)}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
+      {minimumBalancePoint ? (
+        <div
+          className={styles.forecastBand}
+          data-tone={minimumBalancePoint.balance < 0 ? "danger" : "neutral"}
+        >
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span>
+            <strong>
+              {minimumBalancePoint.balance < 0
+                ? "Tensión de caja prevista"
+                : "Mínimo de caja previsto"}
+            </strong>
+            <small>
+              {formatShortDate(minimumBalancePoint.date)} · saldo documentado {formatCurrency(minimumBalancePoint.balance)}
+            </small>
+          </span>
+        </div>
+      ) : null}
       <div className={styles.chartSummary}>
         <span>Entradas <strong>{formatCurrency(forecast.inflows)}</strong></span>
         <span>Salidas <strong>{formatCurrency(forecast.outflows)}</strong></span>
@@ -429,21 +518,49 @@ function ProfitabilityArea({ rows }: { rows: EconomicProfitabilityRow[] }) {
 }
 
 function BillingStatus({ data }: { data: EconomicControlData }) {
-  const total = Math.max(1, data.receivableSummary.documented);
+  const documented = data.receivableSummary.documented;
+  const total = Math.max(1, documented);
   const paid = Math.min(100, data.receivableSummary.settled / total * 100);
-  const pending = Math.min(100, data.receivableSummary.pending / total * 100);
-  const overdue = Math.min(pending, data.receivableSummary.overdue / total * 100);
+  const overdue = Math.min(
+    100 - paid,
+    data.receivableSummary.overdue / total * 100,
+  );
+  const pending = Math.max(
+    0,
+    Math.min(
+      100 - paid - overdue,
+      (data.receivableSummary.pending - data.receivableSummary.overdue) /
+        total *
+        100,
+    ),
+  );
+  const paidEnd = paid;
+  const pendingEnd = paid + pending;
+  const ringStyle = {
+    "--billing-paid-end": `${paidEnd}%`,
+    "--billing-pending-end": `${pendingEnd}%`,
+    "--billing-overdue-end": `${paidEnd + pending + overdue}%`,
+  } as CSSProperties;
   return (
     <div className={styles.billingStatus}>
-      <div className={styles.billingTrack} aria-hidden="true">
-        <span data-tone="paid" style={{ width: `${paid}%` }} />
-        <span data-tone="pending" style={{ width: `${Math.max(0, pending - overdue)}%` }} />
-        <span data-tone="overdue" style={{ width: `${overdue}%` }} />
+      <div className={styles.billingVisual}>
+        <div
+          className={styles.billingRing}
+          style={ringStyle}
+          role="img"
+          aria-label={`Estado de facturación: ${formatCurrency(data.receivableSummary.settled)} liquidados, ${formatCurrency(Math.max(0, data.receivableSummary.pending - data.receivableSummary.overdue))} pendientes y ${formatCurrency(data.receivableSummary.overdue)} vencidos`}
+          data-empty={documented <= 0 ? "true" : "false"}
+        >
+          <span>
+            <small>Total</small>
+            <strong>{formatCurrency(documented)}</strong>
+          </span>
+        </div>
       </div>
       <dl>
-        <div><dt>Liquidado</dt><dd>{formatCurrency(data.receivableSummary.settled)}</dd></div>
-        <div><dt>Pendiente</dt><dd>{formatCurrency(data.receivableSummary.pending)}</dd></div>
-        <div><dt>Vencido</dt><dd>{formatCurrency(data.receivableSummary.overdue)}</dd></div>
+        <div data-tone="paid"><dt>Liquidado</dt><dd>{formatCurrency(data.receivableSummary.settled)}<small>{Math.round(paid)} %</small></dd></div>
+        <div data-tone="pending"><dt>Pendiente</dt><dd>{formatCurrency(Math.max(0, data.receivableSummary.pending - data.receivableSummary.overdue))}<small>{Math.round(pending)} %</small></dd></div>
+        <div data-tone="overdue"><dt>Vencido</dt><dd>{formatCurrency(data.receivableSummary.overdue)}<small>{Math.round(overdue)} %</small></dd></div>
       </dl>
       <Link href={economicHref(data, { vista: "cobros" })}>Ver todas las facturas</Link>
     </div>
@@ -669,8 +786,27 @@ function formatShortDate(date: Date) {
   return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short" }).format(date).replace(".", "");
 }
 
+function formatCompactCurrency(value: number) {
+  return `${new Intl.NumberFormat("es-ES", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value)} €`;
+}
+
 function periodLabel(period: EconomicControlData["period"]) {
   return period === "7d" ? "7 días" : period === "90d" ? "90 días" : "30 días";
+}
+
+function economicExportHref(data: EconomicControlData) {
+  const params = new URLSearchParams({
+    tipo: "forecast",
+    horizonte: data.period,
+    escenario: "base",
+  });
+  if (data.filters.clientId) params.set("cliente", data.filters.clientId);
+  if (data.filters.workId) params.set("obra", data.filters.workId);
+  if (data.filters.status) params.set("estado", data.filters.status);
+  return `/tesoreria/export?${params.toString()}`;
 }
 
 function economicHref(

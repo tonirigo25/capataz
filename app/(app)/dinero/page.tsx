@@ -220,6 +220,9 @@ export default async function MoneyPage({
     (sum, invoice) => sum + invoice.pendiente,
     0,
   );
+  const upcomingInvoices = invoicesWithStatus
+    .filter((invoice) => invoice.pendiente > 0)
+    .slice(0, 5);
   const exposureBase = invoicedTotal || 1;
   const hasCriteria = filter !== "todas" || Boolean(query.buscar);
 
@@ -314,7 +317,7 @@ export default async function MoneyPage({
           description="Ordenados por fecha registrada"
         >
           <div className="divide-y divide-slate-100">
-            {invoicesWithStatus.slice(0, 5).map((invoice) => (
+            {upcomingInvoices.map((invoice) => (
               <Link
                 key={invoice.id}
                 href={`/dinero/${invoice.id}`}
@@ -345,7 +348,7 @@ export default async function MoneyPage({
                 </span>
               </Link>
             ))}
-            {!invoicesWithStatus.length ? (
+            {!upcomingInvoices.length ? (
               <p className="p-4 text-sm text-slate-500">
                 No hay vencimientos en tu alcance.
               </p>
