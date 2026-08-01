@@ -37,7 +37,7 @@ export const PROTECTED_PAGE_PREFIXES = [
   "/automatizaciones", "/buscar", "/capataz", "/clientes", "/configuracion", "/crear-empresa",
   "/dashboard", "/demo-guiada", "/dinero", "/documentos", "/equipo", "/equipos", "/facturas-proveedor",
   "/facturas-subcontratas", "/gastos-materiales", "/gestion", "/hoy", "/inteligencia", "/notificaciones",
-  "/obras", "/onboarding", "/plan-y-uso", "/plataforma", "/presupuestos", "/proveedores",
+  "/obras", "/onboarding", "/oportunidades", "/plan-y-uso", "/plataforma", "/presupuestos", "/proveedores",
   "/recomendaciones", "/recordatorios", "/seguimientos", "/seleccionar-empresa", "/subcontratas",
   "/tareas", "/tesoreria",
 ] as const;

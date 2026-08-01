@@ -29,6 +29,29 @@ export type ProductNavigationGroup = {
   items: ProductDestination[];
 };
 
+export const productSubnavigation: Record<string, ProductDestination[]> = {
+  "/clientes": [
+    { href: "/oportunidades", label: "Oportunidades", icon: "activity", capability: "sales.budgets.view" },
+    { href: "/seguimientos", label: "Seguimientos", icon: "notification", capability: "followups.view" },
+  ],
+  "/obras": [
+    { href: "/tareas", label: "Tareas", icon: "briefcase", capability: "tasks.view" },
+    { href: "/actividad", label: "Actividad", icon: "activity", capability: "reports.view" },
+  ],
+  "/dinero": [
+    { href: "/tesoreria", label: "Tesorería", icon: "landmark", capability: "treasury.view" },
+  ],
+  "/agenda": [
+    { href: "/recordatorios", label: "Recordatorios", icon: "agenda", capability: "followups.view" },
+  ],
+  "/equipo": [
+    { href: "/equipos", label: "Equipos", icon: "building", capability: "company.teams.manage" },
+  ],
+  "/orqena-ia": [
+    { href: "/automatizaciones", label: "Automatizaciones", icon: "bot", capability: "company.update" },
+  ],
+};
+
 export const primaryNavigation: ProductDestination[] = [
   { href: "/hoy", label: "Hoy", icon: "home", capability: "company.view" },
   { href: "/dashboard", label: "Dashboard", icon: "dashboard", capability: "reports.view" },
@@ -104,6 +127,7 @@ export type RouteContext = {
 const areaContexts = [
   ...primaryNavigation,
   ...secondaryNavigation.flatMap((group) => group.items),
+  ...Object.values(productSubnavigation).flat(),
   { href: "/buscar", label: "Búsqueda" },
   { href: "/orqena-ia", label: brand.assistantName },
   { href: "/capataz", label: brand.assistantName },
