@@ -14,6 +14,14 @@ export type BudgetTotals = {
   total: number;
 };
 
+export type BudgetReconciliation = {
+  ok: boolean;
+  linesSubtotal: number;
+  storedSubtotal: number;
+  calculatedTotal: number;
+  storedTotal: number;
+};
+
 export const units = ["ud", "m", "m2", "m3", "hora", "día", "lote", "servicio"];
 
 export function parseBudgetLines(value: string | null | undefined): BudgetLine[] {
@@ -47,15 +55,46 @@ export function lineTotal(cantidad: number, precioUnitario: number) {
 export function normalizeLine(item: unknown): BudgetLine {
   const value = item && typeof item === "object" ? item as Record<string, unknown> : {};
   const cantidad = num(value.cantidad, 1);
-  const precioUnitario = num(value.precioUnitario ?? value.precio, 0);
+  const suppliedTotal = optionalNum(value.total ?? value.importe);
+  const suppliedUnitPrice = optionalNum(value.precioUnitario ?? value.precio);
+  const precioUnitario = suppliedUnitPrice ?? (suppliedTotal !== null && cantidad > 0 ? money(suppliedTotal / cantidad) : 0);
   return {
     descripcion: String(value.descripcion ?? value.concepto ?? "Partida").trim(),
     cantidad,
     unidad: String(value.unidad ?? "ud").trim() || "ud",
     precioUnitario,
-    total: num(value.total, lineTotal(cantidad, precioUnitario)),
+    total: money(Math.max(0, suppliedTotal ?? lineTotal(cantidad, precioUnitario))),
     categoria: String(value.categoria ?? "General").trim() || "General"
   };
+}
+
+export function reconcileBudgetRecord(
+  lines: BudgetLine[],
+  record: Pick<BudgetTotals, "subtotal" | "iva" | "descuento" | "total">,
+  tolerance = 0.01,
+): BudgetReconciliation {
+  const linesSubtotal = money(lines.reduce((sum, line) => sum + normalizeLine(line).total, 0));
+  const storedSubtotal = money(record.subtotal);
+  const calculatedTotal = money(Math.max(0, storedSubtotal - Math.max(0, record.descuento) + record.iva));
+  const storedTotal = money(record.total);
+  return {
+    ok:
+      Math.abs(linesSubtotal - storedSubtotal) <= tolerance &&
+      Math.abs(calculatedTotal - storedTotal) <= tolerance,
+    linesSubtotal,
+    storedSubtotal,
+    calculatedTotal,
+    storedTotal,
+  };
+}
+
+export function assertBudgetRecordReconciled(
+  lines: BudgetLine[],
+  record: Pick<BudgetTotals, "subtotal" | "iva" | "descuento" | "total">,
+) {
+  const result = reconcileBudgetRecord(lines, record);
+  if (!result.ok) throw new Error("BUDGET_TOTALS_MISMATCH");
+  return result;
 }
 
 export function money(value: number) {
@@ -70,4 +109,10 @@ function fallbackLine(value: string): BudgetLine[] {
 function num(value: unknown, fallback: number) {
   const parsed = typeof value === "number" ? value : Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function optionalNum(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
 }

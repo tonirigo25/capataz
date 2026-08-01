@@ -15,7 +15,8 @@ import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { StatusPill } from "@/components/status-pill";
 import { ActionMenu, DetailSection, MetricStrip, Notice, PageHeader } from "@/components/ui-primitives";
-import { parseBudgetLines, units } from "@/lib/budget-lines";
+import { parseBudgetLines, reconcileBudgetRecord, units } from "@/lib/budget-lines";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
 import { prisma } from "@/lib/prisma";
@@ -24,8 +25,17 @@ import { companySettingsView } from "@/lib/tenant/company-settings";
 
 export const dynamic = "force-dynamic";
 
-export default async function BudgetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BudgetDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const listReturnTo = normalizeLoginReturnPath(query.returnTo ?? "/presupuestos");
+  const detailReturnTo = `/presupuestos/${id}?returnTo=${encodeURIComponent(listReturnTo)}`;
   const auth = await requireCapability("sales.budgets.view");
   const [updateDecision, approveDecision, invoiceDecision, workDecision, marginDecision, agendaDecision, duplicateDecision, pricingDecision] = await Promise.all([
     resolveAuthorization(auth, "sales.budgets.update"), resolveAuthorization(auth, "sales.budgets.approve"),
@@ -51,6 +61,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
   ]);
   const company = companySettingsView(companyRecord);
   const lines = parseBudgetLines(budget.partidas);
+  const reconciliation = reconcileBudgetRecord(lines, budget);
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length;
   const canUpdate = canUpdateRaw && canSeePricing;
@@ -63,8 +74,8 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
 
   return (
     <main className="screen">
-      <InternalBreadcrumbs items={[{ label: "Presupuestos", href: "/presupuestos" }, { label: budget.numero }]} />
-      <Link href="/presupuestos" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink">
+      <InternalBreadcrumbs items={[{ label: "Presupuestos", href: listReturnTo }, { label: budget.numero }]} />
+      <Link href={listReturnTo} className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink">
         <ArrowLeft size={18} />
         Presupuestos
       </Link>
@@ -74,9 +85,12 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         title={budget.titulo}
         description={`${budget.client.nombre}${budget.work ? ` · ${budget.work.titulo}` : " · Sin obra"}`}
         badge={<StatusPill status={budget.estado} />}
-        action={canEditBudget ? <StatusForm id={budget.id} estado="enviado" label="Revisar y enviar" icon="send" className="primary-button" /> : undefined}
-        secondaryActions={<>{canEditBudget ? <SaveDraftForm id={budget.id} /> : null}<ActionMenu>{canEditBudget ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos/${budget.id}`}><Pencil size={18} /> Editar datos generales</Link> : null}{canSchedule ? <Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=/presupuestos/${budget.id}`}><MessageCircle size={18} /> Preparar seguimiento</Link> : null}{canDuplicate ? <form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form> : null}{canSeePricing ? <Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link> : null}{canSeePricing ? <Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link> : null}</ActionMenu></>}
+        action={canEditBudget && reconciliation.ok ? <StatusForm id={budget.id} estado="enviado" label="Marcar como enviado" icon="send" className="primary-button" /> : undefined}
+        secondaryActions={<>{canEditBudget ? <SaveDraftForm id={budget.id} /> : null}<ActionMenu>{canEditBudget ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=${encodeURIComponent(detailReturnTo)}`}><Pencil size={18} /> Editar datos generales</Link> : null}{canSchedule ? <Link href={`/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&descripcion=${encodeURIComponent(budget.titulo)}&fechaInicio=${encodeURIComponent(tomorrowAtTenInputValue())}&returnTo=${encodeURIComponent(detailReturnTo)}`}><MessageCircle size={18} /> Preparar seguimiento</Link> : null}{canDuplicate ? <form action={duplicateBudget}><input type="hidden" name="id" value={budget.id} /><ConfirmSubmitButton message="¿Duplicar este presupuesto como borrador editable?"><Copy size={18} /> Duplicar</ConfirmSubmitButton></form> : null}{canSeePricing && reconciliation.ok ? <Link href={`/presupuestos/${budget.id}/pdf?preview=1`} target="_blank"><Eye size={18} /> Vista previa PDF</Link> : null}{canSeePricing && reconciliation.ok ? <Link href={`/presupuestos/${budget.id}/pdf`}><Download size={18} /> Descargar PDF</Link> : null}</ActionMenu></>}
       />
+
+      {!reconciliation.ok ? <Notice className="mb-4" tone="warning" title="Importes pendientes de reconciliar" description="Las partidas no coinciden con los totales guardados. Corrige y guarda las partidas antes de marcar, aprobar, convertir o generar el PDF." /> : null}
+      {canEditBudget && reconciliation.ok ? <Notice className="mb-4" tone="info" title="Estado, no transmisión" description="Marcar como enviado sólo registra el estado. No envía correo ni documento al cliente." /> : null}
 
       {canSeePricing ? <MetricStrip className="mb-4">
           <Mini label="Subtotal" value={formatCurrency(budget.subtotal)} />
@@ -97,13 +111,13 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
           {canSeeMargin ? <p><strong className="text-obra-ink">Margen estimado:</strong> {formatCurrency(budget.margenEstimado)}</p> : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {canApprove ? <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" /> : null}
+          {canApprove && reconciliation.ok ? <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" /> : null}
           {canApprove ? <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" /> : null}
-          {canCreateWork ? <form action={convertBudgetToWork}>
+          {canCreateWork && reconciliation.ok ? <form action={convertBudgetToWork}>
             <input type="hidden" name="id" value={budget.id} />
             <ConfirmSubmitButton message="¿Convertir este presupuesto en obra?">Convertir a obra</ConfirmSubmitButton>
           </form> : null}
-          {canCreateInvoice ? <form action={convertBudgetToInvoice}>
+          {canCreateInvoice && reconciliation.ok ? <form action={convertBudgetToInvoice}>
             <input type="hidden" name="id" value={budget.id} />
             <ConfirmSubmitButton message="¿Crear una factura borrador editable desde este presupuesto?">Convertir a factura</ConfirmSubmitButton>
           </form> : null}
@@ -122,18 +136,25 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         <div className="budget-editor-layout">
           <div id="budget-line-editor" className="grid content-start gap-3">
             {lines.map((line, index) => (
-              <form key={`${line.descripcion}-${index}`} action={saveBudgetLine} className="card grid gap-3 p-4" data-budget-line>
-                <input type="hidden" name="budgetId" value={budget.id} />
-                <input type="hidden" name="lineIndex" value={index} />
-                <BudgetLineFields line={line} />
-                <div className="grid grid-cols-2 gap-2">
+              <article key={`${line.descripcion}-${index}`} className="card grid gap-3 p-4" data-budget-line>
+                <form action={saveBudgetLine} className="grid gap-3">
+                  <input type="hidden" name="budgetId" value={budget.id} />
+                  <input type="hidden" name="lineIndex" value={index} />
+                  <BudgetLineFields line={line} />
                   <button type="submit" className="secondary-button"><Pencil size={18} /> Guardar partida</button>
-                  <button formAction={deleteBudgetLine} className="secondary-button" type="submit">
+                </form>
+                <form action={deleteBudgetLine}>
+                  <input type="hidden" name="budgetId" value={budget.id} />
+                  <input type="hidden" name="lineIndex" value={index} />
+                <div className="grid grid-cols-2 gap-2">
+                  <span aria-hidden="true" />
+                  <ConfirmSubmitButton className="secondary-button" message={`¿Eliminar la partida "${line.descripcion}"? Los totales se recalcularán automáticamente.`}>
                     <Trash2 size={18} />
                     Eliminar
-                  </button>
+                  </ConfirmSubmitButton>
                 </div>
-              </form>
+                </form>
+              </article>
             ))}
             <form action={saveBudgetLine} className="card grid gap-3 border-dashed p-4" data-budget-line>
               <input type="hidden" name="budgetId" value={budget.id} />
@@ -219,7 +240,7 @@ function StatusForm({ id, estado, label, icon, className }: { id: string; estado
     <form action={updateBudgetStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="estado" value={estado} />
-      <ConfirmSubmitButton className={className} message={estado === "enviado" ? "¿Has revisado importes, datos pendientes y PDF antes de marcar este presupuesto como enviado?" : `¿Aplicar el estado "${label}" a este presupuesto?`}>
+      <ConfirmSubmitButton className={className} message={estado === "enviado" ? "Esta acción sólo registra el estado como enviado; no transmite correo ni PDF. ¿Confirmas el cambio?" : `¿Aplicar el estado "${label}" a este presupuesto?`}>
         <Icon size={18} />
         {label}
       </ConfirmSubmitButton>

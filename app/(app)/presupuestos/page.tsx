@@ -9,7 +9,6 @@ import {
   FileText,
   MessageCircle,
   Pencil,
-  Plus,
   Search,
   Send,
 } from "lucide-react";
@@ -49,6 +48,7 @@ const filterOptions = [
 
 type SearchQuery = {
   filtro?: string;
+  estado?: string;
   buscar?: string;
   presupuesto?: string;
 };
@@ -59,8 +59,9 @@ export default async function BudgetsPage({
   searchParams: Promise<SearchQuery>;
 }) {
   const query = await searchParams;
-  const activeFilter = filterOptions.some(([id]) => id === query.filtro)
-    ? (query.filtro ?? "todos")
+  const requestedFilter = query.filtro ?? query.estado;
+  const activeFilter = filterOptions.some(([id]) => id === requestedFilter)
+    ? (requestedFilter ?? "todos")
     : "todos";
   const auth = await requireCapability("sales.budgets.view");
   const { companyId } = auth;
@@ -245,7 +246,7 @@ export default async function BudgetsPage({
               currentCount={budgets.length}
               limit={2}
             >
-              <Plus size={17} /> Nuevo presupuesto
+              Nuevo presupuesto
             </DemoLimitButton>
           ) : null}
         </div>
@@ -348,11 +349,12 @@ export default async function BudgetsPage({
                   {visibleBudgets.map((budget) => {
                     const budgetPermissions = permissions(budget);
                     const selected = selectedBudget?.id === budget.id;
+                    const selectionUrl = selectionHref(budget.id, activeFilter, query.buscar);
                     return (
                       <tr key={budget.id} className={selected ? styles.selectedRow : undefined}>
                         <td>
                           <Link
-                            href={selectionHref(budget.id, activeFilter, query.buscar)}
+                            href={selectionUrl}
                             className={styles.budgetNumber}
                             aria-current={selected ? "true" : undefined}
                           >
@@ -378,7 +380,7 @@ export default async function BudgetsPage({
                         <td>{formatDate(budget.fechaCreacion)}</td>
                         <td>{nextBudgetAction(budget.estado)}</td>
                         <td className={styles.actionCell}>
-                          <BudgetActions budget={budget} permissions={budgetPermissions} />
+                          <BudgetActions budget={budget} permissions={budgetPermissions} returnTo={selectionUrl} />
                         </td>
                       </tr>
                     );
@@ -425,6 +427,7 @@ export default async function BudgetsPage({
         <BudgetSelectionDetail
           budget={selectedBudget}
           permissions={selectedBudget ? permissions(selectedBudget) : null}
+          returnTo={selectedBudget ? selectionHref(selectedBudget.id, activeFilter, query.buscar) : "/presupuestos"}
         />
       </section>
     </main>
@@ -474,24 +477,26 @@ function KpiLink({
 function BudgetActions({
   budget,
   permissions,
+  returnTo,
 }: {
   budget: BudgetRow;
   permissions: BudgetPermissions;
+  returnTo: string;
 }) {
   return (
     <ActionMenu>
-      <Link href={`/presupuestos/${budget.id}`}>
+      <Link href={`/presupuestos/${budget.id}?returnTo=${encodeURIComponent(returnTo)}`}>
         <Eye size={16} /> Abrir presupuesto
       </Link>
       {permissions.update ? (
         <Link
-          href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos`}
+          href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=${encodeURIComponent(returnTo)}`}
         >
           <Pencil size={16} /> Editar
         </Link>
       ) : null}
       {permissions.agenda ? (
-        <Link href={followUpHref(budget)}>
+        <Link href={followUpHref(budget, returnTo)}>
           <MessageCircle size={16} /> Preparar seguimiento
         </Link>
       ) : null}
@@ -545,8 +550,8 @@ function BudgetMobileCard({
       </dl>
       <div className={styles.mobileActions}>
         <Link href={selectionUrl} className="secondary-button">Seleccionar</Link>
-        <Link href={`/presupuestos/${budget.id}`} className="primary-button">Abrir</Link>
-        <BudgetActions budget={budget} permissions={permissions} />
+        <Link href={`/presupuestos/${budget.id}?returnTo=${encodeURIComponent(selectionUrl)}`} className="primary-button">Abrir</Link>
+        <BudgetActions budget={budget} permissions={permissions} returnTo={selectionUrl} />
       </div>
     </article>
   );
@@ -623,9 +628,11 @@ function ConversionFunnel({
 function BudgetSelectionDetail({
   budget,
   permissions,
+  returnTo,
 }: {
   budget: BudgetRow | null;
   permissions: BudgetPermissions | null;
+  returnTo: string;
 }) {
   if (!budget || !permissions) {
     return (
@@ -686,9 +693,9 @@ function BudgetSelectionDetail({
         </div>
       </div>
       <footer className={styles.detailActions}>
-        <Link href={`/presupuestos/${budget.id}`} className="secondary-button">Ver detalle completo</Link>
-        {permissions.agenda ? <Link href={followUpHref(budget)} className="secondary-button"><MessageCircle size={16} /> Seguimiento</Link> : null}
-        {permissions.update ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/presupuestos?presupuesto=${budget.id}`} className="primary-button"><Send size={16} /> Revisar y enviar</Link> : null}
+        <Link href={`/presupuestos/${budget.id}?returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Ver detalle completo</Link>
+        {permissions.agenda ? <Link href={followUpHref(budget, returnTo)} className="secondary-button"><MessageCircle size={16} /> Seguimiento</Link> : null}
+        {permissions.update ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=${encodeURIComponent(returnTo)}`} className="primary-button"><Send size={16} /> Revisar presupuesto</Link> : null}
       </footer>
     </article>
   );
@@ -721,8 +728,7 @@ function selectionHref(id: string, filter: string, search?: string) {
   return `/presupuestos?${params.toString()}`;
 }
 
-function followUpHref(budget: BudgetRow) {
-  const returnTo = `/presupuestos?presupuesto=${budget.id}`;
+function followUpHref(budget: BudgetRow, returnTo: string) {
   return `/gestion?tipo=eventoAgenda&clienteId=${budget.clienteId}&obraId=${budget.obraId ?? ""}&presupuestoId=${budget.id}&tipoEvento=seguimiento_presupuesto&titulo=Seguimiento%20${encodeURIComponent(budget.numero)}&returnTo=${encodeURIComponent(returnTo)}`;
 }
 
@@ -738,7 +744,7 @@ function budgetMarginPercent(budget: { subtotal: number; margenEstimado: number 
 }
 
 function nextBudgetAction(status: string) {
-  if (["borrador", "pendiente_revision"].includes(status)) return "Revisar y enviar";
+  if (["borrador", "pendiente_revision"].includes(status)) return "Revisar presupuesto";
   if (["enviado", "visto", "pendiente_respuesta"].includes(status)) return "Preparar seguimiento";
   if (status === "aceptado") return "Convertir o ejecutar";
   if (status === "caducado") return "Actualizar validez";

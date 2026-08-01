@@ -68,6 +68,9 @@ export async function saveManualRecord(formData: FormData) {
   const id = optionalText(formData, "id");
   const auth = await requireCapability(managementCapability(tipo, Boolean(id)));
   const { companyId } = auth;
+  const canonicalBudget = tipo === "presupuesto"
+    ? await canonicalBudgetInput(companyId, formData)
+    : null;
   await assertManualRecordScope(auth, tipo, id, formData);
   if (tipo === "presupuesto") {
     const pricing = await resolveAuthorization(auth, "sales.pricing.view");
@@ -95,9 +98,9 @@ export async function saveManualRecord(formData: FormData) {
   if (tipo === "presupuesto" && number(formData, "descuento") > 0) {
     if (!(await resolveAuthorization(auth, "sales.discount.apply")).allowed)
       throw new Error("PERMISSION_REQUIRED");
-    const subtotal = number(formData, "subtotal");
+    const subtotal = canonicalBudget!.totals.subtotal;
     await requireApprovalAuthority(auth, "discount.approve", {
-      amount: number(formData, "total"),
+      amount: canonicalBudget!.totals.total,
       discountPercent:
         subtotal > 0 ? (number(formData, "descuento") / subtotal) * 100 : 100,
       workId: optionalText(formData, "obraId"),
@@ -113,7 +116,7 @@ export async function saveManualRecord(formData: FormData) {
     if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed)
       throw new Error("PERMISSION_REQUIRED");
     await requireApprovalAuthority(auth, "quote.approve", {
-      amount: number(formData, "total"),
+      amount: canonicalBudget!.totals.total,
       marginPercent: number(formData, "margenEstimado"),
       workId: optionalText(formData, "obraId"),
       clientId: optionalText(formData, "clienteId"),
@@ -145,7 +148,7 @@ export async function saveManualRecord(formData: FormData) {
       await saveWork(formData, id);
       break;
     case "presupuesto":
-      await saveBudget(formData, id);
+      await saveBudget(formData, id, canonicalBudget!);
       break;
     case "factura":
       await saveInvoice(formData, id);
@@ -251,6 +254,13 @@ async function assertManualRecordScope(
     optionalText(formData, "obraId") ?? optionalText(formData, "workId");
   const submittedClientId =
     optionalText(formData, "clienteId") ?? optionalText(formData, "clientId");
+  if (tipo === "presupuesto" && submittedWorkId && submittedClientId) {
+    const relation = await prisma.work.findFirst({
+      where: { id: submittedWorkId, companyId, clienteId: submittedClientId },
+      select: { id: true },
+    });
+    if (!relation) throw new Error("BUDGET_WORK_CLIENT_MISMATCH");
+  }
   await assertRelated(submittedWorkId, submittedClientId);
   if (tipo === "pago" && !id) {
     const facturaId = optionalText(formData, "facturaId");
@@ -494,36 +504,41 @@ async function saveWork(formData: FormData, id: string | null) {
     });
 }
 
-async function saveBudget(formData: FormData, id: string | null) {
+type CanonicalBudgetInput = Awaited<ReturnType<typeof canonicalBudgetInput>>;
+
+async function canonicalBudgetInput(companyId: string, formData: FormData) {
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: { defaultVat: true },
+  });
+  const lines = parseBudgetLines(optionalText(formData, "partidas")).map(normalizeLine);
+  const totals = calculateBudgetTotals(
+    lines,
+    company.defaultVat,
+    Math.max(0, number(formData, "descuento")),
+  );
+  return { lines, totals };
+}
+
+async function saveBudget(
+  formData: FormData,
+  id: string | null,
+  canonical: CanonicalBudgetInput,
+) {
   const auth = await requireCompanyContext();
   const { companyId } = auth;
   const canMargin =
     (await resolveAuthorization(auth, "margin_amount.view")).allowed ||
     (await resolveAuthorization(auth, "margin_percent.view")).allowed;
-  const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
-  const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
-  const descuento = number(formData, "descuento");
-  const calculated = calculateBudgetTotals(
-    lines,
-    number(formData, "ivaPercent", 21),
-    descuento,
-  );
-  const subtotal = number(formData, "subtotal", calculated.subtotal);
-  const iva = number(formData, "iva", calculated.iva);
-  const total = number(
-    formData,
-    "total",
-    Math.max(0, subtotal - descuento + iva),
-  );
+  const { lines, totals } = canonical;
+  const { subtotal, iva, descuento, total } = totals;
   const requestedNumero = optionalText(formData, "numero");
   const data = {
     companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
     titulo: text(formData, "titulo"),
-    partidas: lines.length
-      ? serializeBudgetLines(lines)
-      : normalizePartidas(optionalText(formData, "partidas"), subtotal),
+    partidas: serializeBudgetLines(lines),
     subtotal,
     iva,
     descuento,

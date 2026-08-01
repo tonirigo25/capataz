@@ -1,6 +1,6 @@
 import { invalidateActionPath as revalidatePath, navigateAction as redirect } from "@/lib/application/action-effects";
 import { prisma } from "@/lib/prisma";
-import { calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
+import { assertBudgetRecordReconciled, calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
 import { findBudgetTemplate } from "@/lib/budget-templates";
 import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
@@ -32,6 +32,9 @@ export async function updateBudgetStatus(formData: FormData) {
   const capability = ["aceptado", "rechazado", "caducado"].includes(estado) ? "sales.budgets.approve" : "sales.budgets.update";
   const { auth, budget } = await budgetContext(id, capability);
   if (!budget) return;
+  if (["enviado", "visto", "pendiente_respuesta", "aceptado"].includes(estado)) {
+    assertBudgetRecordReconciled(parseBudgetLines(budget.partidas), budget);
+  }
   await prisma.budget.updateMany({
     where: { id, companyId: auth.companyId },
     data: {
@@ -58,6 +61,7 @@ export async function convertBudgetToWork(formData: FormData) {
   const { auth, budget } = await budgetContext(id, "sales.budgets.approve");
   await requireCapability("work.create");
   if (!budget) return;
+  assertBudgetRecordReconciled(parseBudgetLines(budget.partidas), budget);
 
   if (budget.obraId) {
     await prisma.$transaction([
@@ -107,6 +111,7 @@ export async function convertBudgetToInvoice(formData: FormData) {
 
   const { auth, budget } = await budgetContext(id, "sales.invoices.create");
   if (!budget) return;
+  assertBudgetRecordReconciled(parseBudgetLines(budget.partidas), budget);
 
   const invoice = await prisma.$transaction(async (tx) => tx.invoice.create({
     data: {
@@ -183,7 +188,9 @@ export async function createBudgetFromTemplate(formData: FormData) {
 
   const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const client = await prisma.client.findFirst({ where: { id: clienteId, companyId: auth.companyId }, select: { id: true } });
-  if (!client || (obraId && !(await prisma.work.findFirst({ where: { id: obraId, companyId: auth.companyId }, select: { id: true } })))) return;
+  const work = obraId ? await prisma.work.findFirst({ where: { id: obraId, companyId: auth.companyId }, select: { id: true, clienteId: true } }) : null;
+  if (!client) return;
+  if (obraId && (!work || work.clienteId !== clienteId)) throw new Error("BUDGET_WORK_CLIENT_MISMATCH");
   if (obraId) await assertScopedEntityAccess(auth, "sales.budgets.create", "Work", obraId);
   else await assertScopedEntityAccess(auth, "sales.budgets.create", "Client", clienteId);
   if (obraId) await assertScopedEntityAccess(auth, "sales.pricing.view", "Work", obraId);
