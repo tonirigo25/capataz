@@ -50,6 +50,7 @@ import { WorkCostsAnalysis } from "@/components/portal/modules-a/work-costs-anal
 import { WorkCostsIncidentsRanking } from "@/components/portal/modules-a/work-costs-incidents-ranking";
 import { WorkBillingOverview } from "@/components/portal/modules-a/work-billing-overview";
 import { WorkTeamOverview, type WorkTeamApprover, type WorkTeamPerson } from "@/components/portal/modules-a/work-team-overview";
+import { WorkDocumentsWorkspace as WorkDocumentsReferenceWorkspace } from "@/components/portal/modules-a/work-documents-workspace";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -928,7 +929,37 @@ function BillingWorkspace({ work, treasury, financial, subview }: { work: WorkDe
 }
 
 function DocumentsWorkspace({ work, documents, subview }: { work: WorkDetail; documents: ReturnType<typeof buildWorkDocuments>; subview: string }) {
-  if (subview === "galeria") return <Section title={`Galería y portada · ${work.photos.length}`}><WorkProgressGallery photos={workPhotoGallery(work)} /></Section>;
+  const documentRows = documents.map((document) => ({
+    id: document.key,
+    kind: "file" as const,
+    name: document.name,
+    category: document.type.toLocaleLowerCase("es-ES").replaceAll(" ", "_"),
+    categoryLabel: document.type,
+    subtype: document.source,
+    createdAt: document.date instanceof Date ? document.date.toISOString() : document.date ? new Date(document.date).toISOString() : null,
+    uploadedBy: document.source,
+    href: document.href,
+  }));
+  const photoRows = work.photos.filter((photo): photo is typeof photo & { url: string } => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://"))).map((photo) => ({
+    id: photo.id,
+    src: photo.url,
+    alt: photo.titulo,
+    width: 1600,
+    height: 900,
+    capturedAt: photo.tomadaEn.toISOString(),
+    category: photo.categoria,
+    categoryLabel: photo.categoria.replaceAll("_", " "),
+    authorName: photo.autor,
+    location: photo.ubicacion,
+    notes: photo.notas,
+    comments: [],
+    downloadHref: photo.url,
+  }));
+  const uploadDocumentHref = `/gestion?tipo=documento&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=documentos&subvista=documentos`)}`;
+  const uploadPhotoHref = `/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=documentos&subvista=galeria`)}`;
+  if (subview === "documentos") return <WorkDocumentsReferenceWorkspace mode="summary" documents={documentRows} photos={photoRows} uploadDocumentsHref={uploadDocumentHref} />;
+  if (subview === "galeria") return <WorkDocumentsReferenceWorkspace mode="gallery" documents={documentRows} photos={photoRows} uploadPhotosHref={uploadPhotoHref} />;
+  if (subview === "subir") return <DocumentsTab documents={documents} workId={work.id} clientId={work.clienteId} />;
   const category = subview === "documentos" ? null : subview;
   const filtered = category ? documents.filter((document) => document.type.toLowerCase().includes(category.slice(0, -1))) : documents;
   return <DocumentsTab documents={filtered} workId={work.id} clientId={work.clienteId} />;
@@ -992,10 +1023,6 @@ function TeamWorkspace({ work, tasks, memberNames, subview }: { work: WorkDetail
       communication: [{ label: "Añadir nota interna", href: `/gestion?tipo=notaInterna&clientId=${work.clienteId}&workId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`, icon: "message", variant: "secondary" }],
     }}
   />;
-}
-
-function workPhotoGallery(work: WorkDetail) {
-  return work.photos.filter((photo): photo is typeof photo & { url: string } => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://"))).map((photo) => ({ id: photo.id, title: photo.titulo, url: photo.url, category: photo.categoria.replaceAll("_", " "), date: formatDate(photo.tomadaEn), author: photo.autor, notes: photo.notas }));
 }
 
 function DocumentsTab({ documents, workId, clientId }: { documents: ReturnType<typeof buildWorkDocuments>; workId: string; clientId: string }) {
