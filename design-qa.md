@@ -2,9 +2,9 @@
 
 ## Resultado
 
-`passed`
+`in_progress`
 
-No quedan hallazgos visuales P0, P1 o P2 abiertos dentro del alcance del portal interno autorizado para PR #63.
+La ampliación canónica recibida el 1 de agosto de 2026 reabrió la validación visual y funcional. Existen hallazgos P0/P1/P2 pendientes en Cliente 360, Trabajo/Obra y módulos globales; este documento no puede declarar un cierre vigente hasta completar las nuevas comparaciones y gates.
 
 ## Fuente visual canónica
 
@@ -64,9 +64,11 @@ Las comparaciones fueron inspeccionadas para jerarquía, densidad, navegación, 
 - `/api/health/ready`: 200.
 - Cero migraciones, semillas o cambios de datos ejecutados en esta entrega.
 
-## Resultado final
+## Resultado histórico anterior
 
-`passed`
+`historical_pass`
+
+Este resultado quedó superado por las nuevas referencias y reglas de aceptación aportadas posteriormente por el propietario.
 
 ## Revalidación focal — Dashboard canónico 2026-07-31
 
@@ -98,3 +100,16 @@ Las comparaciones fueron inspeccionadas para jerarquía, densidad, navegación, 
 ### Resultado de la revalidación focal
 
 `passed`
+
+## Revalidación ampliada — 2026-08-01
+
+- Referencias confirmadas: 89 imágenes, incluyendo 78 clasificadas y 11 pantallas globales adicionales.
+- Gate actual: Cliente 360 — Resumen.
+- Validador focal: 55/55.
+- Lint focal: PASS.
+- Typecheck: PASS.
+- Build de Next: PASS; empaquetado standalone preparado por separado.
+- Comparación visual remota del nuevo SHA: pendiente.
+- Cliente 360 restante, Trabajo/Obra, módulos globales, Orqena IA, auditoría de accionables y responsive: pendientes.
+
+Final result: `in_progress`

@@ -47,7 +47,7 @@ check(
     clientRestricted.includes("Cliente 360") &&
     clientRestricted.includes('href="/clientes"'),
 );
-check("cliente conserva acciones contextuales reales", clientCanonical.includes("nextAction.actionLabel") && clientCanonical.includes("hrefs.newOpportunity") && client.includes("<ClientActions"));
+check("cliente conserva acciones contextuales reales", clientCanonical.includes("profileEditHref") && clientCanonical.includes("hrefs.newOpportunity") && client.includes("<ClientActions"));
 check("insights de cliente quedan aislados por cliente u obra autorizada", client.includes("const scopedSignals") && client.includes("signal.entity.clientId === client.id") && client.includes("clientWorkIds.has(signal.entity.workId)"));
 check("rail de Cliente 360 se oculta, expande y persiste sin scroll propio", clientRail.includes("localStorage.setItem") && clientRail.includes('data-collapsed={collapsed ? "true" : "false"}') && styles.includes('.client-360-canonical:has(> [data-client-360-rail][data-collapsed="true"])'));
 check("rail de Cliente 360 cambia con la vista sin reutilizar señales no relacionadas", client.includes("signalMatchesClientView") && client.includes("const activeSignal") && clientCanonical.includes("recommendationMatchesView") && clientCanonical.includes("railEmptyCopy[activeView]"));
@@ -61,11 +61,10 @@ check(
 );
 check(
   "Insights clave contiene texto largo sin desbordar su tarjeta",
-  clientCanonical.includes('className="client-360-canonical__insights"') &&
-    clientCanonical.includes("client-360-canonical__insight-title") &&
-    clientCanonical.includes("client-360-canonical__insight-detail") &&
-    styles.includes(".client-360-canonical__insights-list > li > div") &&
-    styles.includes("text-overflow: ellipsis;"),
+  clientCanonical.includes("client-360-ref__rail-suggestions") &&
+    clientCanonical.includes("insights.slice(0, 3)") &&
+    styles.includes(".client-360-ref__rail-suggestions li p") &&
+    styles.includes("-webkit-line-clamp: 2;"),
 );
 check("cliente conserva mapa heredado explícito", ["obras", "archivos", "dinero", "presupuestos", "facturas", "pagos", "finanzas", "visitas", "notas"].every((tab) => crm.length > 0 && client.includes(`${tab}:`)));
 check("listado de clientes prioriza próxima acción", clients.includes("toWorkspaceItem") && clients.includes("nextAction") && clients.includes("activeWorksCount") && clients.includes("pendingTotal"));

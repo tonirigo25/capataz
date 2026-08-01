@@ -5,12 +5,10 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarCheck2,
-  CheckCircle2,
   ChevronLeft,
   CircleDollarSign,
   FileText,
   FolderOpen,
-  Lightbulb,
   MessageCircle,
   Phone,
   Plus,
@@ -235,20 +233,48 @@ export function Client360Canonical({
   activeView = "resumen",
   children,
   moreActions,
-  nextAction,
   insights = [],
-  incidents = [],
   recommendation,
   hrefs,
   showAiRail = true,
 }: Client360CanonicalProps) {
   const client = summary.client;
   const displayName = summary.listItem.displayName;
-  const returnTo = `/clientes/${client.id}`;
   const scopedRecommendation =
     recommendation?.clientId === client.id ? recommendation : null;
   const activeContacts = summary.contacts.filter((contact) => !contact.archivedAt);
   const primaryContact = activeContacts[0] ?? null;
+
+  if (activeView === "resumen") {
+    return (
+      <div
+        className="client-360-canonical client-360-canonical--reference-summary grid min-w-0 items-stretch"
+        data-client-360-canonical
+        data-has-client-rail={showAiRail ? "true" : "false"}
+      >
+        <div className="min-w-0">
+          <Client360ReferenceSummary
+            summary={summary}
+            primaryContact={primaryContact}
+            moreActions={moreActions}
+            hrefs={hrefs}
+          />
+        </div>
+
+        {showAiRail ? (
+          <Client360RailShell>
+            <ClientRecommendationRail
+              clientName={displayName}
+              activeView="resumen"
+              recommendation={scopedRecommendation}
+              insights={insights}
+              allRecommendationsHref={hrefs.allRecommendations}
+            />
+          </Client360RailShell>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -384,193 +410,17 @@ export function Client360Canonical({
           })}
         </nav>
 
-        {activeView === "resumen" ? <>
-        <div className="client-360-canonical__primary grid gap-4 xl:grid-cols-[0.95fr_1fr_1fr]">
-          <Panel title="Próxima acción" icon={CalendarCheck2}>
-            {nextAction ? (
-              <div className="flex flex-1 flex-col">
-                <h3 className="font-semibold text-content">{nextAction.title}</h3>
-                {nextAction.description ? (
-                  <p className="mt-1 text-sm text-content-secondary">
-                    {nextAction.description}
-                  </p>
-                ) : null}
-                <dl className="mt-4 grid gap-2 text-sm">
-                  {nextAction.dateLabel ? (
-                    <Fact label="Fecha" value={nextAction.dateLabel} />
-                  ) : null}
-                  {nextAction.contactLabel ? (
-                    <Fact label="Con" value={nextAction.contactLabel} />
-                  ) : null}
-                </dl>
-                {nextAction.completeHref ? (
-                  <Link
-                    href={nextAction.completeHref}
-                    className="primary-button mt-auto w-full pt-3"
-                  >
-                    <CheckCircle2 size={16} aria-hidden="true" /> {nextAction.actionLabel ?? "Revisar y completar"}
-                  </Link>
-                ) : null}
-              </div>
-            ) : (
-              <EmptyText>No hay una próxima acción registrada.</EmptyText>
-            )}
-          </Panel>
-
-          <Panel title="Resumen económico" icon={WalletCards} href={hrefs.payments}>
-            <dl className="grid gap-3 text-sm">
-              <Metric label="Facturado" value={formatCurrency(summary.kpis.billedTotal)} />
-              <Metric label="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} />
-              <Metric
-                label="Pendiente de cobro"
-                value={formatCurrency(summary.kpis.pendingTotal)}
-                danger={summary.kpis.pendingTotal > 0}
-              />
-              <Metric
-                label="Facturas vencidas"
-                value={String(summary.kpis.overdueInvoices)}
-                danger={summary.kpis.overdueInvoices > 0}
-              />
-            </dl>
-          </Panel>
-
-          <Panel title="Insights clave" icon={Lightbulb} className="client-360-canonical__insights">
-            {insights.length ? (
-              <ul className="client-360-canonical__insights-list grid gap-3">
-                {insights.map((insight) => (
-                  <li key={insight.id} className="flex min-w-0 gap-3">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
-                      <Sparkles size={15} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      {insight.href ? (
-                        <Link href={insight.href} className="client-360-canonical__insight-title block min-w-0 break-words text-[11px] font-semibold leading-tight text-content hover:underline">
-                          {insight.title}
-                        </Link>
-                      ) : (
-                        <p className="client-360-canonical__insight-title min-w-0 break-words text-[11px] font-semibold leading-tight text-content">{insight.title}</p>
-                      )}
-                      <p className="client-360-canonical__insight-detail mt-0.5 line-clamp-2 min-w-0 break-words text-[9px] leading-tight text-content-secondary">{insight.detail}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyText>No hay insights documentados para este cliente.</EmptyText>
-            )}
-          </Panel>
-        </div>
-
-        <div className="client-360-canonical__collections client-360-canonical__collections--primary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          <CollectionPanel title="Actividad reciente" href={hrefs.activity} empty="Sin actividad reciente.">
-            {summary.activity.slice(0, 5).map((event) => (
-              <CompactLink
-                key={event.id}
-                href={event.href}
-                title={event.text}
-                meta={`${event.type} · ${formatDate(event.date)}`}
-              />
-            ))}
-          </CollectionPanel>
-
-          <CollectionPanel title="Presupuestos" href={hrefs.budgets} empty="Sin presupuestos.">
-            {summary.recentBudgets.slice(0, 3).map((budget) => (
-              <CompactLink
-                key={budget.id}
-                href={`/presupuestos/${budget.id}`}
-                title={budget.numero}
-                meta={`${statusLabel(budget.estado)} · ${formatCurrency(budget.total)}`}
-              />
-            ))}
-          </CollectionPanel>
-
-          <CollectionPanel title="Trabajos" href={hrefs.works} empty="Sin trabajos.">
-            {summary.client.works.slice(0, 3).map((work) => (
-              <CompactLink
-                key={work.id}
-                href={`/obras/${work.id}`}
-                title={work.titulo}
-                meta={statusLabel(work.estado)}
-              />
-            ))}
-          </CollectionPanel>
-
-          <CollectionPanel title="Facturas" href={hrefs.invoices} empty="Sin facturas.">
-            {summary.client.invoices.slice(0, 3).map((invoice) => (
-              <CompactLink
-                key={invoice.id}
-                href={`/dinero/${invoice.id}`}
-                title={invoice.numero}
-                meta={`${statusLabel(invoice.estado)} · ${formatCurrency(invoice.total)}`}
-              />
-            ))}
-          </CollectionPanel>
-        </div>
-
-        <div className="client-360-canonical__collections client-360-canonical__collections--secondary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          <CollectionPanel title="Cobros" href={hrefs.payments} empty="Sin cobros.">
-            {summary.payments.slice(0, 3).map((payment) => (
-              <CompactLink
-                key={payment.id}
-                href={`/dinero/${payment.invoice.id}`}
-                title={payment.invoice.numero}
-                meta={`${formatCurrency(payment.importe)} · ${formatDate(payment.fecha)}`}
-              />
-            ))}
-          </CollectionPanel>
-
-          <CollectionPanel title="Incidencias" empty="Sin incidencias vinculadas.">
-            {incidents.slice(0, 3).map((incident) => (
-              <CompactLink
-                key={incident.id}
-                href={incident.href}
-                title={incident.title}
-                meta={incident.status ? `${statusLabel(incident.status)} · ${incident.detail}` : incident.detail}
-              />
-            ))}
-          </CollectionPanel>
-
-          <CollectionPanel title="Contactos clave" href={hrefs.contacts} empty="Sin contactos.">
-            {activeContacts.slice(0, 3).map((contact) => (
-              <CompactLink
-                key={contact.id}
-                href={
-                  contact.source === "real"
-                    ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`
-                    : undefined
-                }
-                title={contact.name}
-                meta={contact.role}
-              />
-            ))}
-          </CollectionPanel>
-
-          <CollectionPanel title="Documentos recientes" href={hrefs.documents} empty="Sin documentos.">
-            {summary.documents.slice(0, 3).map((document) => (
-              <CompactLink
-                key={document.id}
-                href={document.href ?? undefined}
-                title={document.name}
-                meta={`${document.type} · ${formatDate(document.date)}`}
-              />
-            ))}
-          </CollectionPanel>
-        </div>
-        {children ? (
-          <div className="client-360-canonical__tab-content min-w-0">
-            {children}
-          </div>
-        ) : null}
-        </> : <div className="client-360-canonical__tab-content min-w-0">{children}</div>}
+        <div className="client-360-canonical__tab-content min-w-0">{children}</div>
       </div>
 
       {showAiRail ? (
         <Client360RailShell>
           <ClientRecommendationRail
             clientName={displayName}
-            activeView={activeView}
-            recommendation={scopedRecommendation}
-            allRecommendationsHref={hrefs.allRecommendations}
+              activeView={activeView}
+              recommendation={scopedRecommendation}
+              insights={insights}
+              allRecommendationsHref={hrefs.allRecommendations}
           />
         </Client360RailShell>
       ) : null}
@@ -578,15 +428,317 @@ export function Client360Canonical({
   );
 }
 
+const SUMMARY_PRIMARY_VIEWS: Client360CanonicalView[] = [
+    "resumen",
+    "obras",
+    "presupuestos",
+    "facturas",
+    "conversaciones",
+    "documentos",
+];
+
+const SUMMARY_MORE_VIEWS: Client360CanonicalView[] = [
+    "oportunidades",
+    "actividad",
+    "archivos",
+];
+
+function Client360ReferenceSummary({
+  summary,
+  primaryContact,
+  moreActions,
+  hrefs,
+}: {
+  summary: ClientSummary;
+  primaryContact: ClientSummary["contacts"][number] | null;
+  moreActions?: ReactNode;
+  hrefs: Client360CanonicalProps["hrefs"];
+}) {
+  const client = summary.client;
+  const displayName = summary.listItem.displayName;
+  const address = [
+    client.direccion,
+    client.codigoPostal,
+    client.municipio,
+    client.provincia,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const lastActivity = summary.activity[0] ?? null;
+  const profileEditHref = `/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(`/clientes/${client.id}`)}`;
+
+  return (
+    <div className="client-360-ref">
+      <header className="client-360-ref__header">
+        <div className="client-360-ref__heading">
+          <Link href={hrefs.back} className="client-360-ref__back">
+            <ChevronLeft size={14} aria-hidden="true" /> Clientes
+          </Link>
+          <div className="client-360-ref__title-row">
+            <h1>{displayName} · Cliente 360</h1>
+            <StatusPill status={client.archivadoAt ? "archivado" : client.estado} />
+          </div>
+          <dl className="client-360-ref__meta" aria-label={`Datos principales de ${displayName}`}>
+            <Fact label="Cliente desde" value={formatDate(client.fechaCreacion)} />
+            {summary.listItem.fiscalId ? (
+              <Fact label="Identificación" value={summary.listItem.fiscalId} />
+            ) : null}
+            <Fact label="Segmento" value={summary.listItem.typeLabel} />
+            <Fact
+              label="Responsable"
+              value={summary.listItem.responsible ?? "Sin responsable asignado"}
+            />
+          </dl>
+        </div>
+        <nav className="client-360-ref__header-actions" aria-label={`Acciones de ${displayName}`}>
+          {hrefs.newOpportunity ? (
+            <Link href={hrefs.newOpportunity} className="secondary-button">
+              <Plus size={15} aria-hidden="true" />
+              {hrefs.newOpportunityLabel ?? "Nueva acción"}
+            </Link>
+          ) : null}
+          {moreActions}
+        </nav>
+      </header>
+
+      <nav className="client-360-ref__tabs" aria-label="Secciones de Cliente 360">
+        {SUMMARY_PRIMARY_VIEWS.map((view) => {
+          const Icon = viewIcons[view];
+          return (
+            <Link
+              key={view}
+              href={`/clientes/${client.id}?vista=${view}`}
+              aria-current={view === "resumen" ? "page" : undefined}
+            >
+              <Icon size={15} aria-hidden="true" />
+              {viewLabels[view]}
+            </Link>
+          );
+        })}
+        <details className="client-360-ref__more-tabs">
+          <summary>Más</summary>
+          <div>
+            {SUMMARY_MORE_VIEWS.map((view) => {
+              const Icon = viewIcons[view];
+              return (
+                <Link key={view} href={`/clientes/${client.id}?vista=${view}`}>
+                  <Icon size={15} aria-hidden="true" />
+                  {viewLabels[view]}
+                </Link>
+              );
+            })}
+          </div>
+        </details>
+      </nav>
+
+      <div className="client-360-ref__overview">
+        <section className="client-360-ref__profile" aria-labelledby="client-360-reference-profile">
+          <div className="client-360-ref__profile-title">
+            <span aria-hidden="true">{initials(displayName)}</span>
+            <div>
+              <div className="client-360-ref__profile-name">
+                <h2 id="client-360-reference-profile">{displayName}</h2>
+                <StatusPill status={client.archivadoAt ? "archivado" : client.estado} />
+              </div>
+              <p>{summary.listItem.typeLabel}</p>
+            </div>
+          </div>
+          <dl className="client-360-ref__contact-list">
+            <Fact
+              label="Contacto principal"
+              value={primaryContact?.name ?? summary.listItem.primaryContact}
+            />
+            {primaryContact?.role ? <Fact label="Cargo" value={primaryContact.role} /> : null}
+            {primaryContact?.email ? <Fact label="Correo" value={primaryContact.email} /> : null}
+            {primaryContact?.phone ? <Fact label="Teléfono" value={primaryContact.phone} /> : null}
+            {address ? <Fact label="Dirección" value={address} /> : null}
+          </dl>
+          <Link href={profileEditHref} className="secondary-button mt-auto w-full">
+            Editar cliente
+          </Link>
+        </section>
+
+        <div className="client-360-ref__operating-area">
+          <section className="client-360-ref__kpis" aria-label="Indicadores del cliente">
+            <ReferenceKpi
+              label="Trabajos activos"
+              value={String(summary.kpis.activeWorks)}
+              detail={`${summary.kpis.totalWorks} trabajos registrados`}
+            />
+            <ReferenceKpi
+              label="Presupuestos abiertos"
+              value={String(summary.pendingBudgets.length)}
+              detail={formatCurrency(summary.kpis.budgetedTotal)}
+            />
+            <ReferenceKpi
+              label="Facturas pendientes"
+              value={String(summary.pendingInvoices.length)}
+              detail={formatCurrency(summary.kpis.pendingTotal)}
+            />
+            <ReferenceKpi
+              label="Facturado total"
+              value={formatCurrency(summary.kpis.billedTotal)}
+              detail={summary.kpis.overdueInvoices ? `${summary.kpis.overdueInvoices} vencidas` : "Sin vencimientos"}
+              wide
+            />
+            <ReferenceKpi
+              label="Última actividad"
+              value={lastActivity ? formatDate(lastActivity.date) : "Sin actividad"}
+              detail={lastActivity?.text ?? "No hay actividad registrada"}
+              wide
+            />
+          </section>
+
+          <div className="client-360-ref__middle-grid">
+            <ReferenceCollection title="Trabajos activos" href={hrefs.works} empty="Sin trabajos activos.">
+              {summary.activeWorks.slice(0, 3).map((work) => (
+                <CompactLink
+                  key={work.id}
+                  href={`/obras/${work.id}`}
+                  title={work.titulo}
+                  meta={`${statusLabel(work.estado)}${work.presupuestoAprobado != null ? ` · ${formatCurrency(work.presupuestoAprobado)}` : ""}`}
+                />
+              ))}
+            </ReferenceCollection>
+
+            <ReferenceCollection title="Actividad reciente" href={hrefs.activity} empty="Sin actividad reciente.">
+              {summary.activity.slice(0, 4).map((event) => (
+                <CompactLink
+                  key={event.id}
+                  href={event.href}
+                  title={event.text}
+                  meta={`${event.type} · ${formatDate(event.date)}`}
+                />
+              ))}
+            </ReferenceCollection>
+
+            <ReferenceCollection title="Presupuestos" href={hrefs.budgets} empty="Sin presupuestos.">
+              {summary.recentBudgets.slice(0, 3).map((budget) => (
+                <CompactLink
+                  key={budget.id}
+                  href={`/presupuestos/${budget.id}`}
+                  title={`${budget.numero} · ${budget.titulo}`}
+                  meta={`${statusLabel(budget.estado)} · ${formatCurrency(budget.total)}`}
+                />
+              ))}
+            </ReferenceCollection>
+          </div>
+        </div>
+      </div>
+
+      <div className="client-360-ref__bottom-grid">
+        <ReferenceCollection title="Facturas" href={hrefs.invoices} empty="Sin facturas.">
+          {summary.client.invoices.slice(0, 3).map((invoice) => (
+            <CompactLink
+              key={invoice.id}
+              href={`/dinero/${invoice.id}`}
+              title={`${invoice.numero} · ${invoice.concepto}`}
+              meta={`${statusLabel(invoice.estado)} · ${formatCurrency(invoice.total)}`}
+            />
+          ))}
+        </ReferenceCollection>
+
+        <ReferenceCollection title="Documentos recientes" href={hrefs.documents} empty="Sin documentos.">
+          {summary.documents.slice(0, 4).map((document) => (
+            <CompactLink
+              key={document.id}
+              href={document.href ?? undefined}
+              title={document.name}
+              meta={`${document.type} · ${formatDate(document.date)}`}
+            />
+          ))}
+        </ReferenceCollection>
+
+        <section className="client-360-ref__financial" aria-labelledby="client-360-reference-financial">
+          <header>
+            <span><WalletCards size={17} aria-hidden="true" /></span>
+            <h2 id="client-360-reference-financial">Información financiera</h2>
+          </header>
+          <p>Resumen actual</p>
+          <dl>
+            <Metric label="Facturado" value={formatCurrency(summary.kpis.billedTotal)} />
+            <Metric
+              label="Pendiente"
+              value={formatCurrency(summary.kpis.pendingTotal)}
+              danger={summary.kpis.pendingTotal > 0}
+            />
+            <Metric label="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} />
+          </dl>
+          <Link href={hrefs.payments} className="secondary-button mt-auto w-full">
+            Ver detalle financiero
+          </Link>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ReferenceKpi({
+  label,
+  value,
+  detail,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  wide?: boolean;
+}) {
+  return (
+    <article className={wide ? "client-360-ref__kpi client-360-ref__kpi--wide" : "client-360-ref__kpi"}>
+      <p>{label}</p>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </article>
+  );
+}
+
+function ReferenceCollection({
+  title,
+  href,
+  empty,
+  children,
+}: {
+  title: string;
+  href: string;
+  empty: string;
+  children: ReactNode;
+}) {
+  const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  return (
+    <section className="client-360-ref__collection">
+      <header>
+        <span><FileText size={16} aria-hidden="true" /></span>
+        <h2>{title}</h2>
+      </header>
+      <div>{hasChildren ? children : <EmptyText>{empty}</EmptyText>}</div>
+      <Link href={href} className="secondary-button mt-auto w-full">
+        Ver todos
+      </Link>
+    </section>
+  );
+}
+
+function initials(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 function ClientRecommendationRail({
   clientName,
   activeView,
   recommendation,
+  insights,
   allRecommendationsHref,
 }: {
   clientName: string;
   activeView: Client360CanonicalView;
   recommendation: Client360Recommendation | null;
+  insights: Client360Insight[];
   allRecommendationsHref: string;
 }) {
   const contextualRecommendation =
@@ -603,7 +755,7 @@ function ClientRecommendationRail({
       aria-label={`Recomendaciones de Orqena IA para ${clientName}`}
     >
       <p className="type-label">
-        {viewLabels[activeView]} · {clientName}
+        {activeView === "resumen" ? "Resumen inteligente" : `${viewLabels[activeView]} · ${clientName}`}
       </p>
       {contextualRecommendation ? (
         <section className="mt-5 flex flex-1 flex-col rounded-xl border border-brand/30 bg-surface p-4 shadow-soft">
@@ -614,6 +766,22 @@ function ClientRecommendationRail({
           <p className="mt-4 text-sm leading-6 text-content-secondary">
             {contextualRecommendation.description}
           </p>
+          {activeView === "resumen" && insights.length ? (
+            <div className="client-360-ref__rail-suggestions">
+              <h3>Sugerencias para hoy</h3>
+              <ul>
+                {insights.slice(0, 3).map((insight) => (
+                  <li key={insight.id}>
+                    <span><Sparkles size={14} aria-hidden="true" /></span>
+                    <div>
+                      {insight.href ? <Link href={insight.href}>{insight.title}</Link> : <strong>{insight.title}</strong>}
+                      <p>{insight.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {contextualRecommendation.sourceLabel ? (
             <p className="mt-3 text-xs font-semibold text-content-tertiary">
               Origen: {contextualRecommendation.sourceLabel}
@@ -657,66 +825,6 @@ function ClientRecommendationRail({
         <ArrowUpRight size={15} aria-hidden="true" />
       </Link>
     </div>
-  );
-}
-
-function Panel({
-  title,
-  icon: Icon,
-  href,
-  children,
-  className = "",
-}: {
-  title: string;
-  icon: typeof FileText;
-  href?: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section className={`min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft ${className}`}>
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="inline-flex items-center gap-2 font-semibold text-content">
-          <Icon size={17} aria-hidden="true" />
-          {title}
-        </h2>
-        {href ? (
-          <Link href={href} className="text-xs font-semibold text-brand-strong hover:underline">
-            Ver detalle
-          </Link>
-        ) : null}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function CollectionPanel({
-  title,
-  href,
-  empty,
-  children,
-}: {
-  title: string;
-  href?: string;
-  empty: string;
-  children: ReactNode;
-}) {
-  const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
-  return (
-    <section className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft">
-      <header className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold text-content">{title}</h2>
-        {href ? (
-          <Link href={href} className="text-xs font-semibold text-brand-strong hover:underline">
-            Ver todos
-          </Link>
-        ) : null}
-      </header>
-      <div className="mt-3 divide-y divide-border">
-        {hasChildren ? children : <EmptyText>{empty}</EmptyText>}
-      </div>
-    </section>
   );
 }
 
