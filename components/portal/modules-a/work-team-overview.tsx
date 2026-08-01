@@ -298,9 +298,9 @@ export function WorkTeamOverview({
         </TeamPanel>
       </section>
 
-      <section className="grid min-w-0 gap-3 xl:grid-cols-[1.08fr_1.12fr_.68fr]">
+      <section className="grid min-w-0 gap-3 xl:grid-cols-[1fr_1fr_.8fr]">
         <TeamPanel title="Responsables de aprobaciones" action={actions.approvals}>
-          {approvers.length ? <ul className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">{approvers.map((approver) => <ApproverCard key={approver.id} approver={approver} />)}</ul> : <HonestEmpty icon={ShieldCheck} text="No se han recibido responsables de aprobación." />}
+          {approvers.length ? <ul className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{approvers.map((approver) => <ApproverCard key={approver.id} approver={approver} />)}</ul> : <HonestEmpty icon={ShieldCheck} text="No se han recibido responsables de aprobación." />}
         </TeamPanel>
 
         <TeamPanel title="Notas de coordinación" action={actions.addNote}>
