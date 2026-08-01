@@ -45,6 +45,9 @@ import { WorkPlanningLoad, WorkPlanningResources } from "@/components/portal/mod
 import { WorkPlanningMilestones } from "@/components/portal/modules-a/work-planning-milestones";
 import { WorkPlanningNetwork } from "@/components/portal/modules-a/work-planning-network";
 import { WorkCostsOverview } from "@/components/portal/modules-a/work-costs-overview";
+import { WorkCostsStructure } from "@/components/portal/modules-a/work-costs-structure";
+import { WorkCostsAnalysis } from "@/components/portal/modules-a/work-costs-analysis";
+import { WorkCostsIncidentsRanking } from "@/components/portal/modules-a/work-costs-incidents-ranking";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -732,6 +735,107 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
   if (subview === "subcontratas") return <SubcontractTab work={work} expenses={work.expenses} />;
   if (subview === "ordenes") return <OperationalSetupPanel title="Órdenes de trabajo y compra" description="Prepara, valida y vincula cada orden al expediente de la obra antes de ejecutarla." count={work.expenses.length} countLabel="costes trazables" icon={ClipboardList} items={["Las órdenes se relacionan con proveedores y partidas autorizadas.", "La ejecución conserva responsable, fecha y evidencia.", "Ningún coste se confirma sin revisión humana."]} action={<Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=costes&subvista=ordenes`)}`} className="primary-button">Registrar orden o coste</Link>} />;
   if (subview === "informes") return <Section title="Informes de costes"><p className="type-secondary">La exportación utiliza exclusivamente los costes autorizados de esta empresa.</p><Link href="/inteligencia/export?tipo=works" className="primary-button mt-4 inline-flex">Exportar informe</Link></Section>;
+  const groupedExpenses = new Map<string, WorkDetail["expenses"]>();
+  for (const expense of work.expenses) {
+    const category = expense.categoria.replaceAll("_", " ");
+    groupedExpenses.set(category, [...(groupedExpenses.get(category) ?? []), expense]);
+  }
+  const accumulatedByCategory = Array.from(groupedExpenses.entries()).map(([category, expenses], index) => ({
+    id: category,
+    code: String(index + 1).padStart(2, "0"),
+    name: category,
+    actualAmount: expenses.reduce((sum, expense) => sum + expense.importe, 0),
+    expenses,
+  }));
+  if (subview === "estructura") return <WorkCostsStructure
+    chapters={accumulatedByCategory.map((category) => ({
+      id: category.id,
+      code: category.code,
+      description: category.name,
+      budget: null,
+      committed: null,
+      accumulated: category.actualAmount,
+      forecast: null,
+      toDate: category.actualAmount,
+      items: category.expenses.map((expense, index) => ({
+        id: expense.id,
+        code: `${category.code}.${index + 1}`,
+        description: expense.concepto,
+        budget: null,
+        committed: null,
+        accumulated: expense.importe,
+        forecast: null,
+        toDate: expense.importe,
+      })),
+    }))}
+    coverage={{ budget: false, committed: false, accumulated: true, forecast: false, toDate: true }}
+    versionLabel="Costes registrados en la obra"
+    exportHref="/inteligencia/export?tipo=works"
+  />;
+  if (subview === "analisis") {
+    const daily = new Map<string, number>();
+    for (const expense of work.expenses) {
+      const date = expense.fecha.toISOString().slice(0, 10);
+      daily.set(date, (daily.get(date) ?? 0) + expense.importe);
+    }
+    let accumulated = 0;
+    const trend = Array.from(daily.entries()).sort(([left], [right]) => left.localeCompare(right)).map(([date, amount]) => {
+      accumulated += amount;
+      return { date, actualAmount: accumulated, budgetAmount: null, forecastAmount: null };
+    });
+    const budget = work.presupuestoAprobado > 0 ? work.presupuestoAprobado : null;
+    const forecast = work.costePrevisto > 0 ? work.costePrevisto : null;
+    const deviation = budget != null && forecast != null ? forecast - budget : null;
+    const margin = work.margenEstimado > 0 ? work.margenEstimado : null;
+    return <WorkCostsAnalysis
+      periodLabel="Histórico completo de la obra"
+      summary={{
+        budgetAmount: budget,
+        budgetPercent: budget != null ? 100 : null,
+        actualAmount: financial.realCost,
+        actualPercent: budget != null ? financial.realCost / budget * 100 : null,
+        forecastAmount: forecast,
+        forecastPercent: budget != null && forecast != null ? forecast / budget * 100 : null,
+        deviationAmount: deviation,
+        deviationPercent: budget != null && deviation != null ? deviation / budget * 100 : null,
+        projectedMarginAmount: margin,
+        projectedMarginPercent: budget != null && margin != null ? margin / budget * 100 : null,
+      }}
+      trend={trend}
+      categories={accumulatedByCategory.map((category) => ({ id: category.id, code: category.code, name: category.name, budgetAmount: null, actualAmount: category.actualAmount, forecastAmount: null, deviationAmount: null }))}
+      categoryTotals={{ budgetAmount: null, actualAmount: financial.realCost, forecastAmount: null, deviationAmount: null }}
+      deviations={[]}
+      exportHref="/inteligencia/export?tipo=works"
+      categoriesHref={`/obras/${work.id}/costes/estructura`}
+      deviationsHref={`/obras/${work.id}/costes/incidencias`}
+    />;
+  }
+  if (subview === "incidencias") return <WorkCostsIncidentsRanking mode="incidents" incidents={[]} exportHref="/inteligencia/export?tipo=works" />;
+  if (subview === "ranking") {
+    const suppliers = new Map<string, { name: string; amount: number }>();
+    for (const expense of work.expenses) {
+      const key = expense.businessPartnerId ?? expense.proveedor.trim().toLocaleLowerCase("es-ES");
+      const current = suppliers.get(key);
+      suppliers.set(key, { name: expense.businessPartner?.commercialName ?? expense.proveedor, amount: (current?.amount ?? 0) + expense.importe });
+    }
+    const supplierRows = Array.from(suppliers.entries()).map(([id, supplier]) => ({ id, ...supplier })).sort((left, right) => right.amount - left.amount);
+    const categoryRows = [...accumulatedByCategory].sort((left, right) => right.actualAmount - left.actualAmount);
+    return <WorkCostsIncidentsRanking
+      mode="ranking"
+      title="Ranking de costes registrados"
+      description="Clasificaciones calculadas sólo con gastos persistidos en esta obra."
+      metrics={[
+        { id: "actual", label: "Coste acumulado", value: financial.realCost, format: "currency" },
+        { id: "suppliers", label: "Proveedores visibles", value: supplierRows.length, format: "number" },
+        { id: "categories", label: "Categorías visibles", value: categoryRows.length, format: "number" },
+      ]}
+      groups={[
+        { id: "suppliers", title: "Proveedores por coste acumulado", width: "wide", columns: [{ key: "actual", label: "Coste acumulado", align: "right" }], rows: supplierRows.map((supplier, index) => ({ id: supplier.id, rank: index + 1, label: supplier.name, cells: { actual: { value: supplier.amount, format: "currency" } } })) },
+        { id: "categories", title: "Categorías por coste acumulado", width: "wide", columns: [{ key: "actual", label: "Coste acumulado", align: "right" }], rows: categoryRows.map((category, index) => ({ id: category.id, rank: index + 1, code: category.code, label: category.name, cells: { actual: { value: category.actualAmount, format: "currency" } } })) },
+      ]}
+      exportHref="/inteligencia/export?tipo=works"
+    />;
+  }
   if (subview === "resumen") {
     const expensesByCategory = new Map<string, WorkDetail["expenses"]>();
     for (const expense of work.expenses) {
