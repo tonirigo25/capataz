@@ -149,6 +149,8 @@ export default async function WorkDetailPage({
   }
   const [taskAccess, taskManageAccess] = await Promise.all([resolveAuthorization(auth, "tasks.view"), resolveAuthorization(auth, "tasks.manage")]);
   const scopedTaskIds = taskAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.view") : [];
+  const scopedManageTaskIds = taskManageAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.manage") : [];
+  const canManageAllTasks = taskManageAccess.allowed && scopedManageTaskIds === null;
   const [work, treasury, workTasks, activeMembers] = await Promise.all([
     prisma.work.findFirst({
       where: { id, companyId: auth.companyId },
@@ -206,7 +208,7 @@ export default async function WorkDetailPage({
       {activeTab === "partes" ? <PartsWorkspace work={work} timeline={timeline} subview={activeSubview} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
       {activeTab === "costes" ? <CostsWorkspace work={work} financial={financial} pendingMaterials={pendingMaterials.length} subview={activeSubview} /> : null}
       {activeTab === "facturacion" ? <BillingWorkspace work={work} treasury={treasury} financial={financial} subview={activeSubview} /> : null}
-      {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={taskManageAccess.allowed} memberNames={memberNames} subview={activeSubview} /> : null}
+      {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={canManageAllTasks} memberNames={memberNames} subview={activeSubview} /> : null}
       {activeTab === "documentos" ? <DocumentsWorkspace work={work} documents={documents} subview={activeSubview} /> : null}
       {activeTab === "equipo" ? <TeamWorkspace work={work} subview={activeSubview} /> : null}
       {activeTab === "incidencias" ? <IncidentsTab work={work} risks={risks} /> : null}
@@ -533,10 +535,11 @@ function SubcontractTab({ work, expenses }: { work: WorkDetail; expenses: WorkDe
 
 function PlanningDependencyWorkspace({ work, tasks, canManageTasks, mode }: { work: WorkDetail; tasks: WorkTask[]; canManageTasks: boolean; mode: "dependencies" | "critical-path" }) {
   const visibleTasks = tasks.slice(0, 8);
-  const dependencyRows = tasks.flatMap((task) => task.dependencies.map((dependency) => ({ dependency, task })));
+  const visibleTaskIds = new Set(tasks.map((task) => task.id));
+  const dependencyRows = tasks.flatMap((task) => task.dependencies.filter((dependency) => visibleTaskIds.has(dependency.dependsOnTaskId)).map((dependency) => ({ dependency, task })));
   const completed = tasks.filter((task) => task.status === "completed").length;
   const blocked = tasks.filter((task) => task.status === "blocked").length;
-  const withDependencies = tasks.filter((task) => task.dependencies.length > 0).length;
+  const withDependencies = tasks.filter((task) => task.dependencies.some((dependency) => visibleTaskIds.has(dependency.dependsOnTaskId))).length;
   const focusTask = tasks.find((task) => task.status === "blocked") ?? tasks.find((task) => !["completed", "cancelled", "archived"].includes(task.status)) ?? tasks[0] ?? null;
   return (
     <div className="grid gap-4">
@@ -588,7 +591,7 @@ function PlanningDependencyWorkspace({ work, tasks, canManageTasks, mode }: { wo
             {focusTask ? (
               <div className="mt-4 grid gap-3">
                 <div className="rounded-lg border border-border bg-surface p-3"><p className="type-label">Tarea seleccionada</p><p className="mt-1 font-bold text-content">{focusTask.title}</p></div>
-                <InfoGrid rows={[["Estado", statusLabel(focusTask.status)], ["Inicio", formatDate(focusTask.startsAt)], ["Vencimiento", formatDate(focusTask.dueAt)], ["Dependencias", String(focusTask.dependencies.length)]]} />
+                <InfoGrid rows={[["Estado", statusLabel(focusTask.status)], ["Inicio", formatDate(focusTask.startsAt)], ["Vencimiento", formatDate(focusTask.dueAt)], ["Dependencias", String(focusTask.dependencies.filter((dependency) => visibleTaskIds.has(dependency.dependsOnTaskId)).length)]]} />
                 <Link href={`/tareas/${focusTask.id}`} className="secondary-button justify-center">Revisar tarea</Link>
               </div>
             ) : (
@@ -643,6 +646,7 @@ function OperationalSetupPanel({ title, description, count, countLabel, icon: Ic
 }
 
 function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }: { work: WorkDetail; tasks: WorkTask[]; canManageTasks: boolean; memberNames: Record<string, string>; subview: string }) {
+  const visibleTaskIds = new Set(tasks.map((task) => task.id));
   const planningTasks = tasks.map((task) => ({
     id: task.id,
     title: task.title,
@@ -655,7 +659,7 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
     estimatedMinutes: task.estimatedMinutes,
     actualMinutes: task.actualMinutes,
     progress: task.checklist.length ? Math.round((task.checklist.filter((item) => item.completed).length / task.checklist.length) * 100) : task.status === "completed" ? 100 : null,
-    dependencies: task.dependencies.map((dependency) => ({ taskId: dependency.dependsOnTaskId, type: dependency.type })),
+    dependencies: task.dependencies.filter((dependency) => visibleTaskIds.has(dependency.dependsOnTaskId)).map((dependency) => ({ taskId: dependency.dependsOnTaskId, type: dependency.type })),
   }));
   const planningWork = {
     id: work.id,
@@ -663,6 +667,7 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
     startsAt: (work.fechaInicioReal ?? work.fechaInicioPrevista ?? work.fechaInicio)?.toISOString() ?? null,
     dueAt: work.fechaFinPrevista?.toISOString() ?? null,
     responsible: work.jefeObra ?? work.responsable ?? null,
+    nowIso: new Date().toISOString(),
     materials: work.materials.map((material) => ({ id: material.id, name: material.nombre, status: material.estado, quantity: material.cantidad })),
     events: work.agendaEvents.map((event) => ({ id: event.id, title: event.titulo, startsAt: event.fechaInicio.toISOString(), endsAt: event.fechaFin?.toISOString() ?? null })),
   };

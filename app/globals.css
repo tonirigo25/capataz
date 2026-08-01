@@ -205,10 +205,10 @@ body {
 /* Work planning · canonical operational views from classified references. */
 .planning-summary-grid,
 .planning-gantt-page { display: grid; min-width: 0; gap: 12px; }
-.planning-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.planning-summary-grid { grid-template-columns: repeat(10, minmax(0, 1fr)); }
 .planning-card {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--cap-border);
   border-radius: 9px;
   background: var(--cap-surface);
@@ -219,15 +219,23 @@ body {
 .planning-card > header a,
 .planning-card > header button { flex: 0 0 auto; color: var(--orqena-brand-deep); font-size: 10px; font-weight: 760; }
 .planning-eyebrow { color: var(--cap-text-muted); font-size: 9px; font-weight: 720; letter-spacing: .08em; text-transform: uppercase; }
-.planning-summary-timeline { grid-column: span 4; padding: 10px; }
-.planning-summary-metrics { grid-column: span 2; }
-.planning-summary-grid > .planning-card:nth-child(n+3):nth-child(-n+5) { grid-column: span 2; min-height: 170px; }
-.planning-summary-grid > .planning-card:nth-child(n+6) { grid-column: span 1; min-height: 180px; }
+.planning-summary-timeline { grid-column: span 7; padding: 10px; }
+.planning-summary-metrics { grid-column: span 3; }
+.planning-summary-grid > .planning-card:nth-child(3),
+.planning-summary-grid > .planning-card:nth-child(4) { grid-column: span 3; min-height: 184px; }
+.planning-summary-grid > .planning-card:nth-child(5) { grid-column: span 4; min-height: 184px; }
+.planning-summary-grid > .planning-card:nth-child(n+6) { grid-column: span 2; min-height: 192px; }
 .planning-legend { display: flex; flex-wrap: wrap; gap: 9px; color: var(--cap-text-muted); font-size: 9px; }
 .planning-legend span::before { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 999px; background: #aab4af; content: ""; }
 .planning-legend span[data-tone="done"]::before { background: #159447; }
 .planning-legend span[data-tone="active"]::before { background: #2174db; }
 .planning-legend span[data-tone="late"]::before { background: #e24b42; }
+.planning-summary-controls { display: flex; min-height: 30px; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.planning-summary-controls select,
+.planning-summary-zoom { min-height: 28px; border: 1px solid var(--cap-border); border-radius: 6px; background: #fff; padding: 0 8px; color: var(--cap-text); font-size: 9px; }
+.planning-summary-controls .planning-legend { margin-left: auto; }
+.planning-summary-zoom { display: flex; align-items: center; gap: 7px; padding: 0 3px; }
+.planning-summary-zoom button { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; }
 .planning-metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
 .planning-metric { min-width: 0; border: 1px solid var(--cap-border); border-radius: 7px; padding: 10px; }
 .planning-metric > span { display: block; overflow: hidden; color: var(--cap-text-muted); font-size: 9px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
@@ -256,8 +264,8 @@ body {
 .planning-control-state strong { color: var(--cap-text); font-size: 11px; }
 .planning-control-state p { color: var(--cap-text-muted); font-size: 9px; line-height: 15px; }
 
-.planning-gantt-shell { display: grid; min-width: 0; grid-template-columns: minmax(390px, 43%) minmax(0, 57%); overflow: hidden; border: 1px solid var(--cap-border); border-radius: 7px; }
-.planning-gantt-table { min-width: 390px; border-right: 1px solid var(--cap-border); background: #fff; }
+.planning-gantt-shell { display: grid; min-width: 0; grid-template-columns: minmax(310px, 39%) minmax(0, 61%); overflow: hidden; border: 1px solid var(--cap-border); border-radius: 7px; }
+.planning-gantt-table { min-width: 310px; border-right: 1px solid var(--cap-border); background: #fff; }
 .planning-gantt-heading,
 .planning-gantt-task-row { display: grid; min-width: 0; grid-template-columns: minmax(145px,1.3fr) minmax(82px,.72fr) 66px 66px; align-items: center; border-bottom: 1px solid var(--cap-border); }
 .planning-gantt-heading { height: 34px; color: var(--cap-text-muted); font-size: 9px; font-weight: 720; }
@@ -289,6 +297,7 @@ body {
 .planning-gantt-bar--late,
 .planning-gantt-bar--blocked { border-color: #e36258; background: #fee0de; color: #a92f28; }
 .planning-gantt-bar--planned { border-color: #7aa1ce; background: #dceafe; color: #215b9d; }
+.planning-gantt-unscheduled { position: absolute; left: 8px; display: inline-flex; min-height: 20px; align-items: center; border-radius: 999px; background: #f3f5f4; padding: 0 8px; color: var(--cap-text-muted); font-size: 8px; font-weight: 650; }
 .planning-gantt-toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 9px; }
 .planning-gantt-toolbar label,
 .planning-gantt-toolbar .planning-zoom { display: flex; min-height: 36px; align-items: center; gap: 7px; border: 1px solid var(--cap-border); border-radius: 7px; background: var(--cap-surface); padding: 0 10px; color: var(--cap-text-muted); font-size: 10px; }
@@ -298,7 +307,7 @@ body {
 .planning-search input { width: 100%; }
 .planning-visible-count { color: var(--cap-text-muted); font-size: 9px; }
 .planning-zoom { margin-left: auto; }
-.planning-zoom button { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-left: 1px solid var(--cap-border); }
+.planning-zoom button { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-left: 1px solid var(--cap-border); }
 .planning-gantt-primary { padding: 10px; }
 .planning-gantt-bottom { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .planning-gantt-bottom .planning-card { min-height: 170px; }
@@ -309,8 +318,8 @@ body {
 @media (max-width: 1279px) {
   .planning-summary-timeline,
   .planning-summary-metrics { grid-column: 1 / -1; }
-  .planning-summary-grid > .planning-card:nth-child(n+3):nth-child(-n+5) { grid-column: span 3; }
-  .planning-summary-grid > .planning-card:nth-child(n+6) { grid-column: span 2; }
+  .planning-summary-grid > .planning-card:nth-child(n+3):nth-child(-n+5) { grid-column: span 5; }
+  .planning-summary-grid > .planning-card:nth-child(n+6) { grid-column: span 5; }
   .planning-gantt-bottom { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 767px) {
