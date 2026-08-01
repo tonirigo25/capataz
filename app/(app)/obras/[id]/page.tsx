@@ -48,6 +48,7 @@ import { WorkCostsOverview } from "@/components/portal/modules-a/work-costs-over
 import { WorkCostsStructure } from "@/components/portal/modules-a/work-costs-structure";
 import { WorkCostsAnalysis } from "@/components/portal/modules-a/work-costs-analysis";
 import { WorkCostsIncidentsRanking } from "@/components/portal/modules-a/work-costs-incidents-ranking";
+import { WorkBillingOverview } from "@/components/portal/modules-a/work-billing-overview";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -897,6 +898,42 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
 }
 
 function BillingWorkspace({ work, treasury, financial, subview }: { work: WorkDetail; treasury: Awaited<ReturnType<typeof getEconomicControl>>; financial: ReturnType<typeof calculateWorkFinancials>; subview: string }) {
+  if (subview === "resumen") {
+    const pendingInvoices = work.invoices.map((invoice) => ({ invoice, paid: invoicePaid(invoice), pending: Math.max(0, invoice.total - invoicePaid(invoice)) }));
+    const now = new Date();
+    const thirtyDays = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const upcoming = pendingInvoices.filter(({ invoice, pending }) => pending > 0 && invoice.fechaVencimiento && invoice.fechaVencimiento >= now && invoice.fechaVencimiento <= thirtyDays).reduce((sum, item) => sum + item.pending, 0);
+    return <WorkBillingOverview
+      workId={work.id}
+      metrics={[
+        { kind: "contracted", value: financial.budgeted || null, percent: financial.budgeted > 0 ? 100 : null, detail: "Presupuesto autorizado de la obra" },
+        { kind: "certified", value: null, detail: "Sin certificaciones persistidas" },
+        { kind: "issued", value: financial.invoiced, percent: financial.budgeted > 0 ? financial.invoiced / financial.budgeted * 100 : null, detail: `${financial.invoiceCount} facturas vinculadas` },
+        { kind: "pending", value: financial.pending, detail: `${financial.openInvoiceCount} facturas abiertas` },
+        { kind: "retained", value: null, detail: "Sin retenciones persistidas" },
+        { kind: "upcoming", value: upcoming, detail: "Vencimientos en los próximos 30 días" },
+      ]}
+      certifications={[]}
+      invoices={pendingInvoices.map(({ invoice, paid }) => ({
+        id: invoice.id,
+        number: invoice.numero,
+        issuedAt: invoice.fechaEmision.toISOString(),
+        dueAt: invoice.fechaVencimiento?.toISOString() ?? null,
+        amount: invoice.total,
+        status: invoice.estado,
+        collectedAmount: paid,
+        detailHref: `/dinero/${invoice.id}`,
+      }))}
+      invoiceTotals={{ invoiceAmount: financial.invoiced, collectedAmount: financial.paid }}
+      forecast={pendingInvoices.filter(({ pending }) => pending > 0).map(({ invoice, paid, pending }) => ({ id: invoice.id, label: invoice.fechaVencimiento ? formatDate(invoice.fechaVencimiento) : invoice.numero, expectedAmount: pending, collectedAmount: paid }))}
+      forecastSummary={{ expectedRemaining: financial.pending, collectedTotal: financial.paid, pendingExpected: financial.pending, nextThirtyDays: upcoming }}
+      timeline={pendingInvoices.map(({ invoice }) => ({ id: invoice.id, date: invoice.fechaEmision.toISOString(), code: invoice.numero, title: invoice.concepto, detail: invoice.fechaVencimiento ? `Vence ${formatDate(invoice.fechaVencimiento)}` : "Sin vencimiento persistido", amount: invoice.total, status: invoice.estado, href: `/dinero/${invoice.id}` }))}
+      certificationsHref={`/obras/${work.id}?vista=facturacion&subvista=certificaciones`}
+      invoicesHref={`/obras/${work.id}?vista=facturacion&subvista=facturas`}
+      forecastHref={`/obras/${work.id}?vista=facturacion&subvista=vencimientos`}
+      timelineHref={`/obras/${work.id}?vista=facturacion&subvista=historico`}
+    />;
+  }
   const metrics = <Section title="Facturación y cobros autorizados"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Finance label="Presupuestado" value={financial.budgeted} /><Finance label="Facturado" value={financial.invoiced} /><Finance label="Cobrado" value={financial.paid} /><Finance label="Pendiente" value={financial.pending} tone={financial.pending ? "warning" : "neutral"} /></div></Section>;
   if (subview === "facturas") return <div className="grid gap-4">{metrics}<CardsTab items={work.invoices} empty="No hay facturas asociadas." render={(invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />} /></div>;
   if (subview === "cobros") return <div className="grid gap-4">{metrics}<CardsTab items={work.payments} empty="Cobros preparados para esta obra" render={(payment) => <PaymentCard key={payment.id} payment={payment} />} /><WorkTreasuryTab treasury={treasury} workId={work.id} /></div>;
