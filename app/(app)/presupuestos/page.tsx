@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CheckCircle2,
+  ChevronDown,
   CircleDollarSign,
   Clock3,
   Copy,
@@ -9,12 +10,15 @@ import {
   FileText,
   MessageCircle,
   Pencil,
+  Plus,
   Search,
   Send,
+  SlidersHorizontal,
 } from "lucide-react";
 import { duplicateBudget } from "@/app/(app)/presupuestos/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DemoLimitButton } from "@/components/demo-limit-button";
+import { BudgetRailContext } from "@/components/portal/budget-rail-context";
 import { StatusPill } from "@/components/status-pill";
 import {
   ActionMenu,
@@ -142,7 +146,9 @@ export default async function BudgetsPage({
   });
   const selectedBudget = query.presupuesto
     ? visibleBudgets.find((budget) => budget.id === query.presupuesto) ?? null
-    : null;
+    : visibleBudgets.find((budget) => budget.estado === "pendiente_revision")
+      ?? visibleBudgets[0]
+      ?? null;
 
   const openBudgets = budgets.filter((budget) =>
     matchesFilter(budget.estado, "pendientes"),
@@ -229,26 +235,28 @@ export default async function BudgetsPage({
 
   return (
     <main className={`screen ${styles.workspace}`}>
+      <BudgetRailContext
+        context={selectedBudget ? {
+          id: selectedBudget.id,
+          numero: selectedBudget.numero,
+          title: selectedBudget.work?.titulo ?? selectedBudget.titulo,
+          client: selectedBudget.client.nombre,
+          status: selectedBudget.estado,
+          margin: permissions(selectedBudget).margin ? budgetMarginPercent(selectedBudget) : null,
+          total: permissions(selectedBudget).pricing ? formatCurrency(selectedBudget.total) : null,
+          lineCount: parseBudgetLines(selectedBudget.partidas).length,
+          reviewHref: `/presupuestos/${selectedBudget.id}?returnTo=${encodeURIComponent(selectionHref(selectedBudget.id, activeFilter, query.buscar))}`,
+          editHref: permissions(selectedBudget).update
+            ? `/gestion?tipo=presupuesto&id=${selectedBudget.id}&returnTo=${encodeURIComponent(selectionHref(selectedBudget.id, activeFilter, query.buscar))}`
+            : null,
+        } : null}
+      />
       <header className={styles.pageHeader}>
         <div>
           <h1>Presupuestos</h1>
           <p>
             Prepara, revisa y convierte presupuestos en oportunidades ganadas.
           </p>
-        </div>
-        <div className={styles.headerActions}>
-          <Link href="/presupuestos/plantillas" className="secondary-button">
-            <FileText size={17} /> Plantillas
-          </Link>
-          {canCreate ? (
-            <DemoLimitButton
-              href="/gestion?tipo=presupuesto&returnTo=/presupuestos"
-              currentCount={budgets.length}
-              limit={2}
-            >
-              Nuevo presupuesto
-            </DemoLimitButton>
-          ) : null}
         </div>
       </header>
 
@@ -291,39 +299,69 @@ export default async function BudgetsPage({
         <div className={styles.panelHeader}>
           <div>
             <h2 id="budget-list-title">Listado de presupuestos</h2>
-            <p>
-              {visibleBudgets.length} de {budgets.length} visibles
-            </p>
+            <p>{visibleBudgets.length} de {budgets.length} visibles</p>
           </div>
-          <form action="/presupuestos" className={styles.filters}>
-            <label className={styles.searchField}>
-              <span className="sr-only">Buscar presupuestos</span>
-              <Search size={16} aria-hidden="true" />
-              <input
-                name="buscar"
-                defaultValue={query.buscar ?? ""}
-                placeholder="Número, cliente, obra o título"
-              />
-            </label>
-            <label className={styles.selectField}>
-              <span className="sr-only">Filtrar por estado</span>
-              <select name="filtro" defaultValue={activeFilter}>
-                {filterOptions.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="secondary-button">
-              Aplicar
-            </button>
-            {query.buscar || activeFilter !== "todos" ? (
-              <Link href="/presupuestos" className={styles.clearLink}>
-                Limpiar
+          <div className={styles.panelControls}>
+            <details className={styles.filterMenu}>
+              <summary className={styles.filterButton}>
+                <SlidersHorizontal size={15} aria-hidden="true" />
+                Filtros
+                <ChevronDown size={14} aria-hidden="true" />
+              </summary>
+              <form action="/presupuestos" className={styles.filters}>
+                <label className={styles.searchField}>
+                  <span>Buscar</span>
+                  <span className={styles.inputShell}>
+                    <Search size={15} aria-hidden="true" />
+                    <input
+                      name="buscar"
+                      defaultValue={query.buscar ?? ""}
+                      placeholder="Número, cliente, obra o título"
+                    />
+                  </span>
+                </label>
+                <label className={styles.selectField}>
+                  <span>Estado</span>
+                  <select name="filtro" defaultValue={activeFilter}>
+                    {filterOptions.map(([id, label]) => (
+                      <option key={id} value={id}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className={styles.filterActions}>
+                  {query.buscar || activeFilter !== "todos" ? (
+                    <Link href="/presupuestos" className={styles.clearLink}>Limpiar</Link>
+                  ) : <span />}
+                  <button type="submit" className="primary-button">Aplicar filtros</button>
+                </div>
+              </form>
+            </details>
+            {canCreate ? (
+              <details className={styles.newBudgetMenu}>
+                <summary className={styles.newBudgetButton}>
+                  <Plus size={16} aria-hidden="true" />
+                  Nuevo presupuesto
+                  <ChevronDown size={14} aria-hidden="true" />
+                </summary>
+                <div className={styles.newBudgetPanel}>
+                  <DemoLimitButton
+                    href="/gestion?tipo=presupuesto&returnTo=/presupuestos"
+                    currentCount={budgets.length}
+                    limit={2}
+                  >
+                    Crear desde cero
+                  </DemoLimitButton>
+                  <Link href="/presupuestos/plantillas" className="secondary-button">
+                    <FileText size={16} /> Usar una plantilla
+                  </Link>
+                </div>
+              </details>
+            ) : (
+              <Link href="/presupuestos/plantillas" className={styles.filterButton}>
+                <FileText size={15} /> Plantillas
               </Link>
-            ) : null}
-          </form>
+            )}
+          </div>
         </div>
 
         {visibleBudgets.length ? (
@@ -340,8 +378,8 @@ export default async function BudgetsPage({
                     {marginDecision.allowed ? (
                       <th className={styles.numeric}>Margen</th>
                     ) : null}
-                    <th>Creado</th>
                     <th>Próxima acción</th>
+                    <th>Última actualización</th>
                     <th><span className="sr-only">Acciones</span></th>
                   </tr>
                 </thead>
@@ -360,7 +398,6 @@ export default async function BudgetsPage({
                           >
                             {budget.numero}
                           </Link>
-                          <span className={styles.budgetTitle}>{budget.titulo}</span>
                         </td>
                         <td>{budget.client.nombre}</td>
                         <td>{budget.work?.titulo ?? "Sin obra vinculada"}</td>
@@ -377,8 +414,14 @@ export default async function BudgetsPage({
                               : "Restringido"}
                           </td>
                         ) : null}
-                        <td>{formatDate(budget.fechaCreacion)}</td>
-                        <td>{nextBudgetAction(budget.estado)}</td>
+                        <td className={styles.contextCell}>
+                          <strong>{nextBudgetAction(budget.estado)}</strong>
+                          <small>{nextBudgetActionMeta(budget)}</small>
+                        </td>
+                        <td className={styles.contextCell}>
+                          <strong>{formatDate(lastBudgetActivity(budget).date)}</strong>
+                          <small>{lastBudgetActivity(budget).label}</small>
+                        </td>
                         <td className={styles.actionCell}>
                           <BudgetActions budget={budget} permissions={budgetPermissions} returnTo={selectionUrl} />
                         </td>
@@ -603,15 +646,15 @@ function ConversionFunnel({
               stage.statuses.includes(budget.estado as never),
             ).length;
             return (
-              <Link
-                key={stage.label}
-                href={filterHref(stage.filter)}
-                className={`${styles.funnelStage} ${styles[`funnel-${stage.tone}`]}`}
-                style={{ width: `${100 - index * 12}%` }}
-              >
-                <span>{stage.label}</span>
-                <strong>{count}</strong>
-              </Link>
+              <div className={styles.funnelStageRow} key={stage.label}>
+                <Link
+                  href={filterHref(stage.filter)}
+                  className={`${styles.funnelStage} ${styles[`funnel-${stage.tone}`]}`}
+                  style={{ width: `${100 - index * 12}%` }}
+                  aria-label={`${stage.label}: ${count}`}
+                />
+                <span><strong>{stage.label}</strong><small>{count} registros</small></span>
+              </div>
             );
           })}
         </div>
@@ -683,6 +726,7 @@ function BudgetSelectionDetail({
               {lines.slice(0, 4).map((line, index) => (
                 <li key={`${line.descripcion}-${index}`}>
                   <span>{line.descripcion}<small>{line.cantidad} {line.unidad}</small></span>
+                  <span className={styles.lineBar} aria-hidden="true"><i style={{ width: `${Math.max(12, Math.min(100, budget.total > 0 ? line.total / budget.total * 100 : 0))}%` }} /></span>
                   <strong>{permissions.pricing ? formatCurrency(line.total) : "Restringido"}</strong>
                 </li>
               ))}
@@ -694,7 +738,7 @@ function BudgetSelectionDetail({
       </div>
       <footer className={styles.detailActions}>
         <Link href={`/presupuestos/${budget.id}?returnTo=${encodeURIComponent(returnTo)}`} className="secondary-button">Ver detalle completo</Link>
-        {permissions.agenda ? <Link href={followUpHref(budget, returnTo)} className="secondary-button"><MessageCircle size={16} /> Seguimiento</Link> : null}
+        {permissions.agenda ? <Link href={followUpHref(budget, returnTo)} className="secondary-button"><MessageCircle size={16} /> Preparar seguimiento</Link> : null}
         {permissions.update ? <Link href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=${encodeURIComponent(returnTo)}`} className="primary-button"><Send size={16} /> Revisar presupuesto</Link> : null}
       </footer>
     </article>
@@ -750,6 +794,18 @@ function nextBudgetAction(status: string) {
   if (status === "caducado") return "Actualizar validez";
   if (status === "rechazado") return "Revisar propuesta";
   return "Revisar";
+}
+
+function nextBudgetActionMeta(budget: BudgetRow) {
+  if (budget.fechaSeguimiento) return formatDate(budget.fechaSeguimiento);
+  if (budget.fechaValidez) return `Válido hasta ${formatDate(budget.fechaValidez)}`;
+  return "Sin fecha programada";
+}
+
+function lastBudgetActivity(budget: BudgetRow) {
+  if (budget.fechaSeguimiento) return { date: budget.fechaSeguimiento, label: "Seguimiento programado" };
+  if (budget.fechaEnvio) return { date: budget.fechaEnvio, label: "Envío registrado" };
+  return { date: budget.fechaCreacion, label: "Creación registrada" };
 }
 
 function normalize(value: string) {

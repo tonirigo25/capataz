@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, ExternalLink, FileText, Info, ShieldCheck, Sparkles, TriangleAlert, X } from "lucide-react";
 import type { PortalRailArea, PortalRailRecommendations, TodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
+import type { BudgetRailContextValue } from "@/components/portal/budget-rail-context";
 import {
   acceptTodayRecommendationAction,
   dismissTodayRecommendationAction,
@@ -83,6 +84,7 @@ export function OrqenaContextRail({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [documentContext, setDocumentContext] = useState<DocumentRailContext | null>(null);
+  const [budgetContext, setBudgetContext] = useState<BudgetRailContextValue | null>(null);
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
@@ -112,6 +114,18 @@ export function OrqenaContextRail({
     return () => window.removeEventListener("orqena:document-context", onDocumentContext);
   }, [pathname]);
   useEffect(() => {
+    if (!pathname.startsWith("/presupuestos")) {
+      setBudgetContext(null);
+      return;
+    }
+    const onBudgetContext = (event: Event) => {
+      const detail = (event as CustomEvent<BudgetRailContextValue | null>).detail;
+      setBudgetContext(isBudgetRailContext(detail) ? detail : null);
+    };
+    window.addEventListener("orqena:budget-context", onBudgetContext);
+    return () => window.removeEventListener("orqena:budget-context", onBudgetContext);
+  }, [pathname]);
+  useEffect(() => {
     if (!mobileOpen) return;
     const frame = requestAnimationFrame(() => {
       sheetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -131,7 +145,7 @@ export function OrqenaContextRail({
   return (
     <>
       <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/dashboard" ? "dashboard" : undefined}>
-        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} onToggleCollapsed={onToggleCollapsed} />}
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
       <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
@@ -141,19 +155,22 @@ export function OrqenaContextRail({
       {mobileOpen ? (
         <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet orqena-context-sheet--inline" role="region" aria-labelledby={`${titleId}-mobile`}>
           <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} />
+          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} />
         </aside>
       ) : null}
     </>
   );
 }
 
-function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; onToggleCollapsed?: () => void }) {
+function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, budgetContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; budgetContext: BudgetRailContextValue | null; onToggleCollapsed?: () => void }) {
   if (isDashboard) {
     return <DashboardRailContent context={context} titleId={titleId} recommendation={recommendation} alerts={dashboardAlerts} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
   }
   if (documentContext) {
     return <DocumentRailContent context={documentContext} titleId={titleId} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
+  }
+  if (budgetContext && canUse) {
+    return <BudgetRailContent context={budgetContext} titleId={titleId} onToggleCollapsed={onToggleCollapsed} />;
   }
   const title = canUse ? recommendation?.title ?? context.title : "Orqena IA no disponible";
   const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
@@ -200,6 +217,34 @@ function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse
   );
 }
 
+function BudgetRailContent({ context, titleId, onToggleCollapsed }: { context: BudgetRailContextValue; titleId: string; onToggleCollapsed?: () => void }) {
+  return <div className="orqena-context-rail__inner">
+    <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+    <p className="orqena-context-eyebrow">Recomendación para este presupuesto</p>
+    <div className="grid gap-3">
+      <article className="orqena-context-card">
+        <span className="orqena-context-card__icon"><FileText size={22} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={13} aria-hidden="true" /></span>
+        <h2 id={titleId}>Revisa margen y condiciones</h2>
+        <p className="orqena-context-description"><strong>{context.numero}</strong> · {context.client}. Comprueba partidas, alcance, plazo y forma de pago antes de cambiar el estado.</p>
+        <dl className="orqena-context-impact">
+          <div className="orqena-context-impact__title"><dt>Contexto visible</dt><dd>{context.status.replaceAll("_", " ")}</dd></div>
+          <div><dt>Margen registrado</dt><dd>{context.margin ?? "Restringido"}</dd></div>
+          <div><dt>Importe</dt><dd>{context.total ?? "Restringido"}</dd></div>
+          <div><dt>Partidas</dt><dd>{context.lineCount}</dd></div>
+        </dl>
+        <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>Orqena IA no modifica importes, fiscalidad ni estados. La revisión y confirmación siguen siendo humanas.</p></div>
+        <Link href={context.reviewHref} className="orqena-context-primary">Ver detalle completo<ChevronRight size={16} aria-hidden="true" /></Link>
+      </article>
+      {context.editHref ? <article className="orqena-context-card">
+        <h2>Comprueba las partidas principales</h2>
+        <p className="orqena-context-description">Aclara descripciones, unidades y condiciones que puedan generar dudas antes del envío.</p>
+        <Link href={context.editHref} className="orqena-context-secondary">Editar presupuesto</Link>
+      </article> : null}
+    </div>
+    <Link href="/orqena-ia/comercial" className="orqena-context-more">Ver ayuda comercial <ExternalLink size={13} aria-hidden="true" /></Link>
+  </div>;
+}
+
 function DocumentRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: DocumentRailContext; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
   const attentionItems = context.attentionItems?.filter(Boolean).slice(0, 3) ?? [];
   const reviewHref = safeInternalHref(context.reviewHref);
@@ -229,6 +274,16 @@ function isDocumentRailContext(value: unknown): value is DocumentRailContext {
   return typeof record.documentId === "string"
     && typeof record.title === "string"
     && typeof record.statusLabel === "string";
+}
+
+function isBudgetRailContext(value: unknown): value is BudgetRailContextValue {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.id === "string"
+    && typeof record.numero === "string"
+    && typeof record.client === "string"
+    && typeof record.reviewHref === "string"
+    && typeof record.lineCount === "number";
 }
 
 function safeInternalHref(value: string | null | undefined) {
