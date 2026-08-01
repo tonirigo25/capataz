@@ -4576,7 +4576,63 @@ button:disabled,
   font-size: 10px;
 }
 
-/* Cliente 360 · resumen fiel a la referencia clasificada v2. */
+/* Cliente 360 · resumen fiel a la referencia canónica 05. */
+.client-360-shell-summary {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px 6px 24px 20px;
+}
+.client-360-shell-summary__heading > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #657169;
+  font-size: 10px;
+  line-height: 16px;
+}
+.client-360-shell-summary__heading a { color: #526158; }
+.client-360-shell-summary__heading h1 {
+  margin-top: 3px;
+  color: #111b16;
+  font-size: 26px;
+  font-weight: 850;
+  letter-spacing: -.035em;
+  line-height: 31px;
+}
+.client-360-shell-summary__tabs {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid #dfe5e1;
+}
+.client-360-shell-summary__tabs > a {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid transparent;
+  padding: 0 17px;
+  color: #46544c;
+  font-size: 10px;
+  font-weight: 750;
+}
+.client-360-shell-summary__tabs > a[aria-current="page"] {
+  border-bottom-color: #12a34a;
+  color: #087932;
+}
+.client-360-shell-summary .client-360-canonical__primary > section {
+  height: 208px;
+  min-height: 208px;
+}
+.client-360-shell-summary .client-360-canonical__collections--primary > section { min-height: 208px; }
+.client-360-shell-summary .client-360-canonical__collections--secondary > section { min-height: 180px; }
+
 .client-360-ref {
   display: grid;
   min-width: 0;
@@ -4972,6 +5028,17 @@ button:disabled,
 }
 
 @media (max-width: 899px) {
+  .client-360-shell-summary { padding: 12px 12px calc(72px + env(safe-area-inset-bottom)); }
+  .client-360-shell-summary__heading h1 { font-size: 24px; }
+  .client-360-shell-summary .client-360-canonical__identity > div { grid-template-columns: minmax(0, 1fr); }
+  .client-360-shell-summary .client-360-canonical__primary,
+  .client-360-shell-summary .client-360-canonical__collections { grid-template-columns: minmax(0, 1fr) !important; }
+  .client-360-shell-summary .client-360-canonical__primary > section,
+  .client-360-shell-summary .client-360-canonical__collections--primary > section,
+  .client-360-shell-summary .client-360-canonical__collections--secondary > section {
+    height: auto;
+    min-height: 0;
+  }
   .client-360-ref { padding: 12px 12px calc(88px + env(safe-area-inset-bottom)); }
   .client-360-ref__header { display: grid; }
   .client-360-ref__back { display: inline-flex; }
