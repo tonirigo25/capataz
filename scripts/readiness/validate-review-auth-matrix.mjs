@@ -495,18 +495,24 @@ function caseFindings({ result, diagnostics, profile, viewport, expectation }) {
 }
 
 async function collectDesktopNavigation(page) {
-  const primary = await page.locator("nav[aria-label='Navegación principal'] a[href]").evaluateAll((links) =>
-    links.map((link) => ({ href: link.getAttribute("href"), label: link.textContent?.trim() })).filter(({ href }) => href)
-  );
-  const more = page.getByRole("button", { name: "Más", exact: true });
-  if (await more.count()) {
-    await more.first().click();
-    await page.locator("#desktop-more-navigation").waitFor({ state: "visible" });
+  const originalUrl = page.url();
+  const destinations = new Map();
+  const collect = async () => {
+    const links = await page.locator("nav[aria-label='Navegación principal'] a[href]").evaluateAll((items) =>
+      items.map((link) => ({ href: link.getAttribute("href"), label: link.textContent?.trim() })).filter(({ href }) => href)
+    );
+    for (const item of links) destinations.set(item.href, item);
+    return links;
+  };
+  const primary = await collect();
+  for (const item of primary) {
+    const target = new URL(item.href, originalUrl).toString();
+    if (target === originalUrl) continue;
+    await page.goto(target, { waitUntil: "domcontentloaded" });
+    if (!page.url().includes("/acceso-restringido")) await collect();
   }
-  const secondary = await page.locator("#desktop-more-navigation a[href]").evaluateAll((links) =>
-    links.map((link) => ({ href: link.getAttribute("href"), label: link.textContent?.trim() })).filter(({ href }) => href)
-  );
-  return [...primary, ...secondary];
+  if (page.url() !== originalUrl) await page.goto(originalUrl, { waitUntil: "domcontentloaded" });
+  return [...destinations.values()];
 }
 
 async function openProfileHome(browser, storageState, viewport) {

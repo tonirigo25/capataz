@@ -50,7 +50,7 @@ import { brand } from "@/lib/brand";
 import { OrqenaContextRail } from "@/components/portal/orqena-context-rail";
 import type { PortalRailRecommendations } from "@/lib/application/intelligence/today-recommendation";
 
-type DesktopPanel = "more" | "create" | "user" | null;
+type DesktopPanel = "create" | "user" | null;
 type Overlay = "search" | "capture" | "more" | null;
 type ShellDestination = ProductDestination & { unavailable?: boolean; children?: ProductDestination[] };
 
@@ -170,9 +170,6 @@ export function AppChrome({
 
   useEffect(() => {
     if (!desktopPanel) return;
-    const frame = desktopPanel === "more"
-      ? requestAnimationFrame(() => panelRef.current?.focus())
-      : null;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!panelRef.current?.contains(target) && !activeTriggerRef.current?.contains(target)) {
@@ -185,7 +182,6 @@ export function AppChrome({
     document.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      if (frame !== null) cancelAnimationFrame(frame);
       document.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
@@ -280,8 +276,6 @@ export function AppChrome({
           navigation={desktopNavigation}
           pathname={pathname}
           collapsed={sidebarCollapsed}
-          moreOpen={desktopPanel === "more"}
-          onOpenMore={(trigger) => openDesktopPanel("more", trigger)}
           onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         />
       </aside>
@@ -395,16 +389,6 @@ export function AppChrome({
         onOpen={openOverlay}
       />
 
-      {desktopPanel === "more" ? (
-        <DesktopMorePanel
-          groups={shellNavigationGroups}
-          sidebarNavigation={desktopNavigation}
-          ref={panelRef}
-          pathname={pathname}
-          unread={unreadNotifications}
-          onClose={closeDesktopPanel}
-        />
-      ) : null}
       {desktopPanel === "create" ? (
         <DesktopCreatePanel capabilities={capabilities} ref={panelRef} onClose={closeDesktopPanel} />
       ) : null}
@@ -493,11 +477,18 @@ function buildCanonicalDesktopNavigation(
   return order.flatMap<ShellDestination>((target): ShellDestination[] => {
     const source = allowed.get(target.href);
     if (target.href === "/orqena-ia" && !source) return [{ ...target, capability: "orqena.use", unavailable: true }];
-    if (!source) return [];
     const children = (productSubnavigation[target.href] ?? []).filter((item) =>
       (!item.capability || capabilitySet.has(item.capability)) &&
       (item.href !== "/actividad" || activityRouteAvailable),
     );
+    if (!source && target.href === "/dinero" && children.length > 0) {
+      const purchaseDestinations = children.filter((item) => item.href !== "/tesoreria");
+      const [landing, ...purchaseChildren] = purchaseDestinations;
+      if (landing) return [{ ...landing, label: "Compras", icon: "expense", children: purchaseChildren }];
+      const treasury = children.find((item) => item.href === "/tesoreria");
+      if (treasury) return [{ ...treasury, label: "Tesorería", icon: "landmark", children: [] }];
+    }
+    if (!source) return [];
     return [{ ...source, label: target.label, icon: target.icon, children }];
   });
 }
@@ -506,15 +497,11 @@ function DesktopNavigation({
   navigation,
   pathname,
   collapsed,
-  moreOpen,
-  onOpenMore,
   onToggleCollapsed,
 }: {
   navigation: ShellDestination[];
   pathname: string;
   collapsed: boolean;
-  moreOpen: boolean;
-  onOpenMore: (trigger: HTMLButtonElement) => void;
   onToggleCollapsed: () => void;
 }) {
   return (
@@ -536,16 +523,6 @@ function DesktopNavigation({
       <div className="field-os-sidebar__footer border-t border-border p-3">
         <button
           type="button"
-          className="mb-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content"
-          aria-expanded={moreOpen}
-          aria-controls="desktop-more-navigation"
-          onClick={(event) => onOpenMore(event.currentTarget)}
-        >
-          <Ellipsis size={19} aria-hidden="true" />
-          <span className="field-os-sidebar__label">Más áreas</span>
-        </button>
-        <button
-          type="button"
           className="mb-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content"
           aria-label={collapsed ? "Expandir menú" : "Ocultar menú"}
           onClick={onToggleCollapsed}
@@ -563,6 +540,7 @@ function NavigationBranch({ item, pathname, collapsed }: { item: ShellDestinatio
   const childActive = children.some((child) => isProductDestinationActive(pathname, child.href));
   const parentActive = isProductDestinationActive(pathname, item.href);
   const expanded = !collapsed && children.length > 0 && (parentActive || childActive);
+  const groupId = children.length > 0 ? `subnavigation-${item.href.replace(/[^a-z0-9]+/gi, "-")}` : undefined;
   return (
     <div className="field-os-navigation-branch" data-expanded={expanded ? "true" : "false"}>
       <NavigationLink
@@ -570,63 +548,18 @@ function NavigationBranch({ item, pathname, collapsed }: { item: ShellDestinatio
         pathname={pathname}
         activeOverride={parentActive || childActive}
         currentOverride={parentActive}
+        expanded={children.length > 0 ? expanded : undefined}
+        controls={expanded ? groupId : undefined}
         trailing={children.length ? <ChevronDown className={clsx("field-os-sidebar__label transition-transform", expanded && "rotate-180")} size={14} aria-hidden="true" /> : undefined}
       />
       {expanded ? (
-        <div className="field-os-navigation-children ml-[27px] grid gap-0.5 border-l border-white/15 py-1" role="group" aria-label={`Submenús de ${item.label}`}>
+        <div id={groupId} className="field-os-navigation-children ml-[27px] grid gap-0.5 border-l border-white/15 py-1" role="group" aria-label={`Submenús de ${item.label}`}>
           {children.map((child) => <NavigationLink key={child.href} item={child} pathname={pathname} compact />)}
         </div>
       ) : null}
     </div>
   );
 }
-
-const DesktopMorePanel = forwardRef<HTMLDivElement, {
-  groups: PortalManifest["navigationGroups"];
-  sidebarNavigation: ShellDestination[];
-  pathname: string;
-  unread: number;
-  onClose: () => void;
-}>(function DesktopMorePanel({
-  groups,
-  sidebarNavigation,
-  pathname,
-  unread,
-  onClose
-}, ref) {
-  const destinationsShownElsewhere = new Set([
-    "/notificaciones",
-    ...sidebarNavigation.flatMap((item) => [item.href, ...(item.children ?? []).map((child) => child.href)]),
-  ]);
-  const visibleGroups = groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => !destinationsShownElsewhere.has(item.href)) }))
-    .filter((group) => group.items.length > 0);
-  return (
-    <div
-      ref={ref}
-      id="desktop-more-navigation"
-      role="region"
-      aria-label="Más áreas"
-      tabIndex={-1}
-      className="field-os-sidebar-panel fixed bottom-5 top-20 z-50 w-[25rem] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-card"
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="type-section-title text-content">Más áreas</p>
-          <p className="type-secondary mt-1">Operación y control, cuando los necesites.</p>
-        </div>
-        <button type="button" className="icon-button" aria-label="Cerrar Más" onClick={onClose}>
-          <X size={19} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="grid gap-5">
-        {visibleGroups.map((group) => (
-          <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
-        ))}
-      </div>
-    </div>
-  );
-});
 
 const DesktopCreatePanel = forwardRef<HTMLDivElement, {
   capabilities: string[];
@@ -864,6 +797,10 @@ function MobileMoreSheet({
   logoutAction: () => Promise<void>;
   onClose: () => void;
 }) {
+  const mobileUtilityDestinations = new Set(["/notificaciones", "/configuracion"]);
+  const mobileGroups = groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !mobileUtilityDestinations.has(item.href)) }))
+    .filter((group) => group.items.length > 0);
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
       {orqenaAvailable ? <Link href="/orqena-ia" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
@@ -878,7 +815,7 @@ function MobileMoreSheet({
             ))}
           </div>
         </section>
-        {groups.map((group) => (
+        {mobileGroups.map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -1026,6 +963,8 @@ function NavigationLink({
   badge = 0,
   activeOverride,
   currentOverride,
+  expanded,
+  controls,
   trailing,
   compact = false,
 }: {
@@ -1035,6 +974,8 @@ function NavigationLink({
   badge?: number;
   activeOverride?: boolean;
   currentOverride?: boolean;
+  expanded?: boolean;
+  controls?: string;
   trailing?: ReactNode;
   compact?: boolean;
 }) {
@@ -1060,6 +1001,8 @@ function NavigationLink({
       href={item.href}
       onClick={onNavigate}
       aria-current={current ? "page" : undefined}
+      aria-expanded={expanded}
+      aria-controls={controls}
       aria-label={label}
       data-navigation-child={compact ? "true" : undefined}
       className={clsx(

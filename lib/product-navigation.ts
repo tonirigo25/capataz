@@ -40,6 +40,11 @@ export const productSubnavigation: Record<string, ProductDestination[]> = {
   ],
   "/dinero": [
     { href: "/tesoreria", label: "Tesorería", icon: "landmark", capability: "treasury.view" },
+    { href: "/proveedores", label: "Proveedores", icon: "client", capability: "purchases.suppliers.view" },
+    { href: "/subcontratas", label: "Subcontratas", icon: "building", capability: "purchases.suppliers.view" },
+    { href: "/facturas-proveedor", label: "Facturas proveedor", icon: "receipt", capability: "purchases.received_invoices.view" },
+    { href: "/facturas-subcontratas", label: "Facturas subcontrata", icon: "receipt", capability: "purchases.received_invoices.view" },
+    { href: "/gastos-materiales", label: "Gastos y materiales", icon: "expense", capability: "purchases.received_invoices.view" },
   ],
   "/agenda": [
     { href: "/recordatorios", label: "Recordatorios", icon: "agenda", capability: "followups.view" },
@@ -49,6 +54,10 @@ export const productSubnavigation: Record<string, ProductDestination[]> = {
   ],
   "/orqena-ia": [
     { href: "/automatizaciones", label: "Automatizaciones", icon: "bot", capability: "company.update" },
+  ],
+  "/configuracion": [
+    { href: "/plan-y-uso", label: "Plan y uso", icon: "invoice", capability: "company.billing.manage" },
+    { href: "/auditoria", label: "Auditoría", icon: "activity", capability: "reports.view" },
   ],
 };
 

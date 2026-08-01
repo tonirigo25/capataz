@@ -714,10 +714,6 @@ button:disabled,
     color: var(--orqena-brand-lime);
   }
 
-  .field-os-sidebar-panel {
-    left: calc(var(--fos-layout-sidebar) + .75rem);
-  }
-
   .field-os-mobile-brand {
     display: flex;
   }
@@ -1151,8 +1147,6 @@ button:disabled,
 
   .field-os-app-shell[data-sidebar-collapsed="true"] { padding-left: 72px; }
   .field-os-app-shell[data-sidebar-collapsed="true"] .field-os-sidebar { width: 72px; }
-  .field-os-app-shell[data-sidebar-collapsed="true"] .field-os-sidebar-panel { left: calc(72px + .75rem); }
-
   .field-os-app-shell[data-sidebar-collapsed="true"] .field-os-sidebar__label,
   .field-os-app-shell[data-sidebar-collapsed="true"] .field-os-sidebar__brand-copy {
     display: none;
