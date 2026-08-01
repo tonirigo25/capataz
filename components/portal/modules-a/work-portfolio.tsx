@@ -111,7 +111,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   }, [items]);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1440px)");
+    const desktop = window.matchMedia("(min-width: 1560px)");
     const closeAtDesktop = (event: MediaQueryListEvent) => {
       if (event.matches) setDrawerOpen(false);
     };
@@ -160,7 +160,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   function selectWork(item: WorkPortfolioItem, trigger: HTMLButtonElement) {
     setSelectedId(item.id);
     lastTriggerRef.current = trigger;
-    if (window.matchMedia("(max-width: 1439px)").matches) setDrawerOpen(true);
+    if (window.matchMedia("(max-width: 1559px)").matches) setDrawerOpen(true);
   }
 
   function closeDesktopDetail() {
@@ -193,11 +193,11 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   }
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1440px]:grid min-[1440px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
-      <section className={`min-w-0 border-border ${selected ? "min-[1440px]:border-r" : ""}`} aria-label="Trabajos filtrados">
+    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1560px]:grid min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
+      <section className={`min-w-0 border-border ${selected ? "min-[1560px]:border-r" : ""}`} aria-label="Trabajos filtrados">
         {items.length ? (
           <>
-            <div className="hidden min-[1440px]:block" aria-label="Listado de trabajos">
+            <div className="hidden min-[1560px]:block" aria-label="Listado de trabajos">
               <div className="grid min-h-11 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
                 <input type="checkbox" checked={items.length > 0 && items.every((item) => markedIds.has(item.id))} onChange={toggleAllMarked} className="h-4 w-4 accent-brand" aria-label="Seleccionar todos los trabajos visibles" />
                 <div aria-hidden="true" className="grid grid-cols-[minmax(7.2rem,2fr)_4.2rem_3.5rem_4.5rem_5rem_3.6rem_6.7rem_0.9rem] items-center gap-1 leading-tight">
@@ -240,7 +240,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
               <div className="flex min-h-11 items-center border-t border-border px-3 text-[10px] text-content-secondary">1–{items.length} de {items.length} obras</div>
             </div>
 
-            <div className="divide-y divide-border min-[1440px]:hidden" role="list">
+            <div className="divide-y divide-border min-[1560px]:hidden" role="list">
               {items.map((item) => {
                 const active = selected?.id === item.id;
                 return (
@@ -272,11 +272,11 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
         ) : <p className="type-secondary p-6">Sin trabajos registrados.</p>}
       </section>
 
-      {selected ? <aside className="hidden min-w-0 bg-surface min-[1440px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} onClose={closeDesktopDetail} /></aside> : null}
+      {selected ? <aside className="hidden min-w-0 bg-surface min-[1560px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} onClose={closeDesktopDetail} /></aside> : null}
 
       {selected && drawerOpen ? (
         <div
-          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1440px]:hidden sm:p-4"
+          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1560px]:hidden sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeDrawer();
           }}

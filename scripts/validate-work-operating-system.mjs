@@ -64,15 +64,13 @@ check(
     rail.includes('area: "work"'),
 );
 
-const inline1440Detail =
-  /min-\[1440px\]:(?:grid|block|flex)/.test(portfolio) &&
-  /min-\[1440px\]:(?:hidden|grid|block|flex)/.test(portfolio);
-const css1440Detail =
-  /(?:\.works?-|\[data-work-(?:operating-system|detail|workspace|portfolio))/.test(desktop1440) &&
-  /(?:grid-template-columns|display:\s*(?:grid|block|flex))/.test(desktop1440);
+const inline1560Detail =
+  /min-\[1560px\]:(?:grid|block|flex)/.test(portfolio) &&
+  /min-\[1560px\]:(?:hidden|grid|block|flex)/.test(portfolio) &&
+  portfolio.includes('(max-width: 1559px)');
 check(
-  "el detalle persistente de escritorio empieza exactamente desde 1440px",
-  (inline1440Detail || css1440Detail) && !portfolio.includes("2xl:block") && !portfolio.includes("2xl:grid"),
+  "el detalle persistente sólo aparece cuando listado y columnas caben sin solaparse",
+  inline1560Detail && !portfolio.includes("2xl:block") && !portfolio.includes("2xl:grid"),
 );
 
 check(
