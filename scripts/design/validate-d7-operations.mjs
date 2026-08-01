@@ -27,20 +27,22 @@ function test(name, check) {
 }
 
 test("Agenda abre en semana con Mes, Lista y Vencimientos como vistas secundarias", () => {
-  assert.match(agenda, /query\.vista\) \? query\.vista! : "semana"/);
+  assert.match(agenda, /views\.some\(\(item\) => item\.id === query\.vista\)[\s\S]{0,80}\? query\.vista![\s\S]{0,40}: "semana"/);
   for (const label of ["Semana", "Mes", "Lista", "Vencimientos"]) assert.match(agenda, new RegExp(`label: "${label}"`));
 });
-test("Agenda reserva la CTA primaria para Nueva visita", () => {
-  assert.match(agenda, /tipoEvento=visita[\s\S]*className="primary-button"[\s\S]*Nueva visita/);
+test("Agenda reserva la CTA primaria para acciones reales de agenda", () => {
+  assert.match(agenda, /\/gestion\?tipo=eventoAgenda&returnTo=\/agenda/);
   assert.doesNotMatch(agenda, /primary-button[^>]*>[\s\S]{0,80}Aplicar/);
 });
 test("Agenda mueve búsqueda y tipo a un cajón de filtros", () => {
-  assert.match(agenda, /<details data-agenda-filters/);
-  assert.match(agenda, /Filtros de agenda/);
+  const filters = read("app/(app)/agenda/agenda-filters.tsx");
+  assert.match(filters, /aria-label="Filtros de agenda"/);
+  assert.match(filters, /<details className="relative">/);
+  assert.match(filters, /aria-label="Buscar en la agenda"/);
 });
-test("Agenda semanal usa cinco columnas en escritorio y un día seleccionado en móvil", () => {
+test("Agenda semanal usa siete días en escritorio y un día seleccionado en móvil", () => {
   assert.match(agenda, /data-agenda-week/);
-  assert.match(agenda, /lg:grid-cols-5/);
+  assert.match(agenda, /grid-cols-\[3\.25rem_repeat\(7,minmax\(0,1fr\)\)\]/);
   assert.match(agenda, /data-agenda-selected-day/);
 });
 test("Agenda conserva cliente, contacto, trabajo y origen autorizados", () => {
@@ -84,10 +86,11 @@ test("Alertas conserva posponer, descartar y resolver en el ciclo de vida", () =
   for (const token of ["snoozeSignalAction", "dismissSignalAction", "resolveSignalAction"]) assert.match(alerts, new RegExp(token));
   for (const token of ["snoozeBusinessSignal", "dismissBusinessSignal", "resolveBusinessSignal"]) assert.match(alertUseCases, new RegExp(token));
 });
-test("Recomendaciones deja una sola acción preferida primaria y el resto secundarias", () => {
-  assert.match(recommendations, /<PrimaryAction recommendation=\{result\.summary\.top\} compact/);
-  assert.match(recommendations, /compact \? "primary-button" : "secondary-button"/);
-  assert.match(recommendations, /withoutOpaquePriority\(group\.explanation\)/);
+test("Recomendaciones separa listado, detalle y acción preferida supervisada", () => {
+  assert.match(recommendations, /<RecommendationListItem/);
+  assert.match(recommendations, /<RecommendationDetail/);
+  assert.match(recommendations, /function PrimaryAction/);
+  assert.match(recommendations, /className=\{styles\.primaryButton\}/);
   assert.doesNotMatch(recommendations, /\/100|>Puntuación</);
 });
 test("Recomendaciones exige confirmación explícita antes del efecto", () => {
