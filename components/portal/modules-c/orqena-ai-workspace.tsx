@@ -36,8 +36,8 @@ import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 export const orqenaAiAreas = [
   "comercial",
   "operaciones",
-  "documentos",
   "finanzas",
+  "documentos",
   "equipo",
 ] as const;
 
@@ -61,42 +61,48 @@ type QueueRow = {
   requiresConfirmation?: boolean;
 };
 
-const areaMeta: Record<OrqenaAiArea, { label: string; description: string; queueTitle: string; contextTitle: string }> = {
+const areaMeta: Record<OrqenaAiArea, { label: string; description: string; queueTitle: string; contextTitle: string; automationTitle: string }> = {
   general: {
     label: "Todos",
     description: "Centro de recomendaciones, automatización supervisada y contexto autorizado para tu empresa.",
     queueTitle: "Bandeja inteligente",
     contextTitle: "Contexto y aprendizaje",
+    automationTitle: "Automatizaciones configuradas",
   },
   comercial: {
     label: "Comercial",
     description: "Oportunidades, presupuestos y siguientes pasos dentro de tu alcance comercial.",
-    queueTitle: "Pipeline autorizado",
+    queueTitle: "Pipeline inteligente",
     contextTitle: "Contexto comercial",
+    automationTitle: "Automatizaciones comerciales",
   },
   operaciones: {
     label: "Operaciones",
     description: "Trabajo, tareas y bloqueos visibles para tu rol, sin reasignaciones automáticas.",
     queueTitle: "Cola operativa priorizada",
     contextTitle: "Contexto operativo",
+    automationTitle: "Automatizaciones para operaciones",
   },
   documentos: {
     label: "Documentos",
     description: "Revisión documental con extracción trazable y confirmación humana.",
     queueTitle: "Cola de revisión de documentos",
     contextTitle: "Contexto documental",
+    automationTitle: "Automatizaciones documentales",
   },
   finanzas: {
     label: "Finanzas",
     description: "Cobros, vencimientos y riesgos financieros sólo cuando tus permisos lo permiten.",
-    queueTitle: "Prioridades financieras",
+    queueTitle: "Recomendaciones financieras",
     contextTitle: "Contexto financiero",
+    automationTitle: "Automatizaciones financieras",
   },
   equipo: {
     label: "Equipo",
     description: "Coordinación agregada de personas y tareas sin ampliar permisos ni exponer datos ajenos.",
-    queueTitle: "Coordinación del equipo",
-    contextTitle: "Contexto del equipo",
+    queueTitle: "Recomendaciones para tu equipo",
+    contextTitle: "Contexto y análisis del equipo",
+    automationTitle: "Automatizaciones para tu equipo",
   },
 };
 
@@ -220,6 +226,8 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
     canSeeMembers: membersDecision.allowed,
   }));
   const queue = buildQueue(area, { recommendations: visibleRecommendations, clients, budgets, works, tasks, documents, invoices, memberships });
+  const visibleAutomations = filterAreaAutomations(area, automations);
+  const visibleAiActivity = filterAreaActivity(area, recentAi);
   const metrics = buildMetrics(area, {
     recommendations: visibleRecommendations.length,
     confirmedRecommendations: visibleRecommendations.filter((item) => ["accepted", "in_progress"].includes(item.status)).length,
@@ -231,7 +239,7 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
     documents,
     tasks,
     memberships,
-    automations,
+    automations: visibleAutomations,
     pendingConfirmations,
     aiUsage,
     access: {
@@ -308,8 +316,8 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
         </section>
 
         <section className={styles.panel} aria-labelledby="orqena-automations-title">
-          <SectionHeading icon={Workflow} id="orqena-automations-title" title="Automatizaciones sugeridas" />
-          {automations.length ? automations.slice(0, 5).map((automation) => (
+          <SectionHeading icon={Workflow} id="orqena-automations-title" title={meta.automationTitle} />
+          {visibleAutomations.length ? visibleAutomations.slice(0, 5).map((automation) => (
             <article key={automation.id} className={styles.automationRow}>
               <span className={styles.automationIcon}><Workflow size={17} aria-hidden="true" /></span>
               <div>
@@ -318,7 +326,7 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
               </div>
               <Link href={`/automatizaciones/${automation.id}`} className={styles.reviewLink}>Abrir para revisar</Link>
             </article>
-          )) : <HonestEmpty description={automationDecision.allowed ? "No hay automatizaciones configuradas en esta empresa." : "Tu perfil no puede consultar la configuración de automatizaciones."} />}
+          )) : <HonestEmpty description={automationDecision.allowed ? "No hay automatizaciones configuradas para esta área." : "Tu perfil no puede consultar la configuración de automatizaciones."} />}
           {automationDecision.allowed ? <PanelFooter href="/automatizaciones">Ver todas las automatizaciones</PanelFooter> : null}
         </section>
       </div>
@@ -337,9 +345,9 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
 
         <section className={styles.panel} aria-labelledby="orqena-activity-title">
           <SectionHeading icon={Activity} id="orqena-activity-title" title="Actividad reciente de Orqena IA" />
-          {recentAi.length ? (
+          {visibleAiActivity.length ? (
             <ol>
-              {recentAi.map((event) => (
+              {visibleAiActivity.map((event) => (
                 <li key={event.id} className={styles.activityRow}>
                   <time>{event.createdAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</time>
                   <span>{humanize(event.purpose)}</span>
@@ -348,7 +356,6 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
               ))}
             </ol>
           ) : <HonestEmpty description={executeDecision.allowed ? "Aún no hay operaciones de IA registradas." : "Tu perfil no puede consultar esta actividad."} />}
-          {executeDecision.allowed ? <PanelFooter href="/recomendaciones">Ver toda la actividad</PanelFooter> : null}
         </section>
       </div>
 
@@ -412,13 +419,13 @@ function buildQueue(area: OrqenaAiArea, data: {
     return data.works.slice(0, 8).map((item) => ({ id: item.id, title: item.titulo, context: item.responsable ?? "Responsable no asignado", meta: `${humanize(item.prioridad)}${item.fechaFinPrevista ? ` · prevista ${formatDateTime(item.fechaFinPrevista)}` : ""}`, status: humanize(item.estado), href: `/obras/${item.id}` }));
   }
   if (area === "documentos") return data.documents.slice(0, 8).map((item) => ({ id: item.id, title: item.name, context: item.work?.titulo ?? item.client?.nombre ?? "Documento interno", meta: `${humanize(item.category)}${item.extractionConfidence != null ? ` · confianza registrada ${Math.round(item.extractionConfidence * 100)}%` : " · sin confianza registrada"}`, status: humanize(item.extractionStatus), href: "/documentos", requiresConfirmation: true }));
-  if (area === "finanzas") return data.invoices.slice(0, 8).map((item) => ({ id: item.id, title: `${item.numero} · ${item.concepto}`, context: item.client.nombre, meta: `${formatCurrency(item.pendiente)} pendientes · vence ${formatDateTime(item.fechaVencimiento)}`, status: humanize(item.estado), href: "/tesoreria?vista=cobros", requiresConfirmation: true }));
+  if (area === "finanzas") return data.invoices.slice(0, 8).map((item) => ({ id: item.id, title: `${item.numero} · ${item.concepto}`, context: item.client.nombre, meta: `${formatCurrency(item.pendiente)} pendientes · vence ${formatDateTime(item.fechaVencimiento)}`, status: humanize(item.estado), href: `/dinero/${item.id}`, requiresConfirmation: true }));
   if (area === "equipo") {
     const roleCounts = new Map<string, number>();
     for (const member of data.memberships) roleCounts.set(member.functionalProfileKey ?? member.role, (roleCounts.get(member.functionalProfileKey ?? member.role) ?? 0) + 1);
     return [...roleCounts].map(([role, count]) => ({ id: role, title: humanize(role), context: `${count} ${count === 1 ? "miembro activo" : "miembros activos"}`, meta: "Datos agregados; abre Equipo para revisar permisos y alcance.", status: "Agregado", href: "/equipo" }));
   }
-  return data.recommendations.slice(0, 8).map((item) => ({ id: item.id, title: item.title, context: item.summary, meta: `Prioridad registrada ${item.priority} · actualizada ${formatDateTime(item.updatedAt)}`, status: humanize(item.status), href: `/recomendaciones?q=${encodeURIComponent(item.title)}`, requiresConfirmation: item.requiresConfirmation }));
+  return data.recommendations.slice(0, 8).map((item) => ({ id: item.id, title: item.title, context: item.summary, meta: `Prioridad registrada ${item.priority} · actualizada ${formatDateTime(item.updatedAt)}`, status: humanize(item.status), href: `/recomendaciones?seleccion=${encodeURIComponent(item.id)}`, requiresConfirmation: item.requiresConfirmation }));
 }
 
 function buildMetrics(area: OrqenaAiArea, data: {
@@ -499,14 +506,15 @@ function recommendationVisible(item: { source: string; title: string; summary: s
   if (item.workId && (!options.canSeeWorks || !idVisible(options.workIds, item.workId))) return false;
   if (item.invoiceId && (!options.canSeeInvoices || !options.invoiceIds.includes(item.invoiceId))) return false;
   if (item.budgetId && (!options.canSeeBudgets || !options.budgetIds.includes(item.budgetId))) return false;
-  if (areaSources.finanzas.has(item.source) && !options.canSeeFinance) return false;
-  if (areaSources.documentos.has(item.source) && !options.canSeeDocuments) return false;
-  if (areaSources.operaciones.has(item.source) && !options.canSeeOperations) return false;
-  if (item.source === "presupuestos" && !options.canSeeBudgets) return false;
-  if (["crm", "visitas", "recordatorios"].includes(item.source) && !options.canSeeClients) return false;
-  if (areaSources.comercial.has(item.source) && !options.canSeeCommercial) return false;
+  const normalizedSource = item.source.toLocaleLowerCase("es-ES");
+  if (areaSources.finanzas.has(normalizedSource) && !options.canSeeFinance) return false;
+  if (areaSources.documentos.has(normalizedSource) && !options.canSeeDocuments) return false;
+  if (areaSources.operaciones.has(normalizedSource) && !options.canSeeOperations) return false;
+  if (normalizedSource === "presupuestos" && !options.canSeeBudgets) return false;
+  if (["crm", "visitas", "recordatorios"].includes(normalizedSource) && !options.canSeeClients) return false;
+  if (areaSources.comercial.has(normalizedSource) && !options.canSeeCommercial) return false;
   if (options.area === "general") return true;
-  if (!areaSources[options.area].has(item.source)) return false;
+  if (!areaSources[options.area].has(normalizedSource)) return false;
   if (options.area !== "equipo") return true;
   return options.canSeeMembers && /equipo|carga|asign|persona|turno|formaci[oó]n|miembro/i.test(`${item.title} ${item.summary}`);
 }
@@ -520,8 +528,50 @@ function resolveOriginLink(area: OrqenaAiArea, access: { recommendations: boolea
   if (area === "comercial") return access.budgets ? "/presupuestos" : access.clients ? "/clientes" : null;
   if (area === "operaciones") return access.tasks ? "/tareas" : access.works ? "/obras" : null;
   if (area === "documentos") return access.documents ? "/documentos" : null;
-  if (area === "finanzas") return access.finance ? "/tesoreria" : null;
+  if (area === "finanzas") return access.finance ? "/dinero" : null;
   return access.members ? "/equipo" : null;
+}
+
+type AreaAutomation = {
+  id: string;
+  name: string;
+  category: string;
+  status: string;
+  active: boolean;
+  updatedAt: Date;
+  currentVersion: { requiresConfirmation: boolean } | null;
+  schedule: { nextRunAt: Date | null } | null;
+};
+
+type AreaActivity = {
+  id: string;
+  purpose: string;
+  outcome: string;
+  humanReviewed: boolean;
+  createdAt: Date;
+};
+
+const areaKeywords: Record<Exclude<OrqenaAiArea, "general">, string[]> = {
+  comercial: ["client", "cliente", "crm", "lead", "budget", "presupuesto", "quote", "visit", "visita", "follow", "seguimiento"],
+  operaciones: ["work", "obra", "task", "tarea", "operacion", "incidencia", "material", "planning", "planificacion"],
+  finanzas: ["invoice", "factura", "payment", "pago", "cobro", "treasury", "tesorer", "margin", "margen", "gasto", "coste"],
+  documentos: ["document", "documento", "archivo", "ocr", "extract", "clasific"],
+  equipo: ["team", "equipo", "member", "miembro", "persona", "role", "rol", "permission", "permiso", "assign", "asign", "training", "formacion", "carga"],
+};
+
+function filterAreaAutomations(area: OrqenaAiArea, items: AreaAutomation[]) {
+  if (area === "general") return items;
+  return items.filter((item) => areaTextMatches(area, `${item.category} ${item.name}`));
+}
+
+function filterAreaActivity(area: OrqenaAiArea, items: AreaActivity[]) {
+  if (area === "general") return items;
+  return items.filter((item) => areaTextMatches(area, item.purpose));
+}
+
+function areaTextMatches(area: Exclude<OrqenaAiArea, "general">, value: string) {
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-ES");
+  return areaKeywords[area].some((keyword) => normalized.includes(keyword));
 }
 
 function idScope(ids: string[] | null) {
