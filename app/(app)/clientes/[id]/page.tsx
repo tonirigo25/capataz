@@ -152,6 +152,7 @@ export default async function ClientDetailPage({
   const requestedView = normalizeClientView(query.vista) ?? (query.tab ? normalizeClientView(query.tab) : "resumen");
   const activeTab = tabs.some(({ id: tab }) => tab === requestedView) ? requestedView as ClientTabId : "resumen";
   const worksMode = query.modo === "tarjetas" || query.modo === "portfolio" ? query.modo : "lista";
+  const opportunityMode = query.modo === "tablero" ? "tablero" : "lista";
   const scopedClientIds = await resolveScopedEntityIds(
     auth,
     "clients.view",
@@ -387,7 +388,7 @@ export default async function ClientDetailPage({
           <ClientWorksWorkspace summary={summary} returnTo={returnTo} worksMode={worksMode} />
         ) : null}
         {activeTab === "oportunidades" ? (
-          <ClientOpportunitiesWorkspace summary={summary} returnTo={returnTo} />
+          <ClientOpportunitiesWorkspace summary={summary} returnTo={returnTo} opportunityMode={opportunityMode} />
         ) : null}
         {activeTab === "actividad" ? (
           <ClientActivityWorkspace summary={summary} returnTo={returnTo} />

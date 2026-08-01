@@ -23,9 +23,28 @@ type WorkspaceProps = {
   companyId?: string;
   searchQuery?: string;
   worksMode?: ClientWorksMode;
+  opportunityMode?: "lista" | "tablero";
 };
 
-const pendingBudgetStatuses = new Set(["borrador", "enviado", "pendiente", "en_revision"]);
+const opportunityStages = [
+  { id: "preparacion", label: "Preparación", tone: "neutral" as const },
+  { id: "enviada", label: "Enviada", tone: "info" as const },
+  { id: "seguimiento", label: "Seguimiento", tone: "warning" as const },
+  { id: "ganada", label: "Ganada", tone: "success" as const },
+  { id: "rechazada", label: "Rechazada", tone: "danger" as const },
+  { id: "caducada", label: "Caducada", tone: "danger" as const },
+] as const;
+
+const opportunityStageByBudgetStatus: Record<string, (typeof opportunityStages)[number]["id"]> = {
+  borrador: "preparacion",
+  pendiente_revision: "preparacion",
+  enviado: "enviada",
+  visto: "seguimiento",
+  pendiente_respuesta: "seguimiento",
+  aceptado: "ganada",
+  rechazado: "rechazada",
+  caducado: "caducada",
+};
 
 function toneForStatus(value: string | null | undefined) {
   const normalized = (value ?? "").toLowerCase();
@@ -295,43 +314,54 @@ export function ClientFilesWorkspace({ summary, canUpload = false, companyId, se
   );
 }
 
-export function ClientOpportunitiesWorkspace({ summary, returnTo }: WorkspaceProps) {
-  const pending = summary.client.budgets.filter((budget) => pendingBudgetStatuses.has(budget.estado));
-  const opportunities = pending.map((budget) => ({
-    id: budget.id,
-    clientId: summary.client.id,
-    title: budget.titulo,
-    amount: budget.total,
-    probabilityPercent: null,
-    nextStep: budget.fechaSeguimiento ? `Seguimiento registrado para ${budget.fechaSeguimiento.toLocaleDateString("es-ES")}` : null,
-    dateLabel: budget.fechaValidez ? `Válido hasta ${budget.fechaValidez.toLocaleDateString("es-ES")}` : null,
-    statusLabel: statusLabel(budget.estado),
-    statusTone: toneForStatus(budget.estado),
-    openAction: { label: "Abrir presupuesto", href: `/presupuestos/${budget.id}`, allowed: true },
-  }));
+export function ClientOpportunitiesWorkspace({ summary, returnTo, opportunityMode = "lista" }: WorkspaceProps) {
+  const budgets = summary.client.budgets;
+  const canonicalReturnTo = `${returnTo}&modo=${opportunityMode}`;
+  const createHref = `/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(canonicalReturnTo)}`;
+  const stageRecords = opportunityStages.map((stage) => {
+    const stageBudgets = budgets.filter((budget) => opportunityStageByBudgetStatus[budget.estado] === stage.id);
+    return {
+      id: stage.id,
+      clientId: summary.client.id,
+      label: stage.label,
+      count: stageBudgets.length,
+      totalAmount: stageBudgets.reduce((total, budget) => total + budget.total, 0),
+      tone: stage.tone,
+      opportunities: stageBudgets.map((budget) => ({
+        id: budget.id,
+        clientId: summary.client.id,
+        title: budget.titulo,
+        amount: budget.total,
+        probabilityPercent: null,
+        nextStep: budget.fechaSeguimiento ? `Seguimiento registrado para ${budget.fechaSeguimiento.toLocaleDateString("es-ES")}` : null,
+        dateLabel: budget.fechaValidez ? `Válido hasta ${budget.fechaValidez.toLocaleDateString("es-ES")}` : null,
+        statusLabel: statusLabel(budget.estado),
+        statusTone: toneForStatus(budget.estado),
+        openAction: { label: "Abrir presupuesto", href: `/presupuestos/${budget.id}`, allowed: true },
+      })),
+      addAction: { label: "Nuevo presupuesto", href: createHref, allowed: true },
+    };
+  });
+  const terminalWonCount = budgets.filter((budget) => budget.estado === "aceptado").length;
   return (
     <Client360OpportunitiesOverview
       scope={{ clientId: summary.client.id, clientName: summary.listItem.displayName, verifiedClientScope: true }}
       summary={{
         clientId: summary.client.id,
-        totalCount: { value: pending.length },
-        totalValue: { value: pending.reduce((total, budget) => total + budget.total, 0) },
+        totalCount: { value: budgets.length },
+        totalValue: { value: budgets.reduce((total, budget) => total + budget.total, 0) },
         weightedValue: { value: null, detail: "Sin probabilidad comercial persistida" },
         averageProbabilityPercent: { value: null, detail: "No se infiere" },
-        wonCount: { value: null, detail: "No se reconstruye desde estados de presupuesto" },
+        wonCount: { value: terminalWonCount, detail: "Presupuestos aceptados" },
       }}
-      stages={[{
-        id: "pending-budget-decisions",
-        clientId: summary.client.id,
-        label: "Pendientes de decisión",
-        count: opportunities.length,
-        totalAmount: pending.reduce((total, budget) => total + budget.total, 0),
-        tone: "warning",
-        opportunities,
-        addAction: { label: "Nuevo presupuesto", href: `/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`, allowed: true },
-      }]}
+      stages={stageRecords}
       currency="EUR"
-      actions={{ create: { label: "Nueva oportunidad", href: `/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`, allowed: true } }}
+      actions={{ create: { label: "Nuevo presupuesto", href: createHref, allowed: true } }}
+      views={{
+        active: opportunityMode === "tablero" ? "board" : "list",
+        board: { label: "Tablero", href: `/clientes/${summary.client.id}?vista=oportunidades&modo=tablero`, allowed: true },
+        list: { label: "Lista", href: `/clientes/${summary.client.id}?vista=oportunidades&modo=lista`, allowed: true },
+      }}
     />
   );
 }

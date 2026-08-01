@@ -228,9 +228,11 @@ export function Client360OpportunitiesOverview({
         {views ? <ViewSwitch views={views} /> : null}
       </div>
 
-      {scopedStages.length ? (
+      {scopedStages.length ? views?.active === "list" ? (
+        <OpportunityList stages={scopedStages} money={money} />
+      ) : (
         <div
-          className="grid min-w-0 auto-cols-[minmax(17rem,85vw)] grid-flow-col gap-3 overflow-x-auto pb-2 xl:grid-flow-row xl:grid-cols-6 xl:auto-cols-auto"
+          className="grid min-w-0 auto-cols-[minmax(14rem,82vw)] grid-flow-col gap-2 overflow-x-auto pb-2 xl:grid-flow-row xl:grid-cols-6 xl:auto-cols-auto"
           tabIndex={0}
           role="region"
           aria-label="Tablero desplazable de oportunidades de este cliente"
@@ -381,7 +383,7 @@ function ViewLink({
 
 function OpportunityColumn({ stage, money }: { stage: ClientOpportunityStage; money: Intl.NumberFormat | null }) {
   return (
-    <section className={`flex min-h-[28rem] min-w-0 flex-col rounded-xl border ${toneColumn(stage.tone)}`} aria-labelledby={`opportunity-stage-${safeId(stage.id)}`}>
+    <section className={`flex min-h-[24rem] min-w-0 flex-col rounded-xl border ${toneColumn(stage.tone)}`} aria-labelledby={`opportunity-stage-${safeId(stage.id)}`}>
       <header className="border-b border-current/10 p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -450,10 +452,10 @@ function OpportunityCard({ opportunity, money }: { opportunity: ClientOpportunit
       ) : null}
 
       <dl className="mt-3 grid gap-2 border-t border-border pt-2">
-        <div className="flex min-w-0 items-baseline gap-1 text-[8px]">
+        {finite(opportunity.probabilityPercent) ? <div className="flex min-w-0 items-baseline gap-1 text-[8px]">
           <dt className="shrink-0 text-content-secondary">Probabilidad:</dt>
           <dd className="truncate font-semibold text-content">{formatPercent(opportunity.probabilityPercent)}</dd>
-        </div>
+        </div> : null}
         {opportunity.nextStep ? (
           <div className="min-w-0 text-[8px] leading-4">
             <dt className="inline text-content-secondary">Próximo paso: </dt>
@@ -476,6 +478,30 @@ function OpportunityCard({ opportunity, money }: { opportunity: ClientOpportunit
         </span>
       </div>
     </article>
+  );
+}
+
+function OpportunityList({ stages, money }: { stages: ClientOpportunityStage[]; money: Intl.NumberFormat | null }) {
+  const rows = stages.flatMap((stage) => stage.opportunities.map((opportunity) => ({ stage, opportunity })));
+  if (!rows.length) return <HonestEmpty title="No hay oportunidades registradas" detail="Los presupuestos del cliente aparecerán aquí cuando existan." />;
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="hidden grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,.65fr)_minmax(7rem,.6fr)_minmax(11rem,1fr)_minmax(8rem,.7fr)_3rem] gap-3 border-b border-border bg-subtle px-3 py-2 text-[8px] font-bold uppercase tracking-wide text-content-tertiary lg:grid">
+        <span>Oportunidad</span><span>Etapa</span><span>Importe</span><span>Próxima acción</span><span>Validez</span><span className="sr-only">Abrir</span>
+      </div>
+      <div className="divide-y divide-border">
+        {rows.map(({ stage, opportunity }) => (
+          <article key={opportunity.id} className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,.65fr)_minmax(7rem,.6fr)_minmax(11rem,1fr)_minmax(8rem,.7fr)_3rem] lg:items-center">
+            <div className="min-w-0"><strong className="block truncate text-[10px] text-content">{opportunity.title ?? "—"}</strong>{opportunity.statusLabel ? <span className={`mt-1 inline-flex min-h-5 items-center rounded-md border px-1.5 text-[8px] font-bold ${toneBadge(opportunity.statusTone)}`}>{opportunity.statusLabel}</span> : null}</div>
+            <span className={`w-fit rounded-md border px-2 py-1 text-[8px] font-bold ${toneBadge(stage.tone)}`}>{stage.label}</span>
+            <strong className="text-[10px] tabular-nums text-content">{formatMoney(opportunity.amount, money)}</strong>
+            <span className="text-[9px] leading-4 text-content-secondary">{opportunity.nextStep ?? "Sin próximo paso registrado"}</span>
+            <span className={`text-[9px] ${toneText(opportunity.dateTone)}`}>{opportunity.dateLabel ?? "—"}</span>
+            <IconAction action={opportunity.openAction} icon={Eye} />
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 

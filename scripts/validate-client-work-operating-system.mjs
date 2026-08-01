@@ -12,6 +12,7 @@ const clientSplit = read("components/clients/client-split-view.tsx");
 const clientPortfolio = read("components/portal/modules-a/client-portfolio.tsx");
 const clientWorkspaces = read("components/portal/modules-a/client-360-real-workspaces.tsx");
 const clientWorksOverview = read("components/portal/modules-a/client-360-works-overview.tsx");
+const clientOpportunitiesOverview = read("components/portal/modules-a/client-360-opportunities-overview.tsx");
 const contextDrawer = read("components/context-drawer.tsx");
 const work = read("app/(app)/obras/[id]/page.tsx");
 const works = read("app/(app)/obras/page.tsx");
@@ -65,6 +66,17 @@ check(
     clientWorksOverview.includes("WorksDesktopTable") &&
     clientWorkspaces.includes("progressPercent: null") &&
     clientWorkspaces.includes("estimatedMarginPercent: null"),
+);
+check(
+  "oportunidades enlaza lista y tablero usando estados reales de presupuesto",
+  client.includes('query.modo === "tablero"') &&
+    client.includes("opportunityMode={opportunityMode}") &&
+    clientWorkspaces.includes("opportunityStageByBudgetStatus") &&
+    ["borrador", "pendiente_revision", "enviado", "visto", "pendiente_respuesta", "aceptado", "rechazado", "caducado"].every((status) => clientWorkspaces.includes(`${status}:`)) &&
+    clientWorkspaces.includes('active: opportunityMode === "tablero" ? "board" : "list"') &&
+    clientOpportunitiesOverview.includes("<OpportunityList") &&
+    clientOpportunitiesOverview.includes("<OpportunityColumn") &&
+    clientWorkspaces.includes("probabilityPercent: null"),
 );
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
 check("cliente limita resumen ejecutivo", client.includes("xl:grid-cols-4") && !client.includes("xl:grid-cols-6"));
