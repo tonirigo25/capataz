@@ -6803,8 +6803,9 @@ button:disabled,
   }
   .clients-mobile-card {
     display: grid;
-    gap: 13px;
-    padding: 15px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px;
   }
   .clients-mobile-card__head,
   .clients-mobile-card__identity {
@@ -6814,6 +6815,9 @@ button:disabled,
     justify-content: space-between;
     gap: 10px;
   }
+  .clients-mobile-card__head,
+  .clients-mobile-card > section,
+  .clients-mobile-card dl { grid-column: 1 / -1; }
   .clients-mobile-card__identity { justify-content: flex-start; }
   .clients-mobile-card__identity > span:last-child { display: grid; min-width: 0; gap: 2px; }
   .clients-mobile-card__identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -6823,7 +6827,7 @@ button:disabled,
     gap: 3px;
     border-radius: 8px;
     background: #f4f8f5;
-    padding: 12px;
+    padding: 9px 10px;
   }
   .clients-mobile-card > section span,
   .clients-mobile-card dt { color: #68756e; font-size: 10px; font-weight: 700; }
@@ -6832,7 +6836,7 @@ button:disabled,
   .clients-mobile-card dl {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
+    gap: 7px 12px;
   }
   .clients-mobile-card dl > div { display: grid; gap: 3px; }
   .clients-mobile-card dd { overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; }
