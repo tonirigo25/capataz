@@ -55,7 +55,7 @@ export function EconomicControlCenter({
   const isMoney = surface === "money";
 
   return (
-    <ProductPage layout="analytical">
+    <ProductPage layout="analytical" className={isMoney ? styles.moneyProductPage : undefined}>
       <div className={`${styles.page} ${isMoney ? styles.summaryPage : ""}`} data-economic-surface={surface}>
         <header className={styles.header}>
           {!isMoney ? <InternalBreadcrumbs items={[{ label: "Dinero", href: "/dinero" }, { label: "Detalle financiero" }]} /> : null}

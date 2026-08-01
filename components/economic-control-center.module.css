@@ -49,6 +49,37 @@
   grid-template-columns: minmax(0, 1.04fr) minmax(23rem, .96fr);
 }
 
+@media (min-width: 1181px) {
+  .moneyProductPage {
+    padding: 21px 26px 24px;
+  }
+
+  .summaryPage .header {
+    min-height: 55px;
+  }
+
+  .summaryPage .primaryGrid {
+    height: 328px;
+  }
+
+  .summaryPage .primaryGrid .panel {
+    height: 328px;
+  }
+
+  .summaryPage .chartAxis,
+  .summaryPage .chartPlot {
+    height: 164px;
+  }
+
+  .summaryPage .barStage {
+    height: 128px;
+  }
+
+  .summaryPage .chartSummary {
+    display: none;
+  }
+}
+
 .header {
   display: grid;
   min-width: 0;
