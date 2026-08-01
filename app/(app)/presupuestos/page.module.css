@@ -2,6 +2,7 @@
   --budget-border: #dfe5e2;
   --budget-muted: #68746f;
   display: grid;
+  align-content: start;
   gap: 13px;
   padding: 16px 23px 24px;
   color: #0b1f17;
@@ -353,7 +354,8 @@
 .lineBar { height: 4px; overflow: hidden; border-radius: 99px; background: #e6ebe8; }
 .lineBar i { display: block; height: 100%; border-radius: inherit; background: #43af68; }
 .noLines { color: var(--budget-muted); font-size: 0.72rem; }
-.detailActions { justify-content: flex-end; padding: 8px 13px 11px; border-top: 1px solid #edf0ee; }
+.detailActions { flex-wrap: nowrap; justify-content: flex-end; padding: 8px 13px 11px; border-top: 1px solid #edf0ee; }
+.detailActions > * { min-height: 32px; padding: 5px 10px; font-size: 0.62rem; white-space: nowrap; }
 .detailEmpty { min-height: 298px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 30px; text-align: center; color: #718078; }
 .detailEmpty h2 { color: #163025; font-size: 1rem; font-weight: 850; }
 .detailEmpty p { max-width: 420px; font-size: 0.76rem; line-height: 1.55; }
@@ -402,6 +404,7 @@
   .summaryGrid { grid-template-columns: 1fr 1fr; }
   .linesBlock { grid-column: auto; }
   .detailActions > * { flex: 1 1 100%; justify-content: center; }
+  .detailActions { flex-wrap: wrap; }
   .mobileFacts { grid-template-columns: 1fr 1fr; }
   .mobileFacts div:last-child { grid-column: 1 / -1; }
 }
