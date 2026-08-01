@@ -146,3 +146,36 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 `passed`
 
 Final result: `in_progress`
+
+## Revalidación focal — Dinero 2026-08-02
+
+### Fuente y alcance
+
+- Referencia visual canónica: `C:\Users\Toniet\AppData\Local\Temp\08_dinero_tesoreria.png` (1586 × 992).
+- Ruta principal: `https://orqena-review-web-review.up.railway.app/dinero`.
+- Dinero queda como único destino financiero visible en la navegación. `/tesoreria` se conserva únicamente como detalle funcional de los drill-down existentes; no se presenta como módulo duplicado.
+- No se modificaron Dashboard, reglas de negocio, datos, migraciones, PostgreSQL, Staging ni Production.
+
+### Cinco pasadas de comparación
+
+1. **Arquitectura:** título, cinco KPI independientes, flujo proyectado, cuentas por cobrar/pagar, estado de facturación, rentabilidad por obra, vencimientos y rail financiero siguen el orden de la maestra.
+2. **Geometría:** tarjetas KPI separadas por 18 px, rejilla principal 1,04/0,96 y bloque inferior 0,8/1,05/1,1; a 1586 × 992 el contenido termina dentro del viewport sin scroll horizontal artificial.
+3. **Información:** cuentas incorpora Estado; rentabilidad conserva Obra, Ingresos, Costes, Margen y Margen %, siempre a partir de registros autorizados de la empresa activa.
+4. **Interacción:** KPI, pestañas de cobros/pagos, filas, selector de horizonte, informe, análisis de obra, calendario y rail IA enlazan a rutas reales. Las acciones financieras siguen requiriendo sus permisos y confirmaciones existentes.
+5. **Responsive:** escritorio, tablet y móvil conservan una sola columna cuando corresponde; los KPI mantienen sus bordes, las cifras de rentabilidad no desaparecen y los CTA tienen área táctil mínima de 44 px.
+
+### Gates focales
+
+- Validador económico: PASS, 30/30.
+- Navegación del shell: PASS.
+- ESLint focal: PASS.
+- Typecheck: PASS.
+- Build Railway: PASS en el SHA final registrado por la entrega.
+- Tenant y permisos: agregados económicos limitados a `companyId` y alcance `COMPANY`; los perfiles restringidos conservan su superficie acotada.
+- Cero migraciones y cero escrituras de datos.
+
+### Resultado focal
+
+`passed`
+
+Final result: `in_progress`
