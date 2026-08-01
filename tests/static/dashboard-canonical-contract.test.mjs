@@ -46,13 +46,16 @@ test("pasada 1/5: Dashboard conserva seis KPI canónicos y trazables", () => {
   );
 });
 
-test("pasada 2/5: el escritorio del propietario organiza los seis KPI en una matriz 3 por 2", () => {
+test("pasada 2/5: el escritorio del propietario mantiene los seis KPI en una fila", () => {
   const kpiRule = firstCssRule(css, ".dashboard-kpis");
   const columns = declaration(kpiRule, "grid-template-columns");
+  const explicitColumns = (columns.match(/minmax\(/g) ?? []).length;
   const repeatedColumns = Number(columns.match(/repeat\(\s*(\d+)/)?.[1] ?? 0);
 
-  assert.equal(repeatedColumns, 3, `El grid base debe declarar tres columnas de escritorio; recibido: ${columns}`);
-  assert.match(declaration(kpiRule, "grid-auto-rows"), /minmax\(148px,\s*auto\)/);
+  assert.ok(
+    explicitColumns === 6 || repeatedColumns === 6,
+    `El grid base debe declarar seis columnas de escritorio; recibido: ${columns}`,
+  );
 
   const desktop = cssAtRule(css, "@media (min-width: 1200px)");
   const workspace = firstCssRule(desktop, ".field-os-workspace");
