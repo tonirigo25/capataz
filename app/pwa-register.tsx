@@ -41,8 +41,37 @@ export function PwaRegister() {
     };
   }, []);
 
-  return <>
-    {offline ? <div className="fixed inset-x-3 bottom-3 z-[100] mx-auto max-w-xl rounded-xl border border-warning bg-surface-raised p-3 text-sm shadow-xl" role="status">Sin conexión. Puedes consultar la pantalla offline, pero Orqena no guarda ni envía cambios hasta recuperar la red.</div> : null}
-    {updateWorker ? <div className="fixed inset-x-3 bottom-3 z-[101] mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-brand bg-surface-raised p-3 text-sm shadow-xl" role="status"><span>Hay una versión nueva de Orqena preparada.</span><span className="flex gap-2"><button className="ghost-button" type="button" onClick={() => setUpdateWorker(null)}>Más tarde</button><button className="primary-button" type="button" onClick={() => updateWorker.postMessage({ type: "SKIP_WAITING" })}>Actualizar Orqena</button></span></div> : null}
-  </>;
+  if (!offline && !updateWorker) return null;
+
+  return (
+    <div className="pwa-status-stack" aria-live="polite" aria-atomic="true">
+      {offline ? (
+        <div className="pwa-status-banner pwa-status-banner--offline" role="status">
+          Sin conexión. Puedes consultar la pantalla offline, pero Orqena no
+          guarda ni envía cambios hasta recuperar la red.
+        </div>
+      ) : null}
+      {updateWorker ? (
+        <div className="pwa-status-banner pwa-status-banner--update" role="status">
+          <span>Hay una versión nueva de Orqena preparada.</span>
+          <span className="pwa-status-banner__actions">
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => setUpdateWorker(null)}
+            >
+              Más tarde
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => updateWorker.postMessage({ type: "SKIP_WAITING" })}
+            >
+              Actualizar Orqena
+            </button>
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
 }

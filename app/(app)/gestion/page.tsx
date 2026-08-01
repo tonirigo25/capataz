@@ -204,10 +204,13 @@ const statusOptions = {
 
 const clientEditTabs = [
   ["resumen", "Resumen"],
-  ["operacion", "Obras"],
-  ["dinero", "Facturas"],
-  ["relacion", "Conversaciones"],
-  ["archivos", "Documentos"],
+  ["obras", "Obras"],
+  ["oportunidades", "Oportunidades"],
+  ["actividad", "Actividad"],
+  ["presupuestos", "Presupuestos"],
+  ["facturas", "Facturas"],
+  ["conversaciones", "Conversaciones"],
+  ["documentos", "Documentos"],
 ] as const;
 
 export default async function ManualManagementPage({

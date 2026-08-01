@@ -20,6 +20,10 @@ import {
   WalletCards,
 } from "lucide-react";
 import type { ClientCrmSummary } from "@/lib/client-crm";
+import type {
+  OperationalEntityType,
+  OperationalSignalCategory,
+} from "@/lib/operational-intelligence/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { StatusPill } from "@/components/status-pill";
@@ -29,10 +33,13 @@ type ClientSummary = NonNullable<ClientCrmSummary>;
 
 export const CLIENT_360_CANONICAL_VIEWS = [
   "resumen",
-  "relacion",
-  "operacion",
-  "dinero",
-  "archivos",
+  "obras",
+  "oportunidades",
+  "actividad",
+  "presupuestos",
+  "facturas",
+  "conversaciones",
+  "documentos",
 ] as const;
 
 export type Client360CanonicalView =
@@ -59,6 +66,8 @@ export type Client360Recommendation = {
   title: string;
   description: string;
   sourceLabel?: string;
+  category?: OperationalSignalCategory;
+  entityType?: OperationalEntityType;
   impact?: Array<{ label: string; value: string }>;
   primaryAction: { label: string; href: string };
   analysisHref?: string;
@@ -101,19 +110,110 @@ export type Client360CanonicalProps = {
 
 const viewLabels: Record<Client360CanonicalView, string> = {
   resumen: "Resumen",
-  relacion: "Relación",
-  operacion: "Operación",
-  dinero: "Dinero",
-  archivos: "Archivos",
+  obras: "Obras",
+  oportunidades: "Oportunidades",
+  actividad: "Actividad",
+  presupuestos: "Presupuestos",
+  facturas: "Facturas",
+  conversaciones: "Conversaciones",
+  documentos: "Documentos",
 };
 
 const viewIcons: Record<Client360CanonicalView, typeof UserRound> = {
   resumen: UserRound,
-  relacion: UsersRound,
-  operacion: BriefcaseBusiness,
-  dinero: CircleDollarSign,
-  archivos: FolderOpen,
+  obras: BriefcaseBusiness,
+  oportunidades: UsersRound,
+  actividad: CalendarCheck2,
+  presupuestos: FileText,
+  facturas: CircleDollarSign,
+  conversaciones: MessageCircle,
+  documentos: FolderOpen,
 };
+
+const railEmptyCopy: Record<
+  Client360CanonicalView,
+  { title: string; description: string }
+> = {
+  resumen: {
+    title: "Sin recomendación general activa",
+    description:
+      "No hay una señal validada para el resumen de este cliente. No se muestran señales de otra ficha.",
+  },
+  obras: {
+    title: "Sin recomendación activa sobre obras",
+    description:
+      "No hay una señal validada vinculada a las obras de este cliente.",
+  },
+  oportunidades: {
+    title: "Sin seguimiento comercial recomendado",
+    description:
+      "No hay una señal validada de seguimiento comercial para este cliente.",
+  },
+  actividad: {
+    title: "Sin recomendación de actividad",
+    description:
+      "No hay una tarea o cita validada que requiera atención en esta vista.",
+  },
+  presupuestos: {
+    title: "Sin recomendación sobre presupuestos",
+    description:
+      "No hay una señal validada vinculada a un presupuesto de este cliente.",
+  },
+  facturas: {
+    title: "Sin recomendación financiera activa",
+    description:
+      "No hay una señal validada de facturación o cobro para este cliente.",
+  },
+  conversaciones: {
+    title: "Sin conversación recomendada",
+    description:
+      "No existe una señal validada de conversación. Los canales mostrados proceden de los contactos registrados.",
+  },
+  documentos: {
+    title: "Sin recomendación documental activa",
+    description:
+      "No hay una señal documental validada vinculada a este cliente.",
+  },
+};
+
+function recommendationMatchesView(
+  recommendation: Client360Recommendation,
+  activeView: Client360CanonicalView,
+) {
+  if (activeView === "resumen") return true;
+  if (activeView === "obras") {
+    return (
+      recommendation.entityType === "obra" ||
+      recommendation.category === "economia_obra"
+    );
+  }
+  if (activeView === "oportunidades") {
+    return recommendation.category === "ventas";
+  }
+  if (activeView === "actividad") {
+    return (
+      recommendation.entityType === "agenda" ||
+      recommendation.entityType === "tarea" ||
+      recommendation.category === "planificacion"
+    );
+  }
+  if (activeView === "presupuestos") {
+    return recommendation.entityType === "presupuesto";
+  }
+  if (activeView === "facturas") {
+    return (
+      recommendation.entityType === "factura" ||
+      recommendation.category === "cobros"
+    );
+  }
+  if (activeView === "documentos") {
+    return (
+      recommendation.entityType === "factura_recibida" ||
+      recommendation.category === "compras_documentacion"
+    );
+  }
+  return false;
+}
 
 /**
  * Canonical Cliente 360 summary.
@@ -448,6 +548,11 @@ export function Client360Canonical({
             ))}
           </CollectionPanel>
         </div>
+        {children ? (
+          <div className="client-360-canonical__tab-content min-w-0">
+            {children}
+          </div>
+        ) : null}
         </> : <div className="client-360-canonical__tab-content min-w-0">{children}</div>}
       </div>
 
@@ -455,6 +560,7 @@ export function Client360Canonical({
         <Client360RailShell>
           <ClientRecommendationRail
             clientName={displayName}
+            activeView={activeView}
             recommendation={scopedRecommendation}
             allRecommendationsHref={hrefs.allRecommendations}
           />
@@ -466,13 +572,21 @@ export function Client360Canonical({
 
 function ClientRecommendationRail({
   clientName,
+  activeView,
   recommendation,
   allRecommendationsHref,
 }: {
   clientName: string;
+  activeView: Client360CanonicalView;
   recommendation: Client360Recommendation | null;
   allRecommendationsHref: string;
 }) {
+  const contextualRecommendation =
+    recommendation && recommendationMatchesView(recommendation, activeView)
+      ? recommendation
+      : null;
+  const emptyCopy = railEmptyCopy[activeView];
+
   return (
     <div
       id="client-360-ai-context"
@@ -480,24 +594,26 @@ function ClientRecommendationRail({
       role="region"
       aria-label={`Recomendaciones de Orqena IA para ${clientName}`}
     >
-      <p className="type-label">Recomendación para {clientName}</p>
-      {recommendation ? (
+      <p className="type-label">
+        {viewLabels[activeView]} · {clientName}
+      </p>
+      {contextualRecommendation ? (
         <section className="mt-5 flex flex-1 flex-col rounded-xl border border-brand/30 bg-surface p-4 shadow-soft">
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand-strong">
             <Sparkles size={20} aria-hidden="true" />
           </span>
-          <h2 className="mt-5 font-semibold text-content">{recommendation.title}</h2>
+          <h2 className="mt-5 font-semibold text-content">{contextualRecommendation.title}</h2>
           <p className="mt-4 text-sm leading-6 text-content-secondary">
-            {recommendation.description}
+            {contextualRecommendation.description}
           </p>
-          {recommendation.sourceLabel ? (
+          {contextualRecommendation.sourceLabel ? (
             <p className="mt-3 text-xs font-semibold text-content-tertiary">
-              Origen: {recommendation.sourceLabel}
+              Origen: {contextualRecommendation.sourceLabel}
             </p>
           ) : null}
-          {recommendation.impact?.length ? (
+          {contextualRecommendation.impact?.length ? (
             <dl className="mt-5 grid gap-3 rounded-xl bg-brand-soft p-4">
-              {recommendation.impact.map((item) => (
+              {contextualRecommendation.impact.map((item) => (
                 <div key={item.label} className="flex items-start justify-between gap-3 text-sm">
                   <dt className="text-content-secondary">{item.label}</dt>
                   <dd className="text-right font-semibold text-brand-strong">{item.value}</dd>
@@ -506,22 +622,22 @@ function ClientRecommendationRail({
             </dl>
           ) : null}
           <div className="mt-auto grid gap-2 pt-6">
-            <Link href={recommendation.primaryAction.href} className="primary-button w-full">
-              {recommendation.primaryAction.label}
+            <Link href={contextualRecommendation.primaryAction.href} className="primary-button w-full">
+              {contextualRecommendation.primaryAction.label}
             </Link>
-            {recommendation.analysisHref ? (
-              <Link href={recommendation.analysisHref} className="secondary-button w-full">
+            {contextualRecommendation.analysisHref ? (
+              <Link href={contextualRecommendation.analysisHref} className="secondary-button w-full">
                 Ver análisis completo
               </Link>
             ) : null}
-            {recommendation.dismissControl}
+            {contextualRecommendation.dismissControl}
           </div>
         </section>
       ) : (
         <section className="mt-5 rounded-xl border border-border bg-subtle p-4">
-          <h2 className="font-semibold text-content">Sin recomendación contextual</h2>
+          <h2 className="font-semibold text-content">{emptyCopy.title}</h2>
           <p className="mt-2 text-sm leading-6 text-content-secondary">
-            No hay una recomendación validada para este cliente. No se muestran señales de otra ficha.
+            {emptyCopy.description}
           </p>
         </section>
       )}

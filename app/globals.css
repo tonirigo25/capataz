@@ -202,6 +202,87 @@ body {
   color: var(--cap-text);
 }
 
+.pwa-status-stack {
+  position: fixed;
+  inset-inline: .75rem;
+  bottom: .75rem;
+  z-index: 100;
+  display: grid;
+  width: auto;
+  max-width: 36rem;
+  gap: .5rem;
+  margin-inline: auto;
+  pointer-events: none;
+}
+
+.pwa-status-banner {
+  min-width: 0;
+  border: 1px solid var(--cap-border);
+  border-radius: .75rem;
+  background: var(--cap-surface);
+  padding: .75rem;
+  color: var(--cap-text);
+  font-size: .875rem;
+  line-height: 1.35rem;
+  overflow-wrap: anywhere;
+  box-shadow: 0 20px 35px rgb(15 23 42 / .18);
+  pointer-events: auto;
+}
+
+.pwa-status-banner--offline {
+  border-color: var(--cap-warning);
+}
+
+.pwa-status-banner--update {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-color: var(--cap-brand);
+}
+
+.pwa-status-banner__actions {
+  display: flex;
+  min-width: 0;
+  gap: .5rem;
+}
+
+.pwa-status-banner__actions > button {
+  min-height: 44px;
+}
+
+@media (max-width: 899px) {
+  body:has(.field-os-bottom-nav) .pwa-status-stack {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  body:has(.field-os-bottom-nav):has(.sticky-form-actions, .client-edit-reference__actions) .pwa-status-stack {
+    bottom: calc(10.25rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 520px) {
+  .pwa-status-banner--update {
+    align-items: stretch;
+  }
+
+  .pwa-status-banner--update > span:first-child,
+  .pwa-status-banner__actions {
+    width: 100%;
+  }
+
+  .pwa-status-banner__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pwa-status-banner__actions > button {
+    min-width: 0;
+    padding-inline: .625rem;
+  }
+}
+
 button,
 input,
 select,

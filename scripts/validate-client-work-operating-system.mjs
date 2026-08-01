@@ -20,6 +20,7 @@ const forms = read("app/(app)/gestion/page.tsx");
 const chrome = read("components/app-chrome.tsx");
 const contextRail = read("components/portal/orqena-context-rail.tsx");
 const management = read("lib/application/operations/management-use-cases.ts");
+const pwa = read("app/pwa-register.tsx");
 const schema = read("prisma/schema.prisma");
 
 const cases = [];
@@ -29,7 +30,11 @@ const ordered = (source, tokens) => {
   return indexes.every((index) => index >= 0) && indexes.every((index, position) => position === 0 || index > indexes[position - 1]);
 };
 
-check("cliente expone cuatro áreas 360 exactas", (client.match(/^  \["(resumen|trabajos|dinero|archivos)"/gm) ?? []).length === 4);
+check(
+  "cliente expone los ocho submenús 360 canónicos exactos",
+  (client.match(/^  \{ id: "(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos)"/gm) ?? []).length === 8 &&
+    (clientCanonical.match(/^  "(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos)",/gm) ?? []).length === 8,
+);
 check("cliente abre Resumen por defecto", client.includes(': "resumen");') && client.includes('requestedView'));
 check(
   "cliente conserva cabecera y navegación canónicas en acceso completo o restringido",
@@ -43,6 +48,7 @@ check(
 check("cliente conserva acciones contextuales reales", clientCanonical.includes("nextAction.actionLabel") && clientCanonical.includes("hrefs.newOpportunity") && client.includes("<ClientActions"));
 check("insights de cliente quedan aislados por cliente u obra autorizada", client.includes("const scopedSignals") && client.includes("signal.entity.clientId === client.id") && client.includes("clientWorkIds.has(signal.entity.workId)"));
 check("rail de Cliente 360 se oculta, expande y persiste sin scroll propio", clientRail.includes("localStorage.setItem") && clientRail.includes('data-collapsed={collapsed ? "true" : "false"}') && styles.includes('.client-360-canonical:has(> [data-client-360-rail][data-collapsed="true"])'));
+check("rail de Cliente 360 cambia con la vista sin reutilizar señales no relacionadas", client.includes("signalMatchesClientView") && client.includes("const activeSignal") && clientCanonical.includes("recommendationMatchesView") && clientCanonical.includes("railEmptyCopy[activeView]"));
 check("Cliente 360 elimina la columna global vacía desde tablet horizontal", styles.includes('@media (min-width: 900px)') && styles.includes('.field-os-workspace[data-embedded-context="client"]'));
 check("cliente consolida obras y dinero", client.includes('<WorksTab') && ordered(client, ["<BudgetsTab", "<InvoicesTab", "<PaymentsTab", "<ClientFinanceTab"]));
 check("cliente agrega actividad, notas, fotos y archivos de obras", client.includes("<ActivityTab") && client.includes("<NotesTab") && crm.includes("work.photos") && crm.includes("work.repositoryDocuments"));
@@ -79,13 +85,18 @@ check("tareas y seguimientos están aislados por companyId", workflow.includes("
 check("cliente y obra por ID están company-scoped", crm.includes("where: { id, companyId }") && work.includes("where: { id, companyId: auth.companyId }"));
 check("formularios mantienen orden semántico y targets", forms.includes("Identidad del cliente") && forms.includes("Contacto operativo") && forms.includes("Fiscal y condiciones comerciales") && forms.includes("StickyFormActions"));
 check("Editar cliente usa identidad, métricas y formulario responsive canónico", forms.includes("client-edit-reference__identity") && forms.includes("client-edit-reference__field-grid--three") && styles.includes(".client-edit-reference__identity") && styles.includes("@media (max-width: 767px)"));
-check("Editar cliente conserva cinco destinos funcionales sin enlaces duplicados", (forms.match(/^  \["(resumen|operacion|dinero|relacion|archivos)"/gm) ?? []).length === 5 && !forms.includes("dinero#presupuestos") && !forms.includes("relacion#contactos"));
+check(
+  "Editar cliente expone los ocho submenús canónicos con destinos reales",
+  (forms.match(/^  \["(resumen|obras|oportunidades|actividad|presupuestos|facturas|conversaciones|documentos)"/gm) ?? []).length === 8 &&
+    forms.includes('href={`/clientes/${clientId}?vista=${view}`}'),
+);
 check("Editar cliente no inventa campos comerciales o RGPD sin persistencia", !forms.includes('name="sector"') && !forms.includes('name="sitioWeb"') && !forms.includes('name="condicionesPago"') && !forms.includes('name="consentimientoComercial"'));
 check("métricas de Editar cliente usan scopes propios y excluyen borradores", forms.includes('resolveScopedEntityIds(auth, "work.view", "Work")') && forms.includes('resolveScopedEntityIds(auth, "sales.invoices.view", "Client")') && forms.includes("relationAllowedForClient(") && forms.includes("invoiceAccess.scope") && forms.includes('invoice.estado !== "borrador"'));
 check("Editar cliente normaliza retorno y rechaza IDs inexistentes", forms.includes("normalizeLoginReturnPath") && forms.includes("if (query.id && !record) notFound()") && management.includes("normalizeLoginReturnPath") && management.includes("result.count !== 1"));
 check("rail global reconoce Editar cliente sin duplicar contexto", chrome.includes("railPathname") && chrome.includes("editedClientId") && contextRail.includes("Completar ficha del cliente") && contextRail.includes('pathname.endsWith("/editar")'));
 check("navegación secundaria usa URL, aria-current y targets", clientCanonical.includes("?vista=${view}") && work.includes("?vista=${id}") && clientCanonical.includes("aria-current") && work.includes("aria-current"));
 check("composición responsive cubre móvil, tablet y escritorio", gallery.includes("grid-cols-2") && gallery.includes("sm:grid-cols-3") && gallery.includes("xl:grid-cols-4") && work.includes("xl:grid-cols"));
+check("avisos PWA respetan la navegación y las acciones móviles", pwa.includes("pwa-status-stack") && styles.includes("body:has(.field-os-bottom-nav):has(.sticky-form-actions, .client-edit-reference__actions)") && styles.includes("min-height: 44px"));
 
 let failed = 0;
 for (const [name, ok] of cases) {

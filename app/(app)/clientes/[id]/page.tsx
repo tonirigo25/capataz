@@ -31,6 +31,7 @@ import { getClientCrmSummary } from "@/lib/client-crm";
 import { Client360Canonical } from "@/components/portal/modules-a/client-360-canonical";
 import { Client360Restricted } from "@/components/portal/modules-a/client-360-restricted";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
+import type { OperationalSignal } from "@/lib/operational-intelligence/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
@@ -48,10 +49,13 @@ type DetailSearchParams = { vista?: string; tab?: string };
 
 const tabs = [
   { id: "resumen", label: "Resumen" },
-  { id: "relacion", label: "Relación" },
-  { id: "operacion", label: "Operación" },
-  { id: "dinero", label: "Dinero" },
-  { id: "archivos", label: "Archivos" },
+  { id: "obras", label: "Obras" },
+  { id: "oportunidades", label: "Oportunidades" },
+  { id: "actividad", label: "Actividad" },
+  { id: "presupuestos", label: "Presupuestos" },
+  { id: "facturas", label: "Facturas" },
+  { id: "conversaciones", label: "Conversaciones" },
+  { id: "documentos", label: "Documentos" },
 ] as const;
 
 const legacyClientAreas = [
@@ -65,27 +69,64 @@ type ClientTabId = (typeof tabs)[number]["id"];
 
 const legacyTabs: Record<string, ClientTabId> = {
   resumen: "resumen",
-  trabajos: "operacion",
-  dinero: "dinero",
-  archivos: "archivos",
-  obras: "operacion",
-  actividad: "relacion",
-  contactos: "relacion",
+  trabajos: "obras",
+  dinero: "facturas",
+  archivos: "documentos",
+  obras: "obras",
+  oportunidades: "oportunidades",
+  actividad: "actividad",
+  contactos: "conversaciones",
+  conversaciones: "conversaciones",
   datos: "resumen",
-  documentos: "archivos",
-  economia: "dinero",
-  presupuestos: "dinero",
-  facturas: "dinero",
-  pagos: "dinero",
-  finanzas: "dinero",
-  visitas: "relacion",
-  notas: "relacion",
+  documentos: "documentos",
+  economia: "facturas",
+  presupuestos: "presupuestos",
+  facturas: "facturas",
+  pagos: "facturas",
+  finanzas: "facturas",
+  visitas: "actividad",
+  notas: "actividad",
+  relacion: "actividad",
+  operacion: "obras",
 };
 
 function normalizeClientView(value: string | undefined) {
   if (!value) return undefined;
   const knownLegacyArea = legacyClientAreas.find(([id]) => id === value);
   return legacyTabs[knownLegacyArea?.[0] ?? value] ?? value;
+}
+
+function signalMatchesClientView(
+  signal: OperationalSignal,
+  view: ClientTabId,
+) {
+  if (view === "resumen") return true;
+  if (view === "obras") {
+    return signal.entity.type === "obra";
+  }
+  if (view === "oportunidades") {
+    return signal.category === "ventas";
+  }
+  if (view === "actividad") {
+    return (
+      signal.entity.type === "agenda" ||
+      signal.entity.type === "tarea" ||
+      signal.category === "planificacion"
+    );
+  }
+  if (view === "presupuestos") {
+    return signal.entity.type === "presupuesto";
+  }
+  if (view === "facturas") {
+    return signal.entity.type === "factura" || signal.category === "cobros";
+  }
+  if (view === "documentos") {
+    return (
+      signal.entity.type === "factura_recibida" ||
+      signal.category === "compras_documentacion"
+    );
+  }
+  return false;
 }
 
 export default async function ClientDetailPage({
@@ -228,30 +269,38 @@ export default async function ClientDetailPage({
         )),
   );
   const scopedPrincipal = principalBelongsToClient ? principal : null;
+  const activeSignal =
+    activeTab === "resumen"
+      ? scopedPrincipal
+      : (scopedSignals.find((signal) =>
+          signalMatchesClientView(signal, activeTab),
+        ) ?? null);
   const recommendationImpact: Array<{ label: string; value: string }> = [];
-  if (scopedPrincipal?.amount != null) {
+  if (activeSignal?.amount != null) {
     recommendationImpact.push({
       label: "Importe relacionado",
-      value: formatCurrency(scopedPrincipal.amount),
+      value: formatCurrency(activeSignal.amount),
     });
   }
-  if (scopedPrincipal?.days != null) {
+  if (activeSignal?.days != null) {
     recommendationImpact.push({
       label: "Antigüedad de la señal",
-      value: `${scopedPrincipal.days} días`,
+      value: `${activeSignal.days} días`,
     });
   }
   const recommendation =
-    canUseAiForClient && scopedPrincipal
+    canUseAiForClient && activeSignal
       ? {
           clientId: client.id,
-          title: scopedPrincipal.title,
-          description: scopedPrincipal.explanation,
-          sourceLabel: statusLabel(scopedPrincipal.category),
+          title: activeSignal.title,
+          description: activeSignal.explanation,
+          sourceLabel: statusLabel(activeSignal.category),
+          category: activeSignal.category,
+          entityType: activeSignal.entity.type,
           impact: recommendationImpact,
           primaryAction: {
             label: "Abrir acción",
-            href: scopedPrincipal.entity.href,
+            href: activeSignal.entity.href,
           },
           analysisHref: `/capataz?clienteId=${client.id}`,
         }
@@ -305,13 +354,13 @@ export default async function ClientDetailPage({
             ? undefined
             : `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
           newOpportunityLabel: "Nuevo presupuesto",
-          activity: `/clientes/${client.id}?vista=relacion`,
-          budgets: `/clientes/${client.id}?vista=dinero#presupuestos`,
-          works: `/clientes/${client.id}?vista=operacion`,
-          invoices: `/clientes/${client.id}?vista=dinero#facturas`,
-          payments: `/clientes/${client.id}?vista=dinero#cobros`,
-          contacts: `/clientes/${client.id}?vista=relacion#contactos`,
-          documents: `/clientes/${client.id}?vista=archivos`,
+          activity: `/clientes/${client.id}?vista=actividad`,
+          budgets: `/clientes/${client.id}?vista=presupuestos`,
+          works: `/clientes/${client.id}?vista=obras`,
+          invoices: `/clientes/${client.id}?vista=facturas`,
+          payments: `/clientes/${client.id}?vista=facturas#cobros`,
+          contacts: `/clientes/${client.id}?vista=conversaciones#contactos`,
+          documents: `/clientes/${client.id}?vista=documentos`,
           allRecommendations: `/capataz?clienteId=${client.id}`,
         }}
         moreActions={
@@ -327,28 +376,32 @@ export default async function ClientDetailPage({
           />
         }
       >
-        {activeTab === "relacion" ? (
-          <div className="grid gap-4">
-            <ContactsTab summary={summary} returnTo={returnTo} />
-            <ActivityTab summary={summary} />
-            <VisitsTab summary={summary} returnTo={returnTo} />
-            <NotesTab summary={summary} returnTo={returnTo} />
-            <DataTab summary={summary} returnTo={returnTo} />
-          </div>
+        {activeTab === "resumen" ? (
+          <DataTab summary={summary} returnTo={returnTo} />
         ) : null}
-        {activeTab === "operacion" ? (
+        {activeTab === "obras" ? (
           <div className="grid gap-4">
             <EntityWorkflowSummary clientId={client.id} />
             <WorksTab summary={summary} returnTo={returnTo} />
           </div>
         ) : null}
-        {activeTab === "archivos" ? (
-          <DocumentsTab
-            summary={summary}
-            canUpload={uploadDecision.allowed}
-          />
+        {activeTab === "oportunidades" ? (
+          <div className="grid gap-4">
+            <EntityWorkflowSummary clientId={client.id} />
+            <OpportunitiesTab summary={summary} returnTo={returnTo} />
+          </div>
         ) : null}
-        {activeTab === "dinero" ? (
+        {activeTab === "actividad" ? (
+          <div className="grid gap-4">
+            <ActivityTab summary={summary} />
+            <VisitsTab summary={summary} returnTo={returnTo} />
+            <NotesTab summary={summary} returnTo={returnTo} />
+          </div>
+        ) : null}
+        {activeTab === "presupuestos" ? (
+          <BudgetsTab summary={summary} returnTo={returnTo} />
+        ) : null}
+        {activeTab === "facturas" ? (
           <div className="grid gap-4">
             <section
               className="grid gap-3 sm:grid-cols-3"
@@ -375,9 +428,6 @@ export default async function ClientDetailPage({
                 tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"}
               />
             </section>
-            <div id="presupuestos">
-              <BudgetsTab summary={summary} returnTo={returnTo} />
-            </div>
             <div id="facturas">
               <InvoicesTab summary={summary} returnTo={returnTo} />
             </div>
@@ -386,6 +436,15 @@ export default async function ClientDetailPage({
             </div>
             <ClientFinanceTab treasury={treasury} clientId={client.id} />
           </div>
+        ) : null}
+        {activeTab === "conversaciones" ? (
+          <ConversationsTab summary={summary} returnTo={returnTo} />
+        ) : null}
+        {activeTab === "documentos" ? (
+          <DocumentsTab
+            summary={summary}
+            canUpload={uploadDecision.allowed}
+          />
         ) : null}
       </Client360Canonical>
     </div>
@@ -925,6 +984,98 @@ function ContactsTab({
         </div>
       ) : null}
     </SectionList>
+  );
+}
+
+function OpportunitiesTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
+  return (
+    <div className="grid gap-4">
+      <SectionList
+        title="Oportunidades abiertas"
+        description="Presupuestos reales pendientes de decisión. No se calcula una probabilidad comercial ni un valor previsto."
+        emptyTitle="No hay presupuestos pendientes de decisión."
+        emptyAction={
+          <Link
+            href={`/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+            className="secondary-button"
+          >
+            Crear presupuesto
+          </Link>
+        }
+      >
+        {summary.pendingBudgets.length ? (
+          <div className="grid gap-3">
+            {summary.pendingBudgets.map((budget) => (
+              <BudgetCard
+                key={budget.id}
+                budget={budget}
+                returnTo={returnTo}
+              />
+            ))}
+          </div>
+        ) : null}
+      </SectionList>
+
+      <SectionList
+        title="Seguimientos pendientes"
+        description="Recordatorios registrados para continuar la relación comercial."
+        emptyTitle="No hay seguimientos pendientes."
+        emptyAction={
+          <Link
+            href={`/gestion?tipo=recordatorio&clienteId=${summary.client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`}
+            className="secondary-button"
+          >
+            Crear seguimiento
+          </Link>
+        }
+      >
+        {summary.pendingReminders.map((reminder) => (
+          <CompactRow
+            key={reminder.id}
+            icon={Bell}
+            title={statusLabel(reminder.tipo)}
+            detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)} · ${reminder.canal}`}
+            href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          />
+        ))}
+      </SectionList>
+    </div>
+  );
+}
+
+function ConversationsTab({
+  summary,
+  returnTo,
+}: {
+  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
+  returnTo: string;
+}) {
+  return (
+    <div className="grid gap-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="label">Canales y trazabilidad</p>
+        <h2 className="mt-1 text-lg font-black text-obra-ink">
+          Conversaciones con {summary.listItem.displayName}
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Esta ficha muestra únicamente contactos, actividad y notas realmente
+          registradas. No existe un hilo de mensajes persistido, por lo que no
+          se reconstruyen conversaciones ni se atribuyen comunicaciones que no
+          constan en el sistema.
+        </p>
+      </section>
+      <div id="contactos">
+        <ContactsTab summary={summary} returnTo={returnTo} />
+      </div>
+      <ActivityTab summary={summary} />
+      <NotesTab summary={summary} returnTo={returnTo} />
+    </div>
   );
 }
 
