@@ -73,6 +73,7 @@ type WorksQuery = {
   buscar?: string;
   orden?: string;
   vista?: string;
+  riesgo?: string;
 };
 
 export default async function WorksPage({ searchParams }: { searchParams: Promise<WorksQuery> }) {
@@ -154,7 +155,9 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
   const clients = [...new Map(works.map((work) => [work.client.id, work.client.nombre])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
   const responsibles = [...new Set(works.map((work) => work.responsable).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "es"));
   const workTypes = [...new Set(works.map((work) => work.tipoTrabajo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
-  const visibleWorks = sortWorks(filterWorks(enriched, query), query.orden ?? "riesgo");
+  const filteredWorks = filterWorks(enriched, query);
+  const visibleWorks = sortWorks(query.riesgo === "1" ? filteredWorks.filter((item) => item.hasRisk) : filteredWorks, query.orden ?? "riesgo");
+  const activeFilterCount = [query.estado, query.tipo, query.prioridad, query.responsable, query.cliente, query.buscar, query.riesgo].filter((value) => Boolean(value) && !["todas", "todos"].includes(value!)).length;
   const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
   const portfolioItems = visibleWorks.map((item) => {
     const purchaseCost = item.work.gastoReal + item.work.subcontratasCoste + item.work.expenses.reduce((sum, expense) => sum + expense.importe, 0);
@@ -296,7 +299,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link> : undefined}
         />
       ) : view === "tabla" ? (
-        <WorkPortfolio items={portfolioItems} />
+        <WorkPortfolio items={portfolioItems} totalAuthorizedCount={works.length} activeFilterCount={activeFilterCount} />
       ) : view === "compacta" ? (
         <CompactList items={visibleWorks} />
       ) : view === "kanban" ? (

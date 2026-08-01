@@ -83,7 +83,7 @@ export type WorkPortfolioItem = {
   active?: boolean | null;
 };
 
-export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
+export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount }: { items: WorkPortfolioItem[]; totalAuthorizedCount: number; activeFilterCount: number }) {
   const [selectedId, setSelectedId] = useState(items[0]?.id ?? "");
   const [markedIds, setMarkedIds] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -200,13 +200,13 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
             <div className="hidden min-[1200px]:block" aria-label="Listado de trabajos">
               <div className="grid min-h-11 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
                 <input type="checkbox" checked={items.length > 0 && items.every((item) => markedIds.has(item.id))} onChange={toggleAllMarked} className="h-4 w-4 accent-brand" aria-label="Seleccionar todos los trabajos visibles" />
-                <div aria-hidden="true" className="grid grid-cols-[minmax(7.2rem,2fr)_4.2rem_3.5rem_4.5rem_5rem_3.6rem_6.7rem_0.9rem] items-center gap-1 leading-tight">
+                <div aria-hidden="true" className="grid grid-cols-[minmax(12.5rem,2fr)_6rem_5rem_7.5rem_7.5rem_5rem_9rem_1rem] items-center gap-2 leading-tight">
                   <span>Obra</span>
                   <span>Estado</span>
                   <span>Avance</span>
                   <span>Equipo</span>
                   <span>Próxima<br />visita</span>
-                  <span>Incidencias</span>
+                  <span>Incidencias<br />registradas</span>
                   <span>Presupuesto<br />vs. real</span>
                   <span />
                 </div>
@@ -215,9 +215,9 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
                 {items.map((item) => {
                   const active = selected?.id === item.id;
                   return (
-                    <article key={item.id} role="listitem" className={`grid min-h-[4.2rem] grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 px-3 transition-colors ${active ? "bg-brand-soft ring-1 ring-inset ring-blue-200" : "bg-surface"}`}>
+                    <article key={item.id} role="listitem" className={`grid min-h-16 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 px-3 transition-colors ${active ? "bg-brand-soft ring-1 ring-inset ring-blue-200" : "bg-surface"}`}>
                       <input type="checkbox" checked={markedIds.has(item.id)} onChange={() => toggleMarked(item.id)} className="h-4 w-4 accent-brand" aria-label={`Seleccionar ${item.title}`} />
-                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="grid min-h-[4.2rem] w-full grid-cols-[minmax(7.2rem,2fr)_4.2rem_3.5rem_4.5rem_5rem_3.6rem_6.7rem_0.9rem] items-center gap-1 text-left text-[9px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
+                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="grid min-h-16 w-full grid-cols-[minmax(12.5rem,2fr)_6rem_5rem_7.5rem_7.5rem_5rem_9rem_1rem] items-center gap-2 text-left text-[10px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
                       <span className="flex min-w-0 items-center gap-2">
                         <WorkThumbnail item={item} />
                         <span className="min-w-0">
@@ -267,7 +267,7 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
               })}
             </div>
 
-            <PortfolioSummary items={items} />
+            <PortfolioSummary items={items} totalAuthorizedCount={totalAuthorizedCount} activeFilterCount={activeFilterCount} />
           </>
         ) : <p className="type-secondary p-6">Sin trabajos registrados.</p>}
       </section>
@@ -344,32 +344,33 @@ function FinancialSummary({ item }: { item: WorkPortfolioItem }) {
   return <span className="grid gap-0.5 leading-tight"><span className="block truncate text-content-secondary"><strong className="text-content">Pres.</strong> {item.budget ?? "—"}</span><span className="block truncate text-content-secondary"><strong className="text-content">Real</strong> {item.cost ?? "—"}</span>{item.margin != null ? <span className={`block truncate font-semibold ${item.marginRisk ? "text-danger" : "text-success"}`}>Margen {item.margin}</span> : null}</span>;
 }
 
-function PortfolioSummary({ items }: { items: WorkPortfolioItem[] }) {
+function PortfolioSummary({ items, totalAuthorizedCount, activeFilterCount }: { items: WorkPortfolioItem[]; totalAuthorizedCount: number; activeFilterCount: number }) {
   const allRiskItems = items.filter((item) => item.risk);
   const riskItems = allRiskItems.slice(0, 2);
   const activeItems = items.filter(isWorkInProgress);
   const allClosingItems = items.filter((item) => item.closingSoon === true);
   const closingItems = allClosingItems.slice(0, 2);
-  const recordedProgress = activeItems.map((item) => normalizedProgress(item.progressPercent)).filter((value): value is number => value != null);
-  const averageProgress = recordedProgress.length ? Math.round(recordedProgress.reduce((sum, value) => sum + value, 0) / recordedProgress.length) : null;
   const budgetAmounts = activeItems.map((item) => item.budgetAmount).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   const totalBudget = budgetAmounts.length ? budgetAmounts.reduce((sum, value) => sum + value, 0) : null;
 
+  const riskPercent = items.length ? Math.round((allRiskItems.length / items.length) * 100) : 0;
+
   return <div className="grid grid-cols-1 gap-2 border-t border-border bg-subtle p-3 md:grid-cols-2 min-[1200px]:grid-cols-3">
-    <SummaryCard title="Trabajos en riesgo" count={allRiskItems.length}>
+    <SummaryCard title="Trabajos en riesgo" count={allRiskItems.length} href="/obras?riesgo=1&vista=tabla">
+      <p className="mb-1 text-[9px] text-content-secondary">{allRiskItems.length} de {items.length} visibles · {riskPercent}% con señal registrada</p>
       {riskItems.length ? <ul className="space-y-1">{riskItems.map((item) => <li key={item.id}><Link href={`/obras/${item.id}`} className="grid min-h-8 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-2 text-[10px] font-semibold text-content hover:underline"><span className="truncate">{item.title}</span><span className="min-w-0 text-right"><small className="block text-[8px] font-medium uppercase tracking-wide text-content-tertiary">Motivo</small><span className="block truncate text-danger">{item.riskReason ?? "Revisión operativa"}</span></span></Link></li>)}</ul> : <p className="type-meta">Sin trabajos en riesgo registrados.</p>}
     </SummaryCard>
-    <SummaryCard title="Trabajos en curso" count={activeItems.length}>
-      <div className="grid grid-cols-2 gap-3"><SummaryMetric label={averageProgress == null ? "Avance medio no calculado" : "Avance medio registrado"} value={averageProgress == null ? "—" : `${averageProgress}%`} /><SummaryMetric label={totalBudget == null ? "Presupuesto no disponible" : "Presupuesto registrado"} value={totalBudget == null ? "—" : formatCurrencyAmount(totalBudget)} /></div>
+    <SummaryCard title="Trabajos visibles" count={items.length} href="/obras?vista=tabla">
+      <div className="grid grid-cols-2 gap-3"><SummaryMetric label={activeFilterCount ? `${activeFilterCount} filtros activos` : "Sin filtros activos"} value={`${items.length} de ${totalAuthorizedCount}`} /><SummaryMetric label={totalBudget == null ? "Presupuesto no disponible" : "Presupuesto visible registrado"} value={totalBudget == null ? "—" : formatCurrencyAmount(totalBudget)} /></div>
     </SummaryCard>
-    <SummaryCard title="Trabajos por cerrar" count={allClosingItems.length}>
+    <SummaryCard title="Trabajos por cerrar" count={allClosingItems.length} href="/obras?estado=pendiente_remates&vista=tabla">
       {closingItems.length ? <ul className="space-y-1">{closingItems.map((item) => <li key={item.id}><Link href={`/obras/${item.id}`} className="flex min-h-7 items-center justify-between gap-2 text-[10px] font-semibold text-content hover:underline"><span className="truncate">{item.title}</span><span className="max-w-[8rem] truncate text-content-secondary">{valueOr(item.nextAction, "Sin siguiente acción registrada")}</span></Link></li>)}</ul> : <p className="type-meta">Sin trabajos por cerrar registrados.</p>}
     </SummaryCard>
   </div>;
 }
 
-function SummaryCard({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  return <section className="flex min-h-[9.25rem] flex-col rounded-xl border border-border bg-surface p-3"><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-xs font-bold text-content">{title}</h3><span className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-brand-soft px-1.5 text-[10px] font-bold text-content">{count}</span></div><div className="min-h-0 flex-1 overflow-hidden">{children}</div><Link href="/obras" className="mt-2 inline-flex min-h-7 items-center justify-center rounded-lg border border-border text-[9px] font-semibold text-content hover:bg-subtle">Ver todos</Link></section>;
+function SummaryCard({ title, count, href, children }: { title: string; count: number; href: string; children: React.ReactNode }) {
+  return <section className="flex min-h-[7.5rem] flex-col rounded-xl border border-border bg-surface p-3"><div className="mb-2 flex items-center gap-2"><h3 className="min-w-0 flex-1 text-xs font-bold text-content">{title}</h3><span className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-brand-soft px-1.5 text-[10px] font-bold text-content">{count}</span><Link href={href} className="inline-flex min-h-7 items-center text-[9px] font-semibold text-brand-strong hover:underline">Ver</Link></div><div className="min-h-0 flex-1 overflow-hidden">{children}</div></section>;
 }
 
 function SummaryMetric({ label, value }: { label: string; value: string }) {
