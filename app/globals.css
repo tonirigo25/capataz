@@ -4882,6 +4882,13 @@ button:disabled,
   border-bottom-color: #12a34a;
   color: #087932;
 }
+@media (min-width: 900px) {
+  .client-360-ref__tabs > a,
+  .client-360-ref__more-tabs > summary {
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+}
 .client-360-ref__more-tabs { position: relative; }
 .client-360-ref__more-tabs > summary::-webkit-details-marker { display: none; }
 .client-360-ref__more-tabs > div {
