@@ -34,8 +34,8 @@
 .kpiStrip span, .metricStrip span { display: block; color: #526059; font-size: 11px; font-weight: 750; }
 .kpiStrip strong, .metricStrip strong { display: block; margin-top: 5px; color: #101c17; font-size: 23px; line-height: 1.05; font-weight: 850; letter-spacing: -.025em; }
 .kpiStrip small, .metricStrip small { display: flex; align-items: center; gap: 3px; margin-top: 7px; color: #718078; font-size: 10px; font-weight: 700; }
-[data-tone="positive"] { color: #078b3f !important; }
-[data-tone="negative"], [data-tone="danger"] { color: #d73746 !important; }
+.page [data-tone="positive"] { color: #078b3f !important; }
+.page [data-tone="negative"], .page [data-tone="danger"] { color: #d73746 !important; }
 
 .overviewGrid, .analysisGrid, .qualityGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .panel { min-width: 0; padding: 15px; border: 1px solid var(--int-border); border-radius: 11px; background: white; box-shadow: 0 8px 24px rgb(19 43 31 / 4%); }
