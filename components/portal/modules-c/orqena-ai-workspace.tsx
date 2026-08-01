@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -7,11 +8,13 @@ import {
   BadgeEuro,
   Bot,
   BriefcaseBusiness,
+  CalendarDays,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
   FileSearch,
   Gauge,
+  History,
   ListTodo,
   LockKeyhole,
   ShieldCheck,
@@ -19,6 +22,7 @@ import {
   UsersRound,
   Workflow,
 } from "lucide-react";
+import styles from "./orqena-ai-workspace.module.css";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import {
@@ -218,6 +222,8 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
   const queue = buildQueue(area, { recommendations: visibleRecommendations, clients, budgets, works, tasks, documents, invoices, memberships });
   const metrics = buildMetrics(area, {
     recommendations: visibleRecommendations.length,
+    confirmedRecommendations: visibleRecommendations.filter((item) => ["accepted", "in_progress"].includes(item.status)).length,
+    recordedImpact: visibleRecommendations.reduce((sum, item) => sum + (item.amount ?? 0), 0),
     clients: clients.length,
     works: works.length,
     budgets,
@@ -252,74 +258,101 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
     members: membersDecision.allowed,
   });
 
+  const currentDate = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
+
   return (
-    <main className="screen" data-orqena-ai-workspace={area}>
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="type-label">Asistencia gobernada</p>
-          <h1 className="type-page-title mt-2">Orqena IA</h1>
-          <p className="type-secondary mt-2 max-w-3xl">{meta.description}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/capataz" className="primary-button"><Bot size={17} aria-hidden="true" />Abrir chat real</Link>
-          {executeDecision.allowed ? <Link href="/recomendaciones" className="secondary-button">Historial de recomendaciones</Link> : null}
+    <main className={styles.workspace} data-orqena-ai-workspace={area}>
+      <header className={styles.headingRow}>
+        <div className={styles.heading}>
+          <h1>Orqena IA</h1>
+          <p>{meta.description}</p>
         </div>
       </header>
 
-      <nav className="mt-5 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1" aria-label="Áreas de Orqena IA">
-        <AreaTab href="/orqena-ia" active={area === "general"}>Todos</AreaTab>
-        {orqenaAiAreas.map((item) => <AreaTab key={item} href={`/orqena-ia/${item}`} active={area === item}>{areaMeta[item].label}</AreaTab>)}
-      </nav>
+      <div className={styles.navigationRow}>
+        <nav className={styles.tabs} aria-label="Áreas de Orqena IA">
+          <AreaTab href="/orqena-ia" active={area === "general"}>Todos</AreaTab>
+          {orqenaAiAreas.map((item) => (
+            <AreaTab key={item} href={`/orqena-ia/${item}`} active={area === item}>
+              {areaMeta[item].label}
+            </AreaTab>
+          ))}
+        </nav>
+        <div className={styles.navActions}>
+          <span className={styles.navAction}><CalendarDays size={14} aria-hidden="true" />{currentDate}</span>
+          {executeDecision.allowed ? (
+            <Link href="/recomendaciones" className={styles.navAction}>
+              <History size={14} aria-hidden="true" />Historial de recomendaciones
+            </Link>
+          ) : null}
+        </div>
+      </div>
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores reales de la vista">
+      <section
+        className={styles.metrics}
+        style={{ "--metric-count": metrics.length } as CSSProperties}
+        aria-label="Indicadores reales de la vista"
+      >
         {metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
       </section>
 
-      <div className="mt-4">
-        <div className="min-w-0 space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,.75fr)]">
-            <section className="card overflow-hidden" aria-labelledby="orqena-queue-title">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-4">
-                <div className="flex items-center gap-2"><Sparkles className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-queue-title" className="font-black text-obra-ink">{meta.queueTitle}</h2></div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{queue.length} visibles</span>
+      <div className={styles.primaryGrid}>
+        <section className={styles.panel} aria-labelledby="orqena-queue-title">
+          <SectionHeading icon={Sparkles} id="orqena-queue-title" title={meta.queueTitle} meta={`${queue.length} visibles`} />
+          {queue.length ? queue.slice(0, 6).map((row) => <QueueItem key={row.id} row={row} />) : <HonestEmpty description="No hay elementos registrados y autorizados que requieran revisión en esta área." />}
+          {originLink ? <PanelFooter href={originLink}>Abrir el módulo de origen</PanelFooter> : null}
+        </section>
+
+        <section className={styles.panel} aria-labelledby="orqena-automations-title">
+          <SectionHeading icon={Workflow} id="orqena-automations-title" title="Automatizaciones sugeridas" />
+          {automations.length ? automations.slice(0, 5).map((automation) => (
+            <article key={automation.id} className={styles.automationRow}>
+              <span className={styles.automationIcon}><Workflow size={17} aria-hidden="true" /></span>
+              <div>
+                <h3>{automation.name}</h3>
+                <p>{humanize(automation.category)} · {automation.currentVersion?.requiresConfirmation ? "requiere revisión humana" : "aplica sus controles configurados"}</p>
               </div>
-              {queue.length ? <div className="divide-y divide-slate-100">{queue.slice(0, 6).map((row) => <QueueItem key={row.id} row={row} />)}</div> : <HonestEmpty description="No hay elementos registrados y autorizados que requieran revisión en esta área." />}
-              {originLink ? <div className="border-t border-slate-100 px-4 py-3 text-center"><Link href={originLink} className="text-sm font-bold text-emerald-700 hover:underline">Abrir el módulo de origen</Link></div> : null}
-            </section>
-
-            <section className="card overflow-hidden" aria-labelledby="orqena-automations-title">
-              <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-4"><Workflow className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-automations-title" className="font-black text-obra-ink">Automatizaciones configuradas</h2></div>
-              {automations.length ? <div className="divide-y divide-slate-100">{automations.slice(0, 5).map((automation) => (
-                <article key={automation.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-black text-obra-ink">{automation.name}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{humanize(automation.category)} · {automation.schedule?.nextRunAt ? `próxima ${formatDateTime(automation.schedule.nextRunAt)}` : "sin próxima ejecución"}</p></div><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${automation.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{automation.active ? "Activa" : humanize(automation.status)}</span></div>
-                  <p className="mt-2 text-xs leading-5 text-slate-600">{automation.currentVersion?.requiresConfirmation ? "Cada efecto requiere confirmación." : "Se aplican los controles definidos en su versión."}</p>
-                  <Link href={`/automatizaciones/${automation.id}`} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-emerald-700">Abrir para revisar <ArrowRight size={13} aria-hidden="true" /></Link>
-                </article>
-              ))}</div> : <HonestEmpty description={automationDecision.allowed ? "No hay automatizaciones configuradas en esta empresa." : "Tu perfil no puede consultar la configuración de automatizaciones."} />}
-              {automationDecision.allowed ? <div className="border-t border-slate-100 px-4 py-3 text-center"><Link href="/automatizaciones" className="text-sm font-bold text-emerald-700 hover:underline">Ver automatizaciones</Link></div> : null}
-            </section>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,.9fr)]">
-            <section className="card p-4" aria-labelledby="orqena-context-title">
-              <div className="flex items-center gap-2"><Gauge className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-context-title" className="font-black text-obra-ink">{meta.contextTitle}</h2></div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <ContextMini label="Empresa activa" value={auth.companyName} />
-                <ContextMini label="Alcance" value={scopeLabel(useDecision.scope)} />
-                <ContextMini label="Política IA" value={aiPolicy?.enabled && !aiPolicy.killSwitch ? "Habilitada" : "Fail-closed"} />
-                <ContextMini label="Proveedor" value={runtime ? "Activo para la empresa" : "Modo manual"} />
-              </div>
-              <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm leading-6 text-emerald-950"><ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={19} aria-hidden="true" /><p>Los datos se limitan a tu empresa y a tu alcance. Ninguna recomendación de esta vista modifica registros; las acciones sensibles conservan revisión humana, confirmación e idempotencia.</p></div>
-            </section>
-
-            <section className="card overflow-hidden" aria-labelledby="orqena-activity-title">
-              <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-4"><Activity className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-activity-title" className="font-black text-obra-ink">Actividad reciente de IA</h2></div>
-              {recentAi.length ? <ol className="divide-y divide-slate-100">{recentAi.map((event) => <li key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-xs"><time className="font-semibold text-slate-500">{event.createdAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</time><span className="min-w-0 truncate text-slate-700">{humanize(event.purpose)}</span><span className="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-600">{event.humanReviewed ? "Revisada" : humanize(event.outcome)}</span></li>)}</ol> : <HonestEmpty description={executeDecision.allowed ? "Aún no hay operaciones de IA registradas." : "Tu perfil no puede consultar esta actividad."} />}
-            </section>
-          </div>
-        </div>
-
+              <Link href={`/automatizaciones/${automation.id}`} className={styles.reviewLink}>Abrir para revisar</Link>
+            </article>
+          )) : <HonestEmpty description={automationDecision.allowed ? "No hay automatizaciones configuradas en esta empresa." : "Tu perfil no puede consultar la configuración de automatizaciones."} />}
+          {automationDecision.allowed ? <PanelFooter href="/automatizaciones">Ver todas las automatizaciones</PanelFooter> : null}
+        </section>
       </div>
+
+      <div className={styles.secondaryGrid}>
+        <section className={styles.panel} aria-labelledby="orqena-context-title">
+          <SectionHeading icon={Gauge} id="orqena-context-title" title={meta.contextTitle} />
+          <div className={styles.contextGrid}>
+            <ContextMini label="Empresa activa" value={auth.companyName} />
+            <ContextMini label="Alcance" value={scopeLabel(useDecision.scope)} />
+            <ContextMini label="Política IA" value={aiPolicy?.enabled && !aiPolicy.killSwitch ? "Habilitada" : "Fail-closed"} />
+            <ContextMini label="Proveedor" value={runtime ? "Activo para la empresa" : "Modo manual"} />
+          </div>
+          <div className={styles.governance}><ShieldCheck size={16} aria-hidden="true" /><span>Datos limitados a la empresa y al alcance. Las acciones sensibles mantienen revisión humana, confirmación e idempotencia.</span></div>
+        </section>
+
+        <section className={styles.panel} aria-labelledby="orqena-activity-title">
+          <SectionHeading icon={Activity} id="orqena-activity-title" title="Actividad reciente de Orqena IA" />
+          {recentAi.length ? (
+            <ol>
+              {recentAi.map((event) => (
+                <li key={event.id} className={styles.activityRow}>
+                  <time>{event.createdAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</time>
+                  <span>{humanize(event.purpose)}</span>
+                  <span className={styles.status}>{event.humanReviewed ? "Revisada" : humanize(event.outcome)}</span>
+                </li>
+              ))}
+            </ol>
+          ) : <HonestEmpty description={executeDecision.allowed ? "Aún no hay operaciones de IA registradas." : "Tu perfil no puede consultar esta actividad."} />}
+          {executeDecision.allowed ? <PanelFooter href="/recomendaciones">Ver toda la actividad</PanelFooter> : null}
+        </section>
+      </div>
+
+      <Link href="/capataz" className="primary-button justify-self-start"><Bot size={17} aria-hidden="true" />Abrir chat real</Link>
     </main>
   );
 }
@@ -334,31 +367,33 @@ export function CapatazWorkspaceEntry() {
 }
 
 function AreaTab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return <Link href={href} aria-current={active ? "page" : undefined} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-black transition ${active ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-obra-ink"}`}>{children}</Link>;
+  return <Link href={href} aria-current={active ? "page" : undefined} className={styles.tab} data-active={active}>{children}</Link>;
 }
 
 function MetricCard({ metric }: { metric: Metric }) {
   const Icon = metric.icon;
-  const tones = {
-    green: "bg-emerald-50 text-emerald-700",
-    violet: "bg-violet-50 text-violet-700",
-    blue: "bg-sky-50 text-sky-700",
-    amber: "bg-amber-50 text-amber-700",
-  };
-  return <article className="card flex min-h-28 items-center gap-4 p-4"><span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tones[metric.tone]}`}><Icon size={23} aria-hidden="true" /></span><div className="min-w-0"><p className="text-xs font-bold text-slate-500">{metric.label}</p><p className="mt-1 truncate text-2xl font-black text-obra-ink">{metric.value}</p><p className="mt-1 text-xs text-slate-500">{metric.detail}</p></div></article>;
+  return <article className={styles.metric}><span className={styles.metricIcon} data-tone={metric.tone}><Icon size={20} aria-hidden="true" /></span><div><p className={styles.metricLabel}>{metric.label}</p><p className={styles.metricValue}>{metric.value}</p><p className={styles.metricDetail}>{metric.detail}</p></div></article>;
 }
 
 function QueueItem({ row }: { row: QueueRow }) {
-  const content = <><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-obra-ink">{row.title}</h3>{row.requiresConfirmation ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">Confirmación humana</span> : null}</div><p className="mt-1 text-sm leading-5 text-slate-600">{row.context}</p><p className="mt-1 text-xs text-slate-500">{row.meta}</p></div><span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{row.status}</span></>;
-  return row.href ? <Link href={row.href} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">{content}</Link> : <article className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">{content}</article>;
+  const content = <><div><h3>{row.title}{row.requiresConfirmation ? <span className={styles.confirmation}>Confirmación humana</span> : null}</h3><p>{row.context}</p><span className={styles.queueMeta}>{row.meta}</span></div><span className={styles.status}>{row.status}</span></>;
+  return row.href ? <Link href={row.href} className={styles.queueRow}>{content}</Link> : <article className={styles.queueRow}>{content}</article>;
 }
 
 function HonestEmpty({ description }: { description: string }) {
-  return <div className="p-5 text-center"><CheckCircle2 className="mx-auto text-emerald-600" size={25} aria-hidden="true" /><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">{description}</p></div>;
+  return <div className={styles.empty}><div><CheckCircle2 size={22} aria-hidden="true" /><p>{description}</p></div></div>;
 }
 
 function ContextMini({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-xs font-bold text-slate-500">{label}</p><p className="mt-2 text-sm font-black text-obra-ink">{value}</p></div>;
+  return <div className={styles.contextCell}><p>{label}</p><strong>{value}</strong></div>;
+}
+
+function SectionHeading({ icon: Icon, id, title, meta }: { icon: LucideIcon; id: string; title: string; meta?: string }) {
+  return <header className={styles.sectionHeader}><div className={styles.sectionHeaderTitle}><Icon size={16} aria-hidden="true" /><h2 id={id}>{title}</h2></div>{meta ? <span>{meta}</span> : null}</header>;
+}
+
+function PanelFooter({ href, children }: { href: string; children: React.ReactNode }) {
+  return <footer className={styles.panelFooter}><Link href={href}>{children}</Link></footer>;
 }
 
 function buildQueue(area: OrqenaAiArea, data: {
@@ -388,6 +423,8 @@ function buildQueue(area: OrqenaAiArea, data: {
 
 function buildMetrics(area: OrqenaAiArea, data: {
   recommendations: number;
+  confirmedRecommendations: number;
+  recordedImpact: number;
   clients: number;
   works: number;
   budgets: Array<{ total: number }>;
@@ -441,10 +478,11 @@ function buildMetrics(area: OrqenaAiArea, data: {
     controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 20 más recientes", Workflow, "blue"),
   ];
   return [
-    controlledMetric(data.access.recommendations, "Recomendaciones en muestra", data.recommendations, "autorizadas dentro de la muestra (máx. 250)", Sparkles, "violet"),
-    controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 20 más recientes", Workflow, "green"),
-    controlledMetric(data.access.recommendations, "Operaciones IA este mes", data.aiUsage, "recuento agregado registrado", Activity, "blue"),
-    controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "recuento registrado; no se aplican automáticamente", ShieldCheck, "amber"),
+    controlledMetric(data.access.recommendations, "Recomendaciones visibles", data.recommendations, "autorizadas dentro de la muestra", Sparkles, "violet"),
+    controlledMetric(data.access.recommendations, "Acciones confirmadas", data.confirmedRecommendations, "aceptadas o en curso", CheckCircle2, "green"),
+    controlledMetric(data.access.recommendations, "Impacto registrado", formatCurrency(data.recordedImpact), "importe documentado en recomendaciones", BadgeEuro, "blue"),
+    controlledMetric(data.access.recommendations, "Operaciones IA este mes", data.aiUsage, "recuento agregado registrado", Activity, "amber"),
+    controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "sin ejecución automática", ShieldCheck, "green"),
   ];
 }
 
