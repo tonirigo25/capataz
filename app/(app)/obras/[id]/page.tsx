@@ -44,6 +44,8 @@ import { WorkPlanningCalendar } from "@/components/portal/modules-a/work-plannin
 import { WorkPlanningLoad, WorkPlanningResources } from "@/components/portal/modules-a/work-planning-capacity";
 import { WorkPlanningMilestones } from "@/components/portal/modules-a/work-planning-milestones";
 import { WorkPlanningNetwork } from "@/components/portal/modules-a/work-planning-network";
+import { WorkCostsOverview } from "@/components/portal/modules-a/work-costs-overview";
+import { WorkPartsSummary } from "@/components/portal/modules-a/work-parts-summary";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -718,6 +720,7 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
 }
 
 function PartsWorkspace({ work, timeline, subview, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; subview: string; mode: "cronologia" | "galeria" }) {
+  if (subview === "resumen") return <WorkPartsSummary parts={[]} nowIso={new Date().toISOString()} />;
   if (subview === "analisis") return <div className="grid gap-4"><HoursTab work={work} /><Section title="Actividad documentada"><PlainMetric label="Registros de actividad" value={String(timeline.length)} /><p className="type-secondary mt-3">El avance físico no se calcula porque la obra no dispone de un porcentaje persistido.</p></Section></div>;
   if (subview === "reportes") return <OperationalSetupPanel title="Reportes de partes" description="Consolida la actividad registrada de la obra sin sustituir la validación del responsable." count={timeline.length} countLabel="actividades trazables" icon={Table2} items={["Partes diarios, semanales y mensuales en una única lectura.", "Horas, evidencias y responsables conservan su origen.", "La exportación no inventa porcentajes de avance."]} action={<Link href="/inteligencia/export?tipo=works" className="primary-button">Exportar reporte</Link>} />;
   if (["semanales", "mensuales"].includes(subview)) return <Section title={subview === "semanales" ? "Partes semanales registrados" : "Partes mensuales registrados"}><TimelineList items={timeline} /></Section>;
@@ -731,6 +734,62 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
   if (subview === "subcontratas") return <SubcontractTab work={work} expenses={work.expenses} />;
   if (subview === "ordenes") return <OperationalSetupPanel title="Órdenes de trabajo y compra" description="Prepara, valida y vincula cada orden al expediente de la obra antes de ejecutarla." count={work.expenses.length} countLabel="costes trazables" icon={ClipboardList} items={["Las órdenes se relacionan con proveedores y partidas autorizadas.", "La ejecución conserva responsable, fecha y evidencia.", "Ningún coste se confirma sin revisión humana."]} action={<Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=costes&subvista=ordenes`)}`} className="primary-button">Registrar orden o coste</Link>} />;
   if (subview === "informes") return <Section title="Informes de costes"><p className="type-secondary">La exportación utiliza exclusivamente los costes autorizados de esta empresa.</p><Link href="/inteligencia/export?tipo=works" className="primary-button mt-4 inline-flex">Exportar informe</Link></Section>;
+  if (subview === "resumen") {
+    const expensesByCategory = new Map<string, WorkDetail["expenses"]>();
+    for (const expense of work.expenses) {
+      const category = expense.categoria.replaceAll("_", " ");
+      expensesByCategory.set(category, [...(expensesByCategory.get(category) ?? []), expense]);
+    }
+    const lines = Array.from(expensesByCategory.entries()).map(([category, expenses]) => ({
+      id: category,
+      name: category,
+      budgetAmount: null,
+      actualAmount: expenses.reduce((sum, expense) => sum + expense.importe, 0),
+      committedAmount: null,
+      estimatedFinalAmount: null,
+    }));
+    const supplierGroups = new Map<string, { id: string; name: string; actualAmount: number }>();
+    for (const expense of work.expenses) {
+      const id = expense.businessPartnerId ?? `supplier:${expense.proveedor.trim().toLocaleLowerCase("es-ES")}`;
+      const current = supplierGroups.get(id);
+      supplierGroups.set(id, {
+        id,
+        name: expense.businessPartner?.commercialName ?? expense.proveedor,
+        actualAmount: (current?.actualAmount ?? 0) + expense.importe,
+      });
+    }
+    const budgetTotal = work.presupuestoAprobado > 0 ? work.presupuestoAprobado : null;
+    const projectedMarginAmount = work.margenEstimado > 0 ? work.margenEstimado : null;
+    const projectedMarginPercent = projectedMarginAmount != null && budgetTotal != null ? (projectedMarginAmount / budgetTotal) * 100 : null;
+    return <WorkCostsOverview
+      workId={work.id}
+      summary={{
+        actualCost: financial.realCost,
+        budgetTotal,
+        committedCost: null,
+        estimatedFinalCost: work.costePrevisto > 0 ? work.costePrevisto : null,
+        projectedMarginAmount,
+        projectedMarginPercent,
+        targetMarginPercent: null,
+        reviewedAt: null,
+        versionLabel: "Datos actuales de la obra",
+      }}
+      lines={lines}
+      expenses={work.expenses.map((expense) => ({
+        id: expense.id,
+        date: expense.fecha.toISOString(),
+        concept: expense.concepto,
+        amount: expense.importe,
+        categoryId: expense.categoria,
+        categoryName: expense.categoria.replaceAll("_", " "),
+        supplierId: expense.businessPartnerId,
+        supplierName: expense.businessPartner?.commercialName ?? expense.proveedor,
+        status: expense.paymentStatus,
+        documentNumber: expense.purchaseInvoice?.invoiceNumber,
+      }))}
+      suppliers={Array.from(supplierGroups.values())}
+    />;
+  }
   const metricPanel = <Section title="Control de costes autorizado"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Finance label="Presupuestado" value={financial.budgeted} /><Finance label="Coste previsto" value={financial.forecastCost} /><Finance label="Gasto real" value={financial.realCost} /><Finance label="Desviación" value={financial.deviation} tone={financial.deviation > 0 ? "danger" : "success"} /><Finance label="Beneficio" value={financial.benefit} tone={financial.benefit < 0 ? "danger" : "success"} /><PlainMetric label="Margen" value={`${financial.marginPercent.toFixed(1)} %`} tone={financial.marginPercent < 15 ? "warning" : "neutral"} /></div></Section>;
   return <div className="grid gap-4">{metricPanel}{["estructura", "proveedores", "comparativa", "analisis", "resumen"].includes(subview) ? <CardsTab items={work.expenses} empty="No hay gastos registrados para esta vista." render={(expense) => <ExpenseCard key={expense.id} expense={expense} />} /> : null}</div>;
 }
