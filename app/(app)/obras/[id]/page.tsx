@@ -362,7 +362,7 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
   const taskRatio = tasks.length ? Math.round((completedTasks.length / tasks.length) * 100) : null;
   return (
     <div className="grid gap-3">
-      <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-label="Estado y control económico de la obra">
+      <section className="grid grid-cols-2 gap-2 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1" aria-label="Estado y control económico de la obra">
         <WorkOverviewMetricCard label="Estado de la obra" value={taskRatio == null ? workStatusMeta(work.estado).label : `${taskRatio}%`} detail={taskRatio == null ? "Sin porcentaje físico inventado" : `${completedTasks.length} de ${tasks.length} tareas · ${workStatusMeta(work.estado).label}`} tone="info" progress={taskRatio} />
         <WorkOverviewMetricCard label="Presupuesto total" value={formatCurrency(financial.budgeted)} detail={`${work.budgets.length} presupuestos vinculados`} />
         <WorkOverviewMetricCard label="Coste acumulado" value={formatCurrency(financial.realCost)} detail={costRatio == null ? "Sin base presupuestaria" : `${costRatio.toFixed(1)}% del presupuesto`} />
@@ -401,7 +401,7 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
 
 function WorkOverviewMetricCard({ label, value, detail, tone = "neutral", progress }: { label: string; value: string; detail: string; tone?: "neutral" | "info" | "warning" | "success"; progress?: number | null }) {
   const valueTone = tone === "warning" ? "text-warning" : tone === "success" ? "text-success" : "text-content";
-  return <article className="min-w-0 rounded-lg border border-border bg-surface p-3"><div className="flex min-w-0 items-start justify-between gap-2"><h2 className="truncate text-[10px] font-bold text-content">{label}</h2>{tone === "info" ? <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[8px] font-bold text-brand-strong">Registrado</span> : null}</div><p className={`mt-2 truncate text-lg font-black tabular-nums tracking-[-0.03em] ${valueTone}`}>{value}</p>{progress != null ? <progress className="mt-2 h-1.5 w-full accent-brand" max={100} value={progress}>{progress}%</progress> : null}<p className="mt-1 text-[9px] leading-4 text-content-secondary">{detail}</p></article>;
+  return <article className="min-w-0 rounded-lg border border-border bg-surface p-2.5 sm:p-3"><div className="flex min-w-0 items-start justify-between gap-1.5"><h2 className="truncate text-[9px] font-bold text-content sm:text-[10px]">{label}</h2>{tone === "info" ? <span className="hidden rounded-full bg-brand-soft px-2 py-0.5 text-[8px] font-bold text-brand-strong sm:inline-flex">Registrado</span> : null}</div><p className={`mt-1.5 truncate text-base font-black tabular-nums tracking-[-0.03em] sm:mt-2 sm:text-lg ${valueTone}`}>{value}</p>{progress != null ? <progress className="mt-1.5 h-1.5 w-full accent-brand sm:mt-2" max={100} value={progress}>{progress}%</progress> : null}<p className="mt-1 line-clamp-2 text-[8px] leading-3.5 text-content-secondary sm:text-[9px] sm:leading-4">{detail}</p></article>;
 }
 
 function OverviewPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -790,7 +790,7 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
 
 function PartsWorkspace({ work, timeline, subview, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; subview: string; mode: "cronologia" | "galeria" }) {
   if (subview === "analisis") return <div className="grid gap-4"><HoursTab work={work} /><Section title="Actividad documentada"><PlainMetric label="Registros de actividad" value={String(timeline.length)} /><p className="type-secondary mt-3">El avance físico no se calcula porque la obra no dispone de un porcentaje persistido.</p></Section></div>;
-  if (subview === "reportes") return <OperationalSetupPanel title="Reportes de partes" description="Consolida la actividad registrada de la obra sin sustituir la validación del responsable." count={timeline.length} countLabel="actividades trazables" icon={Table2} items={["Partes diarios, semanales y mensuales en una única lectura.", "Horas, evidencias y responsables conservan su origen.", "La exportación no inventa porcentajes de avance."]} action={<Link href="/inteligencia/export?tipo=works" className="primary-button">Exportar reporte</Link>} />;
+  if (subview === "reportes") return <OperationalSetupPanel title="Reportes de partes" description="Consolida la actividad registrada de la obra sin sustituir la validación del responsable." count={timeline.length} countLabel="actividades trazables" icon={Table2} items={["Partes diarios, semanales y mensuales en una única lectura.", "Horas, evidencias y responsables conservan su origen.", "La exportación no inventa porcentajes de avance."]} action={<Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="primary-button">Exportar reporte</Link>} />;
   if (["semanales", "mensuales"].includes(subview)) return <Section title={subview === "semanales" ? "Partes semanales registrados" : "Partes mensuales registrados"}><TimelineList items={timeline} /></Section>;
   if (subview === "actividades") return <Section title="Todas las actividades registradas"><TimelineList items={timeline} /></Section>;
   return <ProgressTab work={work} timeline={timeline} mode={mode} />;
@@ -801,7 +801,7 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
   if (subview === "mano-obra") return <HoursTab work={work} />;
   if (subview === "subcontratas") return <SubcontractTab work={work} expenses={work.expenses} />;
   if (subview === "ordenes") return <OperationalSetupPanel title="Órdenes de trabajo y compra" description="Prepara, valida y vincula cada orden al expediente de la obra antes de ejecutarla." count={work.expenses.length} countLabel="costes trazables" icon={ClipboardList} items={["Las órdenes se relacionan con proveedores y partidas autorizadas.", "La ejecución conserva responsable, fecha y evidencia.", "Ningún coste se confirma sin revisión humana."]} action={<Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=costes&subvista=ordenes`)}`} className="primary-button">Registrar orden o coste</Link>} />;
-  if (subview === "informes") return <Section title="Informes de costes"><p className="type-secondary">La exportación utiliza exclusivamente los costes autorizados de esta empresa.</p><Link href="/inteligencia/export?tipo=works" className="primary-button mt-4 inline-flex">Exportar informe</Link></Section>;
+  if (subview === "informes") return <Section title="Informes de costes"><p className="type-secondary">La exportación utiliza exclusivamente los costes autorizados de esta obra.</p><Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="primary-button mt-4 inline-flex">Exportar informe</Link></Section>;
   const groupedExpenses = new Map<string, WorkDetail["expenses"]>();
   for (const expense of work.expenses) {
     const category = expense.categoria.replaceAll("_", " ");
@@ -837,7 +837,7 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
     }))}
     coverage={{ budget: false, committed: false, accumulated: true, forecast: false, toDate: true }}
     versionLabel="Costes registrados en la obra"
-    exportHref="/inteligencia/export?tipo=works"
+    exportHref={`/inteligencia/export?tipo=works&workId=${work.id}`}
   />;
   if (subview === "analisis") {
     const daily = new Map<string, number>();
@@ -872,12 +872,30 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
       categories={accumulatedByCategory.map((category) => ({ id: category.id, code: category.code, name: category.name, budgetAmount: null, actualAmount: category.actualAmount, forecastAmount: null, deviationAmount: null }))}
       categoryTotals={{ budgetAmount: null, actualAmount: financial.realCost, forecastAmount: null, deviationAmount: null }}
       deviations={[]}
-      exportHref="/inteligencia/export?tipo=works"
+      exportHref={`/inteligencia/export?tipo=works&workId=${work.id}`}
       categoriesHref={`/obras/${work.id}/costes/estructura`}
       deviationsHref={`/obras/${work.id}/costes/incidencias`}
     />;
   }
-  if (subview === "incidencias") return <WorkCostsIncidentsRanking mode="incidents" incidents={[]} exportHref="/inteligencia/export?tipo=works" />;
+  if (subview === "incidencias") {
+    const incidentPhotos = work.photos.filter((photo) => photo.categoria.trim().toLocaleLowerCase("es-ES") === "incidencia");
+    return <WorkCostsIncidentsRanking
+      mode="incidents"
+      incidents={incidentPhotos.map((incident, index) => ({
+        id: incident.id,
+        code: `INC-${String(index + 1).padStart(3, "0")}`,
+        title: incident.titulo,
+        description: incident.notas,
+        type: "Evidencia de obra",
+        responsibleName: incident.autor,
+        responsibleRole: incident.ubicacion,
+        detectedAt: incident.tomadaEn.toISOString(),
+        detailHref: incident.url && (incident.url.startsWith("/") || incident.url.startsWith("https://")) ? incident.url : null,
+      }))}
+      exportHref={`/inteligencia/export?tipo=works&workId=${work.id}`}
+      createHref={`/gestion?tipo=foto&obraId=${work.id}&categoria=incidencia&returnTo=${encodeURIComponent(`/obras/${work.id}/costes/incidencias`)}`}
+    />;
+  }
   if (subview === "ranking") {
     const suppliers = new Map<string, { name: string; amount: number }>();
     for (const expense of work.expenses) {
@@ -900,7 +918,7 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
         { id: "suppliers", title: "Proveedores por coste acumulado", width: "wide", columns: [{ key: "actual", label: "Coste acumulado", align: "right" }], rows: supplierRows.map((supplier, index) => ({ id: supplier.id, rank: index + 1, label: supplier.name, cells: { actual: { value: supplier.amount, format: "currency" } } })) },
         { id: "categories", title: "Categorías por coste acumulado", width: "wide", columns: [{ key: "actual", label: "Coste acumulado", align: "right" }], rows: categoryRows.map((category, index) => ({ id: category.id, rank: index + 1, code: category.code, label: category.name, cells: { actual: { value: category.actualAmount, format: "currency" } } })) },
       ]}
-      exportHref="/inteligencia/export?tipo=works"
+      exportHref={`/inteligencia/export?tipo=works&workId=${work.id}`}
     />;
   }
   if (subview === "resumen") {
