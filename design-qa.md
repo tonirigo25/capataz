@@ -112,4 +112,37 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 - Comparación visual remota del nuevo SHA: pendiente.
 - Cliente 360 restante, Trabajo/Obra, módulos globales, Orqena IA, auditoría de accionables y responsive: pendientes.
 
+## Revalidación focal — Presupuestos 2026-08-02
+
+### Fuente, implementación y estado
+
+- Referencia visual canónica: `artifacts/design-v2/correction-pr63/presupuestos-master/07_presupuestos-master.png` (1586 × 992).
+- Implementación comparada: `artifacts/design-v2/correction-pr63/presupuestos-master/presupuestos-after.png`.
+- Comparación conjunta: `artifacts/design-v2/correction-pr63/presupuestos-master/comparison-after.png`.
+- Review validada: `https://orqena-review-web-review.up.railway.app/presupuestos`.
+- Estado: `Rigo Asociados`, OWNER/Enterprise, presupuesto real visible `P-0247` seleccionado por defecto.
+- SHA: `02402032fa27d6a47e4b4d7fa9e2eaa4b52ea0a7`.
+- Deployment: `cc4cc94d-196c-4975-8e56-ec76778881a6` (`SUCCESS`, instancia `RUNNING`).
+
+### Iteraciones de comparación
+
+1. **Composición:** se reemplazó la pantalla sobredimensionada por la secuencia de la maestra: cabecera, cuatro KPI, tabla, embudo, detalle y rail IA contextual.
+2. **Densidad:** se compactaron KPI, filas, estados, acciones y panel inferior; el área central ocupa 977 px y la vista completa encaja sin scroll horizontal a 1586 × 992.
+3. **Datos veraces:** se conservaron los registros permitidos de Rigo Asociados; las cifras no se sustituyeron por las de muestra.
+4. **Acciones:** filtros, creación desde cero, plantillas, apertura, edición, seguimiento, duplicado, vista PDF, descarga PDF y detalle completo mantienen destinos reales.
+5. **Contexto IA:** el rail muestra el presupuesto seleccionado, margen, importe, partidas y acciones de revisión sin modificar importes ni estados automáticamente.
+
+### Responsive y navegador
+
+- Escritorio medido en navegador: cabecera 56,7 px; KPI 92 px; listado 361,1 px; bloque inferior 330 px; rail IA alineado con la altura de la página.
+- Móvil comprobado a 390 × 844: ancho de contenido 375 px, sin desbordamiento horizontal; longitud vertical 3098 px y título visible.
+- Menú de acciones de fila abierto y comprobado con cinco destinos y la acción de duplicar.
+- Filtros y menú de nuevo presupuesto abiertos y comprobados.
+- Consola: cero errores; únicamente el evento informativo de observabilidad.
+- Diferencias deliberadas respecto a la muestra: datos reales del entorno Review y shell global preservado. No se inventaron versiones, fechas ni saldos ausentes del modelo.
+
+### Resultado focal
+
+`passed`
+
 Final result: `in_progress`
