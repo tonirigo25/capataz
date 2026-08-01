@@ -200,7 +200,7 @@ export default async function WorkDetailPage({
   return (
     <RecordWorkspace>
       <InternalBreadcrumbs items={workBreadcrumbItems(work.id, work.titulo, activeTab, activeSubview)} />
-      <WorkOverviewHeader work={work} returnTo={returnTo} />
+      <WorkOverviewHeader work={work} />
 
       <Tabs label="Secciones de la obra" className="mb-4 mt-2">
         {tabs.map(([id, label, Icon]) => (
@@ -315,10 +315,9 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
   );
 }
 
-function WorkOverviewHeader({ work, returnTo }: { work: WorkDetail; returnTo: string }) {
+function WorkOverviewHeader({ work }: { work: WorkDetail }) {
   return (
-    <header className="border-b border-border pb-3">
-      <ParentNavigation href={returnTo} label="Trabajos" context={work.client.nombre} />
+    <header className="border-b border-border pb-3 pt-1">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <h1 className="text-[clamp(1.35rem,2vw,1.75rem)] font-black leading-tight tracking-[-0.035em] text-content xl:whitespace-nowrap">Obra · {work.tipoTrabajo} · {work.titulo}</h1>
@@ -333,7 +332,7 @@ function WorkOverviewHeader({ work, returnTo }: { work: WorkDetail; returnTo: st
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link href="/inteligencia/export?tipo=works" className="secondary-button"><Download size={16} aria-hidden="true" /> Exportar informe</Link>
+          <Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="secondary-button"><Download size={16} aria-hidden="true" /> Exportar informe</Link>
           <WorkActions workId={work.id} clientId={work.clienteId} />
         </div>
       </div>
@@ -364,7 +363,7 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
   return (
     <div className="grid gap-3">
       <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-label="Estado y control económico de la obra">
-        <WorkOverviewMetricCard label="Estado de la obra" value={workStatusMeta(work.estado).label} detail={taskRatio == null ? "Sin porcentaje físico inventado" : `${completedTasks.length} de ${tasks.length} tareas completadas`} tone="info" progress={taskRatio} />
+        <WorkOverviewMetricCard label="Estado de la obra" value={taskRatio == null ? workStatusMeta(work.estado).label : `${taskRatio}%`} detail={taskRatio == null ? "Sin porcentaje físico inventado" : `${completedTasks.length} de ${tasks.length} tareas · ${workStatusMeta(work.estado).label}`} tone="info" progress={taskRatio} />
         <WorkOverviewMetricCard label="Presupuesto total" value={formatCurrency(financial.budgeted)} detail={`${work.budgets.length} presupuestos vinculados`} />
         <WorkOverviewMetricCard label="Coste acumulado" value={formatCurrency(financial.realCost)} detail={costRatio == null ? "Sin base presupuestaria" : `${costRatio.toFixed(1)}% del presupuesto`} />
         <WorkOverviewMetricCard label="Margen autorizado" value={`${financial.marginPercent.toFixed(1)}%`} detail={formatCurrency(financial.benefit)} tone={financial.marginPercent < 15 ? "warning" : "success"} />
@@ -373,7 +372,7 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
 
       <section className="grid gap-3 xl:grid-cols-[1.25fr_.9fr_.95fr]">
         <OverviewPanel title="Progreso operativo" action={<Link href={workViewHref(work.id, "planificacion", "gantt")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver planificación completa</Link>}>
-          {tasks.length ? <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Progreso operativo; desplaza horizontalmente para consultar todas las columnas"><table className="w-full min-w-[34rem] border-collapse text-[10px]"><thead><tr className="border-b border-border text-left text-content-secondary"><th className="pb-2 font-semibold">Tarea</th><th className="pb-2 font-semibold">Estado</th><th className="pb-2 font-semibold">Avance verificado</th><th className="pb-2 font-semibold">Inicio</th><th className="pb-2 font-semibold">Fin estimado</th></tr></thead><tbody className="divide-y divide-border">{tasks.slice(0, 6).map((task) => <WorkOverviewTaskRow key={task.id} task={task} />)}</tbody></table></div> : <OperationalSetupPanel title="Planificación preparada" description="Añade tareas con fechas, responsables y checklist para activar el seguimiento operativo." count={0} countLabel="tareas vinculadas" icon={ListChecks} items={["La obra conserva su estado real.", "El avance se calcula sólo desde checklist confirmado.", "Las dependencias no se presuponen."]} action={<Link href={`/tareas?nuevo=1&workId=${work.id}&clientId=${work.clienteId}`} className="primary-button">Nueva tarea</Link>} compact />}
+          {tasks.length ? <div role="table" aria-label="Progreso operativo por fase" className="text-[10px]"><div role="row" className="grid grid-cols-[minmax(0,1fr)_5.5rem_3.7rem] gap-2 border-b border-border pb-2 text-[8px] font-semibold uppercase tracking-wide text-content-tertiary"><span role="columnheader">Fase</span><span role="columnheader">Avance</span><span role="columnheader" className="text-right">Fin</span></div><div role="rowgroup" className="divide-y divide-border">{tasks.slice(0, 6).map((task, index) => <WorkOverviewTaskRow key={task.id} task={task} index={index} />)}</div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-[8px] font-semibold text-content-secondary"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-success" aria-hidden="true" />Completada</span><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-info" aria-hidden="true" />En curso</span><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-border" aria-hidden="true" />Pendiente</span></div></div> : <OperationalSetupPanel title="Planificación preparada" description="Añade tareas con fechas, responsables y checklist para activar el seguimiento operativo." count={0} countLabel="tareas vinculadas" icon={ListChecks} items={["La obra conserva su estado real.", "El avance se calcula sólo desde checklist confirmado.", "Las dependencias no se presuponen."]} action={<Link href={`/tareas?nuevo=1&workId=${work.id}&clientId=${work.clienteId}`} className="primary-button">Nueva tarea</Link>} compact />}
         </OverviewPanel>
         <OverviewPanel title="Próximos hitos y tareas" action={<Link href={workViewHref(work.id, "planificacion", "hitos")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver hitos</Link>}>
           {upcomingTasks.length ? <div className="divide-y divide-border">{upcomingTasks.map((task) => <Link key={task.id} href={`/tareas/${task.id}`} className="grid grid-cols-[5.3rem_minmax(0,1fr)] gap-2 py-2 text-[10px] hover:bg-subtle"><span className="font-semibold text-content">{task.dueAt ? formatDate(task.dueAt) : "Sin fecha"}</span><span className="min-w-0"><strong className="block truncate text-content">{task.title}</strong><span className="mt-0.5 block truncate text-content-secondary">{statusLabel(task.status)}{task.assignments.length ? ` · ${task.assignments.length} responsables` : " · Sin responsable asignado"}</span></span></Link>)}</div> : <OperationalSetupPanel title="Agenda técnica preparada" description="Las tareas activas aparecerán aquí conservando sus fechas reales." count={0} countLabel="tareas activas" icon={CalendarClock} items={["No se inventan hitos contractuales.", "Cada fecha conserva su tarea de origen.", "Los cambios requieren confirmación."]} compact />}
@@ -386,7 +385,7 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
       <section className="grid gap-3 xl:grid-cols-[1.05fr_.95fr_.95fr]">
         <OverviewPanel title="Rentabilidad y evolución" action={<Link href={workViewHref(work.id, "costes", "analisis")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver análisis detallado</Link>}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><OverviewMiniMetric label="Coste acumulado" value={formatCurrency(financial.realCost)} /><OverviewMiniMetric label="Presupuesto" value={formatCurrency(financial.budgeted)} /><OverviewMiniMetric label="Previsto" value={formatCurrency(financial.forecastCost)} /><OverviewMiniMetric label="Margen" value={`${financial.marginPercent.toFixed(1)}%`} tone={financial.marginPercent < 15 ? "danger" : "success"} /></div>
-          <div className="mt-4 rounded-lg border border-border bg-subtle p-3"><div className="flex items-center justify-between text-[10px]"><span className="font-semibold text-content">Coste consumido sobre presupuesto</span><strong className="text-content">{costRatio == null ? "Sin base" : `${costRatio.toFixed(1)}%`}</strong></div>{costRatio == null ? <p className="mt-2 text-[10px] text-content-secondary">Registra un presupuesto para activar la comparativa.</p> : <progress className="mt-3 h-2 w-full accent-brand" max={100} value={costRatio}>{costRatio.toFixed(1)}%</progress>}<p className="mt-2 text-[9px] text-content-secondary">{work.expenses.length} gastos reales · última actualización desde registros persistidos</p></div>
+          <WorkProfitabilityEvolution expenses={work.expenses} budget={financial.budgeted} total={financial.realCost} />
         </OverviewPanel>
         <OverviewPanel title="Actividad reciente" action={<Link href={workViewHref(work.id, "partes", "actividades")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver toda la actividad</Link>}>
           {timeline.length ? <div className="divide-y divide-border">{timeline.slice(0, 5).map((item) => <article key={item.key} className="grid grid-cols-[1.65rem_minmax(0,1fr)] gap-2 py-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-strong"><Activity size={12} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate text-[10px] text-content">{item.title}</strong><span className="mt-0.5 block truncate text-[9px] text-content-secondary">{item.detail}</span><span className="mt-0.5 block text-[8px] text-content-tertiary">{formatDate(item.date)}</span></span></article>)}</div> : <OperationalSetupPanel title="Actividad preparada" description="Presupuestos, costes, documentos, fotos y tareas aparecerán cronológicamente." count={0} countLabel="eventos trazables" icon={Activity} items={["Cada evento conserva fuente y fecha.", "No se simula actividad inexistente.", "La lectura permanece disponible."]} compact />}
@@ -414,11 +413,42 @@ function OverviewMiniMetric({ label, value, tone = "neutral" }: { label: string;
   return <div className="min-w-0"><span className="block truncate text-[8px] font-semibold uppercase tracking-wide text-content-tertiary">{label}</span><strong className={`mt-1 block truncate text-[11px] tabular-nums ${toneClass}`}>{value}</strong></div>;
 }
 
-function WorkOverviewTaskRow({ task }: { task: WorkTask }) {
+function WorkProfitabilityEvolution({ expenses, budget, total }: { expenses: WorkDetail["expenses"]; budget: number; total: number }) {
+  const byDay = new Map<string, { date: Date; amount: number }>();
+  for (const expense of [...expenses].sort((left, right) => left.fecha.getTime() - right.fecha.getTime())) {
+    const key = expense.fecha.toISOString().slice(0, 10);
+    const current = byDay.get(key);
+    byDay.set(key, { date: expense.fecha, amount: (current?.amount ?? 0) + expense.importe });
+  }
+  let accumulated = Math.max(0, total - expenses.reduce((sum, expense) => sum + expense.importe, 0));
+  const points = [...byDay.values()].map((entry) => {
+    accumulated += entry.amount;
+    return { ...entry, accumulated };
+  }).slice(-6);
+  if (!points.length) return <div className="mt-4 rounded-lg border border-border bg-subtle p-3"><p className="text-[10px] font-semibold text-content">Evolución todavía no disponible</p><p className="mt-1 text-[9px] leading-4 text-content-secondary">No hay gastos fechados con los que construir una serie temporal real.</p></div>;
+
+  const width = 420;
+  const height = 128;
+  const padding = { left: 34, right: 8, top: 9, bottom: 24 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const maximum = Math.max(budget, ...points.map((point) => point.accumulated), 1);
+  const x = (index: number) => padding.left + (index / Math.max(1, points.length - 1)) * plotWidth;
+  const y = (value: number) => padding.top + plotHeight - (value / maximum) * plotHeight;
+  const barWidth = Math.min(30, plotWidth / Math.max(points.length * 2, 1));
+  const labels = [0, 0.5, 1];
+  return <figure className="mt-3 min-w-0" aria-labelledby="work-cost-evolution-caption"><div className="flex flex-wrap items-center gap-3 text-[8px] font-semibold text-content-secondary"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-success" aria-hidden="true" />Coste acumulado real</span>{budget > 0 ? <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-content-tertiary" aria-hidden="true" />Presupuesto autorizado</span> : null}</div><svg viewBox={`0 0 ${width} ${height}`} className="mt-1 w-full" role="img" aria-label="Evolución acumulada de costes reales de la obra"><title>Evolución de costes reales</title><desc>Serie calculada sólo con gastos registrados y fechados para esta obra.</desc>{labels.map((ratio) => <g key={ratio}><line x1={padding.left} x2={width - padding.right} y1={y(maximum * ratio)} y2={y(maximum * ratio)} stroke="currentColor" className="text-border" strokeWidth="1" /><text x={padding.left - 5} y={y(maximum * ratio) + 3} textAnchor="end" className="fill-content-tertiary text-[8px]">{compactCurrency(maximum * ratio)}</text></g>)}{budget > 0 ? <line x1={padding.left} x2={width - padding.right} y1={y(budget)} y2={y(budget)} stroke="currentColor" className="text-content-tertiary" strokeDasharray="4 4" strokeWidth="1.5" /> : null}{points.map((point, index) => <g key={point.date.toISOString()}><rect x={x(index) - barWidth / 2} y={y(point.accumulated)} width={barWidth} height={Math.max(2, padding.top + plotHeight - y(point.accumulated))} rx="3" fill="currentColor" className="text-success"><title>{`${formatDate(point.date)} · ${formatCurrency(point.accumulated)}`}</title></rect><text x={x(index)} y={height - 8} textAnchor="middle" className="fill-content-tertiary text-[8px]">{new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" }).format(point.date)}</text></g>)}</svg><figcaption id="work-cost-evolution-caption" className="text-[8px] leading-4 text-content-secondary">{expenses.length} gastos reales · sin interpolaciones ni previsiones inventadas</figcaption><table className="sr-only"><caption>Datos de evolución de costes</caption><thead><tr><th>Fecha</th><th>Coste acumulado</th></tr></thead><tbody>{points.map((point) => <tr key={point.date.toISOString()}><td>{formatDate(point.date)}</td><td>{formatCurrency(point.accumulated)}</td></tr>)}</tbody></table></figure>;
+}
+
+function compactCurrency(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 0 }).format(value);
+}
+
+function WorkOverviewTaskRow({ task, index }: { task: WorkTask; index: number }) {
   const checklistTotal = task.checklist.length;
   const checklistDone = task.checklist.filter((item) => item.completed).length;
   const progress = checklistTotal ? Math.round((checklistDone / checklistTotal) * 100) : task.status === "completed" ? 100 : null;
-  return <tr><td className="max-w-52 py-1.5 pr-2"><Link href={`/tareas/${task.id}`} className="block truncate font-semibold text-content hover:underline">{task.title}</Link></td><td className="py-1.5 pr-2"><span className="inline-flex rounded-full bg-subtle px-2 py-1 text-[9px] font-bold text-content-secondary">{statusLabel(task.status)}</span></td><td className="py-1.5 pr-2">{progress == null ? <span className="text-content-secondary">Sin checklist</span> : <span className="flex items-center gap-2"><progress className="h-1.5 w-16 accent-brand" max={100} value={progress}>{progress}%</progress><strong className="tabular-nums text-content">{progress}%</strong></span>}</td><td className="py-1.5 pr-2 text-content-secondary">{formatDate(task.startsAt)}</td><td className="py-1.5 text-content-secondary">{formatDate(task.dueAt)}</td></tr>;
+  return <div role="row" className="grid grid-cols-[minmax(0,1fr)_5.5rem_3.7rem] items-center gap-2 py-2"><span role="cell" className="grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] items-center gap-1.5"><span className="text-[8px] font-bold tabular-nums text-content-tertiary">{index + 1}</span><Link href={`/tareas/${task.id}`} className="block truncate font-semibold text-content hover:underline" title={`${task.title} · ${statusLabel(task.status)}`}>{task.title}</Link></span><span role="cell" className="flex min-w-0 items-center gap-1.5">{progress == null ? <span className="truncate text-[9px] text-content-secondary">Sin checklist</span> : <><progress className="h-1.5 min-w-0 flex-1 accent-brand" max={100} value={progress}>{progress}%</progress><strong className="w-7 text-right text-[9px] tabular-nums text-content">{progress}%</strong></>}</span><span role="cell" className="text-right text-[9px] tabular-nums text-content-secondary">{task.dueAt ? formatDate(task.dueAt) : "—"}</span></div>;
 }
 
 function WorkSubnavigation({ workId, activeTab, activeSubview, items, returnTo }: { workId: string; activeTab: string; activeSubview: string; items: readonly [string, string][]; returnTo: string }) {

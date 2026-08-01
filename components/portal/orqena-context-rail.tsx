@@ -70,10 +70,13 @@ export function OrqenaContextRail({
   const sheetRef = useRef<HTMLElement>(null);
   const matched = contexts.find((entry) => entry.match(pathname));
   const context = matched?.value ?? fallbackContext;
-  const contextOnly = pathname.endsWith("/editar") || /^\/obras\/[^/]+(?:\/|$)/.test(pathname);
+  const areaRecommendation = matched ? recommendations[matched.area] ?? null : null;
+  const selectedWorkId = pathname.match(/^\/obras\/([^/?]+)/)?.[1] ?? null;
+  const recommendationMatchesSelectedWork = selectedWorkId != null && areaRecommendation?.href === `/obras/${selectedWorkId}`;
+  const contextOnly = pathname.endsWith("/editar") || (selectedWorkId != null && !recommendationMatchesSelectedWork);
   const recommendation =
     canUse && matched && !contextOnly
-      ? recommendations[matched.area] ?? null
+      ? areaRecommendation
       : null;
   const dashboardAlerts = canUse && pathname === "/dashboard" ? recommendations.dashboardAlerts ?? [] : [];
 
