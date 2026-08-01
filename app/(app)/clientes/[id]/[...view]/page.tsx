@@ -21,6 +21,13 @@ export default async function ClientSectionPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [{ id, view }, query] = await Promise.all([params, searchParams]);
+  if (view.length === 2 && view[0] === "conversaciones") {
+    const next = new URLSearchParams({
+      vista: "conversaciones",
+      conversationId: view[1],
+    });
+    redirect(`/clientes/${encodeURIComponent(id)}?${next.toString()}`);
+  }
   if (view.length !== 1) notFound();
   const section = view[0];
   if (section === "editar") {

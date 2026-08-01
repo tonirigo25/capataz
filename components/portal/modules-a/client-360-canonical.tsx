@@ -103,7 +103,7 @@ export type Client360CanonicalProps = {
     works: string;
     invoices: string;
     payments: string;
-    contacts: string;
+    addContact?: string;
     documents: string;
     allRecommendations: string;
   };
@@ -585,7 +585,7 @@ function Client360ReferenceSummary({
       <div className="client-360-canonical__collections client-360-canonical__collections--secondary grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <CollectionPanel title="Cobros" href={hrefs.payments} empty="Sin cobros." summary={<SummaryPair first={{ label: "Cobrado", value: formatCurrency(summary.kpis.paidTotal) }} second={{ label: "Registros", value: String(summary.payments.length) }} />}>{summary.payments.slice(0, 3).map((payment) => <CompactLink key={payment.id} href={`/dinero/${payment.invoice.id}`} title={payment.invoice.numero} meta={formatDate(payment.fecha)} value={formatCurrency(payment.importe)} />)}</CollectionPanel>
         <CollectionPanel title="Incidencias" href={hrefs.activity} empty="Sin incidencias vinculadas." summary={<SummaryPair first={{ label: "Abiertas", value: String(openIncidents.length) }} second={{ label: "Registradas", value: String(incidents.length) }} />}>{incidents.slice(0, 3).map((incident) => <CompactLink key={incident.id} href={incident.href} title={incident.title} meta={incident.status ? `${statusLabel(incident.status)} · ${incident.detail}` : incident.detail} />)}</CollectionPanel>
-        <CollectionPanel title="Contactos clave" href={hrefs.contacts} actionLabel="+ Añadir" empty="Sin contactos.">{activeContacts.slice(0, 3).map((contact) => <CompactLink key={contact.id} href={contact.source === "real" ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}` : undefined} title={contact.name} meta={contact.role} leading={<span className="client-360-shell-summary__person-icon"><UserRound size={14} /></span>} value={[contact.phone ? "Tel." : "", contact.email ? "Email" : ""].filter(Boolean).join(" · ")} />)}</CollectionPanel>
+        <CollectionPanel title="Contactos clave" actionHref={hrefs.addContact} actionLabel="+ Añadir" empty="Sin contactos.">{activeContacts.slice(0, 3).map((contact) => <CompactLink key={contact.id} href={contact.source === "real" ? `/gestion?tipo=contacto&id=${contact.id}&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}` : undefined} title={contact.name} meta={contact.role} leading={<span className="client-360-shell-summary__person-icon"><UserRound size={14} /></span>} value={[contact.phone ? "Tel." : "", contact.email ? "Email" : ""].filter(Boolean).join(" · ")} />)}</CollectionPanel>
         <CollectionPanel title="Documentos recientes" href={hrefs.documents} empty="Sin documentos.">{summary.documents.slice(0, 3).map((document) => <CompactLink key={document.id} href={document.href ?? undefined} title={document.name} meta={document.type} value={formatDate(document.date)} leading={<FileText size={15} aria-hidden="true" />} />)}</CollectionPanel>
       </div>
 
@@ -620,6 +620,7 @@ function Panel({
 function CollectionPanel({
   title,
   href,
+  actionHref,
   actionLabel = "Ver todos",
   empty,
   summary,
@@ -628,6 +629,7 @@ function CollectionPanel({
 }: {
   title: string;
   href?: string;
+  actionHref?: string;
   actionLabel?: string;
   empty: string;
   summary?: ReactNode;
@@ -635,11 +637,12 @@ function CollectionPanel({
   className?: string;
 }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  const actionDestination = actionHref ?? href;
   return (
     <section className={`min-w-0 rounded-xl border border-border bg-surface p-4 shadow-soft ${className}`}>
       <header className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-content">{title}</h2>
-        {href ? <Link href={href} className="text-xs font-semibold text-brand-strong hover:underline">{actionLabel}</Link> : null}
+        {actionDestination ? <Link href={actionDestination} className="text-xs font-semibold text-brand-strong hover:underline">{actionLabel}</Link> : null}
       </header>
       {summary}
       <div className="mt-3 divide-y divide-border">{hasChildren ? children : <EmptyText>{empty}</EmptyText>}</div>

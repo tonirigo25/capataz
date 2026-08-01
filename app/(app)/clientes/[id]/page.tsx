@@ -36,6 +36,9 @@ import {
   ClientOpportunitiesWorkspace,
   ClientWorksWorkspace,
 } from "@/components/portal/modules-a/client-360-real-workspaces";
+import type {
+  ClientConversationRecord,
+} from "@/components/portal/modules-a/client-360-conversations-overview";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
 import type { OperationalSignal } from "@/lib/operational-intelligence/types";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -43,6 +46,7 @@ import { statusLabel } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import { prisma } from "@/lib/prisma";
 import { brand } from "@/lib/brand";
+import { listConversationsForCompany } from "@/lib/orqena/conversation-repository";
 import {
   requireCapability,
   resolveAuthorization,
@@ -51,7 +55,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type DetailSearchParams = { vista?: string; tab?: string; q?: string; modo?: string };
+type DetailSearchParams = {
+  vista?: string;
+  tab?: string;
+  q?: string;
+  modo?: string;
+  conversationId?: string;
+};
 
 const tabs = [
   { id: "resumen", label: "Resumen" },
@@ -140,6 +150,130 @@ function signalMatchesClientView(
   return false;
 }
 
+const conversationClientKeys = new Set([
+  "clientId",
+  "clienteId",
+  "lastClientId",
+]);
+
+function jsonReferencesClient(
+  value: unknown,
+  clientId: string,
+  depth = 0,
+): boolean {
+  if (depth > 10 || value == null) return false;
+  if (Array.isArray(value)) {
+    return value.some((item) => jsonReferencesClient(item, clientId, depth + 1));
+  }
+  if (typeof value !== "object") return false;
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (conversationClientKeys.has(key) && nested === clientId) return true;
+    if (jsonReferencesClient(nested, clientId, depth + 1)) return true;
+  }
+  return false;
+}
+
+function sanitizeConversationText(value: string) {
+  return value
+    .replace(/\0/g, "")
+    .replace(/sk-[A-Za-z0-9_*.-]+/g, "[OPENAI_API_KEY]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
+    .replace(/\b(DATABASE_URL|TOKEN|PASSWORD|SECRET|API_KEY)\s*[:=]\s*\S+/gi, "$1=[redacted]")
+    .replace(/(?:postgres(?:ql)?|redis):\/\/[^\s]+/gi, "[private connection redacted]")
+    .trim()
+    .slice(0, 2_000);
+}
+
+async function loadClientConversationRecords({
+  companyId,
+  userId,
+  membershipId,
+  clientId,
+}: {
+  companyId: string;
+  userId: string;
+  membershipId: string;
+  clientId: string;
+}): Promise<ClientConversationRecord[]> {
+  const [conversations, profile] = await Promise.all([
+    listConversationsForCompany({ companyId, userId, membershipId }, false),
+    prisma.usuarioPerfil.findUnique({
+      where: { id: userId },
+      select: {
+        nombre: true,
+        apellidos: true,
+        nombrePreferido: true,
+      },
+    }),
+  ]);
+  const userName =
+    profile?.nombrePreferido?.trim() ||
+    [profile?.nombre, profile?.apellidos].filter(Boolean).join(" ").trim() ||
+    "Usuario actual";
+  const userParticipant = {
+    id: userId,
+    clientId,
+    name: userName,
+    authorized: true,
+    role: "Tu equipo",
+  };
+  const assistantParticipant = {
+    id: "orqena-assistant",
+    clientId,
+    name: brand.assistantName,
+    authorized: true,
+    role: "Asistente supervisado",
+  };
+
+  return conversations
+    .filter(
+      (conversation) =>
+        jsonReferencesClient(conversation.activeTask, clientId) ||
+        jsonReferencesClient(conversation.structuredContext, clientId) ||
+        jsonReferencesClient(conversation.metadata, clientId),
+    )
+    .map((conversation) => {
+      const messages = conversation.messages
+        .filter((message) => message.role === "user" || message.role === "assistant")
+        .map((message) => ({
+          id: message.id,
+          clientId,
+          conversationId: conversation.id,
+          authorized: true,
+          direction: message.role === "user" ? "outbound" as const : "inbound" as const,
+          body: sanitizeConversationText(message.content),
+          author: message.role === "user" ? userParticipant : assistantParticipant,
+          sentAt: message.createdAt.toISOString(),
+          read: null,
+          attachments: [],
+        }))
+        .filter((message) => Boolean(message.body));
+      const lastMessage = messages.at(-1) ?? null;
+      return {
+        id: conversation.id,
+        clientId,
+        authorized: true,
+        title: sanitizeConversationText(conversation.title).slice(0, 140) || "Conversación sin título",
+        preview: lastMessage?.body.slice(0, 180) ?? null,
+        channel: { kind: "internal" as const, label: brand.assistantName },
+        status: {
+          label: statusLabel(conversation.status),
+          tone: "success" as const,
+        },
+        lastMessageAt: lastMessage?.sentAt ?? conversation.lastActivityAt.toISOString(),
+        unreadCount: null,
+        participants: [userParticipant, assistantParticipant],
+        messages,
+        detailHref: {
+          href: `/clientes/${clientId}/conversaciones/${conversation.id}`,
+          authorized: true,
+        },
+        replyHref: null,
+        moreHref: null,
+      };
+    });
+}
+
 export default async function ClientDetailPage({
   params,
   searchParams,
@@ -210,7 +344,14 @@ export default async function ClientDetailPage({
       },
     });
     if (!client) notFound();
-    return <ScopedClientDetail auth={auth} client={client} activeTab={activeTab} />;
+    return (
+      <ScopedClientDetail
+        auth={auth}
+        client={client}
+        activeTab={activeTab}
+        selectedConversationId={query.conversationId}
+      />
+    );
   }
   const [summary, operationalContext, archiveDecision, aiDecision, uploadDecision] = await Promise.all([
     getClientCrmSummary(id, auth.companyId),
@@ -226,6 +367,15 @@ export default async function ClientDetailPage({
   const canUseAiForClient =
     aiDecision.allowed &&
     (aiClientIds === null || aiClientIds.includes(summary.client.id));
+  const clientConversations =
+    activeTab === "conversaciones" && canUseAiForClient
+      ? await loadClientConversationRecords({
+          companyId: auth.companyId,
+          userId: auth.userId,
+          membershipId: auth.membershipId,
+          clientId: summary.client.id,
+        })
+      : [];
 
   const client = summary.client;
   const returnTo = clientViewHref(client.id, activeTab);
@@ -367,7 +517,7 @@ export default async function ClientDetailPage({
           works: `/clientes/${client.id}?vista=obras`,
           invoices: `/clientes/${client.id}?vista=facturas`,
           payments: `/clientes/${client.id}?vista=facturas#cobros`,
-          contacts: `/clientes/${client.id}?vista=conversaciones#contactos`,
+          addContact: `/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
           documents: `/clientes/${client.id}?vista=documentos`,
           allRecommendations: `/capataz?clienteId=${client.id}`,
         }}
@@ -397,10 +547,16 @@ export default async function ClientDetailPage({
           <ClientBudgetsWorkspace summary={summary} returnTo={returnTo} />
         ) : null}
         {activeTab === "facturas" ? (
-          <div id="facturas"><ClientInvoicesWorkspace summary={summary} returnTo={returnTo} /></div>
+          <div id="cobros"><ClientInvoicesWorkspace summary={summary} returnTo={returnTo} /></div>
         ) : null}
         {activeTab === "conversaciones" ? (
-          <ClientConversationsWorkspace summary={summary} returnTo={returnTo} />
+          <ClientConversationsWorkspace
+            clientId={summary.client.id}
+            conversations={clientConversations}
+            selectedConversationId={query.conversationId}
+            scheduleCallHref={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=llamada&returnTo=${encodeURIComponent(returnTo)}`}
+            createNoteHref={`/gestion?tipo=notaInterna&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
+          />
         ) : null}
         {activeTab === "documentos" ? (
           <ClientDocumentsWorkspace summary={summary} returnTo={returnTo} canUpload={uploadDecision.allowed} />
@@ -417,6 +573,7 @@ async function ScopedClientDetail({
   auth,
   client,
   activeTab,
+  selectedConversationId,
 }: {
   auth: Awaited<ReturnType<typeof requireCapability>>;
   client: {
@@ -431,6 +588,7 @@ async function ScopedClientDetail({
     email: string | null;
   };
   activeTab: ClientTabId;
+  selectedConversationId?: string;
 }) {
   const name = client.nombreComercial ?? client.razonSocial ?? client.nombre;
   const [
@@ -620,6 +778,15 @@ async function ScopedClientDetail({
   const canUseAiForClient =
     aiDecision.allowed &&
     (aiClientIds === null || aiClientIds.includes(client.id));
+  const clientConversations =
+    activeTab === "conversaciones" && canUseAiForClient
+      ? await loadClientConversationRecords({
+          companyId: auth.companyId,
+          userId: auth.userId,
+          membershipId: auth.membershipId,
+          clientId: client.id,
+        })
+      : [];
   return (
     <div className="client-360-page">
       <Client360Restricted
@@ -698,6 +865,7 @@ async function ScopedClientDetail({
           works: workDecision.allowed,
           budgets: budgetDecision.allowed,
           invoices: invoiceDecision.allowed,
+          conversations: canUseAiForClient,
         }}
         actions={[
           ...(canCreateClientBudget
@@ -723,6 +891,13 @@ async function ScopedClientDetail({
             : []),
         ]}
         canUseAi={canUseAiForClient}
+        conversations={clientConversations}
+        selectedConversationId={selectedConversationId}
+        conversationActions={{
+          createNoteHref: canCreateContact
+            ? `/gestion?tipo=notaInterna&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`
+            : undefined,
+        }}
       />
     </div>
   );

@@ -19,6 +19,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Client360RailShell } from "@/components/portal/modules-a/client-360-rail-shell";
+import { ClientConversationsWorkspace } from "@/components/portal/modules-a/client-360-real-workspaces";
+import type { ClientConversationRecord } from "@/components/portal/modules-a/client-360-conversations-overview";
 import { StatusPill } from "@/components/status-pill";
 
 type RestrictedContact = {
@@ -72,6 +74,9 @@ export function Client360Restricted({
   visibility,
   actions,
   canUseAi,
+  conversations,
+  selectedConversationId,
+  conversationActions,
 }: {
   activeView: Client360RestrictedView;
   client: {
@@ -92,9 +97,16 @@ export function Client360Restricted({
     works: boolean;
     budgets: boolean;
     invoices: boolean;
+    conversations: boolean;
   };
   actions: RestrictedAction[];
   canUseAi: boolean;
+  conversations: ClientConversationRecord[];
+  selectedConversationId?: string;
+  conversationActions?: {
+    newMessageHref?: string;
+    createNoteHref?: string;
+  };
 }) {
   const areas = [
     { id: "resumen", label: "Resumen", icon: Building2 },
@@ -322,7 +334,15 @@ export function Client360Restricted({
         </CollectionCard> : activeView === "facturas" ? <RestrictedModuleNotice title="Facturas no incluidas en tu acceso" /> : null}
 
         {activeView === "oportunidades" ? <RestrictedModuleNotice title="Oportunidades no incluidas en tu acceso" /> : null}
-        {activeView === "conversaciones" ? <RestrictedModuleNotice title="Conversaciones no incluidas en tu acceso" /> : null}
+        {activeView === "conversaciones" && visibility.conversations ? (
+          <ClientConversationsWorkspace
+            clientId={client.id}
+            conversations={conversations}
+            selectedConversationId={selectedConversationId}
+            newMessageHref={conversationActions?.newMessageHref}
+            createNoteHref={conversationActions?.createNoteHref}
+          />
+        ) : activeView === "conversaciones" ? <RestrictedModuleNotice title="Conversaciones no incluidas en tu acceso" /> : null}
         {activeView === "documentos" ? <RestrictedModuleNotice title="Documentos no incluidos en tu acceso" /> : null}
         {activeView === "archivos" ? <RestrictedModuleNotice title="Archivos no incluidos en tu acceso" /> : null}
       </div>

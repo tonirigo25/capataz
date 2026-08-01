@@ -11,7 +11,10 @@ import { Client360DocumentsOverview, type ClientDocumentFileKind } from "@/compo
 import { Client360InvoicesOverview } from "@/components/portal/modules-a/client-360-invoices-overview";
 import { Client360FilesOverview, type ClientFileKind } from "@/components/portal/modules-a/client-360-files-overview";
 import { Client360OpportunitiesOverview } from "@/components/portal/modules-a/client-360-opportunities-overview";
-import { Client360ConversationsOverview } from "@/components/portal/modules-a/client-360-conversations-overview";
+import {
+  Client360ConversationsOverview,
+  type ClientConversationRecord,
+} from "@/components/portal/modules-a/client-360-conversations-overview";
 import { Client360WorksOverview, type ClientWorksMode } from "@/components/portal/modules-a/client-360-works-overview";
 
 type Summary = NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
@@ -228,21 +231,68 @@ export function ClientActivityWorkspace({ summary }: WorkspaceProps) {
   );
 }
 
-export function ClientConversationsWorkspace({ summary, returnTo }: WorkspaceProps) {
+export function ClientConversationsWorkspace({
+  clientId,
+  conversations,
+  selectedConversationId,
+  newMessageHref,
+  scheduleCallHref,
+  createNoteHref,
+}: {
+  clientId: string;
+  conversations: ClientConversationRecord[];
+  selectedConversationId?: string | null;
+  newMessageHref?: string | null;
+  scheduleCallHref?: string | null;
+  createNoteHref?: string | null;
+}) {
+  const responseDurations: number[] = [];
+  for (const conversation of conversations) {
+    let pendingUserMessageAt: number | null = null;
+    for (const message of conversation.messages) {
+      const timestamp = message.sentAt ? Date.parse(message.sentAt) : Number.NaN;
+      if (!Number.isFinite(timestamp)) continue;
+      if (message.direction === "outbound") pendingUserMessageAt = timestamp;
+      if (message.direction === "inbound" && pendingUserMessageAt != null) {
+        responseDurations.push(Math.max(0, timestamp - pendingUserMessageAt));
+        pendingUserMessageAt = null;
+      }
+    }
+  }
+  const averageResponseMs = responseDurations.length
+    ? responseDurations.reduce((total, value) => total + value, 0) / responseDurations.length
+    : null;
+  const latestInteraction = conversations
+    .map((conversation) => conversation.lastMessageAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => Date.parse(right) - Date.parse(left))[0] ?? null;
+  const unanswered = conversations.filter(
+    (conversation) => conversation.messages.at(-1)?.direction === "outbound",
+  ).length;
   return (
     <Client360ConversationsOverview
-      clientId={summary.client.id}
-      conversations={[]}
+      clientId={clientId}
+      conversations={conversations}
+      selectedConversationId={selectedConversationId}
       metrics={[
-        { kind: "active", authorized: true, value: null, detail: "Sin hilos persistidos" },
-        { kind: "unanswered", authorized: true, value: null, detail: "No se infiere desde actividad" },
-        { kind: "average_response", authorized: true, value: null, detail: "Sin mensajes trazables" },
-        { kind: "latest_interaction", authorized: true, value: summary.listItem.lastContactAt?.toLocaleDateString("es-ES") ?? null, detail: "Último contacto registrado" },
+        { kind: "active", authorized: true, value: conversations.length, detail: "Hilos vinculados de forma explícita" },
+        { kind: "unanswered", authorized: true, value: unanswered, detail: "Último mensaje del usuario sin respuesta posterior" },
+        { kind: "average_response", authorized: true, value: formatResponseDuration(averageResponseMs), detail: "Entre mensaje de usuario y respuesta" },
+        { kind: "latest_interaction", authorized: true, value: latestInteraction ? new Date(latestInteraction).toLocaleDateString("es-ES") : null, detail: "Último mensaje vinculado" },
       ]}
-      scheduleCallHref={{ href: `/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=llamada&returnTo=${encodeURIComponent(returnTo)}`, authorized: true }}
-      createNoteHref={{ href: `/gestion?tipo=notaInterna&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`, authorized: true }}
+      newMessageHref={newMessageHref ? { href: newMessageHref, authorized: true } : null}
+      scheduleCallHref={scheduleCallHref ? { href: scheduleCallHref, authorized: true } : null}
+      createNoteHref={createNoteHref ? { href: createNoteHref, authorized: true } : null}
     />
   );
+}
+
+function formatResponseDuration(value: number | null) {
+  if (value == null || !Number.isFinite(value)) return null;
+  const minutes = Math.max(0, Math.round(value / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${hours.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h`;
 }
 
 export function ClientDocumentsWorkspace({ summary, canUpload = false }: WorkspaceProps) {
