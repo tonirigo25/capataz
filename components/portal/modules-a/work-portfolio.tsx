@@ -149,8 +149,13 @@ export function WorkPortfolio({ items }: { items: WorkPortfolioItem[] }) {
   }
 
   function closeDesktopDetail() {
+    const trigger =
+      lastTriggerRef.current ??
+      document.querySelector<HTMLButtonElement>(
+        'button[aria-label^="Abrir detalle de "][aria-pressed="true"]',
+      );
     setSelectedId("");
-    window.requestAnimationFrame(() => lastTriggerRef.current?.focus());
+    window.requestAnimationFrame(() => trigger?.focus());
   }
 
   function closeDrawer() {
