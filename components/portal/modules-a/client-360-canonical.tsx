@@ -6,7 +6,6 @@ import {
   Building2,
   CalendarCheck2,
   CheckCircle2,
-  ChevronLeft,
   CircleDollarSign,
   FileText,
   FolderOpen,
@@ -28,6 +27,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { StatusPill } from "@/components/status-pill";
 import { Client360RailShell } from "@/components/portal/modules-a/client-360-rail-shell";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 type ClientSummary = NonNullable<ClientCrmSummary>;
 
@@ -291,13 +291,7 @@ export function Client360Canonical({
     >
       <div className="min-w-0 space-y-4">
         <header>
-          <Link
-            href={hrefs.back}
-            className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-content-secondary hover:text-content"
-          >
-            <ChevronLeft size={16} aria-hidden="true" />
-            Clientes
-          </Link>
+          <InternalBreadcrumbs items={[{ label: "Clientes", href: hrefs.back }, { label: displayName }]} />
           <h1 className="type-page-title text-content">Cliente 360</h1>
         </header>
 
@@ -470,11 +464,7 @@ function Client360ReferenceSummary({
   return (
     <div className="client-360-shell-summary">
       <header className="client-360-shell-summary__heading">
-        <div>
-          <Link href={hrefs.back}>Clientes</Link>
-          <span aria-hidden="true">›</span>
-          <span>{displayName}</span>
-        </div>
+        <InternalBreadcrumbs items={[{ label: "Clientes", href: hrefs.back }, { label: displayName }]} />
         <h1>Cliente 360</h1>
       </header>
 

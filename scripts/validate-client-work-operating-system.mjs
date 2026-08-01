@@ -3,12 +3,13 @@ import fs from "node:fs";
 const read = (path) => fs.readFileSync(path, "utf8");
 const client = read("app/(app)/clientes/[id]/page.tsx");
 const clientCanonical = read("components/portal/modules-a/client-360-canonical.tsx");
+const internalBreadcrumbs = read("components/internal-breadcrumbs.tsx");
+const internalBreadcrumbStyles = read("components/internal-breadcrumbs.module.css");
 const clientRestricted = read("components/portal/modules-a/client-360-restricted.tsx");
 const clientRail = read("components/portal/modules-a/client-360-rail-shell.tsx");
 const styles = read("app/globals.css");
 const clients = read("app/(app)/clientes/page.tsx");
 const clientFilters = read("components/clients/client-filter-bar.tsx");
-const clientSplit = read("components/clients/client-split-view.tsx");
 const clientPortfolio = read("components/portal/modules-a/client-portfolio.tsx");
 const clientWorkspaces = read("components/portal/modules-a/client-360-real-workspaces.tsx");
 const clientWorksOverview = read("components/portal/modules-a/client-360-works-overview.tsx");
@@ -46,9 +47,20 @@ check(
   client.includes("<Client360Canonical") &&
     client.includes("<Client360Restricted") &&
     clientCanonical.includes("Cliente 360") &&
-    clientCanonical.includes("href={hrefs.back}") &&
+    clientCanonical.includes("<InternalBreadcrumbs") &&
     clientRestricted.includes("Cliente 360") &&
     clientRestricted.includes('href="/clientes"'),
+);
+check(
+  "Cliente 360 usa migas internas semánticas con identidad autorizada y destino estable",
+  clientCanonical.includes("<InternalBreadcrumbs") &&
+    clientCanonical.includes('{ label: "Clientes", href: hrefs.back }') &&
+    clientCanonical.includes("{ label: displayName }") &&
+    internalBreadcrumbs.includes('aria-label={label}') &&
+    internalBreadcrumbs.includes('aria-current={current ? "page" : undefined}') &&
+    internalBreadcrumbStyles.includes("min-height: 28px;") &&
+    internalBreadcrumbStyles.includes("min-height: 44px;") &&
+    internalBreadcrumbStyles.includes("text-overflow: ellipsis;"),
 );
 check("cliente conserva acciones contextuales reales", clientCanonical.includes("profileEditHref") && clientCanonical.includes("hrefs.newOpportunity") && client.includes("<ClientActions"));
 check("insights de cliente quedan aislados por cliente u obra autorizada", client.includes("const scopedSignals") && client.includes("signal.entity.clientId === client.id") && client.includes("clientWorkIds.has(signal.entity.workId)"));
@@ -97,8 +109,10 @@ check("listado ofrece seis vistas inteligentes, búsqueda y filtros en sheet", [
 check("rail de vista de cliente nace bajo la barra superior y ocupa la altura útil", styles.includes(".clients-page-content,") && styles.includes(".clients-workspace {\n    display: contents;") && styles.includes("min-height: calc(100dvh - var(--fos-layout-topbar));") && styles.includes("grid-row: 1 / span 2;") && styles.includes("align-self: stretch;"));
 check("acciones de cliente escapan del recorte y mantienen acceso por teclado", clientPortfolio.includes("createPortal") && clientPortfolio.includes('aria-haspopup="menu"') && clientPortfolio.includes('event.key === "Escape"') && clientPortfolio.includes("resolveClientMenuPosition") && styles.includes(".clients-row-actions__menu") && styles.includes("z-index: 90"));
 check("acciones de cliente tienen objetivo táctil mínimo de 44px", styles.includes(".clients-row-actions__trigger") && styles.includes("width: 44px;") && styles.includes("height: 44px;"));
-check("desktop usa split 420-480 y móvil evita tabla", clientSplit.includes("data-client-list-split") && clientSplit.includes("data-client-mobile-cards") && !clientSplit.includes("<table"));
-check("preview cambia por click y foco sin perder deep link", clientSplit.includes("onClick={onSelect}") && clientSplit.includes("onFocusCapture={onSelect}") && clientSplit.includes("Abrir ficha completa"));
+check("listado activo no preselecciona el primer cliente", clientPortfolio.includes("useState<string | null>(null)") && clientPortfolio.includes("setSelectedId(null)") && !clientPortfolio.includes("items[0]?.id") && !clientPortfolio.includes("?? items[0]"));
+check("preview activo nace neutral y cambia solo por selección explícita", clientPortfolio.includes("<ClientPreviewEmpty />") && clientPortfolio.includes("Selecciona un cliente") && clientPortfolio.includes("onClick={onSelect}") && clientPortfolio.includes('type="radio"') && clientPortfolio.includes('name="client-preview"'));
+check("móvil no privilegia el primer cliente", !clientPortfolio.includes("primary={index === 0}") && !clientPortfolio.includes("primary: boolean") && clientPortfolio.includes('className="secondary-button">Abrir Cliente 360'));
+check("clientes ofrece importación segura solo mediante autorización resuelta en servidor", clients.includes('auth.role === "OWNER" || auth.role === "ADMIN"') && clients.includes("canImport={canImportClient}") && clientFilters.includes("canImport: boolean") && clientFilters.includes('href="/configuracion/importar"'));
 check("context drawer conserva Escape, cierre y foco", contextDrawer.includes('event.key === "Escape"') && contextDrawer.includes("opener.current?.focus()") && contextDrawer.includes('aria-modal="true"'));
 
 check("obra expone ocho áreas 360 exactas", (work.match(/^  \["(resumen|planificacion|partes|costes|documentos|equipo|facturacion|incidencias)"/gm) ?? []).length === 8);

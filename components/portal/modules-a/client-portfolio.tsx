@@ -44,16 +44,16 @@ export function ClientPortfolio({
   canUpdate: boolean;
   canUseAi: boolean;
 }) {
-  const [selectedId, setSelectedId] = useState(items[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const selected = useMemo(
-    () => items.find((item) => item.id === selectedId) ?? items[0],
+    () => selectedId ? items.find((item) => item.id === selectedId) ?? null : null,
     [items, selectedId],
   );
 
   useEffect(() => {
-    if (!items.some((item) => item.id === selectedId)) {
-      setSelectedId(items[0]?.id ?? "");
+    if (selectedId && !items.some((item) => item.id === selectedId)) {
+      setSelectedId(null);
     }
   }, [items, selectedId]);
 
@@ -102,12 +102,12 @@ export function ClientPortfolio({
             canUseAi={canUseAi}
             onToggle={() => setPreviewCollapsed((current) => !current)}
           />
-        ) : null}
+        ) : <ClientPreviewEmpty />}
       </div>
 
       <div className="clients-mobile-list" aria-label="Clientes" data-client-mobile-cards>
-        {items.map((client, index) => (
-          <ClientMobileCard key={client.id} client={client} primary={index === 0} canUseAi={canUseAi} />
+        {items.map((client) => (
+          <ClientMobileCard key={client.id} client={client} canUseAi={canUseAi} />
         ))}
         <PaginationFooter pagination={pagination} mobile />
       </div>
@@ -130,8 +130,8 @@ function ClientTableRow({
     <tr data-selected={selected ? "true" : "false"}>
       <td>
         <label className="clients-row-check">
-          <span className="sr-only">Seleccionar {client.displayName}</span>
-          <input type="checkbox" checked={selected} onChange={onSelect} />
+          <span className="sr-only">Mostrar vista de {client.displayName}</span>
+          <input type="radio" name="client-preview" checked={selected} onChange={onSelect} />
         </label>
       </td>
       <th scope="row">
@@ -380,13 +380,30 @@ function ClientPreview({
   );
 }
 
-function ClientMobileCard({ client, primary, canUseAi }: { client: ClientWorkspaceItem; primary: boolean; canUseAi: boolean }) {
+function ClientPreviewEmpty() {
+  return (
+    <aside className="clients-preview" aria-label="Vista de cliente sin selección">
+      <header className="clients-preview__header">
+        <span><Sparkles size={16} aria-hidden="true" />Vista de cliente</span>
+      </header>
+      <section className="clients-preview-card grid min-h-52 place-items-center text-center">
+        <div className="max-w-56">
+          <UserRound className="mx-auto text-content-tertiary" size={32} aria-hidden="true" />
+          <h2 className="mt-3 font-semibold text-content">Selecciona un cliente</h2>
+          <p className="type-secondary mt-2">El resumen aparecerá aquí cuando elijas una fila del listado.</p>
+        </div>
+      </section>
+    </aside>
+  );
+}
+
+function ClientMobileCard({ client, canUseAi }: { client: ClientWorkspaceItem; canUseAi: boolean }) {
   return (
     <article className="clients-mobile-card">
       <div className="clients-mobile-card__head"><span className="clients-mobile-card__identity"><Initials name={client.displayName} /><span><strong>{client.displayName}</strong><small>{client.typeLabel}</small></span></span><StatusPill status={client.status} /></div>
       <section><span>Próxima acción</span><strong>{client.nextAction}</strong><small>{client.nextActionAt ?? "Sin fecha registrada"}</small></section>
       <dl><div><dt>Trabajo</dt><dd>{client.activeWork}</dd></div><div><dt>Saldo</dt><dd>{client.pendingBalance ?? "Sin saldo pendiente"}</dd></div><div><dt>Riesgo</dt><dd><RiskPill level={client.riskLevel} /></dd></div><div><dt>Actividad</dt><dd>{client.lastContact}</dd></div></dl>
-      <Link href={`/clientes/${client.id}`} className={primary ? "primary-button" : "secondary-button"}>Abrir Cliente 360<ArrowUpRight size={16} aria-hidden="true" /></Link>
+      <Link href={`/clientes/${client.id}`} className="secondary-button">Abrir Cliente 360<ArrowUpRight size={16} aria-hidden="true" /></Link>
       {canUseAi ? <Link href={`/orqena-ia/comercial?clientId=${client.id}`} className="clients-mobile-ai"><Sparkles size={15} aria-hidden="true" />Recomendación contextual</Link> : null}
     </article>
   );

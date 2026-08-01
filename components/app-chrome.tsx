@@ -316,7 +316,9 @@ export function AppChrome({
               aria-expanded={desktopPanel === "create"}
               onClick={(event) => openDesktopPanel("create", event.currentTarget)}
             >
-              <Plus size={17} aria-hidden="true" /><span>Nuevo</span><ChevronDown size={15} aria-hidden="true" />
+              <Plus className="field-os-new-action__leading" size={17} aria-hidden="true" />
+              <span className="field-os-new-action__label">Nuevo</span>
+              <ChevronDown className="field-os-new-action__trailing" size={15} aria-hidden="true" />
             </button> : <button
               type="button"
               className="field-os-desktop-action field-os-new-action"
@@ -324,7 +326,9 @@ export function AppChrome({
               title="Tu acceso actual es de solo lectura"
               disabled
             >
-              <Plus size={17} aria-hidden="true" /><span>Nuevo</span><ChevronDown size={15} aria-hidden="true" />
+              <Plus className="field-os-new-action__leading" size={17} aria-hidden="true" />
+              <span className="field-os-new-action__label">Nuevo</span>
+              <ChevronDown className="field-os-new-action__trailing" size={15} aria-hidden="true" />
             </button>}
           </div>
         </div>

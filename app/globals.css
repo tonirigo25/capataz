@@ -661,12 +661,10 @@ button:disabled,
     justify-content: center;
   }
 
-  .field-os-sidebar__brand .brand-lockup,
-  .field-os-sidebar__brand .brand-lockup__official-dark {
-    display: block;
+  .field-os-sidebar__brand .brand-logo--sidebar {
+    display: inline-flex;
     width: 220px;
     height: 78px;
-    object-fit: contain;
   }
 
   .field-os-sidebar,
@@ -795,6 +793,17 @@ button:disabled,
     color: #fff;
     font-size: 12px;
     font-weight: 750;
+  }
+
+  .field-os-new-action__leading,
+  .field-os-new-action__trailing {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  .field-os-new-action__label {
+    line-height: 1;
+    text-align: center;
   }
 
   .field-os-new-action:hover {
@@ -1111,6 +1120,14 @@ button:disabled,
     display: inline-flex;
   }
 
+  .field-os-desktop-action.field-os-new-action {
+    display: inline-grid;
+    grid-template-columns: 17px auto 15px;
+    align-items: center;
+    justify-content: center;
+    column-gap: 5px;
+  }
+
   .field-os-mobile-context {
     display: none;
   }
@@ -1409,12 +1426,11 @@ button:disabled,
   align-items: center;
 }
 .brand-logo__symbol,
-.brand-logo__sidebar-image {
+.brand-logo__sidebar-symbol {
   display: block;
-  width: 100%;
-  height: 100%;
   object-fit: contain;
 }
+.brand-logo__symbol { width: 100%; height: 100%; }
 :where(.brand-logo--symbol.brand-logo--sm) { width: 1.75rem; height: 1.75rem; }
 :where(.brand-logo--symbol.brand-logo--md) { width: 2.5rem; height: 2.5rem; }
 :where(.brand-logo--symbol.brand-logo--lg) { width: 3.75rem; height: 3.75rem; }
@@ -1433,12 +1449,29 @@ button:disabled,
 }
 .brand-logo--light.brand-logo--sm .brand-logo__wordmark { font-size: .875rem; }
 .brand-logo--light.brand-logo--lg .brand-logo__wordmark { font-size: 1.25rem; }
-.brand-logo--sidebar { overflow: hidden; }
+.brand-logo--sidebar {
+  overflow: hidden;
+  justify-content: flex-start;
+  gap: .9375rem;
+  padding-inline: 1.1875rem;
+  color: #fff;
+}
 :where(.brand-logo--sidebar.brand-logo--sm) { width: 6.875rem; height: 2.4375rem; }
 :where(.brand-logo--sidebar.brand-logo--md) { width: 10.3125rem; height: 3.65625rem; }
 :where(.brand-logo--sidebar.brand-logo--lg) { width: 13.75rem; height: 4.875rem; }
-.brand-logo--sidebar .brand-logo__sidebar-image {
-  object-fit: contain;
+.brand-logo--sidebar .brand-logo__sidebar-symbol {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+}
+.brand-logo__sidebar-wordmark {
+  color: currentColor;
+  font-family: var(--fos-font-sans);
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -.025em;
+  line-height: 1;
+  white-space: nowrap;
 }
 .brand-lockup { display: inline-flex; align-items: center; gap: .7rem; color: var(--cap-text); }
 .brand-lockup__tile {

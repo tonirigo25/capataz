@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Download, Eraser, Search, UserPlus } from "lucide-react";
+import { Download, Eraser, Search, Upload, UserPlus } from "lucide-react";
 import { FilterSheet, FilterTrigger } from "@/components/compact-filters";
 import type { ClientSmartViewCounts } from "@/lib/client-crm";
 
@@ -37,6 +37,7 @@ export function ClientFilterBar({
   smartViewCounts,
   canCreate,
   canExport,
+  canImport,
 }: {
   query: ClientFilterQuery;
   typeOptions: string[];
@@ -47,6 +48,7 @@ export function ClientFilterBar({
   smartViewCounts: ClientSmartViewCounts;
   canCreate: boolean;
   canExport: boolean;
+  canImport: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const activeFilters = new Set((query.filtros ?? "").split(",").filter(Boolean));
@@ -88,10 +90,19 @@ export function ClientFilterBar({
           </label>
         </form>
         <FilterTrigger count={filterCount} onClick={() => setOpen(true)} />
-        {canExport ? (
-          <Link href={exportHref(query)} className="secondary-button clients-export-action" download>
-            <Download size={17} aria-hidden="true" /><span>Exportar</span>
-          </Link>
+        {canImport || canExport ? (
+          <div className="flex items-center gap-2">
+            {canImport ? (
+              <Link href="/configuracion/importar" className="secondary-button">
+                <Upload size={17} aria-hidden="true" /><span>Importar</span>
+              </Link>
+            ) : null}
+            {canExport ? (
+              <Link href={exportHref(query)} className="secondary-button clients-export-action" download>
+                <Download size={17} aria-hidden="true" /><span>Exportar</span>
+              </Link>
+            ) : null}
+          </div>
         ) : null}
         {canCreate ? (
           <Link href="/gestion?tipo=cliente&returnTo=/clientes" className="primary-button clients-create-action">

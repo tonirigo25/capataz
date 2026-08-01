@@ -3,8 +3,7 @@ import { clsx } from "clsx";
 import type { CSSProperties } from "react";
 import { brand } from "@/lib/brand";
 
-const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial-v2.png";
-const OFFICIAL_DARK_LOCKUP = "/brand/orqena/orqena-logo-oficial-sobre-oscuro.png";
+const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial.png";
 
 type BrandLogoVariant = "sidebar" | "light" | "symbol";
 type BrandLogoSize = "sm" | "md" | "lg";
@@ -31,15 +30,16 @@ export function BrandLogo({
         aria-label={title}
       >
         <Image
-          src={OFFICIAL_DARK_LOCKUP}
+          src={OFFICIAL_SYMBOL}
           alt=""
-          width={220}
-          height={78}
-          sizes="220px"
-          className="brand-logo__sidebar-image"
+          width={512}
+          height={512}
+          sizes="44px"
+          className="brand-logo__sidebar-symbol"
           unoptimized
           priority
         />
+        <strong className="brand-logo__sidebar-wordmark" aria-hidden="true">{brand.companyName}</strong>
       </span>
     );
   }

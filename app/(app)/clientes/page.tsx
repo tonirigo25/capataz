@@ -136,6 +136,7 @@ export default async function ClientsPage({
   const canCreateClient = decisionFor("clients.create")?.allowed === true;
   const canUpdateClient = decisionFor("clients.update")?.allowed === true;
   const canExportClient = decisionFor("clients.export")?.allowed === true;
+  const canImportClient = auth.role === "OWNER" || auth.role === "ADMIN";
   const canUseAi = decisionFor("orqena.use")?.allowed === true;
 
   if (!economicAllowed) {
@@ -147,6 +148,7 @@ export default async function ClientsPage({
         canCreateClient={canCreateClient}
         canUpdateClient={canUpdateClient}
         canExportClient={canExportClient}
+        canImportClient={canImportClient}
         canUseAi={canUseAi}
       />
     );
@@ -184,6 +186,7 @@ export default async function ClientsPage({
           smartViewCounts={result.smartViewCounts}
           canCreate={canCreateClient}
           canExport={canExportClient}
+          canImport={canImportClient}
         />
       </header>
 
@@ -233,6 +236,7 @@ async function ScopedClientsPage({
   canCreateClient,
   canUpdateClient,
   canExportClient,
+  canImportClient,
   canUseAi,
 }: {
   companyId: string;
@@ -241,6 +245,7 @@ async function ScopedClientsPage({
   canCreateClient: boolean;
   canUpdateClient: boolean;
   canExportClient: boolean;
+  canImportClient: boolean;
   canUseAi: boolean;
 }) {
   const clients = await prisma.client.findMany({
@@ -361,6 +366,7 @@ async function ScopedClientsPage({
           smartViewCounts={smartViewCounts}
           canCreate={canCreateClient}
           canExport={canExportClient}
+          canImport={canImportClient}
         />
       </header>
       <div className="clients-page-content">
