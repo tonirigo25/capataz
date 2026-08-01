@@ -101,6 +101,7 @@ check("rail global reconoce Editar cliente sin duplicar contexto", chrome.includ
 check("navegación secundaria usa URL, aria-current y targets", clientCanonical.includes("?vista=${view}") && work.includes("?vista=${id}") && clientCanonical.includes("aria-current") && work.includes("aria-current"));
 check("composición responsive cubre móvil, tablet y escritorio", gallery.includes("grid-cols-2") && gallery.includes("sm:grid-cols-3") && gallery.includes("xl:grid-cols-4") && work.includes("xl:grid-cols"));
 check("avisos PWA respetan la navegación y las acciones móviles", pwa.includes("pwa-status-stack") && styles.includes("body:has(.field-os-bottom-nav):has(.sticky-form-actions, .client-edit-reference__actions)") && styles.includes("min-height: 44px"));
+check("navegación y paginación móvil conservan objetivos táctiles completos", chrome.includes("grid-cols-5") && styles.includes("min-h-16 w-full min-w-0") && styles.includes(".clients-pagination--mobile nav a,") && styles.includes("width: 44px;") && styles.includes("height: 44px;"));
 
 let failed = 0;
 for (const [name, ok] of cases) {

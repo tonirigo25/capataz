@@ -611,7 +611,7 @@ function MobileBottomNavigation({
       className="field-os-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)]"
       aria-label="Navegación móvil"
     >
-      <div className="mx-auto flex h-16 max-w-lg justify-around px-1">
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1">
         {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
         {canCapture ? <button
           type="button"
