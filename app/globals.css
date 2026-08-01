@@ -5642,13 +5642,13 @@ button:disabled,
   .client-edit-reference__actions .secondary-button { min-width: 0; flex: 1; }
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1200px) {
   .client-360-page,
   .client-360-canonical {
     min-height: calc(100dvh - 66px);
   }
   .client-360-canonical[data-has-client-rail="true"] {
-    grid-template-columns: minmax(0, 1fr) 20.25rem;
+    grid-template-columns: minmax(0, 1fr) 17rem;
   }
   .client-360-canonical > div:first-child { padding-right: 14px; }
   .client-360-canonical__primary > section { height: 208px; }
@@ -5661,7 +5661,15 @@ button:disabled,
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .client-360-canonical__insight-title {
     white-space: nowrap;
+  }
+  .client-360-canonical__insight-detail {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
   }
   .client-360-canonical > [data-client-360-rail] {
     display: flex;
@@ -5679,6 +5687,12 @@ button:disabled,
     padding-inline: 10px;
   }
   [data-client-360-rail][data-collapsed="true"] .client-360-rail-shell__label { display: none; }
+}
+
+@media (min-width: 1440px) {
+  .client-360-canonical[data-has-client-rail="true"] {
+    grid-template-columns: minmax(0, 1fr) 20.25rem;
+  }
 }
 
 @media (min-width: 900px) and (max-width: 1439px) {
@@ -5733,9 +5747,15 @@ button:disabled,
     font-size: 18px;
     line-height: 22px;
   }
+  .client-360-shell-summary .client-360-canonical__primary > section,
+  .client-360-shell-summary .client-360-canonical__collections--primary > section,
+  .client-360-shell-summary .client-360-canonical__collections--secondary > section {
+    height: auto;
+    min-height: 0;
+  }
 }
 
-@media (max-width: 1439px) {
+@media (max-width: 1199px) {
   .client-360-page { padding-right: 20px; }
   .client-360-canonical > [data-client-360-rail] {
     margin-top: 12px;
@@ -5765,8 +5785,46 @@ button:disabled,
   .client-360-canonical__identity h2 + span { margin-left: 2px; }
   .client-360-canonical__identity > div > div:first-child > div > p.type-label { display: none; }
   .client-360-canonical__identity dl,
-  .client-360-canonical__identity > div > div:nth-child(2),
-  .client-360-canonical__identity > div > nav { display: none; }
+  .client-360-canonical__identity > div > div:nth-child(2) { display: none; }
+  .client-360-canonical__identity { position: relative; }
+  .client-360-canonical__identity > div { padding-right: 48px; }
+  .client-360-canonical__identity > div > nav {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: block;
+    width: 42px;
+    min-width: 42px !important;
+  }
+  .client-360-canonical__identity > div > nav > .secondary-button,
+  .client-360-canonical__identity > div > nav > .client-360-canonical__primary-action > .primary-button {
+    display: none;
+  }
+  .client-360-canonical__identity .client-360-canonical__primary-action {
+    position: relative;
+    display: block;
+    width: 42px;
+    min-height: 42px;
+  }
+  .client-360-canonical__identity .client-360-canonical__more-actions {
+    position: absolute;
+    inset: 0;
+  }
+  .client-360-canonical__identity .client-360-canonical__more-actions > details > summary {
+    width: 42px;
+    min-height: 42px;
+    border: 1px solid #dfe5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #111b16;
+  }
+  .client-360-canonical__identity .client-360-canonical__more-actions > details > div {
+    top: calc(100% + 4px);
+    right: 0;
+    width: min(18rem, calc(100vw - 48px));
+    max-height: min(30rem, calc(100dvh - 140px));
+    overflow-y: auto;
+  }
   .client-360-canonical__mobile-identity-meta {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5777,6 +5835,19 @@ button:disabled,
     line-height: 12px;
   }
   .client-360-shell-summary .client-360-shell-summary__identity { min-height: 0; }
+  .client-360-shell-summary__tabs { overflow: hidden; }
+  .client-360-shell-summary__tabs > a {
+    min-width: 0;
+    flex: 1 1 20%;
+    justify-content: center;
+    gap: 4px;
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+  .client-360-shell-summary__row-value {
+    max-width: 120px;
+    white-space: normal;
+  }
   .client-360-canonical > div:first-child > section nav { min-width: 0; }
   .client-360-canonical > div:first-child > section nav > * { width: 100%; }
   .client-360-canonical__primary,

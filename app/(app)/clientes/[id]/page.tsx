@@ -6,11 +6,11 @@ import {
   Bell,
   Bot,
   CalendarClock,
-  ChevronDown,
   ClipboardList,
   FileText,
   FolderOpen,
   MessageCircle,
+  MoreHorizontal,
   Plus,
   Receipt,
   RotateCcw,
@@ -778,7 +778,7 @@ function ClientActions({
     <details className="relative">
       <summary className="secondary-button cursor-pointer list-none">
         <span className="sr-only">Más acciones</span>
-        <ChevronDown size={15} aria-hidden="true" />
+        <MoreHorizontal size={18} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-20 mt-2 grid min-w-64 gap-1 rounded-xl border border-border bg-surface p-2 shadow-xl [&_a]:justify-start">
         <Link
