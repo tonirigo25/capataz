@@ -464,6 +464,7 @@ function Client360ReferenceSummary({
   const displayName = summary.listItem.displayName;
   const activeContacts = summary.contacts.filter((contact) => !contact.archivedAt);
   const returnTo = `/clientes/${client.id}`;
+  const profileEditHref = `/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
     <div className="client-360-shell-summary">
@@ -510,7 +511,7 @@ function Client360ReferenceSummary({
             </div>
           </div>
 
-          <nav className="grid min-w-48 gap-2" aria-label={`Acciones de ${displayName}`}>
+          <nav className="grid min-w-48 gap-2" aria-label={`Acciones de ${displayName}`} data-profile-edit-href={profileEditHref}>
             {hrefs.sendMessage ? <Link href={hrefs.sendMessage} className="secondary-button w-full"><MessageCircle size={16} aria-hidden="true" /> Abrir correo</Link> : null}
             {hrefs.call ? <Link href={hrefs.call} className="secondary-button w-full"><Phone size={16} aria-hidden="true" /> Llamar</Link> : null}
             {hrefs.newOpportunity ? (
