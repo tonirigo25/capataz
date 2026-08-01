@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCompanyRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { savePreferences } from "./actions";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export default async function ExperiencePreferencesPage() {
   const actor = await requireCompanyRole(["OWNER", "ADMIN"]);
   const preference = await prisma.companyExperiencePreference.findUnique({ where: { companyId: actor.companyId } });
   return <main className="screen max-w-3xl">
-    <Link href="/configuracion" className="text-sm text-muted">← Configuración</Link>
+    <InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "Privacidad y preferencias" }]} />
     <h1 className="type-page-title mt-2">Privacidad y preferencias</h1>
     <p className="type-secondary mt-2">Controla funciones opcionales. Los mensajes imprescindibles de seguridad, acceso o facturación no dependen de estas preferencias.</p>
     <form action={savePreferences} className="card mt-6 grid gap-4 p-5">

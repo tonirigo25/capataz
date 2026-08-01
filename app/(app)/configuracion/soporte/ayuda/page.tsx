@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 const articles = [
   ["No puedo entrar", "Revisa que uses el correo invitado, que la invitación no haya caducado y que un OWNER haya aprobado el acceso."],
@@ -10,5 +10,5 @@ const articles = [
 ];
 
 export default function SupportKnowledgeBasePage() {
-  return <main className="screen"><Link href="/configuracion/soporte" className="text-sm text-muted">← Soporte</Link><h1 className="type-page-title mt-2">Guía de resolución</h1><p className="type-secondary mt-2">Pasos seguros para incidencias frecuentes. Si no resuelven el caso, crea un ticket autenticado sin datos personales ni fiscales.</p><div className="mt-6 grid gap-3 md:grid-cols-2">{articles.map(([title, body]) => <article className="card p-5" key={title}><h2 className="type-section-title">{title}</h2><p className="type-secondary mt-2">{body}</p></article>)}</div></main>;
+  return <main className="screen"><InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "Soporte", href: "/configuracion/soporte" }, { label: "Guía de resolución" }]} /><h1 className="type-page-title mt-2">Guía de resolución</h1><p className="type-secondary mt-2">Pasos seguros para incidencias frecuentes. Si no resuelven el caso, crea un ticket autenticado sin datos personales ni fiscales.</p><div className="mt-6 grid gap-3 md:grid-cols-2">{articles.map(([title, body]) => <article className="card p-5" key={title}><h2 className="type-section-title">{title}</h2><p className="type-secondary mt-2">{body}</p></article>)}</div></main>;
 }

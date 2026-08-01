@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { requireCompanyRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { applyImport, previewImport, rollbackImport } from "./actions";
@@ -9,7 +9,7 @@ export default async function ImportPage() {
   const actor = await requireCompanyRole(["OWNER", "ADMIN"]);
   const batches = await prisma.companyImportBatch.findMany({ where: { companyId: actor.companyId }, orderBy: { createdAt: "desc" }, take: 10, include: { rows: { orderBy: { rowNumber: "asc" }, take: 20 } } });
   return <main className="screen">
-    <Link href="/configuracion" className="text-sm text-muted">← Configuración</Link>
+    <InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "Importación segura" }]} />
     <h1 className="type-page-title mt-2">Importación segura</h1>
     <p className="type-secondary mt-2">Primero se muestra una vista previa. Las filas inválidas o duplicadas no se crean y cada lote aplicado se puede revertir sin borrar su evidencia.</p>
     <section className="card mt-6 p-5">

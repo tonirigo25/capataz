@@ -1,6 +1,7 @@
 import { requireActiveOwner } from "@/lib/commercial/owner-governance";
 import { prisma } from "@/lib/prisma";
 import { LocalOutboxProcessor } from "@/components/local-outbox-processor";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 export default async function EmailOutboxPage() {
   const owner = await requireActiveOwner();
@@ -14,7 +15,8 @@ export default async function EmailOutboxPage() {
     include: { deliveryAttempts: true, webhookEvents: { orderBy: { occurredAt: "desc" }, take: 1 } },
   });
   return <main className="screen">
-    <p className="type-label">Correo transaccional · vista protegida</p>
+    <InternalBreadcrumbs items={[{ label: "Equipo", href: "/equipo" }, { label: "Bandeja interna" }]} />
+    <p className="type-label mt-1">Correo transaccional · vista protegida</p>
     <h1 className="type-page-title mt-2">Bandeja interna</h1>
     <p className="type-secondary mt-2">{liveEnabled ? "El worker gestiona los envíos. Aceptado por el proveedor y entregado al destinatario se muestran por separado." : "El envío externo está desactivado. La cola se conserva sin entregas reales."}</p>
     <div className="mt-6 grid gap-3">{items.length ? items.map((item) => {

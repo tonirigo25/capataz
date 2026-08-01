@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCompanyRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { createSupportTicket, submitSupportFeedback, updateTestimonialConsent } from "./actions";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export default async function AuthenticatedSupportPage() {
   const actor = await requireCompanyRole(["OWNER", "ADMIN"]);
   const tickets = await prisma.supportTicket.findMany({ where: { companyId: actor.companyId }, orderBy: { createdAt: "desc" }, take: 30, include: { attachments: { select: { id: true } } } });
   return <main className="screen">
-    <Link href="/configuracion" className="text-sm text-muted">← Configuración</Link>
+    <InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "Soporte" }]} />
     <h1 className="type-page-title mt-2">Soporte autenticado</h1>
     <p className="type-secondary mt-2">Describe el problema sin incluir datos de clientes, facturas, claves ni información fiscal. Orqena añade sólo ruta, release y correlación técnica.</p><Link href="/configuracion/soporte/ayuda" className="secondary-button mt-3">Abrir guía de resolución</Link>
     <section className="card mt-6 p-5">

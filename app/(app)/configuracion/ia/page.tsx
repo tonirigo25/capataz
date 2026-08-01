@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { requireCompanyRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { aiUsageSummary } from "@/lib/ai/governance-service";
@@ -20,7 +20,7 @@ export default async function AiGovernancePage() {
   const companyAllowlisted = (process.env.AI_COMPANY_ALLOWLIST ?? "").split(",").map((value) => value.trim()).includes(actor.companyId);
   const liveControlled = runtime.enabled && runtime.liveConfigurationComplete && companyAllowlisted && Boolean(policy?.enabled) && !policy?.killSwitch;
   return <main className="screen">
-    <Link href="/configuracion" className="text-sm text-muted">← Configuración</Link>
+    <InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "IA, revisión y consumo" }]} />
     <h1 className="type-page-title mt-2">IA, revisión y consumo</h1>
     <p className="type-secondary mt-2">La IA prepara propuestas y no ejecuta acciones sensibles sin confirmación. Los registros de uso no guardan prompts ni documentos; una envolvente de respuesta puede conservarse hasta siete días para idempotencia y revisión.</p>
     <div className="mt-5 grid gap-3 sm:grid-cols-4">

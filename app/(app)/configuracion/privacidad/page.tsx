@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { completePrivacyRequest, createPrivacyRequest, exportPrivacyRequest, preparePrivacyCatalog, verifyPrivacyRequest } from "./actions";
 import { requireCompanyRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { privacyDeadlineAlerts } from "@/lib/privacy/governance";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 const labels: Record<string, string> = { ACCESS: "Acceso", RECTIFICATION: "Rectificación", ERASURE: "Supresión", OBJECTION: "Oposición", RESTRICTION: "Limitación", PORTABILITY: "Portabilidad" };
 
@@ -17,7 +17,7 @@ export default async function PrivacyCenterPage() {
   ]);
   const alertIds = new Set(alerts.map((request) => request.id));
   return <main className="screen">
-    <Link href="/configuracion" className="text-sm text-muted">← Configuración</Link>
+    <InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "Centro de privacidad" }]} />
     <h1 className="type-page-title mt-2">Centro de privacidad</h1>
     <p className="type-secondary mt-2">Registra solicitudes, verifica identidad y conserva la evidencia de cada respuesta. Las supresiones requieren un plan previo y confirmación humana.</p>
     <div className="mt-5 grid gap-3 sm:grid-cols-3"><Metric label="Tratamientos activos" value={activityCount} /><Metric label="Políticas de retención activas" value={retentionCount} /><Metric label="Exportaciones trazadas" value={exportCount} /></div>

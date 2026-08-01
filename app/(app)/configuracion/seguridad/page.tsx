@@ -5,6 +5,7 @@ import { confirmMfaEnrollment, startMfaEnrollment, verifyMfaChallenge } from "./
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { readPendingTotpEnrollment, isSecondFactorFresh } from "@/lib/security/mfa";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 
 export default async function SecuritySettingsPage() {
   const session = await requireAuthenticatedUser();
@@ -19,7 +20,7 @@ export default async function SecuritySettingsPage() {
   const verified = isSecondFactorFresh(session.secondFactorVerifiedAt);
 
   return <main className="screen max-w-3xl">
-    <Link href="/configuracion" className="text-sm text-muted">← Configuración</Link>
+    <InternalBreadcrumbs items={[{ label: "Configuración", href: "/configuracion" }, { label: "Seguridad de acceso" }]} />
     <h1 className="type-page-title mt-2">Seguridad de acceso</h1>
     <p className="type-secondary mt-2">Añade un segundo factor para proteger acciones sensibles. En cuentas internas de plataforma es obligatorio.</p>
 
