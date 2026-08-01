@@ -2,7 +2,7 @@
   --budget-border: #dfe5e2;
   --budget-muted: #68746f;
   display: grid;
-  gap: 14px;
+  gap: 13px;
   padding: 16px 23px 24px;
   color: #0b1f17;
 }
@@ -25,6 +25,7 @@
   margin-top: 5px;
   color: var(--budget-muted);
   font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 .mobileActions,
@@ -42,6 +43,7 @@
 }
 
 .kpiCard {
+  height: 92px;
   min-height: 92px;
   display: flex;
   align-items: flex-start;
@@ -248,6 +250,7 @@
 .budgetNumber { display: block; color: #12251b; font-weight: 850; }
 .budgetNumber:hover { color: #087b3e; text-decoration: underline; }
 .actionCell { width: 42px; max-width: 42px !important; overflow: visible !important; text-align: right; }
+.statusCell > span { min-height: 20px; padding: 3px 7px; font-size: 9px; white-space: nowrap; }
 .rowActionMenu > summary {
   width: 30px;
   min-width: 30px;
@@ -280,7 +283,7 @@
 }
 
 .funnelStages {
-  min-height: 262px;
+  min-height: 226px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -379,7 +382,7 @@
   .pageHeader { align-items: stretch; flex-direction: column; }
   .pageHeader h1 { font-size: 1.45rem; }
   .kpiGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .kpiCard { min-height: 96px; padding: 11px; }
+  .kpiCard { height: auto; min-height: 96px; padding: 11px; }
   .kpiCard i { width: 34px; height: 34px; flex-basis: 34px; }
   .kpiCard strong { font-size: 1.12rem; }
   .kpiCard small { font-size: 0.62rem; }

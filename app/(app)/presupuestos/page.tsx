@@ -368,6 +368,17 @@ export default async function BudgetsPage({
           <>
             <ResponsiveTable label="Presupuestos" className={styles.tableWrap}>
               <table className={styles.table}>
+                <colgroup>
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "11%" }} />
+                  {marginDecision.allowed ? <col style={{ width: "8%" }} /> : null}
+                  <col style={{ width: marginDecision.allowed ? "15%" : "19%" }} />
+                  <col style={{ width: marginDecision.allowed ? "12%" : "16%" }} />
+                  <col style={{ width: "4%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Número</th>
@@ -401,7 +412,7 @@ export default async function BudgetsPage({
                         </td>
                         <td>{budget.client.nombre}</td>
                         <td>{budget.work?.titulo ?? "Sin obra vinculada"}</td>
-                        <td><StatusPill status={budget.estado} /></td>
+                        <td className={styles.statusCell}><StatusPill status={budget.estado} /></td>
                         <td className={styles.numericStrong}>
                           {budgetPermissions.pricing
                             ? formatCurrency(budget.total)
