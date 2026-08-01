@@ -101,6 +101,32 @@
     height: 328px;
   }
 
+  .summaryPage .summaryGrid,
+  .summaryPage .summaryGrid .panel {
+    height: 295px;
+  }
+
+  .summaryPage .summaryGrid .panelHeader {
+    min-height: 44px;
+    padding-block: 10px 8px;
+  }
+
+  .summaryPage .summaryGrid .panelBody {
+    padding-block: 8px;
+  }
+
+  .summaryPage .previewHead {
+    min-height: 20px;
+  }
+
+  .summaryPage .previewTable > a {
+    min-height: 34px;
+  }
+
+  .summaryPage .upcomingList > a {
+    min-height: 38px;
+  }
+
   .summaryPage .chartAxis,
   .summaryPage .chartPlot {
     height: 164px;
