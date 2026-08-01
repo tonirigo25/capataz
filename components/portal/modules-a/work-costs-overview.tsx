@@ -149,17 +149,18 @@ function mergeSeries(series: WorkCostSeriesPoint[], expenses: WorkCostExpense[])
   return buildExpenseSeries(expenses);
 }
 
-function WorkCostMetric({ label, value, detail, footer, tone = "neutral", icon: Icon }: {
+function WorkCostMetric({ label, value, detail, footer, tone = "neutral", icon: Icon, className = "" }: {
   label: string;
   value: string;
   detail: string;
   footer?: string;
   tone?: "neutral" | "success" | "danger" | "warning";
   icon: typeof WalletCards;
+  className?: string;
 }) {
   const toneClass = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-content";
   return (
-    <article className="min-w-0 rounded-xl border border-border bg-surface p-3.5">
+    <article className={`min-w-0 rounded-xl border border-border bg-surface p-3.5 ${className}`}>
       <div className="flex min-w-0 items-center gap-2 text-content-secondary"><Icon size={15} className="shrink-0" aria-hidden="true" /><h2 className="truncate text-[10px] font-bold">{label}</h2></div>
       <strong className={`mt-2 block truncate text-xl font-black tabular-nums ${toneClass}`} title={value}>{value}</strong>
       <p className="mt-1 min-h-4 text-[9px] leading-4 text-content-secondary">{detail}</p>
@@ -252,6 +253,7 @@ export function WorkCostsOverview({ workId, currency = "EUR", summary, lines, ex
         />
         <WorkCostMetric
           icon={Building2}
+          className="col-span-2 lg:col-span-1"
           label="Coste comprometido"
           value={formatMoney(summary.committedCost)}
           detail={finite(summary.committedCost) ? "Pedidos y compromisos autorizados" : "Sin autoridad persistida"}
