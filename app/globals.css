@@ -5757,6 +5757,7 @@ button:disabled,
 
 @media (max-width: 1199px) {
   .client-360-page { padding-right: 20px; }
+  .client-360-canonical--reference-summary > div:first-child { display: contents; }
   .client-360-canonical > [data-client-360-rail] {
     margin-top: 12px;
     border: 1px solid #dfe5e1;
