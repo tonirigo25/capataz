@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import {
+  ArrowLeft,
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
@@ -93,14 +94,19 @@ export default async function BusinessIntelligencePage({
   return (
     <ProductPage layout="analytical" className={styles.page}>
       <IntelligenceLegacyHashRedirect />
-      <div className={styles.breadcrumbs}>
-        <InternalBreadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: activeView.label }]} label="Ruta de inteligencia" />
+      <div className={styles.navigationRow}>
+        <div className={styles.breadcrumbs}>
+          <InternalBreadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: activeView.label }]} label="Ruta de inteligencia" />
+        </div>
+        <Link href="/dashboard" className={styles.backLink}>
+          <ArrowLeft size={15} aria-hidden="true" /> Volver al Dashboard
+        </Link>
       </div>
 
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>Inteligencia empresarial</p>
-          <h1>{view === "resumen" ? "Salud del negocio" : activeView.label}</h1>
+          <h1>{viewTitle(view)}</h1>
           <p>{viewDescription(view, summary)}</p>
         </div>
         <div className={styles.headerActions}>
@@ -187,10 +193,10 @@ function Overview({ summary, query }: { summary: Summary; query: URLSearchParams
 
 function Evolution({ summary, series, query }: { summary: Summary; series: TrendSeries; query: { periodo?: string; from?: string; to?: string } }) {
   const cards = [
-    metricCard("Facturado", summary.money.invoiced, summary.comparisons.invoiced),
-    metricCard("Cobrado", summary.money.collected, summary.comparisons.collected),
-    metricCard("Gastos", summary.money.expenses, summary.comparisons.expenses),
-    metricCard("Beneficio", summary.money.profitOnInvoiced, summary.comparisons.profit),
+    metricCard("Facturado", summary.money.invoiced, summary.comparisons.invoiced, "/dinero"),
+    metricCard("Cobrado", summary.money.collected, summary.comparisons.collected, "/dinero"),
+    metricCard("Gastos", summary.money.expenses, summary.comparisons.expenses, "/gastos-materiales"),
+    metricCard("Resultado operativo", summary.money.profitOnInvoiced, summary.comparisons.profit, "/inteligencia?vista=rentabilidad"),
   ];
   return (
     <div className={styles.stack} id="evolucion">
@@ -203,6 +209,19 @@ function Evolution({ summary, series, query }: { summary: Summary; series: Trend
           </nav>
         </div>
         <TrendChart points={summary.trend} series={series} />
+      </section>
+      <section className={styles.panel} id="detalle-periodos">
+        <div className={styles.tableHeading}>
+          <div>
+            <h2>Detalle por intervalo</h2>
+            <p>Valores reales que componen la serie. Facturación y cobros abren sus registros; los gastos abren el libro de costes.</p>
+          </div>
+          <div className={styles.sourceLinks}>
+            <Link href="/dinero">Facturas y cobros</Link>
+            <Link href="/gastos-materiales">Libro de gastos</Link>
+          </div>
+        </div>
+        <EvolutionBreakdown points={summary.trend} />
       </section>
       <section className={styles.analysisGrid}>
         <article className={styles.panel}>
@@ -226,35 +245,41 @@ function Evolution({ summary, series, query }: { summary: Summary; series: Trend
 function Profitability({ summary, query }: { summary: Summary; query: URLSearchParams }) {
   const negative = summary.works.byLowestMargin.filter((work) => work.hasEnoughData && work.marginOnInvoiced < 0);
   const items = [
-    { label: "Beneficio facturado", value: formatCurrency(summary.money.profitOnInvoiced), note: "Facturado menos costes reales" },
-    { label: "Beneficio cobrado", value: formatCurrency(summary.money.profitOnCollected), note: "Cobrado menos costes reales" },
-    { label: "Margen", value: `${round(summary.money.marginOnInvoiced)}%`, note: "Sobre facturación válida" },
-    { label: "Obras en negativo", value: String(negative.length), note: "Con datos suficientes" },
+    { label: "Beneficio facturado", value: formatCurrency(summary.money.profitOnInvoiced), note: "Facturado menos costes reales", href: "#rentabilidad-obras" },
+    { label: "Beneficio cobrado", value: formatCurrency(summary.money.profitOnCollected), note: "Cobrado menos costes reales", href: "#rentabilidad-obras" },
+    { label: "Margen", value: `${round(summary.money.marginOnInvoiced)}%`, note: "Sobre facturación válida", href: "#rentabilidad-obras" },
+    { label: "Obras en negativo", value: String(negative.length), note: "Con datos suficientes", href: "#riesgo-rentabilidad" },
   ];
   return (
     <div className={styles.stack} id="rentabilidad">
       <MetricStrip items={items} />
       <section className={styles.panel}>
         <PanelHeading icon={BarChart3} title="Resultado por obra" href={`/inteligencia/export?tipo=works&${query.toString()}`} label="Exportar detalle" />
+        <div className={styles.profitLegend} aria-label="Leyenda de rentabilidad">
+          <span data-kind="income">Facturado</span>
+          <span data-kind="cost">Gastos</span>
+          <span data-kind="profit">Beneficio</span>
+        </div>
         <ProfitabilityChart rows={summary.works.byProfit} />
       </section>
-      <section className={styles.panel}>
+      <section className={styles.panel} id="rentabilidad-obras">
         <div className={styles.tableHeading}><div><h2>Detalle de rentabilidad</h2><p>Importes calculados por obra; no se reutilizan los datos de evolución temporal.</p></div></div>
         <div className={styles.tableWrap}>
           <table>
             <caption className="sr-only">Rentabilidad real por obra</caption>
-            <thead><tr><th>Obra</th><th>Cliente</th><th>Facturado</th><th>Gastos</th><th>Beneficio</th><th>Margen</th><th>Pendiente</th></tr></thead>
+            <thead><tr><th>Obra</th><th>Cliente</th><th>Facturado</th><th>Gastos</th><th>Beneficio</th><th>Margen</th><th>Pendiente</th><th>Detalle</th></tr></thead>
             <tbody>{summary.works.byProfit.map((work) => (
               <tr key={work.workId} data-risk={work.marginOnInvoiced < 0 ? "negative" : undefined}>
                 <th scope="row"><Link href={`/obras/${work.workId}`}>{work.title}</Link></th>
                 <td>{work.clientName}</td><td>{formatCurrency(work.invoiced)}</td><td>{formatCurrency(work.expenses)}</td>
                 <td>{formatCurrency(work.profitOnInvoiced)}</td><td>{work.hasEnoughData ? `${round(work.marginOnInvoiced)}%` : "Sin datos"}</td><td>{formatCurrency(work.pending)}</td>
+                <td><Link href={`/obras/${work.workId}`} className={styles.rowAction}>Abrir obra</Link></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
       </section>
-      <section className={styles.analysisGrid}>
+      <section className={styles.analysisGrid} id="riesgo-rentabilidad">
         <article className={styles.panel}>
           <h2>Menor margen</h2>
           <CompactProfitRows rows={summary.works.byLowestMargin.slice(0, 5)} />
@@ -294,8 +319,11 @@ function KpiStrip({ items }: { items: BusinessKpi[] }) {
   })}</section>;
 }
 
-function MetricStrip({ items }: { items: Array<{ label: string; value: string; note: string; tone?: string }> }) {
-  return <section className={styles.metricStrip} aria-label="Resumen de la vista">{items.map((item) => <article key={item.label}><span>{item.label}</span><strong>{item.value}</strong><small data-tone={item.tone}>{item.note}</small></article>)}</section>;
+function MetricStrip({ items }: { items: Array<{ label: string; value: string; note: string; tone?: string; href?: string }> }) {
+  return <section className={styles.metricStrip} aria-label="Resumen de la vista">{items.map((item) => {
+    const content = <><span>{item.label}</span><strong>{item.value}</strong><small data-tone={item.tone}>{item.note}</small></>;
+    return item.href ? <Link key={item.label} href={item.href}>{content}</Link> : <article key={item.label}>{content}</article>;
+  })}</section>;
 }
 
 function PanelHeading({ icon: Icon, title, href, label = "Ver detalle" }: { icon: typeof Info; title: string; href?: string; label?: string }) {
@@ -327,6 +355,27 @@ function TrendChart({ points, series }: { points: BusinessTrendPoint[]; series: 
   );
 }
 
+function EvolutionBreakdown({ points }: { points: BusinessTrendPoint[] }) {
+  if (!points.length) return <p className={styles.emptyLine}>No hay movimientos para el periodo seleccionado.</p>;
+  return (
+    <div className={styles.tableWrap}>
+      <table>
+        <caption className="sr-only">Ingresos, cobros, gastos y resultado por intervalo</caption>
+        <thead><tr><th>Intervalo</th><th>Facturado</th><th>Cobrado</th><th>Gastos</th><th>Resultado</th></tr></thead>
+        <tbody>{points.map((point) => (
+          <tr key={point.key}>
+            <th scope="row">{point.label}</th>
+            <td><Link href="/dinero">{formatCurrency(point.invoiced)}</Link></td>
+            <td><Link href="/dinero">{formatCurrency(point.collected)}</Link></td>
+            <td><Link href="/gastos-materiales">{formatCurrency(point.expenses)}</Link></td>
+            <td data-tone={point.invoiced - point.expenses < 0 ? "negative" : "positive"}>{formatCurrency(point.invoiced - point.expenses)}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
 function MiniTrend({ points }: { points: BusinessTrendPoint[] }) {
   const max = Math.max(1, ...points.flatMap((point) => [point.invoiced, point.collected, point.expenses]));
   return <div className={styles.miniTrend}>{points.map((point) => <div key={point.key}><span>{point.label}</span><i><b style={{ height: `${point.invoiced / max * 100}%` }} /><b style={{ height: `${point.collected / max * 100}%` }} /><b style={{ height: `${point.expenses / max * 100}%` }} /></i></div>)}</div>;
@@ -347,7 +396,7 @@ function CategoryBars({ rows }: { rows: Summary["money"]["expenseByCategory"] })
   const entries = Object.entries(rows).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...entries.map(([, value]) => value));
   if (!entries.length) return <p className={styles.emptyLine}>No hay gastos clasificados en el periodo.</p>;
-  return <div className={styles.categories}>{entries.map(([label, value]) => <div key={label}><span>{label}</span><i><b style={{ width: `${value / max * 100}%` }} /></i><strong>{formatCurrency(value)}</strong></div>)}</div>;
+  return <div className={styles.categories}>{entries.map(([label, value]) => <Link key={label} href={`/gastos-materiales?buscar=${encodeURIComponent(label)}`}><span>{label}</span><i><b style={{ width: `${value / max * 100}%` }} /></i><strong>{formatCurrency(value)}</strong></Link>)}</div>;
 }
 
 function QualityList({ issues }: { issues: BusinessDataQualityIssue[] }) {
@@ -363,8 +412,15 @@ function DateField({ name, label, defaultValue }: { name: string; label: string;
   return <label><span>{label}</span><input type="date" name={name} defaultValue={defaultValue} /></label>;
 }
 
-function metricCard(label: string, value: number, comparison: Summary["comparisons"]["invoiced"]) {
-  return { label, value: formatCurrency(value), note: comparison.label, tone: comparison.tone };
+function metricCard(label: string, value: number, comparison: Summary["comparisons"]["invoiced"], href: string) {
+  return { label, value: formatCurrency(value), note: comparison.label, tone: comparison.tone, href };
+}
+
+function viewTitle(view: IntelligenceView) {
+  if (view === "evolucion") return "Evolución de ingresos y gastos";
+  if (view === "rentabilidad") return "Rentabilidad por obra";
+  if (view === "calidad") return "Calidad de datos";
+  return "Salud del negocio";
 }
 
 function resolveView(value?: string): IntelligenceView {
