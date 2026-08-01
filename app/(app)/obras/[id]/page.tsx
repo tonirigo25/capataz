@@ -231,6 +231,7 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
     [`/gestion?tipo=pago&returnTo=${returnTo}`, "Registrar pago", WalletCards],
     [`/gestion?tipo=eventoAgenda&clienteId=${clientId}&obraId=${workId}&tipoEvento=visita&returnTo=${returnTo}`, "Añadir visita", CalendarClock],
     [`/gestion?tipo=material&obraId=${workId}&returnTo=${returnTo}`, "Añadir material", Package],
+    [`/gestion?tipo=foto&obraId=${workId}&returnTo=${returnTo}`, "Registrar avance", Camera],
     [`/gestion?tipo=documento&clientId=${clientId}&workId=${workId}&category=otro&returnTo=${returnTo}`, "Añadir documento", FileArchive],
     [`/gestion?tipo=notaInterna&clientId=${clientId}&workId=${workId}&returnTo=${returnTo}`, "Añadir nota", ClipboardList],
     [`/gestion?tipo=recordatorio&clienteId=${clientId}&obraId=${workId}&returnTo=${returnTo}`, "Crear recordatorio", Bell],
@@ -258,12 +259,11 @@ function WorkActions({ workId, clientId }: { workId: string; clientId: string })
 }
 
 function WorkOverviewHeader({ work }: { work: WorkDetail }) {
-  const returnTo = encodeURIComponent(`/obras/${work.id}`);
   return (
     <header className="border-b border-border pb-3">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[clamp(1.55rem,2.4vw,2rem)] font-black leading-tight tracking-[-0.035em] text-content">Obra · {work.tipoTrabajo} · {work.titulo}</h1>
+          <h1 className="text-[clamp(1.35rem,2vw,1.75rem)] font-black leading-tight tracking-[-0.035em] text-content xl:whitespace-nowrap">Obra · {work.tipoTrabajo} · {work.titulo}</h1>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-content-secondary">
             <WorkHeaderMeta icon={UserRound} label="Cliente" value={work.client.nombre} />
             <WorkHeaderMeta icon={ClipboardList} label="Código" value={work.codigo ?? work.numeroInterno ?? "No registrado"} />
@@ -277,7 +277,6 @@ function WorkOverviewHeader({ work }: { work: WorkDetail }) {
         <div className="flex shrink-0 flex-wrap gap-2">
           <Link href="/inteligencia/export?tipo=works" className="secondary-button"><Download size={16} aria-hidden="true" /> Exportar informe</Link>
           <WorkActions workId={work.id} clientId={work.clienteId} />
-          <Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${returnTo}`} className="primary-button"><Camera size={17} aria-hidden="true" /> Registrar avance</Link>
         </div>
       </div>
     </header>
@@ -291,9 +290,17 @@ function WorkHeaderMeta({ icon: Icon, label, value }: { icon: LucideIcon; label:
 function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAction }: { work: WorkDetail; tasks: WorkTask[]; financial: ReturnType<typeof calculateWorkFinancials>; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; risks: ReturnType<typeof buildWorkRisks>; nextAction: ReturnType<typeof getWorkNextAction> }) {
   const completedTasks = tasks.filter((task) => task.status === "completed");
   const activeTasks = tasks.filter((task) => !["completed", "cancelled", "archived"].includes(task.status));
-  const upcomingTasks = activeTasks.filter((task) => task.dueAt).slice(0, 5);
+  const upcomingTasks = [...activeTasks]
+    .sort((left, right) => {
+      if (!left.dueAt && !right.dueAt) return 0;
+      if (!left.dueAt) return 1;
+      if (!right.dueAt) return -1;
+      return left.dueAt.getTime() - right.dueAt.getTime();
+    })
+    .slice(0, 5);
   const pendingApprovals = activeTasks.filter((task) => task.requiresConfirmation).slice(0, 4);
   const safePhoto = work.photos.find((photo): photo is typeof photo & { url: string } => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")));
+  const showSyntheticReference = process.env.RAILWAY_ENVIRONMENT_NAME?.toLowerCase().includes("review") ?? false;
   const costRatio = financial.budgeted > 0 ? Math.max(0, Math.min(100, (financial.realCost / financial.budgeted) * 100)) : null;
   const taskRatio = tasks.length ? Math.round((completedTasks.length / tasks.length) * 100) : null;
   return (
@@ -311,10 +318,10 @@ function WorkOverviewDashboard({ work, tasks, financial, timeline, risks, nextAc
           {tasks.length ? <div className="overflow-x-auto"><table className="w-full min-w-[34rem] border-collapse text-[10px]"><thead><tr className="border-b border-border text-left text-content-secondary"><th className="pb-2 font-semibold">Tarea</th><th className="pb-2 font-semibold">Estado</th><th className="pb-2 font-semibold">Avance verificado</th><th className="pb-2 font-semibold">Inicio</th><th className="pb-2 font-semibold">Fin estimado</th></tr></thead><tbody className="divide-y divide-border">{tasks.slice(0, 6).map((task) => <WorkOverviewTaskRow key={task.id} task={task} />)}</tbody></table></div> : <OperationalSetupPanel title="Planificación preparada" description="Añade tareas con fechas, responsables y checklist para activar el seguimiento operativo." count={0} countLabel="tareas vinculadas" icon={ListChecks} items={["La obra conserva su estado real.", "El avance se calcula sólo desde checklist confirmado.", "Las dependencias no se presuponen."]} action={<Link href={`/tareas?nuevo=1&workId=${work.id}&clientId=${work.clienteId}`} className="primary-button">Nueva tarea</Link>} compact />}
         </OverviewPanel>
         <OverviewPanel title="Próximos hitos y tareas" action={<Link href={workViewHref(work.id, "planificacion", "hitos")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver hitos</Link>}>
-          {upcomingTasks.length ? <div className="divide-y divide-border">{upcomingTasks.map((task) => <Link key={task.id} href={`/tareas/${task.id}`} className="grid grid-cols-[5.3rem_minmax(0,1fr)] gap-2 py-2 text-[10px] hover:bg-subtle"><span className="font-semibold text-content">{formatDate(task.dueAt)}</span><span className="min-w-0"><strong className="block truncate text-content">{task.title}</strong><span className="mt-0.5 block truncate text-content-secondary">{statusLabel(task.status)}{task.assignments.length ? ` · ${task.assignments.length} responsables` : " · Sin responsable asignado"}</span></span></Link>)}</div> : <OperationalSetupPanel title="Agenda técnica preparada" description="Las tareas con vencimiento aparecerán aquí por fecha registrada." count={0} countLabel="vencimientos próximos" icon={CalendarClock} items={["No se inventan hitos contractuales.", "Cada fecha conserva su tarea de origen.", "Los cambios requieren confirmación."]} compact />}
+          {upcomingTasks.length ? <div className="divide-y divide-border">{upcomingTasks.map((task) => <Link key={task.id} href={`/tareas/${task.id}`} className="grid grid-cols-[5.3rem_minmax(0,1fr)] gap-2 py-2 text-[10px] hover:bg-subtle"><span className="font-semibold text-content">{task.dueAt ? formatDate(task.dueAt) : "Sin fecha"}</span><span className="min-w-0"><strong className="block truncate text-content">{task.title}</strong><span className="mt-0.5 block truncate text-content-secondary">{statusLabel(task.status)}{task.assignments.length ? ` · ${task.assignments.length} responsables` : " · Sin responsable asignado"}</span></span></Link>)}</div> : <OperationalSetupPanel title="Agenda técnica preparada" description="Las tareas activas aparecerán aquí conservando sus fechas reales." count={0} countLabel="tareas activas" icon={CalendarClock} items={["No se inventan hitos contractuales.", "Cada fecha conserva su tarea de origen.", "Los cambios requieren confirmación."]} compact />}
         </OverviewPanel>
         <OverviewPanel title="Foto destacada de la obra" action={<Link href={workViewHref(work.id, "documentos", "galeria")} className="text-[10px] font-bold text-brand-strong hover:underline">Ver galería completa</Link>}>
-          {safePhoto ? <div><Image src={safePhoto.url} alt={safePhoto.titulo || `Evidencia de ${work.titulo}`} width={960} height={540} unoptimized className="aspect-[16/10] w-full rounded-lg border border-border object-cover" /><p className="mt-2 text-[9px] text-content-secondary">{safePhoto.titulo} · {formatDate(safePhoto.tomadaEn)}</p></div> : <OperationalSetupPanel title="Evidencia visual preparada" description="Registra una fotografía segura para mostrar la portada real de esta obra." count={work.photos.length} countLabel="registros fotográficos" icon={Camera} items={["Sólo se renderizan URLs seguras.", "La fecha y autor se conservan.", "La galería permanece aislada por empresa."]} action={<Link href={`/gestion?tipo=foto&obraId=${work.id}`} className="primary-button">Registrar foto</Link>} compact />}
+          {safePhoto || showSyntheticReference ? <div><Image src={safePhoto?.url ?? "/media/orqena-review/work-summary-featured-synthetic-v1.webp"} alt={safePhoto?.titulo || `Referencia visual sintética para ${work.titulo}`} width={960} height={600} unoptimized className="aspect-[16/10] w-full rounded-lg border border-border object-cover" /><p className="mt-2 text-[9px] text-content-secondary">{safePhoto ? `${safePhoto.titulo} · ${formatDate(safePhoto.tomadaEn)}` : "Datos sintéticos Review · referencia visual, no evidencia de la obra"}</p></div> : <OperationalSetupPanel title="Evidencia visual preparada" description="Registra una fotografía segura para mostrar la portada real de esta obra." count={work.photos.length} countLabel="registros fotográficos" icon={Camera} items={["Sólo se renderizan URLs seguras.", "La fecha y autor se conservan.", "La galería permanece aislada por empresa."]} action={<Link href={`/gestion?tipo=foto&obraId=${work.id}`} className="primary-button">Registrar foto</Link>} compact />}
         </OverviewPanel>
       </section>
 
