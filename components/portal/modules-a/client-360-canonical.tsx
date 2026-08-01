@@ -498,6 +498,11 @@ function Client360ReferenceSummary({
                 <Fact label="Desde" value={formatDate(client.fechaCreacion)} />
                 {summary.listItem.fiscalId ? <Fact label="Código" value={summary.listItem.fiscalId} /> : null}
               </dl>
+              <dl className="client-360-canonical__mobile-identity-meta">
+                <Fact label="Cliente desde" value={formatDate(client.fechaCreacion)} />
+                <Fact label="Responsable" value={summary.listItem.responsible ?? "Sin responsable asignado"} />
+                <Fact label="Contacto" value={primaryContact?.name ?? summary.listItem.primaryContact} />
+              </dl>
             </div>
           </div>
 
@@ -679,7 +684,7 @@ function ClientRecommendationRail({
       aria-label={`Recomendaciones de Orqena IA para ${clientName}`}
     >
       <p className="type-label">
-        {activeView === "resumen" ? "Resumen inteligente" : `${viewLabels[activeView]} · ${clientName}`}
+        {activeView === "resumen" ? `Recomendación para ${clientName}` : `${viewLabels[activeView]} · ${clientName}`}
       </p>
       {contextualRecommendation ? (
         <section className="mt-5 flex flex-1 flex-col rounded-xl border border-brand/30 bg-surface p-4 shadow-soft">
@@ -690,7 +695,7 @@ function ClientRecommendationRail({
           <p className="mt-4 text-sm leading-6 text-content-secondary">
             {contextualRecommendation.description}
           </p>
-          {activeView === "resumen" && insights.length ? (
+          {activeView !== "resumen" && insights.length ? (
             <div className="client-360-ref__rail-suggestions">
               <h3>Sugerencias para hoy</h3>
               <ul>
