@@ -1,8 +1,16 @@
 import { PartnerProfile } from "@/components/procurement-partners";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 export default async function SubcontractorPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const [{ id }, { companyId }] = await Promise.all([params, requireCapability("purchases.suppliers.view")]);
-  return <PartnerProfile companyId={companyId} kind="SUBCONTRACTOR" id={id} searchParams={searchParams} />;
+  return <>
+    <BreadcrumbPrelude items={[{ label: "Subcontratas", href: "/subcontratas" }, { label: "Ficha de subcontrata" }]} />
+    <PartnerProfile companyId={companyId} kind="SUBCONTRACTOR" id={id} searchParams={searchParams} />
+  </>;
+}
+
+function BreadcrumbPrelude({ items }: { items: Parameters<typeof InternalBreadcrumbs>[0]["items"] }) {
+  return <div className="mx-auto -mb-6 w-full px-4 pt-6 sm:px-6 lg:px-8 lg:pt-8" style={{ maxWidth: "var(--cap-content-max)" }}><InternalBreadcrumbs items={items} /></div>;
 }

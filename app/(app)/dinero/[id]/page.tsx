@@ -4,6 +4,7 @@ import { ArrowLeft, Bell, CalendarClock, CheckCircle2, Download, Eye, FileCheck2
 import { markInvoicePaid } from "@/app/(app)/dinero/actions";
 import { ConfirmedPaymentForm } from "@/components/confirmed-payment-form";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { StatusPill } from "@/components/status-pill";
 import { ActionMenu, DetailSection, MetricStrip, Notice, PageHeader } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -82,6 +83,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="screen">
+      <InternalBreadcrumbs items={[{ label: "Dinero", href: "/dinero" }, { label: invoice.numero }]} />
       <Link href="/dinero" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink">
         <ArrowLeft size={18} />
         Facturas y cobros

@@ -53,6 +53,7 @@ import { WorkTeamOverview, type WorkTeamApprover, type WorkTeamPerson } from "@/
 import { WorkDocumentsWorkspace as WorkDocumentsReferenceWorkspace } from "@/components/portal/modules-a/work-documents-workspace";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
@@ -198,6 +199,7 @@ export default async function WorkDetailPage({
 
   return (
     <RecordWorkspace>
+      <InternalBreadcrumbs items={workBreadcrumbItems(work.id, work.titulo, activeTab, activeSubview)} />
       <WorkOverviewHeader work={work} returnTo={returnTo} />
 
       <Tabs label="Secciones de la obra" className="mb-4 mt-2">
@@ -233,6 +235,7 @@ function ProjectBudgetWorkDetail({ work, consumed, returnTo, activeTab, activeSu
   const available = work.presupuestoAprobado - consumed;
   const deviation = consumed - work.costePrevisto;
   return <RecordWorkspace>
+    <InternalBreadcrumbs items={workBreadcrumbItems(work.id, work.titulo, activeTab, activeSubview)} />
     <EntityHeader back={<ParentNavigation href={returnTo} label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Control de proyecto"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} />
     <RestrictedWorkNavigation workId={work.id} activeTab={activeTab} activeSubview={activeSubview} returnTo={returnTo} />
     {activeTab === "resumen" ? <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Control presupuestario autorizado"><Kpi icon={Euro} label="Presupuesto operativo" value={formatCurrency(work.presupuestoAprobado)} detail="Límite aprobado"/><Kpi icon={ClipboardList} label="Comprometido" value={formatCurrency(work.costePrevisto)} detail="Coste previsto"/><Kpi icon={WalletCards} label="Consumido" value={formatCurrency(consumed)} detail="Coste registrado"/><Kpi icon={BadgeEuro} label="Disponible" value={formatCurrency(available)} detail="Sin previsiones inventadas" tone={available < 0 ? "danger" : "success"}/><Kpi icon={AlertTriangle} label="Desviación" value={formatCurrency(deviation)} detail="Consumido menos comprometido" tone={deviation > 0 ? "warning" : "success"}/></section> : <Notice className="mt-4" tone="info" title="Módulo no incluido en tu acceso" description="La arquitectura de la obra se mantiene visible, pero esta sección requiere capacidades adicionales del plan o del rol. No se han cargado datos no autorizados." />}
@@ -241,10 +244,27 @@ function ProjectBudgetWorkDetail({ work, consumed, returnTo, activeTab, activeSu
 
 function RestrictedWorkDetail({ work, returnTo, activeTab, activeSubview }: { work: { id: string; titulo: string; tipoTrabajo: string; direccion: string; estado: string; codigo: string | null; numeroInterno: string | null; client: { nombre: string } }; returnTo: string; activeTab: (typeof tabs)[number][0]; activeSubview: string }) {
   return <RecordWorkspace>
+    <InternalBreadcrumbs items={workBreadcrumbItems(work.id, work.titulo, activeTab, activeSubview)} />
     <EntityHeader back={<ParentNavigation href={returnTo} label="Trabajos" context={work.client.nombre} />} context={work.codigo ?? work.numeroInterno ?? "Trabajo"} title={work.titulo} description={`${work.client.nombre} · ${work.tipoTrabajo} · ${work.direccion}`} status={<StatusBadge status={work.estado} />} />
     <RestrictedWorkNavigation workId={work.id} activeTab={activeTab} activeSubview={activeSubview} returnTo={returnTo} />
     <Notice className="mt-4" tone="info" title="Módulo no incluido en tu acceso" description="La arquitectura de la obra se mantiene visible, pero esta sección requiere capacidades adicionales del plan o del rol. No se han cargado datos no autorizados." />
   </RecordWorkspace>;
+}
+
+function workBreadcrumbItems(workId: string, title: string, activeTab: (typeof tabs)[number][0], activeSubview: string) {
+  const tabLabel = tabs.find(([id]) => id === activeTab)?.[1] ?? "Resumen";
+  const subviewLabel = workSubviews[activeTab].find(([id]) => id === activeSubview)?.[1];
+  const items = [
+    { label: "Trabajos", href: "/obras" },
+    { label: title, href: activeTab === "resumen" ? undefined : `/obras/${workId}` },
+  ];
+  if (activeTab !== "resumen") {
+    items.push({ label: tabLabel, href: subviewLabel && subviewLabel !== tabLabel ? workViewHref(workId, activeTab) : undefined });
+  }
+  if (activeTab !== "resumen" && subviewLabel && subviewLabel !== tabLabel) {
+    items.push({ label: subviewLabel, href: undefined });
+  }
+  return items;
 }
 
 function RestrictedWorkNavigation({ workId, activeTab, activeSubview, returnTo }: { workId: string; activeTab: (typeof tabs)[number][0]; activeSubview: string; returnTo: string }) {

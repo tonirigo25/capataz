@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import {
   changeTaskStatusAction,
@@ -94,9 +95,10 @@ export default async function TaskDetailPage({
   ]);
   const assigneeName = activeMembers.find((membership) => membership.userId === task.assigneeId)?.user.displayName;
   const done = task.checklist.filter((i) => i.completed).length;
-  if(!canManage)return <main className="screen space-y-5"><Link href="/tareas" className="secondary-button">Volver a tareas</Link><PageHeader eyebrow="Solo lectura" title={task.title} description={task.description??"Sin descripción"}/><section className="card p-4"><p>Estado: {statusLabel(task.status)}</p><p>Vencimiento: {format(task.dueAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
+  if(!canManage)return <main className="screen space-y-5"><InternalBreadcrumbs items={[{ label: "Tareas", href: "/tareas" }, { label: task.title }]} /><Link href="/tareas" className="secondary-button">Volver a tareas</Link><PageHeader eyebrow="Solo lectura" title={task.title} description={task.description??"Sin descripción"}/><section className="card p-4"><p>Estado: {statusLabel(task.status)}</p><p>Vencimiento: {format(task.dueAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
   return (
     <main className="screen space-y-5">
+      <InternalBreadcrumbs items={[{ label: "Tareas", href: "/tareas" }, { label: task.title }]} />
       <Link href="/tareas" className="secondary-button">
         Volver a tareas
       </Link>

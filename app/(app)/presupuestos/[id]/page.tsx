@@ -12,6 +12,7 @@ import {
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BudgetLivePreview } from "@/components/budget-live-preview";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { StatusPill } from "@/components/status-pill";
 import { ActionMenu, DetailSection, MetricStrip, Notice, PageHeader } from "@/components/ui-primitives";
 import { parseBudgetLines, units } from "@/lib/budget-lines";
@@ -62,6 +63,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
 
   return (
     <main className="screen">
+      <InternalBreadcrumbs items={[{ label: "Presupuestos", href: "/presupuestos" }, { label: budget.numero }]} />
       <Link href="/presupuestos" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink">
         <ArrowLeft size={18} />
         Presupuestos

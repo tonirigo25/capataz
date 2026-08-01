@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Download, RefreshCw, Trash2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { deleteExpenseDocument, findDuplicateExpenseDocumentIds, retryExpenseDocumentExtraction, saveExpenseFromDocument } from "@/app/(app)/gastos-materiales/actions";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { SectionHeader } from "@/components/section-header";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { categoryForDocument, EXPENSE_DOCUMENT_TYPES, normalizeExpenseExtraction } from "@/lib/expense-document";
@@ -26,11 +27,12 @@ export default async function ExpenseDocumentReviewPage({ params, searchParams }
   const clients = allClients.filter((client) => purchaseRelationAllowed(access.manage, null, client.id));
   const proposal = normalizeExpenseExtraction(document.extractedData);
   const canManage = purchaseRelationAllowed(access.manage, document.workId, document.clientId);
-  if (!canManage) return <main className="screen"><SectionHeader title="Consultar justificante" description={document.name} action={<Link href="/gastos-materiales/lector" className="secondary-button">Volver</Link>} /><section className="card mt-5 p-5"><p className="font-black text-obra-ink">Documento disponible en modo lectura</p><p className="mt-2 text-sm text-slate-600">Estado: {document.status}. La revisión, reextracción y eliminación requieren permiso de gestión dentro del alcance.</p>{document.storageKey ? <Link href={`/gastos-materiales/lector/${document.id}/archivo`} className="secondary-button mt-4"><Download size={18} /> Descargar archivo</Link> : <p className="mt-4 text-sm text-slate-500">Ficha documental sin binario disponible.</p>}</section></main>;
+  if (!canManage) return <main className="screen"><InternalBreadcrumbs items={[{ label: "Gastos", href: "/gastos-materiales" }, { label: "Lector", href: "/gastos-materiales/lector" }, { label: document.name }]} /><SectionHeader title="Consultar justificante" description={document.name} action={<Link href="/gastos-materiales/lector" className="secondary-button">Volver</Link>} /><section className="card mt-5 p-5"><p className="font-black text-obra-ink">Documento disponible en modo lectura</p><p className="mt-2 text-sm text-slate-600">Estado: {document.status}. La revisión, reextracción y eliminación requieren permiso de gestión dentro del alcance.</p>{document.storageKey ? <Link href={`/gastos-materiales/lector/${document.id}/archivo`} className="secondary-button mt-4"><Download size={18} /> Descargar archivo</Link> : <p className="mt-4 text-sm text-slate-500">Ficha documental sin binario disponible.</p>}</section></main>;
   const duplicateIds = await findDuplicateExpenseDocumentIds({ excludeDocumentId: document.id, sha256: document.sha256, invoiceNumber: proposal.invoiceNumber, issuerName: proposal.issuerName, issuerTaxId: proposal.issuerTaxId, issueDate: proposal.issueDate, total: proposal.total });
   const duplicates = duplicateIds.length ? await prisma.document.findMany({ where: { companyId: context.companyId, id: { in: duplicateIds } }, select: { id: true, name: true, extractedTotal: true } }) : [];
   const saved = Boolean(document.expenseId);
   return <main className="screen">
+    <InternalBreadcrumbs items={[{ label: "Gastos", href: "/gastos-materiales" }, { label: "Lector", href: "/gastos-materiales/lector" }, { label: document.name }]} />
     <SectionHeader title="Revisar justificante" description={document.name} action={<Link href="/gastos-materiales/lector" className="secondary-button">Volver</Link>} />
     {query.error ? <ErrorNotice code={query.error} /> : null}
     {query.saved || saved ? <div className="mb-4 flex gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-900"><CheckCircle2 className="shrink-0" /><div><p className="font-black">Documento registrado</p><p className="mt-1 text-sm">El documento quedó enlazado al gasto{query.invoice ? " y a la factura recibida" : ""}; no se volverá a crear automáticamente.</p>{query.invoice ? <Link className="mt-2 inline-block font-bold underline" href={`${document.documentType === "SUBCONTRACTOR_INVOICE" ? "/facturas-subcontratas" : "/facturas-proveedor"}/${query.invoice}`}>Abrir factura recibida</Link> : null}</div></div> : null}

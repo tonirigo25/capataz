@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Copy, FileText, Plus } from "lucide-react";
 import { createBudgetFromTemplate } from "@/app/(app)/presupuestos/actions";
 import { DemoLimitButton } from "@/components/demo-limit-button";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { Notice } from "@/components/ui-primitives";
 import { isUnlimitedMode } from "@/lib/app-mode";
 import { budgetTemplates } from "@/lib/budget-templates";
@@ -34,6 +35,7 @@ export default async function BudgetTemplatesPage() {
   const demoLimitReached = !isUnlimitedMode() && budgetCount >= 2;
 
   return <main className="screen">
+    <InternalBreadcrumbs items={[{ label: "Presupuestos", href: "/presupuestos" }, { label: "Plantillas" }]} />
     <Link href="/presupuestos" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink"><ArrowLeft size={18} />Presupuestos</Link>
     <section className="mb-5"><h1 className="text-2xl font-black text-obra-ink">Crear presupuesto desde plantilla</h1><p className="mt-2 text-sm leading-6 text-slate-600">Elige oficio, cliente y, cuando tu alcance lo exige, una obra autorizada.</p></section>
     {!canCreate ? <Notice tone="info" title="Plantillas en modo lectura" description="Crear un presupuesto desde plantilla requiere permiso de creación y acceso a precios de venta." /> : null}

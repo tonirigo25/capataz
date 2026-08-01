@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity, AlertTriangle, BarChart3, Clock3, History, LockKeyhole, Play, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { runProactiveEvaluationAction } from "@/app/(app)/recomendaciones/control/actions";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { EmptyState, Notice, PageHeader } from "@/components/ui-primitives";
 import { formatDate } from "@/lib/format";
 import { formatProactiveSummaryLine, getProactiveControlData } from "@/lib/proactive-evaluation";
@@ -25,6 +26,7 @@ export default async function ProactiveControlPage({
 
   return (
     <main className="screen">
+      <InternalBreadcrumbs items={[{ label: "Orqena IA", href: "/orqena-ia" }, { label: "Recomendaciones", href: "/recomendaciones" }, { label: "Centro de control" }]} />
       <PageHeader
         eyebrow="Sistema proactivo"
         title="Centro de control"
