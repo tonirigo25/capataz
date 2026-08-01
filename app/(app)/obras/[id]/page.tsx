@@ -51,6 +51,9 @@ import { WorkCostsIncidentsRanking } from "@/components/portal/modules-a/work-co
 import { WorkBillingOverview } from "@/components/portal/modules-a/work-billing-overview";
 import { WorkTeamOverview, type WorkTeamApprover, type WorkTeamPerson } from "@/components/portal/modules-a/work-team-overview";
 import { WorkDocumentsWorkspace as WorkDocumentsReferenceWorkspace } from "@/components/portal/modules-a/work-documents-workspace";
+import { WorkOrderDetailOverview } from "@/components/portal/modules-a/work-order-detail-overview";
+import { WorkOrdersListOverview } from "@/components/portal/modules-a/work-orders-list-overview";
+import { WorkPartsRegister } from "@/components/portal/modules-a/work-parts-register";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
@@ -95,7 +98,7 @@ const legacyTabs: Record<string, (typeof tabs)[number][0]> = {
 const workSubviews: Record<(typeof tabs)[number][0], readonly [string, string][]> = {
   resumen: [["general", "Resumen"]],
   planificacion: [["resumen", "Resumen y cronograma"], ["gantt", "Gantt"], ["calendario", "Calendario"], ["hitos", "Hitos"], ["dependencias", "Dependencias"], ["ruta-critica", "Ruta crítica"], ["carga-trabajo", "Carga de trabajo"], ["recursos", "Recursos"], ["linea-base", "Línea base"], ["escenarios", "Escenarios"]],
-  partes: [["resumen", "Resumen"], ["diarios", "Partes diarios"], ["actividades", "Todas las actividades"], ["nuevo", "Nuevo parte"], ["semanales", "Partes semanales"], ["mensuales", "Partes mensuales"], ["reportes", "Reportes"], ["analisis", "Análisis"]],
+  partes: [["resumen", "Resumen"], ["listado", "Listado"], ["actividades", "Actividades"], ["nuevo", "Nuevo parte"], ["analisis", "Análisis"], ["semanales", "Partes semanales"], ["mensuales", "Partes mensuales"], ["reportes", "Reportes"]],
   costes: [["resumen", "Resumen"], ["estructura", "Estructura completa"], ["analisis", "Análisis"], ["incidencias", "Incidencias"], ["ranking", "Ranking"], ["proveedores", "Proveedores"], ["mano-obra", "Mano de obra"], ["materiales", "Materiales"], ["subcontratas", "Subcontratas"], ["ordenes", "Órdenes"], ["comparativa", "Comparativa"], ["informes", "Informes"]],
   documentos: [["documentos", "Documentos"], ["subir", "Subir"], ["galeria", "Galería y portada"], ["planos", "Planos"], ["certificados", "Certificados"], ["informes", "Informes"], ["otros", "Otros"]],
   equipo: [["equipo", "Equipo"], ["carga", "Carga"], ["turnos", "Turnos"], ["subcontratas", "Subcontratas"], ["formacion", "Formación"], ["permisos", "Permisos"]],
@@ -199,7 +202,7 @@ export default async function WorkDetailPage({
 
   return (
     <RecordWorkspace>
-      <InternalBreadcrumbs items={workBreadcrumbItems(work.id, work.titulo, activeTab, activeSubview)} />
+      <InternalBreadcrumbs items={workBreadcrumbItems(work.id, work.titulo, activeTab, activeSubview, query.detalle)} />
       <WorkOverviewHeader work={work} />
 
       <Tabs label="Secciones de la obra" className="mb-4 mt-2">
@@ -219,13 +222,13 @@ export default async function WorkDetailPage({
       ) : null}
 
       {activeTab === "resumen" && query.modo === "configuracion" ? <div className="grid gap-4"><ClientTab work={work} /><EntityWorkflowSummary clientId={work.clienteId} workId={work.id} /><AiTab work={work} financial={financial} risks={risks} openInvoices={openInvoices.length} pendingMaterials={pendingMaterials.length} documents={documents.length} /><ConfigTab work={work} /></div> : null}
-      {activeTab === "partes" ? <PartsWorkspace work={work} timeline={timeline} subview={activeSubview} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
-      {activeTab === "costes" ? <CostsWorkspace work={work} financial={financial} pendingMaterials={pendingMaterials.length} subview={activeSubview} /> : null}
+      {activeTab === "partes" ? <PartsWorkspace work={work} timeline={timeline} subview={activeSubview} detailId={query.detalle} mode={query.modo === "galeria" ? "galeria" : "cronologia"} /> : null}
+      {activeTab === "costes" ? <CostsWorkspace work={work} financial={financial} pendingMaterials={pendingMaterials.length} subview={activeSubview} detailId={query.detalle} /> : null}
       {activeTab === "facturacion" ? <BillingWorkspace work={work} treasury={treasury} financial={financial} subview={activeSubview} /> : null}
       {activeTab === "planificacion" ? <PlanningWorkspace work={work} tasks={workTasks} canManageTasks={canManageAllTasks} memberNames={memberNames} subview={activeSubview} /> : null}
       {activeTab === "documentos" ? <DocumentsWorkspace work={work} documents={documents} subview={activeSubview} /> : null}
       {activeTab === "equipo" ? <TeamWorkspace work={work} tasks={workTasks} memberNames={memberNames} subview={activeSubview} /> : null}
-      {activeTab === "incidencias" ? <IncidentsTab work={work} risks={risks} /> : null}
+      {activeTab === "incidencias" ? <IncidentsTab work={work} risks={risks} detailId={query.detalle} /> : null}
       </div>
     </RecordWorkspace>
   );
@@ -251,7 +254,7 @@ function RestrictedWorkDetail({ work, returnTo, activeTab, activeSubview }: { wo
   </RecordWorkspace>;
 }
 
-function workBreadcrumbItems(workId: string, title: string, activeTab: (typeof tabs)[number][0], activeSubview: string) {
+function workBreadcrumbItems(workId: string, title: string, activeTab: (typeof tabs)[number][0], activeSubview: string, detailId?: string) {
   const tabLabel = tabs.find(([id]) => id === activeTab)?.[1] ?? "Resumen";
   const subviewLabel = workSubviews[activeTab].find(([id]) => id === activeSubview)?.[1];
   const items = [
@@ -263,6 +266,11 @@ function workBreadcrumbItems(workId: string, title: string, activeTab: (typeof t
   }
   if (activeTab !== "resumen" && subviewLabel && subviewLabel !== tabLabel) {
     items.push({ label: subviewLabel, href: undefined });
+  }
+  if (detailId) {
+    const current = items.at(-1);
+    if (current && !current.href) current.href = workViewHref(workId, activeTab, activeSubview);
+    items.push({ label: detailId, href: undefined });
   }
   return items;
 }
@@ -454,7 +462,10 @@ function WorkOverviewTaskRow({ task, index }: { task: WorkTask; index: number })
 function WorkSubnavigation({ workId, activeTab, activeSubview, items, returnTo }: { workId: string; activeTab: string; activeSubview: string; items: readonly [string, string][]; returnTo: string }) {
   return (
     <nav className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1" aria-label={`Vistas de ${activeTab}`}>
-      {items.map(([id, label]) => <Link key={id} href={workViewHref(workId, activeTab, id, returnTo)} aria-current={activeSubview === id ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs font-semibold ${activeSubview === id ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"}`}>{label}</Link>)}
+      {items.map(([id, label]) => {
+        const target = returnTo ? workViewHref(workId, activeTab, id, returnTo) : workViewHref(workId, activeTab, id);
+        return <Link key={id} href={target} aria-current={activeSubview === id ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs font-semibold ${activeSubview === id ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"}`}>{label}</Link>;
+      })}
     </nav>
   );
 }
@@ -467,12 +478,12 @@ function workViewHref(workId: string, tab: string, subview?: string, returnTo?: 
     if (!subview) href = base;
     else {
       const canonical: Record<string, readonly string[]> = {
-        planificacion: ["resumen", "gantt", "calendario", "hitos", "dependencias", "ruta-critica", "carga-trabajo", "recursos"],
-        partes: ["resumen", "actividades", "nuevo", "analisis"],
-        costes: ["resumen", "estructura", "analisis", "incidencias", "ranking"],
-        documentos: ["documentos", "subir", "galeria"],
-        equipo: ["equipo"],
-        facturacion: ["resumen"],
+        planificacion: ["resumen", "gantt", "calendario", "hitos", "dependencias", "ruta-critica", "carga-trabajo", "recursos", "linea-base", "escenarios"],
+        partes: ["resumen", "listado", "actividades", "nuevo", "analisis", "semanales", "mensuales", "reportes"],
+        costes: ["resumen", "estructura", "analisis", "incidencias", "ranking", "proveedores", "mano-obra", "materiales", "subcontratas", "comparativa", "informes"],
+        documentos: ["documentos", "subir", "galeria", "planos", "certificados", "informes", "otros"],
+        equipo: ["equipo", "carga", "turnos", "subcontratas", "formacion", "permisos"],
+        facturacion: ["resumen", "certificaciones", "facturas", "hitos", "retenciones", "cobros", "vencimientos", "historico"],
         incidencias: ["todas"],
       };
       if (canonical[tab]?.includes(subview)) href = ["resumen", "documentos", "equipo", "todas"].includes(subview) ? base : `${base}/${subview}`;
@@ -788,19 +799,31 @@ function PlanningWorkspace({ work, tasks, canManageTasks, memberNames, subview }
   return <div className="grid gap-4"><Section title={title}><div className="mb-4 flex justify-end"><Link href={`/gestion?tipo=eventoAgenda&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=planificacion&subvista=${subview}`)}`} className="primary-button"><CalendarClock size={17} aria-hidden="true" /> Nuevo evento</Link></div><CardsTab items={work.agendaEvents} empty="No hay eventos o fechas clave registrados." render={(event) => <EventCard key={event.id} event={event} />} /></Section><CardsTab items={work.reminders} empty="No hay recordatorios asociados." render={(reminder) => <ReminderCard key={reminder.id} reminder={reminder} />} /></div>;
 }
 
-function PartsWorkspace({ work, timeline, subview, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; subview: string; mode: "cronologia" | "galeria" }) {
+function PartsWorkspace({ work, timeline, subview, detailId, mode }: { work: WorkDetail; timeline: Array<{ key: string; date: Date; title: string; detail: string; icon: string; href?: string }>; subview: string; detailId?: string; mode: "cronologia" | "galeria" }) {
+  const workContext = { id: work.id, title: work.titulo, code: work.codigo ?? work.numeroInterno, client: work.client.nombre, address: work.direccion, responsible: work.responsable };
+  const listHref = `/obras/${work.id}/partes/listado`;
+  if (detailId) return <WorkPartsRegister view="unavailable" work={workContext} routes={{ listHref }} title="Parte no disponible" description={`No existe un parte diario persistido y autorizado con el identificador ${detailId}. Las notas, fotografías, tareas y costes conservan su entidad de origen y no se presentan como un parte.`} backHref={listHref} />;
+  if (subview === "listado" || subview === "diarios") return <WorkPartsRegister view="list" work={workContext} routes={{ listHref }} parts={[]} emptyDescription="La obra todavía no tiene partes diarios persistidos. Las actividades, fotos y costes visibles en otras pestañas conservan su registro original y no se convierten en partes de forma automática." />;
+  if (subview === "nuevo") return <WorkPartsRegister view="unavailable" work={workContext} routes={{ listHref }} title="Alta de parte pendiente de persistencia" description="El formulario no se habilita hasta disponer de una entidad de parte diario con validación, permisos y trazabilidad propios. No se guardarán partes como notas, gastos o documentos genéricos." backHref={listHref} />;
+  if (subview === "resumen") {
+    const incidentCount = work.photos.filter((photo) => photo.categoria.trim().toLocaleLowerCase("es-ES") === "incidencia").length;
+    const activeNotes = work.internalNotes.filter((note) => !note.archivedAt).length;
+    return <div className="grid gap-4"><Section title="Resumen operativo documentado"><div className="grid grid-cols-2 gap-2 md:grid-cols-4"><WorkOverviewMetricCard label="Actividad trazable" value={String(timeline.length)} detail="Eventos con fuente y fecha" /><WorkOverviewMetricCard label="Evidencias visuales" value={String(work.photos.length)} detail="Fotografías vinculadas a la obra" /><WorkOverviewMetricCard label="Incidencias" value={String(incidentCount)} detail="Evidencias clasificadas como incidencia" tone={incidentCount ? "warning" : "success"} /><WorkOverviewMetricCard label="Notas internas" value={String(activeNotes)} detail="Entradas activas de la bitácora" /></div><p className="mt-3 text-[10px] leading-5 text-content-secondary">El resumen no inventa partes diarios ni porcentajes de avance: consolida únicamente actividad, evidencias y notas ya persistidas.</p></Section><ProgressTab work={work} timeline={timeline} mode={mode} /></div>;
+  }
   if (subview === "analisis") return <div className="grid gap-4"><HoursTab work={work} /><Section title="Actividad documentada"><PlainMetric label="Registros de actividad" value={String(timeline.length)} /><p className="type-secondary mt-3">El avance físico no se calcula porque la obra no dispone de un porcentaje persistido.</p></Section></div>;
   if (subview === "reportes") return <OperationalSetupPanel title="Reportes de partes" description="Consolida la actividad registrada de la obra sin sustituir la validación del responsable." count={timeline.length} countLabel="actividades trazables" icon={Table2} items={["Partes diarios, semanales y mensuales en una única lectura.", "Horas, evidencias y responsables conservan su origen.", "La exportación no inventa porcentajes de avance."]} action={<Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="primary-button">Exportar reporte</Link>} />;
-  if (["semanales", "mensuales"].includes(subview)) return <Section title={subview === "semanales" ? "Partes semanales registrados" : "Partes mensuales registrados"}><TimelineList items={timeline} /></Section>;
+  if (["semanales", "mensuales"].includes(subview)) return <Section title={subview === "semanales" ? "Actividad semanal documentada" : "Actividad mensual documentada"}><p className="mb-3 text-[10px] leading-5 text-content-secondary">Agrupación temporal de registros existentes; no equivale a partes diarios validados.</p><TimelineList items={timeline} /></Section>;
   if (subview === "actividades") return <Section title="Todas las actividades registradas"><TimelineList items={timeline} /></Section>;
-  return <ProgressTab work={work} timeline={timeline} mode={mode} />;
+  return <WorkPartsRegister view="list" work={workContext} routes={{ listHref }} parts={[]} />;
 }
 
-function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: WorkDetail; financial: ReturnType<typeof calculateWorkFinancials>; pendingMaterials: number; subview: string }) {
+function CostsWorkspace({ work, financial, pendingMaterials, subview, detailId }: { work: WorkDetail; financial: ReturnType<typeof calculateWorkFinancials>; pendingMaterials: number; subview: string; detailId?: string }) {
   if (subview === "materiales") return <MaterialsTab materials={work.materials} pendingCount={pendingMaterials} workId={work.id} />;
   if (subview === "mano-obra") return <HoursTab work={work} />;
   if (subview === "subcontratas") return <SubcontractTab work={work} expenses={work.expenses} />;
-  if (subview === "ordenes") return <OperationalSetupPanel title="Órdenes de trabajo y compra" description="Prepara, valida y vincula cada orden al expediente de la obra antes de ejecutarla." count={work.expenses.length} countLabel="costes trazables" icon={ClipboardList} items={["Las órdenes se relacionan con proveedores y partidas autorizadas.", "La ejecución conserva responsable, fecha y evidencia.", "Ningún coste se confirma sin revisión humana."]} action={<Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=costes&subvista=ordenes`)}`} className="primary-button">Registrar orden o coste</Link>} />;
+  if (subview === "ordenes") return detailId
+    ? <WorkOrderDetailOverview order={null} breadcrumbs={[{ label: "Trabajo", href: `/obras/${work.id}`, allowed: true }, { label: "Órdenes", href: `/obras/${work.id}/ordenes`, allowed: true }, { label: detailId, href: null, allowed: true }]} />
+    : <WorkOrdersListOverview workId={work.id} metrics={[]} orders={[]} />;
   if (subview === "informes") return <Section title="Informes de costes"><p className="type-secondary">La exportación utiliza exclusivamente los costes autorizados de esta obra.</p><Link href={`/inteligencia/export?tipo=works&workId=${work.id}`} className="primary-button mt-4 inline-flex">Exportar informe</Link></Section>;
   const groupedExpenses = new Map<string, WorkDetail["expenses"]>();
   for (const expense of work.expenses) {
@@ -890,7 +913,7 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
         responsibleName: incident.autor,
         responsibleRole: incident.ubicacion,
         detectedAt: incident.tomadaEn.toISOString(),
-        detailHref: incident.url && (incident.url.startsWith("/") || incident.url.startsWith("https://")) ? incident.url : null,
+        detailHref: `/obras/${work.id}/incidencias/${incident.id}`,
       }))}
       exportHref={`/inteligencia/export?tipo=works&workId=${work.id}`}
       createHref={`/gestion?tipo=foto&obraId=${work.id}&categoria=incidencia&returnTo=${encodeURIComponent(`/obras/${work.id}/costes/incidencias`)}`}
@@ -1159,17 +1182,23 @@ function DocumentsTab({ documents, workId, clientId }: { documents: ReturnType<t
   );
 }
 
-function IncidentsTab({ work, risks }: { work: WorkDetail; risks: ReturnType<typeof buildWorkRisks> }) {
+function IncidentsTab({ work, risks, detailId }: { work: WorkDetail; risks: ReturnType<typeof buildWorkRisks>; detailId?: string }) {
   const incidents = work.photos.filter((photo) => photo.categoria.trim().toLowerCase() === "incidencia");
+  const selectedIncident = detailId ? incidents.find((incident) => incident.id === detailId) : null;
+  const visibleIncidents = detailId ? selectedIncident ? [selectedIncident] : [] : incidents;
+  if (detailId && !selectedIncident) return <OperationalSetupPanel title="Incidencia no disponible" description="No existe una incidencia autorizada con ese identificador en esta obra." count={incidents.length} countLabel="incidencias visibles" icon={AlertTriangle} items={["La consulta permanece aislada por empresa y obra.", "No se utilizan fotos de otras categorías como incidencias.", "Los datos existentes no se han modificado."]} action={<Link href={`/obras/${work.id}/incidencias`} className="secondary-button">Volver a incidencias</Link>} />;
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <Section title={`Incidencias registradas · ${incidents.length}`}>
+      <Section title={detailId ? "Detalle de incidencia" : `Incidencias registradas · ${incidents.length}`}>
         <div className="mb-4 flex flex-wrap justify-end gap-2">
+          {detailId ? <Link href={`/obras/${work.id}/incidencias`} className="secondary-button">Volver al listado</Link> : null}
           <Link href={`/gestion?tipo=foto&obraId=${work.id}&categoria=incidencia&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=incidencias`)}`} className="primary-button"><AlertTriangle size={17} aria-hidden="true" /> Registrar incidencia</Link>
         </div>
-        {incidents.length ? <div className="grid gap-3">{incidents.map((incident) => {
+        {visibleIncidents.length ? <div className="grid gap-3">{visibleIncidents.map((incident) => {
           const safeHref = incident.url && (incident.url.startsWith("/") || incident.url.startsWith("https://")) ? incident.url : null;
-          return <article key={incident.id} className="rounded-xl border border-border bg-surface p-4"><div className="flex items-start gap-3"><span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-danger/5 text-danger"><AlertTriangle size={18} aria-hidden="true" /></span><div className="min-w-0 flex-1"><h3 className="font-bold text-content">{incident.titulo}</h3><p className="type-meta mt-1">{formatDate(incident.tomadaEn)}{incident.autor ? ` · ${incident.autor}` : ""}{incident.ubicacion ? ` · ${incident.ubicacion}` : ""}</p>{incident.notas ? <p className="type-secondary mt-2">{incident.notas}</p> : null}{safeHref ? <Link href={safeHref} className="secondary-button mt-3 inline-flex">Abrir evidencia</Link> : null}</div></div></article>;
+          const incidentNumber = incidents.findIndex((candidate) => candidate.id === incident.id) + 1;
+          const code = `INC-${String(incidentNumber).padStart(3, "0")}`;
+          return <article key={incident.id} className="rounded-xl border border-border bg-surface p-4"><div className="flex items-start gap-3"><span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-danger/5 text-danger"><AlertTriangle size={18} aria-hidden="true" /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-danger/5 px-2 py-1 text-[9px] font-bold text-danger">{code}</span><h3 className="font-bold text-content">{incident.titulo}</h3></div><p className="type-meta mt-1">{formatDate(incident.tomadaEn)}{incident.autor ? ` · ${incident.autor}` : ""}{incident.ubicacion ? ` · ${incident.ubicacion}` : ""}</p>{incident.notas ? <p className="type-secondary mt-2">{incident.notas}</p> : null}<div className="mt-3 flex flex-wrap gap-2">{!detailId ? <Link href={`/obras/${work.id}/incidencias/${incident.id}`} className="secondary-button inline-flex">Ver detalle</Link> : null}{safeHref ? <Link href={safeHref} className="secondary-button inline-flex">Abrir evidencia</Link> : null}</div></div></div></article>;
         })}</div> : <OperationalSetupPanel title="Registro de incidencias preparado" description="La obra está lista para documentar una incidencia con título, fecha, ubicación, notas y evidencia segura." count={0} countLabel="incidencias registradas" icon={AlertTriangle} items={["El contador se alimenta sólo de evidencias categoría incidencia.", "La captura queda vinculada a esta obra.", "No se atribuye estado abierto o cerrado sin un dato persistido."]} action={<Link href={`/gestion?tipo=foto&obraId=${work.id}&categoria=incidencia&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=incidencias`)}`} className="primary-button">Registrar incidencia</Link>} compact />}
       </Section>
       <Section title="Riesgos operativos relacionados">
@@ -1195,8 +1224,8 @@ function ProgressTab({ work, timeline, mode }: { work: WorkDetail; timeline: Arr
     <div className="grid gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex w-fit rounded-xl bg-subtle p-1" aria-label="Vista de progreso">
-          <Link href={`/obras/${work.id}?vista=partes&subvista=diarios&modo=cronologia`} aria-current={mode === "cronologia" ? "page" : undefined} className={mode === "cronologia" ? "primary-button" : "ghost-button"}>Cronología</Link>
-          <Link href={`/obras/${work.id}?vista=partes&subvista=diarios&modo=galeria`} aria-current={mode === "galeria" ? "page" : undefined} className={mode === "galeria" ? "primary-button" : "ghost-button"}>Galería</Link>
+          <Link href={`/obras/${work.id}/partes?modo=cronologia`} aria-current={mode === "cronologia" ? "page" : undefined} className={mode === "cronologia" ? "primary-button" : "ghost-button"}>Cronología</Link>
+          <Link href={`/obras/${work.id}/partes?modo=galeria`} aria-current={mode === "galeria" ? "page" : undefined} className={mode === "galeria" ? "primary-button" : "ghost-button"}>Galería</Link>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={`/gestion?tipo=foto&obraId=${work.id}&returnTo=${encodeURIComponent(`/obras/${work.id}?vista=partes&modo=${mode}`)}`} className="secondary-button"><Camera size={17} aria-hidden="true" /> Registrar foto</Link>
