@@ -5866,6 +5866,10 @@ button:disabled,
     --fos-layout-record-rail: 303px;
   }
 
+  .field-os-workspace:has(.agenda-page) {
+    grid-template-columns: minmax(0, 1fr) 303px;
+  }
+
   .agenda-page {
     min-height: calc(100dvh - var(--fos-layout-topbar));
     padding: 16px 20px 18px !important;

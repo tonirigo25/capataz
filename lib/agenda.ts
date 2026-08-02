@@ -41,7 +41,10 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
   ]);
   const invoiceAllowed = invoiceDecision.allowed && options?.includeEconomic !== false;
   const budgetAllowed = budgetDecision.allowed && options?.includeEconomic !== false;
-  const scopedWorkIds = await resolveScopedEntityIds(context, "agenda.view", "Work");
+  const [scopedWorkIds, scopedClientIds] = await Promise.all([
+    resolveScopedEntityIds(context, "agenda.view", "Work"),
+    resolveScopedEntityIds(context, "agenda.view", "Client"),
+  ]);
   const [invoiceWorkIds, invoiceClientIds, budgetWorkIds, budgetClientIds, workIds, materialWorkIds, followupWorkIds, followupClientIds] = await Promise.all([
     invoiceAllowed ? resolveScopedEntityIds(context, "sales.invoices.view", "Work") : Promise.resolve([]), invoiceAllowed ? resolveScopedEntityIds(context, "sales.invoices.view", "Client") : Promise.resolve([]),
     budgetAllowed ? resolveScopedEntityIds(context, "sales.budgets.view", "Work") : Promise.resolve([]), budgetAllowed ? resolveScopedEntityIds(context, "sales.budgets.view", "Client") : Promise.resolve([]),
@@ -49,7 +52,10 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
     materialDecision.allowed ? resolveScopedEntityIds(context, "purchases.received_invoices.view", "Work") : Promise.resolve([]),
     followupDecision.allowed ? resolveScopedEntityIds(context, "followups.view", "Work") : Promise.resolve([]), followupDecision.allowed ? resolveScopedEntityIds(context, "followups.view", "Client") : Promise.resolve([])
   ]);
-  const [events, reminders, invoices, works, materials, budgets] = await companyCore(prisma, companyId).agendaSources(invoiceAllowed || budgetAllowed, scopedWorkIds);
+  const [events, reminders, invoices, works, materials, budgets] = await companyCore(
+    prisma,
+    companyId,
+  ).agendaSources(invoiceAllowed || budgetAllowed, scopedWorkIds, scopedClientIds);
 
   const items: AgendaItem[] = [];
 
@@ -69,10 +75,10 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
       contactName: event.contact ? `${event.contact.nombre}${event.contact.apellidos ? ` ${event.contact.apellidos}` : ""}` : null,
       obraId: event.obraId,
       obraTitulo: event.work?.titulo ?? null,
-      presupuestoId: event.presupuestoId,
-      presupuestoNumero: event.budget && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, event.obraId, event.clienteId) ? event.budget.numero : null,
-      facturaId: event.facturaId,
-      facturaNumero: event.invoice && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, event.obraId, event.clienteId) ? event.invoice.numero : null,
+      presupuestoId: budgetAllowed && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, event.obraId, event.clienteId) ? event.presupuestoId : null,
+      presupuestoNumero: budgetAllowed && event.budget && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, event.obraId, event.clienteId) ? event.budget.numero : null,
+      facturaId: invoiceAllowed && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, event.obraId, event.clienteId) ? event.facturaId : null,
+      facturaNumero: invoiceAllowed && event.invoice && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, event.obraId, event.clienteId) ? event.invoice.numero : null,
       direccion: event.direccion,
       notas: event.notas,
       requiereConfirmacion: event.requiereConfirmacion,
@@ -101,10 +107,10 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
         contactName: reminder.contact ? `${reminder.contact.nombre}${reminder.contact.apellidos ? ` ${reminder.contact.apellidos}` : ""}` : null,
         obraId: reminder.obraId,
         obraTitulo: reminder.work?.titulo ?? null,
-        presupuestoId: reminder.presupuestoId,
-        presupuestoNumero: reminder.budget && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, reminder.obraId, reminder.clienteId) ? reminder.budget.numero : null,
-        facturaId: reminder.facturaId,
-        facturaNumero: reminder.invoice && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, reminder.obraId, reminder.clienteId) ? reminder.invoice.numero : null,
+        presupuestoId: budgetAllowed && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, reminder.obraId, reminder.clienteId) ? reminder.presupuestoId : null,
+        presupuestoNumero: budgetAllowed && reminder.budget && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, reminder.obraId, reminder.clienteId) ? reminder.budget.numero : null,
+        facturaId: invoiceAllowed && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, reminder.obraId, reminder.clienteId) ? reminder.facturaId : null,
+        facturaNumero: invoiceAllowed && reminder.invoice && relationAllowed(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds, reminder.obraId, reminder.clienteId) ? reminder.invoice.numero : null,
         direccion: reminder.work?.direccion ?? reminder.client?.direccion ?? null,
         notas: "Derivado de recordatorio",
         requiereConfirmacion: reminder.requiereConfirmacion,
@@ -162,7 +168,7 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
   void materialWorkIds;
 
   if (budgetAllowed) budgets
-    .filter((budget) => relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, budget.obraId, budget.clienteId) && ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado))
+    .filter((budget) => budget.fechaSeguimiento && relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, budget.obraId, budget.clienteId) && ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado))
     .forEach((budget) => {
       items.push({
         id: `presupuesto-${budget.id}`,
@@ -171,7 +177,7 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
         descripcion: budget.titulo,
         tipo: "presupuesto_pendiente",
         estado: "pendiente",
-        fechaInicio: budget.fechaSeguimiento ?? addDays(budget.fechaEnvio ?? budget.fechaCreacion, 3),
+        fechaInicio: budget.fechaSeguimiento!,
         fechaFin: null,
         clienteId: budget.clienteId,
         clienteNombre: budget.client.nombre,

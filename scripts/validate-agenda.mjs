@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const schema = fs.readFileSync("prisma/schema.prisma", "utf8");
 const agendaLib = fs.readFileSync("lib/agenda.ts", "utf8");
+const tenantCore = fs.readFileSync("lib/tenant/core.ts", "utf8");
 const agendaPage = fs.readFileSync("app/(app)/agenda/page.tsx", "utf8");
 const actions = fs.readFileSync("app/(app)/gestion/actions.ts", "utf8");
 const managementUseCases = fs.readFileSync("lib/application/operations/management-use-cases.ts", "utf8");
@@ -24,5 +25,9 @@ expect(managementUseCases.includes("contactId") && managementUseCases.includes("
 expect(actions.includes("saveManualRecordUseCase"), "agenda management boundary is not wired");
 expect(gestionPage.includes('tipoEvento=visita') || gestionPage.includes("eventoAgenda"), "missing agenda management form");
 expect(chatQuery.includes('"agenda_today"') && chatQuery.includes('"upcoming_visits"') && chatQuery.includes('"pending_reminders_count"'), "chat does not cover agenda/visits/reminders");
+expect(agendaLib.includes('resolveScopedEntityIds(context, "agenda.view", "Client")'), "agenda does not preserve selected-client scope");
+expect(tenantCore.includes("scopedClientIds") && tenantCore.includes("clienteId: { in: scopedClientIds }"), "agenda source query is not client-scope aware");
+expect(agendaLib.includes("presupuestoId: budgetAllowed &&") && agendaLib.includes("facturaId: invoiceAllowed &&"), "agenda leaks economic relations without their capability");
+expect(agendaLib.includes("budget.fechaSeguimiento &&") && !agendaLib.includes("addDays(budget.fechaEnvio ?? budget.fechaCreacion, 3)"), "agenda presents a derived budget follow-up as a confirmed date");
 
 console.log("[agenda] OK views, contact links, reminders and chat query support");
