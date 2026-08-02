@@ -44,7 +44,7 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 44) failures.push(`expected 44 routes, found ${routes.length}`);
+  if (routes.length !== 45) failures.push(`expected 45 routes, found ${routes.length}`);
   const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
   if (!alertsExport) {
     failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
@@ -58,6 +58,20 @@ if (fixture) {
       "filterBusinessSignalsForAccess",
       '"cache-control": "private, no-store"'
     ]) if (!source.includes(token)) failures.push(`${alertsExport.relative}: tenant export boundary missing ${token}`);
+  }
+  const suppliersExport = routes.find((route) => route.relative === "app/(app)/proveedores/export/route.ts");
+  if (!suppliersExport) {
+    failures.push("app/(app)/proveedores/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, suppliersExport.relative), "utf8");
+    if (!suppliersExport.methods.includes("GET")) failures.push(`${suppliersExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.suppliers.view")',
+      "auth.companyId",
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${suppliersExport.relative}: tenant export boundary missing ${token}`);
   }
   const actions = walk(path.join(root, "app"), "actions.ts");
   if (actions.length !== 38) failures.push(`expected 38 action files, found ${actions.length}`);
@@ -80,4 +94,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 44 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 45 routes, 7 jobs)\n");

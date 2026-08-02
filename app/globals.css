@@ -4753,6 +4753,41 @@ button:disabled,
 .team-context-empty { margin-top: 10px; border: 1px dashed #d8dfda; border-radius: 8px; padding: 15px; color: #68736d; font-size: 10px; line-height: 16px; text-align: center; }
 .team-context-rail > .orqena-context-more { margin-top: auto; padding-top: 20px; font-size: 9px; }
 
+.orqena-context-rail[data-context-variant="suppliers"] .orqena-context-rail__inner {
+  min-height: 100%;
+  padding: 18px 17px;
+}
+
+.supplier-context-rail .orqena-context-eyebrow { margin: 20px 0 0; }
+.supplier-context-card { margin-top: 14px; }
+.supplier-context-card .orqena-context-description { font-size: 10px; line-height: 1.55; }
+.supplier-context-attention {
+  display: grid;
+  gap: 0;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 1px solid #e0e9e3;
+  border-radius: 8px;
+  background: #fff;
+  list-style: none;
+}
+.supplier-context-attention li + li { border-top: 1px solid #e8eee9; }
+.supplier-context-attention a { display: block; padding: 10px 11px; color: #183027; }
+.supplier-context-attention a:hover { background: #f4faf6; }
+.supplier-context-attention strong { display: block; font-size: 10px; line-height: 1.35; }
+.supplier-context-attention small { display: block; margin-top: 3px; color: #64736b; font-size: 8px; line-height: 1.4; }
+.supplier-context-empty {
+  margin-top: 14px;
+  border: 1px solid #d8eadf;
+  border-radius: 8px;
+  background: #f4fbf6;
+  padding: 11px;
+  color: #416252;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.supplier-context-rail > .orqena-context-more { margin-top: auto; padding-top: 20px; font-size: 9px; }
+
 @media (min-width: 900px) {
   .field-os-topbar__inner {
     padding-left: 24px !important;

@@ -137,7 +137,7 @@ export async function PartnerProfile({ companyId, kind, id, searchParams }: { co
     {subcontractor ? <section className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4"><Info label="Oficio" value={partner.tradeType} /><Info label="Especialidad" value={partner.specialty} /><Info label="Seguro RC" value={partner.liabilityInsurance} /><Info label="Caducidad" value={partner.documentExpiresAt ? formatDate(partner.documentExpiresAt) : null} /><Info label="Tipo" value={partner.legalType === "SELF_EMPLOYED" ? "Autónomo" : partner.legalType === "COMPANY" ? "Empresa" : null} /><Info label="Estado documental" value={documentStatusLabel(partner.documentStatus)} /><Info label="Valoración" value={partner.internalRating ? `${partner.internalRating}/5` : null} /><Info label="Importe pendiente" value={formatCurrency(pending)} /></section> : null}
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,.8fr)]">
       <div className="grid content-start gap-5">
-        <section className="card p-4 sm:p-6"><h2 className="text-lg font-black">Datos de la ficha</h2><PartnerForm kind={kind} partner={partner} /></section>
+        <section id="contacto" className="card p-4 sm:p-6"><h2 className="text-lg font-black">Datos de la ficha</h2><PartnerForm kind={kind} partner={partner} /></section>
         <section className="card overflow-hidden"><div className="border-b border-slate-200 p-4"><h2 className="font-black">Facturas y gastos asociados</h2></div>{partner.invoices.length ? <div className="divide-y divide-slate-100">{partner.invoices.map((invoice) => <Link key={invoice.id} href={`${invoiceBase}/${invoice.id}`} className="flex items-center justify-between gap-3 p-4 hover:bg-slate-50"><div><p className="font-black">{invoice.invoiceNumber} · {invoice.description}</p><p className="text-xs text-slate-500">{formatDate(invoice.issueDate)} · {invoice.work?.titulo || "Gasto general"}</p></div><div className="text-right"><p className="font-black">{formatCurrency(invoice.total)}</p><p className="text-xs text-slate-500">{invoiceStatusLabel(invoice.status)}</p></div></Link>)}</div> : <p className="p-4 text-sm text-slate-500">Sin facturas registradas.</p>}</section>
         <section className="card p-4"><h2 className="font-black">Obras relacionadas</h2><div className="mt-3 grid gap-2 sm:grid-cols-2">{partner.workLinks.length ? partner.workLinks.map((link) => <Link className="rounded-xl border border-slate-200 p-3 font-bold hover:border-obra-yellowDark" href={`/obras/${link.work.id}`} key={link.id}>{link.work.titulo}<span className="mt-1 block text-xs font-normal text-slate-500">{link.work.estado.replaceAll("_", " ")}</span></Link>) : <p className="text-sm text-slate-500">Se relacionarán automáticamente al registrar facturas con obra.</p>}</div></section>
       </div>
@@ -150,7 +150,7 @@ export async function PartnerProfile({ companyId, kind, id, searchParams }: { co
   </main>;
 }
 
-function PartnerForm({ kind, partner, confirmDuplicate = false }: { kind: BusinessPartnerKind; partner?: Awaited<ReturnType<typeof getPartnerDetail>>; confirmDuplicate?: boolean }) {
+export function PartnerForm({ kind, partner, confirmDuplicate = false }: { kind: BusinessPartnerKind; partner?: Awaited<ReturnType<typeof getPartnerDetail>>; confirmDuplicate?: boolean }) {
   const sub = kind === "SUBCONTRACTOR";
   return <form action={saveBusinessPartner} className="mt-4 grid gap-4">
     <input type="hidden" name="kind" value={kind} />{partner ? <input type="hidden" name="id" value={partner.id} /> : null}
