@@ -147,6 +147,57 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 
 Final result: `in_progress`
 
+## Revalidación focal — Trabajo y Tareas 2026-08-02
+
+### Fuente, implementación y normalización
+
+- Trabajo: `C:\Users\Toniet\AppData\Local\Temp\06_trabajo_obras.png` (1586 × 992 px).
+- Tareas: `C:\Users\Toniet\Downloads\ChatGPT Image 1 ago 2026, 23_38_19.png` (1586 × 992 px). La captura representa Recordatorios; se usó únicamente como patrón estructural KPI → filtros → listado → rail, adaptado al modelo real de Tareas.
+- Review autenticada: `https://orqena-review-web-review.up.railway.app/obras` y `/tareas`.
+- Capturas de implementación: `C:\Users\Toniet\Documents\Capataz\artifacts\design-v2\correction-pr63\trabajo-tareas\obras-review-88a73f2-1586x992.png` y `01-tareas-owner-default-1586x992.png`.
+- Responsive: `obras-review-88a73f2-390x844.png`, `obras-review-88a73f2-390x844-detail.png` y `03-tareas-owner-default-390x844.png`.
+- Viewports CSS: 1586 × 992 y 390 × 844; `deviceScaleFactor` de navegador, sin reescalado entre fuente e implementación. Las capturas fuente y Review de escritorio tienen las mismas dimensiones de píxel.
+- Estado: Rigo Asociados, OWNER/Enterprise, datos reales o sintéticos ya existentes en Review; no se sustituyeron por cifras de la referencia.
+
+### Evidencia conjunta y regiones focales
+
+- Comparación completa de Trabajo: `C:\Users\Toniet\Documents\Capataz\artifacts\design-v2\correction-pr63\trabajo-tareas\comparison-obras-reference-vs-review.png`.
+- Comparación completa de Tareas: `C:\Users\Toniet\Documents\Capataz\artifacts\design-v2\correction-pr63\trabajo-tareas\comparison-tareas-reference-vs-review.png`.
+- Métricas de Trabajo: `obras-review-88a73f2-measurements.json`.
+- Métricas de Tareas e interacción KPI: `measurements.json`.
+- No fue necesario un recorte focal adicional: ambas composiciones conjuntas conservan 992 px de alto y permiten leer sidebar, toolbar, tabla, detalle y rail en una misma evidencia. Las medidas DOM separadas cubren overflow y geometría que no se deducen con fiabilidad sólo del raster.
+
+### Historial de iteraciones P0/P1/P2
+
+1. **P1 — listado de Trabajo ocultaba columnas:** la lista tenía `clientWidth=625` y `scrollWidth=768`. Se redujo el rail sólo en Trabajo a 303 px y se recalibraron las ocho columnas. Evidencia posterior: lista `646=646`, portfolio `987=987` y cero overflow horizontal.
+2. **P1 — Tareas abría vacía para OWNER:** los KPI eran de empresa y el filtro inicial era personal. El alcance COMPANY abre ahora con Todo el equipo. Evidencia posterior: 30 pendientes, 7 filas visibles y ausencia de estado vacío.
+3. **P1 — drill-down KPI inexacto:** Hoy, Esta semana y Completadas no abrían el mismo conjunto contabilizado. Se añadieron periodos explícitos y persistentes. El clic en Hoy navega a `periodo=today` y devuelve exactamente 3 de 3 tareas en escritorio y móvil.
+4. **P1 — acciones y alcance:** filtros conservan obra/cliente/factura/presupuesto; listado y detalle comparten `resolveScopedTaskIds`; creación registra autor; responsable exige membresía activa; estados terminales no ofrecen Completar directo; cancelar y editar serie requieren confirmación; relaciones navegan a sus rutas reales.
+5. **P2 — textos cortados en Trabajo:** timeline e incidencias usaban truncado y contenedores con overflow oculto. Evidencia posterior: todos los pares `clientWidth/scrollWidth` medidos coinciden también en el drawer móvil.
+6. **P2 — sidebar pesada:** navegación ajustada a 14 px, peso 520, ancho estable de 236 px y activo oscuro compartido. En móvil la sidebar se sustituye por navegación inferior y no existe overflow horizontal.
+7. **P2 — rail genérico en Tareas:** se añadió contexto específico de coordinación de tareas, límites de actuación y confirmación humana, sin ejecutar ni reasignar automáticamente.
+
+### Superficies obligatorias
+
+- **Tipografía:** jerarquía, pesos y tamaños compactos comparados; sidebar 14 px/520 y tabla legible sin aumentar tarjetas.
+- **Espaciado y layout:** Trabajo conserva lista + detalle + rail; Tareas conserva KPI + filtros + tabla + rail. Escritorio y móvil no presentan overflow horizontal.
+- **Color y tokens:** estados semánticos, activo verde, superficies, bordes y contraste usan el sistema compartido; no se introdujeron paletas nuevas.
+- **Imágenes e iconos:** se conservaron imágenes reales cuando existen y el fallback funcional cuando el registro no tiene imagen; iconos pertenecen a la librería ya adoptada, sin SVG artesanal ni arte CSS.
+- **Copy y contenido:** textos adaptados a Tareas y a los datos autorizados de Rigo Asociados; no se copiaron cifras o responsables de la maqueta.
+- **Interacción:** filtros, búsqueda, KPI, paginación, fila, relación, alta, completar, confirmaciones y calendario tienen destino o acción real.
+- **Responsive y accesibilidad:** comprobado 390 × 844 y 1586 × 992; sin controles tapados, sin overflow horizontal y con confirmación previa en acciones sensibles.
+
+### Gates
+
+- Contrato estático focal: 7/7 PASS.
+- ESLint focal: PASS.
+- Typecheck: PASS.
+- Tareas, recurrencia, dependencias, acciones y acceso a rutas: PASS.
+- Review health live/ready: 200/200.
+- PostgreSQL, migraciones, Staging y Production: sin cambios.
+
+final result: passed
+
 ## Revalidación focal — Orqena IA 2026-08-02
 
 ### Fuente y alcance
@@ -298,3 +349,9 @@ Final result: `in_progress`
 `passed`
 
 Final result: `in_progress`
+
+## Resultado vigente del alcance solicitado — Trabajo y Tareas
+
+La revalidación focal descrita en “Trabajo y Tareas 2026-08-02” es el cierre vigente de este encargo. Los estados `in_progress` anteriores pertenecen al programa completo del portal y no invalidan este gate acotado. El SHA funcional incorpora además el contexto específico de Orqena IA para Tareas; no altera la geometría de las capturas comparadas.
+
+final result: passed
