@@ -110,7 +110,7 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 - Typecheck: PASS.
 - Build de Next: PASS; empaquetado standalone preparado por separado.
 - Comparación visual remota del nuevo SHA: pendiente.
-- Cliente 360 restante, Trabajo/Obra, módulos globales, Orqena IA, auditoría de accionables y responsive: pendientes.
+- Cliente 360 restante, Trabajo/Obra, módulos globales y la auditoría transversal final permanecen en el programa general; Orqena IA se cerró en la revalidación focal del 2 de agosto.
 
 ## Revalidación focal — Presupuestos 2026-08-02
 
@@ -183,9 +183,16 @@ Final result: `in_progress`
 - ESLint focal: PASS.
 - Typecheck: PASS.
 - Contrato estático de seis áreas, tenant, accionables, densidad y rail: 5/5 PASS.
-- Captura conjunta fuente-vs-Review, SHA y deployment: pendientes del gate remoto del mismo commit.
+- Build: PASS, 93/93 páginas.
+- Review: `https://orqena-review-web-review.up.railway.app/orqena-ia`.
+- SHA de implementación validado: `01c62d38ccaa36239239d765560c15cf18c54abb`.
+- Deployment: `8aeaa763-69bc-4edd-be06-39d4c9d148dc` (`SUCCESS`, instancia `RUNNING`).
+- Health remoto: `/api/health/live` y `/api/health/ready`, 200.
+- Geometría autenticada a 1586 × 992: navegación y KPI en y=151/206; bloques principales entre 341 y 401 px según la maestra; bloques inferiores en y=670–724; cero desbordamiento en las seis rutas y cero importes sobresalientes.
+- Responsive autenticado a 390 × 844: ancho útil 390 px, tabla recompuesta en tarjetas de dos columnas, rail sustituido por sheet funcional y cero desbordamiento horizontal.
+- La captura PNG del navegador conectado no pudo persistirse por timeout de `Page.captureScreenshot`; la comparación remota se realizó con contenido accesible, geometría, estilos computados, destinos y estados interactivos de la misma Review.
 
-Resultado focal actual: `in_progress`.
+Resultado focal actual: `passed`.
 
 ## Revalidación focal — Equipo 2026-08-02
 

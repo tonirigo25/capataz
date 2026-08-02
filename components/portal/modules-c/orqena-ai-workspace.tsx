@@ -302,7 +302,7 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
         <div className={styles.navActions}>
           <span className={styles.navAction}><CalendarDays size={14} aria-hidden="true" />{currentDate}</span>
           {executeDecision.allowed ? (
-            <Link href="/recomendaciones" className={styles.navAction}>
+            <Link href="/recomendaciones?estado=all" className={styles.navAction}>
               <History size={14} aria-hidden="true" />Historial de recomendaciones
             </Link>
           ) : null}
@@ -848,7 +848,7 @@ function idVisible(ids: string[] | null, id: string) {
 }
 
 function resolveOriginLink(area: OrqenaAiArea, access: { recommendations: boolean; clients: boolean; budgets: boolean; works: boolean; tasks: boolean; documents: boolean; finance: boolean; members: boolean }) {
-  if (area === "general") return access.recommendations ? "/recomendaciones" : null;
+  if (area === "general") return access.recommendations ? "/recomendaciones?estado=all" : null;
   if (area === "comercial") return access.budgets ? "/presupuestos" : access.clients ? "/clientes" : null;
   if (area === "operaciones") return access.tasks ? "/tareas" : access.works ? "/obras" : null;
   if (area === "documentos") return access.documents ? "/documentos" : null;
