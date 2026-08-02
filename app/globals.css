@@ -4564,6 +4564,117 @@ button:disabled,
   line-height: 14px;
 }
 
+/* Seguimientos: contexto leído de la cola tenant-scoped ya renderizada. */
+.orqena-context-rail[data-context-variant="followups"] .orqena-context-rail__inner {
+  min-height: calc(100dvh - var(--fos-layout-topbar));
+  padding: 18px 18px 22px;
+}
+
+.followups-context-summary {
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.followups-context-summary .orqena-context-card__icon {
+  display: grid;
+  place-items: center;
+  background: #eaf7ef;
+  color: #157b46;
+}
+
+.followups-context-summary h2 {
+  margin-top: 17px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.followups-context-summary .orqena-context-description {
+  margin-top: 10px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.followups-context-summary .orqena-context-impact {
+  margin-top: 14px;
+  padding: 10px 12px;
+}
+
+.followups-context-summary > .orqena-context-primary {
+  margin-top: 15px;
+}
+
+.followups-context-reminders {
+  margin-top: 14px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.followups-context-reminders h2 {
+  color: #142019;
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.followups-context-reminders ul {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.followups-context-reminders a {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #e3e9e5;
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: #26342c;
+}
+
+.followups-context-reminders a:hover,
+.followups-context-reminders a:focus-visible {
+  border-color: #9ccdad;
+  background: #f4fbf6;
+  color: #176e43;
+}
+
+.followups-context-reminders a > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.followups-context-reminders strong,
+.followups-context-reminders small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.followups-context-reminders strong {
+  font-size: 9px;
+  font-weight: 740;
+  line-height: 13px;
+}
+
+.followups-context-reminders small,
+.followups-context-reminders > p {
+  color: #647069;
+  font-size: 8px;
+  line-height: 12px;
+}
+
+.followups-context-reminders > p {
+  margin-top: 9px;
+}
+
+.followups-context-reminders svg {
+  flex: 0 0 auto;
+}
+
 /* Equipo: rail contextual compacto según la referencia maestra 1586 × 992. */
 .orqena-context-rail[data-context-variant="team"] .orqena-context-rail__inner {
   min-height: calc(100dvh - var(--fos-layout-topbar));

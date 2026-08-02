@@ -132,7 +132,7 @@ export default async function FollowUpDetailPage({
           </dl>
         </div>
       </section>
-      <section className="card p-4">
+      <section id="registrar-intento" className="card scroll-mt-24 p-4">
         <h2 className="font-black">Editar</h2>
         <form
           action={editFollowUpAction}
