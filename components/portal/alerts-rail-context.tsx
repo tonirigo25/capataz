@@ -14,8 +14,17 @@ export type AlertsRailContextValue = {
 
 export function AlertsRailContext({ value }: { value: AlertsRailContextValue }) {
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent<AlertsRailContextValue>("orqena:alerts-context", { detail: value }));
+    let active = true;
+    const publish = () => {
+      if (!active) return;
+      window.dispatchEvent(new CustomEvent<AlertsRailContextValue>("orqena:alerts-context", { detail: value }));
+    };
+
+    publish();
+    const frame = window.requestAnimationFrame(publish);
     return () => {
+      active = false;
+      window.cancelAnimationFrame(frame);
       window.dispatchEvent(new CustomEvent<null>("orqena:alerts-context", { detail: null }));
     };
   }, [value]);
