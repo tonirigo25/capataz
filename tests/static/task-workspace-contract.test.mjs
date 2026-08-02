@@ -59,3 +59,10 @@ test("la sidebar usa la densidad fina compartida", async () => {
   assert.match(css, /--fos-layout-sidebar: 236px/);
   assert.match(css, /\.field-os-sidebar__navigation a \{[\s\S]*font-size: 14px;[\s\S]*font-weight: 520;/);
 });
+
+test("Tareas dispone de ayuda IA contextual y supervisada", async () => {
+  const rail = await read("components/portal/orqena-context-rail.tsx");
+  assert.match(rail, /path === "\/tareas" \|\| path\.startsWith\("\/tareas\/"\)/);
+  assert.match(rail, /Coordinación de tareas/);
+  assert.match(rail, /no completa, cancela ni reasigna tareas sin confirmación humana/);
+});
