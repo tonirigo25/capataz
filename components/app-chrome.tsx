@@ -284,7 +284,7 @@ export function AppChrome({
         <div className="field-os-topbar__inner flex items-center gap-2 px-4 sm:px-6">
           <Link
             href={portalManifest.safeHome}
-            className="field-os-mobile-brand h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white"
+            className="field-os-mobile-brand h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-sm font-bold text-content"
             aria-label="Ir a Hoy"
           >
             <BrandLogo variant="symbol" size="sm" className="h-7 w-7" />

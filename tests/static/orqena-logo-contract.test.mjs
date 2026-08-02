@@ -48,3 +48,10 @@ test("el lockup inverso conserva la misma arquitectura que Production", () => {
   assert.match(brandMark, /brand-lockup__name/);
   assert.doesNotMatch(brandMark, /if \(inverse\)[\s\S]*variant="sidebar"/);
 });
+
+test("el símbolo móvil conserva contraste y no se apoya en un fondo verde", () => {
+  const chrome = source("components/app-chrome.tsx");
+
+  assert.match(chrome, /field-os-mobile-brand[^\n]+border border-border bg-surface/);
+  assert.doesNotMatch(chrome, /field-os-mobile-brand[^\n]+bg-brand(?:\s|\")/);
+});
