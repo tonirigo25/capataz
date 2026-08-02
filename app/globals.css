@@ -956,6 +956,8 @@ button:disabled,
   }
 
   .orqena-context-sheet--inline {
+    width: calc(100% - 2rem);
+    max-width: calc(100% - 2rem);
     margin: 0 1rem calc(5.5rem + env(safe-area-inset-bottom));
   }
 
@@ -4114,6 +4116,10 @@ button:disabled,
     align-items: start;
   }
 
+  .orqena-context-rail {
+    display: none;
+  }
+
   .orqena-context-trigger {
     position: sticky;
     top: calc(var(--fos-layout-topbar) + 12px);
@@ -4124,6 +4130,7 @@ button:disabled,
     min-height: 44px;
     justify-content: center;
     margin: 12px 6px 0;
+    display: inline-flex;
     border-radius: 10px;
     padding: 0;
     box-shadow: none;

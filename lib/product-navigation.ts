@@ -55,7 +55,10 @@ export const productSubnavigation: Record<string, ProductDestination[]> = {
     { href: "/equipos", label: "Equipos", icon: "building", capability: "company.teams.manage" },
   ],
   "/orqena-ia": [
+    { href: "/orqena-ia", label: "Resumen", icon: "bot", capability: "company.view" },
+    { href: "/recomendaciones", label: "Recomendaciones", icon: "activity", capability: "orqena.execute" },
     { href: "/automatizaciones", label: "Automatizaciones", icon: "bot", capability: "company.update" },
+    { href: "/configuracion/memoria", label: "Aprendizaje", icon: "document", capability: "company.view" },
   ],
   "/configuracion": [
     { href: "/plan-y-uso", label: "Plan y uso", icon: "invoice", capability: "company.billing.manage" },

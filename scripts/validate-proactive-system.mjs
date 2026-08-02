@@ -196,7 +196,36 @@ function runIntegrationChecks() {
   ]) {
     expect(pkg.includes(`"${script}"`), `[proactive] package missing ${script}`);
   }
-  expect(page.includes("Centro de control") && page.includes("Evaluar ahora"), "[proactive] control center missing manual evaluation");
+  for (const label of [
+    "Centro de control",
+    "Recomendaciones activas",
+    "Impacto económico estimado",
+    "Aplicadas (30 días)",
+    "Tasa de adopción",
+    "Salud de recomendaciones",
+    "Cola priorizada",
+    "Estado de automatizaciones",
+    "Actividad reciente de recomendaciones"
+  ]) {
+    expect(page.includes(label), `[proactive] control center missing ${label}`);
+  }
+  expect(
+    page.includes("action={runProactiveEvaluationAction}")
+      && page.includes('aria-label="Actualizar Centro de control"'),
+    "[proactive] control center must expose the real server-side manual evaluation"
+  );
+  expect(
+    page.includes('requireCapability("orqena.execute")')
+      && page.includes("getProactiveControlData(now, auth.companyId)")
+      && page.includes("companyId: auth.companyId"),
+    "[proactive] control center data must remain capability- and company-scoped"
+  );
+  expect(
+    page.includes("recommendationHref(item)")
+      && page.includes('href="/automatizaciones"')
+      && page.includes('href="/configuracion/ia"'),
+    "[proactive] control center drill-downs must use real product destinations"
+  );
   expect(recPage.includes("Historial") && recPage.includes("getProactiveAuditEventsForRecommendations"), "[proactive] recommendation center must show history");
   expect(!today.includes("getProactiveDailySummary"), "[proactive] Hoy must keep proactive daily summary blocked during recovery");
   for (const forbidden of ["DROP TABLE", "DROP COLUMN", "TRUNCATE", "DELETE FROM"]) {
