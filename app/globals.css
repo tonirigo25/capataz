@@ -4675,6 +4675,37 @@ button:disabled,
   flex: 0 0 auto;
 }
 
+/* Actividad: análisis contextual denso y alineado con la cronología operativa. */
+.orqena-context-rail[data-context-variant="activity"] .orqena-context-rail__inner {
+  min-height: calc(100dvh - var(--fos-layout-topbar));
+  padding: 18px 18px 22px;
+}
+.activity-context-updated { margin-top: 4px; color: #6b7770; font-size: 8px; }
+.activity-context-summary { margin-top: 14px; padding: 14px; }
+.activity-context-summary .orqena-context-card__icon { display: grid; place-items: center; background: #fff1e6; color: #ef6d00; }
+.activity-context-summary h2 { margin-top: 16px; font-size: 13px; line-height: 18px; }
+.activity-context-summary .orqena-context-description { margin-top: 10px; font-size: 10px; line-height: 16px; }
+.activity-context-summary .orqena-context-impact { margin-top: 13px; padding: 10px 11px; }
+.activity-context-summary .orqena-context-primary { margin-top: 14px; }
+.activity-context-works,
+.activity-context-recommendations { margin-top: 14px; border: 1px solid #dce4df; border-radius: 8px; padding: 11px; }
+.activity-context-works h2,
+.activity-context-recommendations h2 { margin: 0; color: #17231c; font-size: 10px; font-weight: 780; }
+.activity-context-works ol,
+.activity-context-recommendations ul { display: grid; gap: 5px; margin: 9px 0 0; padding: 0; list-style: none; }
+.activity-context-works li a { display: grid; grid-template-columns: 24px minmax(0, 1fr) 14px; align-items: center; gap: 7px; min-height: 42px; color: #27342c; text-decoration: none; }
+.activity-context-works li + li { border-top: 1px solid #edf0ee; }
+.activity-context-works i { display: grid; width: 23px; height: 23px; place-items: center; border: 1px solid #cfe4d6; border-radius: 50%; background: #f3faf5; color: #27794a; font-size: 8px; font-style: normal; font-weight: 800; }
+.activity-context-works span { min-width: 0; }
+.activity-context-works strong,
+.activity-context-works small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-context-works strong { font-size: 8px; }
+.activity-context-works small { margin-top: 2px; color: #69766f; font-size: 7px; }
+.activity-context-recommendations li a { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: 7px; min-height: 31px; color: #27342c; font-size: 8px; line-height: 13px; text-decoration: none; }
+.activity-context-recommendations svg { margin-top: 1px; color: #0a9941; }
+.activity-context-works > p,
+.activity-context-recommendations > p { margin: 9px 0 0; color: #66736c; font-size: 8px; line-height: 13px; }
+
 /* Equipo: rail contextual compacto según la referencia maestra 1586 × 992. */
 .orqena-context-rail[data-context-variant="team"] .orqena-context-rail__inner {
   min-height: calc(100dvh - var(--fos-layout-topbar));
