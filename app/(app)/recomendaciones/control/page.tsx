@@ -407,7 +407,7 @@ function riskAxis(item: ControlRecommendation) {
 }
 
 function recommendationHref(item: ControlRecommendation) {
-  const params = new URLSearchParams({ estado: "all", seleccion: item.fingerprint });
+  const params = new URLSearchParams({ estado: "all", seleccion: item.id });
   return `/recomendaciones?${params.toString()}`;
 }
 

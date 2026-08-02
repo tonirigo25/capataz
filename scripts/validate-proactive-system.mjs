@@ -222,6 +222,7 @@ function runIntegrationChecks() {
   );
   expect(
     page.includes("recommendationHref(item)")
+      && page.includes('seleccion: item.id')
       && page.includes('href="/automatizaciones"')
       && page.includes('href="/configuracion/ia"'),
     "[proactive] control center drill-downs must use real product destinations"

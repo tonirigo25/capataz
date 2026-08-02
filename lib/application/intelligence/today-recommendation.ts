@@ -4,6 +4,7 @@ import { resolveScopedEntityIds } from "@/lib/commercial/authorization";
 import { prisma } from "@/lib/prisma";
 
 export type TodayRailRecommendation = {
+  id: string;
   fingerprint: string;
   title: string;
   description: string;
@@ -98,6 +99,7 @@ export async function getPersistedPortalRailRecommendations(
 
 function serializeRecommendation(item: BusinessRecommendation): TodayRailRecommendation {
   return {
+    id: item.id,
     fingerprint: item.fingerprint,
     title: item.title,
     description: item.summary || item.detailedExplanation,

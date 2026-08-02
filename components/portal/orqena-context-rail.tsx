@@ -471,7 +471,7 @@ function TodayRecommendationControls({ recommendation }: { recommendation: Today
 
 function NoControlRecommendationControls({ recommendation }: { recommendation: TodayRailRecommendation | null }) {
   const reviewHref = recommendation
-    ? `/recomendaciones?estado=all&seleccion=${encodeURIComponent(recommendation.fingerprint)}`
+    ? `/recomendaciones?estado=all&seleccion=${encodeURIComponent(recommendation.id)}`
     : "/recomendaciones?estado=all";
   return <div className="orqena-context-controls">
     <Link href={reviewHref} className="orqena-context-primary">{recommendation ? "Revisar recomendación" : "Ver recomendaciones"}<ChevronRight size={16} aria-hidden="true" /></Link>
@@ -480,7 +480,7 @@ function NoControlRecommendationControls({ recommendation }: { recommendation: T
 }
 
 function ControlRecommendationControls({ recommendation }: { recommendation: TodayRailRecommendation }) {
-  const reviewHref = `/recomendaciones?estado=all&seleccion=${encodeURIComponent(recommendation.fingerprint)}`;
+  const reviewHref = `/recomendaciones?estado=all&seleccion=${encodeURIComponent(recommendation.id)}`;
   return <div className="orqena-context-controls">
     <Link href={reviewHref} className="orqena-context-primary">Revisar recomendación<ChevronRight size={16} aria-hidden="true" /></Link>
     <form action={dismissTodayRecommendationAction}>
