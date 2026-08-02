@@ -457,30 +457,32 @@ function WeekTimeGrid({ days, items }: { days: Date[]; items: AgendaItem[] }) {
                 "repeating-linear-gradient(to bottom, transparent 0, transparent calc(10% - 1px), rgb(226 232 240) calc(10% - 1px), rgb(226 232 240) 10%)",
             }}
           >
-            {itemsForDay(items, day).map((item) => {
-              const placement = agendaPlacement(item);
-              return (
-                <Link
-                  href={item.href}
-                  key={agendaItemKey(item)}
-                  className={`absolute left-1 right-1 z-10 overflow-hidden rounded-md border px-1.5 py-1 text-[9px] leading-tight shadow-sm transition hover:z-20 hover:shadow-md ${eventSurfaceClass(item.tipo)}`}
-                  style={{ top: placement.top, height: placement.height }}
-                  title={`${timeLabel(item.fechaInicio)} · ${item.titulo}`}
-                >
-                  <span className="block font-black tabular-nums">
-                    {timeLabel(item.fechaInicio)}
-                  </span>
-                  <strong className="mt-0.5 block line-clamp-2 text-[10px]">
-                    {item.titulo}
-                  </strong>
-                  {item.obraTitulo || item.clienteNombre ? (
-                    <span className="mt-0.5 block truncate opacity-75">
-                      {item.obraTitulo ?? item.clienteNombre}
+            {itemsForDay(items, day)
+              .filter(isAgendaGridTime)
+              .map((item) => {
+                const placement = agendaPlacement(item);
+                return (
+                  <Link
+                    href={item.href}
+                    key={agendaItemKey(item)}
+                    className={`absolute left-1 right-1 z-10 overflow-hidden rounded-md border px-1.5 py-1 text-[9px] leading-tight shadow-sm transition hover:z-20 hover:shadow-md ${eventSurfaceClass(item.tipo)}`}
+                    style={{ top: placement.top, height: placement.height }}
+                    title={`${timeLabel(item.fechaInicio)} · ${item.titulo}`}
+                  >
+                    <span className="block font-black tabular-nums">
+                      {timeLabel(item.fechaInicio)}
                     </span>
-                  ) : null}
-                </Link>
-              );
-            })}
+                    <strong className="mt-0.5 block line-clamp-2 text-[10px]">
+                      {item.titulo}
+                    </strong>
+                    {item.obraTitulo || item.clienteNombre ? (
+                      <span className="mt-0.5 block truncate opacity-75">
+                        {item.obraTitulo ?? item.clienteNombre}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
           </div>
         ))}
       </div>
@@ -1279,6 +1281,11 @@ function agendaPlacement(item: AgendaItem) {
     top: `${Math.max(0, Math.min(maxTop, rawTop))}%`,
     height: `${heightPixels}px`,
   };
+}
+
+function isAgendaGridTime(item: AgendaItem) {
+  const minutes = item.fechaInicio.getHours() * 60 + item.fechaInicio.getMinutes();
+  return minutes >= 8 * 60 && minutes < 18 * 60;
 }
 
 function weekRangeLabel(weekStart: Date) {

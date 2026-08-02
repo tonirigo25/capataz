@@ -5866,10 +5866,6 @@ button:disabled,
     --fos-layout-record-rail: 303px;
   }
 
-  .field-os-workspace:has(.agenda-page) {
-    grid-template-columns: minmax(0, 1fr) 303px;
-  }
-
   .agenda-page {
     min-height: calc(100dvh - var(--fos-layout-topbar));
     padding: 16px 20px 18px !important;
@@ -5989,6 +5985,30 @@ button:disabled,
 
   .orqena-context-rail[data-context-variant="agenda"] .orqena-context-primary {
     margin-top: auto;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1439px) {
+  .field-os-workspace:has(.agenda-page),
+  .field-os-workspace:has(.documents-page) {
+    grid-template-columns: minmax(0, 1fr) 56px;
+  }
+
+  body:has(.agenda-page) .orqena-context-rail,
+  body:has(.documents-page) .orqena-context-rail {
+    display: none;
+  }
+
+  body:has(.agenda-page) .orqena-context-trigger,
+  body:has(.documents-page) .orqena-context-trigger {
+    display: flex;
+  }
+}
+
+@media (min-width: 1440px) {
+  .field-os-workspace:has(.agenda-page),
+  .field-os-workspace:has(.documents-page) {
+    grid-template-columns: minmax(0, 1fr) 303px;
   }
 }
 
