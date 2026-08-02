@@ -4395,6 +4395,53 @@ button:disabled,
   font-weight: 720;
 }
 
+/* Equipo: rail contextual compacto según la referencia maestra 1586 × 992. */
+.orqena-context-rail[data-context-variant="team"] .orqena-context-rail__inner {
+  min-height: calc(100dvh - var(--fos-layout-topbar));
+  padding: 20px 20px 26px;
+}
+.team-context-rail .orqena-context-eyebrow { margin: 24px 0 0; }
+.team-context-recommendation {
+  margin-top: 21px;
+  border: 1px solid #b8dfc2;
+  border-radius: 9px;
+  background: #fff;
+  padding: 15px 14px 12px;
+}
+.team-context-icon {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7f8eb;
+  color: #12a341;
+}
+.team-context-recommendation h2 { margin-top: 19px; color: #222c27; font-size: 13px; font-weight: 760; line-height: 19px; }
+.team-context-recommendation > p { margin-top: 17px; color: #4e5b54; font-size: 10px; line-height: 17px; }
+.team-context-suggestions { margin-top: 16px; border-radius: 7px; background: #effaf1; padding: 12px; color: #2d3a32; }
+.team-context-suggestions strong { color: #12883a; font-size: 10px; font-weight: 730; }
+.team-context-suggestions ul { display: grid; gap: 7px; margin-top: 10px; padding-left: 15px; font-size: 9px; line-height: 13px; }
+.team-context-suggestions li { list-style: disc; }
+.team-context-recommendation .orqena-context-primary { min-height: 31px; margin-top: 10px; font-size: 10px; }
+.team-context-member { margin-top: 20px; }
+.team-context-member > h2 { color: #27322c; font-size: 11px; font-weight: 740; line-height: 16px; }
+.team-context-identity { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 8px; margin-top: 10px; border: 1px solid #e0e6e2; border-radius: 9px 9px 0 0; padding: 10px; }
+.team-context-identity > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 999px; background: #eef4ef; color: #59665f; }
+.team-context-identity p { min-width: 0; }
+.team-context-identity strong, .team-context-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-context-identity strong { color: #28332d; font-size: 10px; font-weight: 720; }
+.team-context-identity small { margin-top: 1px; color: #68736d; font-size: 8px; }
+.team-context-identity em { border-radius: 5px; background: #f2eaff; padding: 3px 6px; color: #7734c7; font-size: 8px; font-style: normal; font-weight: 700; }
+.team-context-member dl { border: 1px solid #e0e6e2; border-top: 0; border-radius: 0 0 9px 9px; padding: 7px 10px; }
+.team-context-member dl > div { display: flex; min-height: 27px; align-items: center; justify-content: space-between; gap: 8px; }
+.team-context-member dt { color: #69746e; font-size: 9px; }
+.team-context-member dd { max-width: 62%; color: #354039; font-size: 9px; font-weight: 620; text-align: right; }
+.team-context-active { color: #0a8c35 !important; }
+.team-context-member .orqena-context-secondary { min-height: 31px; margin-top: 9px; font-size: 10px; }
+.team-context-empty { margin-top: 10px; border: 1px dashed #d8dfda; border-radius: 8px; padding: 15px; color: #68736d; font-size: 10px; line-height: 16px; text-align: center; }
+.team-context-rail > .orqena-context-more { margin-top: auto; padding-top: 20px; font-size: 9px; }
+
 @media (min-width: 900px) {
   .field-os-topbar__inner {
     padding-left: 24px !important;

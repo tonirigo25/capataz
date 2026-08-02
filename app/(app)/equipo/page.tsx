@@ -1,5 +1,8 @@
 import Link from "next/link";
+import type { CompanyRole } from "@prisma/client";
 import {
+  ChevronLeft,
+  ChevronRight,
   BriefcaseBusiness,
   CircleUserRound,
   Ellipsis,
@@ -47,6 +50,8 @@ import {
   transferOwnership,
   updatePendingInvitation,
 } from "./actions";
+import { TeamRailContext } from "@/components/portal/team-rail-context";
+import styles from "./equipo.module.css";
 
 export default async function TeamPage({
   searchParams,
@@ -55,6 +60,7 @@ export default async function TeamPage({
     persona?: string;
     invitar?: string;
     perfil?: string;
+    pagina?: string;
   }>;
 }) {
   const query = await searchParams;
@@ -138,21 +144,31 @@ export default async function TeamPage({
         })
       : Promise.resolve([]),
     canViewCompanyWorkload
-      ? prisma.task.groupBy({
-          by: ["assigneeId"],
+      ? prisma.task.findMany({
           where: {
             companyId: auth.companyId,
-            assigneeId: { not: null },
             archivedAt: null,
             status: { notIn: ["completed", "cancelled", "archived"] },
           },
-          _count: { _all: true },
-          _sum: { estimatedMinutes: true },
+          select: {
+            id: true,
+            assigneeId: true,
+            estimatedMinutes: true,
+            assignments: {
+              where: { removedAt: null, userId: { not: null } },
+              select: { userId: true },
+            },
+          },
         })
       : Promise.resolve([]),
   ]);
   const profileFilter = query.perfil ?? "todos";
-  const filteredMembers = members.filter((member) =>
+  const orderedMembers = [...members].sort((a, b) => {
+    if (a.userId === auth.userId) return -1;
+    if (b.userId === auth.userId) return 1;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+  const filteredMembers = orderedMembers.filter((member) =>
     memberMatchesFilter(
       member.functionalProfileKey,
       member.role,
@@ -163,7 +179,7 @@ export default async function TeamPage({
   const selectedMember =
     (query.persona
       ? filteredMembers.find((member) => member.id === query.persona)
-      : null) ?? null;
+      : filteredMembers.find((member) => member.userId === auth.userId)) ?? null;
   const selectedProfile = selectedMember
     ? resolveFunctionalProfile(
         selectedMember.functionalProfileKey,
@@ -171,17 +187,20 @@ export default async function TeamPage({
       )
     : null;
   const activeMembers = members.filter((member) => member.status === "active");
-  const workloadByUser = new Map(
-    taskLoads
-      .filter((item) => item.assigneeId)
-      .map((item) => [
-        item.assigneeId as string,
-        {
-          count: item._count._all,
-          estimatedMinutes: item._sum.estimatedMinutes ?? 0,
-        },
-      ]),
-  );
+  const workloadByUser = new Map<string, { count: number; estimatedMinutes: number }>();
+  for (const task of taskLoads) {
+    const assignedUsers = new Set([
+      task.assigneeId,
+      ...task.assignments.map((assignment) => assignment.userId),
+    ].filter((userId): userId is string => Boolean(userId)));
+    for (const userId of assignedUsers) {
+      const current = workloadByUser.get(userId) ?? { count: 0, estimatedMinutes: 0 };
+      workloadByUser.set(userId, {
+        count: current.count + 1,
+        estimatedMinutes: current.estimatedMinutes + (task.estimatedMinutes ?? 0),
+      });
+    }
+  }
   const maximumEstimatedMinutes = Math.max(
     0,
     ...workloadByUser.values().map((item) => item.estimatedMinutes),
@@ -193,66 +212,63 @@ export default async function TeamPage({
   const selectedWorkload = selectedMember
     ? (workloadByUser.get(selectedMember.userId) ?? null)
     : null;
+  const pageSize = 8;
+  const pageCount = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const requestedPage = Number.parseInt(query.pagina ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage)
+    ? Math.min(pageCount, Math.max(1, requestedPage))
+    : 1;
+  const pageStart = (currentPage - 1) * pageSize;
+  const visibleMembers = filteredMembers.slice(pageStart, pageStart + pageSize);
+
+  const selectedMemberContext = selectedMember && selectedProfile
+    ? {
+        name: selectedMember.user.displayName,
+        email: selectedMember.user.email,
+        role: functionalProfileLabels[selectedProfile],
+        area: profileAreaLabel(selectedProfile),
+        access: memberAccessLabel(selectedMember),
+        status: membershipStatusLabel(selectedMember.status),
+        lastAccess: formatMemberActivity(selectedMember.user.lastLoginAt),
+        workload: canViewCompanyWorkload ? workloadLabel(selectedWorkload) : "No disponible con este alcance",
+        canEdit: owner && selectedMember.userId !== auth.userId && selectedMember.role !== "OWNER",
+        editHref: owner && selectedMember.userId !== auth.userId && selectedMember.role !== "OWNER" ? "#ajustes-persona" : null,
+        portalHref: owner ? `/equipo/${selectedMember.id}/portal` : null,
+      }
+    : null;
 
   return (
-    <main className="screen !max-w-none" data-team-canonical>
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-obra-ink">
-            Equipo
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Gestiona personas, roles y permisos de {auth.companyName} sin
-            ampliar su acceso desde esta vista.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-bold text-emerald-700">
-            {activeMembers.length} de {members.length} miembros activos
-          </span>
-          {owner ? (
-            <>
-              <Link href="/equipo/outbox" className="secondary-button">
-                Bandeja interna · {pendingOutbox}
-              </Link>
-              <Link
-                href={`/equipo?perfil=${profileFilter}&invitar=1#invitar`}
-                className="primary-button"
-              >
-                <UserPlus size={17} aria-hidden="true" /> Invitar miembro
-              </Link>
-            </>
-          ) : null}
-        </div>
+    <main className={styles.page} data-team-canonical>
+      <TeamRailContext context={{ activeCount: activeMembers.length, totalCount: members.length, selected: selectedMemberContext }} />
+      <header>
+        <h1 className={styles.heading}>Equipo</h1>
+        <p className={styles.subtitle}>Gestiona las personas, roles y permisos para coordinar tu empresa.</p>
       </header>
 
-      <section className="mt-5" aria-labelledby="team-role-filters">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2
-            id="team-role-filters"
-            className="text-sm font-bold text-obra-ink"
-          >
-            Filtros por rol
-          </h2>
-          <span className="text-xs font-semibold text-slate-500">
-            {filteredMembers.length} visibles
-          </span>
+      <section className={styles.filterBlock} aria-labelledby="team-role-filters">
+        <div className={styles.filterMeta}>
+          <h2 id="team-role-filters">Filtros por rol</h2>
+          <span className={styles.memberCount}>{activeMembers.length} miembros</span>
         </div>
-        <nav
-          aria-label="Perfiles del equipo"
-          className="flex gap-2 overflow-x-auto pb-1"
-        >
-          {teamFilters.map(([id, label]) => (
-            <Link
-              key={id}
-              href={`/equipo?perfil=${id}`}
-              aria-current={profileFilter === id ? "page" : undefined}
-              className={`inline-flex min-h-9 shrink-0 items-center rounded-lg border px-3 py-1.5 text-sm font-bold transition ${profileFilter === id ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-800"}`}
-            >
-              {label}
+        <div className={styles.filterActions}>
+          <nav aria-label="Perfiles del equipo" className={styles.filters}>
+            {teamFilters.map(([id, label]) => (
+              <Link
+                key={id}
+                href={`/equipo?perfil=${id}`}
+                aria-current={profileFilter === id ? "page" : undefined}
+                className={`${styles.filter} ${profileFilter === id ? styles.filterActive : ""}`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+          {owner ? (
+            <Link href={`/equipo?perfil=${profileFilter}&invitar=1#invitar`} className={styles.invite}>
+              <UserPlus size={14} aria-hidden="true" /> Invitar miembro
             </Link>
-          ))}
-        </nav>
+          ) : null}
+        </div>
       </section>
 
       {owner && query.invitar === "1" ? (
@@ -429,344 +445,74 @@ export default async function TeamPage({
         </details>
       ) : null}
 
-      <section
-        className="mt-6 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_18rem]"
-        data-d8-team-workspace
-      >
-        <div
-          className="card h-fit overflow-hidden"
-          aria-label="Lista de personas"
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-            <div>
-              <h2 className="text-base font-extrabold text-obra-ink">
-                Miembros y acceso
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Selecciona una persona para consultar su acceso y administrar
-                sus permisos.
-              </p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
-              {filteredMembers.length}
-            </span>
-          </div>
-          <div className="hidden grid-cols-[minmax(9.5rem,1.35fr)_minmax(6.5rem,.9fr)_minmax(5.5rem,.75fr)_minmax(6rem,.8fr)_5rem_5.25rem_minmax(6rem,.8fr)_1.75rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-500 lg:grid">
-            <span>Miembro</span>
-            <span>Rol</span>
-            <span>Área</span>
-            <span>Acceso</span>
-            <span>Estado</span>
-            <span>Último acceso</span>
-            <span>Carga de trabajo</span>
-            <span aria-hidden="true" />
-          </div>
-          <div className="divide-y divide-slate-100">
-            {filteredMembers.map((member) => {
-              const profile = resolveFunctionalProfile(
-                member.functionalProfileKey,
-                member.role,
-              );
-              const workload = workloadByUser.get(member.userId) ?? null;
-              const workloadRatio = workload
-                ? workload.estimatedMinutes > 0 && maximumEstimatedMinutes > 0
-                  ? workload.estimatedMinutes / maximumEstimatedMinutes
-                  : maximumTaskCount > 0
-                    ? workload.count / maximumTaskCount
-                    : 0
-                : 0;
-              return (
-                <Link
-                  key={member.id}
-                  href={`/equipo?persona=${member.id}&perfil=${profileFilter}#detalle-equipo`}
-                  aria-current={
-                    member.id === selectedMember?.id ? "page" : undefined
-                  }
-                  className={`grid grid-cols-2 gap-x-3 gap-y-3 px-4 py-3 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 lg:grid-cols-[minmax(9.5rem,1.35fr)_minmax(6.5rem,.9fr)_minmax(5.5rem,.75fr)_minmax(6rem,.8fr)_5rem_5.25rem_minmax(6rem,.8fr)_1.75rem] lg:items-center ${member.id === selectedMember?.id ? "bg-emerald-50/70 ring-1 ring-inset ring-emerald-300" : "bg-white"}`}
-                >
-                  <span className="col-span-2 flex min-w-0 items-center gap-2.5 lg:col-span-1">
-                    <CircleUserRound
-                      size={30}
-                      className="shrink-0 text-slate-400"
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0">
-                      <strong className="block truncate text-sm text-obra-ink">
-                        {member.user.displayName}
-                      </strong>
-                      <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
-                        {member.user.email}
-                        {member.user.mfaFactors.length ? (
-                          <ShieldCheck
-                            size={12}
-                            className="shrink-0 text-emerald-600"
-                            aria-label="MFA activa"
-                          />
-                        ) : null}
-                      </span>
-                    </span>
-                  </span>
-                  <span className="min-w-0 text-xs font-semibold text-slate-700">
-                    <small className="mb-0.5 block text-[9px] font-bold uppercase text-slate-400 lg:hidden">
-                      Rol
-                    </small>
-                    <span className="block truncate">
-                      {functionalProfileLabels[profile]}
-                    </span>
-                  </span>
-                  <span className="min-w-0 text-xs text-slate-600">
-                    <small className="mb-0.5 block text-[9px] font-bold uppercase text-slate-400 lg:hidden">
-                      Área
-                    </small>
-                    <span className="block truncate">
-                      {profileAreaLabel(profile)}
-                    </span>
-                  </span>
-                  <span className="min-w-0 text-xs text-slate-600">
-                    <small className="mb-0.5 block text-[9px] font-bold uppercase text-slate-400 lg:hidden">
-                      Acceso
-                    </small>
-                    <span className="block truncate">
-                      {memberAccessLabel(member)}
-                    </span>
-                  </span>
-                  <span>
-                    <small className="mb-0.5 block text-[9px] font-bold uppercase text-slate-400 lg:hidden">
-                      Estado
-                    </small>
-                    <SoftBadge
-                      tone={member.status === "active" ? "success" : "warning"}
-                    >
-                      {shortMembershipStatusLabel(member.status)}
-                    </SoftBadge>
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-600">
-                    <small className="mb-0.5 block text-[9px] font-bold uppercase text-slate-400 lg:hidden">
-                      Último acceso
-                    </small>
-                    {formatMemberActivity(
-                      member.lastActivityAt ?? member.user.lastLoginAt,
-                    )}
-                  </span>
-                  <span className="min-w-0 text-[11px] font-semibold text-slate-600">
-                    <small className="mb-0.5 block text-[9px] font-bold uppercase text-slate-400 lg:hidden">
-                      Carga de trabajo
-                    </small>
-                    {canViewCompanyWorkload
-                      ? workloadLabel(workload)
-                      : "No disponible"}
-                    {canViewCompanyWorkload &&
-                    workload &&
-                    workload.count > 0 ? (
-                      <span
-                        className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-200"
-                        aria-label="Carga relativa entre miembros visibles"
-                      >
-                        <span
-                          className="block h-full rounded-full bg-emerald-500"
-                          style={{
-                            width: `${Math.max(6, Math.round(workloadRatio * 100))}%`,
-                          }}
-                        />
-                      </span>
-                    ) : null}
-                  </span>
-                  <span
-                    className="hidden justify-self-end text-slate-500 lg:inline-flex"
-                    aria-label={`Ver detalle de ${member.user.displayName}`}
-                  >
-                    <Ellipsis size={18} aria-hidden="true" />
-                  </span>
-                </Link>
-              );
-            })}
-            {!filteredMembers.length ? (
-              <p className="p-4 text-sm text-slate-500">
-                No hay miembros para este filtro.
-              </p>
-            ) : null}
-          </div>
+      <section className={styles.tableCard} aria-label="Miembros y acceso" data-d8-team-workspace>
+        <div className={styles.tableHeader}>
+          <span>Miembro</span><span>Rol</span><span>Área</span><span>Acceso a empresa</span><span>Estado</span><span>Último acceso</span><span>Carga de trabajo <CircleUserRound size={11} aria-hidden="true" /></span><span aria-hidden="true" />
         </div>
-        <article
-          id="detalle-equipo"
-          className="card h-fit scroll-mt-24 p-4 2xl:sticky 2xl:top-20"
-          data-d8-resulting-portal
-        >
-          <p className="type-label text-emerald-700">Detalle del miembro</p>
-          {selectedMember && selectedProfile ? (
-            <>
-              <div className="mt-2 border-b border-slate-100 pb-4">
-                <div>
-                  <h2 className="type-section-title">
-                    {selectedMember.user.displayName}
-                  </h2>
-                  <p className="type-secondary mt-1">
-                    {functionalProfileLabels[selectedProfile]} ·{" "}
-                    {accessModeLabel(selectedMember.accessMode)}
-                  </p>
-                </div>
-              </div>
-              <dl className="mt-3 divide-y divide-slate-100">
-                <PortalFact
-                  label="Perfil"
-                  value={functionalProfileLabels[selectedProfile]}
-                />
-                <PortalFact
-                  label="Área"
-                  value={profileAreaLabel(selectedProfile)}
-                />
-                <PortalFact
-                  label="Alcance"
-                  value={memberAccessLabel(selectedMember)}
-                />
-                <PortalFact
-                  label="Modo"
-                  value={accessModeLabel(selectedMember.accessMode)}
-                />
-                <PortalFact
-                  label="Estado"
-                  value={membershipStatusLabel(selectedMember.status)}
-                />
-                <PortalFact
-                  label="Último acceso"
-                  value={formatMemberActivity(
-                    selectedMember.lastActivityAt ??
-                      selectedMember.user.lastLoginAt,
-                  )}
-                />
-                <PortalFact
-                  label="Carga actual"
-                  value={
-                    canViewCompanyWorkload
-                      ? workloadLabel(selectedWorkload)
-                      : "No disponible con este alcance"
-                  }
-                />
-                <PortalFact
-                  label="MFA"
-                  value={
-                    selectedMember.user.mfaFactors.length
-                      ? "Activa"
-                      : "Pendiente"
-                  }
-                />
-                <PortalFact
-                  label="Configuración adicional"
-                  value={configurationSummary(selectedMember)}
-                />
-                <PortalFact
-                  label="Paquetes"
-                  value={
-                    selectedMember.accessPackages.length
-                      ? `${selectedMember.accessPackages.length} configurados`
-                      : "Según perfil"
-                  }
-                />
-                <PortalFact
-                  label="Campos económicos"
-                  value={
-                    selectedMember.fieldVisibilityPolicies.filter(
-                      (item) => item.visible,
-                    ).length
-                      ? `${selectedMember.fieldVisibilityPolicies.filter((item) => item.visible).length} visibles`
-                      : "Sin concesión adicional"
-                  }
-                />
-                <PortalFact
-                  label="Aprobación"
-                  value={
-                    selectedMember.approvalAuthorities.length
-                      ? `${selectedMember.approvalAuthorities.length} autoridades`
-                      : "Sin autoridad adicional"
-                  }
-                />
-              </dl>
-              <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-                <strong className="text-obra-ink">
-                  Previsualizar antes de aplicar.
-                </strong>{" "}
-                Ningún ajuste se aplica desde este resumen.
-              </p>
-              {owner ? (
-                <div className="mt-4 grid gap-2">
-                  {selectedMember.userId !== auth.userId &&
-                  selectedMember.role !== "OWNER" ? (
-                    <Link
-                      className="primary-button justify-center"
-                      href="#ajustes-persona"
-                    >
-                      <UserCog size={16} aria-hidden="true" /> Editar permisos
-                    </Link>
-                  ) : null}
-                  <Link
-                    className="secondary-button justify-center"
-                    href={`/equipo/${selectedMember.id}/portal`}
-                  >
-                    <Eye size={16} aria-hidden="true" /> Previsualizar portal
-                  </Link>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="mt-3 rounded-lg border border-dashed border-slate-200 p-5 text-center">
-              <UsersRound
-                size={26}
-                className="mx-auto text-slate-400"
-                aria-hidden="true"
-              />
-              <p className="mt-2 text-sm font-bold text-obra-ink">
-                Selecciona un miembro
-              </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                El detalle aparece sólo después de una selección explícita.
-              </p>
-            </div>
-          )}
-        </article>
+        <div className={styles.rows}>
+          {visibleMembers.map((member) => {
+            const profile = resolveFunctionalProfile(member.functionalProfileKey, member.role);
+            const workload = workloadByUser.get(member.userId) ?? null;
+            const workloadRatio = workload
+              ? workload.estimatedMinutes > 0 && maximumEstimatedMinutes > 0
+                ? workload.estimatedMinutes / maximumEstimatedMinutes
+                : maximumTaskCount > 0 ? workload.count / maximumTaskCount : 0
+              : 0;
+            const workloadPercent = workload?.count ? Math.max(8, Math.round(workloadRatio * 100)) : 0;
+            return (
+              <Link
+                key={member.id}
+                href={`/equipo?persona=${member.id}&perfil=${profileFilter}&pagina=${currentPage}`}
+                aria-current={member.id === selectedMember?.id ? "page" : undefined}
+                className={`${styles.row} ${member.id === selectedMember?.id ? styles.selected : ""}`}
+              >
+                <span className={styles.identity}>
+                  <span className={styles.avatar} aria-hidden="true">{memberInitials(member.user.displayName)}</span>
+                  <span className={styles.identityText}>
+                    <strong>{member.user.displayName}</strong>
+                    <small>{member.user.email}</small>
+                  </span>
+                </span>
+                <span><small className={styles.mobileLabel}>Rol</small><span className={styles.roleBadge} data-tone={roleTone(profile, member.accessMode)}>{functionalProfileLabels[profile]}</span></span>
+                <span className={styles.cell}><small className={styles.mobileLabel}>Área</small>{profileAreaLabel(profile)}</span>
+                <span className={styles.cell}><small className={styles.mobileLabel}>Acceso</small>{memberAccessLabel(member)}</span>
+                <span><small className={styles.mobileLabel}>Estado</small><span className={styles.status} data-state={member.status}>{shortMembershipStatusLabel(member.status)}</span></span>
+                <span className={styles.cell}><small className={styles.mobileLabel}>Último acceso</small>{formatMemberActivity(member.user.lastLoginAt)}</span>
+                <span className={styles.workload}>
+                  <small className={styles.mobileLabel}>Carga de trabajo</small>
+                  <span><strong>{canViewCompanyWorkload ? workloadLabel(workload) : "No disponible"}</strong></span>
+                  <span className={styles.bar} aria-label={canViewCompanyWorkload ? "Carga relativa entre tareas registradas" : "Carga no disponible"}><i style={{ width: `${workloadPercent}%` }} /></span>
+                </span>
+                <span className={styles.menu} aria-label={`Ver detalle de ${member.user.displayName}`}><Ellipsis size={15} aria-hidden="true" /></span>
+              </Link>
+            );
+          })}
+          {!visibleMembers.length ? <p className={styles.empty}>No hay miembros para este filtro.</p> : null}
+        </div>
+        <footer className={styles.pager}>
+          <span>{filteredMembers.length ? `Mostrando ${pageStart + 1} a ${Math.min(pageStart + pageSize, filteredMembers.length)} de ${filteredMembers.length} miembros` : "Sin miembros visibles"}</span>
+          <nav aria-label="Paginación del equipo">
+            {currentPage > 1 ? <Link className={styles.pagerLink} aria-label="Página anterior" href={`/equipo?perfil=${profileFilter}&pagina=${currentPage - 1}&persona=${filteredMembers[Math.max(0, pageStart - pageSize)]?.id ?? ""}`}><ChevronLeft size={14} /></Link> : <span className={styles.pagerDisabled} aria-hidden="true"><ChevronLeft size={14} /></span>}
+            {currentPage < pageCount ? <Link className={styles.pagerLink} aria-label="Página siguiente" href={`/equipo?perfil=${profileFilter}&pagina=${currentPage + 1}&persona=${filteredMembers[pageStart + pageSize]?.id ?? ""}`}><ChevronRight size={14} /></Link> : <span className={styles.pagerDisabled} aria-hidden="true"><ChevronRight size={14} /></span>}
+          </nav>
+        </footer>
       </section>
 
-      <section className="mt-6" aria-labelledby="team-role-capabilities">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 id="team-role-capabilities" className="type-section-title">
-              Acceso base por rol
-            </h2>
-            <p className="type-meta mt-1">
-              Resumen del catálogo configurado; los permisos efectivos pueden
-              estar limitados por alcance o excepciones.
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
+      <section className={styles.roles} aria-labelledby="team-role-capabilities">
+        <h2 id="team-role-capabilities">Capacidades por rol</h2>
+        <div className={styles.roleGrid}>
           {teamRoleCards.map((card) => {
             const Icon = card.icon;
             const packages = profileDefaultPackages[card.profile];
             return (
-              <Link
-                key={card.filter}
-                href={`/equipo?perfil=${card.filter}`}
-                className="rounded-lg border border-slate-200 bg-white p-3 transition hover:border-emerald-300 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                  <Icon size={17} aria-hidden="true" />
-                </span>
-                <h3 className="mt-2 text-sm font-extrabold text-obra-ink">
-                  {card.label}
-                </h3>
-                <ul className="mt-2 space-y-1 text-[11px] leading-4 text-slate-600">
-                  {packages.slice(0, 3).map((key) => (
-                    <li key={key}>• {accessPackageLabels[key]}</li>
-                  ))}
-                </ul>
-                {packages.length > 3 ? (
-                  <p className="mt-2 text-[10px] font-bold text-emerald-700">
-                    + {packages.length - 3} áreas configuradas
-                  </p>
-                ) : null}
+              <Link key={card.filter} href={`/equipo?perfil=${card.filter}`} className={styles.roleCard}>
+                <span className={styles.roleTitle}><span className={styles.roleIcon}><Icon size={13} aria-hidden="true" /></span><strong>{card.label}</strong></span>
+                <ul>{packages.slice(0, 4).map((key) => <li key={key}>{accessPackageLabels[key]}</li>)}</ul>
               </Link>
             );
           })}
         </div>
+        <p className={styles.roleNote}>¿Necesitas un rol personalizado? <Link href="/contacto?motivo=acceso">Contáctanos</Link></p>
       </section>
 
       {owner &&
@@ -1270,7 +1016,7 @@ export default async function TeamPage({
             id="invitation-approvals"
             className="flex cursor-pointer list-none items-center justify-between gap-3 type-section-title"
           >
-            <span>Invitaciones y aprobaciones</span>
+            <span>Invitaciones y aprobaciones · bandeja interna {pendingOutbox}</span>
             <SoftBadge tone={invitations.length ? "warning" : "success"}>
               {invitations.length}
             </SoftBadge>
@@ -1475,27 +1221,14 @@ export default async function TeamPage({
   );
 }
 
-function PortalFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-2.5">
-      <dt className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
-        {label}
-      </dt>
-      <dd className="max-w-[60%] text-right text-xs font-bold leading-5 text-obra-ink">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
 const teamFilters = [
   ["todos", "Todos"],
-  ["propiedad", "Propiedad"],
-  ["direccion", "Dirección"],
+  ["propiedad", "Propietario"],
+  ["direccion", "Administración"],
   ["oficina", "Oficina"],
   ["comercial", "Comercial"],
-  ["obra", "Jefatura de obra"],
-  ["operacion", "Operación"],
+  ["obra", "Jefe de obra"],
+  ["operacion", "Operario"],
   ["lectura", "Solo lectura"],
 ] as const;
 
@@ -1514,7 +1247,7 @@ const teamRoleCards: Array<{
   {
     filter: "direccion",
     profile: "GENERAL_MANAGER",
-    label: "Dirección",
+    label: "Administración",
     icon: BriefcaseBusiness,
   },
   {
@@ -1551,26 +1284,27 @@ const teamRoleCards: Array<{
 
 function memberMatchesFilter(
   profileKey: string | null,
-  role: string,
+  role: CompanyRole,
   accessMode: string,
   filter: string,
 ) {
+  const profile = resolveFunctionalProfile(profileKey, role);
   if (filter === "todos") return true;
   if (filter === "propiedad") return role === "OWNER";
   if (filter === "direccion")
     return ["GENERAL_MANAGER", "FINANCE", "PROCUREMENT_MANAGER"].includes(
-      profileKey ?? "",
+      profile,
     );
   if (filter === "oficina")
-    return ["ADMINISTRATIVE", "FINANCE"].includes(profileKey ?? "");
+    return ["ADMINISTRATIVE", "FINANCE"].includes(profile);
   if (filter === "comercial")
-    return ["SALES", "SALES_MANAGER"].includes(profileKey ?? "");
+    return ["SALES", "SALES_MANAGER"].includes(profile);
   if (filter === "obra")
-    return ["PROJECT_MANAGER", "TEAM_SUPERVISOR"].includes(profileKey ?? "");
+    return ["PROJECT_MANAGER", "TEAM_SUPERVISOR"].includes(profile);
   if (filter === "operacion")
-    return ["WORKER", "EXTERNAL_COLLABORATOR"].includes(profileKey ?? "");
+    return ["WORKER", "EXTERNAL_COLLABORATOR"].includes(profile);
   if (filter === "lectura")
-    return accessMode === "READ_ONLY" || profileKey === "ADVISOR_AUDITOR";
+    return accessMode === "READ_ONLY" || profile === "ADVISOR_AUDITOR";
   return true;
 }
 
@@ -1600,7 +1334,8 @@ function memberAccessLabel(member: {
   if (member.accessMode === "READ_ONLY") return "Solo lectura";
   if (member.role === "OWNER") return "Completo";
   const scopes = new Set(member.scopeAssignments.map((item) => item.scope));
-  if (scopes.has("COMPANY")) return "Completo";
+  if (scopes.size > 1) return "Acceso mixto";
+  if (scopes.has("COMPANY")) return "Empresa autorizada";
   if (scopes.has("SELECTED_WORKS")) return "Proyectos asignados";
   if (scopes.has("SELECTED_CLIENTS")) return "Clientes asignados";
   if (scopes.has("TEAM")) return "Equipo asignado";
@@ -1622,13 +1357,27 @@ function shortMembershipStatusLabel(status: string) {
 
 function formatMemberActivity(value: Date | null) {
   if (!value) return "Sin acceso";
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Madrid",
-  }).format(value);
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const time = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" }).format(value);
+  if (date === today) return `Hoy, ${time}`;
+  const dayDifference = Math.floor((new Date(`${today}T12:00:00Z`).getTime() - new Date(`${date}T12:00:00Z`).getTime()) / 86_400_000);
+  if (dayDifference === 1) return `Ayer, ${time}`;
+  if (dayDifference > 1 && dayDifference < 7) return `Hace ${dayDifference} días`;
+  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).format(value);
+}
+
+function memberInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
+}
+
+function roleTone(profile: FunctionalProfileKey, accessMode: string) {
+  if (accessMode === "READ_ONLY" || profile === "ADVISOR_AUDITOR") return "read";
+  if (profile === "OWNER") return "owner";
+  if (["SALES", "SALES_MANAGER"].includes(profile)) return "sales";
+  if (["PROJECT_MANAGER", "TEAM_SUPERVISOR", "WORKER", "EXTERNAL_COLLABORATOR"].includes(profile)) return "field";
+  return "office";
 }
 
 function workloadLabel(
@@ -1643,37 +1392,6 @@ function workloadLabel(
     .filter(Boolean)
     .join(" ");
   return `${load.count} ${load.count === 1 ? "tarea" : "tareas"} · ${duration}`;
-}
-
-function configurationSummary(member: {
-  accessPackages: unknown[];
-  scopeAssignments: unknown[];
-  approvalAuthorities: unknown[];
-  fieldVisibilityPolicies: Array<{ visible: boolean }>;
-  teamMemberships: unknown[];
-}) {
-  const details = [
-    member.scopeAssignments.length
-      ? `${member.scopeAssignments.length} alcances`
-      : "",
-    member.accessPackages.length
-      ? `${member.accessPackages.length} paquetes`
-      : "",
-    member.approvalAuthorities.length
-      ? `${member.approvalAuthorities.length} aprobaciones`
-      : "",
-    member.fieldVisibilityPolicies.filter((item) => item.visible).length
-      ? `${member.fieldVisibilityPolicies.filter((item) => item.visible).length} campos visibles`
-      : "",
-    member.teamMemberships.length
-      ? `${member.teamMemberships.length} equipos`
-      : "",
-  ].filter(Boolean);
-  return details.join(" · ") || "Según perfil";
-}
-
-function accessModeLabel(mode: string) {
-  return mode === "READ_ONLY" ? "Solo lectura" : "Trabajo normal";
 }
 
 function membershipStatusLabel(status: string) {

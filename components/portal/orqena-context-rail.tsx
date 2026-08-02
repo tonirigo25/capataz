@@ -3,10 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, ExternalLink, FileText, Info, ShieldCheck, Sparkles, TriangleAlert, X } from "lucide-react";
+import { ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, ExternalLink, FileText, Info, ShieldCheck, Sparkles, TriangleAlert, UserRound, UsersRound, X } from "lucide-react";
 import type { PortalRailArea, PortalRailRecommendations, TodayRailRecommendation } from "@/lib/application/intelligence/today-recommendation";
 import type { BudgetRailContextValue } from "@/components/portal/budget-rail-context";
 import type { MoneyRailContextValue } from "@/components/portal/money-rail-context";
+import type { TeamRailContextValue } from "@/components/portal/team-rail-context";
 import {
   acceptTodayRecommendationAction,
   dismissTodayRecommendationAction,
@@ -87,6 +88,7 @@ export function OrqenaContextRail({
   const [documentContext, setDocumentContext] = useState<DocumentRailContext | null>(null);
   const [budgetContext, setBudgetContext] = useState<BudgetRailContextValue | null>(null);
   const [moneyContext, setMoneyContext] = useState<MoneyRailContextValue | null>(null);
+  const [teamContext, setTeamContext] = useState<TeamRailContextValue | null>(null);
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
@@ -114,6 +116,18 @@ export function OrqenaContextRail({
     };
     window.addEventListener("orqena:document-context", onDocumentContext);
     return () => window.removeEventListener("orqena:document-context", onDocumentContext);
+  }, [pathname]);
+  useEffect(() => {
+    if (pathname !== "/equipo") {
+      setTeamContext(null);
+      return;
+    }
+    const onTeamContext = (event: Event) => {
+      const detail = (event as CustomEvent<TeamRailContextValue | null>).detail;
+      setTeamContext(isTeamRailContext(detail) ? detail : null);
+    };
+    window.addEventListener("orqena:team-context", onTeamContext);
+    return () => window.removeEventListener("orqena:team-context", onTeamContext);
   }, [pathname]);
   useEffect(() => {
     if (pathname !== "/dinero") {
@@ -158,8 +172,8 @@ export function OrqenaContextRail({
 
   return (
     <>
-      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/dashboard" ? "dashboard" : pathname === "/agenda" ? "agenda" : undefined}>
-        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} onToggleCollapsed={onToggleCollapsed} />}
+      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/dashboard" ? "dashboard" : pathname === "/agenda" ? "agenda" : pathname === "/equipo" ? "team" : undefined}>
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} teamContext={teamContext} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
       <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
@@ -169,14 +183,14 @@ export function OrqenaContextRail({
       {mobileOpen ? (
         <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet orqena-context-sheet--inline" role="region" aria-labelledby={`${titleId}-mobile`}>
           <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} />
+          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} teamContext={teamContext} />
         </aside>
       ) : null}
     </>
   );
 }
 
-function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, budgetContext, moneyContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; budgetContext: BudgetRailContextValue | null; moneyContext: MoneyRailContextValue | null; onToggleCollapsed?: () => void }) {
+function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse, canExecute, isToday, isDashboard, documentContext, budgetContext, moneyContext, teamContext, onToggleCollapsed }: { context: RailContext; titleId: string; recommendation: TodayRailRecommendation | null; dashboardAlerts: TodayRailRecommendation[]; canUse: boolean; canExecute: boolean; isToday: boolean; isDashboard: boolean; documentContext: DocumentRailContext | null; budgetContext: BudgetRailContextValue | null; moneyContext: MoneyRailContextValue | null; teamContext: TeamRailContextValue | null; onToggleCollapsed?: () => void }) {
   if (isDashboard) {
     return <DashboardRailContent context={context} titleId={titleId} recommendation={recommendation} alerts={dashboardAlerts} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
   }
@@ -188,6 +202,9 @@ function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse
   }
   if (moneyContext && canUse) {
     return <MoneyRailContent context={moneyContext} titleId={titleId} onToggleCollapsed={onToggleCollapsed} />;
+  }
+  if (teamContext) {
+    return <TeamRailContent context={teamContext} titleId={titleId} canUse={canUse} onToggleCollapsed={onToggleCollapsed} />;
   }
   const title = canUse ? recommendation?.title ?? context.title : "Orqena IA no disponible";
   const description = canUse ? recommendation?.description ?? context.description : "Esta ayuda permanece visible, pero tu plan o permisos actuales no autorizan el acceso a Orqena IA.";
@@ -232,6 +249,43 @@ function RailContent({ context, titleId, recommendation, dashboardAlerts, canUse
       {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver todas las recomendaciones <ExternalLink size={13} aria-hidden="true" /></Link> : null}
     </div>
   );
+}
+
+function TeamRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: TeamRailContextValue; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
+  const selected = context.selected;
+  return <div className="orqena-context-rail__inner team-context-rail">
+    <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+    <p className="orqena-context-eyebrow">Recomendación para hoy</p>
+    <article className="team-context-recommendation" aria-labelledby={titleId}>
+      <span className="team-context-icon"><UsersRound size={22} aria-hidden="true" /></span>
+      <h2 id={titleId}>Revisa la coordinación y los permisos</h2>
+      <p>La empresa registra {context.activeCount} de {context.totalCount} miembros activos. Contrasta tareas y accesos antes de aplicar cualquier cambio.</p>
+      <div className="team-context-suggestions">
+        <strong>Sugerencias seguras</strong>
+        <ul>
+          <li>Revisar la carga registrada, sin inferir disponibilidad.</li>
+          <li>Confirmar que cada rol conserva sólo su alcance autorizado.</li>
+          <li>Resolver invitaciones pendientes antes de ampliar accesos.</li>
+        </ul>
+      </div>
+      {canUse ? <Link href="/orqena-ia/equipo" className="orqena-context-primary">Ver recomendaciones</Link> : <span className="orqena-context-primary orqena-context-primary--disabled">IA no disponible</span>}
+    </article>
+    <section className="team-context-member" aria-label="Detalles del miembro seleccionado">
+      <h2>Detalles del miembro seleccionado</h2>
+      {selected ? <>
+        <div className="team-context-identity"><span><UserRound size={17} aria-hidden="true" /></span><p><strong>{selected.name}</strong><small>{selected.email}</small></p><em>{selected.role}</em></div>
+        <dl>
+          <div><dt>Área</dt><dd>{selected.area}</dd></div>
+          <div><dt>Acceso a empresa</dt><dd>{selected.access}</dd></div>
+          <div><dt>Estado</dt><dd className="team-context-active">{selected.status}</dd></div>
+          <div><dt>Último acceso</dt><dd>{selected.lastAccess}</dd></div>
+          <div><dt>Carga de trabajo</dt><dd>{selected.workload}</dd></div>
+        </dl>
+        {selected.canEdit && selected.editHref ? <Link href={selected.editHref} className="orqena-context-secondary">Editar permisos</Link> : selected.portalHref ? <Link href={selected.portalHref} className="orqena-context-secondary">Previsualizar portal</Link> : null}
+      </> : <p className="team-context-empty">Selecciona una persona para consultar su acceso autorizado.</p>}
+    </section>
+    {canUse ? <Link href="/recomendaciones" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+  </div>;
 }
 
 function BudgetRailContent({ context, titleId, onToggleCollapsed }: { context: BudgetRailContextValue; titleId: string; onToggleCollapsed?: () => void }) {
@@ -399,6 +453,23 @@ function TodayRecommendationControls({ recommendation }: { recommendation: Today
 function SubmitButton({ children, pending, className }: { children: React.ReactNode; pending: string; className: string }) {
   const status = useFormStatus();
   return <button type="submit" className={className} disabled={status.pending}>{status.pending ? pending : children}</button>;
+}
+
+function isTeamRailContext(value: unknown): value is TeamRailContextValue {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<TeamRailContextValue>;
+  if (typeof candidate.activeCount !== "number" || typeof candidate.totalCount !== "number") return false;
+  if (candidate.selected == null) return true;
+  return typeof candidate.selected === "object"
+    && typeof candidate.selected.name === "string"
+    && typeof candidate.selected.email === "string"
+    && typeof candidate.selected.role === "string"
+    && typeof candidate.selected.area === "string"
+    && typeof candidate.selected.access === "string"
+    && typeof candidate.selected.status === "string"
+    && typeof candidate.selected.lastAccess === "string"
+    && typeof candidate.selected.workload === "string"
+    && typeof candidate.selected.canEdit === "boolean";
 }
 
 function formatCurrency(value: number, exact = false) {
