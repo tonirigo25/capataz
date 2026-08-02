@@ -28,6 +28,8 @@ test("el workspace reproduce KPI, filtros, tabla y paginación de la maestra", a
     assert.match(page, new RegExp(token));
   }
   assert.match(page, /const pageSize = 7/);
+  for (const period of ["today", "week", "month"]) assert.match(page, new RegExp(`periodo=${period}`));
+  assert.match(page, /matchesPeriod/);
 });
 
 test("Trabajo muestra el detalle persistente en el viewport maestro", async () => {

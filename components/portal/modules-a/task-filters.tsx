@@ -14,6 +14,7 @@ type TaskFiltersProps = {
     relacion: string;
     responsable: string;
     buscar: string;
+    periodo: string;
   };
   typeOptions: TaskFilterOption[];
   responsibleOptions: TaskFilterOption[];
@@ -59,6 +60,7 @@ export function TaskFilters({ values, typeOptions, responsibleOptions }: TaskFil
         if (event.target instanceof HTMLSelectElement) formRef.current?.requestSubmit();
       }}
     >
+      {values.periodo !== "all" ? <input type="hidden" name="periodo" value={values.periodo} /> : null}
       <TaskSelect label="Estado" name="estado" value={values.estado} options={stateOptions} />
       <TaskSelect label="Tipo" name="tipo" value={values.tipo} options={typeOptions} />
       <TaskSelect label="Prioridad" name="prioridad" value={values.prioridad} options={priorityOptions} />

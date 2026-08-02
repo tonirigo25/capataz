@@ -40,6 +40,7 @@ type TaskQuery = {
   budgetId?: string;
   nuevo?: string;
   pagina?: string;
+  periodo?: string;
 };
 
 const taskListInclude = {
@@ -79,7 +80,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     take: 500,
   });
 
-  const legacyFilter = query.filtro ?? "mine";
+  const legacyFilter = query.filtro ?? (auth.scope === "COMPANY" ? "team" : "mine");
   const values = {
     estado: query.estado ?? (legacyFilter === "blocked" ? "blocked" : legacyFilter === "completed" ? "completed" : "pending"),
     tipo: query.tipo ?? "all",
@@ -87,6 +88,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     relacion: query.relacion ?? "all",
     responsable: query.responsable ?? (legacyFilter === "mine" ? "mine" : "team"),
     buscar: query.buscar?.trim() ?? "",
+    periodo: query.periodo ?? "all",
   };
 
   const now = new Date();
@@ -127,6 +129,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     if (values.prioridad !== "all" && task.priority !== values.prioridad) return false;
     if (!matchesRelation(task, values.relacion)) return false;
     if (!matchesResponsible(task, values.responsable, auth.userId)) return false;
+    if (!matchesPeriod(task, values.periodo, startToday, endToday, endWeek, startMonth)) return false;
     if (values.buscar) {
       const relation = relationMeta(task, workMap, clientMap);
       const assignee = task.assigneeId ? memberNames.get(task.assigneeId) : "";
@@ -141,7 +144,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const today = pendingTasks.filter((task) => task.dueAt && task.dueAt >= startToday && task.dueAt <= endToday);
   const week = pendingTasks.filter((task) => task.dueAt && task.dueAt > endToday && task.dueAt <= endWeek);
   const completedThisMonth = allTasks.filter((task) => task.status === "completed" && task.completedAt && task.completedAt >= startMonth);
-  const urgent = pendingTasks.filter((task) => task.priority === "urgent").length;
+  const urgentToday = today.filter((task) => task.priority === "urgent" || task.priority === "high").length;
   const withoutDate = pendingTasks.filter((task) => !task.dueAt).length;
 
   const requestedPage = Math.max(1, Number.parseInt(query.pagina ?? "1", 10) || 1);
@@ -186,9 +189,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
 
       <section className="tasks-kpis" aria-label="Indicadores de tareas">
         <TaskKpi icon={ClipboardCheck} tone="green" label="Pendientes" value={pendingTasks.length} detail={`${overdue.length} vencidas`} detailTone={overdue.length ? "danger" : "success"} href="/tareas?estado=pending&responsable=team" />
-        <TaskKpi icon={Clock3} tone="orange" label="Hoy" value={today.length} detail={`${urgent} prioritarias`} detailTone={urgent ? "warning" : "success"} href="/tareas?estado=pending&responsable=team&buscar=" />
-        <TaskKpi icon={CalendarDays} tone="blue" label="Esta semana" value={week.length} detail={`${withoutDate} sin fecha`} detailTone={withoutDate ? "blue" : "success"} href="/agenda?tipo=tareas" />
-        <TaskKpi icon={CheckCircle2} tone="gray" label="Completadas" value={completedThisMonth.length} detail="Este mes" detailTone="success" href="/tareas?estado=completed&responsable=team" />
+        <TaskKpi icon={Clock3} tone="orange" label="Hoy" value={today.length} detail={`${urgentToday} prioritarias`} detailTone={urgentToday ? "warning" : "success"} href="/tareas?estado=pending&responsable=team&periodo=today" />
+        <TaskKpi icon={CalendarDays} tone="blue" label="Esta semana" value={week.length} detail={`${withoutDate} sin fecha`} detailTone={withoutDate ? "blue" : "success"} href="/tareas?estado=pending&responsable=team&periodo=week" />
+        <TaskKpi icon={CheckCircle2} tone="gray" label="Completadas" value={completedThisMonth.length} detail="Este mes" detailTone="success" href="/tareas?estado=completed&responsable=team&periodo=month" />
       </section>
 
       <TaskFilters values={values} typeOptions={typeOptions} responsibleOptions={responsibleOptions} />
@@ -272,6 +275,16 @@ function matchesResponsible(task: TaskListItem, responsible: string, userId: str
   if (responsible === "mine") return task.assigneeId === userId || task.createdById === userId;
   if (responsible === "unassigned") return !task.assigneeId;
   return task.assigneeId === responsible;
+}
+
+function matchesPeriod(task: TaskListItem, period: string, startToday: Date, endToday: Date, endWeek: Date, startMonth: Date) {
+  if (period === "all") return true;
+  if (period === "month") return Boolean(task.completedAt && task.completedAt >= startMonth);
+  if (!task.dueAt) return false;
+  if (period === "today") return task.dueAt >= startToday && task.dueAt <= endToday;
+  if (period === "week") return task.dueAt > endToday && task.dueAt <= endWeek;
+  if (period === "overdue") return task.dueAt < startToday;
+  return true;
 }
 
 function dueMeta(date: Date | null, now: Date) {
