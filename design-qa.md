@@ -147,6 +147,46 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 
 Final result: `in_progress`
 
+## Revalidación focal — Orqena IA 2026-08-02
+
+### Fuente y alcance
+
+- Referencias visuales canónicas: `12_orqena_ia_general.png` a `17_orqena_ia_equipo.png`, todas a 1586 × 992.
+- Rutas: `/orqena-ia`, `/orqena-ia/comercial`, `/orqena-ia/operaciones`, `/orqena-ia/finanzas`, `/orqena-ia/documentos` y `/orqena-ia/equipo`.
+- Las seis referencias se trataron como composiciones distintas sobre una arquitectura compartida; no se reutilizó una tabla genérica como sustituto visual.
+- No se copiaron cifras de las capturas. Probabilidad comercial, horas ahorradas, clima, carga porcentual o beneficio atribuible a IA sólo se muestran si existe una fuente persistida; en su ausencia se presentan indicadores reales alternativos o estados honestos.
+
+### Reconstrucción
+
+1. **Densidad:** título de 28 px, tabs de 34 px, KPI de 88 px, valores monetarios truncados de forma segura y tablas de 49 px por fila.
+2. **General:** cinco KPI, bandeja de recomendaciones, automatizaciones, cuatro bloques de contexto real y actividad reciente.
+3. **Comercial:** pipeline de presupuestos con cliente, trabajo, seguimiento, margen, importe, estado y acción real.
+4. **Operaciones:** cola de tareas con trabajo, bloqueo, responsable, vencimiento, prioridad, estado y acción.
+5. **Documentos:** revisión con tipo, entidad, extracción, confianza, trabajo vinculado y apertura del documento seleccionado.
+6. **Finanzas:** facturas con total, pagado, pendiente, vencimiento, estado y acceso al detalle financiero.
+7. **Equipo:** miembros reales, rol, perfil funcional, última actividad, tareas abiertas y detalle conservado en URL.
+8. **Contexto:** cada área tiene cuatro grupos de indicadores agregados reales y un rail específico con capacidades, origen, salvaguardas y confirmación humana.
+
+### Accionables y seguridad
+
+- KPI con drill-down únicamente cuando existe ruta real y permiso.
+- Recomendaciones conservan `estado=all` al abrir una selección.
+- Documentos conservan `documento=<id>` y Equipo `perfil=<membershipId>`.
+- Automatizaciones sólo abren su revisión; no se activan desde el workspace.
+- Todas las consultas mantienen `companyId`, capabilities y scopes de entidades/tareas.
+- Los submenús ya no añaden breadcrumbs que desplacen la geometría respecto a la maestra.
+
+### Responsive y gates locales
+
+- En anchos intermedios las tablas admiten desplazamiento controlado sin cortar celdas.
+- A 760 px o menos cada fila se recompone como tarjeta de dos columnas; a 420 px los KPI y contexto pasan a una columna.
+- ESLint focal: PASS.
+- Typecheck: PASS.
+- Contrato estático de seis áreas, tenant, accionables, densidad y rail: 5/5 PASS.
+- Captura conjunta fuente-vs-Review, SHA y deployment: pendientes del gate remoto del mismo commit.
+
+Resultado focal actual: `in_progress`.
+
 ## Revalidación focal — Equipo 2026-08-02
 
 ### Fuente, implementación y estado

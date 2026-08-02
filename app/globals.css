@@ -4395,6 +4395,67 @@ button:disabled,
   font-weight: 720;
 }
 
+.orqena-context-rail[data-context-variant="orqena-ai"] .orqena-context-rail__inner {
+  min-height: calc(100dvh - var(--fos-layout-topbar));
+  padding: 18px 18px 22px;
+}
+
+.orqena-context-rail[data-context-variant="orqena-ai"] .orqena-context-eyebrow {
+  margin-top: 18px;
+  font-size: 10px;
+}
+
+.orqena-context-rail[data-context-variant="orqena-ai"] .orqena-context-card {
+  margin-top: 14px;
+  padding: 16px 14px 13px;
+}
+
+.orqena-context-rail[data-context-variant="orqena-ai"] .orqena-context-card h2 {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.orqena-context-rail[data-context-variant="orqena-ai"] .orqena-context-description {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.orqena-workspace-capabilities {
+  margin-top: 14px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.orqena-workspace-capabilities h3 {
+  margin: 0;
+  color: #142019;
+  font-size: 9px;
+  font-weight: 780;
+}
+
+.orqena-workspace-capabilities ul {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orqena-workspace-capabilities li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #46534c;
+  font-size: 8.5px;
+  line-height: 1.3;
+}
+
+.orqena-workspace-capabilities svg {
+  flex: 0 0 auto;
+  color: #149049;
+}
+
 /* Equipo: rail contextual compacto según la referencia maestra 1586 × 992. */
 .orqena-context-rail[data-context-variant="team"] .orqena-context-rail__inner {
   min-height: calc(100dvh - var(--fos-layout-topbar));
