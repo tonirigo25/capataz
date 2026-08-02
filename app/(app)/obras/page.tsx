@@ -32,7 +32,7 @@ import { WorkPortfolio } from "@/components/portal/modules-a/work-portfolio";
 import { EmptyState } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import { statusClass } from "@/lib/status";
 import {
   calculateWorkFinancials,
@@ -116,6 +116,24 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
     include: workListInclude
   });
+  const taskAccess = await resolveAuthorization(auth, "tasks.view");
+  const scopedTaskIds = taskAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.view") : [];
+  const progressTasks = taskAccess.allowed && works.length
+    ? await prisma.task.findMany({
+      where: {
+        companyId,
+        workId: { in: works.map((work) => work.id) },
+        archivedAt: null,
+        ...(scopedTaskIds === null ? {} : { id: { in: scopedTaskIds } }),
+      },
+      select: {
+        workId: true,
+        status: true,
+        checklist: { select: { completed: true } },
+      },
+    })
+    : [];
+  const progressByWork = buildWorkProgress(progressTasks);
   const enriched = works.map((work) => {
     const itemVisibility: WorkEconomicVisibility = {
       ...visibility,
@@ -136,11 +154,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     };
     const financial = calculateWorkFinancials(work);
     const overduePending = itemVisibility.invoices ? work.invoices.reduce((sum, invoice) => invoice.fechaVencimiento < new Date() ? sum + Math.max(0, invoice.total - invoicePaid(invoice)) : sum, 0) : 0;
-    const nextAction: ReturnType<typeof getWorkNextAction> = isBlockedWorkStatus(work.estado)
-      ? { label: "Revisar bloqueo operativo", tone: "danger", href: "resumen" }
-      : isActiveWorkStatus(work.estado)
-        ? { label: "Revisar planificación", tone: "neutral", href: "resumen" }
-        : { label: "Revisar estado", tone: "neutral", href: "resumen" };
+    const nextAction = getWorkNextAction(work);
     const status = workStatusMeta(work.estado);
     const priority = workPriorityMeta(work.prioridad);
     const pendingMaterials = work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado));
@@ -232,7 +246,7 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       pendingDocuments: item.pendingDocs,
       closingSoon: item.work.estado === "pendiente_remates",
       progressLabel: item.status.label,
-      progressPercent: null,
+      progressPercent: progressByWork.get(item.work.id) ?? null,
       visit: nextVisit ? {
         label: nextVisit.titulo,
         date: formatDate(nextVisit.fechaInicio),
@@ -541,6 +555,34 @@ function timeValue(value: Date | string | null | undefined) {
   if (!value) return 0;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+type WorkProgressTask = {
+  workId: string | null;
+  status: string;
+  checklist: Array<{ completed: boolean }>;
+};
+
+function buildWorkProgress(tasks: WorkProgressTask[]) {
+  const counters = new Map<string, { completed: number; total: number }>();
+  for (const task of tasks) {
+    if (!task.workId || ["cancelled", "archived"].includes(task.status)) continue;
+    const current = counters.get(task.workId) ?? { completed: 0, total: 0 };
+    if (task.checklist.length) {
+      current.total += task.checklist.length;
+      current.completed += task.checklist.filter((item) => item.completed).length;
+    } else {
+      current.total += 1;
+      if (task.status === "completed") current.completed += 1;
+    }
+    counters.set(task.workId, current);
+  }
+  return new Map(
+    [...counters.entries()].map(([workId, counter]) => [
+      workId,
+      counter.total ? Math.round((counter.completed / counter.total) * 100) : null,
+    ]),
+  );
 }
 
 function iconFor(name: string): LucideIcon {

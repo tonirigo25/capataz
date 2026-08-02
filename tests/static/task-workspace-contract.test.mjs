@@ -50,8 +50,9 @@ test("el detalle no ofrece transiciones terminales directas", async () => {
 test("Trabajo muestra el detalle persistente en el viewport maestro", async () => {
   const portfolio = await read("components/portal/modules-a/work-portfolio.tsx");
   assert.doesNotMatch(portfolio, /1800px/);
-  assert.match(portfolio, /min-width: 1560px/);
-  assert.match(portfolio, /min-\[1560px\]:grid/);
+  assert.match(portfolio, /min-width: 1440px/);
+  assert.match(portfolio, /min-\[1440px\]:grid/);
+  assert.match(portfolio, /max-width: 1439px/);
 });
 
 test("la sidebar usa la densidad fina compartida", async () => {

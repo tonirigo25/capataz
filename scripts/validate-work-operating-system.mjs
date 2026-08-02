@@ -34,7 +34,7 @@ function mediaBlocksAt(source, width) {
 
 const portfolioIndex = works.indexOf("<WorkPortfolio");
 const beforePortfolio = portfolioIndex >= 0 ? works.slice(0, portfolioIndex) : works;
-const desktop1440 = mediaBlocksAt(styles, 1440);
+const desktopRail = mediaBlocksAt(styles, 1200);
 const drawerSource = `${portfolio}\n${optionalDrawer}`;
 
 check(
@@ -74,13 +74,13 @@ check(
     rail.includes('area: "work"'),
 );
 
-const inline1560Detail =
-  /min-\[1560px\]:(?:grid|block|flex)/.test(portfolio) &&
-  /min-\[1560px\]:(?:hidden|grid|block|flex)/.test(portfolio) &&
-  portfolio.includes('(max-width: 1559px)');
+const inline1440Detail =
+  /min-\[1440px\]:(?:grid|block|flex)/.test(portfolio) &&
+  /min-\[1440px\]:(?:hidden|grid|block|flex)/.test(portfolio) &&
+  portfolio.includes('(max-width: 1439px)');
 check(
   "el detalle persistente sólo aparece cuando listado y columnas caben sin solaparse",
-  inline1560Detail && !portfolio.includes("2xl:block") && !portfolio.includes("2xl:grid"),
+  inline1440Detail && !portfolio.includes("2xl:block") && !portfolio.includes("2xl:grid"),
 );
 
 check(
@@ -92,9 +92,8 @@ check(
 );
 check(
   "el listado replica selección, apertura e incidencias numéricas con controles reales",
-  portfolio.includes("toggleAllMarked") &&
-    portfolio.includes("toggleMarked") &&
-    portfolio.includes("Seleccionar todos los trabajos visibles") &&
+  portfolio.includes('aria-pressed={active}') &&
+    portfolio.includes("work-portfolio__table-grid") &&
     portfolio.includes("<ChevronRight") &&
     portfolio.includes("<IncidentCell") &&
     works.includes('photo.categoria.trim().toLowerCase() === "incidencia"') &&
@@ -105,8 +104,25 @@ check(
   portfolio.includes("function WorkTimeline") &&
     portfolio.includes("before:absolute") &&
     portfolio.includes("<FileText") &&
-    portfolio.includes("<FilePlus2") &&
+    portfolio.includes("<CalendarClock") &&
     portfolio.includes("<ClipboardPenLine"),
+);
+
+check(
+  "el avance se deriva de tareas autorizadas y nunca de un porcentaje inventado",
+  works.includes("resolveScopedTaskIds") &&
+    works.includes("buildWorkProgress(progressTasks)") &&
+    works.includes("checklist: { select: { completed: true } }") &&
+    works.includes("progressByWork.get(item.work.id) ?? null"),
+);
+
+check(
+  "el detalle enlaza las acciones reales de ficha, visita, incidencia y equipo",
+  portfolio.includes("Ver ficha completa") &&
+    portfolio.includes("Programar visita") &&
+    portfolio.includes("Registrar incidencia") &&
+    portfolio.includes("Ver todo el equipo") &&
+    works.includes("actionHrefs:"),
 );
 
 const usesSharedDrawer = portfolio.includes("ContextDrawer") && contextDrawer.includes("export function ContextDrawer");
@@ -130,12 +146,12 @@ check(
 );
 
 const desktopRailHasOwnScroll =
-  /\.orqena-context-rail(?:\s|>|\[|\.|:)*[^{}]*\{[^{}]*overflow-y\s*:\s*(?:auto|scroll)/.test(desktop1440) ||
+  /\.orqena-context-rail(?:\s|>|\[|\.|:)*[^{}]*\{[^{}]*overflow-y\s*:\s*(?:auto|scroll)/.test(desktopRail) ||
   /className="[^"]*orqena-context-(?:rail|rail__inner)[^"]*overflow-y-(?:auto|scroll)/.test(rail);
 check(
   "el rail IA de escritorio acompaña la página sin scroll vertical propio",
-  desktop1440.includes(".orqena-context-rail") &&
-    desktop1440.includes("overflow: visible") &&
+  desktopRail.includes(".orqena-context-rail") &&
+    desktopRail.includes("overflow: visible") &&
     !desktopRailHasOwnScroll,
 );
 

@@ -101,7 +101,7 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   }, [items, selectedId]);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1560px)");
+    const desktop = window.matchMedia("(min-width: 1440px)");
     const closeAtDesktop = (event: MediaQueryListEvent) => {
       if (event.matches) setDrawerOpen(false);
     };
@@ -150,7 +150,7 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   function selectWork(item: WorkPortfolioItem, trigger: HTMLButtonElement) {
     setSelectedId(item.id);
     lastTriggerRef.current = trigger;
-    if (window.matchMedia("(max-width: 1559px)").matches) setDrawerOpen(true);
+    if (window.matchMedia("(max-width: 1439px)").matches) setDrawerOpen(true);
   }
 
   function closeDesktopDetail() {
@@ -169,13 +169,13 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   }
 
   return (
-    <div className={`work-portfolio overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1560px]:grid min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
-      <section className={`min-w-0 border-border ${selected ? "min-[1560px]:border-r" : ""}`} aria-label="Trabajos filtrados">
+    <div className={`work-portfolio overflow-hidden rounded-lg border border-border bg-surface ${selected ? "min-[1440px]:grid min-[1440px]:grid-cols-[minmax(0,1fr)_minmax(17rem,19.25rem)] min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
+      <section className={`min-w-0 border-border ${selected ? "min-[1440px]:border-r" : ""}`} aria-label="Trabajos filtrados">
         {items.length ? (
           <>
             <div className="hidden min-[1200px]:block" aria-label="Listado de trabajos">
               <div className="min-h-11 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
-                <div aria-hidden="true" className="grid min-h-11 grid-cols-[minmax(8.25rem,2fr)_4.5rem_3.5rem_4.5rem_4.75rem_3.75rem_6.25rem_.875rem] items-center gap-1 leading-tight">
+                <div aria-hidden="true" className="work-portfolio__table-grid grid min-h-11 items-center gap-1 leading-tight">
                   <span>Obra</span>
                   <span>Estado</span>
                   <span>Avance</span>
@@ -191,7 +191,7 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
                   const active = selected?.id === item.id;
                   return (
                     <article key={item.id} role="listitem" className={`min-h-[66px] px-3 transition-colors ${active ? "bg-brand-soft ring-1 ring-inset ring-blue-200" : "bg-surface"}`}>
-                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="grid min-h-[66px] w-full grid-cols-[minmax(8.25rem,2fr)_4.5rem_3.5rem_4.5rem_4.75rem_3.75rem_6.25rem_.875rem] items-center gap-1 text-left text-[9px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
+                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="work-portfolio__table-grid grid min-h-[66px] w-full items-center gap-1 text-left text-[9px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
                       <span className="flex min-w-0 items-center gap-2">
                         <WorkThumbnail item={item} />
                         <span className="min-w-0">
@@ -246,11 +246,11 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
         ) : <p className="type-secondary p-6">Sin trabajos registrados.</p>}
       </section>
 
-      {selected ? <aside className="hidden min-w-0 overflow-hidden bg-surface min-[1560px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} returnTo={returnTo} onClose={closeDesktopDetail} /></aside> : null}
+      {selected ? <aside className="hidden min-w-0 overflow-hidden bg-surface min-[1440px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} returnTo={returnTo} onClose={closeDesktopDetail} /></aside> : null}
 
       {selected && drawerOpen ? (
         <div
-          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1560px]:hidden sm:p-4"
+          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1440px]:hidden sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeDrawer();
           }}
@@ -326,6 +326,8 @@ function PortfolioSummary({ items, totalAuthorizedCount, activeFilterCount, retu
   const closingItems = allClosingItems.slice(0, 2);
   const budgetAmounts = activeItems.map((item) => item.budgetAmount).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   const totalBudget = budgetAmounts.length ? budgetAmounts.reduce((sum, value) => sum + value, 0) : null;
+  const progressValues = activeItems.map((item) => normalizedProgress(item.progressPercent)).filter((value): value is number => value != null);
+  const averageProgress = progressValues.length ? Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length) : null;
 
   const riskPercent = items.length ? Math.round((allRiskItems.length / items.length) * 100) : 0;
 
@@ -334,8 +336,9 @@ function PortfolioSummary({ items, totalAuthorizedCount, activeFilterCount, retu
       <p className="mb-1 text-[9px] text-content-secondary">{allRiskItems.length} de {items.length} visibles · {riskPercent}% con señal registrada</p>
       {riskItems.length ? <ul className="space-y-1">{riskItems.map((item) => <li key={item.id}><Link href={workDetailHref(item.id, returnTo)} className="grid min-h-8 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-2 text-[10px] font-semibold text-content hover:underline"><span className="truncate">{item.title}</span><span className="min-w-0 text-right"><small className="block text-[8px] font-medium uppercase tracking-wide text-content-tertiary">Motivo</small><span className="block truncate text-danger">{item.riskReason ?? "Revisión operativa"}</span></span></Link></li>)}</ul> : <p className="type-meta">Sin trabajos en riesgo registrados.</p>}
     </SummaryCard>
-    <SummaryCard title="Trabajos visibles" count={items.length} href="/obras?vista=tabla">
-      <div className="grid grid-cols-2 gap-3"><SummaryMetric label={activeFilterCount ? `${activeFilterCount} filtros activos` : "Sin filtros activos"} value={`${items.length} de ${totalAuthorizedCount}`} /><SummaryMetric label={totalBudget == null ? "Presupuesto no disponible" : "Presupuesto visible registrado"} value={totalBudget == null ? "—" : formatCurrencyAmount(totalBudget)} /></div>
+    <SummaryCard title="Trabajos en curso" count={activeItems.length} href="/obras?estado=en_curso&vista=tabla">
+      <div className="grid grid-cols-2 gap-3"><SummaryMetric label={averageProgress == null ? "Avance todavía no registrado" : "avance registrado medio"} value={averageProgress == null ? "—" : `${averageProgress}%`} /><SummaryMetric label={totalBudget == null ? "Presupuesto no disponible" : "presupuesto visible registrado"} value={totalBudget == null ? "—" : formatCurrencyAmount(totalBudget)} /></div>
+      <p className="mt-2 text-[8px] text-content-tertiary">{activeFilterCount ? `${activeFilterCount} filtros activos · ` : ""}{items.length} de {totalAuthorizedCount} trabajos autorizados visibles</p>
     </SummaryCard>
     <SummaryCard title="Trabajos por cerrar" count={allClosingItems.length} href="/obras?estado=pendiente_remates&vista=tabla">
       {closingItems.length ? <ul className="space-y-1">{closingItems.map((item) => <li key={item.id}><Link href={workDetailHref(item.id, returnTo)} className="flex min-h-7 items-center justify-between gap-2 text-[10px] font-semibold text-content hover:underline"><span className="truncate">{item.title}</span><span className="max-w-[8rem] truncate text-content-secondary">{valueOr(item.nextAction, "Sin siguiente acción registrada")}</span></Link></li>)}</ul> : <p className="type-meta">Sin trabajos por cerrar registrados.</p>}
@@ -344,7 +347,7 @@ function PortfolioSummary({ items, totalAuthorizedCount, activeFilterCount, retu
 }
 
 function SummaryCard({ title, count, href, children }: { title: string; count: number; href: string; children: React.ReactNode }) {
-  return <section className="flex min-h-[7.5rem] flex-col rounded-xl border border-border bg-surface p-3"><div className="mb-2 flex items-center gap-2"><h3 className="min-w-0 flex-1 text-xs font-bold text-content">{title}</h3><span className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-brand-soft px-1.5 text-[10px] font-bold text-content">{count}</span><Link href={href} className="inline-flex min-h-7 items-center text-[9px] font-semibold text-brand-strong hover:underline">Ver</Link></div><div className="min-h-0 flex-1 overflow-hidden">{children}</div></section>;
+  return <section className="flex min-h-[7.5rem] flex-col rounded-lg border border-border bg-surface p-3"><div className="mb-2 flex items-center gap-2"><h3 className="min-w-0 flex-1 text-[11px] font-bold text-content">{title}</h3><span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-soft px-1.5 text-[9px] font-bold text-content">{count}</span><Link href={href} className="inline-flex min-h-7 items-center text-[9px] font-semibold text-brand-strong hover:underline">Ver todos</Link></div><div className="min-h-0 flex-1 overflow-hidden">{children}</div></section>;
 }
 
 function SummaryMetric({ label, value }: { label: string; value: string }) {
@@ -385,11 +388,11 @@ function DesktopWorkDetail({ item, returnTo, onClose }: { item: WorkPortfolioIte
         {hasFinancialData ? <dl className="grid gap-1 text-[10px]"><CompactAmount label="Presupuesto" value={item.budget} /><CompactAmount label="Real" value={item.cost} /><CompactAmount label={`Margen / ${item.marginBasis ?? "base"}`} value={item.margin} danger={item.marginRisk} /></dl> : <p className="type-meta">Datos económicos restringidos.</p>}
       </CompactDetail>
       <CompactDetail title="Equipo asignado" icon={UsersRound}>
-        {team.length ? <ul className="grid gap-2">{team.map((member) => <li key={`${member.name}-${member.role}`} className="flex min-w-0 items-center gap-2 text-[10px]"><span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-subtle text-content-secondary"><UserRound size={13} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate">{member.name}</strong><span className="block truncate text-[9px] text-content-secondary">{member.role ?? "Sin rol"}</span></span></li>)}</ul> : <p className="type-meta">Sin equipo registrado.</p>}
+        {team.length ? <><ul className="grid gap-2">{team.map((member) => <li key={`${member.name}-${member.role}`} className="flex min-w-0 items-center gap-2 text-[10px]"><span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-subtle text-content-secondary"><UserRound size={13} aria-hidden="true" /></span><span className="min-w-0"><strong className="block truncate">{member.name}</strong><span className="block truncate text-[9px] text-content-secondary">{member.role ?? "Sin rol"}</span></span></li>)}</ul><Link href={`/obras/${item.id}?vista=equipo`} className="mt-2 inline-flex min-h-7 items-center text-[9px] font-semibold text-brand-strong hover:underline">Ver todo el equipo ({team.length})</Link></> : <p className="type-meta">Sin equipo registrado.</p>}
       </CompactDetail>
     </div>
 
-    <section className="mt-3 rounded-lg border border-border p-3" aria-label="Acciones rápidas"><h3 className="text-[10px] font-bold text-content">Acciones rápidas</h3><div className="mt-2 grid grid-cols-2 gap-2"><Link href={workDetailHref(item.id, returnTo)} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><FileText size={16} aria-hidden="true" />Ver ficha completa</Link>{item.actionHrefs?.incident ? <Link href={item.actionHrefs.incident} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><ClipboardPenLine size={16} aria-hidden="true" />Registrar incidencia</Link> : null}</div></section>
+    <section className="mt-3 rounded-lg border border-border p-3" aria-label="Acciones rápidas"><h3 className="text-[10px] font-bold text-content">Acciones rápidas</h3><div className="mt-2 grid grid-cols-2 gap-2 min-[1560px]:grid-cols-3"><Link href={workDetailHref(item.id, returnTo)} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><FileText size={16} aria-hidden="true" />Ver ficha completa</Link>{item.actionHrefs?.visit ? <Link href={item.actionHrefs.visit} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><CalendarClock size={16} aria-hidden="true" />Programar visita</Link> : null}{item.actionHrefs?.incident ? <Link href={item.actionHrefs.incident} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><ClipboardPenLine size={16} aria-hidden="true" />Registrar incidencia</Link> : item.actionHrefs?.status ? <Link href={item.actionHrefs.status} className="secondary-button min-h-14 flex-col px-2 text-center text-[9px]"><ClipboardCheck size={16} aria-hidden="true" />Cambiar estado</Link> : null}</div></section>
   </div>;
 }
 

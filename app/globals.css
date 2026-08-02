@@ -7640,6 +7640,28 @@ button:disabled,
 
 .works-result-meta a { color: #087b39; font-weight: 720; }
 
+.work-portfolio__table-grid { grid-template-columns: minmax(8.25rem, 2fr) 4.5rem 3.5rem 4.5rem 4.75rem 3.75rem 6.25rem .875rem; }
+
+@media (min-width: 1440px) and (max-width: 1559px) {
+  .works-page { padding: 16px 12px 24px 16px; }
+  .works-page__header h1 { font-size: 27px; }
+  .works-page__header p { margin-top: 3px; }
+  .works-filterbar { grid-template-columns: repeat(4, minmax(72px, 1fr)) auto auto auto auto; gap: 6px; margin-top: 14px; }
+  .works-filterbar .field,
+  .works-view-select,
+  .works-export,
+  .works-filter-submit,
+  .works-more-filters > summary { min-height: 42px; font-size: 10px; }
+  .works-filterbar .field { padding-right: 22px; padding-left: 8px; }
+  .works-more-filters > summary { min-width: 92px; padding-inline: 8px; }
+  .works-view-select { min-width: 100px; grid-template-columns: auto minmax(52px, 1fr); padding-inline: 8px; }
+  .works-export { min-width: 82px; padding-inline: 8px; }
+  .works-filter-submit { min-width: 70px; padding-inline: 8px; }
+  .work-portfolio__table-grid { grid-template-columns: minmax(7.5rem, 2fr) 3.625rem 2.75rem 3.5rem 4rem 3rem 4.875rem .625rem; column-gap: 2px; }
+  .work-portfolio > aside > div { padding: 12px; }
+  .work-portfolio > aside h2 { font-size: 15px; }
+}
+
 @media (max-width: 1439px) {
   .works-page { padding: 18px clamp(14px, 2.4vw, 24px) 94px; }
   .works-filterbar { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
