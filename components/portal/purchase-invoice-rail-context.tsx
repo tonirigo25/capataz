@@ -3,11 +3,15 @@
 import { useEffect } from "react";
 
 export type PurchaseInvoiceRailContextValue = {
+  kind?: "supplier" | "subcontractor";
   visibleCount: number;
+  reviewCount?: number;
   overdueCount: number;
   overdueAmount: number;
   pendingAmount: number;
   unassignedCount: number;
+  retentionAmount?: number;
+  upcomingCount?: number;
   attention: Array<{ id: string; title: string; detail: string; href: string }>;
 };
 

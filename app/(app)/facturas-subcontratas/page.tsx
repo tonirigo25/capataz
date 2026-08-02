@@ -1,9 +1,13 @@
-import { PurchaseInvoiceDirectory } from "@/components/purchase-invoices";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { SubcontractorInvoiceDirectoryV2 } from "@/components/subcontractor-invoice-directory-v2";
+import { requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import { getPurchaseAccess } from "@/lib/commercial/purchase-access";
 
 export const dynamic = "force-dynamic";
 export default async function SubcontractorInvoicesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const auth = await requireCapability("purchases.received_invoices.view");
-  return <PurchaseInvoiceDirectory companyId={auth.companyId} kind="SUBCONTRACTOR" searchParams={searchParams} access={await getPurchaseAccess(auth)} />;
+  const [access, exportDecision] = await Promise.all([
+    getPurchaseAccess(auth),
+    resolveAuthorization(auth, "reports.export"),
+  ]);
+  return <SubcontractorInvoiceDirectoryV2 companyId={auth.companyId} searchParams={searchParams} access={access} canExport={exportDecision.allowed && exportDecision.scope === "COMPANY"} />;
 }

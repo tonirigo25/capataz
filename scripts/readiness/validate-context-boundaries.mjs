@@ -44,7 +44,7 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 47) failures.push(`expected 47 routes, found ${routes.length}`);
+  if (routes.length !== 48) failures.push(`expected 48 routes, found ${routes.length}`);
   const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
   if (!alertsExport) {
     failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
@@ -101,6 +101,21 @@ if (fixture) {
       "csvCell"
     ]) if (!source.includes(token)) failures.push(`${supplierInvoicesExport.relative}: tenant export boundary missing ${token}`);
   }
+  const subcontractorInvoicesExport = routes.find((route) => route.relative === "app/(app)/facturas-subcontratas/export/route.ts");
+  if (!subcontractorInvoicesExport) {
+    failures.push("app/(app)/facturas-subcontratas/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, subcontractorInvoicesExport.relative), "utf8");
+    if (!subcontractorInvoicesExport.methods.includes("GET")) failures.push(`${subcontractorInvoicesExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.received_invoices.view")',
+      "auth.companyId",
+      '"SUBCONTRACTOR"',
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${subcontractorInvoicesExport.relative}: tenant export boundary missing ${token}`);
+  }
   const actions = walk(path.join(root, "app"), "actions.ts");
   if (actions.length !== 38) failures.push(`expected 38 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
@@ -122,4 +137,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 47 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 48 routes, 7 jobs)\n");
