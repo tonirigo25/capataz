@@ -25,9 +25,11 @@ check("canonical-home-uses-private-demo-entry", () => {
   assert.equal(landing.includes('<DemoRequestForm kind="home" />'), false);
   assert.equal(existsSync(join(root, "app/marketing-v2/_components/local-access-form.tsx")), false);
 });
-check("private-beta-capture-targets-contact", () => {
+check("private-beta-capture-and-login-stay-fail-closed", () => {
   assert.ok(read("app/(auth)/registro/page.tsx").includes('href="/contacto">Solicitar acceso'));
-  assert.ok(read("components/auth/login-form.tsx").includes('href="/contacto"'));
+  const login = read("components/auth/login-form.tsx");
+  assert.ok(login.includes('href="/recuperar-contrasena"'));
+  assert.equal(login.includes('href="/registro"'), false);
 });
 check("header-mobile-and-final-demo-cta", () => {
   const header = read("app/marketing-v2/_components/marketing-header.tsx");

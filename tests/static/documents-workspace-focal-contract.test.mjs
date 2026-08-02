@@ -9,6 +9,7 @@ const rail = read("components/portal/orqena-context-rail.tsx");
 const styles = read("app/globals.css");
 const fileRoute = read("app/(app)/documentos/[id]/archivo/route.ts");
 const uploadAction = read("app/(app)/documentos/actions.ts");
+const uploadUseCase = read("lib/application/documents/repository-document-use-cases.ts");
 const uploadPage = read("app/(app)/documentos/subir/page.tsx");
 const templateRoute = read("app/(app)/documentos/plantillas/[slug]/route.ts");
 
@@ -39,14 +40,15 @@ test("cada acción del lector tiene intención y ancla diferenciadas", () => {
 });
 
 test("la subida general valida contenido real y usa almacenamiento privado", () => {
+  const uploadBoundary = `${uploadAction}\n${uploadUseCase}`;
   for (const token of [
     'requireCapability("documents.upload")',
     "validateRepositoryDocumentFile",
     "assertDocumentCreationAllowed",
     "documentStorage.put",
     'origin: "document_repository"',
-  ]) assert.ok(uploadAction.includes(token), `Falta ${token}`);
-  assert.doesNotMatch(uploadAction, /formData\.get\("companyId"\)/);
+  ]) assert.ok(uploadBoundary.includes(token), `Falta ${token}`);
+  assert.doesNotMatch(uploadBoundary, /formData\.get\("companyId"\)/);
   assert.match(uploadPage, /PDF, JPG, PNG, WEBP o TXT/);
   assert.match(uploadPage, /Abrir lector de gastos/);
 });

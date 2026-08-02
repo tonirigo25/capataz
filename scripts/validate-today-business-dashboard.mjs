@@ -4,6 +4,7 @@ const read = (path) => fs.readFileSync(path, "utf8");
 const today = read("app/(app)/hoy/page.tsx");
 const todayOverview = read("lib/portal/today-overview.ts");
 const todayActions = read("app/(app)/hoy/actions.ts");
+const todayActionUseCases = read("lib/application/intelligence/today-action-use-cases.ts");
 const contextRail = read("components/portal/orqena-context-rail.tsx");
 const styles = read("app/globals.css");
 const dashboard = read("app/(app)/dashboard/page.tsx");
@@ -29,7 +30,7 @@ check("Hoy incluye cobros, pagos y resumen sin rutas inexistentes", today.includ
 check("Hoy aplica autorización y scopes en servidor", todayOverview.includes('resolveAuthorization(context, "sales.budgets.view")') && todayOverview.includes("resolveScopedEntityIds") && todayOverview.includes("relationWhere(purchaseScopes)"));
 check("Hoy deriva responsables reales cuando existen", todayOverview.includes("budget.work?.comercial") && todayOverview.includes("document.uploadedBy?.displayName") && todayOverview.includes("responsibleNames.get"));
 check("Hoy calcula totales completos sin confundir arrays truncados", todayOverview.includes("prisma.budget.count") && todayOverview.includes("prisma.invoice.count") && todayOverview.includes("prisma.document.count") && todayOverview.includes("prisma.followUp.count"));
-check("Hoy conserva confirmación humana e idempotencia", todayActions.includes("executeRecommendationUseCase") && contextRail.includes('name="confirmed" value="true"') && todayActions.includes("TODAY_RECOMMENDATION_ACTION_INVALID"));
+check("Hoy conserva confirmación humana e idempotencia", todayActionUseCases.includes("executeRecommendationUseCase") && contextRail.includes('name="confirmed" value="true"') && todayActionUseCases.includes("TODAY_RECOMMENDATION_ACTION_INVALID"));
 check("Hoy mantiene rail IA contextual y controles reales", contextRail.includes("TodayRecommendationControls") && contextRail.includes("acceptTodayRecommendationAction") && contextRail.includes("dismissTodayRecommendationAction") && contextRail.includes("Ver todas las recomendaciones"));
 check("Hoy fija la geometría contractual 5/3/2", styles.includes("repeat(5, minmax(0, 1fr))") && styles.includes(".hoy-operational-grid") && styles.includes(".hoy-bottom-grid") && styles.includes("--fos-layout-topbar: 67px"));
 check("Hoy deriva portal y datos desde autorización", today.includes('requireCapability("company.view")') && today.includes("getTodayOverview(auth)") && todayOverview.includes("companyId = context.companyId"));
