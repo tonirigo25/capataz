@@ -7,6 +7,7 @@ const shell = read("components/app-shell.tsx");
 const styles = read("app/globals.css");
 const middleware = read("middleware.ts");
 const searchPage = read("app/(app)/buscar/page.tsx");
+const searchCombobox = read("components/global-search-combobox.tsx");
 const searchLoading = read("app/(app)/buscar/loading.tsx");
 const searchError = read("app/(app)/buscar/error.tsx");
 const primitives = read("components/ui-primitives.tsx");
@@ -43,7 +44,7 @@ check("shell no expone el modo test y limita el aviso al demo de plataforma", sh
 check("paneles cierran por Escape, exterior y destino", chrome.includes('event.key === "Escape"') && chrome.includes('document.addEventListener("pointerdown"') && chrome.includes("onNavigate={onClose}"));
 check("paneles restauran foco y hojas bloquean scroll", chrome.includes("activeTriggerRef.current?.focus()") && chrome.includes('document.body.style.overflow = "hidden"'));
 check("diálogos contienen el foco por teclado", chrome.includes('event.key !== "Tab"') && chrome.includes("getFocusable") && chrome.includes('role="dialog"'));
-check("búsqueda usa activador central y compacto, atajo y ruta existentes", chrome.includes("field-os-global-search") && chrome.includes("field-os-search-trigger") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes('action="/buscar"'));
+check("búsqueda usa activador central y compacto, atajo y ruta existentes", chrome.includes("field-os-global-search") && chrome.includes("field-os-search-trigger") && chrome.includes("event.ctrlKey || event.metaKey") && chrome.includes("GlobalSearchCombobox") && searchCombobox.includes('action="/buscar"'));
 check("búsqueda presenta filas y estados vacío, carga, error y resultados", searchPage.includes("InteractiveRow") && searchPage.includes("¿Qué necesitas encontrar?") && searchPage.includes("No hay resultados") && searchLoading.includes("LoadingState") && searchError.includes("ErrorState"));
 check("Orqena usa la ruta visual canónica y conserva el alias técnico", chrome.includes('href="/orqena-ia"') && navigation.includes('{ href: "/capataz", label: brand.assistantName }'));
 check("notificaciones limitan contador a 99+ sin danger", chrome.includes('count > 99 ? "99+"') && !chrome.includes("bg-danger"));

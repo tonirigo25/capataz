@@ -4,9 +4,9 @@ import {
   EmptyState,
   InteractiveRow,
   PageHeader,
-  ProductPage,
-  CompactSearch
+  ProductPage
 } from "@/components/ui-primitives";
+import { GlobalSearchCombobox } from "@/components/global-search-combobox";
 import { globalSearch } from "@/lib/search";
 import { requireCapability } from "@/lib/commercial/authorization";
 
@@ -26,23 +26,15 @@ export default async function SearchPage({
     <ProductPage layout="list">
       <PageHeader
         title="Búsqueda"
-        description="Encuentra clientes, trabajos, presupuestos, facturas y documentos desde un único lugar."
+        description="Encuentra clientes, contactos, trabajo, ventas, dinero, agenda y documentos desde un único lugar."
       />
 
-      <form action="/buscar" className="mb-8 flex max-w-3xl gap-2" role="search">
-        <label htmlFor="global-search-page" className="sr-only">Buscar en Orqena</label>
-        <CompactSearch
-          id="global-search-page"
-          name="q"
-          defaultValue={query}
-          placeholder="Cliente, trabajo, factura, documento…"
-          autoFocus
-        />
-        <button className="primary-button shrink-0" type="submit" aria-label="Buscar en Orqena">
-          <Search size={18} aria-hidden="true" />
-          <span className="hidden sm:inline">Buscar</span>
-        </button>
-      </form>
+      <GlobalSearchCombobox
+        id="global-search-page"
+        defaultValue={query}
+        autoFocus
+        className="mb-8 max-w-3xl"
+      />
 
       <nav aria-label="Accesos analíticos" className="mb-8 flex flex-wrap gap-2">
         <Link href="/dashboard" className="secondary-button">Abrir Dashboard</Link>

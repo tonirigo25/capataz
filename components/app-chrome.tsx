@@ -48,6 +48,7 @@ import { BrandLogo } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { brand } from "@/lib/brand";
 import { OrqenaContextRail } from "@/components/portal/orqena-context-rail";
+import { GlobalSearchCombobox } from "@/components/global-search-combobox";
 import type { PortalRailRecommendations } from "@/lib/application/intelligence/today-recommendation";
 
 type DesktopPanel = "create" | "user" | null;
@@ -712,28 +713,13 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en {brand.productName}</h2>
-          <p className="type-secondary mt-1">Clientes, trabajos, presupuestos, facturas y documentos.</p>
+          <p className="type-secondary mt-1">Clientes, trabajo, dinero, agenda y documentos.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Cerrar búsqueda" onClick={onClose}>
           <X size={20} aria-hidden="true" />
         </button>
       </div>
-      <form action="/buscar" className="mt-5">
-        <label htmlFor={`${id}-query`} className="sr-only">Qué quieres buscar</label>
-        <div className="relative">
-          <Search size={20} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" aria-hidden="true" />
-          <input
-            id={`${id}-query`}
-            data-autofocus
-            className="field pl-11 pr-24"
-            name="q"
-            type="search"
-            autoComplete="off"
-            placeholder="Cliente, trabajo, factura…"
-          />
-          <button type="submit" className="primary-button absolute right-1 top-1 min-h-10 px-3">Buscar</button>
-        </div>
-      </form>
+      <GlobalSearchCombobox id={`${id}-query`} autoFocus onNavigate={onClose} className="mt-5" />
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-content-tertiary">
         <span><kbd className="font-semibold">↑ ↓</kbd> recorrer</span>
         <span><kbd className="font-semibold">Enter</kbd> buscar</span>
