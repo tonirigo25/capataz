@@ -539,7 +539,7 @@
 }
 
 .loginOptions a {
-  color: #009a3c;
+  color: var(--fos-color-success-text-aa);
   font-weight: 650;
 }
 
