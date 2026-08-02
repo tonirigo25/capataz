@@ -2,11 +2,8 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import {
   BadgeEuro,
-  Building2,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
-  ClipboardList,
   Download,
   FileText,
   Filter,
@@ -15,10 +12,10 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 import { PartnerForm } from "@/components/procurement-partners";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { SupplierRailContext } from "@/components/portal/supplier-rail-context";
 import {
   getSupplierWorkspace,
@@ -77,15 +74,14 @@ export async function SupplierDirectoryV2({
 
     <header className={styles.header}>
       <div><h1>Proveedores</h1><p>Gestiona tu red de proveedores, su desempeño y relaciones comerciales con datos registrados en tu empresa.</p></div>
-      {canManage ? <Link className={styles.primaryButton} href={hrefWith(raw, { nuevo: "1" }, "ficha-proveedor")}><Plus size={15} /><span>Nuevo proveedor</span></Link> : null}
     </header>
 
     <section className={styles.metrics} aria-label="Indicadores de proveedores">
-      <Metric label="Proveedores activos" value={String(workspace.metrics.active)} note={`${workspace.items.length} registrados`} series={workspace.series.active} icon={<Building2 size={15} />} />
-      <Metric label="Gasto total (MTD)" value={formatCurrency(workspace.metrics.mtdSpend)} note="Facturas emitidas este mes" series={workspace.series.spend} icon={<CircleDollarSign size={15} />} />
-      <Metric label="Facturas pendientes" value={String(workspace.metrics.pendingInvoices)} note={formatCurrency(workspace.metrics.pendingAmount)} series={workspace.series.pending} icon={<FileText size={15} />} tone={workspace.metrics.pendingInvoices ? "warning" : "neutral"} />
-      <Metric label="Riesgo promedio" value={workspace.metrics.riskAverage == null ? "—" : String(workspace.metrics.riskAverage)} note={workspace.metrics.riskAverage == null ? "Sin datos" : riskAverageLabel(workspace.metrics.riskAverage)} series={workspace.series.risk} ring={workspace.metrics.riskAverage} icon={<ShieldCheck size={15} />} />
-      <Metric label="Calidad promedio" value={workspace.metrics.qualityAverage == null ? "—" : String(workspace.metrics.qualityAverage)} note={workspace.metrics.qualityAverage == null ? "Sin valorar" : qualityAverageLabel(workspace.metrics.qualityAverage)} series={workspace.series.quality} ring={workspace.metrics.qualityAverage} icon={<ClipboardList size={15} />} />
+      <Metric label="Proveedores activos" value={String(workspace.metrics.active)} note={trendLabel(workspace.series.active, "mes anterior")} series={workspace.series.active} />
+      <Metric label="Gasto total (MTD)" value={formatCurrency(workspace.metrics.mtdSpend)} note={trendLabel(workspace.series.spend, "mes anterior")} series={workspace.series.spend} />
+      <Metric label="Facturas pendientes" value={String(workspace.metrics.pendingInvoices)} note={formatCurrency(workspace.metrics.pendingAmount)} series={workspace.series.pending} tone={workspace.metrics.pendingInvoices ? "warning" : "neutral"} />
+      <Metric label="Riesgo promedio" value={workspace.metrics.riskAverage == null ? "—" : String(workspace.metrics.riskAverage)} note={workspace.metrics.riskAverage == null ? "Sin datos" : riskAverageLabel(workspace.metrics.riskAverage)} series={workspace.series.risk} ring={workspace.metrics.riskAverage} />
+      <Metric label="Calidad promedio" value={workspace.metrics.qualityAverage == null ? "—" : String(workspace.metrics.qualityAverage)} note={workspace.metrics.qualityAverage == null ? "Sin valorar" : qualityAverageLabel(workspace.metrics.qualityAverage)} series={workspace.series.quality} ring={workspace.metrics.qualityAverage} />
     </section>
 
     {first(raw.saved) ? <p className={styles.notice} role="status">Proveedor guardado correctamente.</p> : null}
@@ -103,11 +99,12 @@ export async function SupplierDirectoryV2({
           <label><input type="checkbox" name="deuda" value="1" defaultChecked={query.pendingOnly} /> Con saldo pendiente</label>
           <label><input type="checkbox" name="sinContrato" value="1" defaultChecked={query.missingContractOnly} /> Sin contrato registrado</label>
           <label>Orden<select name="orden" defaultValue={query.order ?? "name"}><option value="name">Nombre</option><option value="risk">Mayor riesgo</option><option value="spend">Mayor gasto</option></select></label>
+          <button className={styles.filterSubmit} type="submit"><Filter size={14} />Aplicar filtros</button>
         </div>
       </details>
       <label className={styles.searchField}><Search size={14} aria-hidden="true" /><input name="buscar" defaultValue={first(raw.buscar) ?? ""} placeholder="Buscar proveedor…" aria-label="Buscar proveedor" /><button type="submit" aria-label="Aplicar búsqueda"><ChevronRight size={14} /></button></label>
-      <button className={styles.filterSubmit} type="submit"><Filter size={14} /><span>Aplicar</span></button>
       {canExport ? <Link className={styles.secondaryButton} href={exportHref(raw)}><Download size={14} /><span>Exportar</span></Link> : null}
+      {canManage ? <Link className={styles.primaryButton} href={hrefWith(raw, { nuevo: "1" }, "ficha-proveedor")}><Plus size={15} /><span>Nuevo proveedor</span></Link> : null}
     </form>
 
     {isCreating && canManage ? <section id="ficha-proveedor" className={styles.createPanel}>
@@ -145,8 +142,12 @@ export async function SupplierDirectoryV2({
   </main>;
 }
 
-function Metric({ label, value, note, series, icon, tone, ring }: { label: string; value: string; note: string; series: number[]; icon: React.ReactNode; tone?: "warning" | "neutral"; ring?: number | null }) {
-  return <article className={styles.metric} data-tone={tone}><div><p className={styles.metricLabel}>{icon}{label}</p><p className={styles.metricValue}>{ring != null ? <span className={styles.metricRing} style={{ "--ring-value": `${ring * 3.6}deg` } as CSSProperties}><strong>{value}</strong><small>/100</small></span> : value}</p><p className={styles.metricNote}>{note}</p></div><Sparkline values={series} /></article>;
+function Metric({ label, value, note, series, tone, ring }: { label: string; value: string; note: string; series: number[]; tone?: "warning" | "neutral"; ring?: number | null }) {
+  return <article className={styles.metric} data-tone={tone} data-ring={ring != null ? "true" : undefined}>
+    {ring != null ? <span className={styles.metricRing} style={{ "--ring-value": `${ring * 3.6}deg` } as CSSProperties}><strong>{value}</strong></span> : null}
+    <div><p className={styles.metricLabel}>{label}</p>{ring == null ? <p className={styles.metricValue}>{value}</p> : null}<p className={styles.metricNote}>{note}</p></div>
+    <Sparkline values={series} />
+  </article>;
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -156,7 +157,7 @@ function Sparkline({ values }: { values: number[] }) {
 }
 
 function SelectField({ label, name, value, options }: { label: string; name: string; value: string; options: Array<[string, string]> }) {
-  return <label className={styles.selectField}><span>{label}</span><select name={name} defaultValue={value}>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>;
+  return <label className={styles.selectField}><span>{label}</span><AutoSubmitSelect name={name} defaultValue={value} label={label}>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</AutoSubmitSelect></label>;
 }
 
 function SupplierRow({ supplier, selected }: { supplier: SupplierWorkspaceItem; selected: boolean }) {
@@ -197,6 +198,7 @@ const chartColors = ["#0b8f44", "#62bc78", "#166b70", "#f0aa18", "#5d87c8"];
 function donutGradient(values: number[]) { const total = values.reduce((sum, value) => sum + value, 0) || 1; let cursor = 0; return `conic-gradient(${values.slice(0, 5).map((value, index) => { const start = cursor; cursor += value / total * 360; return `${chartColors[index % chartColors.length]} ${start}deg ${cursor}deg`; }).join(", ")})`; }
 function riskAverageLabel(value: number) { return value >= 75 ? "Riesgo bajo" : value >= 50 ? "Riesgo medio" : "Riesgo alto"; }
 function qualityAverageLabel(value: number) { return value >= 85 ? "Calidad alta" : value >= 65 ? "Calidad buena" : "Calidad a revisar"; }
+function trendLabel(values: number[], period: string) { const previous = values.at(-2) ?? 0; const current = values.at(-1) ?? 0; if (!previous && !current) return `Sin cambios vs. ${period}`; if (!previous) return `Alta registrada vs. ${period}`; const delta = Math.round(((current - previous) / Math.abs(previous)) * 1000) / 10; return `${delta >= 0 ? "+" : ""}${new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(delta)}% vs. ${period}`; }
 function formatCurrency(value: number) { return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value); }
 function formatDate(value: Date) { return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }).format(value); }
 function relativeDate(value: Date) { const days = Math.floor((Date.now() - value.getTime()) / 86_400_000); if (days <= 0) return `Hoy, ${new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(value)}`; if (days === 1) return "Ayer"; return `Hace ${days} días`; }

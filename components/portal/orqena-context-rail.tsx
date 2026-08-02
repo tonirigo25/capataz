@@ -517,10 +517,42 @@ function PurchaseInvoiceRailContent({ context, titleId, canUse, onToggleCollapse
 function SupplierRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: SupplierRailContextValue | null; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
   const attention = context?.attention ?? [];
   const subcontractors = context?.kind === "subcontractor";
+  if (subcontractors) {
+    const documents = context?.expiringDocuments ?? 0;
+    const evaluations = context?.pendingEvaluations ?? 0;
+    const pending = context?.pendingAmount ?? 0;
+    return <div className="orqena-context-rail__inner supplier-context-rail subcontractor-context-rail">
+      <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
+      <p className="orqena-context-eyebrow">Recomendación para hoy</p>
+      <section className="subcontractor-context-stack" aria-labelledby={titleId}>
+        <h2 id={titleId} className="sr-only">Recomendaciones para subcontratas</h2>
+        <Link href="/subcontratas?cumplimiento=attention#directorio" className="subcontractor-context-item">
+          <span><FileText size={16} aria-hidden="true" /></span><div><strong>Revisar documentación por vencer</strong><p>{documents ? `${documents} ${documents === 1 ? "subcontrata requiere" : "subcontratas requieren"} comprobación documental.` : "No hay documentación pendiente dentro del alcance visible."}</p></div>
+        </Link>
+        <Link href="/subcontratas?seccion=pagos#directorio" className="subcontractor-context-item">
+          <span><TriangleAlert size={16} aria-hidden="true" /></span><div><strong>Pagos pendientes detectados</strong><p>{pending ? `${formatCurrency(pending, true)} pendientes de revisión y conciliación.` : "No hay pagos pendientes registrados en las subcontratas visibles."}</p></div>
+        </Link>
+        <Link href="/subcontratas?seccion=evaluaciones#directorio" className="subcontractor-context-item">
+          <span><UsersRound size={16} aria-hidden="true" /></span><div><strong>Evaluaciones pendientes</strong><p>{evaluations ? `${evaluations} ${evaluations === 1 ? "ficha necesita" : "fichas necesitan"} una valoración interna.` : "Todas las fichas visibles tienen una evaluación registrada."}</p></div>
+        </Link>
+      </section>
+      <dl className="orqena-context-impact subcontractor-context-impact">
+        <div className="orqena-context-impact__title"><dt>Impacto registrado</dt><dd>{context?.overdueInvoices ? "Requiere revisión" : "Controlado"}</dd></div>
+        <div><dt>Exposición vencida</dt><dd>{formatCurrency(context?.overdueExposure ?? 0, true)}</dd></div>
+        <div><dt>Pagos pendientes</dt><dd>{formatCurrency(pending, true)}</dd></div>
+        <div><dt>Obras afectadas</dt><dd>{context?.affectedWorks ?? 0}</dd></div>
+        <div><dt>Subcontratas a revisar</dt><dd>{context?.highRiskCount ?? 0}</dd></div>
+      </dl>
+      <Link href="/subcontratas?cumplimiento=attention#directorio" className="orqena-context-primary">Ver análisis completo<ChevronRight size={16} aria-hidden="true" /></Link>
+      {canUse ? <Link href="/orqena-ia/finanzas" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+    </div>;
+  }
   const singular = subcontractors ? "subcontrata" : "proveedor";
   const plural = subcontractors ? "subcontratas" : "proveedores";
-  const title = attention.length
-    ? `${attention.length} ${attention.length === 1 ? `${singular} requiere` : `${plural} requieren`} revisión`
+  const title = context?.highRiskCount
+    ? `${context.highRiskCount} ${context.highRiskCount === 1 ? "proveedor con riesgo alto" : "proveedores con riesgo alto"}`
+    : attention.length
+      ? `${attention.length} ${attention.length === 1 ? `${singular} requiere` : `${plural} requieren`} revisión`
     : context?.supplierCount
       ? `${subcontractors ? "Red de subcontratas" : "Red de proveedores"} sin alertas registradas`
       : `Sin ${plural} para evaluar`;
@@ -663,8 +695,10 @@ function TodayRecommendationControls({ recommendation }: { recommendation: Today
 function isSupplierRailContext(value: unknown): value is SupplierRailContextValue {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
+  const optionalNumbers = [record.expiringDocuments, record.pendingEvaluations, record.pendingAmount, record.affectedWorks];
   return [record.supplierCount, record.highRiskCount, record.overdueExposure, record.overdueInvoices]
     .every((entry) => typeof entry === "number" && Number.isFinite(entry))
+    && optionalNumbers.every((entry) => entry === undefined || (typeof entry === "number" && Number.isFinite(entry) && entry >= 0))
     && (record.qualityAverage == null || typeof record.qualityAverage === "number")
     && Array.isArray(record.attention)
     && record.attention.every((entry) => {

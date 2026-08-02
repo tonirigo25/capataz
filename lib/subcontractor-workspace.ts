@@ -85,6 +85,7 @@ export async function getSubcontractorWorkspace(companyId: string, query: Subcon
     if (query.works === "active" && item.activeWorkCount === 0) return false;
     if (query.works === "none" && item.activeWorkCount > 0) return false;
     if (query.view === "pagos" && item.pendingAmount <= 0) return false;
+    if (query.view === "obras" && item.activeWorkCount === 0) return false;
     if (query.view === "evaluaciones" && item.rating != null) return false;
     if (search && ![item.commercialName, item.legalName, item.taxId, item.specialty, item.tradeType, item.contactPerson, item.email]
       .filter(Boolean).join(" ").toLocaleLowerCase("es-ES").includes(search)) return false;

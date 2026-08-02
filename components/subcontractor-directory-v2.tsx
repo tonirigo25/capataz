@@ -22,6 +22,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { PartnerForm } from "@/components/procurement-partners";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { SupplierRailContext } from "@/components/portal/supplier-rail-context";
 import {
   documentStatusLabel,
@@ -52,7 +53,7 @@ export async function SubcontractorDirectoryV2({
   const pageCount = Math.max(1, Math.ceil(workspace.filtered.length / pageSize));
   const page = Math.min(pageCount, Math.max(1, numberValue(raw.pagina, 1)));
   const visible = workspace.filtered.slice((page - 1) * pageSize, page * pageSize);
-  const selected = workspace.items.find((item) => item.id === first(raw.seleccion)) ?? null;
+  const selected = workspace.items.find((item) => item.id === first(raw.seleccion)) ?? visible[0] ?? null;
   const isCreating = first(raw.nuevo) === "1";
   const format = first(raw.formato) === "tarjetas" ? "cards" : "table";
   const donut = complianceGradient(workspace.distribution.map((entry) => entry.count));
@@ -63,6 +64,10 @@ export async function SubcontractorDirectoryV2({
     overdueExposure: workspace.metrics.overdueAmount,
     overdueInvoices: workspace.items.reduce((total, item) => total + item.overdueCount, 0),
     qualityAverage: workspace.metrics.complianceAverage,
+    expiringDocuments: workspace.metrics.expiringDocuments,
+    pendingEvaluations: workspace.metrics.pendingEvaluations,
+    pendingAmount: workspace.metrics.pendingAmount,
+    affectedWorks: workspace.metrics.worksWithSubcontractors,
     attention: workspace.attention.slice(0, 3).map((item) => ({
       id: item.id,
       name: item.commercialName,
@@ -109,7 +114,6 @@ export async function SubcontractorDirectoryV2({
       <SelectField label="Cumplimiento" name="cumplimiento" value={first(raw.cumplimiento) ?? "all"} options={[["all", "Todos"], ["excellent", "Excelente"], ["attention", "Requiere atención"], ["unrated", "Sin valorar"]]} />
       <SelectField label="Obras" name="obras" value={first(raw.obras) ?? "all"} options={[["all", "Todas"], ["active", "Con obras activas"], ["none", "Sin obra activa"]]} />
       <details className={styles.moreFilters}><summary className={styles.secondaryButton}><SlidersHorizontal size={14} /><span>Más filtros</span></summary><div className={styles.morePanel}><Link href="/subcontratas?seccion=pagos">Con pagos pendientes</Link><Link href="/subcontratas?seccion=evaluaciones">Sin evaluación</Link><Link href="/subcontratas?cumplimiento=attention">Documentación a revisar</Link></div></details>
-      <button className={styles.filterSubmit} type="submit">Aplicar</button>
       <div className={styles.viewToggle} aria-label="Vista">
         <Link href={hrefWith(raw, { formato: null })} aria-current={format === "table" ? "page" : undefined} title="Vista de lista"><List size={14} /></Link>
         <Link href={hrefWith(raw, { formato: "tarjetas" })} aria-current={format === "cards" ? "page" : undefined} title="Vista de tarjetas"><Grid2X2 size={14} /></Link>
@@ -145,7 +149,7 @@ function Metric({ label, value, note, icon, tone }: { label: string; value: stri
 
 function Tab({ raw, id, label }: { raw: QueryRecord; id: string; label: string }) { const current = first(raw.seccion) ?? "directorio"; return <Link href={hrefWith(raw, { seccion: id === "directorio" ? null : id, pagina: null })} aria-current={current === id ? "page" : undefined}>{label}</Link>; }
 
-function SelectField({ label, name, value, options }: { label: string; name: string; value: string; options: Array<[string, string]> }) { return <label className={styles.selectField}><span>{label}</span><select name={name} defaultValue={value}>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>; }
+function SelectField({ label, name, value, options }: { label: string; name: string; value: string; options: Array<[string, string]> }) { return <label className={styles.selectField}><span>{label}</span><AutoSubmitSelect name={name} defaultValue={value} label={label}>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</AutoSubmitSelect></label>; }
 
 function SubcontractorRow({ item, selected, raw }: { item: SubcontractorItem; selected: boolean; raw: QueryRecord }) {
   return <tr data-selected={selected ? "true" : undefined}>

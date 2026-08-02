@@ -4787,6 +4787,14 @@ button:disabled,
   line-height: 1.5;
 }
 .supplier-context-rail > .orqena-context-more { margin-top: auto; padding-top: 20px; font-size: 9px; }
+.subcontractor-context-stack { display: grid; gap: 9px; margin-top: 14px; }
+.subcontractor-context-item { display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: start; gap: 9px; border: 1px solid #dce9e0; border-radius: 8px; background: #fff; padding: 10px; color: #1c3026; }
+.subcontractor-context-item:hover { border-color: #add8ba; background: #f6fbf7; }
+.subcontractor-context-item > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #eaf8ee; color: #07883c; }
+.subcontractor-context-item strong { display: block; font-size: 9.5px; line-height: 1.35; }
+.subcontractor-context-item p { margin-top: 4px; color: #64736b; font-size: 8.5px; line-height: 1.5; }
+.subcontractor-context-impact { margin-top: 12px; background: #fff8f6; }
+.subcontractor-context-rail > .orqena-context-primary { min-height: 34px; margin-top: 12px; font-size: 9.5px; }
 .orqena-context-rail[data-context-variant="purchase-invoices"] .orqena-context-rail__inner { min-height: calc(100vh - var(--portal-topbar-height, 64px)); }
 .purchase-invoice-context-rail .orqena-context-eyebrow { margin: 20px 0 0; }
 .purchase-invoice-context-card { margin-top: 14px; }

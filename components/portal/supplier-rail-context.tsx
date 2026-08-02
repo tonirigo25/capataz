@@ -9,6 +9,10 @@ export type SupplierRailContextValue = {
   overdueExposure: number;
   overdueInvoices: number;
   qualityAverage: number | null;
+  expiringDocuments?: number;
+  pendingEvaluations?: number;
+  pendingAmount?: number;
+  affectedWorks?: number;
   attention: Array<{
     id: string;
     name: string;
