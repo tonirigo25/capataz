@@ -1,8 +1,8 @@
 .page {
   display: grid;
   min-width: 0;
-  gap: 12px;
-  padding-bottom: 34px;
+  gap: 14px;
+  padding: 20px 14px 30px;
   color: #101a22;
 }
 
@@ -34,6 +34,7 @@
   grid-template-columns: minmax(140px, .95fr) minmax(155px, 1fr) minmax(170px, 1.1fr) auto auto auto 1fr;
   align-items: center;
   gap: 9px;
+  height: 37px;
 }
 
 .filters select,
@@ -182,7 +183,7 @@
   background: #fff;
 }
 
-.pipeline { padding: 13px 15px 10px; }
+.pipeline { margin-top: 4px; padding: 13px 15px 10px; }
 .pipeline h2,
 .featured h2,
 .nextActions h2,
@@ -374,8 +375,8 @@
 .emptyHistory p { margin: 0; }
 .emptyHistory a { color: #087e36; font-weight: 760; }
 
-.details dl { display: grid; gap: 0; margin: 0; padding: 10px 13px; }
-.details dl > div { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(0, 1.3fr); gap: 10px; min-height: 25px; align-items: center; }
+.details dl { display: grid; gap: 0; margin: 0; padding: 8px 13px; }
+.details dl > div { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(0, 1.3fr); gap: 10px; min-height: 23px; align-items: center; }
 .details dt { color: #6d7972; font-size: 8px; }
 .details dd { overflow: hidden; margin: 0; color: #213029; font-size: 9px; font-weight: 690; text-overflow: ellipsis; white-space: nowrap; }
 .details dd a { color: #146e39; text-decoration: none; }
@@ -435,6 +436,7 @@
 .emptyState a { color: #087c36; font-size: 10px; font-weight: 780; }
 
 @media (max-width: 1180px) {
+  .page { padding-inline: 18px; }
   .filters { grid-template-columns: repeat(3, minmax(135px, 1fr)) auto auto auto; }
   .newButton { grid-column: auto; }
   .pipelineCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -445,7 +447,8 @@
 }
 
 @media (max-width: 760px) {
-  .page { gap: 10px; }
+  .page { gap: 10px; height: auto; padding: 14px 12px 28px; }
+  .filters { height: auto; }
   .pageHeader h1 { font-size: 24px; }
   .filters { grid-template-columns: 1fr 1fr; }
   .filters > label:nth-of-type(3) { grid-column: 1 / -1; }

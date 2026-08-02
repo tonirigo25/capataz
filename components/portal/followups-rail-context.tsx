@@ -46,8 +46,12 @@ export function FollowUpsRailContextBridge() {
     const observer = new MutationObserver(publish);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     publish();
+    const hydrationPublish = window.setTimeout(publish, 250);
+    const settledPublish = window.setTimeout(publish, 1_000);
     return () => {
       cancelAnimationFrame(frame);
+      window.clearTimeout(hydrationPublish);
+      window.clearTimeout(settledPublish);
       observer.disconnect();
       window.dispatchEvent(new CustomEvent<null>(EVENT_NAME, { detail: null }));
     };
