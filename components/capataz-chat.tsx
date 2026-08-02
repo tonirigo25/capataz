@@ -1896,7 +1896,7 @@ function BudgetCard({ card, data }: { card: Extract<ActionCard, { type: "budget"
       <InputField name="iva" label="IVA" type="number" value={iva} />
       <InputField name="descuento" label="Descuento" type="number" value={0} />
       <InputField name="total" label="Total" type="number" value={card.amount} />
-      <InputField name="margenEstimado" label="Margen estimado" type="number" value={Math.round(card.amount * 0.25 * 100) / 100} />
+      <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">El margen no se inventa: Orqena lo calculará automáticamente cuando completes los costes de las partidas.</p>
       <InputField name="fechaValidez" label="Fecha validez" type="datetime-local" value={inDaysInputValue(15)} />
       <TextareaField name="condiciones" label="Condiciones" value="Validez 15 días. Fechas sujetas a disponibilidad de materiales." />
       <TextareaField name="observaciones" label="Observaciones" value={`Propuesta preparada con ${brand.assistantName}. Revísala antes de enviar.`} />

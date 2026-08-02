@@ -1,6 +1,6 @@
 import { invalidateActionPath as revalidatePath, navigateAction as redirect } from "@/lib/application/action-effects";
 import { prisma } from "@/lib/prisma";
-import { assertBudgetRecordReconciled, calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
+import { assertBudgetRecordReconciled, calculateBudgetMargin, calculateBudgetTotals, lineTotal, normalizeLine, parseBudgetLines, serializeBudgetLines } from "@/lib/budget-lines";
 import { findBudgetTemplate } from "@/lib/budget-templates";
 import { reserveDocumentNumberInTransaction } from "@/lib/numbering";
 import { reevaluateProactiveAfterMutation } from "@/lib/proactive-evaluation";
@@ -18,10 +18,14 @@ async function budgetContext(id: string | undefined, capability: "sales.budgets.
   else if (budget) await assertScopedEntityAccess(auth, "sales.pricing.view", "Client", budget.clienteId);
   if (budget?.estado === "aceptado" && capability === "sales.budgets.update") {
     if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed) throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
-    await requireApprovalAuthority(auth, "quote.approve", { amount: budget.total, marginPercent: budget.margenEstimado ?? undefined, workId: budget.obraId, clientId: budget.clienteId });
   }
-  if (capability === "sales.budgets.approve" && budget) await requireApprovalAuthority(auth, "quote.approve", { amount: budget.total, marginPercent: budget.margenEstimado ?? undefined, workId: budget.obraId, clientId: budget.clienteId });
   return { auth, budget };
+}
+
+function requiredBudgetMargin(budget: { partidas: string; descuento: number }) {
+  const margin = calculateBudgetMargin(parseBudgetLines(budget.partidas), budget.descuento);
+  if (!margin.complete || margin.percent === null || margin.amount === null || margin.cost === null) throw new Error("BUDGET_COSTS_REQUIRED");
+  return margin;
 }
 
 export async function updateBudgetStatus(formData: FormData) {
@@ -34,6 +38,10 @@ export async function updateBudgetStatus(formData: FormData) {
   if (!budget) return;
   if (["enviado", "visto", "pendiente_respuesta", "aceptado"].includes(estado)) {
     assertBudgetRecordReconciled(parseBudgetLines(budget.partidas), budget);
+  }
+  if (estado === "aceptado") {
+    const margin = requiredBudgetMargin(budget);
+    await requireApprovalAuthority(auth, "quote.approve", { amount: budget.total, marginPercent: margin.percent!, workId: budget.obraId, clientId: budget.clienteId });
   }
   await prisma.budget.updateMany({
     where: { id, companyId: auth.companyId },
@@ -62,11 +70,14 @@ export async function convertBudgetToWork(formData: FormData) {
   await requireCapability("work.create");
   if (!budget) return;
   assertBudgetRecordReconciled(parseBudgetLines(budget.partidas), budget);
+  const margin = requiredBudgetMargin(budget);
+  await requireApprovalAuthority(auth, "quote.approve", { amount: budget.total, marginPercent: margin.percent!, workId: budget.obraId, clientId: budget.clienteId });
 
   if (budget.obraId) {
     await prisma.$transaction([
       prisma.budget.updateMany({ where: { id, companyId: auth.companyId }, data: { estado: "aceptado" } }),
-      prisma.client.updateMany({ where: { id: budget.clienteId, companyId: auth.companyId }, data: { estado: "obra_activa" } })
+      prisma.client.updateMany({ where: { id: budget.clienteId, companyId: auth.companyId }, data: { estado: "obra_activa" } }),
+      prisma.work.updateMany({ where: { id: budget.obraId, companyId: auth.companyId }, data: { presupuestoAprobado: margin.revenue, costePrevisto: margin.cost!, margenEstimado: margin.amount! } })
     ]);
     await reevaluateProactiveAfterMutation({ companyId: auth.companyId, entityType: "budget", entityId: id, clientId: budget.clienteId, workId: budget.obraId, budgetId: id, reason: "budget_converted_existing_work" });
     revalidatePath("/presupuestos");
@@ -86,9 +97,10 @@ export async function convertBudgetToWork(formData: FormData) {
       estado: "pendiente_inicio",
       fechaInicio: new Date(),
       fechaFinPrevista: null,
-      presupuestoAprobado: budget.total,
+      presupuestoAprobado: margin.revenue,
+      costePrevisto: margin.cost!,
       gastoReal: 0,
-      margenEstimado: budget.margenEstimado,
+      margenEstimado: margin.amount!,
       notas: `Creada desde presupuesto ${budget.numero}.`
     }
   });
@@ -148,6 +160,7 @@ export async function duplicateBudget(formData: FormData) {
 
   const { auth, budget } = await budgetContext(id, "sales.budgets.create");
   if (!budget) return;
+  const margin = calculateBudgetMargin(parseBudgetLines(budget.partidas), budget.descuento);
 
   const copy = await prisma.$transaction(async (tx) => tx.budget.create({
     data: {
@@ -161,7 +174,7 @@ export async function duplicateBudget(formData: FormData) {
       iva: budget.iva,
       descuento: budget.descuento,
       total: budget.total,
-      margenEstimado: budget.margenEstimado,
+      margenEstimado: margin.amount ?? 0,
       estado: "borrador",
       fechaValidez: budget.fechaValidez,
       fechaSeguimiento: null,
@@ -199,6 +212,7 @@ export async function createBudgetFromTemplate(formData: FormData) {
     await assertScopedEntityAccess(auth, "sales.pricing.view", "Client", clienteId);
   }
   const totals = calculateBudgetTotals(template.lines, company.defaultVat, 0);
+  const margin = calculateBudgetMargin(template.lines, 0);
   const budget = await prisma.$transaction(async (tx) => tx.budget.create({
     data: {
       clienteId,
@@ -211,7 +225,7 @@ export async function createBudgetFromTemplate(formData: FormData) {
       iva: totals.iva,
       descuento: totals.descuento,
       total: totals.total,
-      margenEstimado: 0,
+      margenEstimado: margin.amount ?? 0,
       estado: "borrador",
       fechaValidez: addDays(15),
       condiciones: company.defaultConditions ?? "Validez 15 días. Precios y partidas editables antes de enviar.",
@@ -233,14 +247,17 @@ export async function saveBudgetLine(formData: FormData) {
   if (!budget) return;
 
   const lines = parseBudgetLines(budget.partidas);
-  const cantidad = number(formData, "cantidad", 1);
-  const precioUnitario = number(formData, "precioUnitario", 0);
+  const cantidad = requiredNumber(formData, "cantidad");
+  const precioUnitario = requiredNumber(formData, "precioUnitario");
+  const costeUnitario = requiredNumber(formData, "costeUnitario");
   const line = normalizeLine({
     descripcion: String(formData.get("descripcion") ?? "Partida"),
     cantidad,
     unidad: String(formData.get("unidad") ?? "ud"),
     precioUnitario,
     total: lineTotal(cantidad, precioUnitario),
+    costeUnitario,
+    costeTotal: lineTotal(cantidad, costeUnitario),
     categoria: String(formData.get("categoria") ?? "General")
   });
 
@@ -264,10 +281,12 @@ async function updateBudgetLinesAndTotals(budgetId: string, lines: ReturnType<ty
   const { auth } = await budgetContext(budgetId, "sales.budgets.update");
   const company = await prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } });
   const totals = calculateBudgetTotals(lines, company.defaultVat, discount);
-  const current = await prisma.budget.findFirstOrThrow({ where: { id: budgetId, companyId: auth.companyId }, select: { estado: true, margenEstimado: true, obraId: true, clienteId: true } });
+  const margin = calculateBudgetMargin(lines, discount);
+  const current = await prisma.budget.findFirstOrThrow({ where: { id: budgetId, companyId: auth.companyId }, select: { estado: true, obraId: true, clienteId: true } });
   if (current.estado === "aceptado") {
     if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed) throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
-    await requireApprovalAuthority(auth, "quote.approve", { amount: totals.total, marginPercent: current.margenEstimado, workId: current.obraId, clientId: current.clienteId });
+    if (margin.percent === null) throw new Error("BUDGET_COSTS_REQUIRED");
+    await requireApprovalAuthority(auth, "quote.approve", { amount: totals.total, marginPercent: margin.percent, workId: current.obraId, clientId: current.clienteId });
   }
   await prisma.budget.updateMany({
     where: { id: budgetId, companyId: auth.companyId },
@@ -276,7 +295,8 @@ async function updateBudgetLinesAndTotals(budgetId: string, lines: ReturnType<ty
       subtotal: totals.subtotal,
       iva: totals.iva,
       descuento: totals.descuento,
-      total: totals.total
+      total: totals.total,
+      margenEstimado: margin.amount ?? 0,
     }
   });
   const budget = await prisma.budget.findFirst({ where: { id: budgetId, companyId: auth.companyId }, select: { clienteId: true, obraId: true } });
@@ -298,9 +318,10 @@ function optionalText(formData: FormData, key: string) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function number(formData: FormData, key: string, fallback = 0) {
+function requiredNumber(formData: FormData, key: string) {
   const value = optionalText(formData, key);
-  if (!value) return fallback;
+  if (value === null) throw new Error("BUDGET_LINE_VALUE_REQUIRED");
   const parsed = Number(value.replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : fallback;
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error("BUDGET_LINE_VALUE_INVALID");
+  return parsed;
 }

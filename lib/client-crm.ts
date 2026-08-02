@@ -283,12 +283,14 @@ const clientSelect = {
       fechaInicio: true,
       fechaFinPrevista: true,
       presupuestoAprobado: true,
+      costePrevisto: true,
       gastoReal: true,
       margenEstimado: true,
+      subcontratasCoste: true,
       notas: true,
       budgets: {
         orderBy: { fechaCreacion: "desc" },
-        select: { id: true, numero: true, titulo: true, total: true, estado: true, fechaCreacion: true }
+        select: { id: true, numero: true, titulo: true, subtotal: true, descuento: true, total: true, estado: true, fechaCreacion: true }
       },
       invoices: {
         orderBy: { fechaEmision: "desc" },
@@ -297,6 +299,7 @@ const clientSelect = {
           numero: true,
           concepto: true,
           total: true,
+          importeBase: true,
           pagado: true,
           pendiente: true,
           estado: true,

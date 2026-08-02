@@ -30,6 +30,7 @@ import {
 } from "@/lib/commercial/authorization";
 import { readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
+import { calculateBudgetMargin, parseBudgetLines } from "@/lib/budget-lines";
 
 export const orqenaAiAreas = [
   "comercial",
@@ -62,7 +63,7 @@ type QueueRow = {
 
 type AreaMeta = { label: string; description: string; queueTitle: string; contextTitle: string; automationTitle: string };
 
-type BudgetView = { id: string; numero: string; titulo: string; total: number; margenEstimado: number; estado: string; fechaSeguimiento: Date | null; client: { nombre: string }; work: { titulo: string } | null };
+type BudgetView = { id: string; numero: string; titulo: string; total: number; partidas: string; descuento: number; estado: string; fechaSeguimiento: Date | null; client: { nombre: string }; work: { titulo: string } | null };
 type WorkView = { id: string; titulo: string; estado: string; prioridad: string; responsable: string | null; fechaFinPrevista: Date | null };
 type TaskView = { id: string; title: string; category: string; status: string; priority: string; assigneeId: string | null; estimatedMinutes: number | null; dueAt: Date | null; blockedReason: string | null; workId: string | null; clientId: string | null };
 type DocumentView = { id: string; name: string; category: string; status: string; extractionStatus: string; extractionConfidence: number | null; extractedIssuer: string | null; extractedInvoiceNo: string | null; extractedTotal: number | null; processedAt: Date | null; updatedAt: Date; work: { titulo: string } | null; client: { nombre: string } | null };
@@ -183,7 +184,7 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
       ? prisma.work.findMany({ where: { companyId: auth.companyId, archivada: false, estado: { in: [...activeWorkStates] }, ...idScope(workIds) }, orderBy: [{ prioridad: "desc" }, { updatedAt: "desc" }], take: 100, select: { id: true, titulo: true, estado: true, prioridad: true, responsable: true, fechaFinPrevista: true } })
       : Promise.resolve([]),
     canSeeBudgets
-      ? prisma.budget.findMany({ where: { companyId: auth.companyId, estado: { in: [...openBudgetStates] }, AND: [relationScope(budgetDecision.scope, budgetWorkIds, budgetClientIds), relationScope(pricingDecision.scope, pricingWorkIds, pricingClientIds)] }, orderBy: { fechaCreacion: "desc" }, take: 100, select: { id: true, numero: true, titulo: true, total: true, margenEstimado: true, estado: true, fechaSeguimiento: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } } })
+      ? prisma.budget.findMany({ where: { companyId: auth.companyId, estado: { in: [...openBudgetStates] }, AND: [relationScope(budgetDecision.scope, budgetWorkIds, budgetClientIds), relationScope(pricingDecision.scope, pricingWorkIds, pricingClientIds)] }, orderBy: { fechaCreacion: "desc" }, take: 100, select: { id: true, numero: true, titulo: true, total: true, partidas: true, descuento: true, estado: true, fechaSeguimiento: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } } })
       : Promise.resolve([]),
     canSeeFinance
       ? prisma.invoice.findMany({ where: { companyId: auth.companyId, estado: { in: [...openInvoiceStates] }, ...relationScope(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds) }, orderBy: { fechaVencimiento: "asc" }, take: 100, select: { id: true, numero: true, concepto: true, total: true, pagado: true, pendiente: true, estado: true, fechaVencimiento: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } } })
@@ -399,7 +400,7 @@ function AreaTable({ area, queue, budgets, works, tasks, documents, invoices, me
         <strong key="budget">{item.numero}<small>{item.titulo}</small></strong>,
         <span key="client">{item.client.nombre}<small>{item.work?.titulo ?? "Sin trabajo vinculado"}</small></span>,
         item.fechaSeguimiento ? formatDateTime(item.fechaSeguimiento) : "Sin fecha",
-        formatPercent(item.margenEstimado),
+        budgetMarginLabel(item),
         formatCurrencyCompact(item.total),
         <StatusBadge key="status" value={item.estado} />,
         <RowAction key="action" href={`/presupuestos/${item.id}`}>Revisar</RowAction>,
@@ -688,6 +689,11 @@ function formatCurrencyCompact(value: number) {
 
 function formatPercent(value: number) {
   return new Intl.NumberFormat("es-ES", { style: "percent", maximumFractionDigits: 1 }).format(Math.abs(value) <= 1 ? value : value / 100);
+}
+
+function budgetMarginLabel(budget: Pick<BudgetView, "partidas" | "descuento">) {
+  const margin = calculateBudgetMargin(parseBudgetLines(budget.partidas), budget.descuento);
+  return margin.percent === null ? "Pendiente de costes" : formatPercent(margin.percent);
 }
 
 function maskEmail(email: string) {

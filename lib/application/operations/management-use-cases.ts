@@ -21,7 +21,9 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  calculateBudgetMargin,
   calculateBudgetTotals,
+  money,
   normalizeLine,
   parseBudgetLines,
   serializeBudgetLines,
@@ -117,7 +119,7 @@ export async function saveManualRecord(formData: FormData) {
       throw new Error("PERMISSION_REQUIRED");
     await requireApprovalAuthority(auth, "quote.approve", {
       amount: canonicalBudget!.totals.total,
-      marginPercent: number(formData, "margenEstimado"),
+      marginPercent: optionalText(formData, "estado") === "aceptado" ? requiredCanonicalMargin(canonicalBudget!).percent! : undefined,
       workId: optionalText(formData, "obraId"),
       clientId: optionalText(formData, "clienteId"),
     });
@@ -354,19 +356,11 @@ async function assertManualRecordScope(
         obraId: true,
         clienteId: true,
         estado: true,
-        total: true,
-        margenEstimado: true,
       },
     });
     if (item.estado === "aceptado") {
       if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed)
         throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
-      await requireApprovalAuthority(auth, "quote.approve", {
-        amount: item.total,
-        marginPercent: item.margenEstimado,
-        workId: item.obraId,
-        clientId: item.clienteId,
-      });
     }
     return assertRelated(item.obraId, item.clienteId);
   }
@@ -476,9 +470,17 @@ async function saveWork(formData: FormData, id: string | null) {
   const canSales = await allowed("sales.budgets.view");
   const canInternalCost = await allowed("internal_cost.view");
   const canPurchaseCost = await allowed("purchase_cost.view");
-  const canMargin =
-    (await allowed("margin_amount.view")) ||
-    (await allowed("margin_percent.view"));
+  const currentEconomic = id ? await prisma.work.findFirst({
+    where: { id, companyId },
+    select: { presupuestoAprobado: true, costePrevisto: true },
+  }) : null;
+  const approvedBudget = canSales && formData.has("presupuestoAprobado")
+    ? number(formData, "presupuestoAprobado")
+    : (currentEconomic?.presupuestoAprobado ?? 0);
+  const forecastCost = canInternalCost && formData.has("costePrevisto")
+    ? number(formData, "costePrevisto")
+    : (currentEconomic?.costePrevisto ?? 0);
+  const automaticMargin = money(approvedBudget - forecastCost);
   const data = {
     companyId,
     numeroInterno: optionalText(formData, "numeroInterno"),
@@ -515,9 +517,6 @@ async function saveWork(formData: FormData, id: string | null) {
     ...(canPurchaseCost && formData.has("gastoReal")
       ? { gastoReal: number(formData, "gastoReal") }
       : {}),
-    ...(canMargin && formData.has("margenEstimado")
-      ? { margenEstimado: number(formData, "margenEstimado") }
-      : {}),
     horasEstimadas: number(formData, "horasEstimadas"),
     horasReales: number(formData, "horasReales"),
     ...(canPurchaseCost && formData.has("subcontratasCoste")
@@ -531,7 +530,7 @@ async function saveWork(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas"),
   };
 
-  if (id) await prisma.work.updateMany({ where: { id, companyId }, data });
+  if (id) await prisma.work.updateMany({ where: { id, companyId }, data: { ...data, margenEstimado: automaticMargin } });
   else
     await prisma.work.create({
       data: {
@@ -539,13 +538,18 @@ async function saveWork(formData: FormData, id: string | null) {
         presupuestoAprobado: data.presupuestoAprobado ?? 0,
         costePrevisto: data.costePrevisto ?? 0,
         gastoReal: data.gastoReal ?? 0,
-        margenEstimado: data.margenEstimado ?? 0,
+        margenEstimado: automaticMargin,
         subcontratasCoste: data.subcontratasCoste ?? 0,
       },
     });
 }
 
 type CanonicalBudgetInput = Awaited<ReturnType<typeof canonicalBudgetInput>>;
+
+function requiredCanonicalMargin(canonical: CanonicalBudgetInput) {
+  if (!canonical.margin.complete || canonical.margin.percent === null || canonical.margin.amount === null) throw new Error("BUDGET_COSTS_REQUIRED");
+  return canonical.margin;
+}
 
 async function canonicalBudgetInput(companyId: string, formData: FormData) {
   const company = await prisma.company.findUniqueOrThrow({
@@ -558,7 +562,8 @@ async function canonicalBudgetInput(companyId: string, formData: FormData) {
     company.defaultVat,
     Math.max(0, number(formData, "descuento")),
   );
-  return { lines, totals };
+  const margin = calculateBudgetMargin(lines, totals.descuento);
+  return { lines, totals, margin };
 }
 
 async function saveBudget(
@@ -568,10 +573,7 @@ async function saveBudget(
 ) {
   const auth = await requireCompanyContext();
   const { companyId } = auth;
-  const canMargin =
-    (await resolveAuthorization(auth, "margin_amount.view")).allowed ||
-    (await resolveAuthorization(auth, "margin_percent.view")).allowed;
-  const { lines, totals } = canonical;
+  const { lines, totals, margin } = canonical;
   const { subtotal, iva, descuento, total } = totals;
   const requestedNumero = optionalText(formData, "numero");
   const data = {
@@ -584,9 +586,7 @@ async function saveBudget(
     iva,
     descuento,
     total,
-    ...(canMargin && formData.has("margenEstimado")
-      ? { margenEstimado: number(formData, "margenEstimado") }
-      : {}),
+    margenEstimado: margin.amount ?? 0,
     estado: text(formData, "estado") as BudgetStatus,
     fechaEnvio: optionalDate(formData, "fechaEnvio"),
     fechaValidez: optionalDate(formData, "fechaValidez"),
@@ -609,7 +609,7 @@ async function saveBudget(
       tx.budget.create({
         data: {
           ...data,
-          margenEstimado: data.margenEstimado ?? 0,
+          margenEstimado: data.margenEstimado,
           numero:
             requestedNumero ??
             (await reserveDocumentNumberInTransaction(tx, companyId, "budget")),

@@ -134,6 +134,7 @@
     "test:works": "node scripts/validate-works.mjs",
     "test:work-detail": "node scripts/validate-work-detail.mjs",
     "test:work-profitability": "node scripts/validate-work-profitability.mjs",
+    "test:automatic-margin": "vitest run tests/unit/budget-lines.test.ts && node --test tests/static/automatic-margin-contract.test.mjs && npm run test:work-profitability",
     "test:work-chat": "node scripts/validate-work-chat.mjs",
     "test:contacts": "node scripts/validate-contacts.mjs",
     "test:documents": "node scripts/validate-documents.mjs",

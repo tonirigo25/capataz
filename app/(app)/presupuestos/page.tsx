@@ -26,7 +26,7 @@ import {
   MobileList,
   ResponsiveTable,
 } from "@/components/ui-primitives";
-import { parseBudgetLines } from "@/lib/budget-lines";
+import { calculateBudgetMargin, parseBudgetLines } from "@/lib/budget-lines";
 import {
   requireCapability,
   resolveAuthorization,
@@ -793,9 +793,9 @@ function conversionLabel(budgets: BudgetRow[]) {
   return closed ? `${Math.round((accepted / closed) * 100)}% de cierres` : "Sin cierres suficientes";
 }
 
-function budgetMarginPercent(budget: { subtotal: number; margenEstimado: number }) {
-  if (budget.subtotal <= 0) return "Sin base";
-  return `${((budget.margenEstimado / budget.subtotal) * 100).toFixed(1)}%`;
+function budgetMarginPercent(budget: { partidas: string; descuento: number }) {
+  const margin = calculateBudgetMargin(parseBudgetLines(budget.partidas), budget.descuento);
+  return margin.percent === null ? "Pendiente de costes" : `${margin.percent.toFixed(1)}%`;
 }
 
 function nextBudgetAction(status: string) {

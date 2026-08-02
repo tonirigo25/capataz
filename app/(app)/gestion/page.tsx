@@ -1552,16 +1552,7 @@ function renderFields({
                 ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                {fieldAccess.margin ? (
-                  <Field
-                    name="margenEstimado"
-                    label="Margen estimado"
-                    type="number"
-                    value={
-                      record?.margenEstimado ?? defaults.margenEstimado ?? 0
-                    }
-                  />
-                ) : null}
+                {fieldAccess.margin ? <CalculatedValue label="Margen previsto" value="Se calcula con presupuesto aprobado − coste previsto" /> : null}
                 <Field
                   name="horasEstimadas"
                   label="Horas estimadas"
@@ -1698,14 +1689,7 @@ function renderFields({
             type="number"
             value={record?.total ?? 0}
           />
-          {fieldAccess.margin ? (
-            <Field
-              name="margenEstimado"
-              label="Margen estimado"
-              type="number"
-              value={record?.margenEstimado ?? 0}
-            />
-          ) : null}
+          {fieldAccess.margin ? <CalculatedValue label="Margen" value="Se calcula automáticamente con la venta neta y los costes de las partidas" /> : null}
           <Field
             name="fechaValidez"
             label="Fecha validez"
@@ -2561,6 +2545,15 @@ function renderFields({
         </>
       );
   }
+}
+
+function CalculatedValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <span className="label block">{label} · Calculado</span>
+      <p className="mt-1 text-sm text-slate-600">{value}</p>
+    </div>
+  );
 }
 
 function Field({

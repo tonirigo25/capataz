@@ -8,6 +8,7 @@ type PreviewLine = {
   quantity: number;
   unit: string;
   unitPrice: number;
+  unitCost: number | null;
 };
 
 type PreviewSnapshot = {
@@ -22,8 +23,10 @@ function readEditorSnapshot(editor: HTMLElement, fallback: PreviewSnapshot) {
     const quantity = Number(form.querySelector<HTMLInputElement>('[name="cantidad"]')?.value ?? 0);
     const unit = form.querySelector<HTMLSelectElement>('[name="unidad"]')?.value ?? "ud";
     const unitPrice = Number(form.querySelector<HTMLInputElement>('[name="precioUnitario"]')?.value ?? 0);
+    const rawUnitCost = form.querySelector<HTMLInputElement>('[name="costeUnitario"]')?.value.trim() ?? "";
+    const unitCost = rawUnitCost === "" ? null : Number(rawUnitCost);
     if (!description) return [];
-    return [{ description, quantity: Number.isFinite(quantity) ? quantity : 0, unit, unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0 }];
+    return [{ description, quantity: Number.isFinite(quantity) ? quantity : 0, unit, unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0, unitCost: unitCost !== null && Number.isFinite(unitCost) ? unitCost : null }];
   });
   if (!lines.length) return fallback;
   return {
@@ -71,9 +74,15 @@ export function BudgetLivePreview({
     };
   }, [fallback]);
 
-  const taxRate = initialSubtotal > 0 ? initialTax / initialSubtotal : 0;
-  const tax = snapshot.subtotal * taxRate;
-  const total = Math.max(0, snapshot.subtotal + tax - initialDiscount);
+  const initialTaxableBase = Math.max(0, initialSubtotal - initialDiscount);
+  const taxRate = initialTaxableBase > 0 ? initialTax / initialTaxableBase : 0;
+  const taxableBase = Math.max(0, snapshot.subtotal - initialDiscount);
+  const tax = taxableBase * taxRate;
+  const total = taxableBase + tax;
+  const costsComplete = snapshot.lines.length > 0 && snapshot.lines.every((line) => line.unitCost !== null);
+  const cost = costsComplete ? snapshot.lines.reduce((sum, line) => sum + line.quantity * (line.unitCost ?? 0), 0) : null;
+  const margin = cost === null ? null : taxableBase - cost;
+  const marginPercent = margin !== null && taxableBase > 0 ? margin / taxableBase * 100 : null;
 
   return (
     <aside className="budget-live-preview" aria-label="Vista previa viva del presupuesto" data-preview-subtotal={snapshot.subtotal}>
@@ -115,6 +124,10 @@ export function BudgetLivePreview({
           {initialDiscount > 0 ? <div className="flex justify-between gap-5"><dt className="text-content-secondary">Descuento</dt><dd className="tabular font-semibold text-content">−{formatCurrency(initialDiscount)}</dd></div> : null}
           <div className="flex justify-between gap-5 border-t-2 border-content pt-2 text-lg"><dt className="font-semibold text-content">Total</dt><dd className="tabular font-semibold text-content">{formatCurrency(total)}</dd></div>
         </dl>
+      </div>
+      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm" aria-live="polite">
+        <p className="font-bold text-emerald-950">Control interno · margen calculado</p>
+        <p className="mt-1 text-emerald-900">{margin === null || marginPercent === null ? "Completa el coste unitario de todas las partidas." : `${formatCurrency(margin)} · ${marginPercent.toFixed(1)} % sobre venta neta sin IVA`}</p>
       </div>
       <p className="type-meta mt-3">La vista previa refleja los campos visibles. El PDF oficial conserva su generador, numeración y cálculos existentes.</p>
     </aside>

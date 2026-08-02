@@ -848,10 +848,10 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
       accumulated += amount;
       return { date, actualAmount: accumulated, budgetAmount: null, forecastAmount: null };
     });
-    const budget = work.presupuestoAprobado > 0 ? work.presupuestoAprobado : null;
-    const forecast = work.costePrevisto > 0 ? work.costePrevisto : null;
+    const budget = financial.budgeted > 0 ? financial.budgeted : null;
+    const forecast = financial.forecastCost > 0 ? financial.forecastCost : null;
     const deviation = budget != null && forecast != null ? forecast - budget : null;
-    const margin = work.margenEstimado > 0 ? work.margenEstimado : null;
+    const margin = budget != null && forecast != null ? budget - forecast : null;
     return <WorkCostsAnalysis
       periodLabel="Histórico completo de la obra"
       summary={{
@@ -943,16 +943,16 @@ function CostsWorkspace({ work, financial, pendingMaterials, subview }: { work: 
         actualAmount: (current?.actualAmount ?? 0) + expense.importe,
       });
     }
-    const budgetTotal = work.presupuestoAprobado > 0 ? work.presupuestoAprobado : null;
-    const projectedMarginAmount = work.margenEstimado > 0 ? work.margenEstimado : null;
-    const projectedMarginPercent = projectedMarginAmount != null && budgetTotal != null ? (projectedMarginAmount / budgetTotal) * 100 : null;
+    const budgetTotal = financial.budgeted > 0 ? financial.budgeted : null;
+    const projectedMarginAmount = budgetTotal != null ? financial.forecastBenefit : null;
+    const projectedMarginPercent = budgetTotal != null ? financial.forecastMarginPercent : null;
     return <WorkCostsOverview
       workId={work.id}
       summary={{
         actualCost: financial.realCost,
         budgetTotal,
         committedCost: null,
-        estimatedFinalCost: work.costePrevisto > 0 ? work.costePrevisto : null,
+        estimatedFinalCost: financial.forecastCost > 0 ? financial.forecastCost : null,
         projectedMarginAmount,
         projectedMarginPercent,
         targetMarginPercent: null,

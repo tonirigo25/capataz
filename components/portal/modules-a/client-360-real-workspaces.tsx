@@ -1,6 +1,7 @@
 import type { getClientCrmSummary } from "@/lib/client-crm";
 import { safeDocumentUrl } from "@/lib/documents";
 import { statusLabel } from "@/lib/status";
+import { calculateWorkFinancials } from "@/lib/works";
 import {
   Client360ActivityOverview,
   type ClientActivityEvent,
@@ -69,6 +70,11 @@ export function ClientWorksWorkspace({ summary, returnTo, worksMode = "lista" }:
     work.agendaEvents.filter((event) => isMilestoneEvent(event.tipo, event.titulo) && event.fechaInicio.getTime() >= now),
   );
   const contracted = works.reduce((total, work) => total + (work.presupuestoAprobado ?? 0), 0);
+  const financials = works.map((work) => calculateWorkFinancials(work));
+  const marginRevenue = financials.reduce((total, item) => total + item.marginRevenueBase, 0);
+  const combinedMargin = marginRevenue > 0
+    ? financials.reduce((total, item) => total + item.benefit, 0) / marginRevenue * 100
+    : null;
 
   return (
     <Client360WorksOverview
@@ -76,13 +82,14 @@ export function ClientWorksWorkspace({ summary, returnTo, worksMode = "lista" }:
       metrics={[
         { kind: "active", value: active.length, detail: `${works.length} obra${works.length === 1 ? "" : "s"} vinculada${works.length === 1 ? "" : "s"}` },
         { kind: "contracted", value: contracted, detail: "Presupuesto aprobado registrado" },
-        { kind: "estimated_margin", value: null, detail: "No se infiere un porcentaje sin base de cálculo" },
+        { kind: "estimated_margin", value: combinedMargin, detail: combinedMargin === null ? "No calculable sin ingreso y costes" : "Calculado desde ingresos y gastos registrados" },
         { kind: "upcoming_milestones", value: milestones.length, detail: "Hitos futuros registrados" },
       ]}
       works={works.map((work) => {
         const nextMilestone = work.agendaEvents.find((event) => isMilestoneEvent(event.tipo, event.titulo) && event.fechaInicio.getTime() >= now) ?? null;
         const incidents = work.photos.filter((photo) => photo.categoria === "incidencia");
         const coverPhoto = work.photos.find((photo) => Boolean(photo.url));
+        const financial = calculateWorkFinancials(work);
         return {
           id: work.id,
           title: work.titulo,
@@ -95,8 +102,8 @@ export function ClientWorksWorkspace({ summary, returnTo, worksMode = "lista" }:
           progressPercent: null,
           contractedAmount: work.presupuestoAprobado,
           contractedLabel: "Presupuesto aprobado",
-          estimatedMarginPercent: null,
-          estimatedMarginAmount: work.margenEstimado,
+          estimatedMarginPercent: financial.marginRevenueBase > 0 ? financial.marginPercent : null,
+          estimatedMarginAmount: financial.marginRevenueBase > 0 ? financial.benefit : null,
           endAt: iso(work.fechaFinPrevista),
           responsibleName: work.responsable,
           href: `/obras/${work.id}`,

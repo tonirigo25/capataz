@@ -15,7 +15,7 @@ import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { StatusPill } from "@/components/status-pill";
 import { ActionMenu, DetailSection, MetricStrip, Notice, PageHeader } from "@/components/ui-primitives";
-import { parseBudgetLines, reconcileBudgetRecord, units } from "@/lib/budget-lines";
+import { calculateBudgetMargin, parseBudgetLines, reconcileBudgetRecord, units } from "@/lib/budget-lines";
 import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { companyCompletion } from "@/lib/profile-completeness";
@@ -61,6 +61,7 @@ export default async function BudgetDetailPage({
   ]);
   const company = companySettingsView(companyRecord);
   const lines = parseBudgetLines(budget.partidas);
+  const calculatedMargin = calculateBudgetMargin(lines, budget.descuento);
   const reconciliation = reconcileBudgetRecord(lines, budget);
   const companyStatus = companyCompletion(company);
   const companyMissing = companyStatus.missingRequired.length;
@@ -70,7 +71,6 @@ export default async function BudgetDetailPage({
   const canCreateWork = canCreateWorkRaw && canSeePricing;
   const canDuplicate = canDuplicateRaw && canSeePricing;
   const canEditBudget = canUpdate && budget.estado !== "aceptado";
-  const marginPercent = budget.subtotal > 0 ? budget.margenEstimado / budget.subtotal * 100 : null;
 
   return (
     <main className="screen">
@@ -90,6 +90,7 @@ export default async function BudgetDetailPage({
       />
 
       {!reconciliation.ok ? <Notice className="mb-4" tone="warning" title="Importes pendientes de reconciliar" description="Las partidas no coinciden con los totales guardados. Corrige y guarda las partidas antes de marcar, aprobar, convertir o generar el PDF." /> : null}
+      {canSeeMargin && !calculatedMargin.complete ? <Notice className="mb-4" tone="warning" title="Margen pendiente de costes" description={`Añade el coste unitario de ${calculatedMargin.missingCostLines} partida${calculatedMargin.missingCostLines === 1 ? "" : "s"}. Orqena calculará automáticamente el margen neto, sin IVA.`} /> : null}
       {canEditBudget && reconciliation.ok ? <Notice className="mb-4" tone="info" title="Estado, no transmisión" description="Marcar como enviado sólo registra el estado. No envía correo ni documento al cliente." /> : null}
 
       {canSeePricing ? <MetricStrip className="mb-4">
@@ -97,7 +98,7 @@ export default async function BudgetDetailPage({
           <Mini label="IVA" value={formatCurrency(budget.iva)} />
           <Mini label="Descuento" value={formatCurrency(budget.descuento)} />
           <Mini label="Total" value={formatCurrency(budget.total)} />
-          {canSeeMargin ? <Mini label="Margen" value={marginPercent === null ? "Datos insuficientes" : `${marginPercent.toFixed(1)} % · ${formatCurrency(budget.margenEstimado)}`} /> : null}
+          {canSeeMargin ? <Mini label="Margen calculado" value={formatBudgetMargin(calculatedMargin)} /> : null}
       </MetricStrip> : <Notice className="mb-4" tone="info" title="Precios restringidos" description="Puedes consultar el estado y seguimiento del presupuesto, pero los importes y precios de venta no están autorizados." />}
 
       {companyMissing ? <Notice className="mb-4" tone="warning" title="Datos pendientes antes de enviar" description={`Falta ${companyStatus.missingRequired.slice(0, 3).join(", ")}. Puedes guardar el borrador y generar una prueba, pero el documento seguirá incompleto.`} /> : null}
@@ -108,12 +109,12 @@ export default async function BudgetDetailPage({
           <p><strong className="text-obra-ink">Enviado:</strong> {formatDate(budget.fechaEnvio)}</p>
           <p><strong className="text-obra-ink">Validez:</strong> {formatDate(budget.fechaValidez)}</p>
           <p><strong className="text-obra-ink">Seguimiento:</strong> {formatDate(budget.fechaSeguimiento)}</p>
-          {canSeeMargin ? <p><strong className="text-obra-ink">Margen estimado:</strong> {formatCurrency(budget.margenEstimado)}</p> : null}
+          {canSeeMargin ? <p><strong className="text-obra-ink">Margen calculado:</strong> {formatBudgetMargin(calculatedMargin)}</p> : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {canApprove && reconciliation.ok ? <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" /> : null}
+          {canApprove && reconciliation.ok && calculatedMargin.complete ? <StatusForm id={budget.id} estado="aceptado" label="Marcar aceptado" icon="check" /> : null}
           {canApprove ? <StatusForm id={budget.id} estado="rechazado" label="Marcar rechazado" icon="x" /> : null}
-          {canCreateWork && reconciliation.ok ? <form action={convertBudgetToWork}>
+          {canCreateWork && reconciliation.ok && calculatedMargin.complete ? <form action={convertBudgetToWork}>
             <input type="hidden" name="id" value={budget.id} />
             <ConfirmSubmitButton message="¿Convertir este presupuesto en obra?">Convertir a obra</ConfirmSubmitButton>
           </form> : null}
@@ -163,7 +164,7 @@ export default async function BudgetDetailPage({
                 <Plus size={18} className="text-obra-yellowDark" />
                 Añadir partida
               </div>
-              <BudgetLineFields line={{ descripcion: "", cantidad: 1, unidad: "ud", precioUnitario: 0, total: 0, categoria: "General" }} />
+              <BudgetLineFields line={{ descripcion: "", cantidad: 1, unidad: "ud", precioUnitario: 0, costeUnitario: null, total: 0, categoria: "General" }} />
               <button type="submit" className="secondary-button w-full"><Plus size={18} /> Añadir partida</button>
             </form>
           </div>
@@ -172,7 +173,7 @@ export default async function BudgetDetailPage({
             companyName={company.nombreComercial}
             clientName={budget.client.nombre}
             title={budget.titulo}
-            initialLines={lines.map((line) => ({ description: line.descripcion, quantity: line.cantidad, unit: line.unidad, unitPrice: line.precioUnitario }))}
+            initialLines={lines.map((line) => ({ description: line.descripcion, quantity: line.cantidad, unit: line.unidad, unitPrice: line.precioUnitario, unitCost: line.costeUnitario ?? null }))}
             initialSubtotal={budget.subtotal}
             initialTax={budget.iva}
             initialDiscount={budget.descuento}
@@ -195,7 +196,7 @@ export default async function BudgetDetailPage({
   );
 }
 
-function BudgetLineFields({ line }: { line: { descripcion: string; cantidad: number; unidad: string; precioUnitario: number; categoria: string; total?: number } }) {
+function BudgetLineFields({ line }: { line: { descripcion: string; cantidad: number; unidad: string; precioUnitario: number; costeUnitario?: number | null; categoria: string; total?: number } }) {
   return (
     <>
       <Field name="descripcion" label="Descripción" value={line.descripcion} required />
@@ -208,10 +209,12 @@ function BudgetLineFields({ line }: { line: { descripcion: string; cantidad: num
           </select>
         </label>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field name="precioUnitario" label="Precio unitario" type="number" value={line.precioUnitario} required />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field name="precioUnitario" label="Precio unitario de venta" type="number" value={line.precioUnitario} required />
+        <Field name="costeUnitario" label="Coste unitario (sin IVA)" type="number" value={line.costeUnitario ?? ""} required />
         <Field name="categoria" label="Categoría" value={line.categoria} />
       </div>
+      <p className="text-xs text-slate-500">Margen = venta neta − costes. Orqena lo recalcula automáticamente; no se introduce manualmente.</p>
     </>
   );
 }
@@ -220,7 +223,7 @@ function Field({ name, label, value, type = "text", required = false }: { name: 
   return (
     <label>
       <span className="label mb-1 block">{label}</span>
-      <input className="field" name={name} type={type} step={type === "number" ? "0.01" : undefined} defaultValue={value} required={required} />
+      <input className="field" name={name} type={type} step={type === "number" ? "0.01" : undefined} min={type === "number" ? "0" : undefined} defaultValue={value} required={required} />
     </label>
   );
 }
@@ -232,6 +235,11 @@ function Mini({ label, value }: { label: string; value: string }) {
       <p className="mt-1 font-black text-obra-ink">{value}</p>
     </div>
   );
+}
+
+function formatBudgetMargin(margin: ReturnType<typeof calculateBudgetMargin>) {
+  if (!margin.complete || margin.percent === null || margin.amount === null) return "Pendiente de costes";
+  return `${margin.percent.toFixed(1)} % · ${formatCurrency(margin.amount)}`;
 }
 
 function StatusForm({ id, estado, label, icon, className }: { id: string; estado: string; label: string; icon: "check" | "x" | "send"; className?: string }) {
