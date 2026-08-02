@@ -1,5 +1,5 @@
 import type { DocumentCategory, DocumentClassification } from "@prisma/client";
-import { invalidateActionPath, navigateAction } from "@/lib/application/action-effects";
+import { invalidateActionPath as revalidatePath, navigateAction as redirect } from "@/lib/application/action-effects";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
@@ -94,8 +94,8 @@ export async function uploadRepositoryDocument(formData: FormData) {
     navigateWithError("storage_failed");
   }
 
-  invalidateActionPath("/documentos");
-  navigateAction(`/documentos?documento=${encodeURIComponent(documentId)}`);
+  revalidatePath("/documentos");
+  redirect(`/documentos?documento=${encodeURIComponent(documentId)}`);
 }
 
 function uploadErrorCode(error: unknown) {
@@ -111,5 +111,5 @@ function uploadErrorCode(error: unknown) {
 }
 
 function navigateWithError(code: string): never {
-  navigateAction(`/documentos/subir?error=${encodeURIComponent(code)}`);
+  redirect(`/documentos/subir?error=${encodeURIComponent(code)}`);
 }

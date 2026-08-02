@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-02T07:29:48.042Z",
+  "generatedAt": "2026-08-02T07:49:18.177Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -1234,8 +1234,8 @@
       "operation": "COMMAND",
       "service": "lib/application/documents/repository-document-use-cases.ts",
       "postEffects": {
-        "revalidate": false,
-        "redirect": false,
+        "revalidate": true,
+        "redirect": true,
         "audit": false,
         "outbox": false,
         "businessEvent": false
