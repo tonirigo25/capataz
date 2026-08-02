@@ -24,17 +24,14 @@
 }
 
 .brandLink {
-  display: block;
+  display: inline-flex;
   width: 18.125rem;
   height: 6.4375rem;
   margin-left: -2.5rem;
+  align-items: flex-start;
 }
 
-.brandLink img {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+.brandLink :global(.brand-lockup--inverse) { color: #fff; }
 
 .storyCopy {
   width: 31.25rem;
@@ -419,17 +416,17 @@
 
 .formBrand {
   display: grid;
-  width: 5.5rem;
-  height: 5.5rem;
+  width: 5rem;
+  height: 5rem;
   margin-inline: auto;
   place-items: center;
-  border-radius: 1.45rem;
+  border-radius: 1.25rem;
   background: #effcdd;
 }
 
-.formBrand img {
-  width: 4.375rem;
-  height: 4.375rem;
+.formBrand > :global(.brand-logo) {
+  width: 3rem;
+  height: 3rem;
 }
 
 .formCard h1 {
@@ -679,8 +676,8 @@
     padding: 1.5rem 1.25rem 1.75rem;
   }
 
-  .formBrand { width: 4.75rem; height: 4.75rem; border-radius: 1.25rem; }
-  .formBrand img { width: 3.75rem; height: 3.75rem; }
+  .formBrand { width: 4.1rem; height: 4.1rem; border-radius: 1rem; }
+  .formBrand > :global(.brand-logo) { width: 2.46rem; height: 2.46rem; }
   .formCard h1 { margin-top: 1rem; font-size: 1.8rem; }
   .formContent { margin-top: 1.75rem; }
   .formTrust { margin-top: 1.75rem; }

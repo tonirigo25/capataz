@@ -94,12 +94,8 @@ export function BrandLockup({
   inverse?: boolean;
   className?: string;
 }) {
-  if (inverse) {
-    return <BrandLogo variant="sidebar" size="lg" title={brand.companyName} className={clsx("brand-lockup brand-lockup--inverse", className)} />;
-  }
-
   return (
-    <span className={clsx("brand-lockup", className)}>
+    <span className={clsx("brand-lockup", inverse && "brand-lockup--inverse", className)}>
       <span className="brand-lockup__tile"><BrandMark /></span>
       <span className="min-w-0">
         <strong className="brand-lockup__name">{brand.companyName}</strong>

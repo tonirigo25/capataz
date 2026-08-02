@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   Activity,
@@ -18,16 +17,14 @@ import {
   WalletCards
 } from "lucide-react";
 import styles from "@/components/auth/auth-shell.module.css";
-
-const OFFICIAL_LOCKUP = "/brand/orqena/orqena-logo-oficial-sobre-oscuro.png";
-const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial-v2.png";
+import { BrandLockup, BrandMark } from "@/components/brand/brand-mark";
 
 export function LoginShell({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return <main className={styles.shell}>
     <section className={styles.story} aria-label="Presentación de Orqena">
       <div className={styles.storyFrame}>
         <Link href="/" aria-label="Volver al inicio de Orqena" className={styles.brandLink}>
-          <Image src={OFFICIAL_LOCKUP} alt="Orqena Tech" width={290} height={103} priority unoptimized />
+          <BrandLockup inverse compact />
         </Link>
         <div className={styles.storyCopy}>
           <p className={styles.eyebrow}>Plataforma empresarial</p>
@@ -79,7 +76,7 @@ export function LoginShell({ title, description, children }: { title: string; de
       <div className={styles.formStack}>
       <div className={styles.formCard}>
         <div className={styles.formBrand} aria-hidden="true">
-          <Image src={OFFICIAL_SYMBOL} alt="" width={70} height={70} priority unoptimized />
+          <BrandMark size="lg" />
         </div>
         <h1>{title}</h1>
         <p>{description}</p>
