@@ -73,9 +73,8 @@ export default async function AgendaPage({
   const view = views.some((item) => item.id === query.vista)
     ? query.vista!
     : "semana";
-  const selectedDay = query.dia
-    ? startOfDay(new Date(`${query.dia}T00:00:00`))
-    : startOfDay(new Date());
+  const requestedDay = query.dia ? new Date(`${query.dia}T00:00:00`) : new Date();
+  const selectedDay = startOfDay(Number.isNaN(requestedDay.getTime()) ? new Date() : requestedDay);
   const allItems = await getAgendaItems();
   const peopleByItem = await resolveAgendaPeople(auth.companyId, allItems);
   const personOptions = agendaPersonOptions(peopleByItem);
@@ -101,8 +100,8 @@ export default async function AgendaPage({
   if (!canManage) return <ReadOnlyAgenda items={items} />;
 
   return (
-    <ListWorkspace className="!min-h-0 lg:!py-4 lg:!pb-4">
-      <header className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <ListWorkspace className="agenda-page !min-h-0 lg:!py-4 lg:!pb-4">
+      <header className="agenda-master__header mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-obra-ink sm:text-3xl">
             Agenda
@@ -121,7 +120,7 @@ export default async function AgendaPage({
         </div>
       </header>
 
-      <div className="mb-3 flex flex-col gap-2 min-[1360px]:flex-row min-[1360px]:items-end min-[1360px]:justify-between">
+      <div className="agenda-master__toolbar mb-3 flex flex-col gap-2 min-[1180px]:flex-row min-[1180px]:items-end min-[1180px]:justify-between">
         <AgendaFilters
           query={query}
           view={view}
@@ -146,6 +145,7 @@ export default async function AgendaPage({
           weekStart={weekStart}
           query={query}
           todayItems={todayItems}
+          overviewItems={items}
           peopleByItem={peopleByItem}
         />
       ) : null}
@@ -233,11 +233,7 @@ function AgendaToolbar({
       >
         <div className="flex min-h-10 items-center overflow-hidden rounded-lg border border-slate-200 bg-white">
           <Link
-            href={agendaHref(
-              view,
-              addDays(selectedDay, -navigationStep),
-              query,
-            )}
+            href={agendaHref(view, shiftAgendaDate(view, selectedDay, -1, navigationStep), query)}
             className="grid h-10 w-10 place-items-center border-r border-slate-200 text-slate-600 hover:bg-slate-50"
             aria-label="Periodo anterior"
           >
@@ -249,7 +245,7 @@ function AgendaToolbar({
               : formatDay(selectedDay)}
           </span>
           <Link
-            href={agendaHref(view, addDays(selectedDay, navigationStep), query)}
+            href={agendaHref(view, shiftAgendaDate(view, selectedDay, 1, navigationStep), query)}
             className="grid h-10 w-10 place-items-center border-l border-slate-200 text-slate-600 hover:bg-slate-50"
             aria-label="Periodo siguiente"
           >
@@ -300,12 +296,18 @@ function agendaHref(view: string, day: Date, query: AgendaQuery) {
   return `/agenda?${params.toString()}`;
 }
 
+function shiftAgendaDate(view: string, day: Date, direction: -1 | 1, navigationStep: number) {
+  if (view === "mes") return new Date(day.getFullYear(), day.getMonth() + direction, 1);
+  return addDays(day, direction * navigationStep);
+}
+
 function WeekView({
   items,
   selectedDay,
   weekStart,
   query,
   todayItems,
+  overviewItems,
   peopleByItem,
 }: {
   items: AgendaItem[];
@@ -313,6 +315,7 @@ function WeekView({
   weekStart: Date;
   query: AgendaQuery;
   todayItems: AgendaItem[];
+  overviewItems: AgendaItem[];
   peopleByItem: AgendaPeopleByItem;
 }) {
   const days = Array.from({ length: 7 }, (_, index) =>
@@ -320,9 +323,9 @@ function WeekView({
   );
   const selectedItems = itemsForDay(items, selectedDay);
   return (
-    <div className="grid gap-3" data-agenda-week>
+    <div className="agenda-master__week grid gap-3" data-agenda-week>
       <nav
-        className="flex gap-1.5 overflow-x-auto pb-1 min-[1360px]:hidden"
+        className="flex gap-1.5 overflow-x-auto pb-1 min-[1180px]:hidden"
         aria-label="Días de la semana"
       >
         {days.map((day) => {
@@ -343,7 +346,7 @@ function WeekView({
         })}
       </nav>
       <section
-        className="card p-3 min-[1360px]:hidden"
+        className="card p-3 min-[1180px]:hidden"
         data-agenda-selected-day
       >
         <HeaderLine
@@ -387,12 +390,13 @@ function WeekView({
           Ver agenda completa
         </Link>
       </section>
-      <div className="hidden gap-3 min-[1360px]:grid min-[1360px]:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="agenda-master__calendar hidden gap-3 min-[1180px]:grid min-[1180px]:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem]">
         <WeekTimeGrid days={days} items={items} />
         <AgendaTodayPanel items={todayItems} query={query} />
       </div>
       <AgendaOverviewCards
         items={items}
+        overviewItems={overviewItems}
         peopleByItem={peopleByItem}
         selectedDay={selectedDay}
       />
@@ -433,7 +437,7 @@ function WeekTimeGrid({ days, items }: { days: Date[]; items: AgendaItem[] }) {
         })}
       </div>
       <div className="grid grid-cols-[3.25rem_repeat(7,minmax(0,1fr))]">
-        <div className="relative h-[350px] bg-slate-50">
+        <div className="relative h-[385px] bg-slate-50">
           {hours.map((hour, index) => (
             <span
               key={hour}
@@ -447,7 +451,7 @@ function WeekTimeGrid({ days, items }: { days: Date[]; items: AgendaItem[] }) {
         {days.map((day) => (
           <div
             key={day.toISOString()}
-            className="relative h-[350px] border-l border-slate-200"
+            className="relative h-[385px] border-l border-slate-200"
             style={{
               backgroundImage:
                 "repeating-linear-gradient(to bottom, transparent 0, transparent calc(10% - 1px), rgb(226 232 240) calc(10% - 1px), rgb(226 232 240) 10%)",
@@ -546,10 +550,12 @@ function AgendaTodayPanel({
 
 function AgendaOverviewCards({
   items,
+  overviewItems,
   peopleByItem,
   selectedDay,
 }: {
   items: AgendaItem[];
+  overviewItems: AgendaItem[];
   peopleByItem: AgendaPeopleByItem;
   selectedDay: Date;
 }) {
@@ -568,7 +574,7 @@ function AgendaOverviewCards({
         (peopleByItem.get(agendaItemKey(item)) ?? []).length > 0,
     )
     .slice(0, 4);
-  const deadlines = items
+  const deadlines = overviewItems
     .filter((item) =>
       [
         "vencimiento_factura",
@@ -577,11 +583,13 @@ function AgendaOverviewCards({
         "fin_previsto_obra",
       ].includes(item.tipo),
     )
+    .filter((item) => item.fechaInicio >= startOfDay(selectedDay))
+    .toSorted((left, right) => left.fechaInicio.getTime() - right.fechaInicio.getTime())
     .slice(0, 4);
 
   return (
     <div
-      className="grid gap-3 md:grid-cols-3 min-[1200px]:grid-cols-1 min-[1360px]:grid-cols-[.95fr_1.1fr_1fr]"
+      className="agenda-master__overview grid gap-3 md:grid-cols-[.95fr_1.1fr_1fr]"
       data-agenda-overview
     >
       <section className="card p-3" aria-labelledby="agenda-team-load">
@@ -614,7 +622,7 @@ function AgendaOverviewCards({
                 />
               </span>
               <span className="font-black tabular-nums text-slate-500">
-                {person.count}
+                {person.count} elem.
               </span>
             </div>
           ))}
@@ -1198,21 +1206,18 @@ async function resolveAgendaPeople(
       .filter((person): person is AgendaPerson => Boolean(person));
     peopleByEventId.set(
       event.id,
-      uniquePeople([
-        ...userPeople,
-        ...(event.obraId ? (peopleByWorkId.get(event.obraId) ?? []) : []),
-      ]),
+      uniquePeople(userPeople),
     );
   }
 
   const result: AgendaPeopleByItem = new Map();
   for (const item of items) {
-    const direct =
-      item.source === "evento" ? (peopleByEventId.get(item.id) ?? []) : [];
-    const workPeople = item.obraId
-      ? (peopleByWorkId.get(item.obraId) ?? [])
-      : [];
-    result.set(agendaItemKey(item), uniquePeople([...direct, ...workPeople]));
+    const direct = item.source === "evento" ? (peopleByEventId.get(item.id) ?? []) : [];
+    const primaryWorkPerson = item.obraId ? (peopleByWorkId.get(item.obraId) ?? []).slice(0, 1) : [];
+    result.set(
+      agendaItemKey(item),
+      direct.length ? uniquePeople(direct) : uniquePeople(primaryWorkPerson),
+    );
   }
   return result;
 }
@@ -1267,9 +1272,9 @@ function agendaPlacement(item: AgendaItem) {
         (item.fechaFin.getTime() - item.fechaInicio.getTime()) / 60000,
       )
     : 60;
-  const heightPixels = Math.max(34, Math.min(68, (durationMinutes / 60) * 35));
+  const heightPixels = Math.max(36, Math.min(78, (durationMinutes / 60) * 38.5));
   const rawTop = ((startMinutes - 8 * 60) / (10 * 60)) * 100;
-  const maxTop = 100 - (heightPixels / 350) * 100;
+  const maxTop = 100 - (heightPixels / 385) * 100;
   return {
     top: `${Math.max(0, Math.min(maxTop, rawTop))}%`,
     height: `${heightPixels}px`,

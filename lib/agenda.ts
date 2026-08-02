@@ -3,7 +3,7 @@ import { deriveInvoiceStatus } from "@/lib/status";
 import { companyCore } from "@/lib/tenant/core";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
 
-export type AgendaSource = "evento" | "recordatorio" | "factura" | "obra" | "material" | "presupuesto";
+export type AgendaSource = "evento" | "recordatorio" | "factura" | "obra" | "presupuesto";
 
 export type AgendaItem = {
   id: string;
@@ -155,36 +155,11 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
     }
   });
 
-  materials
-    .filter((material) => materialDecision.allowed && scopeAllows(materialWorkIds, material.obraId) && ["pendiente", "falta"].includes(material.estado))
-    .forEach((material) => {
-      items.push({
-        id: `material-${material.id}`,
-        source: "material",
-        titulo: `Comprar ${material.nombre}`,
-        descripcion: `${material.cantidad} · ${material.work.titulo}`,
-        tipo: "compra_material",
-        estado: material.estado === "falta" ? "pendiente" : material.estado,
-        fechaInicio: todayAt(8),
-        fechaFin: null,
-        clienteId: material.work.clienteId,
-        clienteNombre: material.work.client.nombre,
-        contactId: null,
-        contactName: null,
-        obraId: material.obraId,
-        obraTitulo: material.work.titulo,
-        presupuestoId: null,
-        presupuestoNumero: null,
-        facturaId: null,
-        facturaNumero: null,
-        direccion: material.work.direccion,
-        notas: material.notas,
-        requiereConfirmacion: false,
-        confirmadoPorUsuario: true,
-        editable: false,
-        href: `/gastos-materiales`
-      });
-    });
+  // Los materiales sin fecha persistida permanecen en Compras. La agenda no
+  // les asigna una hora sintética que el usuario nunca confirmó.
+  void materials;
+  void materialDecision;
+  void materialWorkIds;
 
   if (budgetAllowed) budgets
     .filter((budget) => relationAllowed(budgetDecision.scope, budgetWorkIds, budgetClientIds, budget.obraId, budget.clienteId) && ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado))
@@ -219,7 +194,6 @@ export async function getAgendaItems(options?: { includeEconomic?: boolean }) {
 
   return items.sort((a, b) => a.fechaInicio.getTime() - b.fechaInicio.getTime());
 }
-
 function scopeAllows(ids: string[] | null, id: string) { return ids === null || ids.includes(id); }
 function relationAllowed(scope: string, workIds: string[] | null, clientIds: string[] | null, workId: string | null, clientId: string | null) {
   if (scope === "COMPANY") return true;
@@ -314,10 +288,4 @@ function workAgendaItem(
     editable: false,
     href: "/obras"
   };
-}
-
-function todayAt(hour: number) {
-  const date = new Date();
-  date.setHours(hour, 0, 0, 0);
-  return date;
 }

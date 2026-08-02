@@ -30,7 +30,7 @@ export function AgendaFilters({
     <form
       ref={formRef}
       action="/agenda"
-      className="flex flex-wrap items-end gap-2"
+      className="agenda-master__filters flex flex-wrap items-end gap-2"
       aria-label="Filtros de agenda"
       onChange={(event) => {
         if (event.target instanceof HTMLSelectElement) {
