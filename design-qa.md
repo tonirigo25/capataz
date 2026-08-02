@@ -147,6 +147,37 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 
 Final result: `in_progress`
 
+## Revalidación focal — Documentos y Agenda 2026-08-02
+
+### Documentos
+
+- Referencia visual canónica: `C:\Users\Toniet\AppData\Local\Temp\09_documentos.png` (1586 × 992).
+- Ruta autenticada: `https://orqena-review-web-review.up.railway.app/documentos`.
+- La vista conserva título, tabs, filtros, orden, lista, visor, OCR, historial y rail contextual en la secuencia de la maestra.
+- La rejilla final usa proporciones 32,7 % / 44,7 % / 22,4 % en el navegador conectado; el workspace mide 930 × 822 px y los paneles 704 px de alto a 1280 × 720.
+- Los tabs y la selección son reales. Se comprobó Facturas: la URL conservó `tipo=invoice`, el listado pasó a un registro y la selección quedó dentro del filtro.
+- Zoom, giro y pantalla completa están conectados también al preview estructurado; la cabecera impide que el visor cubra sus controles en anchos intermedios.
+- La relación de presupuesto, factura y gasto se valida contra `companyId`; eliminar exige `documents.delete` y confirmación explícita.
+- Plantillas se conserva como submenú de Documentos y la subida permanece disponible desde `+ Nuevo`, sin duplicar controles en la superficie maestra.
+
+Resultado focal: `passed`.
+
+### Agenda
+
+- Referencia visual canónica: `C:\Users\Toniet\AppData\Local\Temp\10_agenda.png` (1586 × 992).
+- Ruta autenticada: `https://orqena-review-web-review.up.railway.app/agenda`.
+- La vista semanal conserva filtros por personas, obras y tipo; navegación de periodo, Hoy y vistas secundarias; semana de siete días; Agenda de hoy; carga visible, tareas/visitas y próximos vencimientos.
+- Geometría medida en navegador a 1280 × 720: calendario 930 × 433 px, rejilla 662 px, Agenda de hoy 256 px y bloque inferior 930 × 310 px. A partir de 1440 px el rail usa 303 px y comparte el desplazamiento del documento.
+- Entre 1200 y 1439 px el rail se presenta mediante su trigger de 44 px para no comprimir ni desbordar el contenido; se comprobó apertura, contenido contextual y cierre.
+- Se ejerció el filtro de Diego Martín: la URL persistió persona, fecha, obra y tipo, y el retorno a Agenda restauró el estado base.
+- La rejilla de 08:00–18:00 ya no fuerza dentro de ella citas anteriores o posteriores; esos elementos siguen disponibles en Agenda de hoy y vistas de lista cuando corresponda.
+- Materiales sin fecha y presupuestos sin seguimiento confirmado no reciben horas o vencimientos inventados.
+- El alcance `SELECTED_CLIENTS` se resuelve junto al de obras y las referencias de facturas/presupuestos sólo aparecen con su capacidad económica autorizada.
+
+Resultado focal: `passed`.
+
+Final result: `in_progress`
+
 ## Revalidación focal — Dinero 2026-08-02
 
 ### Fuente y alcance

@@ -7499,6 +7499,22 @@ button:disabled,
     height: 55px;
   }
 
+  .documents-master__viewer-header {
+    position: relative;
+    z-index: 2;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .documents-master__viewer-header > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .documents-master__viewer-header > div:last-child {
+    flex: none;
+  }
+
   .documents-master__list-rows {
     min-height: 0;
     overflow-y: auto;
@@ -7528,6 +7544,7 @@ button:disabled,
   }
 
   .documents-master__viewer-frame {
+    z-index: 1;
     min-height: 0;
     padding: 12px;
   }
