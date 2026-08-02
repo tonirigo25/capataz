@@ -4473,6 +4473,97 @@ button:disabled,
   color: #149049;
 }
 
+/* Alertas: resumen contextual de solo revisión, sin acciones masivas. */
+.orqena-context-rail[data-context-variant="alerts"] .orqena-context-rail__inner {
+  min-height: calc(100dvh - var(--fos-layout-topbar));
+  padding: 18px 18px 22px;
+}
+
+.alerts-context-summary {
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.alerts-context-summary .orqena-context-card__icon {
+  display: grid;
+  place-items: center;
+  background: #fff0e8;
+  color: #b54708;
+}
+
+.alerts-context-summary h2 {
+  margin-top: 17px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.alerts-context-summary .orqena-context-description {
+  margin-top: 10px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.alerts-context-summary .orqena-context-impact {
+  margin-top: 14px;
+  padding: 10px 12px;
+}
+
+.alerts-context-summary > .orqena-context-primary {
+  margin-top: 15px;
+}
+
+.alerts-context-actions {
+  margin-top: 14px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.alerts-context-actions h2 {
+  color: #142019;
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.alerts-context-actions ul {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.alerts-context-actions a {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #e3e9e5;
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: #26342c;
+  font-size: 9px;
+  font-weight: 690;
+  line-height: 13px;
+}
+
+.alerts-context-actions a:hover,
+.alerts-context-actions a:focus-visible {
+  border-color: #9ccdad;
+  background: #f4fbf6;
+  color: #176e43;
+}
+
+.alerts-context-actions svg {
+  flex: 0 0 auto;
+}
+
+.alerts-context-actions > p {
+  margin-top: 9px;
+  color: #647069;
+  font-size: 9px;
+  line-height: 14px;
+}
+
 /* Equipo: rail contextual compacto según la referencia maestra 1586 × 992. */
 .orqena-context-rail[data-context-variant="team"] .orqena-context-rail__inner {
   min-height: calc(100dvh - var(--fos-layout-topbar));
