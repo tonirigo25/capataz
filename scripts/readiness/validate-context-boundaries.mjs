@@ -44,7 +44,21 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 42) failures.push(`expected 42 routes, found ${routes.length}`);
+  if (routes.length !== 43) failures.push(`expected 43 routes, found ${routes.length}`);
+  const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
+  if (!alertsExport) {
+    failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, alertsExport.relative), "utf8");
+    if (!alertsExport.methods.includes("GET")) failures.push(`${alertsExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "orqena.execute")',
+      "companyId: auth.companyId",
+      "filterBusinessSignalsForAccess",
+      '"cache-control": "private, no-store"'
+    ]) if (!source.includes(token)) failures.push(`${alertsExport.relative}: tenant export boundary missing ${token}`);
+  }
   const actions = walk(path.join(root, "app"), "actions.ts");
   if (actions.length !== 38) failures.push(`expected 38 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
@@ -66,4 +80,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 42 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 43 routes, 7 jobs)\n");
