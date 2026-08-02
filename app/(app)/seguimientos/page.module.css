@@ -1,5 +1,6 @@
 .page {
   display: grid;
+  align-content: start;
   min-width: 0;
   gap: 14px;
   padding: 20px 14px 30px;
