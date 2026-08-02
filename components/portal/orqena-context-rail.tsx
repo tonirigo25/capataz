@@ -294,23 +294,24 @@ function MoneyRailContent({ context, titleId, onToggleCollapsed }: { context: Mo
 function DocumentRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: DocumentRailContext; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
   const attentionItems = context.attentionItems?.filter(Boolean).slice(0, 3) ?? [];
   const reviewHref = safeInternalHref(context.reviewHref);
-  return <div className="orqena-context-rail__inner" data-document-context={context.documentId}>
+  return <div className="orqena-context-rail__inner document-context-rail" data-document-context={context.documentId}>
     <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
     <p className="orqena-context-eyebrow">Recomendación para este documento</p>
-    <article className="orqena-context-card">
-      <span className="orqena-context-card__icon"><FileText size={22} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={13} aria-hidden="true" /></span>
-      <h2 id={titleId}>{context.title}</h2>
-      <p className="orqena-context-description">Revisa los datos extraídos y sus relaciones antes de confirmar. Orqena IA no registra cambios automáticamente.</p>
-      <dl className="orqena-context-impact">
-        <div className="orqena-context-impact__title"><dt>Contexto verificado</dt><dd>{context.statusLabel}</dd></div>
+    <section className="document-context-block document-context-block--match" aria-labelledby={titleId}>
+      <div className="document-context-block__heading"><span className="orqena-context-card__icon"><FileText size={20} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={12} aria-hidden="true" /></span><h2 id={titleId}>Coincidencias probables</h2></div>
+      <dl>
         {context.relationLabel ? <div><dt>Relación</dt><dd>{context.relationLabel}</dd></div> : null}
+        <div><dt>Estado</dt><dd>{context.statusLabel}</dd></div>
         {context.confidenceLabel ? <div><dt>Confianza OCR</dt><dd>{context.confidenceLabel}</dd></div> : null}
-        <div><dt>Control</dt><dd>Revisión humana</dd></div>
       </dl>
-      {attentionItems.length ? <div className="orqena-context-safeguard"><TriangleAlert size={17} aria-hidden="true" /><div><strong>Campos a revisar</strong><ul className="mt-1 list-disc pl-4">{attentionItems.map((item) => <li key={item}>{item}</li>)}</ul></div></div> : <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>No hay advertencias extraídas activas. La confirmación sigue siendo humana.</p></div>}
+    </section>
+    {attentionItems.length ? <section className="document-context-block document-context-block--warning"><h2><TriangleAlert size={15} aria-hidden="true" />Campos a revisar</h2><ul>{attentionItems.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}
+    <section className="document-context-block document-context-block--info"><h2><Info size={15} aria-hidden="true" />Información</h2><p>La clasificación y los datos extraídos son una propuesta. Comprueba el original antes de confirmar.</p><p>Orqena IA no registra cambios automáticamente.</p></section>
+    <div className="document-context-controls">
       {!canUse ? <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">No disponible en tu acceso</span> : reviewHref ? <Link href={reviewHref} className="orqena-context-primary">Revisar documento<ChevronRight size={16} aria-hidden="true" /></Link> : <span aria-disabled="true" className="orqena-context-primary orqena-context-primary--disabled">Sin acción pendiente</span>}
-    </article>
-    {canUse ? <Link href="/orqena-ia/documentos" className="orqena-context-more">Ver ayuda documental <ExternalLink size={13} aria-hidden="true" /></Link> : null}
+    </div>
+    <div className="document-context-assurance"><ShieldCheck size={15} aria-hidden="true" /><span>Confirmación humana y trazabilidad preservadas.</span></div>
+    {canUse ? <Link href="/orqena-ia/documentos" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
   </div>;
 }
 

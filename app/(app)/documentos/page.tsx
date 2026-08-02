@@ -35,7 +35,7 @@ type DocumentRecord = Prisma.DocumentGetPayload<{ include: typeof documentInclud
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ documento?: string }>;
+  searchParams: Promise<{ documento?: string; vista?: string }>;
 }) {
   const query = await searchParams;
   const auth = await requireCapability("documents.view");
@@ -72,13 +72,12 @@ export default async function DocumentsPage({
     : workspaceDocuments.find((document) => document.requiresReview)?.id ?? null;
 
   return (
-    <ListWorkspace>
+    <ListWorkspace className="documents-page">
       <GlobalDocumentsWorkspace
         documents={workspaceDocuments}
         selectedId={selected}
-        primaryAction={canUpload.allowed
-          ? { href: "/documentos/subir", label: "Subir documento" }
-          : null}
+        initialView={query.vista === "plantillas" ? "templates" : "documents"}
+        primaryAction={canUpload.allowed ? { href: "/documentos/subir", label: "Subir documento" } : null}
         templates={documentTemplateAssets.map((asset) => ({
           id: asset.slug,
           label: asset.label,
@@ -204,7 +203,8 @@ function toWorkspaceDocument(
       relationLabel: related,
       confidenceLabel: confidenceLabel(document.extractionConfidence),
       attentionItems,
-      reviewHref: reviewAction?.href ?? null,
+      reviewHref: reviewAction?.href
+        ?? (access.canManage && !readerDocument ? `${genericEditHref}#document-details` : null),
     },
     history: compactHistory([
       {

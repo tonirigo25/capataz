@@ -137,6 +137,7 @@ export type GlobalDocumentWorkspaceItem = {
 export type GlobalDocumentsWorkspaceProps = {
   documents: GlobalDocumentWorkspaceItem[];
   selectedId?: string | null;
+  initialView?: "documents" | "templates";
   primaryAction?: GlobalDocumentAction | null;
   templates?: GlobalDocumentTemplate[];
   pageSize?: number;
@@ -158,12 +159,12 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: "contract", label: "Contratos" },
   { id: "work_part", label: "Partes" },
   { id: "pending", label: "Pendientes de revisión" },
-  { id: "templates", label: "Plantillas" },
 ];
 
 export function GlobalDocumentsWorkspace({
   documents,
   selectedId,
+  initialView = "documents",
   primaryAction,
   templates = [],
   pageSize = 7,
@@ -171,15 +172,13 @@ export function GlobalDocumentsWorkspace({
   emptyDescription = "Cambia los filtros o incorpora documentación desde una acción autorizada.",
   onSelectedIdChange,
 }: GlobalDocumentsWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<TabId>("all");
+  const [activeTab, setActiveTab] = useState<TabId>(() => initialView === "templates" ? "templates" : "all");
   const [activeId, setActiveId] = useState<string | null>(() =>
     selectedId && documents.some((document) => document.id === selectedId)
       ? selectedId
       : null,
   );
-  const [mobileStep, setMobileStep] = useState<MobileStep>(() =>
-    selectedId ? "viewer" : "list",
-  );
+  const [mobileStep, setMobileStep] = useState<MobileStep>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -196,7 +195,7 @@ export function GlobalDocumentsWorkspace({
         ? selectedId
         : null;
     setActiveId(nextId);
-    setMobileStep(nextId ? "viewer" : "list");
+    setMobileStep("list");
   }, [documents, selectedId]);
 
   const statuses = useMemo(
@@ -269,6 +268,32 @@ export function GlobalDocumentsWorkspace({
   const previewHref = safeHref(selectedDocument?.preview?.href);
 
   useEffect(() => {
+    if (activeTab === "templates") return;
+    if (activeId && filteredDocuments.some((document) => document.id === activeId)) return;
+    const nextId = filteredDocuments[0]?.id ?? null;
+    setActiveId(nextId);
+    setMobileStep("list");
+    onSelectedIdChange?.(nextId);
+  }, [activeId, activeTab, filteredDocuments, onSelectedIdChange]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (activeId) url.searchParams.set("documento", activeId);
+    else url.searchParams.delete("documento");
+    if (activeTab !== "all" && activeTab !== "templates") url.searchParams.set("tipo", activeTab);
+    else url.searchParams.delete("tipo");
+    if (statusFilter !== "all") url.searchParams.set("estado", statusFilter);
+    else url.searchParams.delete("estado");
+    if (sort !== "newest") url.searchParams.set("orden", sort);
+    else url.searchParams.delete("orden");
+    if (query.trim()) url.searchParams.set("q", query.trim());
+    else url.searchParams.delete("q");
+    if (safePage > 1) url.searchParams.set("pagina", String(safePage));
+    else url.searchParams.delete("pagina");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [activeId, activeTab, query, safePage, sort, statusFilter]);
+
+  useEffect(() => {
     const detail = activeTab === "templates" ? null : selectedDocument?.aiContext ?? null;
     const publish = () => window.dispatchEvent(new CustomEvent("orqena:document-context", { detail }));
     publish();
@@ -311,8 +336,8 @@ export function GlobalDocumentsWorkspace({
   }
 
   return (
-    <section className="global-documents-workspace grid min-w-0 w-full grid-cols-[minmax(0,1fr)] gap-4" aria-labelledby="global-documents-title">
-      <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="global-documents-workspace documents-master grid min-w-0 w-full grid-cols-[minmax(0,1fr)] gap-4" aria-labelledby="global-documents-title">
+      <header className="documents-master__header flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1
             id="global-documents-title"
@@ -325,15 +350,15 @@ export function GlobalDocumentsWorkspace({
             archivo.
           </p>
         </div>
-        <div className="flex min-w-0 flex-wrap gap-2">
+        <div className="documents-master__primary-action flex min-w-0 flex-wrap gap-2">
           {validAction(primaryAction) ? <ActionLink action={primaryAction!} icon={Plus} primary /> : null}
         </div>
       </header>
 
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="documents-master__toolbar flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <nav
           aria-label="Tipos de documento"
-          className="flex min-w-0 gap-1 overflow-x-auto pb-1"
+          className="documents-master__tabs flex min-w-0 gap-1 overflow-x-auto pb-1"
         >
           {tabs.map((tab) => (
             <button
@@ -342,7 +367,7 @@ export function GlobalDocumentsWorkspace({
               onClick={() => changeTab(tab.id)}
               aria-pressed={activeTab === tab.id}
               className={clsx(
-                "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                "documents-master__tab inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
                 activeTab === tab.id
                   ? "border-brand/30 bg-brand-soft text-brand-strong"
                   : "border-border bg-surface text-content-secondary hover:bg-subtle hover:text-content",
@@ -358,10 +383,10 @@ export function GlobalDocumentsWorkspace({
           ))}
         </nav>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="documents-master__toolbar-actions flex min-w-0 flex-wrap items-center gap-2">
           <button
             type="button"
-            className="secondary-button"
+            className="documents-master__control secondary-button"
             aria-expanded={filtersOpen}
             aria-controls="global-document-filters"
             onClick={() => setFiltersOpen((open) => !open)}
@@ -382,7 +407,7 @@ export function GlobalDocumentsWorkspace({
                 setSort(event.target.value as SortId);
                 setPage(1);
               }}
-              className="field min-h-11 min-w-40 appearance-none pl-9 pr-8 text-xs font-semibold"
+              className="documents-master__sort field min-h-11 min-w-40 appearance-none pl-9 pr-8 text-xs font-semibold"
             >
               <option value="newest">Más recientes</option>
               <option value="oldest">Más antiguos</option>
@@ -395,7 +420,7 @@ export function GlobalDocumentsWorkspace({
       {filtersOpen ? (
         <div
           id="global-document-filters"
-          className="grid gap-3 rounded-xl border border-border bg-subtle p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,.4fr)_auto] sm:items-end"
+          className="documents-master__filters grid gap-3 rounded-xl border border-border bg-subtle p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,.4fr)_auto] sm:items-end"
         >
           <label>
             <span className="type-label mb-1 block">Buscar</span>
@@ -456,7 +481,7 @@ export function GlobalDocumentsWorkspace({
       />
 
       <div
-        className="global-documents-panes min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-soft"
+        className="global-documents-panes documents-master__panes min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-soft"
         data-mobile-step={mobileStep}
       >
         <DocumentList
@@ -464,6 +489,7 @@ export function GlobalDocumentsWorkspace({
           documents={visibleDocuments}
           selectedId={activeId}
           total={filteredDocuments.length}
+          pageSize={effectivePageSize}
           page={safePage}
           totalPages={totalPages}
           onSelect={selectDocument}
@@ -590,6 +616,7 @@ function DocumentList({
   documents,
   selectedId,
   total,
+  pageSize,
   page,
   totalPages,
   onSelect,
@@ -602,6 +629,7 @@ function DocumentList({
   documents: GlobalDocumentWorkspaceItem[];
   selectedId: string | null;
   total: number;
+  pageSize: number;
   page: number;
   totalPages: number;
   onSelect: (id: string) => void;
@@ -613,19 +641,18 @@ function DocumentList({
   return (
     <section
       className={clsx(
-        "min-w-0 flex min-h-[38rem] flex-col border-border",
+        "documents-master__list min-w-0 flex min-h-[38rem] flex-col border-border",
         className,
       )}
     >
-      <header className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-3">
+      <header className="documents-master__pane-header flex min-h-14 items-center justify-between gap-3 border-b border-border px-3">
         <h2 className="text-sm font-semibold text-content">
-          Lista de documentos
+          Lista de documentos <span className="font-normal text-content-secondary">({total})</span>
         </h2>
-        <span className="type-meta tabular-nums">{total}</span>
       </header>
 
       {documents.length ? (
-        <div className="divide-y divide-border">
+        <div className="documents-master__list-rows divide-y divide-border">
           {documents.map((document) => {
             const Icon = documentIcon(document.kind);
             const selected = document.id === selectedId;
@@ -636,12 +663,15 @@ function DocumentList({
                 onClick={() => onSelect(document.id)}
                 aria-pressed={selected}
                 className={clsx(
-                  "grid w-full grid-cols-[1.75rem_minmax(0,1fr)] gap-2.5 px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
+                  "documents-master__document-row grid w-full grid-cols-[1rem_1.75rem_minmax(0,1fr)] gap-2.5 px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
                   selected
                     ? "bg-brand-soft ring-1 ring-inset ring-brand/45"
                     : "bg-surface hover:bg-subtle",
                 )}
               >
+                <span className={clsx("documents-master__selector mt-1.5 grid h-3.5 w-3.5 place-items-center rounded-full border", selected ? "border-brand" : "border-border-strong")} aria-hidden="true">
+                  {selected ? <span className="h-1.5 w-1.5 rounded-full bg-brand" /> : null}
+                </span>
                 <span
                   className={clsx(
                     "mt-0.5 grid h-7 w-7 place-items-center rounded-lg",
@@ -700,9 +730,9 @@ function DocumentList({
         </div>
       )}
 
-      <footer className="mt-auto flex min-h-12 items-center justify-between gap-3 border-t border-border px-3 text-[10px] text-content-secondary">
+      <footer className="documents-master__list-footer mt-auto flex min-h-12 items-center justify-between gap-3 border-t border-border px-3 text-[10px] text-content-secondary">
         <span>
-          Página {page} de {totalPages}
+          {total === 0 ? "0 documentos" : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} de ${total} documentos`}
         </span>
         <span className="flex gap-1">
           <button
@@ -798,11 +828,11 @@ function DocumentViewer({
   return (
     <section
       className={clsx(
-        "flex min-h-[38rem] min-w-0 flex-col bg-subtle/55",
+        "documents-master__viewer flex min-h-[38rem] min-w-0 flex-col bg-subtle/55",
         className,
       )}
     >
-      <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3">
+      <header className="documents-master__pane-header documents-master__viewer-header flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
@@ -824,7 +854,7 @@ function DocumentViewer({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {previewHref ? (
+          {document.preview ? (
             <>
               <button
                 type="button"
@@ -867,7 +897,7 @@ function DocumentViewer({
             type="button"
             onClick={onClear}
             aria-label="Cerrar documento"
-            className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface"
+            className="documents-master__close grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface"
           >
             <X size={15} aria-hidden="true" />
           </button>
@@ -876,27 +906,19 @@ function DocumentViewer({
 
       <div
         ref={frameRef}
-        className="relative flex min-h-[30rem] flex-1 items-start justify-center overflow-auto p-3 sm:p-5"
+        className="documents-master__viewer-frame relative flex min-h-[30rem] flex-1 items-start justify-center overflow-auto p-3 sm:p-5"
         style={viewerStyle}
       >
-        {previewHref ? (
-          <div
-            className="origin-top overflow-hidden rounded-sm bg-white shadow-sm"
-            style={{
-              transform:
-                "scale(var(--document-zoom)) rotate(var(--document-rotation))",
-              width: "min(100%, 46rem)",
-              height: "42rem",
-            }}
-          >
+        {previewHref || document.preview ? (
+          <div className="documents-master__page-shell origin-top overflow-hidden rounded-sm bg-white shadow-sm" style={{ transform: "scale(var(--document-zoom)) rotate(var(--document-rotation))" }}>
+            {previewHref ? (
             <iframe
               src={previewHref}
               title={`Vista de ${document.name}`}
               className="h-full w-full border-0 bg-white"
             />
+            ) : document.preview ? <StructuredDocumentPreview preview={document.preview} /> : null}
           </div>
-        ) : document.preview ? (
-          <StructuredDocumentPreview preview={document.preview} />
         ) : (
           <div className="m-auto max-w-sm rounded-xl border border-dashed border-border bg-surface p-6 text-center">
             <FileText
@@ -914,7 +936,7 @@ function DocumentViewer({
         )}
       </div>
 
-      <footer className="flex flex-wrap items-center gap-2 border-t border-border bg-surface p-2.5">
+      <footer className="documents-master__viewer-footer flex flex-wrap items-center gap-2 border-t border-border bg-surface p-2.5">
         {downloadAction ? (
           <ActionLink action={downloadAction} icon={Download} />
         ) : null}
@@ -975,7 +997,7 @@ function StructuredDocumentPreview({
   }
 
   return (
-    <article className="min-w-0 w-full max-w-[46rem] bg-white p-5 shadow-sm sm:p-7">
+    <article className="documents-master__structured-preview min-w-0 w-full bg-white p-5 sm:p-7">
       <header className="border-b border-border pb-4">
         {preview.title ? (
           <h3 className="text-lg font-bold text-content">{preview.title}</h3>
@@ -1097,12 +1119,12 @@ function DocumentReviewPanel({
   return (
     <aside
       className={clsx(
-        "min-h-[38rem] min-w-0 border-border bg-surface",
+        "documents-master__review min-h-[38rem] min-w-0 border-border bg-surface",
         className,
       )}
       aria-label={`Revisión de ${document.name}`}
     >
-      <header className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-3">
+      <header className="documents-master__pane-header documents-master__review-header flex min-h-14 items-center justify-between gap-3 border-b border-border px-3">
         <button
           type="button"
           onClick={onBack}

@@ -7165,3 +7165,279 @@ button:disabled,
     border-left: 1px solid var(--color-border, #dfe5e1);
   }
 }
+
+/* Documentos · reproducción focal de la referencia 09_documentos (1586 × 992). */
+.documents-page {
+  max-width: none !important;
+}
+
+.documents-master__page-shell {
+  width: min(100%, 46rem);
+  height: 42rem;
+  transform-origin: top center;
+}
+
+.documents-master__structured-preview {
+  min-height: 100%;
+}
+
+.document-context-rail {
+  gap: 0;
+}
+
+.document-context-rail .orqena-context-eyebrow {
+  margin: 22px 0 16px;
+}
+
+.document-context-block {
+  border: 1px solid var(--cap-border);
+  border-radius: 10px;
+  padding: 15px;
+}
+
+.document-context-block + .document-context-block {
+  margin-top: 14px;
+}
+
+.document-context-block__heading,
+.document-context-block h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--cap-text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.document-context-block__heading .orqena-context-card__icon {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+}
+
+.document-context-block--match {
+  border-color: color-mix(in srgb, var(--cap-brand) 24%, var(--cap-border));
+  background: color-mix(in srgb, var(--cap-brand-soft) 48%, white);
+}
+
+.document-context-block--match dl {
+  margin-top: 14px;
+}
+
+.document-context-block--match dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--cap-brand) 12%, transparent);
+  padding: 10px 0;
+  font-size: 11px;
+}
+
+.document-context-block--match dt { color: var(--cap-text-muted); }
+.document-context-block--match dd { color: var(--cap-brand-strong); font-weight: 850; text-align: right; }
+
+.document-context-block--warning {
+  border-color: color-mix(in srgb, var(--cap-warning) 28%, var(--cap-border));
+  background: color-mix(in srgb, var(--cap-warning) 7%, white);
+}
+
+.document-context-block--warning h2 { color: #9b6200; }
+.document-context-block--warning ul { display: grid; gap: 8px; margin-top: 12px; padding-left: 18px; color: var(--cap-text-muted); font-size: 11px; line-height: 1.45; list-style: disc; }
+
+.document-context-block--info {
+  border-color: color-mix(in srgb, var(--cap-info) 24%, var(--cap-border));
+  background: color-mix(in srgb, var(--cap-info) 5%, white);
+}
+
+.document-context-block--info h2 { color: var(--cap-info); }
+.document-context-block--info p { margin-top: 11px; color: var(--cap-text-muted); font-size: 11px; line-height: 1.5; }
+
+.document-context-controls { margin-top: auto; padding-top: 18px; }
+.document-context-assurance { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; color: var(--cap-text-muted); font-size: 10px; line-height: 1.45; }
+.document-context-assurance svg { flex: none; color: var(--cap-brand); }
+
+@media (min-width: 1200px) {
+  body:has(.documents-page) {
+    --fos-layout-record-rail: 303px;
+  }
+
+  .documents-page {
+    min-height: calc(100dvh - var(--fos-layout-topbar));
+    padding: 25px 20px 18px;
+  }
+
+  .documents-master {
+    gap: 12px;
+  }
+
+  .documents-master__header {
+    min-height: 58px;
+  }
+
+  .documents-master__header .type-page-title {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .documents-master__header .type-secondary {
+    margin-top: 1px;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .documents-master__primary-action {
+    display: none;
+  }
+
+  .documents-master__toolbar {
+    min-height: 36px;
+  }
+
+  .documents-master__tabs {
+    padding-bottom: 0;
+  }
+
+  .documents-master__tab,
+  .documents-master__control,
+  .documents-master__sort {
+    min-height: 32px !important;
+    height: 32px;
+    border-radius: 7px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 11px;
+  }
+
+  .documents-master__sort {
+    min-width: 136px;
+  }
+
+  .documents-master__panes {
+    height: calc(100dvh - 233px);
+    min-height: 704px;
+    max-height: 780px;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  .documents-master__panes .global-documents-pane {
+    min-height: 0 !important;
+    height: 100%;
+  }
+
+  .global-documents-panes.documents-master__panes {
+    grid-template-columns: minmax(19rem, .965fr) minmax(24rem, 1.374fr) minmax(13rem, .66fr);
+  }
+
+  .documents-master__pane-header {
+    min-height: 55px;
+    height: 55px;
+  }
+
+  .documents-master__list-rows {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .documents-master__document-row {
+    min-height: 78px;
+    padding: 10px 12px;
+  }
+
+  .documents-master__document-row strong {
+    font-size: 11px;
+  }
+
+  .documents-master__document-row .text-\[10px\] {
+    font-size: 9px;
+  }
+
+  .documents-master__list-footer {
+    min-height: 47px;
+    height: 47px;
+  }
+
+  .documents-master__list-footer button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .documents-master__viewer-frame {
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .documents-master__page-shell {
+    width: 100%;
+    height: 100%;
+  }
+
+  .documents-master__structured-preview {
+    overflow: auto;
+    padding: 22px;
+  }
+
+  .documents-master__viewer-header button,
+  .documents-master__review-header a {
+    min-height: 32px;
+    height: 32px;
+  }
+
+  .documents-master__viewer-footer {
+    min-height: 49px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 7px 9px;
+  }
+
+  .documents-master__viewer-footer a {
+    min-height: 34px;
+    white-space: nowrap;
+    padding-inline: 9px;
+    font-size: 10px;
+  }
+
+  .documents-master__review {
+    overflow: hidden;
+  }
+
+  .documents-master__review > .divide-y > * {
+    padding: 10px 12px;
+  }
+
+  .documents-master__review > section {
+    padding: 11px 12px;
+  }
+
+  .documents-master__review > footer {
+    padding: 10px 12px;
+  }
+
+  .documents-master__review .secondary-button,
+  .documents-master__review .primary-button {
+    min-height: 34px;
+    font-size: 10px;
+  }
+
+  .documents-master__close {
+    display: none;
+  }
+
+  .orqena-context-rail:has(.document-context-rail) .orqena-context-rail__inner {
+    padding: 22px 20px 18px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .documents-master__primary-action {
+    display: none;
+  }
+
+  .documents-master__page-shell {
+    width: 100%;
+    max-width: 46rem;
+  }
+}

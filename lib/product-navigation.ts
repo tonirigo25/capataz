@@ -48,6 +48,9 @@ export const productSubnavigation: Record<string, ProductDestination[]> = {
   "/agenda": [
     { href: "/recordatorios", label: "Recordatorios", icon: "agenda", capability: "followups.view" },
   ],
+  "/documentos": [
+    { href: "/documentos?vista=plantillas", label: "Plantillas", icon: "document", capability: "documents.view" },
+  ],
   "/equipo": [
     { href: "/equipos", label: "Equipos", icon: "building", capability: "company.teams.manage" },
   ],
@@ -108,7 +111,8 @@ export const createActions: Array<ProductDestination & { description: string }> 
   { href: "/gestion?tipo=obra&returnTo=/obras", label: "Trabajo", description: "Abrir un nuevo trabajo", icon: "briefcase", capability:"work.create" },
   { href: "/gestion?tipo=gasto&returnTo=/gastos-materiales", label: "Gasto", description: "Registrar una compra", icon: "expense", capability:"purchases.received_invoices.manage" },
   { href: "/gestion?tipo=pago&returnTo=/dinero", label: "Cobro", description: "Anotar un ingreso", icon: "invoice", capability:"treasury.collections.register" },
-  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda", label: "Visita", description: "Programar una cita", icon: "agenda", capability:"agenda.manage" }
+  { href: "/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/agenda", label: "Visita", description: "Programar una cita", icon: "agenda", capability:"agenda.manage" },
+  { href: "/documentos/subir", label: "Documento", description: "Adjuntar documentación", icon: "document", capability: "documents.upload" },
 ];
 
 export const captureActions: Array<ProductDestination & {

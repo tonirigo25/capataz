@@ -262,6 +262,47 @@ async function assertManualRecordScope(
     if (!relation) throw new Error("BUDGET_WORK_CLIENT_MISMATCH");
   }
   await assertRelated(submittedWorkId, submittedClientId);
+  if (tipo === "documento") {
+    const relations: Array<{ workId: string | null; clientId: string | null }> = [
+      { workId: submittedWorkId, clientId: submittedClientId },
+    ];
+    const budgetId = optionalText(formData, "budgetId");
+    const invoiceId = optionalText(formData, "invoiceId");
+    const expenseId = optionalText(formData, "expenseId");
+    if (budgetId) {
+      const budget = await prisma.budget.findFirst({
+        where: { id: budgetId, companyId },
+        select: { obraId: true, clienteId: true },
+      });
+      if (!budget) throw new Error("DOCUMENT_BUDGET_NOT_AVAILABLE");
+      relations.push({ workId: budget.obraId, clientId: budget.clienteId });
+    }
+    if (invoiceId) {
+      const invoice = await prisma.invoice.findFirst({
+        where: { id: invoiceId, companyId },
+        select: { obraId: true, clienteId: true },
+      });
+      if (!invoice) throw new Error("DOCUMENT_INVOICE_NOT_AVAILABLE");
+      relations.push({ workId: invoice.obraId, clientId: invoice.clienteId });
+    }
+    if (expenseId) {
+      const expense = await prisma.expense.findFirst({
+        where: { id: expenseId, companyId },
+        select: { obraId: true, clienteId: true },
+      });
+      if (!expense) throw new Error("DOCUMENT_EXPENSE_NOT_AVAILABLE");
+      relations.push({ workId: expense.obraId, clientId: expense.clienteId });
+    }
+    const workIds = new Set(relations.map((relation) => relation.workId).filter((value): value is string => Boolean(value)));
+    const clientIds = new Set(relations.map((relation) => relation.clientId).filter((value): value is string => Boolean(value)));
+    if (workIds.size > 1 || clientIds.size > 1)
+      throw new Error("DOCUMENT_RELATION_MISMATCH");
+    for (const relation of relations) {
+      if (!relation.workId && !relation.clientId && auth.scope !== "COMPANY")
+        throw new Error("SCOPE_REQUIRED");
+      await assertRelated(relation.workId, relation.clientId);
+    }
+  }
   if (tipo === "pago" && !id) {
     const facturaId = optionalText(formData, "facturaId");
     if (!facturaId) throw new Error("Factura obligatoria.");
