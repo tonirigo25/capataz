@@ -33,6 +33,7 @@ expect(combobox.includes("orderedGroups.map") && combobox.includes('role="group"
 expect(suggestions.includes("MIN_QUERY_LENGTH = 2") && suggestions.includes("MAX_QUERY_LENGTH = 80"), "suggestions endpoint lacks query bounds");
 expect(suggestions.includes("export async function POST") && suggestions.includes("request.json()"), "predictive queries must not be exposed in infrastructure query-string logs");
 expect(suggestions.includes('requireCapability("company.view")'), "suggestions endpoint must require authenticated company access");
+expect(suggestions.includes('publicRequestContext("POST /api/search/suggestions"'), "suggestions endpoint must use the canonical request context");
 expect(suggestions.includes('Cache-Control": "private, no-store"') && suggestions.includes("globalSearch(query"), "suggestions endpoint must be private, uncached and use the authorized search service");
 expect(!search.includes("findMany({})"), "search must not load complete tables");
 

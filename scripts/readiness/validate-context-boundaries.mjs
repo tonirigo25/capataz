@@ -44,7 +44,7 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 48) failures.push(`expected 48 routes, found ${routes.length}`);
+  if (routes.length !== 49) failures.push(`expected 49 routes, found ${routes.length}`);
   const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
   if (!alertsExport) {
     failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
@@ -137,4 +137,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 48 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 49 routes, 7 jobs)\n");
