@@ -3,8 +3,8 @@
   --muted: #5b6963;
   --line: #dce6df;
   --green: #82c91e;
-  --green-strong: #0b8b45;
-  --green-dark: #08743b;
+  --green-strong: #08703a;
+  --green-dark: #075f32;
   --dark: #071a14;
   color: var(--ink);
   background: #fff;
@@ -100,7 +100,7 @@
 .intervalToggle { display: inline-flex; gap: .25rem; margin: 0 0 1.3rem; border: 1px solid var(--line); border-radius: .75rem; padding: .25rem; background: #f6f8f6; }
 .intervalToggle button { min-height: 2.5rem; border: 0; border-radius: .55rem; padding: .55rem .9rem; color: #53615a; background: transparent; font-weight: 750; cursor: pointer; }
 .intervalToggle button[aria-pressed="true"] { color: #fff; background: var(--dark); box-shadow: 0 5px 14px rgba(7,26,20,.18); }
-.intervalToggle span { margin-left: .3rem; color: #74aa24; font-size: .64rem; }
+.intervalToggle span { margin-left: .3rem; color: #4d701b; font-size: .64rem; }
 .intervalToggle button[aria-pressed="true"] span { color: #c7ef89; }
 
 .planGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }

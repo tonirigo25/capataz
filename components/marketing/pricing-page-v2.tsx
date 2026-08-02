@@ -129,7 +129,7 @@ export function PricingPageV2() {
         <div className={styles.usageCard}>
           <header><span>Ejemplo de consumo</span><em>Professional · mensual</em></header>
           <div className={styles.usageValue}><strong>382</strong><span>de 500 operaciones</span></div>
-          <div className={styles.usageTrack} aria-label="76 por ciento del ejemplo de capacidad usado"><i /></div>
+          <div className={styles.usageTrack} role="progressbar" aria-label="Operaciones de IA utilizadas en el ejemplo" aria-valuemin={0} aria-valuemax={500} aria-valuenow={382}><i /></div>
           <div className={styles.usageLabels}><span>76 % usado</span><strong>118 disponibles</strong></div>
           <ul><li><span>Preparaciones</span><strong>164</strong></li><li><span>Análisis</span><strong>139</strong></li><li><span>Acciones asistidas</span><strong>79</strong></li></ul>
           <p>Ejemplo ilustrativo. El producto muestra el consumo real de cada empresa.</p>
