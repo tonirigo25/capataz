@@ -204,7 +204,7 @@ export function OrqenaContextRail({
     return () => window.removeEventListener("orqena:budget-context", onBudgetContext);
   }, [pathname]);
   useLayoutEffect(() => {
-    if (pathname !== "/proveedores") {
+    if (pathname !== "/proveedores" && pathname !== "/subcontratas") {
       setSupplierContext(null);
       return;
     }
@@ -235,8 +235,8 @@ export function OrqenaContextRail({
   return (
     <>
       {pathname === "/seguimientos" ? <FollowUpsRailContextBridge /> : null}
-      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/actividad" ? "activity" : pathname === "/seguimientos" ? "followups" : pathname === "/alertas" ? "alerts" : pathname === "/recomendaciones/control" ? "control" : pathname === "/proveedores" ? "suppliers" : pathname.startsWith("/orqena-ia") ? "orqena-ai" : pathname === "/dashboard" ? "dashboard" : pathname === "/agenda" ? "agenda" : pathname === "/equipo" ? "team" : undefined}>
-        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} isWorkspace={pathname.startsWith("/orqena-ia")} isControl={pathname === "/recomendaciones/control"} isAlerts={pathname === "/alertas"} isFollowUps={pathname === "/seguimientos"} isActivity={pathname === "/actividad"} isSuppliers={pathname === "/proveedores"} alertsContext={alertsContext} followUpsContext={followUpsContext} activityContext={activityContext} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} teamContext={teamContext} supplierContext={supplierContext} onToggleCollapsed={onToggleCollapsed} />}
+      <aside className="orqena-context-rail" aria-label="Ayuda contextual de Orqena IA" data-collapsed={collapsed ? "true" : "false"} data-context-variant={pathname === "/actividad" ? "activity" : pathname === "/seguimientos" ? "followups" : pathname === "/alertas" ? "alerts" : pathname === "/recomendaciones/control" ? "control" : pathname === "/proveedores" || pathname === "/subcontratas" ? "suppliers" : pathname.startsWith("/orqena-ia") ? "orqena-ai" : pathname === "/dashboard" ? "dashboard" : pathname === "/agenda" ? "agenda" : pathname === "/equipo" ? "team" : undefined}>
+        {collapsed ? <button type="button" className="orqena-context-expand" aria-label="Mostrar Orqena IA" onClick={onToggleCollapsed}><ChevronsRight size={18} aria-hidden="true" /><Sparkles size={18} aria-hidden="true" /><span>Orqena IA</span></button> : <RailContent context={context} titleId={`${titleId}-desktop`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} isWorkspace={pathname.startsWith("/orqena-ia")} isControl={pathname === "/recomendaciones/control"} isAlerts={pathname === "/alertas"} isFollowUps={pathname === "/seguimientos"} isActivity={pathname === "/actividad"} isSuppliers={pathname === "/proveedores" || pathname === "/subcontratas"} alertsContext={alertsContext} followUpsContext={followUpsContext} activityContext={activityContext} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} teamContext={teamContext} supplierContext={supplierContext} onToggleCollapsed={onToggleCollapsed} />}
       </aside>
 
       <button ref={triggerRef} type="button" className="orqena-context-trigger" aria-expanded={mobileOpen} aria-controls={`${titleId}-panel`} onClick={() => setMobileOpen(true)}>
@@ -246,7 +246,7 @@ export function OrqenaContextRail({
       {mobileOpen ? (
         <aside ref={sheetRef} id={`${titleId}-panel`} className="orqena-context-sheet orqena-context-sheet--inline" role="region" aria-labelledby={`${titleId}-mobile`}>
           <button data-autofocus type="button" className="icon-button absolute right-4 top-4" aria-label="Cerrar ayuda contextual" onClick={() => setMobileOpen(false)}><X size={19} aria-hidden="true" /></button>
-          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} isWorkspace={pathname.startsWith("/orqena-ia")} isControl={pathname === "/recomendaciones/control"} isAlerts={pathname === "/alertas"} isFollowUps={pathname === "/seguimientos"} isActivity={pathname === "/actividad"} isSuppliers={pathname === "/proveedores"} alertsContext={alertsContext} followUpsContext={followUpsContext} activityContext={activityContext} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} teamContext={teamContext} supplierContext={supplierContext} />
+          <RailContent context={context} titleId={`${titleId}-mobile`} recommendation={recommendation} dashboardAlerts={dashboardAlerts} canUse={canUse} canExecute={canExecute} isToday={pathname === "/hoy"} isDashboard={pathname === "/dashboard"} isWorkspace={pathname.startsWith("/orqena-ia")} isControl={pathname === "/recomendaciones/control"} isAlerts={pathname === "/alertas"} isFollowUps={pathname === "/seguimientos"} isActivity={pathname === "/actividad"} isSuppliers={pathname === "/proveedores" || pathname === "/subcontratas"} alertsContext={alertsContext} followUpsContext={followUpsContext} activityContext={activityContext} documentContext={documentContext} budgetContext={budgetContext} moneyContext={moneyContext} teamContext={teamContext} supplierContext={supplierContext} />
         </aside>
       ) : null}
     </>
@@ -471,18 +471,21 @@ function isDocumentRailContext(value: unknown): value is DocumentRailContext {
 
 function SupplierRailContent({ context, titleId, canUse, onToggleCollapsed }: { context: SupplierRailContextValue | null; titleId: string; canUse: boolean; onToggleCollapsed?: () => void }) {
   const attention = context?.attention ?? [];
+  const subcontractors = context?.kind === "subcontractor";
+  const singular = subcontractors ? "subcontrata" : "proveedor";
+  const plural = subcontractors ? "subcontratas" : "proveedores";
   const title = attention.length
-    ? `${attention.length} ${attention.length === 1 ? "proveedor requiere" : "proveedores requieren"} revisión`
+    ? `${attention.length} ${attention.length === 1 ? `${singular} requiere` : `${plural} requieren`} revisión`
     : context?.supplierCount
-      ? "Red de proveedores sin riesgo alto registrado"
-      : "Sin proveedores para evaluar";
+      ? `${subcontractors ? "Red de subcontratas" : "Red de proveedores"} sin alertas registradas`
+      : `Sin ${plural} para evaluar`;
   return <div className="orqena-context-rail__inner supplier-context-rail">
     <header className="orqena-context-rail__header"><span className="orqena-context-rail__spark"><Sparkles size={17} aria-hidden="true" /></span><span>Orqena IA</span>{onToggleCollapsed ? <button type="button" className="orqena-context-collapse" aria-label="Ocultar Orqena IA" onClick={onToggleCollapsed}><ChevronsLeft size={18} aria-hidden="true" /></button> : null}</header>
     <p className="orqena-context-eyebrow">Recomendación para hoy</p>
     <article className="orqena-context-card supplier-context-card" aria-labelledby={titleId}>
       <span className="orqena-context-card__icon"><Building2 size={22} aria-hidden="true" /><Sparkles className="orqena-context-card__spark" size={13} aria-hidden="true" /></span>
       <h2 id={titleId}>{title}</h2>
-      <p className="orqena-context-description">La evaluación utiliza únicamente pagos, documentación, estado y valoraciones registradas. No bloquea ni modifica proveedores automáticamente.</p>
+      <p className="orqena-context-description">La evaluación utiliza únicamente pagos, documentación, estado y valoraciones registradas. No bloquea ni modifica {plural} automáticamente.</p>
       {attention.length ? <ul className="supplier-context-attention">{attention.map((supplier) => <li key={supplier.id}><Link href={supplier.href}><strong>{supplier.name}</strong><small>{supplier.detail}</small></Link></li>)}</ul> : <p className="supplier-context-empty">No hay señales de riesgo alto dentro de los proveedores visibles.</p>}
       <dl className="orqena-context-impact">
         <div className="orqena-context-impact__title"><dt>Impacto registrado</dt><dd>{context?.overdueInvoices ? "Requiere revisión" : "Sin vencidos registrados"}</dd></div>
@@ -491,8 +494,8 @@ function SupplierRailContent({ context, titleId, canUse, onToggleCollapsed }: { 
         <div><dt>Calidad promedio</dt><dd>{context?.qualityAverage == null ? "Sin valorar" : `${context.qualityAverage}/100`}</dd></div>
       </dl>
       <div className="orqena-context-safeguard"><ShieldCheck size={17} aria-hidden="true" /><p>Tu equipo revisa la ficha y confirma cualquier decisión comercial.</p></div>
-      {canUse ? <Link href="/orqena-ia/finanzas" className="orqena-context-primary">Evaluar proveedores<ChevronRight size={16} aria-hidden="true" /></Link> : <span className="orqena-context-primary orqena-context-primary--disabled">IA no disponible</span>}
-      <Link href="/proveedores?orden=risk#directorio" className="orqena-context-secondary">Ver ranking de riesgo</Link>
+      {canUse ? <Link href="/orqena-ia/finanzas" className="orqena-context-primary">Evaluar {plural}<ChevronRight size={16} aria-hidden="true" /></Link> : <span className="orqena-context-primary orqena-context-primary--disabled">IA no disponible</span>}
+      <Link href={subcontractors ? "/subcontratas?cumplimiento=attention#directorio" : "/proveedores?orden=risk#directorio"} className="orqena-context-secondary">{subcontractors ? "Revisar cumplimiento" : "Ver ranking de riesgo"}</Link>
     </article>
     {canUse ? <Link href="/orqena-ia/finanzas" className="orqena-context-more">Ver más recomendaciones en Orqena IA <ExternalLink size={13} aria-hidden="true" /></Link> : null}
   </div>;

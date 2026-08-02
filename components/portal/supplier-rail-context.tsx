@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 export type SupplierRailContextValue = {
+  kind?: "supplier" | "subcontractor";
   supplierCount: number;
   highRiskCount: number;
   overdueExposure: number;
