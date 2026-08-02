@@ -19,7 +19,7 @@ import {
   editTaskSeries,
 } from "@/lib/tasks/task-recurrence";
 import { prisma } from "@/lib/prisma";
-import { assertScopedTaskAccess, requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, assertScopedTaskAccess, requireCapability } from "@/lib/commercial/authorization";
 async function taskGuard(data:FormData){const auth=await requireCapability("tasks.manage");const ids=["id","taskId","parentTaskId","dependsOnTaskId"].map(key=>String(data.get(key)??"")).filter(Boolean);for(const id of ids){const found=await prisma.task.findFirst({where:{companyId:auth.companyId,OR:[{id},{checklist:{some:{id}}},{dependencies:{some:{id}}},{blocking:{some:{id}}}]},select:{id:true}});if(!found)throw new Error("TASK_NOT_AVAILABLE");await assertScopedTaskAccess(auth,"tasks.manage",found.id);}return auth;}
 export async function createTaskAction(data: FormData) {
   const auth=await requireCapability("tasks.manage");
@@ -27,6 +27,8 @@ export async function createTaskAction(data: FormData) {
   if (!title) return;
   const requestedWorkId = String(data.get("workId") ?? "").trim() || undefined;
   const requestedClientId = String(data.get("clientId") ?? "").trim() || undefined;
+  if (requestedWorkId) await assertScopedEntityAccess(auth, "tasks.manage", "Work", requestedWorkId);
+  else if (requestedClientId) await assertScopedEntityAccess(auth, "tasks.manage", "Client", requestedClientId);
   const linkedWork = requestedWorkId ? await prisma.work.findFirst({ where: { id: requestedWorkId, companyId: auth.companyId }, select: { id: true, clienteId: true } }) : null;
   if (requestedWorkId && !linkedWork) throw new Error("WORK_NOT_AVAILABLE");
   const clientId = linkedWork?.clienteId ?? requestedClientId;

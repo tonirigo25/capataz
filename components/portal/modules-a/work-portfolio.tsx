@@ -101,7 +101,7 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   }, [items, selectedId]);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1800px)");
+    const desktop = window.matchMedia("(min-width: 1560px)");
     const closeAtDesktop = (event: MediaQueryListEvent) => {
       if (event.matches) setDrawerOpen(false);
     };
@@ -150,7 +150,7 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   function selectWork(item: WorkPortfolioItem, trigger: HTMLButtonElement) {
     setSelectedId(item.id);
     lastTriggerRef.current = trigger;
-    if (window.matchMedia("(max-width: 1799px)").matches) setDrawerOpen(true);
+    if (window.matchMedia("(max-width: 1559px)").matches) setDrawerOpen(true);
   }
 
   function closeDesktopDetail() {
@@ -169,8 +169,8 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   }
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1800px]:grid min-[1800px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
-      <section className={`min-w-0 border-border ${selected ? "min-[1800px]:border-r" : ""}`} aria-label="Trabajos filtrados">
+    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1560px]:grid min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
+      <section className={`min-w-0 border-border ${selected ? "min-[1560px]:border-r" : ""}`} aria-label="Trabajos filtrados">
         {items.length ? (
           <>
             <div className="hidden min-[1200px]:block" aria-label="Listado de trabajos">
@@ -246,11 +246,11 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
         ) : <p className="type-secondary p-6">Sin trabajos registrados.</p>}
       </section>
 
-      {selected ? <aside className="hidden min-w-0 bg-surface min-[1800px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} returnTo={returnTo} onClose={closeDesktopDetail} /></aside> : null}
+      {selected ? <aside className="hidden min-w-0 overflow-hidden bg-surface min-[1560px]:block" aria-label={`Detalle de ${selected.title}`}><WorkDetail item={selected} returnTo={returnTo} onClose={closeDesktopDetail} /></aside> : null}
 
       {selected && drawerOpen ? (
         <div
-          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1800px]:hidden sm:p-4"
+          className="fixed inset-0 z-[80] bg-black/45 p-0 min-[1560px]:hidden sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeDrawer();
           }}
@@ -394,7 +394,7 @@ function DesktopWorkDetail({ item, returnTo, onClose }: { item: WorkPortfolioIte
 }
 
 function CompactDetail({ title, icon: Icon, badge, className = "", children }: { title: string; icon: LucideIcon; badge?: string; className?: string; children: React.ReactNode }) {
-  return <section className={`min-w-0 rounded-lg border border-border p-2.5 ${className}`}><div className="mb-2 flex min-w-0 items-start gap-1.5"><Icon size={13} className="mt-px shrink-0 text-brand-strong" aria-hidden="true" /><h3 className="min-w-0 flex-1 text-[9px] font-bold leading-tight text-content">{title}</h3>{badge != null ? <span className="ml-auto inline-flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-warning/10 px-1.5 text-[9px] font-bold text-warning">{badge}</span> : null}</div>{children}</section>;
+  return <section className={`min-w-0 overflow-hidden rounded-lg border border-border p-2.5 ${className}`}><div className="mb-2 flex min-w-0 items-start gap-1.5"><Icon size={13} className="mt-px shrink-0 text-brand-strong" aria-hidden="true" /><h3 className="min-w-0 flex-1 text-[9px] font-bold leading-tight text-content">{title}</h3>{badge != null ? <span className="ml-auto inline-flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-warning/10 px-1.5 text-[9px] font-bold text-warning">{badge}</span> : null}</div><div className="min-w-0 overflow-hidden">{children}</div></section>;
 }
 
 function WorkTimeline({ entries }: { entries: WorkPortfolioTimelineItem[] }) {
