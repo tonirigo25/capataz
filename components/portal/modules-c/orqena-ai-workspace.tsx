@@ -472,7 +472,7 @@ function AreaTable({ area, queue, budgets, works, tasks, documents, invoices, me
   if (area === "equipo") return <DenseTable
     label="Equipo autorizado"
     columns={["Persona", "Rol", "Perfil", "Última actividad", "Tareas abiertas", "Estado", "Acción"]}
-    rows={memberships.slice(0, 6).map((item) => ({
+    rows={memberships.slice(0, 5).map((item) => ({
       id: item.id,
       cells: [
         <strong key="person">{item.user.displayName}<small>{maskEmail(item.user.email)}</small></strong>,
@@ -811,7 +811,7 @@ function buildMetrics(area: OrqenaAiArea, data: {
   return [
     controlledMetric(data.access.recommendations, "Recomendaciones visibles", data.recommendations, "autorizadas dentro de la muestra", Sparkles, "violet", "/recomendaciones?estado=all"),
     controlledMetric(data.access.recommendations, "Acciones confirmadas", data.confirmedRecommendations, "aceptadas o en curso", CheckCircle2, "green", "/recomendaciones?estado=accepted"),
-    controlledMetric(data.access.recommendations, "Impacto registrado", formatCurrency(data.recordedImpact), "importe documentado en recomendaciones", BadgeEuro, "blue", "/recomendaciones?estado=all"),
+    controlledMetric(data.access.recommendations, "Impacto registrado", formatCurrencyCompact(data.recordedImpact), "importe documentado en recomendaciones", BadgeEuro, "blue", "/recomendaciones?estado=all"),
     controlledMetric(data.access.recommendations, "Operaciones IA este mes", data.aiUsage, "recuento agregado registrado", Activity, "amber", "/recomendaciones?estado=all"),
     controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "sin ejecución automática", ShieldCheck, "green", "/automatizaciones"),
   ];

@@ -100,6 +100,7 @@
   display: grid;
   grid-template-columns: repeat(var(--metric-count, 4), minmax(0, 1fr));
   gap: 10px;
+  margin-top: 7px;
 }
 
 .metric {
@@ -149,6 +150,12 @@ a.metric:hover {
 }
 
 .primaryGrid { grid-template-columns: minmax(0, 1.58fr) minmax(280px, .82fr); }
+.primaryGrid[data-area="general"] { margin-top: 3px; }
+.primaryGrid[data-area="comercial"] { margin-top: 6px; }
+.primaryGrid[data-area="operaciones"],
+.primaryGrid[data-area="documentos"] { margin-top: 8px; }
+.primaryGrid[data-area="finanzas"] { margin-top: 9px; }
+.primaryGrid[data-area="equipo"] { margin-top: 11px; }
 .primaryGrid[data-area="documentos"] { grid-template-columns: minmax(0, 2.05fr) minmax(280px, 1fr); }
 .primaryGrid[data-area="finanzas"] { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); }
 .primaryGrid[data-area="equipo"] { grid-template-columns: minmax(0, 1.28fr) minmax(330px, 1fr); }
@@ -227,6 +234,13 @@ a.metric:hover {
   text-overflow: ellipsis;
   vertical-align: middle;
 }
+
+.primaryGrid[data-area="general"] .dataTable td { height: 58px; }
+.primaryGrid[data-area="comercial"] .dataTable td { height: 50px; }
+.primaryGrid[data-area="operaciones"] .dataTable td,
+.primaryGrid[data-area="documentos"] .dataTable td { height: 52px; }
+.primaryGrid[data-area="finanzas"] .dataTable td { height: 46px; }
+.primaryGrid[data-area="equipo"] .dataTable td { height: 50px; }
 
 .dataTable tr:last-child td { border-bottom: 0; }
 .dataTable tbody tr:hover { background: #fbfefc; }
@@ -368,6 +382,7 @@ a.metric:hover {
   .primaryGrid[data-area],
   .secondaryGrid,
   .secondaryGrid[data-area] { grid-template-columns: 1fr; }
+  .primaryGrid[data-area] { margin-top: 0; }
 }
 
 @media (max-width: 760px) {
@@ -392,6 +407,7 @@ a.metric:hover {
   .dataTable tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; border-bottom: 1px solid var(--cap-border); padding: 11px; }
   .dataTable tr:last-child { border-bottom: 0; }
   .dataTable td { height: auto; max-width: none; border: 0; padding: 0; overflow: visible; white-space: normal; }
+  .primaryGrid[data-area] .dataTable td { height: auto; }
   .dataTable td:first-child { grid-column: 1 / -1; font-size: 10px; }
   .dataTable td:last-child { align-self: end; justify-self: end; }
   .automationRow { grid-template-columns: 30px minmax(0, 1fr); }
