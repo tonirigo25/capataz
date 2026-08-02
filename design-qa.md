@@ -147,6 +147,47 @@ Este resultado quedó superado por las nuevas referencias y reglas de aceptació
 
 Final result: `in_progress`
 
+## Revalidación focal — Equipo 2026-08-02
+
+### Fuente, implementación y estado
+
+- Referencia visual canónica: `C:\Users\Toniet\AppData\Local\Temp\11_equipo.png` (1586 × 992).
+- Ruta autenticada: `https://orqena-review-web-review.up.railway.app/equipo`.
+- SHA validado inicialmente: `704df13f8403442c2cf2c8a34912cabea5c9a428`.
+- Deployment inicial: `151fbf7c-9023-4c8b-a1f9-db5efe3a907a` (`SUCCESS`).
+- Empresa y plan observados: `Rigo Asociados`, OWNER/Enterprise, 12 miembros reales del entorno Review.
+
+### Comparación y arquitectura
+
+1. **Composición:** la vista reproduce la secuencia de la maestra: cabecera, filtros por rol, tabla de miembros, paginación, capacidades por rol y rail contextual de Orqena IA.
+2. **Geometría:** se eliminó el panel central duplicado que comprimía la tabla; el listado vuelve a ocupar todo el ancho central. Las filas usan 52 px y las tarjetas de capacidades 139 px, con el shell compartido preservado.
+3. **Densidad:** se muestran ocho miembros por página y siete capacidades en una fila de escritorio, evitando tarjetas y separaciones sobredimensionadas.
+4. **Datos veraces:** no se inventaron fotografías, porcentajes de carga ni disponibilidad. Sin avatar almacenado se muestran iniciales; la carga refleja tareas asignadas directas y secundarias, y el último acceso usa `User.lastLoginAt`.
+5. **Contexto IA:** el detalle del miembro seleccionado se trasladó al rail compartido, con área, alcance, estado, último acceso, carga registrada y una acción autorizada real.
+
+### Navegador e interacción
+
+- A 1280 × 720, el shell medido conserva sidebar de 239 px, topbar de 67 px, contenido central de 970 px y cero desbordamiento horizontal. En este ancho intermedio el rail usa su trigger compacto para no comprimir la tabla.
+- La primera página muestra 8 de 12 miembros; la página siguiente muestra los 4 restantes y conserva filtro y selección en la URL.
+- El filtro `Propietario` devuelve únicamente los dos propietarios reales del entorno.
+- Al seleccionar otro miembro, la URL, el detalle del rail y su CTA se actualizan al registro elegido.
+- En móvil, las filas pasan a tarjetas legibles mediante el breakpoint compartido; no se crean controles ni datos alternativos.
+- La captura automática del navegador conectado no se pudo persistir por timeout de `Page.captureScreenshot`; la comprobación se realizó con DOM accesible, medidas de cajas, rutas, contenido y acciones remotas.
+
+### Gates focales
+
+- `git diff --check`: PASS.
+- ESLint focal: PASS.
+- Typecheck: PASS.
+- Build Railway del mismo SHA: PASS; 93 páginas generadas y healthcheck `/api/health/ready` correcto.
+- Cero cambios en reglas de negocio, PostgreSQL, migraciones, Staging o Production.
+
+### Resultado focal
+
+`passed`
+
+Final result: `in_progress`
+
 ## Revalidación focal — Documentos y Agenda 2026-08-02
 
 ### Documentos
