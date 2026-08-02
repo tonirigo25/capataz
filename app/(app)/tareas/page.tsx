@@ -256,9 +256,9 @@ type TaskRelation = { title: string; detail: string; icon: typeof FolderKanban; 
 function relationMeta(task: TaskListItem, works: Map<string, { id: string; titulo: string; codigo: string | null; numeroInterno: string | null }>, clients: Map<string, { id: string; nombre: string }>): TaskRelation {
   if (task.workId) { const work = works.get(task.workId); return { title: "Trabajo", detail: work ? `${work.titulo} · ${work.codigo ?? work.numeroInterno ?? "Sin código"}` : "Trabajo vinculado", icon: FolderKanban, href: work ? `/obras/${task.workId}` : undefined }; }
   if (task.clientId) { const client = clients.get(task.clientId); return { title: "Cliente", detail: client?.nombre ?? "Cliente vinculado", icon: CircleUserRound, href: client ? `/clientes/${task.clientId}` : undefined }; }
-  if (task.budgetId) return { title: "Presupuesto", detail: "Presupuesto vinculado", icon: FileText };
-  if (task.invoiceId) return { title: "Factura", detail: "Factura vinculada", icon: FileText };
-  if (task.documentId) return { title: "Documento", detail: "Documento vinculado", icon: FileText };
+  if (task.budgetId) return { title: "Presupuesto", detail: "Presupuesto vinculado", icon: FileText, href: `/presupuestos/${task.budgetId}` };
+  if (task.invoiceId) return { title: "Factura", detail: "Factura vinculada", icon: FileText, href: `/dinero/${task.invoiceId}` };
+  if (task.documentId) return { title: "Documento", detail: "Documento vinculado", icon: FileText, href: `/documentos?documento=${encodeURIComponent(task.documentId)}` };
   return { title: "General", detail: task.origin === "manual" ? "Creada manualmente" : `Origen: ${statusLabel(task.origin)}`, icon: ClipboardCheck };
 }
 

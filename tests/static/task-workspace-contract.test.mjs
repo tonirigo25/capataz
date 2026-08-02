@@ -34,6 +34,17 @@ test("el workspace reproduce KPI, filtros, tabla y paginación de la maestra", a
   for (const period of ["today", "week", "month"]) assert.match(page, new RegExp(`periodo=${period}`));
   assert.match(page, /matchesPeriod/);
   assert.match(page, /context=\{\{ clientId: query\.clientId, workId: query\.workId/);
+  assert.match(page, /`\/presupuestos\/\$\{task\.budgetId\}`/);
+  assert.match(page, /`\/dinero\/\$\{task\.invoiceId\}`/);
+  assert.match(page, /`\/documentos\?documento=\$\{encodeURIComponent\(task\.documentId\)\}`/);
+});
+
+test("el detalle no ofrece transiciones terminales directas", async () => {
+  const detail = await read("app/(app)/tareas/[id]/page.tsx");
+  assert.match(detail, /taskStatusActions\(task\.status\)/);
+  assert.match(detail, /terminalTaskStates\.has\(task\.status\)/);
+  assert.match(detail, /status === "completed" \|\| status === "cancelled"/);
+  assert.match(detail, /ConfirmSubmitButton className="secondary-button" message="La tarea quedará cancelada/);
 });
 
 test("Trabajo muestra el detalle persistente en el viewport maestro", async () => {

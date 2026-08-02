@@ -159,16 +159,11 @@ export default async function TaskDetailPage({
       <section className="card p-4">
         <h2 className="font-black">Acciones</h2>
         <div className="mt-3 flex flex-wrap gap-2">
-          {[
-            ["in_progress", "Iniciar"],
-            ["planned", "Desbloquear/reabrir"],
-            ["completed", "Completar"],
-            ["cancelled", "Cancelar"],
-          ].map(([status, label]) => (
+          {taskStatusActions(task.status).map(([status, label]) => (
             <form action={changeTaskStatusAction} key={status}>
               <input type="hidden" name="id" value={task.id} />
               <input type="hidden" name="status" value={status} />
-              <button className="secondary-button">{label}</button>
+              {status === "cancelled" ? <ConfirmSubmitButton className="secondary-button" message="La tarea quedará cancelada, conservará su historial y podrá reabrirse después.">{label}</ConfirmSubmitButton> : <button className="secondary-button">{label}</button>}
             </form>
           ))}
           <form action={archiveTaskAction}>
@@ -181,7 +176,7 @@ export default async function TaskDetailPage({
             </ConfirmSubmitButton>
           </form>
         </div>
-        <form action={changeTaskStatusAction} className="mt-3 flex flex-col gap-2 sm:flex-row">
+        {!terminalTaskStates.has(task.status) ? <form action={changeTaskStatusAction} className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input type="hidden" name="id" value={task.id} />
           <input type="hidden" name="status" value="blocked" />
           <label className="min-w-0 flex-1 text-sm font-bold">
@@ -189,7 +184,7 @@ export default async function TaskDetailPage({
             <input className="field mt-1" name="reason" required defaultValue={task.blockedReason ?? ""} />
           </label>
           <button className="secondary-button self-end">Marcar bloqueada</button>
-        </form>
+        </form> : null}
         <form
           action={updateTaskAction}
           className="mt-4 grid gap-3 sm:grid-cols-3"
@@ -541,6 +536,16 @@ const inputDate = (date: Date | null | undefined) =>
         .toISOString()
         .slice(0, 16)
     : "";
+
+const terminalTaskStates = new Set(["completed", "cancelled", "archived"]);
+
+function taskStatusActions(status: string) {
+  if (status === "completed" || status === "cancelled") return [["planned", "Reabrir"]] as const;
+  if (status === "blocked") return [["planned", "Desbloquear"], ["cancelled", "Cancelar"]] as const;
+  if (status === "inbox") return [["planned", "Planificar"], ["cancelled", "Cancelar"]] as const;
+  if (status === "planned") return [["in_progress", "Iniciar"], ["completed", "Completar"], ["cancelled", "Cancelar"]] as const;
+  return [["planned", "Replanificar"], ["completed", "Completar"], ["cancelled", "Cancelar"]] as const;
+}
 
 function relationScope(scope: string, workIds: string[] | null, clientIds: string[] | null) {
   if (scope === "COMPANY") return {};
