@@ -18,6 +18,12 @@ type TaskFiltersProps = {
   };
   typeOptions: TaskFilterOption[];
   responsibleOptions: TaskFilterOption[];
+  context: {
+    clientId?: string;
+    workId?: string;
+    invoiceId?: string;
+    budgetId?: string;
+  };
 };
 
 const stateOptions: TaskFilterOption[] = [
@@ -48,7 +54,7 @@ const relationOptions: TaskFilterOption[] = [
   ["none", "Sin relación"],
 ];
 
-export function TaskFilters({ values, typeOptions, responsibleOptions }: TaskFiltersProps) {
+export function TaskFilters({ values, typeOptions, responsibleOptions, context }: TaskFiltersProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
@@ -61,6 +67,7 @@ export function TaskFilters({ values, typeOptions, responsibleOptions }: TaskFil
       }}
     >
       {values.periodo !== "all" ? <input type="hidden" name="periodo" value={values.periodo} /> : null}
+      {Object.entries(context).map(([name, value]) => value ? <input key={name} type="hidden" name={name} value={value} /> : null)}
       <TaskSelect label="Estado" name="estado" value={values.estado} options={stateOptions} />
       <TaskSelect label="Tipo" name="tipo" value={values.tipo} options={typeOptions} />
       <TaskSelect label="Prioridad" name="prioridad" value={values.prioridad} options={priorityOptions} />

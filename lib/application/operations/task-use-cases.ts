@@ -47,6 +47,7 @@ export async function createTaskAction(data: FormData) {
       | "high"
       | "urgent",
     assigneeId: auth.scope === "COMPANY" ? undefined : auth.userId,
+    createdById: auth.userId,
     workId: linkedWork?.id,
     clientId,
   });
@@ -81,7 +82,12 @@ export async function toggleChecklistAction(data: FormData) {
   revalidatePath("/tareas");
 }
 export async function updateTaskAction(data: FormData) {
-  await taskGuard(data);
+  const auth = await taskGuard(data);
+  const assigneeId = String(data.get("assigneeId") ?? "").trim() || null;
+  if (assigneeId) {
+    const activeMembership = await prisma.companyMembership.count({ where: { companyId: auth.companyId, userId: assigneeId, status: "active" } });
+    if (!activeMembership) throw new Error("TASK_ASSIGNEE_NOT_AVAILABLE");
+  }
   await editTask(String(data.get("id")), {
     title: String(data.get("title") ?? "").trim() || undefined,
     description: String(data.get("description") ?? "").trim() || null,
@@ -91,7 +97,7 @@ export async function updateTaskAction(data: FormData) {
       | "high"
       | "urgent",
     dueAt: data.get("dueAt") ? new Date(String(data.get("dueAt"))) : null,
-    assigneeId: String(data.get("assigneeId") ?? "").trim() || null,
+    assigneeId,
   });
   revalidatePath("/tareas");
   revalidatePath(`/tareas/${String(data.get("id"))}`);

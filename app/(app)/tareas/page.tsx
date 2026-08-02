@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { TaskFilters } from "@/components/portal/modules-a/task-filters";
 import { EmptyState } from "@/components/ui-primitives";
-import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/status";
 import { completeTaskAction, createTaskAction } from "./actions";
@@ -61,9 +61,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const scopedClientIds = clientAccess.allowed
     ? await resolveScopedEntityIds(auth, "clients.view", "Client")
     : [];
-  const taskScope: Prisma.TaskWhereInput = auth.scope === "COMPANY"
-    ? {}
-    : { OR: [{ assigneeId: auth.userId }, { workId: { in: scopedWorkIds ?? [] } }] };
+  const scopedTaskIds = await resolveScopedTaskIds(auth, "tasks.view");
+  const taskScope: Prisma.TaskWhereInput = scopedTaskIds === null ? {} : { id: { in: scopedTaskIds } };
 
   const allTasks = await prisma.task.findMany({
     where: {
@@ -194,7 +193,12 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         <TaskKpi icon={CheckCircle2} tone="gray" label="Completadas" value={completedThisMonth.length} detail="Este mes" detailTone="success" href="/tareas?estado=completed&responsable=team&periodo=month" />
       </section>
 
-      <TaskFilters values={values} typeOptions={typeOptions} responsibleOptions={responsibleOptions} />
+      <TaskFilters
+        values={values}
+        typeOptions={typeOptions}
+        responsibleOptions={responsibleOptions}
+        context={{ clientId: query.clientId, workId: query.workId, invoiceId: query.invoiceId, budgetId: query.budgetId }}
+      />
 
       {visibleTasks.length ? (
         <section className="tasks-table-shell" aria-label="Listado de tareas">
@@ -234,24 +238,24 @@ function TaskRow({ task, canManage, assignee, relation, now }: { task: TaskListI
   return (
     <article className="tasks-table__row" role="row">
       <div className="tasks-table__task" role="cell"><Link href={`/tareas/${task.id}`}>{task.title}</Link><span>{task.description ?? task.blockedReason ?? checklistSummary(task)}</span></div>
-      <div className="tasks-table__relation" role="cell"><span className="tasks-relation-icon"><RelationIcon size={16} aria-hidden="true" /></span><span><strong>{relation.title}</strong><small>{relation.detail}</small></span></div>
+      <div className="tasks-table__relation" role="cell"><span className="tasks-relation-icon"><RelationIcon size={16} aria-hidden="true" /></span>{relation.href ? <Link href={relation.href}><strong>{relation.title}</strong><small>{relation.detail}</small></Link> : <span><strong>{relation.title}</strong><small>{relation.detail}</small></span>}</div>
       <div role="cell"><span className="tasks-pill" data-tone={categoryTone(task.category)}>{statusLabel(task.category)}</span></div>
       <div className="tasks-table__date" role="cell"><strong>{due.primary}</strong><small data-tone={due.tone}>{due.secondary}</small></div>
       <div role="cell"><span className="tasks-pill" data-tone={priorityTone(task.priority)}>{statusLabel(task.priority)}</span></div>
       <div className="tasks-table__assignee" role="cell"><span className="tasks-avatar"><UserRound size={14} aria-hidden="true" /></span><span>{assignee ?? "Sin asignar"}</span></div>
       <div role="cell"><span className="tasks-pill" data-tone={statusTone(task.status)}>{statusLabel(task.status)}</span></div>
       <div className="tasks-row-actions" role="cell">
-        <details><summary aria-label={`Acciones de ${task.title}`}><MoreHorizontal size={17} /></summary><div><Link href={`/tareas/${task.id}`}>Abrir detalle</Link>{canManage && task.status !== "completed" ? <form action={completeTaskAction}><input type="hidden" name="id" value={task.id} /><button>Completar</button></form> : null}</div></details>
+        <details><summary aria-label={`Acciones de ${task.title}`}><MoreHorizontal size={17} /></summary><div><Link href={`/tareas/${task.id}`}>Abrir detalle</Link>{canManage && !terminalStates.has(task.status) ? <form action={completeTaskAction}><input type="hidden" name="id" value={task.id} /><button>Completar</button></form> : null}</div></details>
       </div>
     </article>
   );
 }
 
-type TaskRelation = { title: string; detail: string; icon: typeof FolderKanban };
+type TaskRelation = { title: string; detail: string; icon: typeof FolderKanban; href?: string };
 
 function relationMeta(task: TaskListItem, works: Map<string, { id: string; titulo: string; codigo: string | null; numeroInterno: string | null }>, clients: Map<string, { id: string; nombre: string }>): TaskRelation {
-  if (task.workId) { const work = works.get(task.workId); return { title: "Trabajo", detail: work ? `${work.titulo} · ${work.codigo ?? work.numeroInterno ?? "Sin código"}` : "Trabajo vinculado", icon: FolderKanban }; }
-  if (task.clientId) { const client = clients.get(task.clientId); return { title: "Cliente", detail: client?.nombre ?? "Cliente vinculado", icon: CircleUserRound }; }
+  if (task.workId) { const work = works.get(task.workId); return { title: "Trabajo", detail: work ? `${work.titulo} · ${work.codigo ?? work.numeroInterno ?? "Sin código"}` : "Trabajo vinculado", icon: FolderKanban, href: work ? `/obras/${task.workId}` : undefined }; }
+  if (task.clientId) { const client = clients.get(task.clientId); return { title: "Cliente", detail: client?.nombre ?? "Cliente vinculado", icon: CircleUserRound, href: client ? `/clientes/${task.clientId}` : undefined }; }
   if (task.budgetId) return { title: "Presupuesto", detail: "Presupuesto vinculado", icon: FileText };
   if (task.invoiceId) return { title: "Factura", detail: "Factura vinculada", icon: FileText };
   if (task.documentId) return { title: "Documento", detail: "Documento vinculado", icon: FileText };

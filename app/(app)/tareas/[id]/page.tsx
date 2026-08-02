@@ -476,9 +476,9 @@ export default async function TaskDetailPage({
                 defaultValue={task.title}
               />
             </label>
-            <button className="secondary-button self-end">
+            <ConfirmSubmitButton className="secondary-button self-end" message="Se modificará la recurrencia según el alcance seleccionado. Revisa el alcance antes de confirmar.">
               Editar serie con confirmación
-            </button>
+            </ConfirmSubmitButton>
           </form>
         ) : null}
       </section>
