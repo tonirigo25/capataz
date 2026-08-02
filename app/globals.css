@@ -4787,6 +4787,11 @@ button:disabled,
   line-height: 1.5;
 }
 .supplier-context-rail > .orqena-context-more { margin-top: auto; padding-top: 20px; font-size: 9px; }
+.orqena-context-rail[data-context-variant="purchase-invoices"] .orqena-context-rail__inner { min-height: calc(100vh - var(--portal-topbar-height, 64px)); }
+.purchase-invoice-context-rail .orqena-context-eyebrow { margin: 20px 0 0; }
+.purchase-invoice-context-card { margin-top: 14px; }
+.purchase-invoice-context-card .orqena-context-description { font-size: 10px; line-height: 1.55; }
+.purchase-invoice-context-rail > .orqena-context-more { margin-top: auto; padding-top: 20px; font-size: 9px; }
 
 @media (min-width: 900px) {
   .field-os-topbar__inner {

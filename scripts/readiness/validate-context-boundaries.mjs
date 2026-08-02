@@ -44,7 +44,7 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 46) failures.push(`expected 46 routes, found ${routes.length}`);
+  if (routes.length !== 47) failures.push(`expected 47 routes, found ${routes.length}`);
   const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
   if (!alertsExport) {
     failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
@@ -87,6 +87,20 @@ if (fixture) {
       "csvCell"
     ]) if (!source.includes(token)) failures.push(`${subcontractorsExport.relative}: tenant export boundary missing ${token}`);
   }
+  const supplierInvoicesExport = routes.find((route) => route.relative === "app/(app)/facturas-proveedor/export/route.ts");
+  if (!supplierInvoicesExport) {
+    failures.push("app/(app)/facturas-proveedor/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, supplierInvoicesExport.relative), "utf8");
+    if (!supplierInvoicesExport.methods.includes("GET")) failures.push(`${supplierInvoicesExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.received_invoices.view")',
+      "auth.companyId",
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${supplierInvoicesExport.relative}: tenant export boundary missing ${token}`);
+  }
   const actions = walk(path.join(root, "app"), "actions.ts");
   if (actions.length !== 38) failures.push(`expected 38 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
@@ -108,4 +122,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 46 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 47 routes, 7 jobs)\n");
