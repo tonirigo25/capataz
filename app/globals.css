@@ -2957,6 +2957,10 @@ button:disabled,
 }
 
 @media (min-width: 1200px) {
+  body:has(.work-portfolio) {
+    --fos-layout-record-rail: 303px;
+  }
+
   .field-os-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--fos-layout-record-rail);

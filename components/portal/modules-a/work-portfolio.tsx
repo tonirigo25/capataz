@@ -169,13 +169,13 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
   }
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1560px]:grid min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
+    <div className={`work-portfolio overflow-hidden rounded-xl border border-border bg-surface shadow-soft ${selected ? "min-[1560px]:grid min-[1560px]:grid-cols-[minmax(0,1fr)_minmax(20rem,21.25rem)]" : ""}`}>
       <section className={`min-w-0 border-border ${selected ? "min-[1560px]:border-r" : ""}`} aria-label="Trabajos filtrados">
         {items.length ? (
           <>
             <div className="hidden min-[1200px]:block" aria-label="Listado de trabajos">
               <div className="min-h-11 border-b border-border bg-surface px-3 text-[10px] font-semibold text-content-secondary">
-                <div aria-hidden="true" className="grid min-h-11 grid-cols-[minmax(10rem,2fr)_5.25rem_4rem_6.25rem_6rem_4.25rem_8rem_1rem] items-center gap-1.5 leading-tight">
+                <div aria-hidden="true" className="grid min-h-11 grid-cols-[minmax(8.25rem,2fr)_4.5rem_3.5rem_4.5rem_4.75rem_3.75rem_6.25rem_.875rem] items-center gap-1 leading-tight">
                   <span>Obra</span>
                   <span>Estado</span>
                   <span>Avance</span>
@@ -190,8 +190,8 @@ export function WorkPortfolio({ items, totalAuthorizedCount, activeFilterCount, 
                 {items.map((item) => {
                   const active = selected?.id === item.id;
                   return (
-                    <article key={item.id} role="listitem" className={`min-h-16 px-3 transition-colors ${active ? "bg-brand-soft ring-1 ring-inset ring-blue-200" : "bg-surface"}`}>
-                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="grid min-h-16 w-full grid-cols-[minmax(10rem,2fr)_5.25rem_4rem_6.25rem_6rem_4.25rem_8rem_1rem] items-center gap-1.5 text-left text-[9px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
+                    <article key={item.id} role="listitem" className={`min-h-[66px] px-3 transition-colors ${active ? "bg-brand-soft ring-1 ring-inset ring-blue-200" : "bg-surface"}`}>
+                      <button type="button" aria-pressed={active} aria-label={`Abrir detalle de ${item.title}`} onClick={(event) => selectWork(item, event.currentTarget)} className="grid min-h-[66px] w-full grid-cols-[minmax(8.25rem,2fr)_4.5rem_3.5rem_4.5rem_4.75rem_3.75rem_6.25rem_.875rem] items-center gap-1 text-left text-[9px] outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
                       <span className="flex min-w-0 items-center gap-2">
                         <WorkThumbnail item={item} />
                         <span className="min-w-0">
@@ -378,7 +378,7 @@ function DesktopWorkDetail({ item, returnTo, onClose }: { item: WorkPortfolioIte
         {timeline.length ? <WorkTimeline entries={timeline} /> : <p className="type-meta">Sin hitos registrados.</p>}
       </CompactDetail>
       <CompactDetail title="Incidencias registradas" icon={FileWarning} badge={String(incidentCount)}>
-        {item.incidentLabels?.length ? <ul className="grid gap-2 text-[9px] text-content-secondary">{item.incidentLabels.slice(0, 2).map((label, index) => <li key={label} className="flex min-w-0 items-center gap-2"><FileWarning size={12} className={index === 0 ? "shrink-0 text-danger" : "shrink-0 text-warning"} aria-hidden="true" /><span className="truncate">{label}</span></li>)}</ul> : <p className="type-meta">0 registros vinculados</p>}
+        {item.incidentLabels?.length ? <ul className="grid gap-2 text-[9px] text-content-secondary">{item.incidentLabels.slice(0, 2).map((label, index) => <li key={label} className="flex min-w-0 items-start gap-2"><FileWarning size={12} className={index === 0 ? "mt-px shrink-0 text-danger" : "mt-px shrink-0 text-warning"} aria-hidden="true" /><span className="min-w-0 break-words leading-tight">{label}</span></li>)}</ul> : <p className="type-meta">0 registros vinculados</p>}
         <Link href={`/obras/${item.id}?vista=incidencias`} className="mt-2 inline-flex min-h-7 items-center text-[9px] font-semibold text-brand-strong hover:underline">Ver todas</Link>
       </CompactDetail>
       <CompactDetail title="Presupuesto vs Real" icon={CircleDollarSign}>
@@ -394,11 +394,11 @@ function DesktopWorkDetail({ item, returnTo, onClose }: { item: WorkPortfolioIte
 }
 
 function CompactDetail({ title, icon: Icon, badge, className = "", children }: { title: string; icon: LucideIcon; badge?: string; className?: string; children: React.ReactNode }) {
-  return <section className={`min-w-0 overflow-hidden rounded-lg border border-border p-2.5 ${className}`}><div className="mb-2 flex min-w-0 items-start gap-1.5"><Icon size={13} className="mt-px shrink-0 text-brand-strong" aria-hidden="true" /><h3 className="min-w-0 flex-1 text-[9px] font-bold leading-tight text-content">{title}</h3>{badge != null ? <span className="ml-auto inline-flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-warning/10 px-1.5 text-[9px] font-bold text-warning">{badge}</span> : null}</div><div className="min-w-0 overflow-hidden">{children}</div></section>;
+  return <section className={`min-w-0 rounded-lg border border-border p-2.5 ${className}`}><div className="mb-2 flex min-w-0 items-start gap-1.5"><Icon size={13} className="mt-px shrink-0 text-brand-strong" aria-hidden="true" /><h3 className="min-w-0 flex-1 text-[9px] font-bold leading-tight text-content">{title}</h3>{badge != null ? <span className="ml-auto inline-flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-warning/10 px-1.5 text-[9px] font-bold text-warning">{badge}</span> : null}</div><div className="min-w-0 break-words">{children}</div></section>;
 }
 
 function WorkTimeline({ entries }: { entries: WorkPortfolioTimelineItem[] }) {
-  return <ol className="relative grid gap-0 before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-px before:bg-border">{entries.map((entry, index) => { const current = index === entries.length - 1; return <li key={`${entry.label}-${index}`} className="relative grid min-h-10 grid-cols-[14px_minmax(0,1fr)] gap-2 pb-1.5 last:pb-0"><span className={`relative z-[1] mt-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-surface ${current ? "border-blue-600 text-blue-600" : "border-success text-success"}`} aria-hidden="true">{current ? <span className="h-1.5 w-1.5 rounded-full bg-blue-600" /> : <CheckCircle2 size={10} />}</span><span className="min-w-0"><strong className="block truncate text-[9px] text-content">{entry.label}</strong><small className="mt-0.5 block truncate text-[8px] text-content-secondary">{entry.date ?? "Sin fecha"}</small>{entry.status ? <small className="block truncate text-[8px] text-content-secondary">{entry.status}</small> : null}</span></li>;})}</ol>;
+  return <ol className="relative grid gap-0 before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-px before:bg-border">{entries.map((entry, index) => { const current = index === entries.length - 1; return <li key={`${entry.label}-${index}`} className="relative grid min-h-10 grid-cols-[14px_minmax(0,1fr)] gap-2 pb-1.5 last:pb-0"><span className={`relative z-[1] mt-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-surface ${current ? "border-blue-600 text-blue-600" : "border-success text-success"}`} aria-hidden="true">{current ? <span className="h-1.5 w-1.5 rounded-full bg-blue-600" /> : <CheckCircle2 size={10} />}</span><span className="min-w-0"><strong className="block break-words text-[9px] leading-tight text-content">{entry.label}</strong><small className="mt-0.5 block text-[8px] leading-tight text-content-secondary">{entry.date ?? "Sin fecha"}</small>{entry.status ? <small className="block break-words text-[8px] leading-tight text-content-secondary">{entry.status}</small> : null}</span></li>;})}</ol>;
 }
 
 function CompactAmount({ label, value, danger = false }: { label: string; value: string | null; danger?: boolean }) {
