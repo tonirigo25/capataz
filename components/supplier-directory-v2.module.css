@@ -1,8 +1,12 @@
 .page {
   display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   color: #10221a;
 }
+
+.page > * { min-width: 0; }
 
 .breadcrumbs {
   display: flex;
@@ -54,6 +58,7 @@
 }
 
 .primaryButton {
+  flex: 0 0 auto;
   border: 1px solid #078c3e;
   background: #078c3e;
   color: white;
@@ -494,9 +499,12 @@
 
 .donut {
   position: relative;
+  display: grid;
   width: 92px;
   height: 92px;
+  place-items: center;
   border-radius: 50%;
+  background: var(--supplier-donut, #dce9e1);
 }
 
 .donut::after {
@@ -506,14 +514,12 @@
   place-items: center;
   border-radius: 50%;
   background: white;
-  color: #173027;
-  content: attr(data-total) "\A Total";
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1.3;
-  text-align: center;
-  white-space: pre;
+  content: "";
 }
+
+.donutCenter { position: relative; z-index: 1; display: grid; place-items: center; color: #173027; }
+.donutCenter strong { font-size: 15px; line-height: 1; }
+.donutCenter small { margin-top: 3px; color: #66776d; font-size: 8px; font-weight: 750; }
 
 .legend,
 .ranking,
@@ -605,7 +611,7 @@
 .empty h2 { margin: 0; color: #1b3126; font-size: 15px; }
 .empty p { margin: 6px 0 0; font-size: 11px; }
 
-@media (max-width: 1240px) {
+@media (max-width: 1540px) {
   .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .searchField { grid-column: span 2; }
