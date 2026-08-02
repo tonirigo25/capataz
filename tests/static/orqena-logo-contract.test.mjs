@@ -55,3 +55,10 @@ test("el símbolo móvil conserva contraste y no se apoya en un fondo verde", ()
   assert.match(chrome, /field-os-mobile-brand[^\n]+border border-border bg-surface/);
   assert.doesNotMatch(chrome, /field-os-mobile-brand[^\n]+bg-brand(?:\s|\")/);
 });
+
+test("el logo del formulario conserva las medidas de Production también en móvil", () => {
+  const css = source("components/auth/auth-shell.module.css");
+
+  assert.match(css, /\.formBrand \{ width: 5rem; height: 5rem; border-radius: 1\.25rem; \}/);
+  assert.match(css, /\.formBrand > :global\(\.brand-logo\) \{ width: 3rem; height: 3rem; \}/);
+});
