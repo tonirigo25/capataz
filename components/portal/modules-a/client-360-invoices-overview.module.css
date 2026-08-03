@@ -220,7 +220,23 @@
   .toolbar { flex-wrap: wrap; }
   .resultCount { margin-left: 0; }
   .tableRegion { display: none; }
-  .mobileList { display: block; }
+  .mobileList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mobileCard { min-width: 0; padding: 12px; border-right: 1px solid var(--cap-border); border-bottom: 1px solid var(--cap-border); }
+  .mobileCard:nth-child(2n) { border-right: 0; }
+  .mobileCardHeading { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .mobileCardHeading > div { min-width: 0; }
+  .mobileCardHeading h3,
+  .mobileCardHeading p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobileCardHeading h3 { color: var(--cap-brand-strong); font-size: 10px; font-weight: 780; }
+  .mobileCardHeading h3 a { color: inherit; text-decoration: none; }
+  .mobileCardHeading p { margin-top: 3px; color: var(--cap-text-muted); font-size: 8px; }
+  .mobileCardHeading > strong { flex: 0 0 auto; color: var(--cap-text); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .mobileBadges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+  .mobileFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 10px 0 0; border-top: 1px solid var(--cap-border); padding-top: 9px; }
+  .mobileFacts div { min-width: 0; }
+  .mobileFacts dt { color: var(--cap-text-muted); font-size: 7px; font-weight: 760; text-transform: uppercase; }
+  .mobileFacts dd { margin: 3px 0 0; overflow: hidden; color: var(--cap-text); font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+  .mobileAction { min-height: 36px; display: flex; align-items: center; justify-content: center; margin-top: 10px; border: 1px solid var(--cap-border); border-radius: 7px; color: var(--cap-text); font-size: 8px; font-weight: 760; text-decoration: none; }
 }
 
 @media (max-width: 760px) {
@@ -241,22 +257,9 @@
   .filterControl select { min-width: 0; max-width: none; flex: 1; }
   .clearButton { justify-self: start; }
   .resultCount { align-self: center; justify-self: end; }
-  .mobileCard { padding: 12px; border-bottom: 1px solid var(--cap-border); }
+  .mobileList { grid-template-columns: 1fr; }
+  .mobileCard { border-right: 0; }
   .mobileCard:last-child { border-bottom: 0; }
-  .mobileCardHeading { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 10px; }
-  .mobileCardHeading > div { min-width: 0; }
-  .mobileCardHeading h3,
-  .mobileCardHeading p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mobileCardHeading h3 { color: var(--cap-brand-strong); font-size: 10px; font-weight: 780; }
-  .mobileCardHeading h3 a { color: inherit; text-decoration: none; }
-  .mobileCardHeading p { margin-top: 3px; color: var(--cap-text-muted); font-size: 8px; }
-  .mobileCardHeading > strong { flex: 0 0 auto; color: var(--cap-text); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .mobileBadges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
-  .mobileFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 10px 0 0; border-top: 1px solid var(--cap-border); padding-top: 9px; }
-  .mobileFacts div { min-width: 0; }
-  .mobileFacts dt { color: var(--cap-text-muted); font-size: 7px; font-weight: 760; text-transform: uppercase; }
-  .mobileFacts dd { margin: 3px 0 0; overflow: hidden; color: var(--cap-text); font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-  .mobileAction { min-height: 36px; display: flex; align-items: center; justify-content: center; margin-top: 10px; border: 1px solid var(--cap-border); border-radius: 7px; color: var(--cap-text); font-size: 8px; font-weight: 760; text-decoration: none; }
   .pagination { align-items: flex-start; flex-direction: column; }
   .pagination > div { width: 100%; flex-wrap: wrap; justify-content: space-between; }
 }

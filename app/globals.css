@@ -667,9 +667,12 @@ button:disabled,
     height: 78px;
   }
 
-  .field-os-sidebar,
+  .field-os-sidebar {
+    transition: width var(--fos-motion-base) var(--fos-motion-easing);
+  }
+
   .field-os-app-shell {
-    transition: width var(--fos-motion-base) var(--fos-motion-easing), padding-left var(--fos-motion-base) var(--fos-motion-easing);
+    transition: none;
   }
 
   .field-os-sidebar__navigation {
@@ -1109,6 +1112,7 @@ button:disabled,
 @media (min-width: 900px) {
   .field-os-app-shell {
     padding-left: var(--fos-layout-sidebar);
+    transition: padding-left var(--fos-motion-base) var(--fos-motion-easing);
   }
 
   .field-os-sidebar {
@@ -6486,6 +6490,11 @@ button:disabled,
 
 @media (max-width: 760px) {
   .client-360-page { padding: 12px 12px calc(88px + env(safe-area-inset-bottom)); }
+  .client-360-canonical > div:first-child > header {
+    grid-template-rows: auto auto;
+    gap: 2px;
+  }
+  .client-360-canonical > div:first-child > header > h1 { margin-top: 0; }
   .client-360-canonical > div:first-child > header > h1 { font-size: 25px; }
   .client-360-canonical > div:first-child > section { padding: 12px !important; }
   .client-360-canonical__identity > div { gap: 0; }
