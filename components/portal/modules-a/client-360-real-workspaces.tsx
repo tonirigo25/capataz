@@ -1,6 +1,7 @@
 import type { getClientCrmSummary } from "@/lib/client-crm";
+import { isBillableInvoiceStatus } from "@/lib/business-metrics";
 import { safeDocumentUrl } from "@/lib/documents";
-import { statusLabel } from "@/lib/status";
+import { deriveInvoiceStatus, statusLabel } from "@/lib/status";
 import { calculateWorkFinancials } from "@/lib/works";
 import {
   Client360ActivityOverview,
@@ -58,8 +59,32 @@ function toneForStatus(value: string | null | undefined) {
   return "neutral" as const;
 }
 
+function toneForInvoiceStatus(value: string | null | undefined) {
+  const normalized = (value ?? "").toLowerCase();
+  if (["pagada", "cobrada"].includes(normalized)) return "success" as const;
+  if (["vencida", "reclamada"].includes(normalized)) return "danger" as const;
+  if (["pendiente", "pendiente_pago", "pendiente_emitir"].includes(normalized)) return "warning" as const;
+  if (["parcialmente_pagada", "emitida", "enviada"].includes(normalized)) return "info" as const;
+  return "neutral" as const;
+}
+
 function iso(value: Date | null | undefined) {
   return value?.toISOString() ?? null;
+}
+
+function dateInput(value: Date) {
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${value.getFullYear()}-${month}-${day}`;
+}
+
+function clientInvoiceStatus(status: string, total: number, pending: number, dueDate: Date) {
+  const stored = status.toLowerCase();
+  const financial = deriveInvoiceStatus(total, pending, dueDate);
+  if (financial === "pagada" || financial === "parcialmente_pagada") return financial;
+  if (financial === "vencida") return stored === "reclamada" ? "reclamada" : financial;
+  if (["emitida", "enviada", "reclamada"].includes(stored)) return stored;
+  return financial;
 }
 
 export function ClientWorksWorkspace({ summary, returnTo, worksMode = "lista" }: WorkspaceProps) {
@@ -171,23 +196,40 @@ export function ClientBudgetsWorkspace({ summary, returnTo }: WorkspaceProps) {
 
 export function ClientInvoicesWorkspace({ summary, returnTo }: WorkspaceProps) {
   const invoices = summary.client.invoices;
-  const now = Date.now();
-  const overdue = invoices.filter((invoice) => invoice.pendiente > 0 && invoice.fechaVencimiento.getTime() < now);
-  const collectedDays = invoices.flatMap((invoice) => {
+  const today = new Date();
+  const billableInvoices = invoices.filter((invoice) => isBillableInvoiceStatus(invoice.estado));
+  const pendingInvoices = billableInvoices.filter((invoice) => invoice.pendiente > 0);
+  const overdue = pendingInvoices.filter((invoice) => deriveInvoiceStatus(invoice.total, invoice.pendiente, invoice.fechaVencimiento) === "vencida");
+  const collectedDays = billableInvoices.flatMap((invoice) => {
     if (!invoice.payments.length || invoice.pendiente > 0) return [];
     const latestPayment = invoice.payments.reduce((latest, payment) => payment.fecha > latest ? payment.fecha : latest, invoice.payments[0].fecha);
     return [Math.max(0, Math.round((latestPayment.getTime() - invoice.fechaEmision.getTime()) / 86_400_000))];
   });
+  const billedTotal = billableInvoices.reduce((total, invoice) => total + invoice.total, 0);
+  const pendingTotal = pendingInvoices.reduce((total, invoice) => total + invoice.pendiente, 0);
+  const overdueTotal = overdue.reduce((total, invoice) => total + invoice.pendiente, 0);
+  const thirtyDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+  const ninetyDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 89);
+  const yearStart = new Date(today.getFullYear(), 0, 1);
   return (
     <Client360InvoicesOverview
       clientId={summary.client.id}
       metrics={[
-        { kind: "issued", value: invoices.length, supportingAmount: invoices.reduce((total, invoice) => total + invoice.total, 0), detail: "Facturas emitidas" },
-        { kind: "pending_collection", value: invoices.filter((invoice) => invoice.pendiente > 0).length, supportingAmount: invoices.reduce((total, invoice) => total + invoice.pendiente, 0), detail: "Saldo pendiente registrado" },
-        { kind: "overdue", value: overdue.length, supportingAmount: overdue.reduce((total, invoice) => total + invoice.pendiente, 0), detail: "Con vencimiento superado" },
-        { kind: "average_collection_days", value: collectedDays.length ? Math.round(collectedDays.reduce((total, days) => total + days, 0) / collectedDays.length) : null, detail: "Sólo facturas cobradas" },
+        { kind: "issued", value: billableInvoices.length, supportingAmount: billedTotal, detail: "Importe facturado", tone: "success" },
+        { kind: "pending_collection", value: pendingInvoices.length, supportingAmount: pendingTotal, detail: "Saldo pendiente registrado", comparison: billedTotal > 0 ? `${(pendingTotal / billedTotal * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })}% de lo facturado` : null, tone: "warning" },
+        { kind: "overdue", value: overdue.length, supportingAmount: overdueTotal, detail: "Con vencimiento superado", comparison: billedTotal > 0 ? `${(overdueTotal / billedTotal * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })}% de lo facturado` : null, tone: "danger" },
+        { kind: "average_collection_days", value: collectedDays.length ? Math.round(collectedDays.reduce((total, days) => total + days, 0) / collectedDays.length) : null, detail: "Calculado sobre facturas cobradas", tone: "neutral" },
+      ]}
+      datePresets={[
+        { id: "last-30", label: "Últimos 30 días", from: dateInput(thirtyDaysAgo), to: dateInput(today) },
+        { id: "last-90", label: "Últimos 90 días", from: dateInput(ninetyDaysAgo), to: dateInput(today) },
+        { id: "current-year", label: `Año ${today.getFullYear()}`, from: dateInput(yearStart), to: dateInput(today) },
       ]}
       invoices={invoices.map((invoice) => {
+        const detailHref = `/facturas-cliente/${invoice.id}?returnTo=${encodeURIComponent(returnTo)}`;
+        const liveStatus = isBillableInvoiceStatus(invoice.estado)
+          ? clientInvoiceStatus(invoice.estado, invoice.total, invoice.pendiente, invoice.fechaVencimiento)
+          : invoice.estado;
         const base = {
           id: invoice.id,
           number: invoice.numero,
@@ -197,10 +239,11 @@ export function ClientInvoicesWorkspace({ summary, returnTo }: WorkspaceProps) {
           amount: invoice.total,
           collectedAmount: invoice.pagado,
           pendingAmount: invoice.pendiente,
-          status: statusLabel(invoice.estado),
-          statusTone: toneForStatus(invoice.estado),
+          status: statusLabel(liveStatus),
+          statusTone: toneForInvoiceStatus(liveStatus),
           paymentMethod: invoice.metodoPago,
-          href: `/facturas-cliente/${invoice.id}?returnTo=${encodeURIComponent(returnTo)}`,
+          href: detailHref,
+          moreHref: detailHref,
         };
         return invoice.work
           ? { ...base, scope: "work" as const, workId: invoice.work.id, workTitle: invoice.work.titulo }
