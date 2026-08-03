@@ -3,6 +3,7 @@ import fs from "node:fs";
 const schema = fs.readFileSync("prisma/schema.prisma", "utf8");
 const notifications = fs.readFileSync("lib/notifications.ts", "utf8");
 const page = fs.readFileSync("app/(app)/notificaciones/page.tsx", "utf8");
+const styles = fs.readFileSync("app/(app)/notificaciones/notifications-page.module.css", "utf8");
 const actions = fs.readFileSync("app/(app)/notificaciones/actions.ts", "utf8");
 const shell = fs.readFileSync("components/app-shell.tsx", "utf8");
 const chrome = fs.readFileSync("components/app-chrome.tsx", "utf8");
@@ -21,7 +22,12 @@ expect(notifications.includes("deriveNotifications") && notifications.includes("
 for (const token of ["invoice-overdue", "reminder-", "agenda-", "budget-expiry", "work-start", "client-incomplete", "document-pending"]) {
   expect(notifications.includes(token), `missing notification source ${token}`);
 }
-expect(page.includes("Marcar todas") && page.includes("No leídas"), "notifications page lacks read controls/counts");
+expect(page.includes("Marcar todo como leído") && page.includes("No leídas"), "notifications page lacks read controls/counts");
+for (const token of ["Pendientes críticas", "Clientes", "Obras", "Dinero", "Sistema", "Elemento relacionado", "Abrir origen"]) {
+  expect(page.includes(token), `notifications center lacks ${token}`);
+}
+expect(page.includes("filterNotifications") && page.includes("buildUrl") && page.includes("PAGE_SIZE"), "notifications center lacks filtering or pagination");
+expect(styles.includes(".workspace") && styles.includes(".notificationRow") && styles.includes("@media (max-width: 540px)"), "notifications center lacks compact responsive architecture");
 expect(actions.includes("markNotificationReadAction") && actions.includes("markAllNotificationsReadAction"), "missing notification server actions");
 expect(shell.includes("getUnreadNotificationCount") && chrome.includes("unreadNotifications"), "app shell does not expose unread count");
 expect(chatQuery.includes('"pending_notifications"'), "chat intent does not support pending_notifications");

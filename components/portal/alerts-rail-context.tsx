@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 export type AlertsRailContextValue = {
+  mode?: "alerts" | "notifications";
   activeCritical: number;
   activeTotal: number;
   topTitle: string | null;
