@@ -423,15 +423,17 @@ const FINAL_WORK_STATUSES = ["finalizada", "facturada", "cobrada", "cerrada", "a
 
 export async function getBusinessSignals(params: BusinessSignalsParams = {}): Promise<BusinessSignalsResult> {
   const now = params.now ?? new Date();
-  const input = await loadBusinessSignalInput(now, params.companyId);
-  const drafts = scopeBusinessSignalDrafts(buildBusinessSignalsFromData(input, now), params.companyId);
-  const states = await loadOrSyncSignalStates(drafts, params.sync !== false, now, params.companyId);
+  const companyId = params.companyId;
+  if (!companyId) throw new Error("BUSINESS_SIGNAL_COMPANY_REQUIRED");
+  const input = await loadBusinessSignalInput(now, companyId);
+  const drafts = scopeBusinessSignalDrafts(buildBusinessSignalsFromData(input, now), companyId);
+  const states = await loadOrSyncSignalStates(drafts, params.sync !== false, now, companyId);
   const signals = mergeSignalStates(drafts, states);
   return filterAndGroupSignals(signals, params, now);
 }
 
-export async function getTodaySignalBrief(limit = 4) {
-  const result = await getBusinessSignals({ status: "active", limit });
+export async function getTodaySignalBrief(companyId: string, limit = 4) {
+  const result = await getBusinessSignals({ companyId, status: "active", limit });
   return {
     summary: result.summary,
     groups: result.groups.slice(0, 3),
@@ -666,8 +668,8 @@ export function signalLevelRank(level: BusinessSignalLevel) {
   return { info: 1, atencion: 2, importante: 3, critico: 4 }[level];
 }
 
-async function loadBusinessSignalInput(now: Date, companyId?: string): Promise<BusinessSignalsInput> {
-  const companyWhere = companyId ? { companyId } : {};
+async function loadBusinessSignalInput(now: Date, companyId: string): Promise<BusinessSignalsInput> {
+  const companyWhere = { companyId };
   const [
     invoices,
     clients,
@@ -794,29 +796,34 @@ async function loadBusinessSignalInput(now: Date, companyId?: string): Promise<B
   };
 }
 
-async function loadOrSyncSignalStates(drafts: BusinessSignalDraft[], shouldSync: boolean, now: Date, companyId?: string) {
+async function loadOrSyncSignalStates(drafts: BusinessSignalDraft[], shouldSync: boolean, now: Date, companyId: string) {
   try {
     return shouldSync
       ? await syncBusinessSignalStates(drafts, now, companyId)
-      : await loadSignalStates(drafts.map((signal) => signal.fingerprint));
+      : await loadSignalStates(drafts.map((signal) => signal.fingerprint), companyId);
   } catch (error) {
     if (isBusinessSignalTableMissing(error)) return new Map<string, SignalState>();
     throw error;
   }
 }
 
-async function loadSignalStates(fingerprints: string[]) {
+async function loadSignalStates(fingerprints: string[], companyId: string) {
   if (!fingerprints.length) return new Map<string, SignalState>();
-  const states = await prisma.businessSignalState.findMany({ where: { fingerprint: { in: fingerprints } } });
+  const states = await prisma.businessSignalState.findMany({
+    where: {
+      fingerprint: { in: fingerprints },
+      companyId
+    }
+  });
   return new Map(states.map((state) => [state.fingerprint, state]));
 }
 
-async function loadAllSignalStatesPaged(companyId?: string, batchSize = 250) {
+async function loadAllSignalStatesPaged(companyId: string, batchSize = 250) {
   const states: SignalState[] = [];
   let cursor: string | undefined;
   for (;;) {
     const batch = await prisma.businessSignalState.findMany({
-      where: companyId ? { companyId } : undefined,
+      where: { companyId },
       take: batchSize,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: { id: "asc" }
@@ -828,7 +835,7 @@ async function loadAllSignalStatesPaged(companyId?: string, batchSize = 250) {
   return states;
 }
 
-async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date, companyId?: string) {
+async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date, companyId: string) {
   const fingerprints = drafts.map((signal) => signal.fingerprint);
   const existing = await loadAllSignalStatesPaged(companyId);
   const existingByFingerprint = new Map(existing.map((state) => [state.fingerprint, state]));
@@ -961,7 +968,7 @@ async function syncBusinessSignalStates(drafts: BusinessSignalDraft[], now: Date
 
   await Promise.all(auditEvents.map((event) => logProactiveAuditEvent(event)));
 
-  const states = await loadAllSignalStatesPaged();
+  const states = await loadAllSignalStatesPaged(companyId);
   return new Map(states.map((state) => [state.fingerprint, state]));
 }
 

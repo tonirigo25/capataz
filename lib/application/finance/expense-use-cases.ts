@@ -232,12 +232,14 @@ export async function saveExpenseFromDocument(formData: FormData) {
 }
 
 export async function deleteExpenseDocument(formData: FormData) {
-  const context = await requireCapability("purchases.received_invoices.manage");
+  const context = await requireCapability("documents.delete");
   const { companyId } = context;
   const id = text(formData, "id");
   const document = await prisma.document.findFirst({ where: { id, companyId }, select: { id: true, storageKey: true, expenseId: true, workId: true, clientId: true } });
   if (!document) redirect("/gastos-materiales/lector?error=not_found");
   await assertExpenseScope(context, document.workId, document.clientId);
+  if (text(formData, "confirmDelete") !== "yes")
+    redirect(`/gastos-materiales/lector/${id}?error=delete_confirmation_required`);
   if (document.expenseId && text(formData, "confirmLinked") !== "yes") redirect(`/gastos-materiales/lector/${id}?error=linked_confirmation_required`);
   await prisma.document.update({ where: { id: document.id }, data: { status: "CANCELLED" } });
   if (document.storageKey) await documentStorage.delete({ companyId, storageKey: document.storageKey });

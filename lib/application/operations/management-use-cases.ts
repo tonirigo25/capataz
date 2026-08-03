@@ -21,7 +21,9 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  calculateBudgetMargin,
   calculateBudgetTotals,
+  money,
   normalizeLine,
   parseBudgetLines,
   serializeBudgetLines,
@@ -46,6 +48,7 @@ import { assertDocumentCreationAllowed } from "@/lib/commercial/usage";
 import { requireCompanyContext } from "@/lib/auth/session";
 import { managementCapability } from "@/lib/commercial/management-capabilities";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 
 type ManualEntity =
   | "cliente"
@@ -67,6 +70,9 @@ export async function saveManualRecord(formData: FormData) {
   const id = optionalText(formData, "id");
   const auth = await requireCapability(managementCapability(tipo, Boolean(id)));
   const { companyId } = auth;
+  const canonicalBudget = tipo === "presupuesto"
+    ? await canonicalBudgetInput(companyId, formData)
+    : null;
   await assertManualRecordScope(auth, tipo, id, formData);
   if (tipo === "presupuesto") {
     const pricing = await resolveAuthorization(auth, "sales.pricing.view");
@@ -94,9 +100,9 @@ export async function saveManualRecord(formData: FormData) {
   if (tipo === "presupuesto" && number(formData, "descuento") > 0) {
     if (!(await resolveAuthorization(auth, "sales.discount.apply")).allowed)
       throw new Error("PERMISSION_REQUIRED");
-    const subtotal = number(formData, "subtotal");
+    const subtotal = canonicalBudget!.totals.subtotal;
     await requireApprovalAuthority(auth, "discount.approve", {
-      amount: number(formData, "total"),
+      amount: canonicalBudget!.totals.total,
       discountPercent:
         subtotal > 0 ? (number(formData, "descuento") / subtotal) * 100 : 100,
       workId: optionalText(formData, "obraId"),
@@ -112,8 +118,8 @@ export async function saveManualRecord(formData: FormData) {
     if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed)
       throw new Error("PERMISSION_REQUIRED");
     await requireApprovalAuthority(auth, "quote.approve", {
-      amount: number(formData, "total"),
-      marginPercent: number(formData, "margenEstimado"),
+      amount: canonicalBudget!.totals.total,
+      marginPercent: optionalText(formData, "estado") === "aceptado" ? requiredCanonicalMargin(canonicalBudget!).percent! : undefined,
       workId: optionalText(formData, "obraId"),
       clientId: optionalText(formData, "clienteId"),
     });
@@ -132,7 +138,9 @@ export async function saveManualRecord(formData: FormData) {
       amount: number(formData, "importe"),
       workId: optionalText(formData, "obraId"),
     });
-  const returnTo = optionalText(formData, "returnTo") ?? targetFor(tipo);
+  const returnTo = normalizeLoginReturnPath(
+    optionalText(formData, "returnTo") ?? targetFor(tipo),
+  );
 
   switch (tipo) {
     case "cliente":
@@ -142,7 +150,7 @@ export async function saveManualRecord(formData: FormData) {
       await saveWork(formData, id);
       break;
     case "presupuesto":
-      await saveBudget(formData, id);
+      await saveBudget(formData, id, canonicalBudget!);
       break;
     case "factura":
       await saveInvoice(formData, id);
@@ -248,7 +256,55 @@ async function assertManualRecordScope(
     optionalText(formData, "obraId") ?? optionalText(formData, "workId");
   const submittedClientId =
     optionalText(formData, "clienteId") ?? optionalText(formData, "clientId");
+  if (tipo === "presupuesto" && submittedWorkId && submittedClientId) {
+    const relation = await prisma.work.findFirst({
+      where: { id: submittedWorkId, companyId, clienteId: submittedClientId },
+      select: { id: true },
+    });
+    if (!relation) throw new Error("BUDGET_WORK_CLIENT_MISMATCH");
+  }
   await assertRelated(submittedWorkId, submittedClientId);
+  if (tipo === "documento") {
+    const relations: Array<{ workId: string | null; clientId: string | null }> = [
+      { workId: submittedWorkId, clientId: submittedClientId },
+    ];
+    const budgetId = optionalText(formData, "budgetId");
+    const invoiceId = optionalText(formData, "invoiceId");
+    const expenseId = optionalText(formData, "expenseId");
+    if (budgetId) {
+      const budget = await prisma.budget.findFirst({
+        where: { id: budgetId, companyId },
+        select: { obraId: true, clienteId: true },
+      });
+      if (!budget) throw new Error("DOCUMENT_BUDGET_NOT_AVAILABLE");
+      relations.push({ workId: budget.obraId, clientId: budget.clienteId });
+    }
+    if (invoiceId) {
+      const invoice = await prisma.invoice.findFirst({
+        where: { id: invoiceId, companyId },
+        select: { obraId: true, clienteId: true },
+      });
+      if (!invoice) throw new Error("DOCUMENT_INVOICE_NOT_AVAILABLE");
+      relations.push({ workId: invoice.obraId, clientId: invoice.clienteId });
+    }
+    if (expenseId) {
+      const expense = await prisma.expense.findFirst({
+        where: { id: expenseId, companyId },
+        select: { obraId: true, clienteId: true },
+      });
+      if (!expense) throw new Error("DOCUMENT_EXPENSE_NOT_AVAILABLE");
+      relations.push({ workId: expense.obraId, clientId: expense.clienteId });
+    }
+    const workIds = new Set(relations.map((relation) => relation.workId).filter((value): value is string => Boolean(value)));
+    const clientIds = new Set(relations.map((relation) => relation.clientId).filter((value): value is string => Boolean(value)));
+    if (workIds.size > 1 || clientIds.size > 1)
+      throw new Error("DOCUMENT_RELATION_MISMATCH");
+    for (const relation of relations) {
+      if (!relation.workId && !relation.clientId && auth.scope !== "COMPANY")
+        throw new Error("SCOPE_REQUIRED");
+      await assertRelated(relation.workId, relation.clientId);
+    }
+  }
   if (tipo === "pago" && !id) {
     const facturaId = optionalText(formData, "facturaId");
     if (!facturaId) throw new Error("Factura obligatoria.");
@@ -300,19 +356,11 @@ async function assertManualRecordScope(
         obraId: true,
         clienteId: true,
         estado: true,
-        total: true,
-        margenEstimado: true,
       },
     });
     if (item.estado === "aceptado") {
       if (!(await resolveAuthorization(auth, "sales.budgets.approve")).allowed)
         throw new Error("ACCEPTED_BUDGET_APPROVAL_REQUIRED");
-      await requireApprovalAuthority(auth, "quote.approve", {
-        amount: item.total,
-        marginPercent: item.margenEstimado,
-        workId: item.obraId,
-        clientId: item.clienteId,
-      });
     }
     return assertRelated(item.obraId, item.clienteId);
   }
@@ -400,8 +448,17 @@ async function saveClient(formData: FormData, id: string | null) {
     ultimaInteraccion: optionalDate(formData, "ultimaInteraccion"),
   };
 
-  if (id) await prisma.client.updateMany({ where: { id, companyId }, data });
-  else await prisma.client.create({ data });
+  if (id) {
+    const result = await prisma.client.updateMany({
+      where: { id, companyId },
+      data,
+    });
+    if (result.count !== 1) {
+      throw new Error("El cliente no está disponible para actualizar.");
+    }
+  } else {
+    await prisma.client.create({ data });
+  }
 }
 
 async function saveWork(formData: FormData, id: string | null) {
@@ -413,9 +470,17 @@ async function saveWork(formData: FormData, id: string | null) {
   const canSales = await allowed("sales.budgets.view");
   const canInternalCost = await allowed("internal_cost.view");
   const canPurchaseCost = await allowed("purchase_cost.view");
-  const canMargin =
-    (await allowed("margin_amount.view")) ||
-    (await allowed("margin_percent.view"));
+  const currentEconomic = id ? await prisma.work.findFirst({
+    where: { id, companyId },
+    select: { presupuestoAprobado: true, costePrevisto: true },
+  }) : null;
+  const approvedBudget = canSales && formData.has("presupuestoAprobado")
+    ? number(formData, "presupuestoAprobado")
+    : (currentEconomic?.presupuestoAprobado ?? 0);
+  const forecastCost = canInternalCost && formData.has("costePrevisto")
+    ? number(formData, "costePrevisto")
+    : (currentEconomic?.costePrevisto ?? 0);
+  const automaticMargin = money(approvedBudget - forecastCost);
   const data = {
     companyId,
     numeroInterno: optionalText(formData, "numeroInterno"),
@@ -452,9 +517,6 @@ async function saveWork(formData: FormData, id: string | null) {
     ...(canPurchaseCost && formData.has("gastoReal")
       ? { gastoReal: number(formData, "gastoReal") }
       : {}),
-    ...(canMargin && formData.has("margenEstimado")
-      ? { margenEstimado: number(formData, "margenEstimado") }
-      : {}),
     horasEstimadas: number(formData, "horasEstimadas"),
     horasReales: number(formData, "horasReales"),
     ...(canPurchaseCost && formData.has("subcontratasCoste")
@@ -468,7 +530,7 @@ async function saveWork(formData: FormData, id: string | null) {
     notas: optionalText(formData, "notas"),
   };
 
-  if (id) await prisma.work.updateMany({ where: { id, companyId }, data });
+  if (id) await prisma.work.updateMany({ where: { id, companyId }, data: { ...data, margenEstimado: automaticMargin } });
   else
     await prisma.work.create({
       data: {
@@ -476,49 +538,55 @@ async function saveWork(formData: FormData, id: string | null) {
         presupuestoAprobado: data.presupuestoAprobado ?? 0,
         costePrevisto: data.costePrevisto ?? 0,
         gastoReal: data.gastoReal ?? 0,
-        margenEstimado: data.margenEstimado ?? 0,
+        margenEstimado: automaticMargin,
         subcontratasCoste: data.subcontratasCoste ?? 0,
       },
     });
 }
 
-async function saveBudget(formData: FormData, id: string | null) {
+type CanonicalBudgetInput = Awaited<ReturnType<typeof canonicalBudgetInput>>;
+
+function requiredCanonicalMargin(canonical: CanonicalBudgetInput) {
+  if (!canonical.margin.complete || canonical.margin.percent === null || canonical.margin.amount === null) throw new Error("BUDGET_COSTS_REQUIRED");
+  return canonical.margin;
+}
+
+async function canonicalBudgetInput(companyId: string, formData: FormData) {
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: { defaultVat: true },
+  });
+  const lines = parseBudgetLines(optionalText(formData, "partidas")).map(normalizeLine);
+  const totals = calculateBudgetTotals(
+    lines,
+    company.defaultVat,
+    Math.max(0, number(formData, "descuento")),
+  );
+  const margin = calculateBudgetMargin(lines, totals.descuento);
+  return { lines, totals, margin };
+}
+
+async function saveBudget(
+  formData: FormData,
+  id: string | null,
+  canonical: CanonicalBudgetInput,
+) {
   const auth = await requireCompanyContext();
   const { companyId } = auth;
-  const canMargin =
-    (await resolveAuthorization(auth, "margin_amount.view")).allowed ||
-    (await resolveAuthorization(auth, "margin_percent.view")).allowed;
-  const rawLines = parseBudgetLines(optionalText(formData, "partidas"));
-  const lines = rawLines.length ? rawLines.map(normalizeLine) : [];
-  const descuento = number(formData, "descuento");
-  const calculated = calculateBudgetTotals(
-    lines,
-    number(formData, "ivaPercent", 21),
-    descuento,
-  );
-  const subtotal = number(formData, "subtotal", calculated.subtotal);
-  const iva = number(formData, "iva", calculated.iva);
-  const total = number(
-    formData,
-    "total",
-    Math.max(0, subtotal - descuento + iva),
-  );
+  const { lines, totals, margin } = canonical;
+  const { subtotal, iva, descuento, total } = totals;
   const requestedNumero = optionalText(formData, "numero");
   const data = {
     companyId,
     clienteId: text(formData, "clienteId"),
     obraId: optionalText(formData, "obraId"),
     titulo: text(formData, "titulo"),
-    partidas: lines.length
-      ? serializeBudgetLines(lines)
-      : normalizePartidas(optionalText(formData, "partidas"), subtotal),
+    partidas: serializeBudgetLines(lines),
     subtotal,
     iva,
     descuento,
     total,
-    ...(canMargin && formData.has("margenEstimado")
-      ? { margenEstimado: number(formData, "margenEstimado") }
-      : {}),
+    margenEstimado: margin.amount ?? 0,
     estado: text(formData, "estado") as BudgetStatus,
     fechaEnvio: optionalDate(formData, "fechaEnvio"),
     fechaValidez: optionalDate(formData, "fechaValidez"),
@@ -541,7 +609,7 @@ async function saveBudget(formData: FormData, id: string | null) {
       tx.budget.create({
         data: {
           ...data,
-          margenEstimado: data.margenEstimado ?? 0,
+          margenEstimado: data.margenEstimado,
           numero:
             requestedNumero ??
             (await reserveDocumentNumberInTransaction(tx, companyId, "budget")),

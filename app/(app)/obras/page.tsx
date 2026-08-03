@@ -1,15 +1,14 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import {
-  AlertTriangle,
   ArrowRight,
   BadgeEuro,
-  Banknote,
   Bell,
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
+  Download,
   Euro,
   FileText,
   Filter,
@@ -28,17 +27,18 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { updateWorkStatus } from "@/app/(app)/obras/actions";
-import { ListWorkspace } from "@/components/workspaces";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { WorkPortfolio } from "@/components/portal/modules-a/work-portfolio";
-import { CompactFilterBar, CompactSearch, EmptyState, PageHeader, ResultCount, Toolbar } from "@/components/ui-primitives";
+import { EmptyState } from "@/components/ui-primitives";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { requireCapability, resolveAuthorization, resolveScopedEntityIds, resolveScopedTaskIds } from "@/lib/commercial/authorization";
 import { statusClass } from "@/lib/status";
-import { brand } from "@/lib/brand";
 import {
   calculateWorkFinancials,
+  buildWorkTimeline,
   getWorkNextAction,
+  invoicePaid,
   isActiveWorkStatus,
   isBlockedWorkStatus,
   workPriorityMeta,
@@ -62,17 +62,19 @@ const sortOptions = [
   ["importe", "Importe"],
   ["cliente", "Cliente"]
 ];
-const workListInclude = { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: { orderBy: { fechaInicio: "asc" as const } }, documents: true, photos: true } satisfies Prisma.WorkInclude;
+const workListInclude = { client: true, budgets: true, invoices: { include: { payments: true } }, expenses: true, materials: true, reminders: true, agendaEvents: { orderBy: { fechaInicio: "asc" as const } }, documents: true, photos: { orderBy: { tomadaEn: "desc" as const } } } satisfies Prisma.WorkInclude;
 type WorkListRecord = Prisma.WorkGetPayload<{ include: typeof workListInclude }>;
 
 type WorksQuery = {
   estado?: string;
+  tipo?: string;
   prioridad?: string;
   responsable?: string;
   cliente?: string;
   buscar?: string;
   orden?: string;
   vista?: string;
+  riesgo?: string;
 };
 
 export default async function WorksPage({ searchParams }: { searchParams: Promise<WorksQuery> }) {
@@ -93,28 +95,45 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
     updateWork: (await resolveAuthorization(auth, "work.update")).allowed,
     createBudget: (await resolveAuthorization(auth, "sales.budgets.create")).allowed,
     createInvoice: (await resolveAuthorization(auth, "sales.invoices.create")).allowed,
-    createExpense: (await resolveAuthorization(auth, "purchases.received_invoices.manage")).allowed
+    createExpense: (await resolveAuthorization(auth, "purchases.received_invoices.manage")).allowed,
+    createPhoto: (await resolveAuthorization(auth, "documents.upload")).allowed,
+    manageAgenda: (await resolveAuthorization(auth, "agenda.manage")).allowed
   };
   const scopedEconomicCapabilities = [visibility.budgets ? "sales.budgets.view" : null, visibility.invoices ? "sales.invoices.view" : null, visibility.purchaseCost ? "purchase_cost.view" : null, visibility.internalCost ? "internal_cost.view" : null, visibility.marginPercent ? "margin_percent.view" : null, visibility.marginAmount ? "margin_amount.view" : null, visibility.profit ? "profitability.view" : null, visibility.projectBudget ? "project_budget_control.view" : null].filter((key): key is Parameters<typeof resolveScopedEntityIds>[1] => Boolean(key));
   const economicScopes = await Promise.all(scopedEconomicCapabilities.map((capability) => resolveScopedEntityIds(auth, capability, "Work")));
   const economicScopeByCapability = new Map(scopedEconomicCapabilities.map((capability, index) => [capability, economicScopes[index]]));
-  const [createBudgetScope, createInvoiceScope, createExpenseScope, updateWorkScope] = await Promise.all([
+  const [createBudgetScope, createInvoiceScope, createExpenseScope, updateWorkScope, createPhotoScope, manageAgendaScope] = await Promise.all([
     visibility.createBudget ? resolveScopedEntityIds(auth, "sales.budgets.create", "Work") : Promise.resolve([]),
     visibility.createInvoice ? resolveScopedEntityIds(auth, "sales.invoices.create", "Work") : Promise.resolve([]),
     visibility.createExpense ? resolveScopedEntityIds(auth, "purchases.received_invoices.manage", "Work") : Promise.resolve([]),
-    visibility.updateWork ? resolveScopedEntityIds(auth, "work.update", "Work") : Promise.resolve([])
+    visibility.updateWork ? resolveScopedEntityIds(auth, "work.update", "Work") : Promise.resolve([]),
+    visibility.createPhoto ? resolveScopedEntityIds(auth, "documents.upload", "Work") : Promise.resolve([]),
+    visibility.manageAgenda ? resolveScopedEntityIds(auth, "agenda.manage", "Work") : Promise.resolve([])
   ]);
   const scopeWhere = scopedWorkIds === null ? {} : { id: { in: scopedWorkIds } };
-  const economicAllowed = visibility.budgets || visibility.invoices || visibility.purchaseCost || visibility.internalCost || visibility.marginPercent || visibility.marginAmount || visibility.profit || visibility.projectBudget;
-  if (!economicAllowed) {
-    const operationalWorks = await prisma.work.findMany({ where: { companyId, ...scopeWhere, ...(query.buscar ? { titulo: { contains: query.buscar, mode: "insensitive" } } : {}) }, select: { id: true, titulo: true, estado: true, prioridad: true, fechaInicio: true, fechaFinPrevista: true, client: { select: { nombre: true } } }, orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }], take: 100 });
-    return <main className="screen"><PageHeader eyebrow="Trabajos" title="Trabajos" description="Planificación autorizada, sin información económica." action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link> : undefined} /><ResultCount shown={operationalWorks.length} total={operationalWorks.length} noun="trabajos" /><div className="mt-4 grid gap-3 md:grid-cols-2">{operationalWorks.map((work) => <Link key={work.id} href={`/obras/${work.id}`} className="card p-4"><h2 className="font-black text-obra-ink">{work.titulo}</h2><p className="mt-1 text-sm text-slate-600">{work.client.nombre}</p><p className="mt-2 text-xs font-bold uppercase text-slate-500">{workStatusMeta(work.estado).label}</p></Link>)}</div></main>;
-  }
   const works = await prisma.work.findMany({
     where: { companyId, ...scopeWhere },
     orderBy: [{ prioridad: "desc" }, { fechaFinPrevista: "asc" }],
     include: workListInclude
   });
+  const taskAccess = await resolveAuthorization(auth, "tasks.view");
+  const scopedTaskIds = taskAccess.allowed ? await resolveScopedTaskIds(auth, "tasks.view") : [];
+  const progressTasks = taskAccess.allowed && works.length
+    ? await prisma.task.findMany({
+      where: {
+        companyId,
+        workId: { in: works.map((work) => work.id) },
+        archivedAt: null,
+        ...(scopedTaskIds === null ? {} : { id: { in: scopedTaskIds } }),
+      },
+      select: {
+        workId: true,
+        status: true,
+        checklist: { select: { completed: true } },
+      },
+    })
+    : [];
+  const progressByWork = buildWorkProgress(progressTasks);
   const enriched = works.map((work) => {
     const itemVisibility: WorkEconomicVisibility = {
       ...visibility,
@@ -129,14 +148,13 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       createBudget: visibility.createBudget && scopeAllows(createBudgetScope, work.id),
       createInvoice: visibility.createInvoice && scopeAllows(createInvoiceScope, work.id),
       createExpense: visibility.createExpense && scopeAllows(createExpenseScope, work.id),
-      updateWork: visibility.updateWork && scopeAllows(updateWorkScope, work.id)
+      updateWork: visibility.updateWork && scopeAllows(updateWorkScope, work.id),
+      createPhoto: visibility.createPhoto && scopeAllows(createPhotoScope, work.id),
+      manageAgenda: visibility.manageAgenda && scopeAllows(manageAgendaScope, work.id)
     };
     const financial = calculateWorkFinancials(work);
-    const nextAction: ReturnType<typeof getWorkNextAction> = isBlockedWorkStatus(work.estado)
-      ? { label: "Revisar bloqueo operativo", tone: "danger", href: "resumen" }
-      : isActiveWorkStatus(work.estado)
-        ? { label: "Revisar planificación", tone: "neutral", href: "resumen" }
-        : { label: "Revisar estado", tone: "neutral", href: "resumen" };
+    const overduePending = itemVisibility.invoices ? work.invoices.reduce((sum, invoice) => invoice.fechaVencimiento < new Date() ? sum + Math.max(0, invoice.total - invoicePaid(invoice)) : sum, 0) : 0;
+    const nextAction = getWorkNextAction(work);
     const status = workStatusMeta(work.estado);
     const priority = workPriorityMeta(work.prioridad);
     const pendingMaterials = work.materials.filter((material) => ["pendiente", "falta"].includes(material.estado));
@@ -149,25 +167,25 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       priority,
       pendingMaterials,
       pendingDocs,
+      overduePending,
       visibility: itemVisibility,
-      hasRisk: isBlockedWorkStatus(work.estado) || (itemVisibility.marginPercent && financial.marginPercent < 15) || (itemVisibility.invoices && financial.pending > 0)
+      hasRisk: isBlockedWorkStatus(work.estado) || (itemVisibility.marginPercent && financial.marginPercent < 15) || overduePending > 0
     };
   });
 
   const clients = [...new Map(works.map((work) => [work.client.id, work.client.nombre])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
   const responsibles = [...new Set(works.map((work) => work.responsable).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "es"));
-  const visibleWorks = sortWorks(filterWorks(enriched, query), query.orden ?? "riesgo");
-  const totals = enriched.reduce((acc, item) => {
-    acc.active += isActiveWorkStatus(item.work.estado) ? 1 : 0;
-    acc.blocked += isBlockedWorkStatus(item.work.estado) ? 1 : 0;
-    if (item.visibility.invoices) { acc.invoiced += item.financial.invoiced; acc.pending += item.financial.pending; }
-    if (item.visibility.profit || item.visibility.marginAmount) acc.benefit += item.financial.benefit;
-    if (item.visibility.purchaseCost) acc.purchaseCost += item.work.gastoReal + item.work.subcontratasCoste + item.work.expenses.reduce((sum, expense) => sum + expense.importe, 0);
-    if (item.visibility.internalCost) acc.internalCost += item.work.costePrevisto;
-    return acc;
-  }, { active: 0, blocked: 0, invoiced: 0, pending: 0, cost: 0, benefit: 0, purchaseCost: 0, internalCost: 0 });
-  const avgMargin = totals.invoiced ? Math.round((totals.benefit / totals.invoiced) * 1000) / 10 : 0;
+  const workTypes = [...new Set(works.map((work) => work.tipoTrabajo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  const filteredWorks = filterWorks(enriched, query);
+  const visibleWorks = sortWorks(query.riesgo === "1" ? filteredWorks.filter((item) => item.hasRisk) : filteredWorks, query.orden ?? "riesgo");
+  const activeFilterCount = [query.estado, query.tipo, query.prioridad, query.responsable, query.cliente, query.buscar, query.riesgo].filter((value) => Boolean(value) && !["todas", "todos"].includes(value!)).length;
   const view = viewOptions.some(([id]) => id === query.vista) ? query.vista! : "tabla";
+  const returnParams = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (typeof value === "string" && value.trim()) returnParams.set(key, value);
+  });
+  const returnTo = `/obras${returnParams.size ? `?${returnParams.toString()}` : ""}`;
+  const encodedReturnTo = encodeURIComponent(returnTo);
   const portfolioItems = visibleWorks.map((item) => {
     const purchaseCost = item.work.gastoReal + item.work.subcontratasCoste + item.work.expenses.reduce((sum, expense) => sum + expense.importe, 0);
     const authorizedCost = item.visibility.purchaseCost && item.visibility.internalCost
@@ -177,11 +195,32 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
         : item.visibility.internalCost
           ? item.work.costePrevisto
           : null;
+    const nextVisit = item.work.agendaEvents.find((event) => event.tipo === "visita" && !["cancelado", "realizado"].includes(event.estado) && event.fechaInicio >= new Date());
+    const safePhotos = item.work.photos.filter((photo) => typeof photo.url === "string" && (photo.url.startsWith("/") || photo.url.startsWith("https://")));
+    const thumbnailUrl = safePhotos.find((photo) => photo.categoria.trim().toLowerCase() !== "incidencia")?.url ?? safePhotos[0]?.url ?? null;
+    const incidentPhotos = item.work.photos.filter(
+      (photo) => photo.categoria.trim().toLowerCase() === "incidencia",
+    );
+    const team = [
+      item.work.responsable ? { name: item.work.responsable, role: "Responsable" } : null,
+      item.work.jefeObra ? { name: item.work.jefeObra, role: "Jefe de obra" } : null,
+      item.work.comercial ? { name: item.work.comercial, role: "Comercial" } : null,
+    ].filter((member): member is { name: string; role: string } => Boolean(member))
+      .filter((member, index, members) => members.findIndex((candidate) => candidate.name === member.name) === index);
+    const timeline = buildWorkTimeline(item.work).slice(0, 6).reverse().map((entry) => ({
+      label: entry.title,
+      date: formatDate(entry.date),
+      status: entry.detail,
+    }));
     return {
       id: item.work.id,
       title: item.work.titulo,
       client: item.work.client.nombre,
+      code: item.work.codigo ?? item.work.numeroInterno,
+      workType: item.work.tipoTrabajo,
+      thumbnailUrl,
       status: item.status.label,
+      active: isActiveWorkStatus(item.work.estado),
       statusClassName: statusClass(item.work.estado),
       priority: item.priority.label,
       nextAction: item.nextAction.label,
@@ -189,64 +228,101 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
       updatedAt: formatDate(item.work.updatedAt),
       responsible: item.work.responsable ?? "Sin asignar",
       margin: item.visibility.marginPercent ? `${item.financial.marginPercent}%` : null,
+      marginBasis: item.visibility.marginPercent ? (item.financial.invoiced > 0 ? "facturado" : "presupuesto") : null,
       budget: item.visibility.budgets ? formatCurrency(item.financial.budgeted) : null,
+      budgetAmount: item.visibility.budgets ? item.financial.budgeted : null,
       cost: authorizedCost === null ? null : formatCurrency(authorizedCost),
       pending: item.visibility.invoices ? formatCurrency(item.financial.pending) : null,
       risk: item.hasRisk,
+      riskReason: isBlockedWorkStatus(item.work.estado)
+        ? `Estado: ${item.status.label}`
+        : item.visibility.marginPercent && item.financial.marginPercent < 15
+          ? `Margen sobre ${item.financial.invoiced > 0 ? "facturado" : "presupuesto"} · ${item.financial.marginPercent.toFixed(1)} %`
+          : item.overduePending > 0
+            ? `Vencido ${formatCurrency(item.overduePending)}`
+            : null,
       marginRisk: item.visibility.marginPercent && item.financial.marginPercent < 15,
       pendingMaterials: item.pendingMaterials.length,
       pendingDocuments: item.pendingDocs,
+      closingSoon: item.work.estado === "pendiente_remates",
+      progressLabel: item.status.label,
+      progressPercent: progressByWork.get(item.work.id) ?? null,
+      visit: nextVisit ? {
+        label: nextVisit.titulo,
+        date: formatDate(nextVisit.fechaInicio),
+        href: "/agenda",
+      } : null,
+      incidentCount: incidentPhotos.length,
+      incidentLabels: incidentPhotos.map((photo) => photo.titulo),
+      team,
+      timeline,
+      actionHrefs: {
+        incident: item.visibility.createPhoto ? `/gestion?tipo=foto&obraId=${item.work.id}&categoria=incidencia&returnTo=${encodedReturnTo}` : null,
+        visit: item.visibility.manageAgenda ? `/gestion?tipo=eventoAgenda&tipoEvento=visita&obraId=${item.work.id}&returnTo=${encodedReturnTo}` : null,
+        status: item.visibility.updateWork ? `/gestion?tipo=obra&id=${item.work.id}&returnTo=${encodedReturnTo}` : null,
+      },
     };
   });
 
+  const [exportAccess, exportTreasuryAccess, exportPurchasesAccess] = await Promise.all([
+    resolveAuthorization(auth, "reports.export"),
+    resolveAuthorization(auth, "treasury.view"),
+    resolveAuthorization(auth, "purchases.received_invoices.view"),
+  ]);
+  const canExport = [exportAccess, exportTreasuryAccess, exportPurchasesAccess].every(
+    (decision) => decision.allowed && decision.scope === "COMPANY",
+  )
+    && scopedWorkIds === null
+    && visibility.budgets
+    && visibility.invoices
+    && visibility.purchaseCost
+    && visibility.internalCost
+    && visibility.marginPercent
+    && visibility.marginAmount
+    && visibility.profit;
+
   return (
-    <ListWorkspace>
-      <PageHeader
-        eyebrow="Centro operativo"
-        title="Trabajos"
-        description="Control diario de producción, cobros, costes, documentos, visitas, materiales y riesgos. Conserva la Última actualización de cada trabajo."
-        action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button"><Plus size={18} /> Nuevo trabajo</Link> : undefined}
-        secondaryActions={<Link href="/capataz" className="secondary-button">Abrir {brand.assistantName}</Link>}
-      >
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
-          <ExecutiveMetric icon={BriefcaseBusiness} label="Activas" value={String(totals.active)} detail={`${totals.blocked} bloqueadas`} tone={totals.blocked ? "warning" : "neutral"} />
-          {visibility.invoices ? <ExecutiveMetric icon={Receipt} label="Facturado" value={formatCurrency(totals.invoiced)} detail={`${formatCurrency(totals.pending)} pendiente`} /> : null}
-          {visibility.purchaseCost ? <ExecutiveMetric icon={Banknote} label="Coste de compra" value={formatCurrency(totals.purchaseCost)} detail="Compras y gastos imputados" /> : null}
-          {visibility.internalCost ? <ExecutiveMetric icon={Banknote} label="Coste interno" value={formatCurrency(totals.internalCost)} detail="Coste previsto autorizado" /> : null}
-          {(visibility.profit || visibility.marginAmount) ? <ExecutiveMetric icon={BadgeEuro} label={visibility.profit ? "Beneficio" : "Margen"} value={formatCurrency(totals.benefit)} detail={visibility.marginPercent ? `${avgMargin}% margen medio` : "Importe autorizado"} tone={visibility.marginPercent && avgMargin < 15 && totals.invoiced ? "danger" : "success"} /> : null}
-          <ExecutiveMetric icon={AlertTriangle} label="Con riesgo" value={String(enriched.filter((item) => item.hasRisk).length)} detail="Margen, cobro o bloqueo" tone="warning" />
-        </div>
-      </PageHeader>
+    <main className="works-page">
+      <header className="works-page__header">
+        <h1>Trabajo</h1>
+        <p>Gestiona todas tus obras y partes en marcha.</p>
+      </header>
 
-      <CompactFilterBar className="mb-4">
-      <form action="/obras">
-        <input type="hidden" name="vista" value={view} />
-        <div className="grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.8fr_0.7fr_auto]">
-          <label className="min-w-0">
-            <span className="label mb-1 flex items-center gap-1"><Search size={14} /> Buscar</span>
-            <CompactSearch name="buscar" defaultValue={query.buscar ?? ""} placeholder="Trabajo, cliente, código o dirección…" />
-          </label>
-          <FilterSelect name="estado" label="Estado" value={query.estado ?? "todas"} options={[["todas", "Todos"], ...Object.entries(WORK_STATUS_META).map(([id, meta]) => [id, meta.label] as [string, string])]} />
-          <FilterSelect name="prioridad" label="Prioridad" value={query.prioridad ?? "todas"} options={[["todas", "Todas"], ["urgente", "Urgente"], ["alta", "Alta"], ["media", "Media"], ["baja", "Baja"]]} />
-          <FilterSelect name="cliente" label="Cliente" value={query.cliente ?? "todos"} options={[["todos", "Todos"], ...clients]} />
-          <FilterSelect name="responsable" label="Responsable" value={query.responsable ?? "todos"} options={[["todos", "Todos"], ...responsibles.map((name) => [name, name] as [string, string])]} />
-          <FilterSelect name="orden" label="Orden" value={query.orden ?? "riesgo"} options={sortOptions as Array<[string, string]>} />
-          <button className="primary-button min-h-12 self-end" type="submit"><Filter size={18} /> Aplicar</button>
-        </div>
+      <form action="/obras" className="works-filterbar">
+        <FilterSelect name="estado" label="Estado" value={query.estado ?? "todas"} options={[["todas", "Todos"], ...Object.entries(WORK_STATUS_META).map(([id, meta]) => [id, meta.label] as [string, string])]} />
+        <FilterSelect name="tipo" label="Tipo de obra" value={query.tipo ?? "todos"} options={[["todos", "Todos"], ...workTypes.map((value) => [value, value] as [string, string])]} />
+        <FilterSelect name="responsable" label="Responsable" value={query.responsable ?? "todos"} options={[["todos", "Todos"], ...responsibles.map((name) => [name, name] as [string, string])]} />
+        <FilterSelect name="cliente" label="Cliente" value={query.cliente ?? "todos"} options={[["todos", "Todos"], ...clients]} />
+        <details className="works-more-filters">
+          <summary><Filter size={17} aria-hidden="true" /> Más filtros</summary>
+          <div className="works-more-filters__panel">
+            <label className="min-w-0">
+              <span className="label mb-1 flex items-center gap-1"><Search size={14} /> Buscar</span>
+              <input className="field" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Trabajo, cliente, código o dirección…" />
+            </label>
+            <FilterSelect name="prioridad" label="Prioridad" value={query.prioridad ?? "todas"} options={[["todas", "Todas"], ["urgente", "Urgente"], ["alta", "Alta"], ["media", "Media"], ["baja", "Baja"]]} />
+            <FilterSelect name="orden" label="Orden" value={query.orden ?? "riesgo"} options={sortOptions as Array<[string, string]>} />
+            <div className="works-more-filters__actions">
+              <button className="primary-button" type="submit">Aplicar filtros</button>
+              <Link className="secondary-button" href="/obras">Limpiar</Link>
+              {visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="secondary-button"><Plus size={17} /> Nuevo trabajo</Link> : null}
+            </div>
+          </div>
+        </details>
+        <label className="works-view-select">
+          <span>Vista</span>
+          <select name="vista" defaultValue={view}>
+            {viewOptions.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          </select>
+        </label>
+        {canExport ? <Link href="/inteligencia/export?tipo=works" className="works-export"><Download size={17} aria-hidden="true" /> Exportar</Link> : null}
+        <button className="works-filter-submit" type="submit">Actualizar</button>
       </form>
-      </CompactFilterBar>
 
-      <Toolbar className="mb-4 justify-between">
-        <div className="flex flex-wrap gap-2">
-          {viewOptions.map(([id, label, Icon]) => (
-            <Link key={id} href={hrefWith(query, { vista: id })} className={`secondary-button min-h-10 ${view === id ? "border-obra-ink bg-obra-ink text-white hover:bg-obra-ink" : ""}`}>
-              <Icon size={17} />
-              {label}
-            </Link>
-          ))}
-        </div>
-        <ResultCount shown={visibleWorks.length} total={works.length} noun="trabajos" />
-      </Toolbar>
+      <div className="sr-only" aria-live="polite">
+        <span>{visibleWorks.length} de {works.length} obras</span>
+        {(query.estado || query.tipo || query.responsable || query.cliente || query.buscar || query.prioridad) ? <Link href="/obras">Limpiar filtros</Link> : null}
+      </div>
 
       {!visibleWorks.length ? (
         <EmptyState
@@ -256,25 +332,27 @@ export default async function WorksPage({ searchParams }: { searchParams: Promis
           action={visibility.createWork ? <Link href="/gestion?tipo=obra&returnTo=/obras" className="primary-button">Crear trabajo</Link> : undefined}
         />
       ) : view === "tabla" ? (
-        <WorkPortfolio items={portfolioItems} />
+        <WorkPortfolio items={portfolioItems} totalAuthorizedCount={works.length} activeFilterCount={activeFilterCount} returnTo={returnTo} />
       ) : view === "compacta" ? (
-        <CompactList items={visibleWorks} />
+        <CompactList items={visibleWorks} returnTo={returnTo} />
       ) : view === "kanban" ? (
-        <KanbanView items={visibleWorks} />
+        <KanbanView items={visibleWorks} returnTo={returnTo} />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          {visibleWorks.map((item) => <WorkCard key={item.work.id} item={item} />)}
+          {visibleWorks.map((item) => <WorkCard key={item.work.id} item={item} returnTo={returnTo} />)}
         </div>
       )}
-    </ListWorkspace>
+    </main>
   );
 }
 
-type WorkEconomicVisibility = { budgets: boolean; invoices: boolean; purchaseCost: boolean; internalCost: boolean; marginPercent: boolean; marginAmount: boolean; profit: boolean; projectBudget: boolean; createWork: boolean; updateWork: boolean; createBudget: boolean; createInvoice: boolean; createExpense: boolean };
+type WorkEconomicVisibility = { budgets: boolean; invoices: boolean; purchaseCost: boolean; internalCost: boolean; marginPercent: boolean; marginAmount: boolean; profit: boolean; projectBudget: boolean; createWork: boolean; updateWork: boolean; createBudget: boolean; createInvoice: boolean; createExpense: boolean; createPhoto: boolean; manageAgenda: boolean };
 
-function WorkCard({ item }: { item: WorkItem }) {
+function WorkCard({ item, returnTo }: { item: WorkItem; returnTo: string }) {
   const { work, financial, status, priority, nextAction, pendingMaterials } = item;
   const visibility = item.visibility;
+  const detailHref = workDetailHref(work.id, returnTo);
+  const encodedReturnTo = encodeURIComponent(returnTo);
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft transition hover:border-obra-yellowDark">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -285,13 +363,13 @@ function WorkCard({ item }: { item: WorkItem }) {
               {priority.label}
             </span>
           </div>
-          <Link href={`/obras/${work.id}`} className="mt-3 block text-xl font-black leading-tight text-obra-ink hover:underline">
+          <Link href={detailHref} className="mt-3 block text-xl font-black leading-tight text-obra-ink hover:underline">
             {work.codigo ? `${work.codigo} · ` : ""}{work.titulo}
           </Link>
           <p className="mt-1 text-sm leading-6 text-slate-600">{work.client.nombre} · {work.tipoTrabajo}</p>
           <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin size={15} /> {work.direccion}</p>
         </div>
-        <Link href={`/obras/${work.id}`} className="secondary-button shrink-0">Abrir <ArrowRight size={17} /></Link>
+        <Link href={detailHref} className="secondary-button shrink-0">Abrir <ArrowRight size={17} /></Link>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
@@ -318,9 +396,9 @@ function WorkCard({ item }: { item: WorkItem }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {visibility.createBudget ? <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><FileText size={17} /> Presupuesto</Link> : null}
-        {visibility.createInvoice ? <Link href={`/gestion?tipo=factura&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Receipt size={17} /> Factura</Link> : null}
-        {visibility.createExpense ? <Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=/obras/${work.id}`} className="secondary-button"><Euro size={17} /> Gasto</Link> : null}
+        {visibility.createBudget ? <Link href={`/gestion?tipo=presupuesto&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodedReturnTo}`} className="secondary-button"><FileText size={17} /> Presupuesto</Link> : null}
+        {visibility.createInvoice ? <Link href={`/gestion?tipo=factura&clienteId=${work.clienteId}&obraId=${work.id}&returnTo=${encodedReturnTo}`} className="secondary-button"><Receipt size={17} /> Factura</Link> : null}
+        {visibility.createExpense ? <Link href={`/gestion?tipo=gasto&obraId=${work.id}&returnTo=${encodedReturnTo}`} className="secondary-button"><Euro size={17} /> Gasto</Link> : null}
         {visibility.updateWork ? <WorkStatusButton id={work.id} estado="en_curso" label="En curso" /> : null}
         {visibility.updateWork ? <WorkStatusButton id={work.id} estado="finalizada" label="Finalizar" /> : null}
       </div>
@@ -328,11 +406,11 @@ function WorkCard({ item }: { item: WorkItem }) {
   );
 }
 
-function CompactList({ items }: { items: WorkItem[] }) {
+function CompactList({ items, returnTo }: { items: WorkItem[]; returnTo: string }) {
   return (
     <div className="grid gap-2">
       {items.map((item) => (
-        <Link key={item.work.id} href={`/obras/${item.work.id}`} className="rounded-xl border border-slate-200 bg-white p-3 shadow-soft transition hover:border-obra-yellowDark">
+        <Link key={item.work.id} href={workDetailHref(item.work.id, returnTo)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-soft transition hover:border-obra-yellowDark">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-black text-obra-ink">{item.work.titulo}</p>
@@ -351,7 +429,7 @@ function CompactList({ items }: { items: WorkItem[] }) {
   );
 }
 
-function KanbanView({ items }: { items: WorkItem[] }) {
+function KanbanView({ items, returnTo }: { items: WorkItem[]; returnTo: string }) {
   const phases = [
     ["entrada", "Entrada"],
     ["planificacion", "Planificación"],
@@ -371,7 +449,7 @@ function KanbanView({ items }: { items: WorkItem[] }) {
             </div>
             <div className="grid gap-2">
               {phaseItems.map((item) => (
-                <Link key={item.work.id} href={`/obras/${item.work.id}`} className="rounded-lg border border-slate-200 bg-white p-3 shadow-soft">
+                <Link key={item.work.id} href={workDetailHref(item.work.id, returnTo)} className="rounded-lg border border-slate-200 bg-white p-3 shadow-soft">
                   <p className="text-sm font-black text-obra-ink">{item.work.titulo}</p>
                   <p className="mt-1 text-xs text-slate-500">{item.work.client.nombre}</p>
                   <p className="mt-2 text-xs font-bold text-slate-600">{item.nextAction.label}</p>
@@ -391,25 +469,13 @@ function WorkStatusButton({ id, estado, label }: { id: string; estado: string; l
     <form action={updateWorkStatus}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="estado" value={estado} />
-      <button type="submit" className="secondary-button">{label}</button>
+      <ConfirmSubmitButton className="secondary-button" message={`El estado del trabajo cambiará a ${label.toLocaleLowerCase("es-ES")}. La operación quedará registrada y no eliminará su historial.`}>{label}</ConfirmSubmitButton>
     </form>
   );
 }
 
-function ExecutiveMetric({ icon: Icon, label, value, detail, tone = "neutral" }: { icon: LucideIcon; label: string; value: string; detail: string; tone?: "neutral" | "warning" | "danger" | "success" }) {
-  const toneClass = tone === "danger" ? "bg-red-50 text-red-700" : tone === "warning" ? "bg-amber-50 text-amber-800" : tone === "success" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600";
-  return (
-    <article className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-500">{label}</p>
-          <p className="mt-1 break-words text-2xl font-black tabular-nums text-obra-ink">{value}</p>
-        </div>
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${toneClass}`}><Icon size={20} /></span>
-      </div>
-      <p className="mt-2 text-sm text-slate-500">{detail}</p>
-    </article>
-  );
+function workDetailHref(workId: string, returnTo: string) {
+  return `/obras/${workId}?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 function StatusBadge({ status, iconLabel }: { status: string; iconLabel: string }) {
@@ -459,6 +525,7 @@ function filterWorks(items: WorkItem[], query: WorksQuery) {
   return items.filter((item) => {
     const work = item.work;
     if (query.estado && query.estado !== "todas" && work.estado !== query.estado) return false;
+    if (query.tipo && query.tipo !== "todos" && work.tipoTrabajo !== query.tipo) return false;
     if (query.prioridad && query.prioridad !== "todas" && work.prioridad !== query.prioridad) return false;
     if (query.cliente && query.cliente !== "todos" && work.clienteId !== query.cliente) return false;
     if (query.responsable && query.responsable !== "todos" && work.responsable !== query.responsable) return false;
@@ -480,15 +547,6 @@ function sortWorks(items: WorkItem[], order: string) {
   });
 }
 
-function hrefWith(query: WorksQuery, next: Record<string, string>) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries({ ...query, ...next })) {
-    if (value && !["todas", "todos"].includes(value)) params.set(key, value);
-  }
-  const qs = params.toString();
-  return qs ? `/obras?${qs}` : "/obras";
-}
-
 function normalize(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
@@ -497,6 +555,34 @@ function timeValue(value: Date | string | null | undefined) {
   if (!value) return 0;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+type WorkProgressTask = {
+  workId: string | null;
+  status: string;
+  checklist: Array<{ completed: boolean }>;
+};
+
+function buildWorkProgress(tasks: WorkProgressTask[]) {
+  const counters = new Map<string, { completed: number; total: number }>();
+  for (const task of tasks) {
+    if (!task.workId || ["cancelled", "archived"].includes(task.status)) continue;
+    const current = counters.get(task.workId) ?? { completed: 0, total: 0 };
+    if (task.checklist.length) {
+      current.total += task.checklist.length;
+      current.completed += task.checklist.filter((item) => item.completed).length;
+    } else {
+      current.total += 1;
+      if (task.status === "completed") current.completed += 1;
+    }
+    counters.set(task.workId, current);
+  }
+  return new Map(
+    [...counters.entries()].map(([workId, counter]) => [
+      workId,
+      counter.total ? Math.round((counter.completed / counter.total) * 100) : null,
+    ]),
+  );
 }
 
 function iconFor(name: string): LucideIcon {
@@ -524,6 +610,7 @@ type WorkItem = {
   priority: ReturnType<typeof workPriorityMeta>;
   pendingMaterials: WorkListRecord["materials"];
   pendingDocs: number;
+  overduePending: number;
   visibility: WorkEconomicVisibility;
   hasRisk: boolean;
 };

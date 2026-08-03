@@ -1,858 +1,341 @@
-import Link from "next/link";
-import {
-  AlertTriangle,
-  Archive,
-  CheckCircle2,
-  ClipboardSignature,
-  Download,
-  Eye,
-  FileArchive,
-  FileCheck2,
-  FileText,
-  FolderOpen,
-  Plus,
-  Receipt,
-  ScanLine,
-  ScrollText,
-  ShieldCheck,
-} from "lucide-react";
-import { SectionHeader } from "@/components/section-header";
+import type { Prisma } from "@prisma/client";
 import { ListWorkspace } from "@/components/workspaces";
-import { StatusPill } from "@/components/status-pill";
 import {
-  CompactTabs,
-  KpiCard,
-  KpiGrid,
-  ModuleHeader,
-  SoftBadge,
-} from "@/components/portal/modules-b/module-frame";
-import {
-  documentCategories,
-  documentTemplateAssets,
-} from "@/lib/document-templates";
-import { documentDetail, repositoryDocumentDisplay } from "@/lib/documents";
-import { formatCurrency, formatDate } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
-import { deriveInvoiceStatus } from "@/lib/status";
+  GlobalDocumentsWorkspace,
+  type GlobalDocumentHistoryItem,
+  type GlobalDocumentKind,
+  type GlobalDocumentTone,
+  type GlobalDocumentWorkspaceItem,
+} from "@/components/portal/modules-a/global-documents-workspace";
+import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 import {
   requireCapability,
   resolveAuthorization,
   resolveScopedEntityIds,
 } from "@/lib/commercial/authorization";
-import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
+import { documentTemplateAssets } from "@/lib/document-templates";
+import { normalizeExpenseExtraction } from "@/lib/expense-document";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const categoryIcons = {
-  presupuestos: FileText,
-  facturas: Receipt,
-  albaranes: ScrollText,
-  contratos: ClipboardSignature,
-  archivos: Archive,
-  plantillas: FileArchive,
-};
+const documentInclude = {
+  client: { select: { id: true, nombre: true } },
+  work: { select: { id: true, titulo: true } },
+  budget: { select: { id: true, numero: true, titulo: true } },
+  invoice: { select: { id: true, numero: true, concepto: true } },
+  expense: { select: { id: true, concepto: true } },
+  businessPartner: { select: { id: true, commercialName: true } },
+  uploadedBy: { select: { displayName: true } },
+} satisfies Prisma.DocumentInclude;
 
-export default async function DocumentsPage() {
+type DocumentRecord = Prisma.DocumentGetPayload<{ include: typeof documentInclude }>;
+
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ documento?: string; vista?: string }>;
+}) {
+  const query = await searchParams;
   const auth = await requireCapability("documents.view");
-  const { companyId } = auth;
   const manifest = await buildPortalManifest(auth);
-  const canUpload = (await resolveAuthorization(auth, "documents.upload"))
-    .allowed;
-  const canManage = (await resolveAuthorization(auth, "documents.manage"))
-    .allowed;
-  const canCreateBudget = (
-    await resolveAuthorization(auth, "sales.budgets.create")
-  ).allowed;
-  const canUpdateBudget = (
-    await resolveAuthorization(auth, "sales.budgets.update")
-  ).allowed;
-  const canCreateInvoice = (
-    await resolveAuthorization(auth, "sales.invoices.create")
-  ).allowed;
-  const canManageReceivedInvoices = (
-    await resolveAuthorization(auth, "purchases.received_invoices.manage")
-  ).allowed;
-  const canViewBudgets = (
-    await resolveAuthorization(auth, "sales.budgets.view")
-  ).allowed;
-  const canViewInvoices = (
-    await resolveAuthorization(auth, "sales.invoices.view")
-  ).allowed;
-  const scopedWorkIds = await resolveScopedEntityIds(
-    auth,
-    "documents.view",
-    "Work",
+  const [canUpload, canManage, canManageReceivedInvoices, canSeeFinancialData, scopedDocumentIds] = await Promise.all([
+    resolveAuthorization(auth, "documents.upload"),
+    resolveAuthorization(auth, "documents.manage"),
+    resolveAuthorization(auth, "purchases.received_invoices.manage"),
+    resolveAuthorization(auth, "reports.view"),
+    resolveScopedEntityIds(auth, "documents.view", "Document"),
+  ]);
+  const documents = await prisma.document.findMany({
+    where: {
+      companyId: auth.companyId,
+      archivedAt: null,
+      classification: { in: manifest.documentClasses },
+      ...(scopedDocumentIds === null ? {} : { id: { in: scopedDocumentIds } }),
+    },
+    include: documentInclude,
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    take: 128,
+  });
+
+  const workspaceDocuments = documents.map((document) =>
+    toWorkspaceDocument(document, {
+      canManage: canManage.allowed,
+      canManageReceivedInvoices: canManageReceivedInvoices.allowed,
+      canSeeFinancialData: canSeeFinancialData.allowed,
+    }),
   );
-  const budgetWorkIds = canViewBudgets
-    ? await resolveScopedEntityIds(auth, "sales.budgets.view", "Work")
-    : [];
-  const invoiceWorkIds = canViewInvoices
-    ? await resolveScopedEntityIds(auth, "sales.invoices.view", "Work")
-    : [];
-  const documentScope =
-    scopedWorkIds === null ? {} : { workId: { in: scopedWorkIds } };
-  const economicAllowed = (await resolveAuthorization(auth, "reports.view"))
-    .allowed;
-  if (!economicAllowed) {
-    const operationalDocuments = await prisma.document.findMany({
-      where: {
-        companyId,
-        ...documentScope,
-        archivedAt: null,
-        classification: { in: manifest.documentClasses },
-      },
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        createdAt: true,
-        client: { select: { nombre: true } },
-        work: { select: { titulo: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
-    return (
-      <ListWorkspace>
-        <ModuleHeader
-          eyebrow="Repositorio autorizado"
-          title="Documentos"
-          description="Documentación operativa disponible según tu perfil y alcance."
-          action={
-            canUpload ? (
-              <Link
-                href="/gestion?tipo=documento&returnTo=/documentos"
-                className="primary-button"
-              >
-                <Plus size={18} />
-                Documento
-              </Link>
-            ) : undefined
-          }
-        />
-        <KpiGrid>
-          <KpiCard
-            label="Documentos visibles"
-            value={String(operationalDocuments.length)}
-            detail="Sólo clases autorizadas"
-            icon={FileText}
-          />
-          <KpiCard
-            label="Acceso"
-            value="Operativo"
-            detail="Los importes financieros permanecen protegidos"
-            icon={ShieldCheck}
-            tone="success"
-          />
-          <KpiCard
-            label="Archivo"
-            value="Privado"
-            detail="Descargas autenticadas y sin caché pública"
-            icon={Archive}
-            tone="accent"
-          />
-          <KpiCard
-            label="Confirmación"
-            value="Humana"
-            detail="Ningún dato se registra automáticamente"
-            icon={FileCheck2}
-            tone="warning"
-          />
-        </KpiGrid>
-        <div className="grid gap-3 md:grid-cols-2">
-          {operationalDocuments.map((document) => (
-            <article key={document.id} className="card p-4">
-              <h2 className="font-black text-obra-ink">{document.name}</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {document.work?.titulo ??
-                  document.client?.nombre ??
-                  "Documento interno"}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                {formatDate(document.createdAt)}
-              </p>
-            </article>
-          ))}
-        </div>
-      </ListWorkspace>
-    );
-  }
-  const [budgets, invoices, repositoryDocuments, inboxDocuments] =
-    await Promise.all([
-      canViewBudgets
-        ? prisma.budget.findMany({
-            where: {
-              companyId,
-              ...(budgetWorkIds === null
-                ? {}
-                : { obraId: { in: budgetWorkIds } }),
-            },
-            orderBy: { fechaCreacion: "desc" },
-            take: 5,
-            include: { client: true, work: true },
-          })
-        : Promise.resolve([]),
-      canViewInvoices
-        ? prisma.invoice.findMany({
-            where: {
-              companyId,
-              ...(invoiceWorkIds === null
-                ? {}
-                : { obraId: { in: invoiceWorkIds } }),
-            },
-            orderBy: { fechaEmision: "desc" },
-            take: 5,
-            include: { client: true, work: true },
-          })
-        : Promise.resolve([]),
-      prisma.document.findMany({
-        where: {
-          companyId,
-          ...documentScope,
-          archivedAt: null,
-          classification: { in: manifest.documentClasses },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: {
-          client: true,
-          work: true,
-          budget: true,
-          invoice: true,
-          expense: true,
-        },
-      }),
-      prisma.document.findMany({
-        where: {
-          companyId,
-          ...documentScope,
-          archivedAt: null,
-          classification: { in: manifest.documentClasses },
-          metadata: { path: ["source"], equals: "expense_document_reader" },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 8,
-        include: {
-          businessPartner: { select: { commercialName: true } },
-          work: { select: { titulo: true } },
-          expense: { select: { concepto: true } },
-        },
-      }),
-    ]);
-  const documents = repositoryDocuments.map(repositoryDocumentDisplay);
-  const activeInboxDocument = inboxDocuments[0] ?? null;
-  const reviewDocuments = inboxDocuments.filter((document) =>
-    [
-      "REVIEW_REQUIRED",
-      "AWAITING_PARTNER",
-      "AWAITING_WORK",
-      "POSSIBLE_DUPLICATE",
-    ].includes(document.status),
-  );
-  const confirmedDocuments = inboxDocuments.filter((document) =>
-    ["READY", "REGISTERED", "SAVED"].includes(document.status),
-  );
-  const linkedDocuments = repositoryDocuments.filter(
-    (document) =>
-      document.clientId ||
-      document.workId ||
-      document.budgetId ||
-      document.invoiceId ||
-      document.expenseId,
-  );
+  const requestedSelection = query.documento?.slice(0, 160) ?? null;
+  const selected = workspaceDocuments.some((document) => document.id === requestedSelection)
+    ? requestedSelection
+    : workspaceDocuments.find((document) => document.requiresReview)?.id ?? null;
 
   return (
-    <ListWorkspace>
-      <ModuleHeader
-        eyebrow="Repositorio privado"
-        title="Documentos"
-        description="Entrada, extracción y revisión humana con el original siempre disponible y el acceso aislado por empresa."
-        action={
-          <div className="flex flex-wrap gap-2">
-            {canManageReceivedInvoices ? (
-              <Link href="/gastos-materiales/lector" className="primary-button">
-                <Plus size={18} />
-                Subir documento
-              </Link>
-            ) : null}
-            {canCreateBudget ? (
-              <Link
-                href="/gestion?tipo=presupuesto&returnTo=/documentos"
-                className="secondary-button"
-              >
-                <Plus size={18} />
-                Presupuesto
-              </Link>
-            ) : null}
-            {canCreateInvoice ? (
-              <Link
-                href="/gestion?tipo=factura&returnTo=/documentos"
-                className="secondary-button"
-              >
-                <Plus size={18} />
-                Factura
-              </Link>
-            ) : null}
-            {canUpload ? (
-              <Link
-                href="/gestion?tipo=documento&returnTo=/documentos"
-                className="secondary-button"
-              >
-                <Plus size={18} />
-                Añadir ficha
-              </Link>
-            ) : null}
-          </div>
-        }
+    <ListWorkspace className="documents-page">
+      <GlobalDocumentsWorkspace
+        documents={workspaceDocuments}
+        selectedId={selected}
+        initialView={query.vista === "plantillas" ? "templates" : "documents"}
+        primaryAction={canUpload.allowed ? { href: "/documentos/subir", label: "Subir documento" } : null}
+        templates={documentTemplateAssets.map((asset) => ({
+          id: asset.slug,
+          label: asset.label,
+          kindLabel: asset.kind === "budget" ? "Presupuesto" : "Factura",
+          formatLabel: asset.format.toUpperCase(),
+          previewAction: asset.format === "pdf"
+            ? { href: `/documentos/plantillas/${asset.slug}?preview=1`, label: "Vista previa", target: "_blank" }
+            : null,
+          downloadAction: { href: `/documentos/plantillas/${asset.slug}`, label: "Descargar", target: "_blank", download: true },
+        }))}
+        emptyTitle="Todavía no hay documentos"
+        emptyDescription="Incorpora el primer archivo desde una acción autorizada. No se crean muestras ni registros de demostración."
       />
-
-      <CompactTabs label="Categorías documentales">
-        {documentCategories
-          .filter((category) =>
-            ["presupuestos", "facturas", "archivos", "plantillas"].includes(
-              category.id,
-            ),
-          )
-          .map((category) => {
-            const Icon =
-              categoryIcons[category.id as keyof typeof categoryIcons] ??
-              FolderOpen;
-            return (
-              <Link
-                key={category.id}
-                href={category.href}
-                className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-white hover:text-obra-ink"
-              >
-                <Icon size={16} />
-                {category.label}
-              </Link>
-            );
-          })}
-      </CompactTabs>
-
-      <KpiGrid>
-        <KpiCard
-          label="Bandeja reciente"
-          value={String(inboxDocuments.length)}
-          detail="Hasta 8 recepciones recientes en tu alcance"
-          icon={ScanLine}
-        />
-        <KpiCard
-          label="Pendientes recientes"
-          value={String(reviewDocuments.length)}
-          detail="Dentro de las recepciones mostradas"
-          icon={AlertTriangle}
-          tone={reviewDocuments.length ? "warning" : "success"}
-        />
-        <KpiCard
-          label="Confirmados recientes"
-          value={String(confirmedDocuments.length)}
-          detail="Dentro de las recepciones mostradas"
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <KpiCard
-          label="Vinculados mostrados"
-          value={String(linkedDocuments.length)}
-          detail="Hasta 20 registros de la biblioteca visible"
-          icon={FileCheck2}
-          tone="accent"
-        />
-      </KpiGrid>
-
-      <section className="mb-5 mt-5">
-        <div className="mb-3">
-          <p className="type-eyebrow">Bandeja documental</p>
-          <h2 className="type-title mt-1">
-            Revisión con el original a la vista
-          </h2>
-          <p className="type-body mt-2 max-w-3xl">
-            La extracción es una propuesta. Comprueba el archivo, corrige los
-            datos y confirma antes de registrar un gasto.
-          </p>
-        </div>
-        {activeInboxDocument ? (
-          <div className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-panel)] xl:grid xl:min-h-[34rem] xl:grid-cols-[17rem_minmax(0,1fr)_20rem]">
-            <div className="border-b border-[var(--color-border)] lg:border-b-0 lg:border-r">
-              <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
-                <h3 className="font-black text-obra-ink">Entrada</h3>
-                <span className="type-meta">
-                  {inboxDocuments.length} recientes
-                </span>
-              </div>
-              <div className="divide-y divide-[var(--color-border)]">
-                {inboxDocuments.map((document, index) => (
-                  <Link
-                    key={document.id}
-                    href={`/gastos-materiales/lector/${document.id}`}
-                    className={`block p-4 transition hover:bg-slate-50 ${index === 0 ? "bg-emerald-50/70 ring-1 ring-inset ring-emerald-200" : ""}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="rounded-lg bg-slate-100 p-2 text-slate-600">
-                        <FileText size={18} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-black text-obra-ink">
-                          {document.name}
-                        </p>
-                        <p className="mt-1 truncate text-xs text-slate-500">
-                          {document.businessPartner?.commercialName ||
-                            document.extractedIssuer ||
-                            "Proveedor pendiente"}
-                        </p>
-                        <div className="mt-2">
-                          <InboxStatus status={document.status} />
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-b border-[var(--color-border)] bg-slate-50/70 p-4 sm:p-6 lg:border-b-0 lg:border-r">
-              <p className="label mb-3">Vista textual de la extracción</p>
-              <div className="mx-auto flex min-h-[25rem] max-w-[30rem] flex-col bg-white p-6 shadow-sm sm:p-8">
-                <div className="text-center">
-                  <ScanLine className="mx-auto text-slate-400" size={28} />
-                  <p className="mt-3 break-words font-mono text-sm font-black uppercase text-obra-ink">
-                    {activeInboxDocument.originalName ||
-                      activeInboxDocument.name}
-                  </p>
-                </div>
-                <div className="mt-8 space-y-4 border-y border-slate-300 py-6 font-mono text-sm">
-                  <DocumentDatum
-                    label="Emisor"
-                    value={
-                      activeInboxDocument.extractedIssuer ||
-                      "Pendiente de revisar"
-                    }
-                  />
-                  <DocumentDatum
-                    label="Factura"
-                    value={
-                      activeInboxDocument.extractedInvoiceNo || "Pendiente"
-                    }
-                  />
-                  <DocumentDatum
-                    label="Fecha"
-                    value={
-                      activeInboxDocument.extractedIssueDate
-                        ? formatDate(activeInboxDocument.extractedIssueDate)
-                        : "Pendiente"
-                    }
-                  />
-                  <DocumentDatum
-                    label="Total"
-                    value={
-                      activeInboxDocument.extractedTotal != null
-                        ? formatCurrency(activeInboxDocument.extractedTotal)
-                        : "Pendiente"
-                    }
-                    strong
-                  />
-                </div>
-                <p className="mt-auto pt-8 text-center text-xs text-slate-500">
-                  {activeInboxDocument.storageKey
-                    ? "La vista completa se abre por una ruta privada y autenticada."
-                    : "Registro sintético de Review sin binario adjunto."}
-                </p>
-              </div>
-            </div>
-
-            <aside className="p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-black text-obra-ink">Datos extraídos</h3>
-                {activeInboxDocument.extractionConfidence != null ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-800">
-                    {Math.round(activeInboxDocument.extractionConfidence * 100)}{" "}
-                    % confianza
-                  </span>
-                ) : null}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {activeInboxDocument.storageKey ? (
-                  <>
-                    <SoftBadge tone="success">R2 privado</SoftBadge>
-                    <SoftBadge>URL temporal disponible</SoftBadge>
-                  </>
-                ) : (
-                  <SoftBadge tone="warning">Sin binario adjunto</SoftBadge>
-                )}
-                <SoftBadge tone="accent">Scope de empresa</SoftBadge>
-              </div>
-              <div className="mt-4 grid gap-3">
-                <ReviewDatum
-                  label="Proveedor"
-                  value={
-                    activeInboxDocument.businessPartner?.commercialName ||
-                    activeInboxDocument.extractedIssuer ||
-                    "Por identificar"
-                  }
-                />
-                <ReviewDatum
-                  label="Trabajo"
-                  value={
-                    activeInboxDocument.work?.titulo ||
-                    "Por asignar o gasto general"
-                  }
-                />
-                <ReviewDatum
-                  label="Estado"
-                  value={inboxStatusLabel(activeInboxDocument.status)}
-                />
-                <ReviewDatum
-                  label="Resultado"
-                  value={
-                    activeInboxDocument.expense
-                      ? `Gasto único · ${activeInboxDocument.expense.concepto}`
-                      : "Aún no se ha creado ningún gasto"
-                  }
-                />
-              </div>
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-black text-obra-ink">
-                  <ShieldCheck size={18} />
-                  Comprobaciones
-                </p>
-                <ul className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
-                  <li>✓ Tipo MIME y firma binaria validados.</li>
-                  <li>✓ Archivo aislado por empresa.</li>
-                  <li>
-                    {activeInboxDocument.sha256
-                      ? `✓ Huella SHA-256 · ${activeInboxDocument.sha256.slice(0, 12)}…`
-                      : "! Huella pendiente"}
-                  </li>
-                  <li>
-                    {activeInboxDocument.status === "POSSIBLE_DUPLICATE"
-                      ? "! Posible duplicado: requiere confirmación."
-                      : "✓ Sin duplicado confirmado en este estado."}
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href={`/gastos-materiales/lector/${activeInboxDocument.id}`}
-                className="secondary-button mt-4 w-full justify-center"
-              >
-                {activeInboxDocument.status === "REGISTERED" ? (
-                  <CheckCircle2 size={18} />
-                ) : (
-                  <AlertTriangle size={18} />
-                )}
-                {activeInboxDocument.status === "REGISTERED"
-                  ? "Abrir registro"
-                  : "Revisar y confirmar"}
-              </Link>
-              {activeInboxDocument.storageKey ? (
-                <Link
-                  href={`/gastos-materiales/lector/${activeInboxDocument.id}/archivo`}
-                  target="_blank"
-                  className="mt-3 block text-center text-sm font-bold underline decoration-slate-300 underline-offset-4"
-                >
-                  Abrir original
-                </Link>
-              ) : null}
-            </aside>
-          </div>
-        ) : (
-          <div className="card p-6">
-            <h3 className="font-black text-obra-ink">Bandeja preparada</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Todavía no hay justificantes dentro de tu alcance. Al subir uno,
-              aparecerán juntos el original, la propuesta y sus comprobaciones.
-            </p>
-            {canManageReceivedInvoices ? (
-              <Link
-                href="/gastos-materiales/lector"
-                className="secondary-button mt-4"
-              >
-                Abrir subida segura
-              </Link>
-            ) : null}
-          </div>
-        )}
-      </section>
-
-      <section className="card mb-5 flex flex-col gap-3 border-emerald-200 bg-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-black text-obra-ink">
-            Tú decides antes de crear
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Revisa, corrige y confirma. Orqena no registra ni envía documentos
-            sin autorización.
-          </p>
-        </div>
-        <ShieldCheck className="shrink-0 text-emerald-700" size={28} />
-      </section>
-
-      <section id="plantillas" className="card mb-5 scroll-mt-24 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <FileArchive size={20} className="text-obra-yellowDark" />
-          <h2 className="text-lg font-black text-obra-ink">
-            Plantillas profesionales
-          </h2>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {documentTemplateAssets.map((asset) => (
-            <article
-              key={asset.slug}
-              className="rounded-lg border border-slate-200 p-3"
-            >
-              <p className="text-sm font-black text-obra-ink">{asset.label}</p>
-              <p className="mt-1 break-words text-xs font-semibold text-slate-500">
-                {asset.fileName}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {asset.format === "pdf" ? (
-                  <Link
-                    href={`/documentos/plantillas/${asset.slug}?preview=1`}
-                    target="_blank"
-                    className="secondary-button"
-                  >
-                    <Eye size={18} />
-                    Ver
-                  </Link>
-                ) : null}
-                <Link
-                  href={`/documentos/plantillas/${asset.slug}`}
-                  className="secondary-button"
-                >
-                  <Download size={18} />
-                  Descargar
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="archivos" className="card mb-5 scroll-mt-24 p-4">
-        <h2 className="text-lg font-black text-obra-ink">
-          Archivos y documentos
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Orqena reúne los documentos asociados a clientes, trabajos,
-          presupuestos, facturas y gastos.{" "}
-          {"Cuando un archivo está disponible, puedes abrirlo desde su ficha."}
-        </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {documents.map((document) => (
-            <article
-              key={document.id}
-              className="rounded-xl border border-slate-200 bg-white p-4"
-            >
-              <p className="label">{document.type}</p>
-              <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {document.relatedLabel}
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase text-slate-500">
-                {documentDetail(document)}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {document.href ? (
-                  <Link href={document.href} className="secondary-button">
-                    Abrir
-                  </Link>
-                ) : null}
-                {canManage ? (
-                  <Link
-                    href={`/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`}
-                    className="secondary-button"
-                  >
-                    Editar ficha
-                  </Link>
-                ) : null}
-              </div>
-            </article>
-          ))}
-          {!documents.length ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm leading-6 text-slate-500">
-              Todavía no hay documentos registrados en el repositorio.
-            </div>
-          ) : null}
-        </div>
-      </section>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section>
-          <SectionHeader level={2} title="Últimos presupuestos" />
-          <div className="grid gap-3">
-            {budgets.map((budget) => (
-              <article key={budget.id} className="card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase text-slate-500">
-                      {budget.numero}
-                    </p>
-                    <h3 className="mt-1 text-base font-black text-obra-ink">
-                      {budget.titulo}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {budget.client.nombre}
-                      {budget.work ? ` · ${budget.work.titulo}` : ""}
-                    </p>
-                  </div>
-                  <StatusPill status={budget.estado} />
-                </div>
-                <p className="mt-3 text-sm font-black text-obra-ink">
-                  {formatCurrency(budget.total)}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {canUpdateBudget ? (
-                    <Link
-                      href={`/gestion?tipo=presupuesto&id=${budget.id}&returnTo=/documentos`}
-                      className="secondary-button"
-                    >
-                      Editar
-                    </Link>
-                  ) : null}
-                  <Link
-                    href={`/presupuestos/${budget.id}/pdf?preview=1`}
-                    target="_blank"
-                    className="secondary-button"
-                  >
-                    Vista PDF
-                  </Link>
-                  <Link
-                    href={`/presupuestos/${budget.id}/pdf`}
-                    className="secondary-button"
-                  >
-                    Descargar
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <SectionHeader level={2} title="Últimas facturas" />
-          <div className="grid gap-3">
-            {invoices.map((invoice) => {
-              const liveStatus =
-                invoice.estado === "borrador"
-                  ? "borrador"
-                  : deriveInvoiceStatus(
-                      invoice.total,
-                      invoice.pendiente,
-                      invoice.fechaVencimiento,
-                    );
-              return (
-                <article key={invoice.id} className="card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-500">
-                        {invoice.numero}
-                      </p>
-                      <h3 className="mt-1 text-base font-black text-obra-ink">
-                        {invoice.concepto}
-                      </h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {invoice.client.nombre}
-                        {invoice.work ? ` · ${invoice.work.titulo}` : ""}
-                      </p>
-                    </div>
-                    <StatusPill status={liveStatus} />
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-slate-500">
-                    {formatDate(invoice.fechaEmision)} · Pendiente{" "}
-                    {formatCurrency(invoice.pendiente)}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {canCreateInvoice ? (
-                      <Link
-                        href={`/gestion?tipo=factura&id=${invoice.id}&returnTo=/documentos`}
-                        className="secondary-button"
-                      >
-                        Editar
-                      </Link>
-                    ) : null}
-                    <Link
-                      href={`/dinero/${invoice.id}/pdf?preview=1`}
-                      target="_blank"
-                      className="secondary-button"
-                    >
-                      Vista PDF
-                    </Link>
-                    <Link
-                      href={`/dinero/${invoice.id}/pdf`}
-                      className="secondary-button"
-                    >
-                      Descargar
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      </div>
     </ListWorkspace>
   );
 }
 
-function InboxStatus({ status }: { status: string }) {
-  const warning = [
-    "REVIEW_REQUIRED",
-    "AWAITING_PARTNER",
-    "AWAITING_WORK",
-    "POSSIBLE_DUPLICATE",
-    "FAILED",
-  ].includes(status);
-  const complete = ["READY", "REGISTERED", "SAVED"].includes(status);
-  return (
-    <span
-      className={`rounded-full px-2 py-1 text-[11px] font-black ${complete ? "bg-emerald-100 text-emerald-800" : warning ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-700"}`}
-    >
-      {inboxStatusLabel(status)}
-    </span>
-  );
-}
+function toWorkspaceDocument(
+  document: DocumentRecord,
+  access: { canManage: boolean; canManageReceivedInvoices: boolean; canSeeFinancialData: boolean },
+): GlobalDocumentWorkspaceItem {
+  const source = metadataSource(document.metadata);
+  const readerDocument = source === "expense_document_reader";
+  const reviewHref = readerDocument ? `/gastos-materiales/lector/${document.id}` : null;
+  const privateFileHref = document.storageKey ? `/documentos/${document.id}/archivo` : null;
+  const originalHref = privateFileHref ?? safeResourceHref(document.url);
+  const downloadHref = privateFileHref ? `${privateFileHref}?download=1` : originalHref;
+  const kind = documentKind(document);
+  const status = documentStatus(document.status);
+  const related = relatedLabel(document);
+  const amount = access.canSeeFinancialData && document.extractedTotal != null
+    ? formatCurrency(document.extractedTotal)
+    : null;
+  const extractedDate = document.extractedIssueDate ? formatDate(document.extractedIssueDate) : null;
+  const issuer = access.canSeeFinancialData
+    ? document.businessPartner?.commercialName ?? document.extractedIssuer
+    : document.businessPartner?.commercialName ?? null;
+  const proposal = document.extractedData ? normalizeExpenseExtraction(document.extractedData) : null;
+  const canReviewReader = access.canManageReceivedInvoices && reviewHref && !document.expenseId;
+  const reviewAction = canReviewReader
+    ? { href: intentHref(reviewHref, "review", "document-review"), label: "Revisar documento" }
+    : null;
+  const genericEditHref = `/gestion?tipo=documento&id=${document.id}&returnTo=/documentos`;
+  const previewTable = access.canSeeFinancialData && proposal?.lines.length
+    ? {
+        columns: ["Concepto", "Cantidad", "Precio", "Importe"],
+        rows: proposal.lines.map((line, index) => ({
+          id: `${document.id}-line-${index}`,
+          cells: [
+            line.description,
+            line.quantity == null ? "—" : formatNumber(line.quantity),
+            line.unitPrice == null ? "—" : formatCurrency(line.unitPrice),
+            line.total == null ? "—" : formatCurrency(line.total),
+          ],
+        })),
+      }
+    : null;
+  const previewTotals = access.canSeeFinancialData && proposal
+    ? compactFields([
+        field("taxable-base", "Base imponible", money(proposal.taxableBase)),
+        field("vat", proposal.vatRate == null ? "IVA" : `IVA (${formatNumber(proposal.vatRate)} %)`, money(proposal.vatAmount)),
+        field("withholding", "Retención", proposal.withholdingAmount == null ? null : `−${formatCurrency(proposal.withholdingAmount)}`),
+        field("total", "Total", money(proposal.total) ?? amount),
+      ])
+    : compactFields([field("total", "Total extraído", amount)]);
+  const attentionItems = [
+    ...(proposal?.warnings ?? []),
+    ...(document.status === "AWAITING_PARTNER" ? ["Falta confirmar el proveedor relacionado."] : []),
+    ...(document.status === "AWAITING_WORK" ? ["Falta confirmar el trabajo relacionado."] : []),
+  ].slice(0, 3);
 
-function inboxStatusLabel(status: string) {
-  return (
-    (
+  return {
+    id: document.id,
+    name: document.originalName || document.name,
+    kind,
+    kindLabel: documentKindLabel(kind),
+    statusLabel: status.label,
+    statusTone: status.tone,
+    requiresReview: status.requiresReview,
+    relatedLabel: related,
+    dateLabel: formatDate(document.createdAt),
+    amountLabel: amount,
+    updatedLabel: relativeUpdateLabel(document.updatedAt),
+    preview: {
+      href: originalHref,
+      title: document.originalName || document.name,
+      subtitle: related,
+      facts: compactFields([
+        field("issuer", "Proveedor / emisor", issuer),
+        field("tax-id", "NIF / VAT", access.canSeeFinancialData ? document.extractedIssuerTaxId : null),
+        field("invoice", "Número", access.canSeeFinancialData ? document.extractedInvoiceNo : null),
+        field("date", "Fecha", extractedDate),
+        field("due-date", "Vencimiento", proposal?.dueDate ? formatDate(new Date(`${proposal.dueDate}T00:00:00Z`)) : null),
+        field("type", "Tipo", documentTypeLabel(document)),
+      ]),
+      table: previewTable,
+      totals: previewTotals,
+      notes: [
+        ...(proposal?.paymentMethod ? [`Forma de pago: ${proposal.paymentMethod}.`] : []),
+        ...(attentionItems.length ? attentionItems.map((item) => `Revisión: ${item}`) : []),
+        document.storageKey
+          ? "El original se sirve mediante una ruta privada y autenticada."
+          : "Este registro no contiene un binario privado disponible.",
+        "La extracción es una propuesta y requiere revisión humana.",
+      ],
+    },
+    ocrFields: compactFields([
+      field("document-type", "Tipo de documento", documentTypeLabel(document)),
+      field("document-number", "Número", access.canSeeFinancialData ? document.extractedInvoiceNo : null),
+      field("document-date", "Fecha", extractedDate),
+      field("issuer", "Proveedor / emisor", issuer),
+      field("related", document.work ? "Trabajo" : document.client ? "Cliente" : "Relación", related),
+      field("total", "Total", amount),
+      field("confidence", "Confianza OCR", confidenceLabel(document.extractionConfidence)),
+    ]),
+    reviewDescription: status.requiresReview
+      ? "Pendiente de revisión humana. Ningún dato se registra automáticamente."
+      : "El estado mostrado procede del registro documental de la empresa.",
+    aiContext: {
+      documentId: document.id,
+      title: document.originalName || document.name,
+      statusLabel: status.label,
+      relationLabel: related,
+      confidenceLabel: confidenceLabel(document.extractionConfidence),
+      attentionItems,
+      reviewHref: reviewAction?.href
+        ?? (access.canManage && !readerDocument ? `${genericEditHref}#document-details` : null),
+    },
+    history: compactHistory([
       {
-        UPLOADED: "Recibido",
-        PROCESSING: "Procesando",
-        REVIEW_REQUIRED: "Revisar",
-        AWAITING_PARTNER: "Falta proveedor",
-        AWAITING_WORK: "Falta trabajo",
-        POSSIBLE_DUPLICATE: "Posible duplicado",
-        READY: "Listo",
-        REGISTERED: "Registrado",
-        SAVED: "Guardado",
-        FAILED: "Error",
-      } as Record<string, string>
-    )[status] || status.replaceAll("_", " ").toLowerCase()
-  );
+        id: `${document.id}-created`,
+        timestampLabel: formatDate(document.createdAt),
+        title: "Documento incorporado",
+        detail: document.uploadedBy?.displayName ?? "Origen no informado",
+        tone: "info" as const,
+      },
+      document.processedAt ? {
+        id: `${document.id}-processed`,
+        timestampLabel: formatDate(document.processedAt),
+        title: document.extractionStatus === "COMPLETED" ? "Extracción completada" : "Procesamiento registrado",
+        detail: document.extractionError ?? null,
+        tone: document.extractionStatus === "FAILED" ? "danger" as const : "success" as const,
+      } : null,
+      document.updatedAt.getTime() !== document.createdAt.getTime() ? {
+        id: `${document.id}-updated`,
+        timestampLabel: formatDate(document.updatedAt),
+        title: "Registro actualizado",
+        detail: status.label,
+        tone: status.tone,
+      } : null,
+    ]),
+    actions: {
+      original: originalHref ? { href: originalHref, label: "Abrir original", target: "_blank" } : null,
+      download: downloadHref ? { href: downloadHref, label: "Descargar", target: "_blank", download: true } : null,
+      edit: access.canManage && !readerDocument
+        ? { href: `${genericEditHref}#document-details`, label: "Editar ficha" }
+        : reviewAction,
+      linkWork: canReviewReader ? { href: intentHref(reviewHref, "link-work", "document-work"), label: "Vincular a trabajo" } : null,
+      linkPartner: canReviewReader ? { href: intentHref(reviewHref, "link-partner", "document-partner"), label: "Vincular a proveedor" } : null,
+      confirm: reviewAction,
+      correct: canReviewReader
+        ? { href: intentHref(reviewHref, "correct", "document-fields"), label: "Corregir datos" }
+        : access.canManage && !readerDocument
+          ? { href: `${genericEditHref}#document-details`, label: "Corregir datos" }
+          : null,
+    },
+  };
 }
 
-function DocumentDatum({
-  label,
-  value,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-slate-500">{label}</span>
-      <span className={`text-right ${strong ? "font-black" : "font-bold"}`}>
-        {value}
-      </span>
-    </div>
-  );
+function intentHref(base: string, intent: "review" | "link-work" | "link-partner" | "correct", anchor: string) {
+  return `${base}?intent=${intent}&returnTo=${encodeURIComponent("/documentos")}#${anchor}`;
 }
 
-function ReviewDatum({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 p-3">
-      <p className="label">{label}</p>
-      <p className="mt-1 text-sm font-bold text-obra-ink">{value}</p>
-    </div>
-  );
+function money(value: number | null | undefined) {
+  return value == null ? null : formatCurrency(value);
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 }).format(value);
+}
+
+function documentKind(document: DocumentRecord): GlobalDocumentKind {
+  const category = document.category.toLocaleLowerCase("es-ES");
+  const type = document.documentType?.toLocaleLowerCase("es-ES") ?? "";
+  const source = metadataSource(document.metadata)?.toLocaleLowerCase("es-ES") ?? "";
+  if (category === "contrato") return "contract";
+  if (category === "ticket" || type.includes("receipt")) return "ticket";
+  if (source.includes("parte") || category === "informe" && document.name.toLocaleLowerCase("es-ES").includes("parte")) return "work_part";
+  if (category === "factura" || type.includes("invoice")) return "invoice";
+  return "other";
+}
+
+function documentKindLabel(kind: GlobalDocumentKind) {
+  if (kind === "invoice") return "Factura";
+  if (kind === "ticket") return "Ticket";
+  if (kind === "contract") return "Contrato";
+  if (kind === "work_part") return "Parte";
+  return "Documento";
+}
+
+function documentTypeLabel(document: DocumentRecord) {
+  if (document.documentType) return document.documentType.toLocaleLowerCase("es-ES").replaceAll("_", " ");
+  return document.category.toLocaleLowerCase("es-ES").replaceAll("_", " ");
+}
+
+function documentStatus(status: DocumentRecord["status"]): { label: string; tone: GlobalDocumentTone; requiresReview: boolean } {
+  if (["REVIEW_REQUIRED", "AWAITING_PARTNER", "AWAITING_WORK", "POSSIBLE_DUPLICATE"].includes(status)) {
+    const label = status === "POSSIBLE_DUPLICATE" ? "Posible duplicado" : status === "AWAITING_PARTNER" ? "Falta proveedor" : status === "AWAITING_WORK" ? "Falta trabajo" : "Revisión pendiente";
+    return { label, tone: "warning", requiresReview: true };
+  }
+  if (["READY", "SAVED", "REGISTERED"].includes(status)) return { label: "Confirmado", tone: "success", requiresReview: false };
+  if (["FAILED", "CANCELLED"].includes(status)) return { label: status === "FAILED" ? "Error" : "Cancelado", tone: "danger", requiresReview: false };
+  if (status === "PROCESSING") return { label: "Procesando", tone: "info", requiresReview: false };
+  if (status === "ARCHIVED") return { label: "Archivado", tone: "neutral", requiresReview: false };
+  return { label: "Recibido", tone: "neutral", requiresReview: false };
+}
+
+function relatedLabel(document: DocumentRecord) {
+  return document.work?.titulo
+    ?? document.client?.nombre
+    ?? document.businessPartner?.commercialName
+    ?? document.budget?.numero
+    ?? document.invoice?.numero
+    ?? document.expense?.concepto
+    ?? null;
+}
+
+function metadataSource(value: Prisma.JsonValue) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return typeof value.source === "string" ? value.source : null;
+}
+
+function safeResourceHref(value: string | null | undefined) {
+  if (!value) return null;
+  if (value.startsWith("/") || value.startsWith("https://")) return value;
+  return null;
+}
+
+function field(id: string, label: string, value: string | null | undefined) {
+  return value?.trim() ? { id, label, value: value.trim() } : null;
+}
+
+function compactFields(values: Array<ReturnType<typeof field>>) {
+  return values.filter((value): value is NonNullable<typeof value> => value != null);
+}
+
+function compactHistory(values: Array<GlobalDocumentHistoryItem | null>) {
+  return values.filter((value): value is NonNullable<typeof value> => value != null);
+}
+
+function confidenceLabel(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return null;
+  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)} %`;
+}
+
+function relativeUpdateLabel(value: Date) {
+  const difference = Date.now() - value.getTime();
+  if (difference >= 0 && difference < 24 * 60 * 60 * 1000) return "Hoy";
+  if (difference >= 0 && difference < 48 * 60 * 60 * 1000) return "Ayer";
+  return formatDate(value);
 }

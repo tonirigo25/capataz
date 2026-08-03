@@ -32,6 +32,7 @@ export type BusinessIntelligenceParams = {
   to?: string | null;
   now?: Date;
   companyId?: string;
+  workId?: string;
 };
 
 export type BusinessKpi = {
@@ -257,9 +258,9 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
     kpi("outstanding", "Pendiente", outstandingMetrics.pending, previousOutstandingMetrics.pending, "/dinero?filtro=pendientes", "Saldo abierto de facturas válidas hasta el final del periodo."),
     kpi("overdue", "Vencido", outstandingMetrics.overdue, previousOutstandingMetrics.overdue, "/dinero?filtro=vencidas", "Saldo pendiente con vencimiento anterior a hoy."),
     kpi("expenses", "Gastos", currentExpenseMetrics.total, previousExpenseMetrics.total, "/gastos-materiales", "Gastos reales registrados en el periodo."),
-    kpi("profit_invoiced", "Beneficio facturado", currentProfit.profitOnInvoiced, previousProfit.profitOnInvoiced, "/inteligencia#rentabilidad", "Facturado menos gastos reales."),
-    kpi("profit_collected", "Beneficio cobrado", currentProfit.profitOnCollected, previousProfit.profitOnCollected, "/inteligencia#rentabilidad", "Cobrado menos gastos reales."),
-    kpi("margin_invoiced", "Margen", currentProfit.marginOnInvoiced, previousProfit.marginOnInvoiced, "/inteligencia#rentabilidad", "Beneficio sobre facturado dividido entre facturado.", true),
+    kpi("profit_invoiced", "Beneficio facturado", currentProfit.profitOnInvoiced, previousProfit.profitOnInvoiced, "/inteligencia?vista=rentabilidad", "Facturado menos gastos reales."),
+    kpi("profit_collected", "Beneficio cobrado", currentProfit.profitOnCollected, previousProfit.profitOnCollected, "/inteligencia?vista=rentabilidad", "Cobrado menos gastos reales."),
+    kpi("margin_invoiced", "Margen", currentProfit.marginOnInvoiced, previousProfit.marginOnInvoiced, "/inteligencia?vista=rentabilidad", "Beneficio sobre facturado dividido entre facturado.", true),
     kpi("quote_conversion", "Conversión", currentQuoteMetrics.conversionRate ?? 0, previousQuoteMetrics.conversionRate ?? null, "/presupuestos", "Aceptados dividido entre presupuestos decididos.", true)
   ];
 
@@ -300,6 +301,7 @@ export async function getBusinessIntelligenceSummary(params: BusinessIntelligenc
       overdueInvoices: allInvoicesAsOfPeriod.filter((invoice) => invoiceBalance(invoice).pending > 0 && invoice.fechaVencimiento < now).slice(0, 10)
     },
     works: {
+      all: workRankings,
       byProfit: workRankings.slice(0, 8),
       byLowestMargin: [...workRankings].filter((work) => work.hasEnoughData).sort((a, b) => a.marginOnInvoiced - b.marginOnInvoiced).slice(0, 8),
       byExpenses: [...workRankings].sort((a, b) => b.expenses - a.expenses).slice(0, 8),
@@ -387,7 +389,8 @@ function intervalBuckets(period: BusinessPeriod, desired: number) {
 export async function buildBusinessCsvExport(kind: string, params: BusinessIntelligenceParams = {}) {
   const summary = await getBusinessIntelligenceSummary(params);
   if (kind === "works") {
-    return toCsv(["obra", "cliente", "estado", "facturado", "cobrado", "pendiente", "gastos", "beneficio", "margen"], summary.works.byProfit.map((work) => [
+    const works = params.workId ? summary.works.all.filter((work) => work.workId === params.workId) : summary.works.byProfit;
+    return toCsv(["obra", "cliente", "estado", "facturado", "cobrado", "pendiente", "gastos", "beneficio", "margen"], works.map((work) => [
       work.title,
       work.clientName,
       work.status,

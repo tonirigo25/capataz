@@ -1,4 +1,5 @@
 export const SESSION_COOKIE_NAME = "capataz_session";
+export const SESSION_PERSISTENCE_COOKIE_NAME = "capataz_session_persistent";
 
 function positiveInt(name: string, fallback: number) {
   const value = Number(process.env[name]);

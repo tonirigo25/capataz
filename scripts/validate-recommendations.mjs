@@ -80,6 +80,18 @@ function fixtureSignals() {
       score: 44
     }),
     signal({
+      fingerprint: "client:multiple-overdue:client-3",
+      type: "client_multiple_overdue",
+      title: "Beta SL acumula facturas vencidas",
+      summary: "Tres facturas vencidas requieren seguimiento conjunto.",
+      level: "importante",
+      source: "cobros",
+      entity: { type: "cliente", id: "client-3", label: "Beta SL", href: "/clientes/client-3" },
+      client: { type: "cliente", id: "client-3", label: "Beta SL", href: "/clientes/client-3" },
+      relatedAmount: 8700,
+      score: 68
+    }),
+    signal({
       fingerprint: "treasury:deficit:30d",
       type: "treasury_negative_cash",
       title: "Déficit previsto",
@@ -160,6 +172,10 @@ function runEngineChecks() {
 
   const client = recommendations.find((item) => item.type === "client_data_completion");
   expect(client?.preferredAction?.id === "complete_client_data", "[recommendations] client data should route to complete data", client);
+
+  const collectionsClient = recommendations.find((item) => item.entityId === "client-3");
+  expect(collectionsClient?.entityType === "client", "[recommendations] collection signals scoped to a client must not be typed as invoices", collectionsClient);
+  expect(collectionsClient?.preferredAction?.id === "view_client", "[recommendations] client collection context should open Client 360", collectionsClient);
 
   const treasury = recommendations.find((item) => item.type === "treasury_review");
   expect(treasury?.preferredAction?.id === "view_treasury", "[recommendations] treasury recommendation should route to treasury", treasury);

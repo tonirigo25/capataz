@@ -52,6 +52,11 @@ export type DocumentDisplay = {
   source: string;
   canPreview: boolean;
   canDownload: boolean;
+  scope: "client" | "work" | "unscoped";
+  workId?: string | null;
+  workTitle?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
   archivedAt?: Date | null;
 };
 
@@ -68,11 +73,16 @@ export function repositoryDocumentDisplay(document: RepositoryDocumentInput): Do
     source: document.url ? "Archivo asociado" : "Ficha sin archivo adjunto",
     canPreview: canPreview(document.mimeType, document.url),
     canDownload: Boolean(document.url),
+    scope: document.work ? "work" : document.client ? "client" : "unscoped",
+    workId: document.work?.id ?? null,
+    workTitle: document.work?.titulo ?? null,
+    mimeType: document.mimeType ?? null,
+    sizeBytes: document.size ?? null,
     archivedAt: document.archivedAt
   };
 }
 
-export function derivedBudgetDocument(budget: { id: string; numero: string; titulo: string; fechaCreacion: Date; work?: { titulo: string } | null }) {
+export function derivedBudgetDocument(budget: { id: string; numero: string; titulo: string; fechaCreacion: Date; work?: { id?: string; titulo: string } | null }) {
   return {
     id: `budget-${budget.id}`,
     key: `budget-${budget.id}`,
@@ -83,11 +93,16 @@ export function derivedBudgetDocument(budget: { id: string; numero: string; titu
     href: `/presupuestos/${budget.id}/pdf?preview=1`,
     source: "PDF generado",
     canPreview: true,
-    canDownload: true
+    canDownload: true,
+    scope: budget.work?.id ? "work" : "client",
+    workId: budget.work?.id ?? null,
+    workTitle: budget.work?.titulo ?? null,
+    mimeType: "application/pdf",
+    sizeBytes: null
   } satisfies DocumentDisplay;
 }
 
-export function derivedInvoiceDocument(invoice: { id: string; numero: string; concepto: string; fechaEmision: Date; work?: { titulo: string } | null }) {
+export function derivedInvoiceDocument(invoice: { id: string; numero: string; concepto: string; fechaEmision: Date; work?: { id?: string; titulo: string } | null }) {
   return {
     id: `invoice-${invoice.id}`,
     key: `invoice-${invoice.id}`,
@@ -98,7 +113,12 @@ export function derivedInvoiceDocument(invoice: { id: string; numero: string; co
     href: `/dinero/${invoice.id}/pdf?preview=1`,
     source: "PDF generado",
     canPreview: true,
-    canDownload: true
+    canDownload: true,
+    scope: invoice.work?.id ? "work" : "client",
+    workId: invoice.work?.id ?? null,
+    workTitle: invoice.work?.titulo ?? null,
+    mimeType: "application/pdf",
+    sizeBytes: null
   } satisfies DocumentDisplay;
 }
 

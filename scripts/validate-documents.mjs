@@ -30,7 +30,12 @@ expect(actions.includes("assertSafeDocumentUrl") && actions.includes("HTTPS"), "
 expect(actions.includes("async function saveDocument"), "missing saveDocument action");
 expect(actions.includes("async function savePhoto"), "missing savePhoto action");
 expect(gestionPage.includes('case "documento"') && gestionPage.includes('case "foto"'), "missing document/photo forms");
-expect(documentsPage.includes('title="Documentos"') && documentsPage.includes("Cuando un archivo está disponible, puedes abrirlo desde su ficha"), "documents page explains file availability in user language");
+expect(
+  documentsPage.includes("GlobalDocumentsWorkspace") &&
+    documentsPage.includes("Incorpora el primer archivo desde una acción autorizada") &&
+    documentsPage.includes("El original se sirve mediante una ruta privada y autenticada"),
+  "documents page explains private file availability in user language",
+);
 expect(workPage.includes("repositoryDocuments") && workPage.includes("Registrar documento"), "Work 360 does not expose repository documents");
 expect(worksLib.includes("Ficha sin archivo adjunto"), "work document presentation must distinguish metadata-only documents");
 

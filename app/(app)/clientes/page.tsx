@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Search, UserPlus } from "lucide-react";
-import { DemoLimitButton } from "@/components/demo-limit-button";
+import { Search } from "lucide-react";
 import {
   ClientFilterBar,
   type ClientFilterQuery,
@@ -8,16 +7,13 @@ import {
 import {
   type ClientWorkspaceItem,
 } from "@/components/clients/client-split-view";
-import { ClientPortfolio } from "@/components/portal/modules-a/client-portfolio";
-import {
-  EmptyState,
-  PageHeader,
-  ResultCount,
-} from "@/components/ui-primitives";
+import { ClientPortfolio, type ClientPortfolioPagination } from "@/components/portal/modules-a/client-portfolio";
+import { EmptyState } from "@/components/ui-primitives";
 import {
   getClientList,
   type ClientListItem,
   type ClientListQuery,
+  type ClientSmartViewCounts,
 } from "@/lib/client-crm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
@@ -95,6 +91,7 @@ export default async function ClientsPage({
     "reports.view",
     "clients.create",
     "clients.update",
+    "clients.export",
     "work.view",
     "sales.budgets.view",
     "sales.invoices.view",
@@ -109,16 +106,38 @@ export default async function ClientsPage({
     "agenda.view",
     "followups.view",
     "documents.view",
+    "orqena.use",
   ] as const;
   const aggregateDecisions = await Promise.all(
     aggregateCapabilities.map((capability) =>
       resolveAuthorization(auth, capability),
     ),
   );
-  const economicAllowed = aggregateDecisions.every(
-    (decision) => decision.allowed && decision.scope === "COMPANY",
-  );
-  const canCreateClient = aggregateDecisions[1]?.allowed === true;
+  const decisionFor = (capability: (typeof aggregateCapabilities)[number]) =>
+    aggregateDecisions[aggregateCapabilities.indexOf(capability)];
+  const economicCapabilities = [
+    "reports.view",
+    "work.view",
+    "sales.budgets.view",
+    "sales.invoices.view",
+    "treasury.view",
+    "banking.view",
+    "purchases.received_invoices.view",
+    "purchase_cost.view",
+    "internal_cost.view",
+    "margin_percent.view",
+    "margin_amount.view",
+    "profitability.view",
+  ] as const;
+  const economicAllowed = economicCapabilities.every((capability) => {
+    const decision = decisionFor(capability);
+    return decision?.allowed === true && decision.scope === "COMPANY";
+  });
+  const canCreateClient = decisionFor("clients.create")?.allowed === true;
+  const canUpdateClient = decisionFor("clients.update")?.allowed === true;
+  const canExportClient = decisionFor("clients.export")?.allowed === true;
+  const canImportClient = auth.role === "OWNER" || auth.role === "ADMIN";
+  const canUseAi = decisionFor("orqena.use")?.allowed === true;
 
   if (!economicAllowed) {
     return (
@@ -127,6 +146,10 @@ export default async function ClientsPage({
         scopedClientIds={scopedClientIds}
         query={query}
         canCreateClient={canCreateClient}
+        canUpdateClient={canUpdateClient}
+        canExportClient={canExportClient}
+        canImportClient={canImportClient}
+        canUseAi={canUseAi}
       />
     );
   }
@@ -149,24 +172,10 @@ export default async function ClientsPage({
   );
 
   return (
-    <main className="screen" data-workspace-family="list">
-      <PageHeader
-        eyebrow="Relaciones"
-        title="Clientes"
-        description="Empieza por quien necesita atención y abre su contexto sin perder el listado."
-        action={
-          canCreateClient ? (
-            <DemoLimitButton
-              href="/gestion?tipo=cliente&returnTo=/clientes"
-              currentCount={result.total}
-              limit={3}
-            >
-              <UserPlus size={18} />
-              Añadir cliente
-            </DemoLimitButton>
-          ) : undefined
-        }
-      >
+    <main className="clients-page" data-workspace-family="list">
+      <header className="clients-page-header">
+        <h1>Clientes</h1>
+        <p>Gestiona y da seguimiento comercial y operativo a tu cartera de clientes.</p>
         <ClientFilterBar
           query={query}
           typeOptions={result.typeOptions}
@@ -174,23 +183,21 @@ export default async function ClientsPage({
           filterOptions={filterOptions}
           orderOptions={orderOptions}
           activeFilterLabels={result.activeFilters.map(({ label }) => label)}
+          smartViewCounts={result.smartViewCounts}
+          canCreate={canCreateClient}
+          canExport={canExportClient}
+          canImport={canImportClient}
         />
-      </PageHeader>
+      </header>
 
-      <ResultCount
-        shown={result.items.length}
-        total={result.total}
-        noun="clientes"
-        context={
-          query.archivo === "archivados"
-            ? "Mostrando archivados"
-            : `Página ${result.page} de ${result.totalPages}`
-        }
-      />
-
-      <div className="mt-4">
+      <div className="clients-page-content">
         {items.length ? (
-          <ClientPortfolio items={items} />
+          <ClientPortfolio
+            items={items}
+            pagination={buildPortfolioPagination(query, result)}
+            canUpdate={canUpdateClient}
+            canUseAi={canUseAi}
+          />
         ) : (
           <EmptyState
             title={
@@ -206,14 +213,7 @@ export default async function ClientsPage({
             icon={Search}
             action={
               canCreateClient ? (
-                <DemoLimitButton
-                  href="/gestion?tipo=cliente&returnTo=/clientes"
-                  currentCount={result.total}
-                  limit={3}
-                >
-                  <UserPlus size={18} />
-                  Añadir cliente
-                </DemoLimitButton>
+                <Link href="/gestion?tipo=cliente&returnTo=/clientes" className="primary-button">Nuevo cliente</Link>
               ) : undefined
             }
             secondaryAction={
@@ -225,11 +225,6 @@ export default async function ClientsPage({
         )}
       </div>
 
-      <Pagination
-        query={query}
-        page={result.page}
-        totalPages={result.totalPages}
-      />
     </main>
   );
 }
@@ -239,11 +234,19 @@ async function ScopedClientsPage({
   scopedClientIds,
   query,
   canCreateClient,
+  canUpdateClient,
+  canExportClient,
+  canImportClient,
+  canUseAi,
 }: {
   companyId: string;
   scopedClientIds: string[] | null;
   query: ClientListQuery;
   canCreateClient: boolean;
+  canUpdateClient: boolean;
+  canExportClient: boolean;
+  canImportClient: boolean;
+  canUseAi: boolean;
 }) {
   const clients = await prisma.client.findMany({
     where: {
@@ -268,7 +271,7 @@ async function ScopedClientsPage({
         : {}),
       ...(query.estado && query.estado !== "todos"
         ? { estado: query.estado as (typeof actionStatuses)[number] }
-        : query.vista === "accion" || !query.vista
+        : query.vista === "accion"
           ? { estado: { in: [...actionStatuses] } }
           : {}),
       ...(query.tipo && query.tipo !== "todos"
@@ -294,9 +297,16 @@ async function ScopedClientsPage({
           : query.ordenar === "ultimaActividad_desc"
             ? { ultimaInteraccion: "desc" }
             : { nombre: "asc" },
-    take: 100,
+    take: 500,
   });
-  const items: ClientWorkspaceItem[] = clients.map((client) => ({
+  const smartViewCounts = restrictedSmartViewCounts(clients);
+  const visibleClients = clients.filter((client) => restrictedSmartViewMatch(client, query.vista));
+  const total = visibleClients.length;
+  const totalPages = Math.max(1, Math.ceil(total / 10));
+  const requestedPage = Number.parseInt(query.pagina ?? "1", 10);
+  const page = Math.min(Math.max(Number.isFinite(requestedPage) ? requestedPage : 1, 1), totalPages);
+  const pageClients = visibleClients.slice((page - 1) * 10, page * 10);
+  const items: ClientWorkspaceItem[] = pageClients.map((client) => ({
     id: client.id,
     displayName:
       client.nombreComercial ?? client.razonSocial ?? client.nombre,
@@ -305,11 +315,26 @@ async function ScopedClientsPage({
     nextAction: scopedNextAction(client.estado),
     risk: scopedRisk(client.estado),
     activeWork: "Según tu alcance",
+    activeWorkCount: 0,
+    activeWorks: [],
+    responsible: "Según tu alcance",
+    budgetTotal: null,
+    budget: null,
     pendingBalance: null,
+    overdueBalance: null,
+    upcomingBalance: null,
     lastContact: formatDate(client.ultimaInteraccion),
+    lastActivityKind: "Actividad autorizada",
     primaryContact: client.telefono ?? client.email ?? "Sin contacto directo",
+    primaryContactDetail: "Contacto visible para tu perfil",
+    addressLabel: "",
     phone: client.telefono || null,
     email: client.email,
+    nextActionAt: null,
+    nextActionSource: "Alcance restringido",
+    riskLevel: scopedRiskLevel(client.estado),
+    latestNote: null,
+    archived: false,
     actionHref: `/clientes/${client.id}`,
     actionLabel: "Abrir ficha",
     visitHref: null,
@@ -318,24 +343,13 @@ async function ScopedClientsPage({
     ...new Set(clients.map(({ tipo }) => tipo).filter(Boolean)),
   ].sort();
 
+  const result = { page, pageSize: 10, total, totalPages };
+
   return (
-    <main className="screen" data-workspace-family="list">
-      <PageHeader
-        eyebrow="Relaciones"
-        title="Clientes"
-        description="Contactos y próximos pasos dentro de tu alcance. Los importes restringidos no se muestran."
-        action={
-          canCreateClient ? (
-            <Link
-              href="/gestion?tipo=cliente&returnTo=/clientes"
-              className="primary-button"
-            >
-              <UserPlus size={18} />
-              Añadir cliente
-            </Link>
-          ) : undefined
-        }
-      >
+    <main className="clients-page" data-workspace-family="list">
+      <header className="clients-page-header">
+        <h1>Clientes</h1>
+        <p>Gestiona tus clientes dentro del alcance autorizado. Los importes restringidos no se muestran.</p>
         <ClientFilterBar
           query={query}
           typeOptions={typeOptions}
@@ -349,12 +363,20 @@ async function ScopedClientsPage({
               : "",
             query.tipo && query.tipo !== "todos" ? `Tipo: ${query.tipo}` : "",
           ].filter(Boolean)}
+          smartViewCounts={smartViewCounts}
+          canCreate={canCreateClient}
+          canExport={canExportClient}
+          canImport={canImportClient}
         />
-      </PageHeader>
-      <ResultCount shown={items.length} total={items.length} noun="clientes" />
-      <div className="mt-4">
+      </header>
+      <div className="clients-page-content">
         {items.length ? (
-          <ClientPortfolio items={items} />
+          <ClientPortfolio
+            items={items}
+            pagination={buildPortfolioPagination(query, result)}
+            canUpdate={canUpdateClient}
+            canUseAi={canUseAi}
+          />
         ) : (
           <EmptyState
             title="No hay clientes en esta vista"
@@ -387,11 +409,28 @@ function toWorkspaceItem(
     activeWork: client.activeWorksCount
       ? `${client.activeWorksCount} ${client.activeWorksCount === 1 ? "trabajo activo" : "trabajos activos"}`
       : "Sin trabajo activo",
-    pendingBalance: formatCurrency(client.pendingTotal),
+    activeWorkCount: client.activeWorksCount,
+    activeWorks: client.activeWorks,
+    responsible: client.responsible ?? "Sin asignar",
+    budgetTotal: client.latestBudget ? formatCurrency(client.latestBudget.total) : null,
+    budget: client.latestBudget,
+    pendingBalance: client.pendingTotal > 0 ? formatCurrency(client.pendingTotal) : null,
+    overdueBalance: client.overdueTotal > 0 ? formatCurrency(client.overdueTotal) : null,
+    upcomingBalance: client.upcomingTotal > 0 ? formatCurrency(client.upcomingTotal) : null,
     lastContact: formatDate(client.lastContactAt ?? client.lastActivityAt),
+    lastActivityKind: client.lastActivityKind,
     primaryContact: client.primaryContact,
+    primaryContactDetail: client.primaryContactDetail,
+    addressLabel: client.addressLabel,
     phone: client.phone || null,
     email: client.email,
+    nextActionAt: client.nextActionAt ? formatDate(client.nextActionAt) : null,
+    nextActionSource: client.nextActionSource,
+    riskLevel: client.riskLevel,
+    latestNote: client.latestNote
+      ? { content: client.latestNote.content, date: formatDate(client.latestNote.createdAt) }
+      : null,
+    archived: Boolean(client.archivedAt),
     actionHref: action.href,
     actionLabel: action.label,
     visitHref: `/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=visita&titulo=Visita%20con%20${encodeURIComponent(client.displayName)}&returnTo=/clientes`,
@@ -451,58 +490,94 @@ function scopedRisk(status: string) {
   return "Sin riesgo detectado";
 }
 
-function Pagination({
-  query,
-  page,
-  totalPages,
-}: {
-  query: ClientListQuery;
-  page: number;
-  totalPages: number;
-}) {
-  if (totalPages <= 1) return null;
-  return (
-    <nav
-      className="mt-4 flex items-center justify-between gap-3"
-      aria-label="Paginación de clientes"
-    >
-      {page > 1 ? (
-        <Link
-          href={hrefWith(query, { pagina: String(page - 1) })}
-          className="secondary-button"
-        >
-          Anterior
-        </Link>
-      ) : (
-        <span />
-      )}
-      <span className="text-sm font-semibold text-content-secondary">
-        {page} / {totalPages}
-      </span>
-      {page < totalPages ? (
-        <Link
-          href={hrefWith(query, { pagina: String(page + 1) })}
-          className="secondary-button"
-        >
-          Siguiente
-        </Link>
-      ) : (
-        <span />
-      )}
-    </nav>
-  );
+function scopedRiskLevel(status: string): ClientWorkspaceItem["riskLevel"] {
+  if (status === "pendiente_cobro") return "Alto";
+  if (status === "pendiente_datos" || status.includes("pendiente")) return "Medio";
+  return "Bajo";
+}
+
+function restrictedSmartViewMatch(
+  client: { estado: string },
+  view?: string,
+) {
+  switch (view) {
+    case "seguimiento":
+      return client.estado === "seguimiento_pendiente";
+    case "presupuesto":
+      return ["presupuesto_pendiente", "presupuesto_enviado"].includes(client.estado);
+    case "trabajo":
+    case "activos":
+      return client.estado === "obra_activa";
+    case "cobro":
+      return client.estado === "pendiente_cobro";
+    case "riesgo":
+      return [
+        "pendiente_datos",
+        "visita_pendiente",
+        "presupuesto_pendiente",
+        "presupuesto_enviado",
+        "seguimiento_pendiente",
+        "pendiente_cobro",
+      ].includes(client.estado);
+    case "accion":
+      return actionStatuses.includes(client.estado as (typeof actionStatuses)[number]);
+    case "todos":
+    default:
+      return true;
+  }
+}
+
+function restrictedSmartViewCounts(
+  clients: Array<{ estado: string }>,
+): ClientSmartViewCounts {
+  return {
+    todos: clients.length,
+    seguimiento: clients.filter((client) => restrictedSmartViewMatch(client, "seguimiento")).length,
+    presupuesto: clients.filter((client) => restrictedSmartViewMatch(client, "presupuesto")).length,
+    trabajo: clients.filter((client) => restrictedSmartViewMatch(client, "trabajo")).length,
+    cobro: clients.filter((client) => restrictedSmartViewMatch(client, "cobro")).length,
+    riesgo: clients.filter((client) => restrictedSmartViewMatch(client, "riesgo")).length,
+  };
+}
+
+function buildPortfolioPagination(
+  query: ClientListQuery,
+  result: { page: number; pageSize: number; total: number; totalPages: number },
+): ClientPortfolioPagination {
+  const windowStart = Math.max(1, Math.min(result.page - 2, result.totalPages - 4));
+  const windowEnd = Math.min(result.totalPages, Math.max(5, result.page + 2));
+  const pages = Array.from(
+    { length: Math.max(0, windowEnd - windowStart + 1) },
+    (_, index) => windowStart + index,
+  ).map((page) => ({
+    page,
+    href: hrefWith(query, { pagina: String(page) }),
+    current: page === result.page,
+  }));
+
+  return {
+    ...result,
+    previousHref:
+      result.page > 1
+        ? hrefWith(query, { pagina: String(result.page - 1) })
+        : null,
+    nextHref:
+      result.page < result.totalPages
+        ? hrefWith(query, { pagina: String(result.page + 1) })
+        : null,
+    pages,
+  };
 }
 
 function normalizeQuery(raw: RawSearchParams): ClientListQuery {
   const filters = arrayValue(raw.filtro);
-  const view = stringValue(raw.vista) ?? "accion";
+  const view = stringValue(raw.vista) ?? "todos";
   return {
     buscar: stringValue(raw.buscar),
     vista: view,
     estado: stringValue(raw.estado),
     tipo: stringValue(raw.tipo),
-    archivo:
-      stringValue(raw.archivo) ?? (view === "todos" ? "todos" : "activos"),
+    archivo: stringValue(raw.archivo) ?? "activos",
     ordenar: stringValue(raw.ordenar),
     pagina: stringValue(raw.pagina),
     filtros: filters.length ? filters.join(",") : stringValue(raw.filtros),

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import {
   publishAutomationAction,
   newAutomationVersionAction,
@@ -55,9 +55,7 @@ export default async function AutomationDetailPage({
     policy = parseRetryPolicy((draft ?? current ?? latest)?.retryPolicy ?? {});
   return (
     <main className="screen space-y-5">
-      <Link href="/automatizaciones" className="secondary-button">
-        Volver a automatizaciones
-      </Link>
+      <InternalBreadcrumbs items={[{ label: "Automatizaciones", href: "/automatizaciones" }, { label: item.name }]} />
       <PageHeader
         eyebrow={item.category}
         title={item.name}

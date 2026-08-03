@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { requirePlatformAccount } from "@/lib/commercial/platform";
 import { prisma } from "@/lib/prisma";
 import { operationalMetricCatalog, severityPolicy } from "@/lib/observability/operations";
@@ -12,7 +12,7 @@ export default async function OperationsDashboardPage() {
     prisma.syntheticCheckRun.findMany({ orderBy: { startedAt: "desc" }, take: 30 }),
   ]);
   return <main className="screen">
-    <Link href="/plataforma" className="text-sm text-muted">← Plataforma interna</Link>
+    <InternalBreadcrumbs items={[{ label: "Plataforma", href: "/plataforma" }, { label: "Observabilidad" }]} />
     <h1 className="type-page-title mt-2">Operaciones e incidentes</h1>
     <p className="type-secondary mt-2">Vista protegida de métricas, workers, comprobaciones sintéticas y postmortems. No muestra payloads ni datos personales.</p>
     <div className="mt-5 grid gap-3 sm:grid-cols-4"><Metric label="Métricas recientes" value={metrics.length} /><Metric label="Workers" value={heartbeats.length} /><Metric label="Incidentes abiertos" value={incidents.filter((item) => item.status !== "CLOSED").length} /><Metric label="Synthetics" value={synthetics.length} /></div>

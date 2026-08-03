@@ -62,15 +62,14 @@ test("presupuestos no forman parte de la previsión de caja", () => { const sour
 test("tablas y gráfico tienen alternativa accesible", () => { const source = readFileSync(join(root, "components/economic-control-center.tsx"), "utf8"); assert.match(source, /ResponsiveTable label=/); assert.match(source, /role=\"img\"/); assert.match(source, /sr-only/); assert.match(source, /aria-label=\"Seleccionar periodo\"|label=\"Periodo\"/); });
 test("Tesorería conserva carga y error seguros", () => { assert.ok(readFileSync(join(root, "app/(app)/tesoreria/loading.tsx"), "utf8").length > 0); assert.ok(readFileSync(join(root, "app/(app)/tesoreria/error.tsx"), "utf8").length > 0); });
 test("la consulta deriva companyId de sesión y filtra todos los agregados", () => { const source = readFileSync(join(root, "lib/economic-control/queries.ts"), "utf8"); assert.match(source, /requireCompanyContext/); for (const model of ["invoice", "purchaseInvoice", "expense", "client", "work"]) assert.match(source, new RegExp(`prisma\\.${model}\\.findMany\\(\\{[\\s\\S]*?where: \\{ companyId`)); });
-test("Cliente, Obra y Dashboard consumen el control compartido; Hoy delega destinos económicos por perfil", () => {
-  for (const path of ["app/(app)/clientes/[id]/page.tsx", "app/(app)/obras/[id]/page.tsx", "app/(app)/dashboard/page.tsx"]) {
+test("Dinero, Cliente y Obra consumen el control económico compartido", () => {
+  for (const path of ["app/(app)/dinero/page.tsx", "app/(app)/clientes/[id]/page.tsx", "app/(app)/obras/[id]/page.tsx"]) {
     assert.match(readFileSync(join(root, path), "utf8"), /getEconomicControl/);
   }
-  const today = readFileSync(join(root, "app/(app)/hoy/page.tsx"), "utf8");
-  assert.match(today, /buildPortalManifest/);
-  assert.match(today, /economy: \["\/dashboard"\]/);
-  assert.match(today, /treasury: \["\/tesoreria"\]/);
 });
+test("Dinero exige alcance COMPANY en todos los dominios antes de cargar agregados", () => { const page = readFileSync(join(root, "app/(app)/dinero/page.tsx"), "utf8"); assert.match(page, /auth\.scope === "COMPANY"/); assert.match(page, /decision\.allowed && decision\.scope === "COMPANY"/); for (const capability of ["clients.view", "work.view", "sales.budgets.view", "sales.pricing.view", "treasury.view"]) assert.match(page, new RegExp(`"${capability}"`)); assert.match(page, /surface="money"/); });
+test("Tesorería permanece accesible desde el submenú Dinero para quien tiene capacidad", () => { const navigation = readFileSync(join(root, "lib/product-navigation.ts"), "utf8"); const center = readFileSync(join(root, "components/economic-control-center.tsx"), "utf8"); assert.match(navigation, /href: "\/tesoreria"[\s\S]*?capability: "treasury\.view"/); assert.match(center, /action="\/tesoreria"|returnTo=\/tesoreria|economicHref/); });
+test("el contexto financiero se publica también tras una carga directa", () => { const context = readFileSync(join(root, "components/portal/money-rail-context.tsx"), "utf8"); assert.match(context, /requestAnimationFrame\(publish\)/); assert.match(context, /cancelAnimationFrame\(frame\)/); });
 test("Capataz recibe agregados limitados y enlaza siempre al origen", () => { const page = readFileSync(join(root, "app/(app)/capataz/page.tsx"), "utf8"); const chat = readFileSync(join(root, "components/capataz-chat.tsx"), "utf8"); assert.match(page, /economicContext/); assert.match(chat, /Contexto limitado a cifras agregadas y trazables/); assert.match(chat, /Abrir origen/); });
 test("el control económico no añade Prisma, migraciones, cron ni persistencia", () => { const sources = ["lib/economic-control/types.ts", "lib/economic-control/metrics.ts", "lib/economic-control/queries.ts", "components/economic-control-center.tsx"].map((path) => readFileSync(join(root, path), "utf8")).join("\n"); assert.doesNotMatch(sources, /prisma\.(create|update|delete)|cron|migrate|schema\.prisma|openai/i); });
 

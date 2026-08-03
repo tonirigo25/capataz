@@ -121,7 +121,9 @@ export async function archiveClient(formData: FormData) {
 export async function restoreClient(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Falta el cliente.");
-  const { companyId } = await requireCapability("clients.update");
+  const auth = await requireCapability("clients.update");
+  const { companyId } = auth;
+  await assertScopedEntityAccess(auth, "clients.update", "Client", id);
 
   await prisma.client.updateMany({
     where: { id, companyId },

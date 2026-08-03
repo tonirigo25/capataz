@@ -16,6 +16,7 @@ export async function createTask(input: {
   requiresConfirmation?: boolean;
   parentTaskId?: string;
   assigneeId?: string;
+  createdById?: string;
 }) {
   const companyId=input.companyId;
   return prisma.task.create({

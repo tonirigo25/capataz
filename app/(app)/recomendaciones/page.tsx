@@ -2,39 +2,42 @@ import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  ChevronRight,
   Clock3,
+  ExternalLink,
+  FileSearch,
+  History,
   Lightbulb,
-  PauseCircle,
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   acceptRecommendationAction,
   dismissRecommendationAction,
   executeRecommendationAction,
   markRecommendationViewedAction,
-  snoozeRecommendationAction
+  snoozeRecommendationAction,
 } from "@/app/(app)/recomendaciones/actions";
-import { CompactFilterBar, EmptyState, Notice, PageHeader, ResultCount } from "@/components/ui-primitives";
 import {
   getBusinessRecommendations,
   type BusinessRecommendation,
-  type BusinessRecommendationGroup,
-  type BusinessRecommendationStatus
+  type BusinessRecommendationStatus,
 } from "@/lib/business-recommendations";
 import {
-  formatSignalLevel,
   signalSourceLabel,
   type BusinessSignalLevel,
-  type BusinessSignalSource
+  type BusinessSignalSource,
 } from "@/lib/business-signals";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCapability } from "@/lib/commercial/authorization";
 import { getProactiveAuditEventsForRecommendations } from "@/lib/proactive-evaluation";
+import styles from "./recommendations-page.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +46,20 @@ type RecommendationsSearchParams = {
   nivel?: string;
   origen?: string;
   q?: string;
+  seleccion?: string;
 };
 
-const STATUS_OPTIONS: Array<{ value: BusinessRecommendationStatus | "all" | "history"; label: string }> = [
+type CurrentFilters = {
+  estado: BusinessRecommendationStatus | "all" | "history";
+  nivel: BusinessSignalLevel | "all";
+  origen: BusinessSignalSource | "all";
+  q: string;
+};
+
+const STATUS_OPTIONS: Array<{
+  value: BusinessRecommendationStatus | "all" | "history";
+  label: string;
+}> = [
   { value: "active", label: "Activas" },
   { value: "viewed", label: "Vistas" },
   { value: "accepted", label: "Aceptadas" },
@@ -56,18 +70,24 @@ const STATUS_OPTIONS: Array<{ value: BusinessRecommendationStatus | "all" | "his
   { value: "obsolete", label: "Obsoletas" },
   { value: "failed", label: "Fallidas" },
   { value: "history", label: "Histórico" },
-  { value: "all", label: "Todas" }
+  { value: "all", label: "Todas" },
 ];
 
-const LEVEL_OPTIONS: Array<{ value: BusinessSignalLevel | "all"; label: string }> = [
+const LEVEL_OPTIONS: Array<{
+  value: BusinessSignalLevel | "all";
+  label: string;
+}> = [
   { value: "all", label: "Todos los niveles" },
   { value: "critico", label: "CRÍTICO" },
   { value: "importante", label: "IMPORTANTE" },
   { value: "atencion", label: "ATENCIÓN" },
-  { value: "info", label: "INFO" }
+  { value: "info", label: "INFO" },
 ];
 
-const SOURCE_OPTIONS: Array<{ value: BusinessSignalSource | "all"; label: string }> = [
+const SOURCE_OPTIONS: Array<{
+  value: BusinessSignalSource | "all";
+  label: string;
+}> = [
   "all",
   "crm",
   "obras",
@@ -82,321 +102,844 @@ const SOURCE_OPTIONS: Array<{ value: BusinessSignalSource | "all"; label: string
   "visitas",
   "gastos",
   "presupuestos",
-  "datos"
-].map((value) => ({ value: value as BusinessSignalSource | "all", label: value === "all" ? "Todos los orígenes" : signalSourceLabel(value as BusinessSignalSource) }));
+  "datos",
+].map((value) => ({
+  value: value as BusinessSignalSource | "all",
+  label:
+    value === "all"
+      ? "Todos los orígenes"
+      : signalSourceLabel(value as BusinessSignalSource),
+}));
 
 export default async function RecommendationsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<RecommendationsSearchParams>;
 }) {
   const query = await searchParams;
-  const estado = validStatus(query.estado);
-  const nivel = validLevel(query.nivel);
-  const origen = validSource(query.origen);
-  const q = query.q?.trim() ?? "";
+  const filters: CurrentFilters = {
+    estado: validStatus(query.estado),
+    nivel: validLevel(query.nivel),
+    origen: validSource(query.origen),
+    q: query.q?.trim() ?? "",
+  };
   const { companyId } = await requireCapability("orqena.execute");
-  const result = await getBusinessRecommendations({ companyId, status: estado, level: nivel, source: origen, q, limit: 250 });
-  const recommendationHistory = await getProactiveAuditEventsForRecommendations(result.recommendations.map((item) => item.fingerprint));
+  const result = await getBusinessRecommendations({
+    companyId,
+    status: filters.estado,
+    level: filters.nivel,
+    source: filters.origen,
+    q: filters.q,
+    limit: 250,
+  });
+  const selectedRecommendation = query.seleccion
+    ? (result.recommendations.find((item) => item.id === query.seleccion) ??
+      null)
+    : null;
+  const recommendationHistory = selectedRecommendation
+    ? await getProactiveAuditEventsForRecommendations([
+        selectedRecommendation.fingerprint,
+      ])
+    : {};
+  const activeFilterCount = [
+    filters.estado !== "active",
+    filters.nivel !== "all",
+    filters.origen !== "all",
+    Boolean(filters.q),
+  ].filter(Boolean).length;
 
   return (
-    <main className="screen">
-      <PageHeader
-        eyebrow="Director de operaciones"
-        title="Centro de recomendaciones"
-        description="Una decisión propuesta con origen, evidencia, impacto y confirmación humana antes de cualquier cambio."
-        badge={<span className="rounded-full bg-content px-3 py-1 text-xs font-black text-surface">{result.summary.active} activas</span>}
-        secondaryActions={
-          <>
-            <Link href="/recomendaciones/control" className="secondary-button"><Activity size={18} /> Control proactivo</Link>
-            <Link href="/alertas" className="secondary-button"><AlertTriangle size={18} /> Ver alertas</Link>
-          </>
-        }
-      >
-        <CompactFilterBar><form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" action="/recomendaciones">
-          <FilterSelect name="estado" label="Estado" value={estado} options={STATUS_OPTIONS} />
-          <FilterSelect name="nivel" label="Nivel" value={nivel} options={LEVEL_OPTIONS} />
-          <FilterSelect name="origen" label="Origen" value={origen} options={SOURCE_OPTIONS} />
-          <label className="block">
-            <span className="label mb-1 block">Buscar</span>
-            <span className="relative block">
-              <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input className="field min-h-11 pl-10" name="q" placeholder="Cliente, obra, factura, acción..." defaultValue={q} />
+    <main className={styles.page}>
+      <RecommendationBreadcrumbs
+        filters={filters}
+        recommendation={selectedRecommendation}
+      />
+
+      <header className={styles.header}>
+        <div className={styles.heading}>
+          <p className={styles.eyebrow}>
+            <Sparkles size={14} aria-hidden="true" />
+            Decisiones supervisadas
+          </p>
+          <div className={styles.titleLine}>
+            <h1>Centro de recomendaciones</h1>
+            <span className={styles.activeBadge}>
+              {result.summary.active} activas
             </span>
-          </label>
-          <button className="secondary-button self-end" type="submit">
-            <SlidersHorizontal size={18} />
-            Filtrar
-          </button>
-        </form></CompactFilterBar>
-      </PageHeader>
+          </div>
+          <p>
+            Prioridades explicadas con origen, impacto y confirmación humana
+            antes de ejecutar cambios.
+          </p>
+        </div>
+        <div className={styles.headerActions}>
+          <Link
+            href="/recomendaciones/control"
+            className={styles.secondaryButton}
+          >
+            <Activity size={16} /> Control proactivo
+          </Link>
+          <Link href="/alertas" className={styles.secondaryButton}>
+            <AlertTriangle size={16} /> Alertas
+          </Link>
+        </div>
+      </header>
 
-      <ResultCount shown={result.recommendations.length} total={result.recommendations.length} noun="recomendaciones" />
-
-      {!result.persistenceAvailable ? (
-        <Notice
+      <section
+        className={styles.metrics}
+        aria-label="Resumen de recomendaciones"
+      >
+        <Metric
+          label="Activas"
+          value={result.summary.active}
+          icon={Lightbulb}
           tone="warning"
-          title="Persistencia pendiente"
-          description="La lectura de recomendaciones funciona en modo derivado. Posponer, descartar y ejecutar requieren la migración de recomendaciones aplicada."
+          href={recommendationsHref({ ...filters, estado: "active" })}
         />
-      ) : null}
-
-      <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
-        <Metric label="Activas" value={result.summary.active} icon={Lightbulb} tone="warning" />
-        <Metric label="Importantes" value={result.summary.important} icon={AlertTriangle} tone="danger" />
-        <Metric label="En curso" value={result.summary.inProgress} icon={Clock3} tone="info" />
-        <Metric label="Completadas" value={result.summary.completed} icon={CheckCircle2} tone="success" />
-        <Metric label="Pospuestas" value={result.summary.snoozed} icon={PauseCircle} tone="neutral" />
-        <Metric label="Descartadas" value={result.summary.dismissed} icon={ShieldCheck} tone="neutral" />
-        <Metric label="Impacto" value={formatCurrency(result.summary.totalAmount)} icon={Sparkles} tone="neutral" />
+        <Metric
+          label="Importantes"
+          value={result.summary.important}
+          icon={AlertTriangle}
+          tone="danger"
+          href={recommendationsHref({
+            ...filters,
+            estado: "all",
+            nivel: "importante",
+          })}
+        />
+        <Metric
+          label="En curso"
+          value={result.summary.inProgress}
+          icon={Clock3}
+          tone="info"
+          href={recommendationsHref({ ...filters, estado: "in_progress" })}
+        />
+        <Metric
+          label="Impacto identificado"
+          value={formatCurrency(result.summary.totalAmount)}
+          icon={Sparkles}
+          tone="success"
+        />
       </section>
 
-      {result.summary.top ? (
-        <section className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="flex items-center gap-2 text-sm font-black uppercase"><Lightbulb size={18} /> Siguiente mejor acción · {result.summary.top.levelText}</p>
-              <h2 className="mt-2 text-xl font-black">{result.summary.top.title}</h2>
-              <p className="mt-1 text-sm leading-6">{result.summary.top.summary}</p>
-            </div>
-            <PrimaryAction recommendation={result.summary.top} compact />
+      <RecommendationFilters
+        filters={filters}
+        activeFilterCount={activeFilterCount}
+      />
+
+      <div className={styles.resultLine} aria-live="polite">
+        <p>
+          <strong>{result.recommendations.length}</strong> recomendaciones
+          visibles
+        </p>
+        <p>Actualizado {formatDate(result.generatedAt)}</p>
+      </div>
+
+      {!result.persistenceAvailable ? (
+        <aside className={styles.persistenceNotice} role="status">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>Acciones temporalmente no disponibles</strong>
+            <p>
+              La lectura derivada continúa operativa. Las transiciones se
+              mantienen bloqueadas hasta disponer de persistencia.
+            </p>
           </div>
-        </section>
+        </aside>
       ) : null}
 
-      <section className="mt-6">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="label">Agrupación</p>
-            <h2 className="text-xl font-black text-obra-ink">Recomendaciones agrupadas por tipo</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Cada grupo enseña las 3 principales para evitar ruido. Las acciones de negocio no se ejecutan con el primer clic.</p>
-          </div>
-          <p className="text-sm font-bold text-content-secondary">Generado {formatDate(result.generatedAt)}</p>
+      <section
+        className={styles.workspace}
+        data-has-selection={selectedRecommendation ? "true" : "false"}
+        aria-label="Listado y detalle de recomendaciones"
+      >
+        <div className={styles.listPane}>
+          <header className={styles.paneHeader}>
+            <div>
+              <p className={styles.sectionEyebrow}>Prioridad registrada</p>
+              <h2>Listado</h2>
+            </div>
+            <span>{result.recommendations.length}</span>
+          </header>
+
+          {result.recommendations.length ? (
+            <div className={styles.recommendationList}>
+              {result.recommendations.map((recommendation) => (
+                <RecommendationListItem
+                  key={recommendation.id}
+                  recommendation={recommendation}
+                  href={recommendationsHref(filters, recommendation.id)}
+                  selected={recommendation.id === selectedRecommendation?.id}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className={styles.emptyState}>
+              <CheckCircle2 size={24} aria-hidden="true" />
+              <div>
+                <h3>No hay recomendaciones con estos filtros</h3>
+                <p>Amplía los filtros para revisar otras prioridades.</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {result.groups.length ? (
-          <div className="grid gap-4">
-            {result.groups.map((group) => <RecommendationGroupCard key={group.key} group={group} historyByFingerprint={recommendationHistory} />)}
-          </div>
-        ) : (
-          <EmptyState
-            title="No hay recomendaciones con estos filtros"
-            description="Amplía los filtros para revisar otras prioridades y estados."
-            icon={CheckCircle2}
-          />
-        )}
+        <aside
+          className={styles.detailPane}
+          aria-label="Detalle de recomendación"
+        >
+          {selectedRecommendation ? (
+            <RecommendationDetail
+              recommendation={selectedRecommendation}
+              history={
+                recommendationHistory[selectedRecommendation.fingerprint] ?? []
+              }
+              persistenceAvailable={result.persistenceAvailable}
+              backHref={recommendationsHref(filters)}
+            />
+          ) : (
+            <RecommendationDetailEmpty
+              selectionRequested={Boolean(query.seleccion)}
+              clearHref={recommendationsHref(filters)}
+            />
+          )}
+        </aside>
       </section>
     </main>
   );
 }
 
-type RecommendationHistory = Awaited<ReturnType<typeof getProactiveAuditEventsForRecommendations>>;
+type RecommendationHistory = Awaited<
+  ReturnType<typeof getProactiveAuditEventsForRecommendations>
+>[string];
 
-function RecommendationGroupCard({ group, historyByFingerprint }: { group: BusinessRecommendationGroup; historyByFingerprint: RecommendationHistory }) {
+function RecommendationBreadcrumbs({
+  filters,
+  recommendation,
+}: {
+  filters: CurrentFilters;
+  recommendation: BusinessRecommendation | null;
+}) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase text-slate-500">{signalSourceLabel(group.source)} · {formatSignalLevel(group.level)}</p>
-          <h3 className="mt-1 text-lg font-black text-obra-ink">{group.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{withoutOpaquePriority(group.explanation)}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-sm sm:min-w-60">
-          <Mini label="Recomendaciones" value={group.count} />
-          <Mini label="Impacto" value={group.totalAmount ? formatCurrency(group.totalAmount) : "Sin importe"} />
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3">
-        {group.topRecommendations.map((recommendation) => (
-          <RecommendationCard key={recommendation.fingerprint} recommendation={recommendation} history={historyByFingerprint[recommendation.fingerprint] ?? []} />
-        ))}
-      </div>
-    </section>
+    <nav className={styles.breadcrumb} aria-label="Ruta de navegación">
+      <ol>
+        <li>
+          <Link href="/hoy">Hoy</Link>
+        </li>
+        <li aria-hidden="true">
+          <ChevronRight size={13} />
+        </li>
+        <li>
+          {recommendation ? (
+            <Link href={recommendationsHref(filters)}>Recomendaciones</Link>
+          ) : (
+            <span aria-current="page">Recomendaciones</span>
+          )}
+        </li>
+        {recommendation ? (
+          <>
+            <li aria-hidden="true">
+              <ChevronRight size={13} />
+            </li>
+            <li className={styles.breadcrumbCurrent}>
+              <span aria-current="page">{recommendation.title}</span>
+            </li>
+          </>
+        ) : null}
+      </ol>
+    </nav>
   );
 }
 
-function RecommendationCard({ recommendation, history }: { recommendation: BusinessRecommendation; history: RecommendationHistory[string] }) {
+function RecommendationFilters({
+  filters,
+  activeFilterCount,
+}: {
+  filters: CurrentFilters;
+  activeFilterCount: number;
+}) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4" data-recommendation-level={recommendation.level} data-recommendation-source={recommendation.source}>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-xs font-black uppercase text-slate-500">
-            <span>{recommendation.levelText}</span>
-            <span>·</span>
-            <span>{recommendation.statusLabel}</span>
-            <span>·</span>
-            <span>{recommendation.dueAt ? formatDate(recommendation.dueAt) : "Sin vencimiento"}</span>
-          </p>
-          <h4 className="mt-1 text-base font-black text-obra-ink">{recommendation.title}</h4>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{recommendation.summary}</p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
-            <span className="rounded-full bg-white px-2.5 py-1">Nivel {recommendation.levelText}</span>
-            <span className="rounded-full bg-white px-2.5 py-1">{recommendation.sourceLabel}</span>
-            {recommendation.amount ? <span className="rounded-full bg-white px-2.5 py-1">{formatCurrency(recommendation.amount)}</span> : null}
-            {recommendation.snoozedUntil ? <span className="rounded-full bg-white px-2.5 py-1">Hasta {formatDate(recommendation.snoozedUntil)}</span> : null}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 xl:max-w-sm xl:justify-end">
-          <PrimaryAction recommendation={recommendation} />
-          {recommendation.entityHref ? (
-            <Link href={recommendation.entityHref} className="secondary-button min-h-10 px-3 py-1 text-xs">
-              Abrir entidad
-              <ArrowRight size={16} />
-            </Link>
-          ) : null}
-          <form action={markRecommendationViewedAction}>
-            <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-            <button className="secondary-button min-h-10 px-3 py-1 text-xs" type="submit">Marcar revisada</button>
-          </form>
-        </div>
+    <form className={styles.filters} action="/recomendaciones">
+      <FilterSelect
+        name="estado"
+        label="Estado"
+        value={filters.estado}
+        options={STATUS_OPTIONS}
+      />
+      <FilterSelect
+        name="nivel"
+        label="Nivel"
+        value={filters.nivel}
+        options={LEVEL_OPTIONS}
+      />
+      <FilterSelect
+        name="origen"
+        label="Origen"
+        value={filters.origen}
+        options={SOURCE_OPTIONS}
+      />
+      <label className={styles.searchField}>
+        <span>Buscar</span>
+        <span className={styles.searchControl}>
+          <Search size={15} aria-hidden="true" />
+          <input
+            name="q"
+            placeholder="Cliente, obra, factura o acción"
+            defaultValue={filters.q}
+          />
+        </span>
+      </label>
+      <div className={styles.filterActions}>
+        {activeFilterCount ? (
+          <Link href="/recomendaciones" className={styles.ghostButton}>
+            Limpiar ({activeFilterCount})
+          </Link>
+        ) : null}
+        <button className={styles.filterButton} type="submit">
+          <SlidersHorizontal size={16} /> Filtrar
+        </button>
       </div>
-
-      <details className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-        <summary className="cursor-pointer text-sm font-black text-obra-ink">Por qué y seguimiento: regla y evidencia</summary>
-        <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-600 lg:grid-cols-2">
-          <div>
-            <p className="font-black text-obra-ink">Explicación</p>
-            <p className="mt-1">{recommendation.detailedExplanation}</p>
-            <p className="mt-3 font-black text-obra-ink">Señal origen</p>
-            <p className="mt-1">{recommendation.evidence.signalTitle ?? recommendation.title}</p>
-            <p className="mt-3 font-black text-obra-ink">Resultado esperado</p>
-            <p className="mt-1">{recommendation.preferredAction?.expectedOutcome ?? "Revisar la información y decidir la siguiente acción."}</p>
-          </div>
-          <div>
-            <p className="font-black text-obra-ink">Datos usados</p>
-            <ul className="mt-1 grid gap-1">
-              {recommendation.evidence.dataUsed.length ? recommendation.evidence.dataUsed.map((item) => <li key={item}>- {item}</li>) : <li>- Señal persistida y entidad relacionada.</li>}
-            </ul>
-            <p className="mt-3 font-black text-obra-ink">Criterios aplicados</p>
-            <ul className="mt-1 grid gap-1">
-              {recommendation.evidence.scoreBreakdown.map((item) => <li key={`${item.label}-${item.detail}`}>- {item.label}: {item.detail}</li>)}
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 border-t border-slate-100 pt-3 xl:grid-cols-[1fr_auto]">
-          <div className="flex flex-wrap gap-2">
-            {recommendation.alternativeActions.slice(0, 2).map((action) => action.href ? (
-              <Link key={`${recommendation.fingerprint}-${action.id}`} href={action.href} className="secondary-button min-h-10 px-3 py-1 text-xs">
-                {action.label}
-              </Link>
-            ) : null)}
-            <form action={snoozeRecommendationAction} className="flex flex-wrap gap-2">
-              <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-              <button className="secondary-button min-h-10 px-3 py-1 text-xs" name="preset" value="tomorrow" type="submit">Mañana</button>
-              <button className="secondary-button min-h-10 px-3 py-1 text-xs" name="preset" value="week" type="submit">Esta semana no</button>
-            </form>
-          </div>
-          {recommendation.status !== "dismissed" && recommendation.status !== "completed" && recommendation.status !== "obsolete" ? (
-            <form action={dismissRecommendationAction} className="flex flex-col gap-2 sm:min-w-80 sm:flex-row">
-              <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-              <input className="field min-h-10 text-sm" name="reason" placeholder="Motivo de descarte" />
-              <button className="secondary-button min-h-10 px-3 py-1 text-xs" type="submit">Descartar</button>
-            </form>
-          ) : (
-            <p className="text-xs font-bold text-slate-500">
-              {recommendation.dismissedAt ? `Descartada ${formatDate(recommendation.dismissedAt)}${recommendation.dismissedReason ? `: ${recommendation.dismissedReason}` : ""}` : null}
-              {recommendation.completedAt ? ` Completada ${formatDate(recommendation.completedAt)}.` : null}
-              {recommendation.outcome ? ` ${recommendation.outcome.message}` : null}
-            </p>
-          )}
-        </div>
-
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <p className="font-black text-obra-ink">Historial</p>
-          {history.length ? (
-            <ol className="mt-2 grid gap-2">
-              {history.map((event) => (
-                <li key={`${event.eventType}-${event.createdAt.toISOString()}`} className="rounded-lg bg-slate-50 p-2">
-                  <p className="text-xs font-black uppercase text-slate-500">{formatDate(event.createdAt)} · {eventLabel(event.eventType)}</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {event.previousStatus ? `${event.previousStatus} -> ${event.nextStatus ?? "sin cambio"}. ` : ""}
-                    {event.reason ?? "Evento registrado por el sistema proactivo."}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="mt-1 text-sm text-slate-600">Aún no hay actividad del sistema proactivo para esta recomendación.</p>
-          )}
-        </div>
-      </details>
-    </article>
-  );
-}
-
-function PrimaryAction({ recommendation, compact = false }: { recommendation: BusinessRecommendation; compact?: boolean }) {
-  const action = recommendation.preferredAction ?? recommendation.suggestedActions[0];
-  if (!action) return null;
-  if (action.href) {
-    return (
-      <Link href={action.href} className={`${compact ? "primary-button bg-white text-obra-ink" : "secondary-button min-h-10 px-3 py-1 text-xs"}`}>
-        {action.label}
-        <ArrowRight size={16} />
-      </Link>
-    );
-  }
-  if (action.requiresConfirmation) {
-    return (
-      <details className="rounded-lg border border-amber-200 bg-white p-2 text-sm">
-        <summary className={`${compact ? "primary-button bg-white text-obra-ink" : "secondary-button"} cursor-pointer`}>{action.label}</summary>
-        <div className="mt-2 grid gap-2">
-          <p className="text-xs leading-5 text-slate-600">{action.description}</p>
-          <ul className="grid gap-1 text-xs text-slate-600">
-            {(action.preview ?? []).slice(0, 3).map((row) => <li key={`${action.id}-${row.label}`}><strong>{row.label}:</strong> {row.value}</li>)}
-          </ul>
-          <form action={executeRecommendationAction}>
-            <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-            <input type="hidden" name="actionId" value={action.id} />
-            <input type="hidden" name="confirmed" value="true" />
-            <input type="hidden" name="idempotencyKey" value={`${recommendation.fingerprint}:${action.id}`} />
-            <button className="secondary-button min-h-10 w-full px-3 py-1 text-xs" type="submit">Confirmar</button>
-          </form>
-        </div>
-      </details>
-    );
-  }
-  return (
-    <form action={acceptRecommendationAction}>
-      <input type="hidden" name="fingerprint" value={recommendation.fingerprint} />
-      <button className={`${compact ? "primary-button" : "secondary-button"} min-h-10 px-3 py-1 text-xs`} type="submit">{action.label}</button>
     </form>
   );
 }
 
-function withoutOpaquePriority(explanation: string) {
-  return explanation
-    .replace(/\s*Las \d+ principales concentran prioridad [0-9,\s]+\.?/iu, "")
-    .trim();
-}
-
-function Metric({ label, value, icon: Icon, tone }: { label: string; value: string | number; icon: typeof Lightbulb; tone: "neutral" | "success" | "warning" | "danger" | "info" }) {
-  const classes = {
-    neutral: "border-slate-200 bg-white text-slate-700",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    warning: "border-amber-200 bg-amber-50 text-amber-900",
-    danger: "border-red-200 bg-red-50 text-red-800",
-    info: "border-blue-200 bg-blue-50 text-blue-800"
-  }[tone];
-
+function RecommendationListItem({
+  recommendation,
+  href,
+  selected,
+}: {
+  recommendation: BusinessRecommendation;
+  href: string;
+  selected: boolean;
+}) {
   return (
-    <article className={`rounded-xl border p-4 shadow-soft ${classes}`}>
-      <Icon size={19} />
-      <p className="mt-2 text-sm font-bold opacity-80">{label}</p>
-      <p className="mt-1 text-2xl font-black tabular-nums">{value}</p>
+    <article
+      className={styles.recommendationRow}
+      data-level={recommendation.level}
+      data-selected={selected ? "true" : "false"}
+    >
+      <Link href={href} aria-current={selected ? "true" : undefined}>
+        <span className={styles.rowMarker} aria-hidden="true" />
+        <span className={styles.rowContent}>
+          <span className={styles.recommendationMeta}>
+            <span
+              className={`${styles.levelBadge} ${levelClass(recommendation.level)}`}
+            >
+              {recommendation.levelText}
+            </span>
+            <span>{recommendation.sourceLabel}</span>
+            <span>{recommendation.statusLabel}</span>
+          </span>
+          <strong>{recommendation.title}</strong>
+          <span className={styles.rowSummary}>{recommendation.summary}</span>
+          <span className={styles.rowFacts}>
+            {recommendation.amount ? (
+              <span>{formatCurrency(recommendation.amount)}</span>
+            ) : null}
+            <span>
+              {recommendation.dueAt
+                ? `Vence ${formatDate(recommendation.dueAt)}`
+                : `Detectada ${formatDate(recommendation.detectedAt)}`}
+            </span>
+          </span>
+        </span>
+        <ChevronRight size={17} className={styles.rowChevron} />
+      </Link>
     </article>
   );
 }
 
-function Mini({ label, value }: { label: string; value: string | number }) {
+function RecommendationDetail({
+  recommendation,
+  history,
+  persistenceAvailable,
+  backHref,
+}: {
+  recommendation: BusinessRecommendation;
+  history: RecommendationHistory;
+  persistenceAvailable: boolean;
+  backHref: string;
+}) {
+  const preferredAction =
+    recommendation.preferredAction ?? recommendation.suggestedActions[0];
+  const terminal = ["dismissed", "completed", "obsolete"].includes(
+    recommendation.status,
+  );
+
   return (
-    <div className="rounded-lg bg-slate-50 p-2">
-      <p className="text-[11px] font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-black text-obra-ink">{value}</p>
+    <div className={styles.detail}>
+      <header className={styles.detailHeader}>
+        <Link href={backHref} className={styles.backLink}>
+          <ArrowLeft size={15} /> Volver al listado
+        </Link>
+        <div className={styles.detailBadges}>
+          <span
+            className={`${styles.levelBadge} ${levelClass(recommendation.level)}`}
+          >
+            {recommendation.levelText}
+          </span>
+          <span>{recommendation.sourceLabel}</span>
+          <span>{recommendation.statusLabel}</span>
+        </div>
+        <h2>{recommendation.title}</h2>
+        <p>{recommendation.summary}</p>
+      </header>
+
+      <dl className={styles.detailFacts}>
+        <DetailFact
+          label="Impacto registrado"
+          value={
+            recommendation.amount
+              ? formatCurrency(recommendation.amount)
+              : "Sin importe asociado"
+          }
+        />
+        <DetailFact
+          label="Entidad"
+          value={recommendation.entityLabel ?? "Sin entidad relacionada"}
+        />
+        <DetailFact
+          label="Detectada"
+          value={formatDate(recommendation.detectedAt)}
+        />
+        <DetailFact
+          label="Vencimiento"
+          value={
+            recommendation.dueAt
+              ? formatDate(recommendation.dueAt)
+              : "Sin vencimiento"
+          }
+        />
+      </dl>
+
+      <section
+        className={styles.actionSection}
+        aria-labelledby="recommendation-actions-title"
+      >
+        <div className={styles.detailSectionHeading}>
+          <div>
+            <p className={styles.sectionEyebrow}>Siguiente paso</p>
+            <h3 id="recommendation-actions-title">Acciones disponibles</h3>
+          </div>
+          {recommendation.requiresConfirmation ? (
+            <span className={styles.humanBadge}>
+              <ShieldCheck size={13} /> Confirmación humana
+            </span>
+          ) : null}
+        </div>
+        <div className={styles.primaryActions}>
+          <PrimaryAction
+            recommendation={recommendation}
+            persistenceAvailable={persistenceAvailable}
+          />
+          {recommendation.entityHref ? (
+            <Link
+              href={recommendation.entityHref}
+              className={styles.secondaryButton}
+            >
+              Abrir entidad <ExternalLink size={14} />
+            </Link>
+          ) : null}
+          {persistenceAvailable && !terminal ? (
+            <form action={markRecommendationViewedAction}>
+              <input
+                type="hidden"
+                name="fingerprint"
+                value={recommendation.fingerprint}
+              />
+              <button className={styles.ghostButton} type="submit">
+                Marcar revisada
+              </button>
+            </form>
+          ) : null}
+        </div>
+        {preferredAction?.description ? (
+          <p className={styles.actionExplanation}>
+            {preferredAction.description}
+          </p>
+        ) : null}
+      </section>
+
+      <section
+        className={styles.evidenceSection}
+        aria-labelledby="recommendation-evidence-title"
+      >
+        <div className={styles.detailSectionHeading}>
+          <div>
+            <p className={styles.sectionEyebrow}>Trazabilidad</p>
+            <h3 id="recommendation-evidence-title">Por qué y seguimiento</h3>
+          </div>
+          <span className={styles.ruleId}>
+            {recommendation.ruleId ?? "Regla no persistida"}
+          </span>
+        </div>
+        <div className={styles.evidenceGrid}>
+          <div>
+            <h4>Explicación</h4>
+            <p>{recommendation.detailedExplanation}</p>
+            <h4>Resultado esperado</h4>
+            <p>
+              {preferredAction?.expectedOutcome ??
+                recommendation.evidence.consequence ??
+                "Sin resultado esperado persistido."}
+            </p>
+          </div>
+          <div>
+            <h4>Datos usados</h4>
+            {recommendation.evidence.dataUsed.length ? (
+              <ul>
+                {recommendation.evidence.dataUsed.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No hay un desglose de datos persistido.</p>
+            )}
+            <h4>Criterios aplicados</h4>
+            {recommendation.evidence.scoreBreakdown.length ? (
+              <ul>
+                {recommendation.evidence.scoreBreakdown.map((item) => (
+                  <li key={`${item.label}-${item.detail}`}>
+                    <strong>{item.label}:</strong> {item.detail}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No hay criterios desglosados para esta señal.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {persistenceAvailable ? (
+        <section
+          className={styles.followupSection}
+          aria-labelledby="recommendation-followup-title"
+        >
+          <div className={styles.detailSectionHeading}>
+            <div>
+              <p className={styles.sectionEyebrow}>Control</p>
+              <h3 id="recommendation-followup-title">Posponer o cerrar</h3>
+            </div>
+          </div>
+          {!terminal ? (
+            <div className={styles.followupActions}>
+              <div className={styles.alternativeActions}>
+                {recommendation.alternativeActions
+                  .filter((action) => Boolean(action.href))
+                  .slice(0, 2)
+                  .map((action) => (
+                    <Link
+                      key={`${recommendation.fingerprint}-${action.id}`}
+                      href={action.href!}
+                      className={styles.secondaryButton}
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                <form action={snoozeRecommendationAction}>
+                  <input
+                    type="hidden"
+                    name="fingerprint"
+                    value={recommendation.fingerprint}
+                  />
+                  <button
+                    className={styles.ghostButton}
+                    name="preset"
+                    value="tomorrow"
+                    type="submit"
+                  >
+                    Posponer a mañana
+                  </button>
+                  <button
+                    className={styles.ghostButton}
+                    name="preset"
+                    value="week"
+                    type="submit"
+                  >
+                    Posponer una semana
+                  </button>
+                </form>
+              </div>
+              <form
+                action={dismissRecommendationAction}
+                className={styles.dismissForm}
+              >
+                <input
+                  type="hidden"
+                  name="fingerprint"
+                  value={recommendation.fingerprint}
+                />
+                <label>
+                  <span>Motivo del descarte</span>
+                  <input
+                    name="reason"
+                    placeholder="Explica por qué no aplica"
+                    maxLength={240}
+                    required
+                  />
+                </label>
+                <button className={styles.ghostButton} type="submit">
+                  Descartar recomendación
+                </button>
+              </form>
+            </div>
+          ) : (
+            <p className={styles.closedState}>
+              {recommendation.dismissedAt
+                ? `Descartada ${formatDate(recommendation.dismissedAt)}${recommendation.dismissedReason ? `: ${recommendation.dismissedReason}` : ""}.`
+                : null}
+              {recommendation.completedAt
+                ? ` Completada ${formatDate(recommendation.completedAt)}.`
+                : null}
+              {recommendation.outcome
+                ? ` ${recommendation.outcome.message}`
+                : null}
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      <section
+        className={styles.history}
+        aria-labelledby="recommendation-history-title"
+      >
+        <div className={styles.detailSectionHeading}>
+          <div>
+            <p className={styles.sectionEyebrow}>Auditoría</p>
+            <h3 id="recommendation-history-title">Historial</h3>
+          </div>
+          <History size={16} aria-hidden="true" />
+        </div>
+        {history.length ? (
+          <ol>
+            {history.map((event) => (
+              <li key={`${event.eventType}-${event.createdAt.toISOString()}`}>
+                <strong>
+                  {formatDate(event.createdAt)} · {eventLabel(event.eventType)}
+                </strong>
+                <span>
+                  {event.previousStatus
+                    ? `${event.previousStatus} → ${event.nextStatus ?? "sin cambio"}. `
+                    : ""}
+                  {event.reason ??
+                    "Evento registrado por el sistema proactivo."}
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>Aún no hay actividad registrada para esta recomendación.</p>
+        )}
+      </section>
     </div>
   );
+}
+
+function RecommendationDetailEmpty({
+  selectionRequested,
+  clearHref,
+}: {
+  selectionRequested: boolean;
+  clearHref: string;
+}) {
+  return (
+    <div className={styles.detailEmpty}>
+      <span>
+        <FileSearch size={22} aria-hidden="true" />
+      </span>
+      <h2>
+        {selectionRequested
+          ? "La recomendación ya no está en este listado"
+          : "Selecciona una recomendación"}
+      </h2>
+      <p>
+        {selectionRequested
+          ? "Puede haber cambiado de estado o quedar fuera de los filtros actuales."
+          : "Abre una fila para consultar evidencia, entidad, acciones e historial sin perder los filtros."}
+      </p>
+      {selectionRequested ? (
+        <Link href={clearHref} className={styles.secondaryButton}>
+          Volver al listado
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function PrimaryAction({
+  recommendation,
+  persistenceAvailable,
+}: {
+  recommendation: BusinessRecommendation;
+  persistenceAvailable: boolean;
+}) {
+  const action =
+    recommendation.preferredAction ?? recommendation.suggestedActions[0];
+  if (!action) return null;
+
+  if (action.href) {
+    return (
+      <Link href={action.href} className={styles.primaryButton}>
+        {action.label} <ArrowRight size={15} />
+      </Link>
+    );
+  }
+
+  if (!persistenceAvailable) {
+    return (
+      <button className={styles.primaryButton} type="button" disabled>
+        {action.label}
+      </button>
+    );
+  }
+
+  if (action.requiresConfirmation) {
+    return (
+      <details className={styles.confirmation}>
+        <summary className={styles.primaryButton}>{action.label}</summary>
+        <div>
+          <p>{action.description}</p>
+          {action.preview?.length ? (
+            <ul>
+              {action.preview.slice(0, 4).map((row) => (
+                <li key={`${action.id}-${row.label}`}>
+                  <strong>{row.label}:</strong> {row.value}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <form action={executeRecommendationAction}>
+            <input
+              type="hidden"
+              name="fingerprint"
+              value={recommendation.fingerprint}
+            />
+            <input type="hidden" name="actionId" value={action.id} />
+            <input type="hidden" name="confirmed" value="true" />
+            <input
+              type="hidden"
+              name="idempotencyKey"
+              value={`${recommendation.fingerprint}:${action.id}`}
+            />
+            <button className={styles.primaryButton} type="submit">
+              Confirmar acción
+            </button>
+          </form>
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <form action={acceptRecommendationAction}>
+      <input
+        type="hidden"
+        name="fingerprint"
+        value={recommendation.fingerprint}
+      />
+      <button className={styles.primaryButton} type="submit">
+        {action.label}
+      </button>
+    </form>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  href,
+}: {
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  tone: "success" | "warning" | "danger" | "info";
+  href?: string;
+}) {
+  const toneClass = {
+    success: styles.metricSuccess,
+    warning: styles.metricWarning,
+    danger: styles.metricDanger,
+    info: styles.metricInfo,
+  }[tone];
+  const content = (
+    <>
+      <span className={styles.metricIcon}>
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <span>
+        <span className={styles.metricLabel}>{label}</span>
+        <strong>{value}</strong>
+      </span>
+      {href ? (
+        <ChevronRight size={15} className={styles.metricChevron} />
+      ) : null}
+    </>
+  );
+
+  return href ? (
+    <Link className={`${styles.metric} ${toneClass}`} href={href}>
+      {content}
+    </Link>
+  ) : (
+    <article className={`${styles.metric} ${toneClass}`}>{content}</article>
+  );
+}
+
+function DetailFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function FilterSelect({
+  name,
+  label,
+  value,
+  options,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className={styles.filterField}>
+      <span>{label}</span>
+      <select name={name} defaultValue={value}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function recommendationsHref(filters: CurrentFilters, selection?: string) {
+  const params = new URLSearchParams({
+    estado: filters.estado,
+    nivel: filters.nivel,
+    origen: filters.origen,
+  });
+  if (filters.q) params.set("q", filters.q);
+  if (selection) params.set("seleccion", selection);
+  return `/recomendaciones?${params.toString()}`;
+}
+
+function levelClass(level: BusinessSignalLevel) {
+  return {
+    critico: styles.levelCritical,
+    importante: styles.levelImportant,
+    atencion: styles.levelAttention,
+    info: styles.levelInfo,
+  }[level];
 }
 
 function eventLabel(eventType: string) {
@@ -406,40 +949,27 @@ function eventLabel(eventType: string) {
     recommendation_action_executed: "Acción ejecutada",
     recommendation_action_failed: "Acción fallida",
     evaluation_completed: "Evaluación",
-    evaluation_failed: "Error de evaluación"
+    evaluation_failed: "Error de evaluación",
   };
   return labels[eventType] ?? eventType.replaceAll("_", " ");
 }
 
-function FilterSelect({
-  name,
-  label,
-  value,
-  options
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <label className="block">
-      <span className="label mb-1 block">{label}</span>
-      <select className="field min-h-11" name={name} defaultValue={value}>
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function validStatus(value: string | undefined): BusinessRecommendationStatus | "all" | "history" {
-  return STATUS_OPTIONS.some((option) => option.value === value) ? value as BusinessRecommendationStatus | "all" | "history" : "active";
+function validStatus(
+  value: string | undefined,
+): BusinessRecommendationStatus | "all" | "history" {
+  return STATUS_OPTIONS.some((option) => option.value === value)
+    ? (value as BusinessRecommendationStatus | "all" | "history")
+    : "active";
 }
 
 function validLevel(value: string | undefined): BusinessSignalLevel | "all" {
-  return LEVEL_OPTIONS.some((option) => option.value === value) ? value as BusinessSignalLevel | "all" : "all";
+  return LEVEL_OPTIONS.some((option) => option.value === value)
+    ? (value as BusinessSignalLevel | "all")
+    : "all";
 }
 
 function validSource(value: string | undefined): BusinessSignalSource | "all" {
-  return SOURCE_OPTIONS.some((option) => option.value === value) ? value as BusinessSignalSource | "all" : "all";
+  return SOURCE_OPTIONS.some((option) => option.value === value)
+    ? (value as BusinessSignalSource | "all")
+    : "all";
 }

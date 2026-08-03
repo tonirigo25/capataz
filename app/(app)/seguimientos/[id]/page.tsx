@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, EmptyState } from "@/components/ui-primitives";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { assertScopedEntityAccess, requireCapability, resolveAuthorization } from "@/lib/commercial/authorization";
 import {
   editFollowUpAction,
@@ -66,9 +67,10 @@ export default async function FollowUpDetailPage({
         })
       : null,
   ]);
-  if(!canManage)return <main className="screen space-y-5"><Link href="/seguimientos" className="secondary-button">Volver a seguimientos</Link><PageHeader eyebrow="Solo lectura" title={item.title} description={`${statusLabel(item.type)} · ${statusLabel(item.status)}`}/><section className="card p-4"><p>Próxima acción: {format(item.nextActionAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
+  if(!canManage)return <main className="screen space-y-5"><InternalBreadcrumbs items={[{ label: "Seguimientos", href: "/seguimientos" }, { label: item.title }]} /><Link href="/seguimientos" className="secondary-button">Volver a seguimientos</Link><PageHeader eyebrow="Solo lectura" title={item.title} description={`${statusLabel(item.type)} · ${statusLabel(item.status)}`}/><section className="card p-4"><p>Próxima acción: {format(item.nextActionAt)}</p><p>Cliente: {client?.nombre??"Sin cliente"}</p><p>Trabajo: {work?.titulo??"Sin trabajo"}</p></section></main>;
   return (
     <main className="screen space-y-5">
+      <InternalBreadcrumbs items={[{ label: "Seguimientos", href: "/seguimientos" }, { label: item.title }]} />
       <Link className="secondary-button" href="/seguimientos">
         Volver a seguimientos
       </Link>
@@ -130,7 +132,7 @@ export default async function FollowUpDetailPage({
           </dl>
         </div>
       </section>
-      <section className="card p-4">
+      <section id="registrar-intento" className="card scroll-mt-24 p-4">
         <h2 className="font-black">Editar</h2>
         <form
           action={editFollowUpAction}

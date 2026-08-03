@@ -45,7 +45,8 @@ export async function GET(request: Request) {
       companyId,
       period: url.searchParams.get("periodo") ?? undefined,
       from: url.searchParams.get("from"),
-      to: url.searchParams.get("to")
+      to: url.searchParams.get("to"),
+      workId: url.searchParams.get("workId") ?? undefined
     });
   } catch {
     return NextResponse.json({ error: "No se pudo generar la exportación." }, { status: 500, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });

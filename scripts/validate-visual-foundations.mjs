@@ -3,6 +3,7 @@ import fs from "node:fs";
 const read = (path) => fs.readFileSync(path, "utf8");
 const chrome = read("components/app-chrome.tsx");
 const today = read("app/(app)/hoy/page.tsx");
+const todayOverview = read("lib/portal/today-overview.ts");
 const todayWorkflow = read("components/today-workflow-summary.tsx");
 const styles = read("app/globals.css");
 const tailwind = read("tailwind.config.ts");
@@ -67,11 +68,11 @@ const cases = [
   ["botones cubren variantes y carga", ["primary", "secondary", "ghost", "danger", "row", "aria-busy", "loadingLabel"].every((token) => primitives.includes(token))],
   ["navegación secundaria usa URL y overflow accesible", primitives.includes("<nav aria-label={label}") && primitives.includes("overflow-x-auto") && primitives.includes("aria-current=page")],
   ["estados semánticos no dependen de color heredado", ["active", "completed", "attention", "risk", "archived"].every((tone) => primitives.includes(tone)) && status.includes("bg-content/[0.08]")],
-  ["shell usa sidebar Field OS de 248 px y objetivos táctiles", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 248px") && styles.includes("--cap-control: 2.75rem")],
+  ["shell usa sidebar canónico de 239 px y objetivos táctiles", chrome.includes("field-os-app-shell") && chrome.includes("field-os-sidebar") && styles.includes("--fos-layout-sidebar: 239px") && styles.includes("--cap-control: 2.75rem")],
   ["shell conserva salto, diálogo, Escape y restauración de foco", chrome.includes("Saltar al contenido") && chrome.includes('role="dialog"') && chrome.includes('event.key === "Escape"') && chrome.includes("activeTriggerRef.current?.focus()")],
-  ["Hoy muestra una acción primaria contextual", today.includes("firstQuickAction") && today.includes('className="primary-button"') && !today.includes("¿Qué ha pasado hoy?")],
-  ["Hoy limita la primera zona a tres prioridades", today.includes("portal.homeWidgets") && today.includes(".slice(0, 3)") && today.includes("Prioridades de hoy")],
-  ["Hoy deriva consultas desde contexto autorizado", today.includes('requireCapability("company.view")') && today.includes("buildPortalManifest(auth)") && today.includes("getAgendaItems()")],
+  ["Hoy muestra acciones primarias contextuales", today.includes("hoy-card-action") && today.includes("priority.action") && !today.includes("¿Qué ha pasado hoy?")],
+  ["Hoy limita la primera zona a cinco prioridades canónicas", todayOverview.includes(".slice(0, 5)") && today.includes("Prioridades del día")],
+  ["Hoy deriva consultas desde contexto autorizado", today.includes('requireCapability("company.view")') && today.includes("getTodayOverview(auth)") && todayOverview.includes("resolveAuthorization(context") && todayOverview.includes("resolveScopedEntityIds(context")],
   ["foco, safe area y movimiento reducido", styles.includes(":focus-visible") && styles.includes("env(safe-area-inset-bottom)") && styles.includes("prefers-reduced-motion: reduce")],
   ["campos evitan zoom involuntario en iOS", styles.includes("font-size: 16px") && styles.includes("--cap-control-field: 3rem")]
 ];

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, Check, Minus, Plus, Save, X } from "lucide-react";
 import { saveManualRecord } from "@/app/(app)/gestion/actions";
 import {
   Notice,
@@ -18,6 +18,10 @@ import {
 import { managementCapability } from "@/lib/commercial/management-capabilities";
 import { companySettingsView } from "@/lib/tenant/company-settings";
 import { AgendaContextSelector } from "@/components/agenda-context-selector";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { isActiveWorkStatus } from "@/lib/works";
 
 export const dynamic = "force-dynamic";
 
@@ -198,6 +202,18 @@ const statusOptions = {
   ],
 };
 
+const clientEditTabs = [
+  ["resumen", "Resumen"],
+  ["obras", "Obras"],
+  ["oportunidades", "Oportunidades"],
+  ["actividad", "Actividad"],
+  ["presupuestos", "Presupuestos"],
+  ["facturas", "Facturas"],
+  ["conversaciones", "Conversaciones"],
+  ["documentos", "Documentos"],
+  ["archivos", "Archivos"],
+] as const;
+
 export default async function ManualManagementPage({
   searchParams,
 }: {
@@ -209,11 +225,12 @@ export default async function ManualManagementPage({
   const auth = await requireCapability(
     managementCapability(tipo, Boolean(query.id)),
   );
-  const invoiceAllowed = (
-    await resolveAuthorization(auth, "sales.invoices.view")
-  ).allowed;
-  const budgetAllowed = (await resolveAuthorization(auth, "sales.budgets.view"))
-    .allowed;
+  const [invoiceAccess, budgetAccess] = await Promise.all([
+    resolveAuthorization(auth, "sales.invoices.view"),
+    resolveAuthorization(auth, "sales.budgets.view"),
+  ]);
+  const invoiceAllowed = invoiceAccess.allowed;
+  const budgetAllowed = budgetAccess.allowed;
   const economicAllowed = invoiceAllowed || budgetAllowed;
   const fieldAccess = {
     sales: (await resolveAuthorization(auth, "sales.pricing.view")).allowed,
@@ -225,10 +242,58 @@ export default async function ManualManagementPage({
       (await resolveAuthorization(auth, "margin_amount.view")).allowed ||
       (await resolveAuthorization(auth, "margin_percent.view")).allowed,
   };
+  const [clientWorkAccess, clientDocumentAccess] =
+    tipo === "cliente"
+      ? await Promise.all([
+          resolveAuthorization(auth, "work.view"),
+          resolveAuthorization(auth, "documents.view"),
+        ])
+      : [
+          { allowed: false, scope: "COMPANY" },
+          { allowed: false, scope: "COMPANY" },
+        ];
   const [scopedWorkIds, scopedClientIds] = await Promise.all([
     resolveScopedEntityIds(auth, auth.capability, "Work"),
     resolveScopedEntityIds(auth, auth.capability, "Client"),
   ]);
+  const [
+    visibleWorkIds,
+    visibleWorkClientIds,
+    visibleInvoiceWorkIds,
+    visibleInvoiceClientIds,
+    visibleBudgetWorkIds,
+    visibleBudgetClientIds,
+    visibleDocumentIds,
+    visibleDocumentClientIds,
+  ] =
+    tipo === "cliente"
+      ? await Promise.all([
+          clientWorkAccess.allowed
+            ? resolveScopedEntityIds(auth, "work.view", "Work")
+            : Promise.resolve([]),
+          clientWorkAccess.allowed
+            ? resolveScopedEntityIds(auth, "work.view", "Client")
+            : Promise.resolve([]),
+          invoiceAllowed
+            ? resolveScopedEntityIds(auth, "sales.invoices.view", "Work")
+            : Promise.resolve([]),
+          invoiceAllowed
+            ? resolveScopedEntityIds(auth, "sales.invoices.view", "Client")
+            : Promise.resolve([]),
+          budgetAllowed
+            ? resolveScopedEntityIds(auth, "sales.budgets.view", "Work")
+            : Promise.resolve([]),
+          budgetAllowed
+            ? resolveScopedEntityIds(auth, "sales.budgets.view", "Client")
+            : Promise.resolve([]),
+          clientDocumentAccess.allowed
+            ? resolveScopedEntityIds(auth, "documents.view", "Document")
+            : Promise.resolve([]),
+          clientDocumentAccess.allowed
+            ? resolveScopedEntityIds(auth, "documents.view", "Client")
+            : Promise.resolve([]),
+        ])
+      : [[], [], [], [], [], [], [], []];
   const workWhere = scopedWorkIds === null ? {} : { id: { in: scopedWorkIds } };
   const clientWhere =
     scopedClientIds === null ? {} : { id: { in: scopedClientIds } };
@@ -325,6 +390,109 @@ export default async function ManualManagementPage({
   const record = query.id
     ? await fetchRecord(tipo, query.id, auth.companyId)
     : null;
+  if (query.id && !record) notFound();
+  const clientMetrics =
+    tipo === "cliente" && query.id
+      ? {
+          activeWorks: clientWorkAccess.allowed
+            ? works.filter(
+                (work) =>
+                  work.clienteId === query.id &&
+                  relationAllowedForClient(
+                    clientWorkAccess.scope,
+                    visibleWorkIds,
+                    visibleWorkClientIds,
+                    work.id,
+                    work.clienteId,
+                  ) &&
+                  isActiveWorkStatus(work.estado),
+              ).length
+            : null,
+          totalWorks: clientWorkAccess.allowed
+            ? works.filter(
+                (work) =>
+                  work.clienteId === query.id &&
+                  relationAllowedForClient(
+                    clientWorkAccess.scope,
+                    visibleWorkIds,
+                    visibleWorkClientIds,
+                    work.id,
+                    work.clienteId,
+                  ),
+              ).length
+            : null,
+          billedTotal: invoiceAllowed
+            ? invoices
+                .filter(
+                  (invoice) =>
+                    invoice.clienteId === query.id &&
+                    relationAllowedForClient(
+                      invoiceAccess.scope,
+                      visibleInvoiceWorkIds,
+                      visibleInvoiceClientIds,
+                      invoice.obraId,
+                      invoice.clienteId,
+                    ) &&
+                    invoice.estado !== "borrador",
+                )
+                .reduce((total, invoice) => total + invoice.total, 0)
+            : null,
+        }
+      : null;
+  const clientAreaAccess =
+    tipo === "cliente" && query.id
+      ? {
+          commercial:
+            budgetAllowed &&
+            (visibleBudgetWorkIds === null ||
+              visibleBudgetClientIds === null ||
+              visibleBudgetClientIds.includes(query.id) ||
+              budgets.some(
+                (budget) =>
+                  budget.clienteId === query.id &&
+                  Boolean(
+                    budget.obraId && visibleBudgetWorkIds.includes(budget.obraId),
+                  ),
+              )),
+          invoicing:
+            invoiceAllowed &&
+            (visibleInvoiceWorkIds === null ||
+              visibleInvoiceClientIds === null ||
+              visibleInvoiceClientIds.includes(query.id) ||
+              invoices.some(
+                (invoice) =>
+                  invoice.clienteId === query.id &&
+                  Boolean(
+                    invoice.obraId &&
+                      visibleInvoiceWorkIds.includes(invoice.obraId),
+                  ),
+              )),
+          documents:
+            clientDocumentAccess.allowed &&
+            (visibleDocumentIds === null ||
+              visibleDocumentClientIds === null ||
+              visibleDocumentClientIds.includes(query.id) ||
+              documents.some(
+                (document) =>
+                  document.clientId === query.id &&
+                  visibleDocumentIds.includes(document.id),
+              )),
+          works:
+            clientWorkAccess.allowed &&
+            (visibleWorkIds === null ||
+              visibleWorkClientIds === null ||
+              visibleWorkClientIds.includes(query.id) ||
+              works.some(
+                (work) =>
+                  work.clienteId === query.id && visibleWorkIds.includes(work.id),
+              )),
+        }
+      : {
+          commercial: false,
+          invoicing: false,
+          documents: false,
+          works: false,
+        };
   const duplicateClient =
     tipo === "cliente" && query.duplicateOf
       ? await prisma.client.findFirst({
@@ -339,27 +507,47 @@ export default async function ManualManagementPage({
         })
       : null;
   const title = `${record ? "Editar" : "Añadir"} ${entityLabels[tipo]}`;
-  const returnTo = query.returnTo ?? defaultReturnTo(tipo);
+  const returnTo = normalizeLoginReturnPath(
+    query.returnTo ?? defaultReturnTo(tipo),
+  );
+  const isClientEdit = tipo === "cliente" && Boolean(query.id && record);
+  const manualRecord = record as ManualRecord | null;
+  const clientName = valueFor(manualRecord, query, "nombre", "Cliente");
 
   return (
-    <main className="screen">
-      <Link
-        href={returnTo}
-        className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink"
-      >
-        <ArrowLeft size={18} />
-        Cancelar
-      </Link>
+    <main className={`screen${isClientEdit ? " client-edit-reference" : ""}`}>
+      {isClientEdit ? (
+        <header className="client-edit-reference__header">
+          <h1>Editar cliente</h1>
+          <p>
+            {clientName} · {statusLabel(valueFor(manualRecord, query, "estado", "nuevo"))}
+          </p>
+        </header>
+      ) : (
+        <>
+          <Link
+            href={returnTo}
+            className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink"
+          >
+            <ArrowLeft size={18} />
+            Cancelar
+          </Link>
 
-      <PageHeader
-        eyebrow="Edición manual"
-        title={title}
-        description="Completa los campos por bloques. Nada se guarda hasta que confirmes la acción final."
-      />
+          <PageHeader
+            eyebrow="Edición manual"
+            title={title}
+            description="Completa los campos por bloques. Nada se guarda hasta que confirmes la acción final."
+          />
+        </>
+      )}
 
       <form
         action={saveManualRecord}
-        className="surface mx-auto grid max-w-4xl gap-5 p-4 sm:p-6"
+        className={
+          isClientEdit
+            ? "client-edit-reference__form"
+            : "surface mx-auto grid max-w-4xl gap-5 p-4 sm:p-6"
+        }
       >
         <input type="hidden" name="tipo" value={tipo} />
         <input type="hidden" name="id" value={query.id ?? ""} />
@@ -384,37 +572,404 @@ export default async function ManualManagementPage({
           />
         ) : null}
 
-        {renderFields({
-          tipo,
-          record: record as ManualRecord | null,
-          defaults: query,
-          clients,
-          works,
-          budgets,
-          invoices,
-          reminders,
-          contacts,
-          documents,
-          company,
-          suggestedBudgetNumber,
-          suggestedInvoiceNumber,
-          suggestedWorkNumber,
-          fieldAccess,
-        })}
+        {isClientEdit ? (
+          <ClientEditReferenceFields
+            clientId={query.id ?? ""}
+            record={manualRecord}
+            defaults={query}
+            metrics={clientMetrics}
+            contacts={contacts.filter(
+              (contact) => contact.clientId === query.id,
+            )}
+            access={clientAreaAccess}
+          />
+        ) : (
+          renderFields({
+            tipo,
+            record: manualRecord,
+            defaults: query,
+            clients,
+            works,
+            budgets,
+            invoices,
+            reminders,
+            contacts,
+            documents,
+            company,
+            suggestedBudgetNumber,
+            suggestedInvoiceNumber,
+            suggestedWorkNumber,
+            fieldAccess,
+          })
+        )}
 
-        <StickyFormActions>
-          <Link href={returnTo} className="secondary-button w-full">
-            <X size={18} />
-            Cancelar
-          </Link>
-          <button type="submit" className="primary-button w-full">
-            <Save size={18} />
-            {duplicateClient ? "Continuar creando" : "Guardar"}
-          </button>
-        </StickyFormActions>
+        {isClientEdit ? (
+          <div className="client-edit-reference__actions">
+            <Link href={returnTo} className="secondary-button">
+              Cancelar
+            </Link>
+            <ConfirmSubmitButton
+              className="primary-button"
+              message="¿Guardar los cambios revisados en este cliente?"
+            >
+              <Save size={17} />
+              Guardar cambios
+            </ConfirmSubmitButton>
+          </div>
+        ) : (
+          <StickyFormActions>
+            <Link href={returnTo} className="secondary-button w-full">
+              <X size={18} />
+              Cancelar
+            </Link>
+            <button type="submit" className="primary-button w-full">
+              <Save size={18} />
+              {duplicateClient ? "Continuar creando" : "Guardar"}
+            </button>
+          </StickyFormActions>
+        )}
       </form>
     </main>
   );
+}
+
+function ClientEditReferenceFields({
+  clientId,
+  record,
+  defaults,
+  metrics,
+  contacts,
+  access,
+}: {
+  clientId: string;
+  record: ManualRecord | null;
+  defaults: Record<string, string | undefined>;
+  metrics: {
+    activeWorks: number | null;
+    totalWorks: number | null;
+    billedTotal: number | null;
+  } | null;
+  contacts: Array<{
+    id: string;
+    nombre: string;
+    apellidos: string | null;
+    cargo: string | null;
+    telefono: string | null;
+    email: string | null;
+    isPrimary: boolean;
+  }>;
+  access: {
+    commercial: boolean;
+    invoicing: boolean;
+    documents: boolean;
+    works: boolean;
+  };
+}) {
+  const permissionRows = [
+    ["Comercial", access.commercial],
+    ["Facturación", access.invoicing],
+    ["Documentos", access.documents],
+    ["Obras", access.works],
+  ] as const;
+  const status = statusLabel(valueFor(record, defaults, "estado", "nuevo"));
+  const tags = [
+    status,
+    valueFor(record, defaults, "tipo", "Cliente"),
+    valueFor(record, defaults, "origen", "Manual"),
+  ].filter(Boolean);
+  const displayName =
+    valueFor(record, defaults, "nombreComercial") ||
+    valueFor(record, defaults, "razonSocial") ||
+    valueFor(record, defaults, "nombre", "Cliente");
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase("es-ES"))
+    .join("");
+  const lastActivity = record?.ultimaInteraccion as
+    | Date
+    | string
+    | null
+    | undefined;
+  const visibleContacts = contacts;
+
+  return (
+    <>
+      <section className="client-edit-reference__identity">
+        <div className="client-edit-reference__avatar" aria-hidden="true">
+          {initials || "CL"}
+        </div>
+        <div className="client-edit-reference__identity-name">
+          <h2>{displayName}</h2>
+          <span>{status}</span>
+        </div>
+        <dl>
+          <div>
+            <dt>Estado del cliente</dt>
+            <dd>{status}</dd>
+            <small>Estado guardado en la ficha</small>
+          </div>
+          {access.invoicing ? (
+            <div>
+              <dt>Total facturado</dt>
+              <dd>{metrics?.billedTotal != null ? formatCurrency(metrics.billedTotal) : "Sin dato"}</dd>
+              <small>Facturas emitidas autorizadas</small>
+            </div>
+          ) : null}
+          {access.works ? (
+            <div>
+              <dt>Obras activas</dt>
+              <dd>{metrics?.activeWorks ?? "—"}</dd>
+              <small>{metrics?.totalWorks != null ? `${metrics.totalWorks} obras vinculadas` : "Sin dato"}</small>
+            </div>
+          ) : null}
+          <div>
+            <dt>Última actividad</dt>
+            <dd>{lastActivity ? formatDate(new Date(lastActivity)) : "Sin actividad"}</dd>
+            <small>Registro real del cliente</small>
+          </div>
+        </dl>
+      </section>
+
+      <nav className="client-edit-reference__tabs" aria-label="Áreas del cliente">
+        {clientEditTabs.map(([view, label], index) => (
+          <Link
+            key={`${view}-${label}`}
+            href={`/clientes/${clientId}?vista=${view}`}
+            aria-current={index === 0 ? "page" : undefined}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      <section className="client-edit-reference__general">
+        <h2>Información general</h2>
+        <div className="client-edit-reference__field-grid client-edit-reference__field-grid--three">
+          <div className="client-edit-reference__field-column">
+            <Field
+              name="nombreComercial"
+              label="Nombre comercial"
+              value={valueFor(record, defaults, "nombreComercial")}
+            />
+            <Field
+              name="razonSocial"
+              label="Razón social"
+              value={valueFor(record, defaults, "razonSocial")}
+            />
+            <Field
+              name="nombre"
+              label="Nombre visible"
+              required
+              value={valueFor(record, defaults, "nombre")}
+            />
+            <Field
+              name="nifCif"
+              label="CIF / NIF"
+              value={valueFor(record, defaults, "nifCif")}
+            />
+            <ClientTypeSelect value={record?.tipo ?? defaults.tipoCliente} />
+            <Field
+              name="email"
+              label="Email"
+              type="email"
+              value={valueFor(record, defaults, "email")}
+            />
+          </div>
+
+          <div className="client-edit-reference__field-column">
+            <Textarea
+              name="direccionFiscal"
+              label="Dirección fiscal"
+              value={record?.direccionFiscal ?? defaults.direccionFiscal}
+            />
+            <Field
+              name="direccion"
+              label="Dirección principal o postal"
+              value={valueFor(record, defaults, "direccion")}
+            />
+            <Field
+              name="pais"
+              label="País"
+              value={valueFor(record, defaults, "pais", "España")}
+            />
+            <div className="client-edit-reference__field-pair">
+              <Field
+                name="codigoPostal"
+                label="Código postal"
+                value={valueFor(record, defaults, "codigoPostal")}
+              />
+              <Field
+                name="municipio"
+                label="Ciudad"
+                value={valueFor(record, defaults, "municipio")}
+              />
+            </div>
+            <Field
+              name="provincia"
+              label="Provincia"
+              value={valueFor(record, defaults, "provincia")}
+            />
+          </div>
+
+          <div className="client-edit-reference__field-column">
+            <Field
+              name="contactoPrincipalNombre"
+              label="Contacto principal"
+              value={valueFor(record, defaults, "contactoPrincipalNombre")}
+            />
+            <Field
+              name="telefono"
+              label="Teléfono general"
+              value={valueFor(record, defaults, "telefono")}
+            />
+            <Field
+              name="contactoPrincipalCargo"
+              label="Cargo o relación"
+              value={valueFor(record, defaults, "contactoPrincipalCargo")}
+            />
+            <Select
+              name="estado"
+              label="Estado"
+              options={statusOptions.cliente}
+              value={record?.estado ?? defaults.estado ?? "pendiente_datos"}
+            />
+            <Field
+              name="emailFacturacion"
+              label="Email de facturación"
+              type="email"
+              value={valueFor(record, defaults, "emailFacturacion")}
+            />
+            <Field
+              name="telefonoFacturacion"
+              label="Teléfono de facturación"
+              value={valueFor(record, defaults, "telefonoFacturacion")}
+            />
+            <Field
+              name="origen"
+              label="Origen"
+              value={valueFor(record, defaults, "origen", "Manual")}
+            />
+          </div>
+        </div>
+        <section className="client-edit-reference__contacts">
+          <header>
+            <h2>Personas de contacto</h2>
+            <Link
+              href={`/gestion?tipo=contacto&clientId=${clientId}&returnTo=${encodeURIComponent(`/gestion?tipo=cliente&id=${clientId}&returnTo=/clientes/${clientId}`)}`}
+              className="secondary-button"
+            >
+              <Plus size={15} aria-hidden="true" /> Añadir contacto
+            </Link>
+          </header>
+          {visibleContacts.length ? (
+            <div>
+              {visibleContacts.map((contact) => (
+                <Link
+                  key={contact.id}
+                  href={`/gestion?tipo=contacto&id=${contact.id}&clientId=${clientId}&returnTo=${encodeURIComponent(`/gestion?tipo=cliente&id=${clientId}&returnTo=/clientes/${clientId}`)}`}
+                >
+                  <span aria-hidden="true">
+                    {contact.nombre.slice(0, 1).toLocaleUpperCase("es-ES")}
+                  </span>
+                  <strong>
+                    {contact.nombre}
+                    {contact.apellidos ? ` ${contact.apellidos}` : ""}
+                    {contact.isPrimary ? <small>Principal</small> : null}
+                  </strong>
+                  <em>{contact.cargo ?? "Sin cargo registrado"}</em>
+                  <i>{contact.email ?? "Sin email"}</i>
+                  <b>{contact.telefono ?? "Sin teléfono"}</b>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p>No hay personas de contacto registradas.</p>
+          )}
+        </section>
+
+        <div className="client-edit-reference__lower-grid">
+          <div>
+            <Textarea
+              name="notas"
+              label="Notas"
+              value={record?.notas ?? defaults.notas}
+            />
+            <Field
+              name="ultimaInteraccion"
+              label="Última interacción"
+              type="datetime-local"
+              value={dateTimeValue(record?.ultimaInteraccion ?? defaults.ultimaInteraccion)}
+            />
+          </div>
+          <section className="client-edit-reference__access" aria-label="Acceso funcional">
+            <h2>Acceso funcional</h2>
+            <p>Se muestra según el perfil, el alcance y la suscripción vigentes.</p>
+            <ul>
+              {permissionRows.map(([label, allowed]) => (
+                <li key={label} data-allowed={allowed ? "true" : "false"}>
+                  {allowed ? (
+                    <Check size={14} aria-hidden="true" />
+                  ) : (
+                    <Minus size={14} aria-hidden="true" />
+                  )}
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        <div className="client-edit-reference__tags" aria-label="Etiquetas actuales">
+          {tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+
+        <details className="client-edit-reference__advanced">
+          <summary>Datos de contacto y facturación ampliados</summary>
+          <div>
+            <Field
+              name="contactoPrincipalTelefono"
+              label="Teléfono del contacto principal"
+              value={valueFor(record, defaults, "contactoPrincipalTelefono")}
+            />
+            <Field
+              name="contactoPrincipalEmail"
+              label="Email del contacto principal"
+              type="email"
+              value={valueFor(record, defaults, "contactoPrincipalEmail")}
+            />
+            <Field
+              name="contactoFacturacionNombre"
+              label="Persona de facturación"
+              value={valueFor(record, defaults, "contactoFacturacionNombre")}
+            />
+          </div>
+        </details>
+      </section>
+    </>
+  );
+}
+
+function relationAllowedForClient(
+  scope: string,
+  workIds: string[] | null,
+  clientIds: string[] | null,
+  workId: string | null,
+  clientId: string,
+) {
+  if (scope === "COMPANY") return true;
+  if (scope === "SELECTED_WORKS") {
+    return Boolean(workId && workIds?.includes(workId));
+  }
+  if (scope === "SELECTED_CLIENTS") {
+    return Boolean(clientIds?.includes(clientId));
+  }
+  return workId
+    ? Boolean(workIds?.includes(workId))
+    : Boolean(clientIds?.includes(clientId));
 }
 
 async function ensureScopedRecord(
@@ -997,16 +1552,7 @@ function renderFields({
                 ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                {fieldAccess.margin ? (
-                  <Field
-                    name="margenEstimado"
-                    label="Margen estimado"
-                    type="number"
-                    value={
-                      record?.margenEstimado ?? defaults.margenEstimado ?? 0
-                    }
-                  />
-                ) : null}
+                {fieldAccess.margin ? <CalculatedValue label="Margen previsto" value="Se calcula con presupuesto aprobado − coste previsto" /> : null}
                 <Field
                   name="horasEstimadas"
                   label="Horas estimadas"
@@ -1143,14 +1689,7 @@ function renderFields({
             type="number"
             value={record?.total ?? 0}
           />
-          {fieldAccess.margin ? (
-            <Field
-              name="margenEstimado"
-              label="Margen estimado"
-              type="number"
-              value={record?.margenEstimado ?? 0}
-            />
-          ) : null}
+          {fieldAccess.margin ? <CalculatedValue label="Margen" value="Se calcula automáticamente con la venta neta y los costes de las partidas" /> : null}
           <Field
             name="fechaValidez"
             label="Fecha validez"
@@ -2006,6 +2545,15 @@ function renderFields({
         </>
       );
   }
+}
+
+function CalculatedValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <span className="label block">{label} · Calculado</span>
+      <p className="mt-1 text-sm text-slate-600">{value}</p>
+    </div>
+  );
 }
 
 function Field({

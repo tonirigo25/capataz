@@ -127,7 +127,11 @@ export async function resolveScopedEntityIds(context: CompanyContext, capability
   }
   if (entityType === "Work") return [...workIds];
   if (entityType === "Client") return [...clientIds];
-  if (effectiveScope === "OWN") {
+  // A user who is allowed to upload documents must retain access to the
+  // records they created even when their read scope is ASSIGNED, TEAM or a
+  // selected entity. The company boundary and uploader identity make this a
+  // narrow ownership grant; it never exposes another member's unlinked files.
+  if (entityType === "Document") {
     const ownDocuments = await prisma.document.findMany({ where: { companyId: context.companyId, uploadedById: context.userId }, select: { id: true } });
     for (const item of ownDocuments) documentIds.add(item.id);
   }

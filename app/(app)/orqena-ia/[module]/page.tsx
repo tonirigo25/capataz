@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import {
   OrqenaAiWorkspace,
   orqenaAiAreas,
-  type OrqenaAiArea,
 } from "@/components/portal/modules-c/orqena-ai-workspace";
 
 export const dynamic = "force-dynamic";
@@ -14,5 +13,6 @@ export default async function OrqenaAiModulePage({
 }) {
   const { module } = await params;
   if (!orqenaAiAreas.includes(module as (typeof orqenaAiAreas)[number])) notFound();
-  return <OrqenaAiWorkspace area={module as OrqenaAiArea} />;
+  const area = module as (typeof orqenaAiAreas)[number];
+  return <OrqenaAiWorkspace area={area} />;
 }

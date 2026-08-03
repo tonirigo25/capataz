@@ -5,43 +5,48 @@ import {
   Archive,
   Bell,
   Bot,
-  Building2,
-  BriefcaseBusiness,
   CalendarClock,
-  CircleDollarSign,
   ClipboardList,
   FileText,
   FolderOpen,
   MessageCircle,
+  MoreHorizontal,
   Plus,
   Receipt,
   RotateCcw,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 import { archiveClient, restoreClient } from "@/app/(app)/clientes/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { ContextDrawer } from "@/components/context-drawer";
-import { RecordWorkspace } from "@/components/workspaces";
 import { SectionHeader } from "@/components/section-header";
-import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import {
   EmptyState,
-  EntityHeader,
-  Notice,
-  ParentNavigation,
-  Tabs,
 } from "@/components/ui-primitives";
-import { EntityWorkflowSummary } from "@/components/entity-workflow-summary";
 import { getClientCrmSummary } from "@/lib/client-crm";
-import { OperationalContextSummary } from "@/components/operational-signals";
+import { Client360Canonical } from "@/components/portal/modules-a/client-360-canonical";
+import { Client360Restricted } from "@/components/portal/modules-a/client-360-restricted";
+import {
+  ClientActivityWorkspace,
+  ClientBudgetsWorkspace,
+  ClientDocumentsWorkspace,
+  ClientConversationsWorkspace,
+  ClientFilesWorkspace,
+  ClientInvoicesWorkspace,
+  ClientOpportunitiesWorkspace,
+  ClientWorksWorkspace,
+} from "@/components/portal/modules-a/client-360-real-workspaces";
+import type {
+  ClientConversationRecord,
+} from "@/components/portal/modules-a/client-360-conversations-overview";
 import { getClientOperationalContext } from "@/lib/operational-intelligence/queries";
+import type { OperationalSignal } from "@/lib/operational-intelligence/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 import { getEconomicControl } from "@/lib/economic-control/queries";
 import { prisma } from "@/lib/prisma";
 import { brand } from "@/lib/brand";
+import { listConversationsForCompany } from "@/lib/orqena/conversation-repository";
 import {
   requireCapability,
   resolveAuthorization,
@@ -50,13 +55,23 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type DetailSearchParams = { vista?: string; tab?: string };
+type DetailSearchParams = {
+  vista?: string;
+  tab?: string;
+  q?: string;
+  modo?: string;
+  conversationId?: string;
+};
 
 const tabs = [
   { id: "resumen", label: "Resumen" },
-  { id: "relacion", label: "Relación" },
-  { id: "operacion", label: "Operación" },
-  { id: "dinero", label: "Dinero" },
+  { id: "obras", label: "Obras" },
+  { id: "oportunidades", label: "Oportunidades" },
+  { id: "actividad", label: "Actividad" },
+  { id: "presupuestos", label: "Presupuestos" },
+  { id: "facturas", label: "Facturas" },
+  { id: "conversaciones", label: "Conversaciones" },
+  { id: "documentos", label: "Documentos" },
   { id: "archivos", label: "Archivos" },
 ] as const;
 
@@ -71,27 +86,192 @@ type ClientTabId = (typeof tabs)[number]["id"];
 
 const legacyTabs: Record<string, ClientTabId> = {
   resumen: "resumen",
-  trabajos: "operacion",
-  dinero: "dinero",
+  trabajos: "obras",
+  dinero: "facturas",
   archivos: "archivos",
-  obras: "operacion",
-  actividad: "relacion",
-  contactos: "relacion",
+  obras: "obras",
+  oportunidades: "oportunidades",
+  actividad: "actividad",
+  contactos: "conversaciones",
+  conversaciones: "conversaciones",
   datos: "resumen",
-  documentos: "archivos",
-  economia: "dinero",
-  presupuestos: "dinero",
-  facturas: "dinero",
-  pagos: "dinero",
-  finanzas: "dinero",
-  visitas: "relacion",
-  notas: "relacion",
+  documentos: "documentos",
+  economia: "facturas",
+  presupuestos: "presupuestos",
+  facturas: "facturas",
+  pagos: "facturas",
+  finanzas: "facturas",
+  visitas: "actividad",
+  notas: "actividad",
+  relacion: "actividad",
+  operacion: "obras",
 };
 
 function normalizeClientView(value: string | undefined) {
   if (!value) return undefined;
   const knownLegacyArea = legacyClientAreas.find(([id]) => id === value);
   return legacyTabs[knownLegacyArea?.[0] ?? value] ?? value;
+}
+
+function clientViewHref(clientId: string, view: ClientTabId) {
+  return view === "resumen" ? `/clientes/${clientId}` : `/clientes/${clientId}?vista=${view}`;
+}
+
+function signalMatchesClientView(
+  signal: OperationalSignal,
+  view: ClientTabId,
+) {
+  if (view === "resumen") return true;
+  if (view === "obras") {
+    return signal.entity.type === "obra";
+  }
+  if (view === "oportunidades") {
+    return signal.category === "ventas";
+  }
+  if (view === "actividad") {
+    return (
+      signal.entity.type === "agenda" ||
+      signal.entity.type === "tarea" ||
+      signal.category === "planificacion"
+    );
+  }
+  if (view === "presupuestos") {
+    return signal.entity.type === "presupuesto";
+  }
+  if (view === "facturas") {
+    return signal.entity.type === "factura" || signal.category === "cobros";
+  }
+  if (view === "documentos" || view === "archivos") {
+    return (
+      signal.entity.type === "factura_recibida" ||
+      signal.category === "compras_documentacion"
+    );
+  }
+  return false;
+}
+
+const conversationClientKeys = new Set([
+  "clientId",
+  "clienteId",
+  "lastClientId",
+]);
+
+function jsonReferencesClient(
+  value: unknown,
+  clientId: string,
+  depth = 0,
+): boolean {
+  if (depth > 10 || value == null) return false;
+  if (Array.isArray(value)) {
+    return value.some((item) => jsonReferencesClient(item, clientId, depth + 1));
+  }
+  if (typeof value !== "object") return false;
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (conversationClientKeys.has(key) && nested === clientId) return true;
+    if (jsonReferencesClient(nested, clientId, depth + 1)) return true;
+  }
+  return false;
+}
+
+function sanitizeConversationText(value: string) {
+  return value
+    .replace(/\0/g, "")
+    .replace(/sk-[A-Za-z0-9_*.-]+/g, "[OPENAI_API_KEY]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
+    .replace(/\b(DATABASE_URL|TOKEN|PASSWORD|SECRET|API_KEY)\s*[:=]\s*\S+/gi, "$1=[redacted]")
+    .replace(/(?:postgres(?:ql)?|redis):\/\/[^\s]+/gi, "[private connection redacted]")
+    .trim()
+    .slice(0, 2_000);
+}
+
+async function loadClientConversationRecords({
+  companyId,
+  userId,
+  membershipId,
+  clientId,
+}: {
+  companyId: string;
+  userId: string;
+  membershipId: string;
+  clientId: string;
+}): Promise<ClientConversationRecord[]> {
+  const [conversations, profile] = await Promise.all([
+    listConversationsForCompany({ companyId, userId, membershipId }, false),
+    prisma.usuarioPerfil.findUnique({
+      where: { id: userId },
+      select: {
+        nombre: true,
+        apellidos: true,
+        nombrePreferido: true,
+      },
+    }),
+  ]);
+  const userName =
+    profile?.nombrePreferido?.trim() ||
+    [profile?.nombre, profile?.apellidos].filter(Boolean).join(" ").trim() ||
+    "Usuario actual";
+  const userParticipant = {
+    id: userId,
+    clientId,
+    name: userName,
+    authorized: true,
+    role: "Tu equipo",
+  };
+  const assistantParticipant = {
+    id: "orqena-assistant",
+    clientId,
+    name: brand.assistantName,
+    authorized: true,
+    role: "Asistente supervisado",
+  };
+
+  return conversations
+    .filter(
+      (conversation) =>
+        jsonReferencesClient(conversation.activeTask, clientId) ||
+        jsonReferencesClient(conversation.structuredContext, clientId) ||
+        jsonReferencesClient(conversation.metadata, clientId),
+    )
+    .map((conversation) => {
+      const messages = conversation.messages
+        .filter((message) => message.role === "user" || message.role === "assistant")
+        .map((message) => ({
+          id: message.id,
+          clientId,
+          conversationId: conversation.id,
+          authorized: true,
+          direction: message.role === "user" ? "outbound" as const : "inbound" as const,
+          body: sanitizeConversationText(message.content),
+          author: message.role === "user" ? userParticipant : assistantParticipant,
+          sentAt: message.createdAt.toISOString(),
+          read: null,
+          attachments: [],
+        }))
+        .filter((message) => Boolean(message.body));
+      const lastMessage = messages.at(-1) ?? null;
+      return {
+        id: conversation.id,
+        clientId,
+        authorized: true,
+        title: sanitizeConversationText(conversation.title).slice(0, 140) || "Conversación sin título",
+        preview: lastMessage?.body.slice(0, 180) ?? null,
+        channel: { kind: "internal" as const, label: brand.assistantName },
+        status: {
+          label: statusLabel(conversation.status),
+          tone: "success" as const,
+        },
+        lastMessageAt: lastMessage?.sentAt ?? conversation.lastActivityAt.toISOString(),
+        unreadCount: null,
+        participants: [userParticipant, assistantParticipant],
+        messages,
+        detailHref: {
+          href: `/clientes/${clientId}/conversaciones/${conversation.id}`,
+          authorized: true,
+        },
+        replyHref: null,
+        moreHref: null,
+      };
+    });
 }
 
 export default async function ClientDetailPage({
@@ -103,6 +283,10 @@ export default async function ClientDetailPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requireCapability("clients.view");
+  const requestedView = normalizeClientView(query.vista) ?? (query.tab ? normalizeClientView(query.tab) : "resumen");
+  const activeTab = tabs.some(({ id: tab }) => tab === requestedView) ? requestedView as ClientTabId : "resumen";
+  const worksMode = query.modo === "tarjetas" || query.modo === "portfolio" ? query.modo : "lista";
+  const opportunityMode = query.modo === "tablero" ? "tablero" : "lista";
   const scopedClientIds = await resolveScopedEntityIds(
     auth,
     "clients.view",
@@ -160,325 +344,227 @@ export default async function ClientDetailPage({
       },
     });
     if (!client) notFound();
-    return <ScopedClientDetail auth={auth} client={client} />;
+    return (
+      <ScopedClientDetail
+        auth={auth}
+        client={client}
+        activeTab={activeTab}
+        selectedConversationId={query.conversationId}
+      />
+    );
   }
-  const [summary, treasury, operationalContext] = await Promise.all([
+  const [summary, operationalContext, archiveDecision, aiDecision, uploadDecision] = await Promise.all([
     getClientCrmSummary(id, auth.companyId),
-    getEconomicControl({ clientId: id, period: "30d" }),
     getClientOperationalContext(id),
+    resolveAuthorization(auth, "clients.archive"),
+    resolveAuthorization(auth, "orqena.use"),
+    resolveAuthorization(auth, "documents.upload"),
   ]);
   if (!summary) notFound();
+  const aiClientIds = aiDecision.allowed
+    ? await resolveScopedEntityIds(auth, "orqena.use", "Client")
+    : [];
+  const canUseAiForClient =
+    aiDecision.allowed &&
+    (aiClientIds === null || aiClientIds.includes(summary.client.id));
+  const clientConversations =
+    activeTab === "conversaciones" && canUseAiForClient
+      ? await loadClientConversationRecords({
+          companyId: auth.companyId,
+          userId: auth.userId,
+          membershipId: auth.membershipId,
+          clientId: summary.client.id,
+        })
+      : [];
 
-  const requestedView =
-    normalizeClientView(query.vista) ??
-    (query.tab ? normalizeClientView(query.tab) : "resumen");
-  const activeTab = tabs.some(({ id: tab }) => tab === requestedView)
-    ? (requestedView as ClientTabId)
-    : "resumen";
   const client = summary.client;
-  const returnTo = `/clientes/${client.id}`;
+  const returnTo = clientViewHref(client.id, activeTab);
 
-  const nextActionHref =
-    operationalContext.principal?.entity.href ??
-    `/gestion?tipo=eventoAgenda&clienteId=${client.id}&tipoEvento=visita&titulo=Próximo%20paso%20con%20${encodeURIComponent(summary.listItem.displayName)}&returnTo=${encodeURIComponent(returnTo)}`;
-  const responsible =
-    summary.activeWorks.find((work) => work.responsable)?.responsable ??
-    "Sin responsable asignado";
-  const nextDate = summary.upcomingEvents[0]
-    ? formatDate(summary.upcomingEvents[0].fechaInicio)
-    : "Sin próxima fecha";
-
-  return (
-    <RecordWorkspace
-      context={
-        <ClientContextRail
-          summary={summary}
-          nextAction={operationalContext.nextStep}
-          responsible={responsible}
-          nextDate={nextDate}
-          returnTo={returnTo}
-        />
+  const timeline = [
+    ...summary.upcomingEvents.map((event) => ({
+      id: event.id,
+      title: event.titulo,
+      date: event.fechaInicio,
+      href: `/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`,
+    })),
+    ...summary.pendingReminders.map((reminder) => ({
+      id: reminder.id,
+      title: statusLabel(reminder.tipo),
+      date: reminder.fechaProgramada,
+      href: `/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`,
+    })),
+  ].sort((left, right) => left.date.getTime() - right.date.getTime());
+  const nextTouch = timeline[0] ?? null;
+  const contactEmail =
+    summary.contacts[0]?.email ?? summary.listItem.email ?? undefined;
+  const contactPhone =
+    summary.contacts[0]?.phone ?? summary.listItem.phone ?? undefined;
+  const incidents = summary.client.works.flatMap((work) =>
+    work.photos
+      .filter((photo) => photo.categoria === "incidencia")
+      .map((photo) => ({
+        id: photo.id,
+        title: photo.titulo,
+        detail: `Evidencia de incidencia · ${work.titulo}`,
+        href: `/obras/${work.id}?vista=progreso&modo=galeria`,
+      })),
+  );
+  const principal = operationalContext.principal;
+  const clientWorkIds = new Set(summary.client.works.map((work) => work.id));
+  const scopedSignals = operationalContext.signals.filter(
+    (signal) =>
+      signal.entity.clientId === client.id ||
+      (signal.entity.type === "cliente" && signal.entity.id === client.id) ||
+      Boolean(signal.entity.workId && clientWorkIds.has(signal.entity.workId)),
+  );
+  const principalBelongsToClient = Boolean(
+    principal &&
+      (principal.entity.clientId === client.id ||
+        (principal.entity.type === "cliente" &&
+          principal.entity.id === client.id) ||
+        Boolean(
+          principal.entity.workId && clientWorkIds.has(principal.entity.workId),
+        )),
+  );
+  const scopedPrincipal = principalBelongsToClient ? principal : null;
+  const activeSignal =
+    activeTab === "resumen"
+      ? scopedPrincipal
+      : (scopedSignals.find((signal) =>
+          signalMatchesClientView(signal, activeTab),
+        ) ?? null);
+  const recommendationImpact: Array<{ label: string; value: string }> = [];
+  if (activeSignal?.amount != null) {
+    recommendationImpact.push({
+      label: "Importe relacionado",
+      value: formatCurrency(activeSignal.amount),
+    });
+  }
+  if (activeSignal?.days != null) {
+    recommendationImpact.push({
+      label: "Antigüedad de la señal",
+      value: `${activeSignal.days} días`,
+    });
+  }
+  const recommendation =
+    canUseAiForClient && activeSignal
+      ? {
+          clientId: client.id,
+          title: activeSignal.title,
+          description: activeSignal.explanation,
+          sourceLabel: statusLabel(activeSignal.category),
+          category: activeSignal.category,
+          entityType: activeSignal.entity.type,
+          impact: recommendationImpact,
+          primaryAction: {
+            label: "Abrir acción",
+            href: activeSignal.entity.href,
+          },
+          analysisHref: `/capataz?clienteId=${client.id}`,
+        }
+      : null;
+  const insights = scopedSignals.slice(0, 4).map((signal) => ({
+    id: signal.id,
+    title: signal.title,
+    detail: signal.explanation,
+    href: signal.entity.href,
+  }));
+  const nextAction = nextTouch
+    ? {
+        title: nextTouch.title,
+        description:
+          scopedSignals[0]?.nextStep ?? "Revisa esta acción antes de confirmar cambios.",
+        dateLabel: formatDate(nextTouch.date),
+        contactLabel: summary.listItem.primaryContact,
+        completeHref: nextTouch.href,
+        actionLabel: "Revisar y completar",
       }
-    >
-      <EntityHeader
-        back={
-          <ParentNavigation
-            href="/clientes"
-            label="Clientes"
-            context={summary.listItem.typeLabel}
+    : scopedPrincipal
+      ? {
+          title: scopedPrincipal.title,
+          description: scopedPrincipal.nextStep,
+          dateLabel: scopedPrincipal.referenceDate
+            ? formatDate(scopedPrincipal.referenceDate)
+            : undefined,
+          contactLabel: summary.listItem.primaryContact,
+          completeHref: scopedPrincipal.entity.href,
+          actionLabel: "Abrir acción",
+        }
+      : null;
+
+  return (
+    <div className="client-360-page">
+      <Client360Canonical
+        summary={summary}
+        activeView={activeTab}
+        nextAction={nextAction}
+        insights={insights}
+        incidents={incidents}
+        recommendation={recommendation}
+        showAiRail={canUseAiForClient}
+        hrefs={{
+          back: "/clientes",
+          sendMessage: contactEmail ? `mailto:${contactEmail}` : undefined,
+          call: contactPhone
+            ? `tel:${contactPhone.replace(/\s+/g, "")}`
+            : undefined,
+          newOpportunity: client.archivadoAt
+            ? undefined
+            : `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+          newOpportunityLabel: "Nuevo presupuesto",
+          activity: `/clientes/${client.id}?vista=actividad`,
+          budgets: `/clientes/${client.id}?vista=presupuestos`,
+          works: `/clientes/${client.id}?vista=obras`,
+          invoices: `/clientes/${client.id}?vista=facturas`,
+          payments: `/clientes/${client.id}?vista=facturas#cobros`,
+          addContact: `/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+          documents: `/clientes/${client.id}?vista=documentos`,
+          allRecommendations: `/capataz?clienteId=${client.id}`,
+        }}
+        moreActions={
+          <ClientActions
+            clientId={client.id}
+            clientName={summary.listItem.displayName}
+            returnTo={returnTo}
+            archived={Boolean(client.archivadoAt)}
+            canArchive={
+              archiveDecision.allowed && archiveDecision.scope === "COMPANY"
+            }
+            canUseAi={canUseAiForClient}
           />
         }
-        context={`Clientes · ${summary.listItem.typeLabel}`}
-        title="Cliente 360"
-        description="Relación, operación, dinero y archivos del cliente en una única vista coherente."
-        status={
-          <StatusPill
-            status={client.archivadoAt ? "archivado" : client.estado}
+      >
+        {activeTab === "obras" ? (
+          <ClientWorksWorkspace summary={summary} returnTo={returnTo} worksMode={worksMode} />
+        ) : null}
+        {activeTab === "oportunidades" ? (
+          <ClientOpportunitiesWorkspace summary={summary} returnTo={returnTo} opportunityMode={opportunityMode} />
+        ) : null}
+        {activeTab === "actividad" ? (
+          <ClientActivityWorkspace summary={summary} returnTo={returnTo} />
+        ) : null}
+        {activeTab === "presupuestos" ? (
+          <ClientBudgetsWorkspace summary={summary} returnTo={returnTo} />
+        ) : null}
+        {activeTab === "facturas" ? (
+          <div id="cobros"><ClientInvoicesWorkspace summary={summary} returnTo={returnTo} /></div>
+        ) : null}
+        {activeTab === "conversaciones" ? (
+          <ClientConversationsWorkspace
+            clientId={summary.client.id}
+            conversations={clientConversations}
+            selectedConversationId={query.conversationId}
+            scheduleCallHref={`/gestion?tipo=eventoAgenda&clienteId=${summary.client.id}&tipoEvento=llamada&returnTo=${encodeURIComponent(returnTo)}`}
+            createNoteHref={`/gestion?tipo=notaInterna&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
           />
-        }
-        action={
-          <Link
-            href={nextActionHref}
-            className="primary-button"
-          >
-            <CalendarClock size={18} /> Abrir siguiente acción
-          </Link>
-        }
-        menu={
-          <>
-            <ContextDrawer
-              title={`Contexto de ${summary.listItem.displayName}`}
-              description="Contactos, datos fiscales, dirección, notas y configuración sin añadir más pestañas."
-              triggerLabel="Ver contexto"
-            >
-              <ContactsTab summary={summary} returnTo={returnTo} />
-              <DataTab summary={summary} returnTo={returnTo} />
-              <NotesTab summary={summary} returnTo={returnTo} />
-            </ContextDrawer>
-            <ClientActions
-              clientId={client.id}
-              clientName={summary.listItem.displayName}
-              returnTo={returnTo}
-              archived={Boolean(client.archivadoAt)}
-            />
-          </>
-        }
-      />
-
-      <section className="mb-4 rounded-xl border border-border bg-surface p-4 shadow-soft" aria-label="Contexto principal del cliente">
-        <div className="grid gap-4 lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1fr)] lg:items-center">
-          <div className="flex min-w-0 items-center gap-4 border-b border-border pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong"><Building2 size={26} aria-hidden="true" /></span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2"><h2 className="type-section-title truncate text-content">{summary.listItem.displayName}</h2><StatusPill status={client.archivadoAt ? "archivado" : client.estado} /></div>
-              <p className="type-secondary mt-1">{summary.listItem.typeLabel} · {client.origen}</p>
-              <p className="type-meta mt-2">{(summary.listItem.email ?? summary.listItem.phone) || "Sin contacto directo"}</p>
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <HeaderFact label="Responsable" value={responsible} />
-            <HeaderFact label="Próxima fecha" value={nextDate} />
-            <HeaderFact label="Contacto" value={summary.listItem.primaryContact} />
-          </div>
-        </div>
-      </section>
-
-      <ClientRelationshipRail summary={summary} />
-
-      {summary.listItem.pendingFields.length ? (
-        <Notice
-          tone="warning"
-          title={`${summary.listItem.pendingFields.length} datos pendientes`}
-          description={summary.listItem.pendingFields.slice(0, 4).join(" · ")}
-          action={
-            <Link
-              href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              Completar datos
-            </Link>
-          }
-        />
-      ) : null}
-
-      <section
-        className="client-360-summary mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        aria-label="Resumen ejecutivo del cliente"
-      >
-        <StatCard
-          title="Trabajos"
-          value={`${summary.kpis.activeWorks}/${summary.kpis.totalWorks}`}
-          detail="Activas / totales"
-          icon={BriefcaseBusiness}
-        />
-        <StatCard
-          title="Propuestas"
-          value={String(summary.pendingBudgets.length)}
-          detail="Pendientes de decisión"
-          icon={FileText}
-        />
-        <StatCard
-          title="Próxima cita"
-          value={summary.upcomingEvents[0] ? formatDate(summary.upcomingEvents[0].fechaInicio) : "Sin fecha"}
-          detail={summary.upcomingEvents[0]?.titulo ?? "No programada"}
-          icon={CalendarClock}
-        />
-        <StatCard
-          title="Última actividad"
-          value={summary.activity[0] ? formatDate(summary.activity[0].date) : "Sin actividad"}
-          detail={summary.activity[0]?.text ?? "Sin registrar"}
-          icon={ClipboardList}
-        />
-      </section>
-
-      <OperationalContextSummary
-        context={operationalContext}
-        entityType="cliente"
-        entityId={client.id}
-      />
-
-      <div data-client-detail-areas="5">
-        <Tabs label="Secciones de la ficha de cliente" className="mt-5">
-          {tabs.map(({ id: tab, label }) => (
-            <Link
-              key={tab}
-              href={`/clientes/${client.id}?vista=${tab}`}
-              aria-current={activeTab === tab ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
-        </Tabs>
-      </div>
-
-      <div className="mt-4" id="client-360-content">
-        {activeTab === "resumen" ? (
-          <div className="client-360-layout grid gap-4">
-            <section className="surface-feature p-5" aria-labelledby="cliente-siguiente-accion">
-              <p className="type-label">Siguiente acción</p>
-              <h2 id="cliente-siguiente-accion" className="type-section-title mt-2 text-content">
-                {operationalContext.nextStep}
-              </h2>
-              <p className="type-secondary mt-2">
-                {operationalContext.phrase}
-              </p>
-              <Link href={nextActionHref} className="secondary-button mt-4">
-                Abrir origen
-              </Link>
-            </section>
-            <SummaryTab summary={summary} returnTo={returnTo} />
-          </div>
         ) : null}
-        {activeTab === "relacion" ? (
-          <div className="grid gap-4">
-            <ContactsTab summary={summary} returnTo={returnTo} />
-            <ActivityTab summary={summary} />
-            <VisitsTab summary={summary} returnTo={returnTo} />
-            <NotesTab summary={summary} returnTo={returnTo} />
-          </div>
+        {activeTab === "documentos" ? (
+          <ClientDocumentsWorkspace summary={summary} returnTo={returnTo} canUpload={uploadDecision.allowed} />
         ) : null}
-        {activeTab === "operacion" ? (
-          <div className="grid gap-4">
-            <EntityWorkflowSummary clientId={client.id} />
-            <WorksTab summary={summary} returnTo={returnTo} />
-          </div>
+        {activeTab === "archivos" ? (
+          <ClientFilesWorkspace summary={summary} returnTo={returnTo} canUpload={uploadDecision.allowed} companyId={auth.companyId} searchQuery={query.q} />
         ) : null}
-        {activeTab === "archivos" ? <DocumentsTab summary={summary} /> : null}
-        {activeTab === "dinero" ? (
-          <div className="grid gap-4">
-            <section className="grid gap-3 sm:grid-cols-3" aria-label="Economía autorizada del cliente">
-              <StatCard title="Facturado" value={formatCurrency(summary.kpis.billedTotal)} detail="Sin borradores" icon={Receipt} />
-              <StatCard title="Cobrado" value={formatCurrency(summary.kpis.paidTotal)} detail="Pagos reales" icon={WalletCards} tone="success" />
-              <StatCard title="Pendiente" value={formatCurrency(summary.kpis.pendingTotal)} detail="Total menos pagos" icon={CircleDollarSign} tone={summary.kpis.pendingTotal > 0 ? "warning" : "success"} />
-            </section>
-            <BudgetsTab summary={summary} returnTo={returnTo} />
-            <InvoicesTab summary={summary} returnTo={returnTo} />
-            <PaymentsTab summary={summary} />
-            <ClientFinanceTab treasury={treasury} clientId={client.id} />
-          </div>
-        ) : null}
-      </div>
-    </RecordWorkspace>
-  );
-}
-
-function ClientRelationshipRail({
-  summary,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-}) {
-  const stages = [
-    ["Cliente", "completada", "resumen", "Relación activa"],
-    ["Oportunidad", summary.recentBudgets.length ? "completada" : "activa", "resumen", summary.recentBudgets.length ? "Contexto creado" : "Siguiente paso"],
-    ["Presupuesto", summary.recentBudgets.length ? "completada" : "pendiente", "dinero", `${summary.recentBudgets.length} propuestas`],
-    ["Trabajo", summary.kpis.activeWorks ? "activa" : summary.kpis.totalWorks ? "completada" : "pendiente", "operacion", `${summary.kpis.activeWorks} activos`],
-    ["Factura", summary.kpis.billedTotal ? "completada" : "pendiente", "dinero", summary.kpis.billedTotal ? "Emitida" : "Pendiente"],
-    ["Cobro", summary.kpis.paidTotal ? "completada" : summary.kpis.billedTotal ? "activa" : "pendiente", "dinero", summary.kpis.paidTotal ? "Registrado" : "Pendiente"],
-  ] as const;
-  return (
-    <section className="client-relationship-rail mt-4" aria-label="Recorrido Cliente 360">
-      <div><p className="type-label">Cliente 360</p><strong>Relación completa</strong><span>Selecciona una etapa sin abandonar la ficha.</span></div>
-      <ol>{stages.map(([label, state, view, detail], index) => <li key={label} className={`is-${state}`}><Link href={`/clientes/${summary.client.id}?vista=${view}#client-360-content`}><i>{index + 1}</i><span><strong>{label}</strong><small>{detail}</small></span></Link></li>)}</ol>
-    </section>
-  );
-}
-
-function HeaderFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-lg bg-surface px-3 py-2">
-      <p className="type-label">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-content">{value}</p>
-    </div>
-  );
-}
-
-function ClientContextRail({
-  summary,
-  nextAction,
-  responsible,
-  nextDate,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  nextAction: string;
-  responsible: string;
-  nextDate: string;
-  returnTo: string;
-}) {
-  const risk = summary.kpis.overdueInvoices
-    ? `${summary.kpis.overdueInvoices} cobros vencidos`
-    : summary.listItem.pendingFields.length
-      ? `${summary.listItem.pendingFields.length} datos pendientes`
-      : summary.kpis.pendingTotal > 0
-        ? `${formatCurrency(summary.kpis.pendingTotal)} pendientes`
-        : "Sin riesgo principal detectado";
-  return (
-    <div className="grid gap-4">
-      <p className="type-label text-brand-strong">Contexto operativo del cliente</p>
-      <section className="rounded-xl border border-brand/25 bg-brand-soft p-4">
-        <p className="type-label">Siguiente acción documentada</p>
-        <h2 className="type-object-title mt-2 text-content">{nextAction}</h2>
-        <p className="type-secondary mt-2">Próxima fecha: {nextDate}. Revisa el origen antes de confirmar cualquier acción.</p>
-      </section>
-      <dl className="divide-y divide-border border-y border-border">
-        <ContextFact label="Contacto" value={summary.listItem.primaryContact} />
-        <ContextFact label="Responsable" value={responsible} />
-        <ContextFact label="Riesgo" value={risk} />
-        <ContextFact
-          label="Trabajo abierto"
-          value={
-            summary.kpis.activeWorks
-              ? `${summary.kpis.activeWorks} activos`
-              : "Sin trabajo activo"
-          }
-        />
-        <ContextFact
-          label="Datos pendientes"
-          value={String(summary.listItem.pendingFields.length)}
-        />
-      </dl>
-      <Link
-        href={`/gestion?tipo=cliente&id=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-        className="secondary-button w-full"
-      >
-        Editar datos y configuración
-      </Link>
-      <Link
-        href={`/capataz?clienteId=${summary.client.id}`}
-        className="secondary-button w-full"
-      >
-        <Bot size={17} />
-        Preguntar a {brand.assistantName}
-      </Link>
-    </div>
-  );
-}
-
-function ContextFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="py-3">
-      <dt className="type-label">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold text-content">{value}</dd>
+      </Client360Canonical>
     </div>
   );
 }
@@ -486,6 +572,8 @@ function ContextFact({ label, value }: { label: string; value: string }) {
 async function ScopedClientDetail({
   auth,
   client,
+  activeTab,
+  selectedConversationId,
 }: {
   auth: Awaited<ReturnType<typeof requireCapability>>;
   client: {
@@ -499,6 +587,8 @@ async function ScopedClientDetail({
     telefono: string | null;
     email: string | null;
   };
+  activeTab: ClientTabId;
+  selectedConversationId?: string;
 }) {
   const name = client.nombreComercial ?? client.razonSocial ?? client.nombre;
   const [
@@ -509,6 +599,7 @@ async function ScopedClientDetail({
     invoiceDecision,
     clientUpdateDecision,
     followupDecision,
+    aiDecision,
   ] = await Promise.all([
     resolveAuthorization(auth, "work.view"),
     resolveAuthorization(auth, "sales.budgets.view"),
@@ -517,6 +608,7 @@ async function ScopedClientDetail({
     resolveAuthorization(auth, "sales.invoices.view"),
     resolveAuthorization(auth, "clients.update"),
     resolveAuthorization(auth, "followups.manage"),
+    resolveAuthorization(auth, "orqena.use"),
   ]);
   const [
     workIds,
@@ -679,197 +771,135 @@ async function ScopedClientDetail({
       null,
       client.id,
     );
-  const returnTo = `/clientes/${client.id}`;
+  const returnTo = clientViewHref(client.id, activeTab);
+  const aiClientIds = aiDecision.allowed
+    ? await resolveScopedEntityIds(auth, "orqena.use", "Client")
+    : [];
+  const canUseAiForClient =
+    aiDecision.allowed &&
+    (aiClientIds === null || aiClientIds.includes(client.id));
+  const clientConversations =
+    activeTab === "conversaciones" && canUseAiForClient
+      ? await loadClientConversationRecords({
+          companyId: auth.companyId,
+          userId: auth.userId,
+          membershipId: auth.membershipId,
+          clientId: client.id,
+        })
+      : [];
   return (
-    <RecordWorkspace>
-      <EntityHeader
-        back={<ParentNavigation href="/clientes" label="Clientes" />}
-        context={client.origen}
-        title={name}
-        description={`${client.telefono ?? client.email ?? "Sin contacto directo"} · Vista según tu alcance`}
-        status={
-          <StatusPill
-            status={client.archivadoAt ? "archivado" : client.estado}
-          />
-        }
+    <div className="client-360-page">
+      <Client360Restricted
+        activeView={activeTab}
+        client={{
+          id: client.id,
+          displayName: name,
+          legalName: client.razonSocial ?? undefined,
+          origin: client.origen,
+          status: client.estado,
+          archived: Boolean(client.archivadoAt),
+          phone: client.telefono ?? undefined,
+          email: client.email ?? undefined,
+        }}
+        contacts={contacts.map((contact) => ({
+          id: contact.id,
+          name: [contact.nombre, contact.apellidos].filter(Boolean).join(" "),
+          role: contact.cargo ?? "Contacto",
+          phone: contact.telefono ?? undefined,
+          email: contact.email ?? undefined,
+        }))}
+        works={works.map((work) => {
+          const canCreateWorkBudget =
+            budgetCreateDecision.allowed &&
+            pricingDecision.allowed &&
+            relationAllowedForClient(
+              budgetCreateDecision.scope,
+              budgetCreateWorkIds,
+              budgetCreateClientIds,
+              work.id,
+              client.id,
+            ) &&
+            relationAllowedForClient(
+              pricingDecision.scope,
+              pricingWorkIds,
+              pricingClientIds,
+              work.id,
+              client.id,
+            );
+          return {
+            id: work.id,
+            title: work.titulo,
+            status: statusLabel(work.estado),
+            address: work.direccion ?? undefined,
+            createBudgetHref: canCreateWorkBudget
+              ? `/gestion?tipo=presupuesto&clienteId=${client.id}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`
+              : undefined,
+          };
+        })}
+        budgets={budgets.map((budget) => ({
+          id: budget.id,
+          number: budget.numero,
+          title: budget.titulo,
+          status: statusLabel(budget.estado),
+          total:
+            pricingDecision.allowed &&
+            relationAllowedForClient(
+              pricingDecision.scope,
+              pricingWorkIds,
+              pricingClientIds,
+              budget.obraId,
+              client.id,
+            )
+              ? formatCurrency(budget.total)
+              : undefined,
+        }))}
+        invoices={invoices.map((invoice) => ({
+          id: invoice.id,
+          number: invoice.numero,
+          concept: invoice.concepto,
+          status: statusLabel(invoice.estado),
+          total: formatCurrency(invoice.total),
+          pending: formatCurrency(invoice.pendiente),
+        }))}
+        visibility={{
+          works: workDecision.allowed,
+          budgets: budgetDecision.allowed,
+          invoices: invoiceDecision.allowed,
+          conversations: canUseAiForClient,
+        }}
+        actions={[
+          ...(canCreateClientBudget
+            ? [{
+                id: "budget" as const,
+                label: "Crear presupuesto",
+                href: `/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+              }]
+            : []),
+          ...(canCreateContact
+            ? [{
+                id: "contact" as const,
+                label: "Añadir contacto",
+                href: `/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`,
+              }]
+            : []),
+          ...(canCreateClientFollowup
+            ? [{
+                id: "followup" as const,
+                label: "Crear seguimiento",
+                href: `/gestion?tipo=recordatorio&clienteId=${client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`,
+              }]
+            : []),
+        ]}
+        canUseAi={canUseAiForClient}
+        conversations={clientConversations}
+        selectedConversationId={selectedConversationId}
+        conversationActions={{
+          createNoteHref: canCreateContact
+            ? `/gestion?tipo=notaInterna&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`
+            : undefined,
+        }}
       />
-      {canCreateClientBudget || canCreateContact || canCreateClientFollowup ? (
-        <section className="mt-4 flex flex-wrap gap-2">
-          {canCreateClientBudget ? (
-            <Link
-              href={`/gestion?tipo=presupuesto&clienteId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              <FileText size={18} />
-              Crear presupuesto
-            </Link>
-          ) : null}
-          {canCreateContact ? (
-            <Link
-              href={`/gestion?tipo=contacto&clientId=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              <Plus size={18} />
-              Añadir contacto
-            </Link>
-          ) : null}
-          {canCreateClientFollowup ? (
-            <Link
-              href={`/gestion?tipo=recordatorio&clienteId=${client.id}&tipoRecordatorio=seguimiento_presupuesto&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              <MessageCircle size={18} />
-              Crear seguimiento
-            </Link>
-          ) : null}
-        </section>
-      ) : null}
-      <section className="mt-5 grid gap-4 xl:grid-cols-2">
-        <ScopedList title="Contactos" empty="Sin contactos disponibles.">
-          {contacts.map((contact) => (
-            <article
-              key={contact.id}
-              className="rounded-lg border border-slate-200 p-3"
-            >
-              <p className="font-black text-obra-ink">
-                {contact.nombre} {contact.apellidos ?? ""}
-              </p>
-              <p className="text-sm text-slate-500">
-                {contact.cargo ?? "Contacto"} ·{" "}
-                {contact.telefono ?? contact.email ?? "Sin dato"}
-              </p>
-            </article>
-          ))}
-        </ScopedList>
-        {workDecision.allowed ? (
-          <ScopedList
-            title="Trabajos autorizados"
-            empty="Sin trabajos en tu alcance."
-          >
-            {works.map((work) => {
-              const canCreateWorkBudget =
-                budgetCreateDecision.allowed &&
-                pricingDecision.allowed &&
-                relationAllowedForClient(
-                  budgetCreateDecision.scope,
-                  budgetCreateWorkIds,
-                  budgetCreateClientIds,
-                  work.id,
-                  client.id,
-                ) &&
-                relationAllowedForClient(
-                  pricingDecision.scope,
-                  pricingWorkIds,
-                  pricingClientIds,
-                  work.id,
-                  client.id,
-                );
-              return (
-                <article
-                  key={work.id}
-                  className="rounded-lg border border-slate-200 p-3"
-                >
-                  <Link href={`/obras/${work.id}`} className="block">
-                    <p className="font-black text-obra-ink">{work.titulo}</p>
-                    <p className="text-sm text-slate-500">
-                      {statusLabel(work.estado)} · {work.direccion}
-                    </p>
-                  </Link>
-                  {canCreateWorkBudget ? (
-                    <Link
-                      href={`/gestion?tipo=presupuesto&clienteId=${client.id}&obraId=${work.id}&returnTo=${encodeURIComponent(returnTo)}`}
-                      className="secondary-button mt-2"
-                    >
-                      Crear presupuesto
-                    </Link>
-                  ) : null}
-                </article>
-              );
-            })}
-          </ScopedList>
-        ) : null}
-        {budgetDecision.allowed ? (
-          <ScopedList
-            title="Presupuestos autorizados"
-            empty="Sin presupuestos en tu alcance."
-          >
-            {budgets.map((budget) => (
-              <Link
-                key={budget.id}
-                href={`/presupuestos/${budget.id}`}
-                className="rounded-lg border border-slate-200 p-3"
-              >
-                <p className="font-black text-obra-ink">
-                  {budget.numero} · {budget.titulo}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {statusLabel(budget.estado)}
-                  {pricingDecision.allowed &&
-                  relationAllowedForClient(
-                    pricingDecision.scope,
-                    pricingWorkIds,
-                    pricingClientIds,
-                    budget.obraId,
-                    client.id,
-                  )
-                    ? ` · ${formatCurrency(budget.total)}`
-                    : ""}
-                </p>
-              </Link>
-            ))}
-          </ScopedList>
-        ) : null}
-        {invoiceDecision.allowed ? (
-          <ScopedList
-            title="Facturas autorizadas"
-            empty="Sin facturas en tu alcance."
-          >
-            {invoices.map((invoice) => (
-              <Link
-                key={invoice.id}
-                href={`/dinero/${invoice.id}`}
-                className="rounded-lg border border-slate-200 p-3"
-              >
-                <p className="font-black text-obra-ink">
-                  {invoice.numero} · {invoice.concepto}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {statusLabel(invoice.estado)} ·{" "}
-                  {formatCurrency(invoice.total)} ·{" "}
-                  {formatCurrency(invoice.pendiente)} pendiente
-                </p>
-              </Link>
-            ))}
-          </ScopedList>
-        ) : null}
-      </section>
-    </RecordWorkspace>
-  );
-}
-
-function ScopedList({
-  title,
-  empty,
-  children,
-}: {
-  title: string;
-  empty: string;
-  children: ReactNode;
-}) {
-  const hasChildren = Array.isArray(children)
-    ? children.length > 0
-    : Boolean(children);
-  return (
-    <section className="card p-4">
-      <h2 className="font-black text-obra-ink">{title}</h2>
-      <div className="mt-3 grid gap-2">
-        {hasChildren ? (
-          children
-        ) : (
-          <p className="text-sm text-slate-500">{empty}</p>
-        )}
-      </div>
-    </section>
+    </div>
   );
 }
 function relatedClientScope(
@@ -909,18 +939,23 @@ function ClientActions({
   clientName,
   returnTo,
   archived,
+  canArchive,
+  canUseAi,
 }: {
   clientId: string;
   clientName: string;
   returnTo: string;
   archived: boolean;
+  canArchive: boolean;
+  canUseAi: boolean;
 }) {
   const encodedReturn = encodeURIComponent(returnTo);
   const visitDate = encodeURIComponent(tomorrowAtTenInputValue());
   return (
     <details className="relative">
       <summary className="secondary-button cursor-pointer list-none">
-        Más acciones
+        <span className="sr-only">Más acciones</span>
+        <MoreHorizontal size={18} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-20 mt-2 grid min-w-64 gap-1 rounded-xl border border-border bg-surface p-2 shadow-xl [&_a]:justify-start">
         <Link
@@ -965,15 +1000,17 @@ function ClientActions({
           <Plus size={18} />
           Contacto
         </Link>
-        <Link
-          href={`/capataz?clienteId=${clientId}`}
-          className="secondary-button"
-          aria-label={`Preguntar a ${brand.assistantName} sobre ${clientName}`}
-        >
-          <Bot size={18} />
-          Preguntar a {brand.assistantName}
-        </Link>
-        <ArchiveActions id={clientId} archived={archived} />
+        {canUseAi ? (
+          <Link
+            href={`/capataz?clienteId=${clientId}`}
+            className="secondary-button"
+            aria-label={`Preguntar a ${brand.assistantName} sobre ${clientName}`}
+          >
+            <Bot size={18} />
+            Preguntar a {brand.assistantName}
+          </Link>
+        ) : null}
+        {canArchive ? <ArchiveActions id={clientId} archived={archived} /> : null}
       </div>
     </details>
   );
@@ -1006,112 +1043,6 @@ function ArchiveActions({ id, archived }: { id: string; archived: boolean }) {
         Archivar
       </ConfirmSubmitButton>
     </form>
-  );
-}
-
-function SummaryTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-      <div className="grid gap-4">
-        <SectionList
-          title="Obras activas"
-          emptyTitle="Este cliente todavía no tiene obras activas."
-          emptyAction={
-            <Link
-              href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-              className="secondary-button"
-            >
-              Crear obra
-            </Link>
-          }
-        >
-          {summary.activeWorks.slice(0, 3).map((work) => (
-            <WorkCard key={work.id} work={work} returnTo={returnTo} compact />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Facturas pendientes"
-          emptyTitle="No hay facturas pendientes."
-        >
-          {summary.pendingInvoices.slice(0, 3).map((invoice) => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              returnTo={returnTo}
-              compact
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Presupuestos recientes"
-          emptyTitle="No hay presupuestos registrados."
-        >
-          {summary.recentBudgets.slice(0, 3).map((budget) => (
-            <BudgetCard
-              key={budget.id}
-              budget={budget}
-              returnTo={returnTo}
-              compact
-            />
-          ))}
-        </SectionList>
-      </div>
-
-      <aside className="grid gap-4">
-        <SectionList
-          title="Próximas visitas y tareas"
-          emptyTitle="No hay visitas o tareas próximas."
-        >
-          {summary.upcomingEvents.slice(0, 4).map((event) => (
-            <CompactRow
-              key={event.id}
-              icon={CalendarClock}
-              title={event.titulo}
-              detail={`${statusLabel(event.tipo)} · ${formatDate(event.fechaInicio)}`}
-              href={`/gestion?tipo=eventoAgenda&id=${event.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Seguimientos pendientes"
-          emptyTitle="No hay seguimientos pendientes."
-        >
-          {summary.pendingReminders.slice(0, 4).map((reminder) => (
-            <CompactRow
-              key={reminder.id}
-              icon={Bell}
-              title={statusLabel(reminder.tipo)}
-              detail={`${statusLabel(reminder.estado)} · ${formatDate(reminder.fechaProgramada)}`}
-              href={`/gestion?tipo=recordatorio&id=${reminder.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Actividad reciente"
-          emptyTitle="Sin actividad reciente."
-        >
-          {summary.activity.slice(0, 5).map((event) => (
-            <CompactRow
-              key={event.id}
-              icon={ClipboardList}
-              title={event.text}
-              detail={`${event.type} · ${formatDate(event.date)}`}
-              href={event.href}
-            />
-          ))}
-        </SectionList>
-      </aside>
-    </div>
   );
 }
 
@@ -1196,7 +1127,7 @@ function ContactsTab({
   );
 }
 
-function WorksTab({
+function ConversationsTab({
   summary,
   returnTo,
 }: {
@@ -1204,92 +1135,25 @@ function WorksTab({
   returnTo: string;
 }) {
   return (
-    <SectionList
-      title="Obras del cliente"
-      emptyTitle="Este cliente todavía no tiene obras."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=obra&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Crear obra
-        </Link>
-      }
-    >
-      {summary.client.works.length ? (
-        <div className="grid gap-3">
-          {summary.client.works.map((work) => (
-            <WorkCard key={work.id} work={work} returnTo={returnTo} />
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function BudgetsTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <SectionList
-      title="Presupuestos del cliente"
-      emptyTitle="No hay presupuestos registrados."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=presupuesto&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Crear presupuesto
-        </Link>
-      }
-    >
-      {summary.client.budgets.length ? (
-        <div className="grid gap-3">
-          {summary.client.budgets.map((budget) => (
-            <BudgetCard key={budget.id} budget={budget} returnTo={returnTo} />
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
-function InvoicesTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  return (
-    <SectionList
-      title="Facturas del cliente"
-      emptyTitle="No hay facturas registradas."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=factura&clienteId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Crear factura
-        </Link>
-      }
-    >
-      {summary.client.invoices.length ? (
-        <div className="grid gap-3">
-          {summary.client.invoices.map((invoice) => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              returnTo={returnTo}
-            />
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
+    <div className="grid gap-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="label">Canales y trazabilidad</p>
+        <h2 className="mt-1 text-lg font-black text-obra-ink">
+          Conversaciones con {summary.listItem.displayName}
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Esta ficha muestra únicamente contactos, actividad y notas realmente
+          registradas. No existe un hilo de mensajes persistido, por lo que no
+          se reconstruyen conversaciones ni se atribuyen comunicaciones que no
+          constan en el sistema.
+        </p>
+      </section>
+      <div id="contactos">
+        <ContactsTab summary={summary} returnTo={returnTo} />
+      </div>
+      <ActivityTab summary={summary} />
+      <NotesTab summary={summary} returnTo={returnTo} />
+    </div>
   );
 }
 
@@ -1501,56 +1365,6 @@ function VisitsTab({
   );
 }
 
-function DocumentsTab({
-  summary,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-}) {
-  const returnTo = `/clientes/${summary.client.id}?tab=documentos`;
-  return (
-    <SectionList
-      title="Documentos"
-      description="Archivos, presupuestos y facturas relacionados con este cliente."
-      emptyTitle="No hay documentos asociados."
-      emptyAction={
-        <Link
-          href={`/gestion?tipo=documento&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-          className="secondary-button"
-        >
-          Registrar documento
-        </Link>
-      }
-    >
-      {summary.documents.length ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {summary.documents.map((document) => (
-            <Link
-              key={document.id}
-              href={
-                document.href ??
-                `/gestion?tipo=documento&id=${document.id}&clientId=${summary.client.id}&returnTo=${encodeURIComponent(returnTo)}`
-              }
-              className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-obra-yellowDark hover:bg-obra-muted"
-            >
-              <p className="label">{document.type}</p>
-              <h3 className="mt-1 font-black text-obra-ink">{document.name}</h3>
-              <p className="mt-2 text-sm text-slate-500">
-                {document.relatedLabel}
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase text-slate-500">
-                {document.source}
-              </p>
-              <p className="mt-1 text-sm font-bold text-slate-600">
-                {formatDate(document.date)}
-              </p>
-            </Link>
-          ))}
-        </div>
-      ) : null}
-    </SectionList>
-  );
-}
-
 function ActivityTab({
   summary,
 }: {
@@ -1683,66 +1497,6 @@ function NotesTab({
         </div>
       ) : null}
     </SectionList>
-  );
-}
-
-function DataTab({
-  summary,
-  returnTo,
-}: {
-  summary: NonNullable<Awaited<ReturnType<typeof getClientCrmSummary>>>;
-  returnTo: string;
-}) {
-  const client = summary.client;
-  return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <SectionList
-        title="Datos fiscales"
-        emptyTitle="Sin datos fiscales."
-        emptyAction={
-          <Link
-            href={`/gestion?tipo=cliente&id=${client.id}&returnTo=${encodeURIComponent(returnTo)}`}
-            className="secondary-button"
-          >
-            Completar datos
-          </Link>
-        }
-      >
-        <DataGrid
-          rows={[
-            ["Nombre visible", client.nombre],
-            ["Nombre comercial", client.nombreComercial],
-            ["Razón social", client.razonSocial],
-            ["NIF/CIF", client.nifCif],
-            ["Dirección fiscal", client.direccionFiscal],
-            ["Código postal", client.codigoPostal],
-            ["Municipio", client.municipio],
-            ["Provincia", client.provincia],
-            ["País", client.pais],
-            ["Email de facturación", client.emailFacturacion],
-            ["Teléfono de facturación", client.telefonoFacturacion],
-            ["Persona de facturación", client.contactoFacturacionNombre],
-          ]}
-        />
-      </SectionList>
-
-      <SectionList
-        title="Datos pendientes"
-        emptyTitle="No hay datos pendientes."
-      >
-        <div className="grid gap-2">
-          {summary.listItem.pendingFields.map((field) => (
-            <div
-              key={field}
-              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900"
-            >
-              <Bell size={17} />
-              {field}
-            </div>
-          ))}
-        </div>
-      </SectionList>
-    </div>
   );
 }
 
@@ -1971,6 +1725,13 @@ function InvoiceCard({
   );
 }
 
+// Keep the previous compact cards available to the scoped-access fallback while
+// the full Client 360 workspaces remain company-scoped server components.
+void [WorkCard, BudgetCard, InvoiceCard];
+void [PaymentsTab, ClientFinanceTab, FinanceBox];
+void VisitsTab;
+void ConversationsTab;
+
 function SectionList({
   title,
   description,
@@ -2030,24 +1791,6 @@ function CompactRow({
     </Link>
   ) : (
     content
-  );
-}
-
-function DataGrid({ rows }: { rows: Array<[string, string | null]> }) {
-  return (
-    <dl className="grid gap-2">
-      {rows.map(([label, value]) => (
-        <div
-          key={label}
-          className="grid gap-1 rounded-lg border border-slate-100 bg-white p-3 sm:grid-cols-[12rem_1fr]"
-        >
-          <dt className="text-xs font-bold uppercase text-slate-500">
-            {label}
-          </dt>
-          <dd className="font-bold text-obra-ink">{value || "Pendiente"}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

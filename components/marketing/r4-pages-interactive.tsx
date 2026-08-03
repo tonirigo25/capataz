@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Bot, BriefcaseBusiness, Calculator, FileCheck2, Landmark, ShieldCheck, Users, WalletCards } from "lucide-react";
+import { comparisonGroups, priceFor, pricingPlans, recommendPlan, type BillingInterval } from "@/lib/marketing/pricing-catalog";
 import styles from "./r4-pages.module.css";
 
 const productAreas = [
@@ -37,35 +38,30 @@ function productAreaHref(key: (typeof productAreas)[number]["key"]) {
   return `/producto/${key}`;
 }
 
-type Interval = "monthly" | "annual";
-const plans = [
-  { key: "starter", name: "Starter", monthly: 39, annual: 390, audience: "Autónomos y equipos pequeños que quieren ordenar clientes, trabajo y facturación.", users: 2, ai: 0, features: ["Clientes y presupuestos", "Trabajo y facturación", "Acceso web y móvil"] },
-  { key: "professional", name: "Professional", monthly: 79, annual: 790, audience: "Equipos que necesitan coordinar operación, documentos y decisiones con IA.", users: 5, ai: 500, features: ["Todo Starter", "Documentos y automatizaciones", "Orqena IA operativa"] },
-  { key: "business", name: "Business", monthly: 149, annual: 1490, audience: "Empresas con mayor volumen, control avanzado y automatización.", users: 15, ai: 5000, features: ["Todo Professional", "Control y permisos avanzados", "Mayor capacidad operativa"] },
-] as const;
-
 export function PricingExplorer() {
-  const [interval, setInterval] = useState<Interval>("monthly");
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [team, setTeam] = useState(2);
   const [useAi, setUseAi] = useState(false);
   const [volume, setVolume] = useState<"normal" | "high">("normal");
-  const recommendation = team > 5 || volume === "high" ? "Business" : team > 2 || useAi ? "Professional" : "Starter";
+  const recommendationKey = recommendPlan({ teamSize: team, needsAi: useAi, workload: volume === "high" ? "high" : "standard" });
+  const recommendation = pricingPlans.find((plan) => plan.key === recommendationKey) ?? pricingPlans[0];
   return (
     <>
       <div className={styles.priceToggle} role="group" aria-label="Periodicidad"><button type="button" aria-pressed={interval === "monthly"} onClick={() => setInterval("monthly")}>Mensual</button><button type="button" aria-pressed={interval === "annual"} onClick={() => setInterval("annual")}>Anual <span>Dos meses incluidos</span></button></div>
-      <div className={styles.planGrid}>{plans.map((plan) => { const amount = interval === "monthly" ? plan.monthly : plan.annual; return <article key={plan.key} data-featured={plan.key === "professional" || undefined}><header><p className={styles.eyebrow}>{plan.key === "professional" ? "Más equilibrado" : "Plan"}</p><h2>{plan.name}</h2><p>{plan.audience}</p></header><div className={styles.price}><strong>{amount.toLocaleString("es-ES")} €</strong><span>+ IVA / {interval === "monthly" ? "mes" : "año"}</span></div><dl><div><dt>Usuarios</dt><dd>{plan.users}</dd></div><div><dt>Operaciones IA</dt><dd>{plan.ai ? `${plan.ai.toLocaleString("es-ES")}/mes` : "No incluidas"}</dd></div></dl><ul>{plan.features.map((feature) => <li key={feature}><ShieldCheck aria-hidden="true" />{feature}</li>)}</ul><Link href={`/contacto?motivo=acceso&plan=${plan.key}`}>Solicitar acceso<ArrowRight aria-hidden="true" /></Link></article>; })}</div>
+      <div className={styles.planGrid}>{pricingPlans.map((plan) => { const amount = priceFor(plan, interval); return <article key={plan.key} data-featured={plan.key === "professional" || undefined}><header><p className={styles.eyebrow}>{plan.key === "professional" ? "Más equilibrado" : "Plan"}</p><h2>{plan.name}</h2><p>{plan.audience}</p></header><div className={styles.price}><strong>{amount.toLocaleString("es-ES")} €</strong><span>+ IVA / {interval === "monthly" ? "mes" : "año"}</span></div><dl><div><dt>Usuarios</dt><dd>{plan.users}</dd></div><div><dt>Operaciones IA</dt><dd>{plan.aiOperations ? `${plan.aiOperations.toLocaleString("es-ES")}/mes` : "No incluidas"}</dd></div></dl><ul>{plan.features.map((feature) => <li key={feature}><ShieldCheck aria-hidden="true" />{feature}</li>)}</ul><Link href={`/contacto?motivo=acceso&plan=${plan.key}`}>Solicitar acceso<ArrowRight aria-hidden="true" /></Link></article>; })}</div>
       <div className={styles.recommender}>
         <div><p className={styles.eyebrow}>RECOMENDADOR NO TRANSACCIONAL</p><h2>Encuentra un punto de partida.</h2><p>La recomendación orienta la conversación. No crea una compra ni una suscripción.</p></div>
         <form onSubmit={(event) => event.preventDefault()}><label>Personas que usarán Orqena<input type="range" min="1" max="20" value={team} onChange={(event) => setTeam(Number(event.target.value))} /><strong>{team}</strong></label><label className={styles.check}><input type="checkbox" checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />Necesitamos asistencia de Orqena IA</label><label>Volumen de trabajos y documentos<select value={volume} onChange={(event) => setVolume(event.target.value as "normal" | "high")}><option value="normal">Normal</option><option value="high">Alto</option></select></label></form>
-        <aside><span>Recomendación orientativa</span><strong>{recommendation}</strong><p>{recommendation === "Starter" ? "Una base sencilla para ordenar la operación." : recommendation === "Professional" ? "Coordinación e IA para un equipo en crecimiento." : "Mayor capacidad y control para una operación exigente."}</p><Link href={`/contacto?motivo=acceso&plan=${recommendation.toLowerCase()}`}>Comentar esta opción<ArrowRight aria-hidden="true" /></Link></aside>
+        <aside><span>Recomendación orientativa</span><strong>{recommendation.name}</strong><p>{recommendation.outcome}</p><Link href={`/contacto?motivo=acceso&plan=${recommendation.key}`}>Comentar esta opción<ArrowRight aria-hidden="true" /></Link></aside>
       </div>
     </>
   );
 }
 
 export function PriceComparison() {
-  const rows = [["Usuarios", "2", "5", "15"], ["Operaciones IA al mes", "No incluidas", "500", "5.000"], ["Clientes, presupuestos y trabajo", "Incluido", "Incluido", "Incluido"], ["Documentos y automatizaciones", "Esencial", "Incluido", "Avanzado"], ["Permisos y control", "Esencial", "Avanzado", "Avanzado"]] as const;
-  return <div className={styles.comparison} role="region" aria-label="Comparación de planes" tabIndex={0}><table><thead><tr><th>Capacidad</th><th>Starter</th><th>Professional</th><th>Business</th></tr></thead><tbody>{rows.map(([label, ...values]) => <tr key={label}><th>{label}</th>{values.map((value) => <td key={value}>{value}</td>)}</tr>)}</tbody></table></div>;
+  const rows: Array<readonly [string, string, string, string]> = [];
+  comparisonGroups.forEach((group) => group.rows.forEach((row) => rows.push(row)));
+  return <div className={styles.comparison} role="region" aria-label="Comparación de planes" tabIndex={0}><table><thead><tr><th>Capacidad</th><th>Starter</th><th>Professional</th><th>Business</th></tr></thead><tbody>{rows.map(([label, ...values]) => <tr key={label}><th>{label}</th>{values.map((value, index) => <td key={`${label}-${index}`}>{value}</td>)}</tr>)}</tbody></table></div>;
 }
 
 export function ResourceCalculators() {

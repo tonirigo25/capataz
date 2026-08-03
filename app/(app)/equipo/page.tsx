@@ -1,19 +1,24 @@
 import Link from "next/link";
+import type { CompanyRole } from "@prisma/client";
 import {
-  KeyRound,
+  ChevronLeft,
+  ChevronRight,
+  BriefcaseBusiness,
+  CircleUserRound,
+  Ellipsis,
+  Eye,
+  HardHat,
   ShieldCheck,
-  UserCheck,
+  UserCog,
   UserPlus,
-  Users,
+  UsersRound,
 } from "lucide-react";
-import { requireCapability } from "@/lib/commercial/authorization";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import {
-  CompactTabs,
-  KpiCard,
-  KpiGrid,
-  ModuleHeader,
-  SoftBadge,
-} from "@/components/portal/modules-b/module-frame";
+  requireCapability,
+  resolveAuthorization,
+} from "@/lib/commercial/authorization";
+import { SoftBadge } from "@/components/portal/modules-b/module-frame";
 import {
   accessPackageKeys,
   accessPackageLabels,
@@ -25,7 +30,9 @@ import {
 import {
   functionalProfileKeys,
   functionalProfileLabels,
+  profileDefaultPackages,
   resolveFunctionalProfile,
+  type FunctionalProfileKey,
 } from "@/lib/commercial/functional-profiles";
 import { prisma } from "@/lib/prisma";
 import {
@@ -43,6 +50,8 @@ import {
   transferOwnership,
   updatePendingInvitation,
 } from "./actions";
+import { TeamRailContext } from "@/components/portal/team-rail-context";
+import styles from "./equipo.module.css";
 
 export default async function TeamPage({
   searchParams,
@@ -51,81 +60,115 @@ export default async function TeamPage({
     persona?: string;
     invitar?: string;
     perfil?: string;
+    pagina?: string;
   }>;
 }) {
   const query = await searchParams;
   const auth = await requireCapability("company.members.view");
   const owner = auth.role === "OWNER";
-  const [members, invitations, pendingOutbox, works, clients, teams] =
-    await Promise.all([
-      prisma.companyMembership.findMany({
-        where: { companyId: auth.companyId },
-        include: {
-          user: {
-            include: {
-              mfaFactors: {
-                where: { status: "ACTIVE", disabledAt: null },
-                select: { id: true },
-              },
+  const workloadAuthorization = await resolveAuthorization(auth, "tasks.view");
+  const canViewCompanyWorkload =
+    workloadAuthorization.allowed && workloadAuthorization.scope === "COMPANY";
+  const [
+    members,
+    invitations,
+    pendingOutbox,
+    works,
+    clients,
+    teams,
+    taskLoads,
+  ] = await Promise.all([
+    prisma.companyMembership.findMany({
+      where: { companyId: auth.companyId },
+      include: {
+        user: {
+          include: {
+            mfaFactors: {
+              where: { status: "ACTIVE", disabledAt: null },
+              select: { id: true },
             },
           },
-          teamMemberships: { include: { team: true } },
-          permissionOverrides: true,
-          accessPackages: true,
-          approvalAuthorities: true,
-          fieldVisibilityPolicies: true,
-          scopeAssignments: true,
         },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.invitation.findMany({
-        where: {
-          companyId: auth.companyId,
-          status: {
-            in: [
-              "PENDING",
-              "PENDING_EMPLOYEE",
-              "EMPLOYEE_ACCEPTED",
-              "PENDING_OWNER_APPROVAL",
-            ],
+        teamMemberships: { include: { team: true } },
+        permissionOverrides: true,
+        accessPackages: true,
+        approvalAuthorities: true,
+        fieldVisibilityPolicies: true,
+        scopeAssignments: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.invitation.findMany({
+      where: {
+        companyId: auth.companyId,
+        status: {
+          in: [
+            "PENDING",
+            "PENDING_EMPLOYEE",
+            "EMPLOYEE_ACCEPTED",
+            "PENDING_OWNER_APPROVAL",
+          ],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    owner
+      ? prisma.emailOutbox.count({
+          where: {
+            companyId: auth.companyId,
+            status: { in: ["PENDING", "FAILED", "RETRYING"] },
           },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      owner
-        ? prisma.emailOutbox.count({
-            where: {
-              companyId: auth.companyId,
-              status: { in: ["PENDING", "FAILED", "RETRYING"] },
+        })
+      : Promise.resolve(0),
+    owner
+      ? prisma.work.findMany({
+          where: { companyId: auth.companyId },
+          select: { id: true, titulo: true },
+          orderBy: { titulo: "asc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+    owner
+      ? prisma.client.findMany({
+          where: { companyId: auth.companyId, archivadoAt: null },
+          select: { id: true, nombre: true, nombreComercial: true },
+          orderBy: { nombre: "asc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+    owner
+      ? prisma.team.findMany({
+          where: { companyId: auth.companyId, state: "ACTIVE" },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+    canViewCompanyWorkload
+      ? prisma.task.findMany({
+          where: {
+            companyId: auth.companyId,
+            archivedAt: null,
+            status: { notIn: ["completed", "cancelled", "archived"] },
+          },
+          select: {
+            id: true,
+            assigneeId: true,
+            estimatedMinutes: true,
+            assignments: {
+              where: { removedAt: null, userId: { not: null } },
+              select: { userId: true },
             },
-          })
-        : Promise.resolve(0),
-      owner
-        ? prisma.work.findMany({
-            where: { companyId: auth.companyId },
-            select: { id: true, titulo: true },
-            orderBy: { titulo: "asc" },
-            take: 100,
-          })
-        : Promise.resolve([]),
-      owner
-        ? prisma.client.findMany({
-            where: { companyId: auth.companyId, archivadoAt: null },
-            select: { id: true, nombre: true, nombreComercial: true },
-            orderBy: { nombre: "asc" },
-            take: 100,
-          })
-        : Promise.resolve([]),
-      owner
-        ? prisma.team.findMany({
-            where: { companyId: auth.companyId, state: "ACTIVE" },
-            select: { id: true, name: true },
-            orderBy: { name: "asc" },
-          })
-        : Promise.resolve([]),
-    ]);
+          },
+        })
+      : Promise.resolve([]),
+  ]);
   const profileFilter = query.perfil ?? "todos";
-  const filteredMembers = members.filter((member) =>
+  const orderedMembers = [...members].sort((a, b) => {
+    if (a.userId === auth.userId) return -1;
+    if (b.userId === auth.userId) return 1;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+  const filteredMembers = orderedMembers.filter((member) =>
     memberMatchesFilter(
       member.functionalProfileKey,
       member.role,
@@ -134,9 +177,9 @@ export default async function TeamPage({
     ),
   );
   const selectedMember =
-    filteredMembers.find((member) => member.id === query.persona) ??
-    filteredMembers[0] ??
-    null;
+    (query.persona
+      ? filteredMembers.find((member) => member.id === query.persona)
+      : filteredMembers.find((member) => member.userId === auth.userId)) ?? null;
   const selectedProfile = selectedMember
     ? resolveFunctionalProfile(
         selectedMember.functionalProfileKey,
@@ -144,106 +187,108 @@ export default async function TeamPage({
       )
     : null;
   const activeMembers = members.filter((member) => member.status === "active");
-  const pendingMembers = members.filter((member) =>
-    ["invited", "pending_approval"].includes(member.status),
+  const workloadByUser = new Map<string, { count: number; estimatedMinutes: number }>();
+  for (const task of taskLoads) {
+    const assignedUsers = new Set([
+      task.assigneeId,
+      ...task.assignments.map((assignment) => assignment.userId),
+    ].filter((userId): userId is string => Boolean(userId)));
+    for (const userId of assignedUsers) {
+      const current = workloadByUser.get(userId) ?? { count: 0, estimatedMinutes: 0 };
+      workloadByUser.set(userId, {
+        count: current.count + 1,
+        estimatedMinutes: current.estimatedMinutes + (task.estimatedMinutes ?? 0),
+      });
+    }
+  }
+  const maximumEstimatedMinutes = Math.max(
+    0,
+    ...workloadByUser.values().map((item) => item.estimatedMinutes),
   );
-  const activeMembersWithMfa = activeMembers.filter(
-    (member) => member.user.mfaFactors.length > 0,
+  const maximumTaskCount = Math.max(
+    0,
+    ...workloadByUser.values().map((item) => item.count),
   );
+  const selectedWorkload = selectedMember
+    ? (workloadByUser.get(selectedMember.userId) ?? null)
+    : null;
+  const pageSize = 8;
+  const pageCount = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const requestedPage = Number.parseInt(query.pagina ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage)
+    ? Math.min(pageCount, Math.max(1, requestedPage))
+    : 1;
+  const pageStart = (currentPage - 1) * pageSize;
+  const visibleMembers = filteredMembers.slice(pageStart, pageStart + pageSize);
+
+  const selectedMemberContext = selectedMember && selectedProfile
+    ? {
+        name: selectedMember.user.displayName,
+        email: selectedMember.user.email,
+        role: functionalProfileLabels[selectedProfile],
+        area: profileAreaLabel(selectedProfile),
+        access: memberAccessLabel(selectedMember),
+        status: membershipStatusLabel(selectedMember.status),
+        lastAccess: formatMemberActivity(selectedMember.user.lastLoginAt),
+        workload: canViewCompanyWorkload ? workloadLabel(selectedWorkload) : "No disponible con este alcance",
+        canEdit: owner && selectedMember.userId !== auth.userId && selectedMember.role !== "OWNER",
+        editHref: owner && selectedMember.userId !== auth.userId && selectedMember.role !== "OWNER" ? "#ajustes-persona" : null,
+        portalHref: owner ? `/equipo/${selectedMember.id}/portal` : null,
+      }
+    : null;
 
   return (
-    <main className="screen">
-      <ModuleHeader
-        eyebrow="Personas y acceso"
-        title="Equipo"
-        description={`Coordina perfiles, alcance y seguridad efectiva en ${auth.companyName}, sin ampliar permisos desde la vista.`}
-        action={
-          owner ? (
-            <>
-              <Link href="/equipo/outbox" className="secondary-button">
-                Bandeja interna · {pendingOutbox}
-              </Link>
-              <Link href="/equipo?invitar=1#invitar" className="primary-button">
-                <UserPlus size={18} /> Invitar miembro
-              </Link>
-            </>
-          ) : undefined
-        }
-        meta={
-          <>
-            <SoftBadge tone="success">
-              {activeMembers.length} accesos activos
-            </SoftBadge>
-            <SoftBadge>{members.length} miembros</SoftBadge>
-          </>
-        }
-      />
+    <main className={styles.page} data-team-canonical>
+      <TeamRailContext context={{ activeCount: activeMembers.length, totalCount: members.length, selected: selectedMemberContext }} />
+      <header>
+        <h1 className={styles.heading}>Equipo</h1>
+        <p className={styles.subtitle}>Gestiona las personas, roles y permisos para coordinar tu empresa.</p>
+      </header>
 
-      <KpiGrid>
-        <KpiCard
-          label="Miembros"
-          value={String(members.length)}
-          detail="Personas registradas en la empresa"
-          icon={Users}
-        />
-        <KpiCard
-          label="Activos"
-          value={String(activeMembers.length)}
-          detail="Con acceso vigente"
-          icon={UserCheck}
-          tone="success"
-        />
-        <KpiCard
-          label="Pendientes"
-          value={String(pendingMembers.length)}
-          detail="Invitados o pendientes de aprobación"
-          icon={UserPlus}
-          tone={pendingMembers.length ? "warning" : "neutral"}
-        />
-        <KpiCard
-          label="MFA activa"
-          value={`${activeMembersWithMfa.length}/${activeMembers.length}`}
-          detail="Miembros activos con protección adicional"
-          icon={ShieldCheck}
-          tone={
-            activeMembersWithMfa.length === activeMembers.length &&
-            activeMembers.length
-              ? "success"
-              : "warning"
-          }
-        />
-      </KpiGrid>
-
-      <div className="mb-5">
-        <p className="type-label mb-2">Filtrar por responsabilidad</p>
-        <CompactTabs label="Perfiles del equipo">
-          {teamFilters.map(([id, label]) => (
-            <Link
-              key={id}
-              href={`/equipo?perfil=${id}`}
-              aria-current={profileFilter === id ? "page" : undefined}
-              className={`inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 py-1.5 text-sm font-bold ${profileFilter === id ? "bg-obra-ink text-white" : "text-slate-600 hover:bg-white"}`}
-            >
-              {label}
+      <section className={styles.filterBlock} aria-labelledby="team-role-filters">
+        <div className={styles.filterMeta}>
+          <h2 id="team-role-filters">Filtros por rol</h2>
+          <span className={styles.memberCount}>{activeMembers.length} miembros</span>
+        </div>
+        <div className={styles.filterActions}>
+          <nav aria-label="Perfiles del equipo" className={styles.filters}>
+            {teamFilters.map(([id, label]) => (
+              <Link
+                key={id}
+                href={`/equipo?perfil=${id}`}
+                aria-current={profileFilter === id ? "page" : undefined}
+                className={`${styles.filter} ${profileFilter === id ? styles.filterActive : ""}`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+          {owner ? (
+            <Link href={`/equipo?perfil=${profileFilter}&invitar=1#invitar`} className={styles.invite}>
+              <UserPlus size={14} aria-hidden="true" /> Invitar miembro
             </Link>
-          ))}
-        </CompactTabs>
-      </div>
+          ) : null}
+        </div>
+      </section>
 
-      {owner ? (
-        <details
-          id="invitar"
-          className="card mt-6 scroll-mt-24 p-4"
-          open={query.invitar === "1"}
-        >
+      {owner && query.invitar === "1" ? (
+        <details id="invitar" className="card mt-6 scroll-mt-24 p-4" open>
           <summary className="cursor-pointer type-section-title">
             Invitar a una persona
           </summary>
           <div className="mt-3 border-t border-slate-100 pt-3">
-            <p className="type-secondary">
-              La persona deberá aceptar y después esperar tu aprobación. Revisa
-              perfil, alcance y campos antes de crear la invitación.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="type-secondary">
+                La persona deberá aceptar y después esperar tu aprobación.
+                Revisa perfil, alcance y campos antes de crear la invitación.
+              </p>
+              <Link
+                href={`/equipo?perfil=${profileFilter}`}
+                className="ghost-button shrink-0"
+              >
+                Cerrar
+              </Link>
+            </div>
             <form
               action={inviteMember}
               className="mt-4 grid gap-3 lg:grid-cols-4"
@@ -398,284 +443,127 @@ export default async function TeamPage({
             </form>
           </div>
         </details>
-      ) : (
-        <section className="card mt-6 p-4">
-          <h2 className="type-section-title">Equipo</h2>
-          <p className="type-secondary mt-2">
-            Puedes consultar quién participa. Solo el propietario puede invitar
-            o cambiar accesos.
-          </p>
-        </section>
-      )}
+      ) : null}
 
-      <section
-        className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]"
-        data-d8-team-workspace
-      >
-        <div
-          className="card h-fit overflow-x-auto"
-          aria-label="Lista de personas"
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-            <div>
-              <h2 className="type-section-title">Miembros y acceso</h2>
-              <p className="type-meta mt-1">
-                Rol, estado y seguridad visibles en una sola lectura.
-              </p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
-              {filteredMembers.length}
-            </span>
-          </div>
-          <div className="hidden grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,.8fr)_minmax(8rem,.75fr)_7rem_6rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 md:grid md:min-w-[42rem]">
-            <span>Miembro</span>
-            <span>Perfil</span>
-            <span>Acceso</span>
-            <span>Estado</span>
-            <span>Seguridad</span>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {filteredMembers.map((member) => {
-              const profile = resolveFunctionalProfile(
-                member.functionalProfileKey,
-                member.role,
-              );
-              return (
-                <Link
-                  key={member.id}
-                  href={`/equipo?perfil=${profileFilter}&persona=${member.id}`}
-                  aria-current={
-                    member.id === selectedMember?.id ? "page" : undefined
-                  }
-                  className={`grid gap-2 px-4 py-3 transition hover:bg-slate-50 md:min-w-[42rem] md:grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,.8fr)_minmax(8rem,.75fr)_7rem_6rem] md:items-center md:gap-3 ${member.id === selectedMember?.id ? "bg-emerald-50/70 ring-1 ring-inset ring-emerald-200" : "bg-white"}`}
-                >
-                  <span className="min-w-0">
-                    <strong className="block truncate text-sm text-obra-ink">
-                      {member.user.displayName}
-                    </strong>
-                    <span className="mt-1 block truncate text-xs text-slate-500">
-                      {member.user.email}
-                    </span>
-                  </span>
-                  <span className="text-sm font-semibold text-slate-700">
-                    {functionalProfileLabels[profile]}
-                  </span>
-                  <span className="text-sm text-slate-600">
-                    {accessModeLabel(member.accessMode)}
-                  </span>
-                  <SoftBadge
-                    tone={member.status === "active" ? "success" : "warning"}
-                  >
-                    {membershipStatusLabel(member.status)}
-                  </SoftBadge>
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600">
-                    <KeyRound size={14} />
-                    {member.user.mfaFactors.length ? "MFA" : "Pendiente"}
-                  </span>
-                </Link>
-              );
-            })}
-            {!filteredMembers.length ? (
-              <p className="p-4 text-sm text-slate-500">
-                No hay miembros para este filtro.
-              </p>
-            ) : null}
-          </div>
+      <section className={styles.tableCard} aria-label="Miembros y acceso" data-d8-team-workspace>
+        <div className={styles.tableHeader}>
+          <span>Miembro</span><span>Rol</span><span>Área</span><span>Acceso a empresa</span><span>Estado</span><span>Último acceso</span><span>Carga de trabajo <CircleUserRound size={11} aria-hidden="true" /></span><span aria-hidden="true" />
         </div>
-        <article
-          className="card h-fit p-4 xl:sticky xl:top-20"
-          data-d8-resulting-portal
-        >
-          <p className="type-label text-emerald-700">Detalle seleccionado</p>
-          {selectedMember && selectedProfile ? (
-            <>
-              <div className="mt-2 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="type-section-title">
-                    {selectedMember.user.displayName}
-                  </h2>
-                  <p className="type-secondary mt-1">
-                    {functionalProfileLabels[selectedProfile]} ·{" "}
-                    {accessModeLabel(selectedMember.accessMode)}
-                  </p>
-                </div>
-                {owner ? (
-                  <Link
-                    className="secondary-button"
-                    href={`/equipo/${selectedMember.id}/portal`}
-                  >
-                    Previsualizar portal
-                  </Link>
-                ) : null}
-              </div>
-              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                <PortalFact
-                  label="Perfil"
-                  value={functionalProfileLabels[selectedProfile]}
-                />
-                <PortalFact
-                  label="Modo"
-                  value={accessModeLabel(selectedMember.accessMode)}
-                />
-                <PortalFact
-                  label="MFA"
-                  value={
-                    selectedMember.user.mfaFactors.length
-                      ? "Activa"
-                      : "Pendiente"
-                  }
-                />
-                <PortalFact
-                  label="Alcance configurado"
-                  value={
-                    selectedMember.scopeAssignments.length
-                      ? [
-                          ...new Set(
-                            selectedMember.scopeAssignments.map((item) =>
-                              scopeLabel(item.scope),
-                            ),
-                          ),
-                        ].join(", ")
-                      : "Según perfil"
-                  }
-                />
-                <PortalFact
-                  label="Paquetes configurados"
-                  value={
-                    selectedMember.accessPackages.length
-                      ? selectedMember.accessPackages
-                          .map(
-                            (item) =>
-                              accessPackageLabels[
-                                item.packageKey as keyof typeof accessPackageLabels
-                              ] ?? item.packageKey,
-                          )
-                          .join(", ")
-                      : "Sin paquetes adicionales"
-                  }
-                />
-                <PortalFact
-                  label="Campos económicos"
-                  value={
-                    selectedMember.fieldVisibilityPolicies.filter(
-                      (item) => item.visible,
-                    ).length
-                      ? `${selectedMember.fieldVisibilityPolicies.filter((item) => item.visible).length} explícitos`
-                      : "No concedidos explícitamente"
-                  }
-                />
-                <PortalFact
-                  label="Aprobación"
-                  value={
-                    selectedMember.approvalAuthorities.length
-                      ? `${selectedMember.approvalAuthorities.length} autoridades`
-                      : "Sin autoridad adicional"
-                  }
-                />
-                <PortalFact
-                  label="Equipos"
-                  value={
-                    selectedMember.teamMemberships
-                      .map((item) => item.team.name)
-                      .join(", ") || "Sin equipo"
-                  }
-                />
-              </dl>
-              <p className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 text-sm leading-6 text-slate-600">
-                Este resumen muestra la configuración registrada. Abre la vista
-                previa para calcular el acceso efectivo con vigencia,
-                excepciones y alcance. Ningún ajuste se aplica desde aquí.
-              </p>
-            </>
-          ) : (
-            <p className="type-secondary mt-3">
-              Todavía no hay miembros en esta empresa.
-            </p>
-          )}
-        </article>
+        <div className={styles.rows}>
+          {visibleMembers.map((member) => {
+            const profile = resolveFunctionalProfile(member.functionalProfileKey, member.role);
+            const workload = workloadByUser.get(member.userId) ?? null;
+            const workloadRatio = workload
+              ? workload.estimatedMinutes > 0 && maximumEstimatedMinutes > 0
+                ? workload.estimatedMinutes / maximumEstimatedMinutes
+                : maximumTaskCount > 0 ? workload.count / maximumTaskCount : 0
+              : 0;
+            const workloadPercent = workload?.count ? Math.max(8, Math.round(workloadRatio * 100)) : 0;
+            return (
+              <Link
+                key={member.id}
+                href={`/equipo?persona=${member.id}&perfil=${profileFilter}&pagina=${currentPage}`}
+                aria-current={member.id === selectedMember?.id ? "page" : undefined}
+                className={`${styles.row} ${member.id === selectedMember?.id ? styles.selected : ""}`}
+              >
+                <span className={styles.identity}>
+                  <span className={styles.avatar} aria-hidden="true">{memberInitials(member.user.displayName)}</span>
+                  <span className={styles.identityText}>
+                    <strong>{member.user.displayName}</strong>
+                    <small>{member.user.email}</small>
+                  </span>
+                </span>
+                <span><small className={styles.mobileLabel}>Rol</small><span className={styles.roleBadge} data-tone={roleTone(profile, member.accessMode)}>{functionalProfileLabels[profile]}</span></span>
+                <span className={styles.cell}><small className={styles.mobileLabel}>Área</small>{profileAreaLabel(profile)}</span>
+                <span className={styles.cell}><small className={styles.mobileLabel}>Acceso</small>{memberAccessLabel(member)}</span>
+                <span><small className={styles.mobileLabel}>Estado</small><span className={styles.status} data-state={member.status}>{shortMembershipStatusLabel(member.status)}</span></span>
+                <span className={styles.cell}><small className={styles.mobileLabel}>Último acceso</small>{formatMemberActivity(member.user.lastLoginAt)}</span>
+                <span className={styles.workload}>
+                  <small className={styles.mobileLabel}>Carga de trabajo</small>
+                  <span><strong>{canViewCompanyWorkload ? workloadLabel(workload) : "No disponible"}</strong></span>
+                  <span className={styles.bar} aria-label={canViewCompanyWorkload ? "Carga relativa entre tareas registradas" : "Carga no disponible"}><i style={{ width: `${workloadPercent}%` }} /></span>
+                </span>
+                <span className={styles.menu} aria-label={`Ver detalle de ${member.user.displayName}`}><Ellipsis size={15} aria-hidden="true" /></span>
+              </Link>
+            );
+          })}
+          {!visibleMembers.length ? <p className={styles.empty}>No hay miembros para este filtro.</p> : null}
+        </div>
+        <footer className={styles.pager}>
+          <span>{filteredMembers.length ? `Mostrando ${pageStart + 1} a ${Math.min(pageStart + pageSize, filteredMembers.length)} de ${filteredMembers.length} miembros` : "Sin miembros visibles"}</span>
+          <nav aria-label="Paginación del equipo">
+            {currentPage > 1 ? <Link className={styles.pagerLink} aria-label="Página anterior" href={`/equipo?perfil=${profileFilter}&pagina=${currentPage - 1}&persona=${filteredMembers[Math.max(0, pageStart - pageSize)]?.id ?? ""}`}><ChevronLeft size={14} /></Link> : <span className={styles.pagerDisabled} aria-hidden="true"><ChevronLeft size={14} /></span>}
+            {currentPage < pageCount ? <Link className={styles.pagerLink} aria-label="Página siguiente" href={`/equipo?perfil=${profileFilter}&pagina=${currentPage + 1}&persona=${filteredMembers[pageStart + pageSize]?.id ?? ""}`}><ChevronRight size={14} /></Link> : <span className={styles.pagerDisabled} aria-hidden="true"><ChevronRight size={14} /></span>}
+          </nav>
+        </footer>
       </section>
 
-      <section className="mt-6" id="ajustes-persona">
-        <h2 className="type-section-title">
-          Ajustes de la persona seleccionada
-        </h2>
-        <div className="mt-3 grid gap-3">
-          {members
-            .filter(
-              (member) => !selectedMember || member.id === selectedMember.id,
-            )
-            .map((member) => {
-              const profile = resolveFunctionalProfile(
-                member.functionalProfileKey,
-                member.role,
-              );
-              return (
-                <article key={member.id} className="card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <strong>{member.user.displayName}</strong>
-                      <p className="type-secondary">
-                        {member.user.email} · {functionalProfileLabels[profile]}
-                      </p>
-                      <p className="mt-1 text-xs text-content-tertiary">
-                        {member.status === "active"
-                          ? member.teamMemberships
-                              .map((item) => item.team.name)
-                              .join(", ") || "Sin equipo"
-                          : `Estado: ${membershipStatusLabel(member.status)}`}
-                      </p>
-                    </div>
-                    {member.role === "OWNER" ? (
-                      <span className="text-sm font-semibold text-brand-strong">
-                        Propietario
-                      </span>
-                    ) : null}
-                  </div>
-                  {owner &&
-                  member.userId !== auth.userId &&
-                  member.role !== "OWNER" ? (
-                    <div className="mt-4 grid gap-3 border-t border-border pt-3">
-                      <div className="flex flex-wrap gap-2">
-                        <form
-                          action={changeFunctionalProfile}
-                          className="flex flex-1 gap-2"
-                        >
-                          <input
-                            type="hidden"
-                            name="membershipId"
-                            value={member.id}
-                          />
-                          <select
-                            name="functionalProfileKey"
-                            defaultValue={profile}
-                            aria-label={`Perfil de ${member.user.displayName}`}
-                            className="field h-10 py-1"
-                          >
-                            {functionalProfileKeys
-                              .filter((key) => key !== "OWNER")
-                              .map((key) => (
-                                <option key={key} value={key}>
-                                  {functionalProfileLabels[key]}
-                                </option>
-                              ))}
-                          </select>
-                          <button className="secondary-button">Guardar</button>
-                        </form>
-                        <Link
-                          href={`/equipo/${member.id}/portal`}
-                          className="ghost-button"
-                        >
-                          Previsualizar portal
-                        </Link>
+      <section className={styles.roles} aria-labelledby="team-role-capabilities">
+        <h2 id="team-role-capabilities">Capacidades por rol</h2>
+        <div className={styles.roleGrid}>
+          {teamRoleCards.map((card) => {
+            const Icon = card.icon;
+            const packages = profileDefaultPackages[card.profile];
+            return (
+              <Link key={card.filter} href={`/equipo?perfil=${card.filter}`} className={styles.roleCard}>
+                <span className={styles.roleTitle}><span className={styles.roleIcon}><Icon size={13} aria-hidden="true" /></span><strong>{card.label}</strong></span>
+                <ul>{packages.slice(0, 4).map((key) => <li key={key}>{accessPackageLabels[key]}</li>)}</ul>
+              </Link>
+            );
+          })}
+        </div>
+        <p className={styles.roleNote}>¿Necesitas un rol personalizado? <Link href="/contacto?motivo=acceso">Contáctanos</Link></p>
+      </section>
+
+      {owner &&
+      selectedMember &&
+      selectedMember.userId !== auth.userId &&
+      selectedMember.role !== "OWNER" ? (
+        <section className="mt-6 scroll-mt-24" id="ajustes-persona">
+          <h2 className="type-section-title">
+            Ajustes de la persona seleccionada
+          </h2>
+          <div className="mt-3 grid gap-3">
+            {members
+              .filter(
+                (member) => !selectedMember || member.id === selectedMember.id,
+              )
+              .map((member) => {
+                const profile = resolveFunctionalProfile(
+                  member.functionalProfileKey,
+                  member.role,
+                );
+                return (
+                  <article key={member.id} className="card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <strong>{member.user.displayName}</strong>
+                        <p className="type-secondary">
+                          {member.user.email} ·{" "}
+                          {functionalProfileLabels[profile]}
+                        </p>
+                        <p className="mt-1 text-xs text-content-tertiary">
+                          {member.status === "active"
+                            ? member.teamMemberships
+                                .map((item) => item.team.name)
+                                .join(", ") || "Sin equipo"
+                            : `Estado: ${membershipStatusLabel(member.status)}`}
+                        </p>
                       </div>
-                      <details>
-                        <summary className="cursor-pointer font-semibold">
-                          Paquetes y campos
-                        </summary>
-                        <div className="mt-3 grid gap-3">
+                      {member.role === "OWNER" ? (
+                        <span className="text-sm font-semibold text-brand-strong">
+                          Propietario
+                        </span>
+                      ) : null}
+                    </div>
+                    {owner &&
+                    member.userId !== auth.userId &&
+                    member.role !== "OWNER" ? (
+                      <div className="mt-4 grid gap-3 border-t border-border pt-3">
+                        <div className="flex flex-wrap gap-2">
                           <form
-                            action={setAccessPackage}
-                            className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
+                            action={changeFunctionalProfile}
+                            className="flex flex-1 gap-2"
                           >
                             <input
                               type="hidden"
@@ -683,29 +571,113 @@ export default async function TeamPage({
                               value={member.id}
                             />
                             <select
-                              name="packageKey"
-                              className="field"
-                              aria-label="Paquete"
+                              name="functionalProfileKey"
+                              defaultValue={profile}
+                              aria-label={`Perfil de ${member.user.displayName}`}
+                              className="field h-10 py-1"
                             >
-                              {accessPackageKeys
-                                .filter((key) => key !== "ACCESS_GOVERNANCE")
+                              {functionalProfileKeys
+                                .filter((key) => key !== "OWNER")
                                 .map((key) => (
                                   <option key={key} value={key}>
-                                    {accessPackageLabels[key]}
+                                    {functionalProfileLabels[key]}
                                   </option>
                                 ))}
                             </select>
-                            <label className="flex items-center gap-2">
-                              <input type="checkbox" name="enabled" />
-                              Conceder
-                            </label>
                             <button className="secondary-button">
-                              Aplicar
+                              Guardar
                             </button>
                           </form>
+                          <Link
+                            href={`/equipo/${member.id}/portal`}
+                            className="ghost-button"
+                          >
+                            Previsualizar portal
+                          </Link>
+                        </div>
+                        <details>
+                          <summary className="cursor-pointer font-semibold">
+                            Paquetes y campos
+                          </summary>
+                          <div className="mt-3 grid gap-3">
+                            <form
+                              action={setAccessPackage}
+                              className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
+                            >
+                              <input
+                                type="hidden"
+                                name="membershipId"
+                                value={member.id}
+                              />
+                              <select
+                                name="packageKey"
+                                className="field"
+                                aria-label="Paquete"
+                              >
+                                {accessPackageKeys
+                                  .filter((key) => key !== "ACCESS_GOVERNANCE")
+                                  .map((key) => (
+                                    <option key={key} value={key}>
+                                      {accessPackageLabels[key]}
+                                    </option>
+                                  ))}
+                              </select>
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" name="enabled" />
+                                Conceder
+                              </label>
+                              <button className="secondary-button">
+                                Aplicar
+                              </button>
+                            </form>
+                            <form
+                              action={setFieldVisibility}
+                              className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
+                            >
+                              <input
+                                type="hidden"
+                                name="membershipId"
+                                value={member.id}
+                              />
+                              <select
+                                name="fieldKey"
+                                className="field"
+                                aria-label="Campo sensible"
+                              >
+                                <option value="purchase_cost">
+                                  Coste de compra
+                                </option>
+                                <option value="internal_cost">
+                                  Coste interno
+                                </option>
+                                <option value="margin_percent">
+                                  Margen porcentual
+                                </option>
+                                <option value="margin_amount">
+                                  Margen absoluto
+                                </option>
+                                <option value="profit">Beneficio</option>
+                                <option value="treasury">Tesorería</option>
+                                <option value="banking">Banca</option>
+                                <option value="tax">Fiscalidad</option>
+                              </select>
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" name="visible" />
+                                Visible
+                              </label>
+                              <button className="secondary-button">
+                                Aplicar
+                              </button>
+                            </form>
+                          </div>
+                        </details>
+                        <details>
+                          <summary className="cursor-pointer font-semibold">
+                            Alcances por capacidad
+                          </summary>
                           <form
-                            action={setFieldVisibility}
-                            className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
+                            action={setScopeAssignment}
+                            className="mt-3 grid gap-2 sm:grid-cols-2"
                           >
                             <input
                               type="hidden"
@@ -713,346 +685,342 @@ export default async function TeamPage({
                               value={member.id}
                             />
                             <select
-                              name="fieldKey"
+                              name="capabilityKey"
                               className="field"
-                              aria-label="Campo sensible"
+                              aria-label="Capacidad con alcance"
                             >
-                              <option value="purchase_cost">
-                                Coste de compra
-                              </option>
-                              <option value="internal_cost">
-                                Coste interno
-                              </option>
-                              <option value="margin_percent">
-                                Margen porcentual
-                              </option>
-                              <option value="margin_amount">
-                                Margen absoluto
-                              </option>
-                              <option value="profit">Beneficio</option>
-                              <option value="treasury">Tesorería</option>
-                              <option value="banking">Banca</option>
-                              <option value="tax">Fiscalidad</option>
+                              {scopeAssignableCapabilityKeys.map((key) => (
+                                <option key={key} value={key}>
+                                  {capabilityCatalog[key].description}
+                                </option>
+                              ))}
                             </select>
-                            <label className="flex items-center gap-2">
-                              <input type="checkbox" name="visible" />
-                              Visible
-                            </label>
+                            <select
+                              name="scope"
+                              className="field"
+                              aria-label="Alcance"
+                            >
+                              <option value="ASSIGNED">Solo asignados</option>
+                              <option value="SELECTED_WORKS">
+                                Trabajos seleccionados
+                              </option>
+                              <option value="SELECTED_CLIENTS">
+                                Clientes seleccionados
+                              </option>
+                              <option value="TEAM">Su equipo</option>
+                              <option value="OWN">Solo propio</option>
+                              <option value="COMPANY">Toda la empresa</option>
+                            </select>
+                            <select
+                              name="entityRef"
+                              className="field"
+                              aria-label="Recurso concreto"
+                            >
+                              <option value="">Sin recurso concreto</option>
+                              <optgroup label="Trabajos">
+                                {works.map((work) => (
+                                  <option
+                                    key={`work-${work.id}`}
+                                    value={`Work:${work.id}`}
+                                  >
+                                    {work.titulo}
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="Clientes">
+                                {clients.map((client) => (
+                                  <option
+                                    key={`client-${client.id}`}
+                                    value={`Client:${client.id}`}
+                                  >
+                                    {client.nombreComercial ?? client.nombre}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            </select>
+                            <select
+                              name="teamId"
+                              className="field"
+                              aria-label="Equipo"
+                            >
+                              <option value="">Sin equipo concreto</option>
+                              {teams.map((team) => (
+                                <option key={team.id} value={team.id}>
+                                  {team.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button className="secondary-button sm:col-span-2">
+                              Aplicar alcance
+                            </button>
+                          </form>
+                          <div className="mt-3 grid gap-2">
+                            {member.scopeAssignments.length ? (
+                              member.scopeAssignments.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"
+                                >
+                                  <span>
+                                    <strong>
+                                      {capabilityCatalog[
+                                        item.capabilityKey as keyof typeof capabilityCatalog
+                                      ]?.description ?? item.capabilityKey}
+                                    </strong>{" "}
+                                    · {item.scope}
+                                    {item.entityId
+                                      ? ` · ${item.entityType === "Client" ? "cliente" : "trabajo"}`
+                                      : ""}
+                                  </span>
+                                  <form action={setScopeAssignment}>
+                                    <input
+                                      type="hidden"
+                                      name="membershipId"
+                                      value={member.id}
+                                    />
+                                    <input
+                                      type="hidden"
+                                      name="capabilityKey"
+                                      value={item.capabilityKey}
+                                    />
+                                    <input
+                                      type="hidden"
+                                      name="scopeOperation"
+                                      value="remove"
+                                    />
+                                    <input
+                                      type="hidden"
+                                      name="assignmentId"
+                                      value={item.id}
+                                    />
+                                    <button className="ghost-button">
+                                      Quitar
+                                    </button>
+                                  </form>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-content-tertiary">
+                                Según perfil, sin restricciones adicionales.
+                              </p>
+                            )}
+                          </div>
+                        </details>
+                        <details>
+                          <summary className="cursor-pointer font-semibold">
+                            Autoridad de aprobación
+                          </summary>
+                          <form
+                            action={setApprovalAuthority}
+                            className="mt-3 grid gap-2 sm:grid-cols-2"
+                          >
+                            <input
+                              type="hidden"
+                              name="membershipId"
+                              value={member.id}
+                            />
+                            <select name="authorityKey" className="field">
+                              <option value="quote.approve">
+                                Aprobar presupuesto
+                              </option>
+                              <option value="discount.approve">
+                                Aprobar descuento
+                              </option>
+                              <option value="purchase.approve">
+                                Aprobar compra
+                              </option>
+                              <option value="supplier_invoice.approve">
+                                Aprobar factura recibida
+                              </option>
+                              <option value="invoice.issue">
+                                Emitir factura
+                              </option>
+                              <option value="payment.approve">
+                                Aprobar pago
+                              </option>
+                              <option value="payment.execute">
+                                Ejecutar pago
+                              </option>
+                            </select>
+                            <input
+                              name="maxAmount"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="field"
+                              placeholder="Importe máximo"
+                            />
+                            <input
+                              name="maxDiscountPercent"
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              className="field"
+                              placeholder="Descuento máximo %"
+                            />
+                            <select name="scope" className="field">
+                              <option value="COMPANY">Toda la empresa</option>
+                              <option value="ASSIGNED">Solo asignado</option>
+                              <option value="TEAM">Su equipo</option>
+                            </select>
+                            <button className="secondary-button sm:col-span-2">
+                              Asignar autoridad
+                            </button>
+                          </form>
+                        </details>
+                        <details>
+                          <summary className="cursor-pointer font-semibold">
+                            Ajuste excepcional
+                          </summary>
+                          <form
+                            action={setPermissionOverride}
+                            className="mt-3 grid gap-2 sm:grid-cols-[1fr_10rem_auto]"
+                          >
+                            <input
+                              type="hidden"
+                              name="membershipId"
+                              value={member.id}
+                            />
+                            <select
+                              name="capabilityKey"
+                              aria-label="Capacidad"
+                              className="field"
+                            >
+                              {Object.entries(capabilityCatalog).map(
+                                ([key, item]) => (
+                                  <option key={key} value={key}>
+                                    {item.description}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                            <select
+                              name="effect"
+                              aria-label="Efecto"
+                              className="field"
+                            >
+                              <option value="ROLE">Usar perfil</option>
+                              <option value="GRANT">Conceder</option>
+                              <option value="DENY">Denegar</option>
+                            </select>
                             <button className="secondary-button">
                               Aplicar
                             </button>
                           </form>
-                        </div>
-                      </details>
-                      <details>
-                        <summary className="cursor-pointer font-semibold">
-                          Alcances por capacidad
-                        </summary>
+                        </details>
                         <form
-                          action={setScopeAssignment}
-                          className="mt-3 grid gap-2 sm:grid-cols-2"
+                          action={transferOwnership}
+                          className="flex flex-wrap gap-2"
                         >
                           <input
                             type="hidden"
                             name="membershipId"
                             value={member.id}
                           />
-                          <select
-                            name="capabilityKey"
-                            className="field"
-                            aria-label="Capacidad con alcance"
+                          <input
+                            type="hidden"
+                            name="confirm"
+                            value="TRANSFERIR"
+                          />
+                          <input
+                            required
+                            type="password"
+                            name="currentPassword"
+                            autoComplete="current-password"
+                            aria-label="Contraseña actual para transferir"
+                            className="field max-w-xs"
+                            placeholder="Contraseña actual"
+                          />
+                          <ConfirmSubmitButton
+                            className="ghost-button"
+                            message={`¿Transferir la propiedad de ${auth.companyName} a ${member.user.displayName}? Esta acción cambia el control de la empresa.`}
                           >
-                            {scopeAssignableCapabilityKeys.map((key) => (
-                              <option key={key} value={key}>
-                                {capabilityCatalog[key].description}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="scope"
-                            className="field"
-                            aria-label="Alcance"
-                          >
-                            <option value="ASSIGNED">Solo asignados</option>
-                            <option value="SELECTED_WORKS">
-                              Trabajos seleccionados
-                            </option>
-                            <option value="SELECTED_CLIENTS">
-                              Clientes seleccionados
-                            </option>
-                            <option value="TEAM">Su equipo</option>
-                            <option value="OWN">Solo propio</option>
-                            <option value="COMPANY">Toda la empresa</option>
-                          </select>
-                          <select
-                            name="entityRef"
-                            className="field"
-                            aria-label="Recurso concreto"
-                          >
-                            <option value="">Sin recurso concreto</option>
-                            <optgroup label="Trabajos">
-                              {works.map((work) => (
-                                <option
-                                  key={`work-${work.id}`}
-                                  value={`Work:${work.id}`}
-                                >
-                                  {work.titulo}
-                                </option>
-                              ))}
-                            </optgroup>
-                            <optgroup label="Clientes">
-                              {clients.map((client) => (
-                                <option
-                                  key={`client-${client.id}`}
-                                  value={`Client:${client.id}`}
-                                >
-                                  {client.nombreComercial ?? client.nombre}
-                                </option>
-                              ))}
-                            </optgroup>
-                          </select>
-                          <select
-                            name="teamId"
-                            className="field"
-                            aria-label="Equipo"
-                          >
-                            <option value="">Sin equipo concreto</option>
-                            {teams.map((team) => (
-                              <option key={team.id} value={team.id}>
-                                {team.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button className="secondary-button sm:col-span-2">
-                            Aplicar alcance
-                          </button>
+                            Transferir propiedad
+                          </ConfirmSubmitButton>
                         </form>
-                        <div className="mt-3 grid gap-2">
-                          {member.scopeAssignments.length ? (
-                            member.scopeAssignments.map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"
+                        <div className="flex flex-wrap gap-2">
+                          {member.status === "active" ? (
+                            <form action={changeMembershipState}>
+                              <input
+                                type="hidden"
+                                name="membershipId"
+                                value={member.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="membershipAction"
+                                value="suspend"
+                              />
+                              <ConfirmSubmitButton
+                                className="secondary-button"
+                                message={`¿Suspender temporalmente el acceso de ${member.user.displayName}?`}
                               >
-                                <span>
-                                  <strong>
-                                    {capabilityCatalog[
-                                      item.capabilityKey as keyof typeof capabilityCatalog
-                                    ]?.description ?? item.capabilityKey}
-                                  </strong>{" "}
-                                  · {item.scope}
-                                  {item.entityId
-                                    ? ` · ${item.entityType === "Client" ? "cliente" : "trabajo"}`
-                                    : ""}
-                                </span>
-                                <form action={setScopeAssignment}>
-                                  <input
-                                    type="hidden"
-                                    name="membershipId"
-                                    value={member.id}
-                                  />
-                                  <input
-                                    type="hidden"
-                                    name="capabilityKey"
-                                    value={item.capabilityKey}
-                                  />
-                                  <input
-                                    type="hidden"
-                                    name="scopeOperation"
-                                    value="remove"
-                                  />
-                                  <input
-                                    type="hidden"
-                                    name="assignmentId"
-                                    value={item.id}
-                                  />
-                                  <button className="ghost-button">
-                                    Quitar
-                                  </button>
-                                </form>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-xs text-content-tertiary">
-                              Según perfil, sin restricciones adicionales.
-                            </p>
-                          )}
+                                Suspender
+                              </ConfirmSubmitButton>
+                            </form>
+                          ) : member.status === "suspended" ? (
+                            <form action={changeMembershipState}>
+                              <input
+                                type="hidden"
+                                name="membershipId"
+                                value={member.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="membershipAction"
+                                value="reactivate"
+                              />
+                              <ConfirmSubmitButton
+                                className="secondary-button"
+                                message={`¿Reactivar el acceso de ${member.user.displayName}?`}
+                              >
+                                Reactivar
+                              </ConfirmSubmitButton>
+                            </form>
+                          ) : null}
+                          <form action={changeMembershipState}>
+                            <input
+                              type="hidden"
+                              name="membershipId"
+                              value={member.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="membershipAction"
+                              value="revoke"
+                            />
+                            <ConfirmSubmitButton
+                              className="ghost-button"
+                              message={`¿Revocar definitivamente el acceso de ${member.user.displayName}?`}
+                            >
+                              Revocar acceso
+                            </ConfirmSubmitButton>
+                          </form>
                         </div>
-                      </details>
-                      <details>
-                        <summary className="cursor-pointer font-semibold">
-                          Autoridad de aprobación
-                        </summary>
-                        <form
-                          action={setApprovalAuthority}
-                          className="mt-3 grid gap-2 sm:grid-cols-2"
-                        >
-                          <input
-                            type="hidden"
-                            name="membershipId"
-                            value={member.id}
-                          />
-                          <select name="authorityKey" className="field">
-                            <option value="quote.approve">
-                              Aprobar presupuesto
-                            </option>
-                            <option value="discount.approve">
-                              Aprobar descuento
-                            </option>
-                            <option value="purchase.approve">
-                              Aprobar compra
-                            </option>
-                            <option value="supplier_invoice.approve">
-                              Aprobar factura recibida
-                            </option>
-                            <option value="invoice.issue">
-                              Emitir factura
-                            </option>
-                            <option value="payment.approve">
-                              Aprobar pago
-                            </option>
-                            <option value="payment.execute">
-                              Ejecutar pago
-                            </option>
-                          </select>
-                          <input
-                            name="maxAmount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className="field"
-                            placeholder="Importe máximo"
-                          />
-                          <input
-                            name="maxDiscountPercent"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            className="field"
-                            placeholder="Descuento máximo %"
-                          />
-                          <select name="scope" className="field">
-                            <option value="COMPANY">Toda la empresa</option>
-                            <option value="ASSIGNED">Solo asignado</option>
-                            <option value="TEAM">Su equipo</option>
-                          </select>
-                          <button className="secondary-button sm:col-span-2">
-                            Asignar autoridad
-                          </button>
-                        </form>
-                      </details>
-                      <details>
-                        <summary className="cursor-pointer font-semibold">
-                          Ajuste excepcional
-                        </summary>
-                        <form
-                          action={setPermissionOverride}
-                          className="mt-3 grid gap-2 sm:grid-cols-[1fr_10rem_auto]"
-                        >
-                          <input
-                            type="hidden"
-                            name="membershipId"
-                            value={member.id}
-                          />
-                          <select
-                            name="capabilityKey"
-                            aria-label="Capacidad"
-                            className="field"
-                          >
-                            {Object.entries(capabilityCatalog).map(
-                              ([key, item]) => (
-                                <option key={key} value={key}>
-                                  {item.description}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                          <select
-                            name="effect"
-                            aria-label="Efecto"
-                            className="field"
-                          >
-                            <option value="ROLE">Usar perfil</option>
-                            <option value="GRANT">Conceder</option>
-                            <option value="DENY">Denegar</option>
-                          </select>
-                          <button className="secondary-button">Aplicar</button>
-                        </form>
-                      </details>
-                      <form
-                        action={transferOwnership}
-                        className="flex flex-wrap gap-2"
-                      >
-                        <input
-                          type="hidden"
-                          name="membershipId"
-                          value={member.id}
-                        />
-                        <input
-                          required
-                          type="password"
-                          name="currentPassword"
-                          autoComplete="current-password"
-                          aria-label="Contraseña actual para transferir"
-                          className="field max-w-xs"
-                          placeholder="Contraseña actual"
-                        />
-                        <button
-                          name="confirm"
-                          value="TRANSFERIR"
-                          className="ghost-button"
-                        >
-                          Transferir propiedad
-                        </button>
-                      </form>
-                      <form
-                        action={changeMembershipState}
-                        className="flex flex-wrap gap-2"
-                      >
-                        <input
-                          type="hidden"
-                          name="membershipId"
-                          value={member.id}
-                        />
-                        {member.status === "active" ? (
-                          <button
-                            name="membershipAction"
-                            value="suspend"
-                            className="secondary-button"
-                          >
-                            Suspender
-                          </button>
-                        ) : member.status === "suspended" ? (
-                          <button
-                            name="membershipAction"
-                            value="reactivate"
-                            className="secondary-button"
-                          >
-                            Reactivar
-                          </button>
-                        ) : null}
-                        <button
-                          name="membershipAction"
-                          value="revoke"
-                          className="ghost-button"
-                        >
-                          Revocar acceso
-                        </button>
-                      </form>
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
-        </div>
-      </section>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+          </div>
+        </section>
+      ) : null}
 
       {owner ? (
-        <section className="mt-6" aria-labelledby="invitation-approvals">
-          <h2 id="invitation-approvals" className="type-section-title">
-            Invitaciones y aprobaciones
-          </h2>
+        <details
+          className="card mt-6 p-4"
+          aria-labelledby="invitation-approvals"
+        >
+          <summary
+            id="invitation-approvals"
+            className="flex cursor-pointer list-none items-center justify-between gap-3 type-section-title"
+          >
+            <span>Invitaciones y aprobaciones · bandeja interna {pendingOutbox}</span>
+            <SoftBadge tone={invitations.length ? "warning" : "success"}>
+              {invitations.length}
+            </SoftBadge>
+          </summary>
           <div className="mt-3 grid gap-2">
             {invitations.length ? (
               invitations.map((item) => (
@@ -1247,73 +1215,183 @@ export default async function TeamPage({
               <p className="empty-state">No hay invitaciones pendientes.</p>
             )}
           </div>
-        </section>
+        </details>
       ) : null}
     </main>
   );
 }
 
-function PortalFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
-        {label}
-      </dt>
-      <dd className="mt-1 text-sm font-semibold text-obra-ink">{value}</dd>
-    </div>
-  );
-}
-
 const teamFilters = [
   ["todos", "Todos"],
-  ["propiedad", "Propiedad"],
-  ["direccion", "Dirección"],
+  ["propiedad", "Propietario"],
+  ["direccion", "Administración"],
   ["oficina", "Oficina"],
   ["comercial", "Comercial"],
-  ["obra", "Jefatura de obra"],
-  ["operacion", "Operación"],
+  ["obra", "Jefe de obra"],
+  ["operacion", "Operario"],
   ["lectura", "Solo lectura"],
 ] as const;
 
+const teamRoleCards: Array<{
+  filter: (typeof teamFilters)[number][0];
+  profile: FunctionalProfileKey;
+  label: string;
+  icon: typeof ShieldCheck;
+}> = [
+  {
+    filter: "propiedad",
+    profile: "OWNER",
+    label: "Propietario",
+    icon: ShieldCheck,
+  },
+  {
+    filter: "direccion",
+    profile: "GENERAL_MANAGER",
+    label: "Administración",
+    icon: BriefcaseBusiness,
+  },
+  {
+    filter: "oficina",
+    profile: "ADMINISTRATIVE",
+    label: "Oficina",
+    icon: UserCog,
+  },
+  {
+    filter: "comercial",
+    profile: "SALES",
+    label: "Comercial",
+    icon: UsersRound,
+  },
+  {
+    filter: "obra",
+    profile: "PROJECT_MANAGER",
+    label: "Jefe de obra",
+    icon: HardHat,
+  },
+  {
+    filter: "operacion",
+    profile: "WORKER",
+    label: "Operario",
+    icon: CircleUserRound,
+  },
+  {
+    filter: "lectura",
+    profile: "ADVISOR_AUDITOR",
+    label: "Solo lectura",
+    icon: Eye,
+  },
+];
+
 function memberMatchesFilter(
   profileKey: string | null,
-  role: string,
+  role: CompanyRole,
   accessMode: string,
   filter: string,
 ) {
+  const profile = resolveFunctionalProfile(profileKey, role);
   if (filter === "todos") return true;
   if (filter === "propiedad") return role === "OWNER";
   if (filter === "direccion")
     return ["GENERAL_MANAGER", "FINANCE", "PROCUREMENT_MANAGER"].includes(
-      profileKey ?? "",
+      profile,
     );
   if (filter === "oficina")
-    return ["ADMINISTRATIVE", "FINANCE"].includes(profileKey ?? "");
+    return ["ADMINISTRATIVE", "FINANCE"].includes(profile);
   if (filter === "comercial")
-    return ["SALES", "SALES_MANAGER"].includes(profileKey ?? "");
+    return ["SALES", "SALES_MANAGER"].includes(profile);
   if (filter === "obra")
-    return ["PROJECT_MANAGER", "TEAM_SUPERVISOR"].includes(profileKey ?? "");
+    return ["PROJECT_MANAGER", "TEAM_SUPERVISOR"].includes(profile);
   if (filter === "operacion")
-    return ["WORKER", "EXTERNAL_COLLABORATOR"].includes(profileKey ?? "");
+    return ["WORKER", "EXTERNAL_COLLABORATOR"].includes(profile);
   if (filter === "lectura")
-    return accessMode === "READ_ONLY" || profileKey === "ADVISOR_AUDITOR";
+    return accessMode === "READ_ONLY" || profile === "ADVISOR_AUDITOR";
   return true;
 }
 
-function accessModeLabel(mode: string) {
-  return mode === "READ_ONLY" ? "Solo lectura" : "Trabajo normal";
+function profileAreaLabel(profile: FunctionalProfileKey) {
+  const labels: Record<FunctionalProfileKey, string> = {
+    OWNER: "Dirección",
+    GENERAL_MANAGER: "Dirección",
+    SALES_MANAGER: "Comercial",
+    SALES: "Comercial",
+    ADMINISTRATIVE: "Administración",
+    FINANCE: "Finanzas",
+    PROCUREMENT_MANAGER: "Compras",
+    PROJECT_MANAGER: "Ejecución",
+    TEAM_SUPERVISOR: "Ejecución",
+    WORKER: "Ejecución",
+    EXTERNAL_COLLABORATOR: "Colaboración",
+    ADVISOR_AUDITOR: "Asesoría",
+  };
+  return labels[profile];
 }
 
-function scopeLabel(scope: string) {
+function memberAccessLabel(member: {
+  role: string;
+  accessMode: string;
+  scopeAssignments: Array<{ scope: string }>;
+}) {
+  if (member.accessMode === "READ_ONLY") return "Solo lectura";
+  if (member.role === "OWNER") return "Completo";
+  const scopes = new Set(member.scopeAssignments.map((item) => item.scope));
+  if (scopes.size > 1) return "Acceso mixto";
+  if (scopes.has("COMPANY")) return "Empresa autorizada";
+  if (scopes.has("SELECTED_WORKS")) return "Proyectos asignados";
+  if (scopes.has("SELECTED_CLIENTS")) return "Clientes asignados";
+  if (scopes.has("TEAM")) return "Equipo asignado";
+  if (scopes.has("ASSIGNED")) return "Acceso asignado";
+  if (scopes.has("OWN")) return "Acceso propio";
+  return "Según perfil";
+}
+
+function shortMembershipStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    ASSIGNED: "Solo asignados",
-    SELECTED_WORKS: "Trabajos seleccionados",
-    SELECTED_CLIENTS: "Clientes seleccionados",
-    TEAM: "Su equipo",
-    OWN: "Solo propio",
-    COMPANY: "Toda la empresa",
+    invited: "Invitado",
+    pending_approval: "Pendiente",
+    active: "Activo",
+    suspended: "Suspendido",
+    revoked: "Revocado",
   };
-  return labels[scope] ?? "Según perfil";
+  return labels[status] ?? status.replaceAll("_", " ");
+}
+
+function formatMemberActivity(value: Date | null) {
+  if (!value) return "Sin acceso";
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const time = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" }).format(value);
+  if (date === today) return `Hoy, ${time}`;
+  const dayDifference = Math.floor((new Date(`${today}T12:00:00Z`).getTime() - new Date(`${date}T12:00:00Z`).getTime()) / 86_400_000);
+  if (dayDifference === 1) return `Ayer, ${time}`;
+  if (dayDifference > 1 && dayDifference < 7) return `Hace ${dayDifference} días`;
+  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).format(value);
+}
+
+function memberInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
+}
+
+function roleTone(profile: FunctionalProfileKey, accessMode: string) {
+  if (accessMode === "READ_ONLY" || profile === "ADVISOR_AUDITOR") return "read";
+  if (profile === "OWNER") return "owner";
+  if (["SALES", "SALES_MANAGER"].includes(profile)) return "sales";
+  if (["PROJECT_MANAGER", "TEAM_SUPERVISOR", "WORKER", "EXTERNAL_COLLABORATOR"].includes(profile)) return "field";
+  return "office";
+}
+
+function workloadLabel(
+  load: { count: number; estimatedMinutes: number } | null,
+) {
+  if (!load?.count) return "Sin tareas activas";
+  if (!load.estimatedMinutes)
+    return `${load.count} ${load.count === 1 ? "tarea" : "tareas"}`;
+  const hours = Math.floor(load.estimatedMinutes / 60);
+  const minutes = load.estimatedMinutes % 60;
+  const duration = [hours ? `${hours} h` : "", minutes ? `${minutes} min` : ""]
+    .filter(Boolean)
+    .join(" ");
+  return `${load.count} ${load.count === 1 ? "tarea" : "tareas"} · ${duration}`;
 }
 
 function membershipStatusLabel(status: string) {

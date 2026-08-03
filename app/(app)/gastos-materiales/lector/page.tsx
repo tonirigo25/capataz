@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileScan, FileText, Search, Upload } from "lucide-react";
 import { uploadExpenseDocument } from "@/app/(app)/gastos-materiales/actions";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { SectionHeader } from "@/components/section-header";
 import { CompactFilterBar, CompactSearch, ResultCount } from "@/components/ui-primitives";
 import { requireCapability } from "@/lib/commercial/authorization";
@@ -29,6 +30,7 @@ export default async function ExpenseDocumentReaderPage({ searchParams }: { sear
     orderBy: { createdAt: "desc" }, take: 60, include: { expense: { select: { id: true, concepto: true } }, businessPartner: { select: { commercialName: true } }, work: { select: { titulo: true } } }
   });
   return <main className="screen">
+    <InternalBreadcrumbs items={[{ label: "Gastos", href: "/gastos-materiales" }, { label: "Lector de documentos" }]} />
     <SectionHeader title="Lector de facturas y tickets" description="Sube el justificante, revisa la propuesta y decide si lo guardas como gasto." action={<Link href="/gastos-materiales" className="secondary-button">Volver</Link>} />
     {query.error ? <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">{safeMessage(query.error)}</div> : null}
     {query.deleted ? <div role="status" className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">Documento eliminado.</div> : null}

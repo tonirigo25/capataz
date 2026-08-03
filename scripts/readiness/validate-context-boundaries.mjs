@@ -44,9 +44,94 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 40) failures.push(`expected 40 routes, found ${routes.length}`);
+  if (routes.length !== 50) failures.push(`expected 50 routes, found ${routes.length}`);
+  const importTemplate = routes.find((route) => route.relative === "app/(app)/configuracion/importar/plantillas/[kind]/route.ts");
+  if (!importTemplate) {
+    failures.push("app/(app)/configuracion/importar/plantillas/[kind]/route.ts: authenticated tenant template route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, importTemplate.relative), "utf8");
+    if (!importTemplate.methods.includes("GET")) failures.push(`${importTemplate.relative}: GET handler missing`);
+    for (const token of [
+      'requireCompanyRole(["OWNER", "ADMIN"])',
+      "getImportDefinition",
+      "buildImportTemplate",
+      '"Cache-Control": "private, no-store"',
+      '"X-Content-Type-Options": "nosniff"'
+    ]) if (!source.includes(token)) failures.push(`${importTemplate.relative}: secure template boundary missing ${token}`);
+  }
+  const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
+  if (!alertsExport) {
+    failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, alertsExport.relative), "utf8");
+    if (!alertsExport.methods.includes("GET")) failures.push(`${alertsExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "orqena.execute")',
+      "companyId: auth.companyId",
+      "filterBusinessSignalsForAccess",
+      '"cache-control": "private, no-store"'
+    ]) if (!source.includes(token)) failures.push(`${alertsExport.relative}: tenant export boundary missing ${token}`);
+  }
+  const suppliersExport = routes.find((route) => route.relative === "app/(app)/proveedores/export/route.ts");
+  if (!suppliersExport) {
+    failures.push("app/(app)/proveedores/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, suppliersExport.relative), "utf8");
+    if (!suppliersExport.methods.includes("GET")) failures.push(`${suppliersExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.suppliers.view")',
+      "auth.companyId",
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${suppliersExport.relative}: tenant export boundary missing ${token}`);
+  }
+  const subcontractorsExport = routes.find((route) => route.relative === "app/(app)/subcontratas/export/route.ts");
+  if (!subcontractorsExport) {
+    failures.push("app/(app)/subcontratas/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, subcontractorsExport.relative), "utf8");
+    if (!subcontractorsExport.methods.includes("GET")) failures.push(`${subcontractorsExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.suppliers.view")',
+      "auth.companyId",
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${subcontractorsExport.relative}: tenant export boundary missing ${token}`);
+  }
+  const supplierInvoicesExport = routes.find((route) => route.relative === "app/(app)/facturas-proveedor/export/route.ts");
+  if (!supplierInvoicesExport) {
+    failures.push("app/(app)/facturas-proveedor/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, supplierInvoicesExport.relative), "utf8");
+    if (!supplierInvoicesExport.methods.includes("GET")) failures.push(`${supplierInvoicesExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.received_invoices.view")',
+      "auth.companyId",
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${supplierInvoicesExport.relative}: tenant export boundary missing ${token}`);
+  }
+  const subcontractorInvoicesExport = routes.find((route) => route.relative === "app/(app)/facturas-subcontratas/export/route.ts");
+  if (!subcontractorInvoicesExport) {
+    failures.push("app/(app)/facturas-subcontratas/export/route.ts: authenticated tenant export route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, subcontractorInvoicesExport.relative), "utf8");
+    if (!subcontractorInvoicesExport.methods.includes("GET")) failures.push(`${subcontractorInvoicesExport.relative}: GET handler missing`);
+    for (const token of [
+      'requireCapability("reports.export")',
+      'resolveAuthorization(auth, "purchases.received_invoices.view")',
+      "auth.companyId",
+      '"SUBCONTRACTOR"',
+      '"cache-control": "private, no-store"',
+      "csvCell"
+    ]) if (!source.includes(token)) failures.push(`${subcontractorInvoicesExport.relative}: tenant export boundary missing ${token}`);
+  }
   const actions = walk(path.join(root, "app"), "actions.ts");
-  if (actions.length !== 36) failures.push(`expected 36 action files, found ${actions.length}`);
+  if (actions.length !== 38) failures.push(`expected 38 action files, found ${actions.length}`);
   for (const action of actions) if (!fs.readFileSync(action, "utf8").includes("@/lib/platform/next-action-boundary")) failures.push(`${normalize(path.relative(root, action))}: action context boundary missing`);
   const requestContext = fs.readFileSync(path.join(root, "lib/platform/request-context.ts"), "utf8");
   for (const field of ["requestId", "correlationId", "causationId", "companyId", "membershipId", "actor", "jobId", "provider", "operation", "release", "environment"]) if (!requestContext.includes(`${field}`)) failures.push(`request context field missing: ${field}`);
@@ -66,4 +151,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (36 actions, 40 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 50 routes, 7 jobs)\n");

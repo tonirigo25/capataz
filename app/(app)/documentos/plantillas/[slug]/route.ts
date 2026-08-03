@@ -3,13 +3,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { notFound } from "next/navigation";
 import { getTemplateAsset } from "@/lib/document-templates";
-import { requireCompanyContext } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/commercial/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   return publicRequestContext("GET /documentos/plantillas/[slug]", request, async () => {
-  await requireCompanyContext();
+  await requireCapability("documents.view");
   const { slug } = await context.params;
   const asset = getTemplateAsset(slug);
   if (!asset) notFound();

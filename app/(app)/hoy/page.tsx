@@ -1,17 +1,39 @@
 import Link from "next/link";
-import { ArrowUpRight, Bot, CalendarDays, Plus } from "lucide-react";
-import { EmptyState, Metric, MetricGroup, PageHeader, ProductPage, Status } from "@/components/ui-primitives";
-import { getAgendaItems } from "@/lib/agenda";
+import {
+  CalendarDays,
+  CircleAlert,
+  CircleCheck,
+  Clock3,
+  Euro,
+  FileCheck2,
+  FileText,
+  Folder,
+  UsersRound,
+  UserRound,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ProductPage } from "@/components/ui-primitives";
 import { requireCapability } from "@/lib/commercial/authorization";
-import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
-import { greetingForDate } from "@/lib/dashboard-hoy";
-import { userDisplayName } from "@/lib/profile-completeness";
-import { prisma } from "@/lib/prisma";
-import { ActivationChecklist } from "@/components/activation-checklist";
-import { getAndMeasureActivationStatus } from "@/lib/product/activation";
-import { brand } from "@/lib/brand";
+import { getTodayOverview, type TodayOverview, type TodayPriority } from "@/lib/portal/today-overview";
 
 export const dynamic = "force-dynamic";
+
+const priorityIcons: Record<TodayPriority["kind"], LucideIcon> = {
+  budget: FileText,
+  invoice: Euro,
+  agenda: CalendarDays,
+  document: Folder,
+  followup: UserRound,
+};
+
+const activityIcons = {
+  budget: FileText,
+  invoice: Euro,
+  agenda: CalendarDays,
+  document: FileCheck2,
+  client: UserRound,
+  generic: CircleCheck,
+} satisfies Record<string, LucideIcon>;
 
 export default async function TodayPage({
   searchParams,
@@ -20,206 +42,165 @@ export default async function TodayPage({
 }) {
   const query = await searchParams;
   if (isContinuousReviewStateProbe()) {
-    if (query.__orqena_review_state === "loading") {
-      await new Promise((resolve) => setTimeout(resolve, 1_500));
-    }
-    if (query.__orqena_review_state === "error") {
-      throw new Error("CONTINUOUS_REVIEW_SYNTHETIC_RENDER_ERROR");
-    }
+    if (query.__orqena_review_state === "loading") await new Promise((resolve) => setTimeout(resolve, 1_500));
+    if (query.__orqena_review_state === "error") throw new Error("CONTINUOUS_REVIEW_SYNTHETIC_RENDER_ERROR");
   }
-  const now = new Date();
+
   const auth = await requireCapability("company.view");
-  const portal = await buildPortalManifest(auth);
-  const agendaVisible = portal.navigation.some((item) => item.href === "/agenda") || portal.navigationGroups.some((group) => group.items.some((item) => item.href === "/agenda"));
-  const [profile, agendaItems, activation] = await Promise.all([
-    prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
-    agendaVisible ? getAgendaItems() : Promise.resolve([]),
-    ["OWNER", "ADMINISTRATIVE"].includes(portal.profile)
-      ? getAndMeasureActivationStatus(prisma, { companyId: auth.companyId, actorId: auth.userId })
-      : Promise.resolve(null),
-  ]);
-  const displayName = userDisplayName(profile);
-  const todayStart = startOfDay(now);
-  const tomorrowStart = addDays(todayStart, 1);
-  const todayAgenda = agendaItems.filter((item) => item.estado !== "cancelado" && item.fechaInicio >= todayStart && item.fechaInicio < tomorrowStart).slice(0, 4);
-  const destinations = [...portal.navigation, ...portal.navigationGroups.flatMap((group) => group.items)];
-  const fullDate = capitalize(new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now));
-  const experience = portalExperience(portal.profile);
-  const seenPriorityDestinations = new Set<string>();
-  const priorities = portal.homeWidgets
-    .flatMap((widget) => {
-      const destination = destinationForWidget(widget, destinations);
-      if (!destination || seenPriorityDestinations.has(destination.href)) return [];
-      seenPriorityDestinations.add(destination.href);
-      return [{
-        id: widget,
-        title: homeWidgetLabel(widget),
-        reason: homeWidgetReason(widget, portal.profile),
-        origin: `${portal.profileLabel} · ${destination.label}`,
-        impact: homeWidgetImpact(widget),
-        href: destination.href,
-        action: `Abrir ${destination.label.toLocaleLowerCase("es-ES")}`,
-      }];
-    })
-    .slice(0, 3);
-  const firstQuickAction = portal.quickActions[0];
-  const dashboardDestination = destinations.find((item) => item.href === "/dashboard");
+  const overview = await getTodayOverview(auth);
+  const prioritySlots = buildPrioritySlots(overview.priorities, auth.displayName, overview.access);
 
   return (
-    <ProductPage layout="operational">
-      <PageHeader
-        eyebrow={fullDate}
-        title="Hoy"
-        description={`${greetingForDate(now)}${displayName ? `, ${displayName}` : ""}. Estas son las acciones que requieren atención dentro de tu portal de ${portal.profileLabel.toLocaleLowerCase("es-ES")}.`}
-        secondaryActions={portal.orqenaTools.length ? <Link href="/capataz" aria-label="Preguntar a Orqena" className="secondary-button"><Bot size={18} aria-hidden="true" />Preguntar a {brand.assistantName}</Link> : undefined}
-        action={firstQuickAction ? <Link href={firstQuickAction.href} className="primary-button"><Plus size={18} aria-hidden="true" />{firstQuickAction.label}</Link> : undefined}
-      />
+    <ProductPage layout="operational" className="hoy-page">
+      <header className="hoy-header">
+        <h1>Hoy</h1>
+        <p>Tus prioridades y lo que necesita tu atención hoy.</p>
+      </header>
 
-      <div data-portal-home={portal.profile}>
-          <section aria-labelledby="portal-priorities" className={`section-shell portal-priorities portal-priorities--${experience.tone}`}>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div><p className="type-label">{experience.label}</p><h2 id="portal-priorities" className="type-section-title mt-1 text-content">Prioridades de hoy</h2></div>
-              <Status tone="neutral">{priorities.length} en foco</Status>
-            </div>
-            {priorities.length ? (
-              <ol className="grid gap-3 xl:grid-cols-3" data-priority-count={priorities.length}>
-                {priorities.map((priority, index) => (
-                  <li key={priority.id} className="flex min-h-60 flex-col rounded-xl border border-border bg-surface p-4 shadow-soft">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft font-semibold text-brand-strong" aria-hidden="true">{index + 1}</span>
-                      <Status tone="neutral">En foco</Status>
-                    </div>
-                    <h3 className="type-object-title mt-4 text-content">{priority.title}</h3>
-                    <p className="type-secondary mt-2">{priority.reason}</p>
-                    <dl className="mt-4 grid gap-2 border-t border-border pt-3">
-                      <div><dt className="type-label">Origen:</dt><dd className="type-meta mt-1">{priority.origin}</dd></div>
-                      <div><dt className="type-label">Impacto:</dt><dd className="type-meta mt-1">{priority.impact}</dd></div>
-                    </dl>
-                    <Link href={priority.href} className="secondary-button mt-auto w-full">{priority.action}<ArrowUpRight size={16} aria-hidden="true" /></Link>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <EmptyState title="No hay prioridades disponibles en tu alcance" description="Tu portal no muestra módulos operativos adicionales. Mantén la agenda al día o consulta a la persona responsable de los permisos." icon={CalendarDays} />
-            )}
-          </section>
-
-          <div className={`mt-5 grid gap-5 ${agendaVisible ? "xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,.9fr)]" : ""}`}>
-            {agendaVisible ? <section aria-labelledby="today-agenda" className="section-shell">
-              <div className="mb-4 flex items-start justify-between gap-3"><div><p className="type-label">Solo dentro de tu alcance</p><h2 id="today-agenda" className="type-section-title mt-1 text-content">Agenda de hoy</h2></div><Link href="/agenda?vista=hoy" className="ghost-button">Ver agenda</Link></div>
-              {todayAgenda.length ? <div className="divide-y divide-border">{todayAgenda.map((item) => <Link key={`${item.source}-${item.id}`} href={item.href} className="grid min-h-16 grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 py-3 hover:bg-subtle"><span className="font-semibold tabular-nums text-brand-strong">{timeLabel(item.fechaInicio)}</span><span className="min-w-0"><span className="type-object-title block truncate text-content">{item.titulo}</span><span className="type-meta mt-1 block truncate">{item.clienteNombre ?? item.obraTitulo ?? "Agenda interna"}</span></span><ArrowUpRight size={16} className="text-content-tertiary" aria-hidden="true" /></Link>)}</div> : <div className="rounded-xl bg-subtle p-4"><CalendarDays size={20} className="text-brand-strong" aria-hidden="true"/><p className="type-object-title mt-2 text-content">No tienes citas dentro de tu alcance para hoy.</p><p className="type-secondary mt-1">Usa la agenda para preparar una visita o mantén libre el día.</p>{portal.quickActions.some((item) => item.capability === "agenda.manage") ? <Link href="/gestion?tipo=eventoAgenda&tipoEvento=visita&returnTo=/hoy" className="secondary-button mt-3">Añadir visita</Link> : null}</div>}
-            </section> : null}
-
-            <section aria-labelledby="today-pulse" className="section-shell">
-              <div className="mb-3 flex items-start justify-between gap-3"><div><p className="type-label">Sin estimaciones inventadas</p><h2 id="today-pulse" className="type-section-title mt-1 text-content">Resumen del día</h2></div>{dashboardDestination ? <Link href={dashboardDestination.href} className="ghost-button">Dashboard</Link> : null}</div>
-              <MetricGroup label="Pulso del portal" className="grid-cols-1">
-                <Metric label="Áreas en foco" value={String(priorities.length)} detail="Máximo tres, según tus permisos" href={priorities[0]?.href} />
-                <Metric label="Agenda de hoy" value={String(todayAgenda.length)} detail={agendaVisible ? "Citas dentro de tu alcance" : "Agenda no disponible en tu portal"} href={agendaVisible ? "/agenda?vista=hoy" : undefined} />
-                <Metric label="Capturas disponibles" value={String(portal.quickActions.length)} detail="Acciones autorizadas para registrar" href={firstQuickAction?.href} />
-              </MetricGroup>
-            </section>
+      <section className="hoy-priorities" aria-labelledby="hoy-priorities-title">
+        <div className="hoy-section-heading">
+          <div className="flex items-center gap-2">
+            <h2 id="hoy-priorities-title">Prioridades del día</h2>
+            <span className="hoy-count-badge">{overview.priorities.length}</span>
           </div>
+          {overview.access.recommendations ? <Link href="/recomendaciones">Ver todas ({overview.totalPriorities}) <span aria-hidden="true">›</span></Link> : null}
+        </div>
 
-          {portal.quickActions.length ? <section aria-labelledby="quick-actions" className="section-shell mt-5"><div className="mb-4"><p className="type-label">Captura rápida según permisos</p><h2 id="quick-actions" className="type-section-title mt-1 text-content">Registrar sin perder contexto</h2></div><div className="flex flex-wrap gap-2">{portal.quickActions.map((item) => <Link key={item.href} href={item.href} className="secondary-button"><Plus size={17} aria-hidden="true" />{item.label}</Link>)}</div></section> : null}
+        {prioritySlots.length ? (
+          <ol className="hoy-priority-grid">
+            {prioritySlots.map((priority, index) => {
+              const Icon = priorityIcons[priority.kind];
+              return (
+                <li key={priority.id} className="hoy-priority-card" data-empty={priority.empty ? "true" : "false"}>
+                  <div className="hoy-priority-card__top">
+                    <span className="hoy-priority-card__icon" data-tone={priority.tone}><Icon size={19} aria-hidden="true" /></span>
+                    <span className="hoy-priority-status" data-tone={priority.tone}>{priority.status}</span>
+                  </div>
+                  <h3>{priority.title}</h3>
+                  <p className="hoy-priority-source"><span>Fuente</span>{priority.source}</p>
+                  <dl>
+                    <div><dt><Clock3 size={13} aria-hidden="true" />Vence</dt><dd>{priority.due}</dd></div>
+                    <div><dt>Responsable</dt><dd className="hoy-priority-owner"><span aria-hidden="true">{priority.owner.trim().charAt(0).toUpperCase()}</span>{priority.owner}</dd></div>
+                  </dl>
+                  <Link href={priority.href} className="hoy-card-action" data-primary={index === 0 && !priority.empty ? "true" : "false"}>{priority.action}</Link>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <div className="hoy-empty-state">
+            <CircleAlert size={20} aria-hidden="true" />
+            <div><strong>Sin prioridades dentro de tu alcance</strong><p>La vista se actualizará cuando haya elementos con fecha, revisión o seguimiento pendiente.</p></div>
+          </div>
+        )}
+      </section>
+
+      <div className="hoy-operational-grid">
+        {overview.access.agenda ? <TodayPanel title="Agenda de hoy" href="/agenda?vista=hoy" linkLabel="Ver agenda">
+          {overview.agenda.length ? <ul className="hoy-agenda-list">{overview.agenda.map((item) => (
+            <li key={item.id}>
+              <Link href={item.href}>
+                <time>{item.time}<span className="hoy-agenda-dot" data-tone={item.tone} aria-hidden="true" /></time>
+                <span><strong>{item.title}</strong><small>{item.context}</small></span>
+              </Link>
+            </li>
+          ))}</ul> : <PanelEmpty label="No hay citas para hoy." />}
+          <Link href="/agenda?vista=hoy" className="hoy-panel-footer-link">Ir a mi agenda</Link>
+        </TodayPanel> : null}
+
+        {overview.access.activity ? <TodayPanel title="Actividad reciente" href="/auditoria" linkLabel="Ver todo">
+          {overview.activity.length ? <ul className="hoy-activity-list">{overview.activity.map((item) => (
+            <li key={item.id}>
+              <Link href={item.href}>
+                <span className="hoy-activity-icon" data-tone={item.kind} aria-hidden="true">{renderActivityIcon(item.kind)}</span>
+                <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+                <time>{item.time}</time>
+              </Link>
+            </li>
+          ))}</ul> : <PanelEmpty label="Aún no hay actividad visible." />}
+        </TodayPanel> : null}
+
+        {overview.access.work ? <TodayPanel title="Trabajo en curso" href="/obras" linkLabel="Ver todo">
+          {overview.works.length ? <ul className="hoy-work-list">{overview.works.map((item) => (
+            <li key={item.id}>
+              <Link href={item.href}>
+                <div><strong>{item.title}</strong><span>{item.progress === null ? item.progressLabel : `${item.progressLabel} · ${item.progress}%`}</span></div>
+                <span className="hoy-work-status" data-status={item.status}>{item.status}</span>
+              </Link>
+            </li>
+          ))}</ul> : <PanelEmpty label="No hay trabajos activos dentro de tu alcance." />}
+        </TodayPanel> : null}
       </div>
 
-      {activation ? <div className="mt-5"><ActivationChecklist status={activation}/></div> : null}
+      <div className="hoy-bottom-grid">
+        {overview.access.invoice || overview.access.payments ? <section className="hoy-panel hoy-money-panel" data-columns={overview.access.invoice && overview.access.payments ? "2" : "1"} aria-label="Próximos cobros y pagos">
+          {overview.access.invoice ? <MoneyColumn title="Próximos cobros" href="/dinero?vista=cobros" rows={overview.collections} empty="Sin cobros próximos." /> : null}
+          {overview.access.payments ? <MoneyColumn title="Próximos pagos" href="/gastos-materiales" rows={overview.payments} empty="Sin pagos próximos." /> : null}
+        </section> : null}
+
+        <section className="hoy-panel hoy-summary-panel" aria-labelledby="hoy-summary-title">
+          <div className="hoy-panel__heading"><h2 id="hoy-summary-title">Resumen del día</h2><span>Actualizado {overview.summary.updatedAt}</span></div>
+          <dl>
+            <div><dt><FileText size={14} aria-hidden="true" />{overview.priorities.length} prioridades</dt><dd data-tone="danger">{overview.summary.urgentPriorities} urgentes</dd></div>
+            <div><dt><CalendarDays size={14} aria-hidden="true" />{overview.summary.visits} visitas técnicas</dt><dd data-tone="success">{overview.summary.completedVisits} completadas</dd></div>
+            <div><dt><FileCheck2 size={14} aria-hidden="true" />{overview.summary.pendingDocuments} documentos pendientes</dt><dd data-tone="warning">{overview.summary.documentsToConfirm} por confirmar</dd></div>
+            <div><dt><UsersRound size={14} aria-hidden="true" />{overview.summary.followups} seguimientos comerciales</dt><dd data-tone="success">{overview.summary.followupsDueToday ? `${overview.summary.followupsDueToday} ${overview.summary.followupsDueToday === 1 ? "contacto" : "contactos"} hoy` : "Al día"}</dd></div>
+          </dl>
+        </section>
+      </div>
     </ProductPage>
   );
 }
 
+function TodayPanel({ title, href, linkLabel, children }: { title: string; href: string; linkLabel: string; children: React.ReactNode }) {
+  return <section className="hoy-panel"><div className="hoy-panel__heading"><h2>{title}</h2><Link href={href}>{linkLabel}</Link></div>{children}</section>;
+}
+
+function MoneyColumn({ title, href, rows, empty }: { title: string; href: string; rows: Array<{ id: string; reference: string; label: string; context: string; amount: number; due: string; dueAt: Date | null; dueDay: string; dueMonth: string; tone: "urgent" | "soon" | "neutral"; href: string }>; empty: string }) {
+  return <div className="hoy-money-column"><div className="hoy-money-column__heading"><h2>{title}</h2><Link href={href}>Ver todos</Link></div>{rows.length ? <ul>{rows.map((row) => <li key={row.id}><Link href={row.href}><DateTile date={row.dueAt} day={row.dueDay} month={row.dueMonth} /><span><strong>{row.reference}</strong><small>{row.context}</small></span><span className="hoy-money-amount"><b>{formatCurrency(row.amount)}</b><small data-tone={row.tone}>{row.due}</small></span></Link></li>)}</ul> : <PanelEmpty label={empty} />}</div>;
+}
+
+function DateTile({ date, day, month }: { date: Date | null; day: string; month: string }) {
+  if (!date) return <span className="hoy-date-tile"><b>—</b><small>—</small></span>;
+  return <time className="hoy-date-tile" dateTime={date.toISOString()}><b>{day}</b><small>{month}</small></time>;
+}
+
+function PanelEmpty({ label }: { label: string }) {
+  return <p className="hoy-panel-empty">{label}</p>;
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+}
+
+function renderActivityIcon(kind: keyof typeof activityIcons) {
+  const Icon = activityIcons[kind];
+  return <Icon size={15} />;
+}
+
+type PriorityDisplay = TodayPriority & { empty?: boolean };
+
+function buildPrioritySlots(priorities: TodayPriority[], owner: string, access: TodayOverviewAccess): PriorityDisplay[] {
+  const byKind = new Map(priorities.map((priority) => [priority.kind, priority]));
+  const empty: Record<TodayPriority["kind"], PriorityDisplay> = {
+    budget: emptyPriority("budget", "Sin presupuestos pendientes", "Presupuestos revisados", "Ver presupuestos", "/presupuestos", owner),
+    invoice: emptyPriority("invoice", "Sin facturas próximas", "No hay vencimientos en tu alcance", "Ver facturas", "/dinero", owner),
+    agenda: emptyPriority("agenda", "Agenda sin urgencias", "No hay visitas prioritarias", "Ver agenda", "/agenda", owner),
+    document: emptyPriority("document", "Sin documentos pendientes", "Documentación revisada", "Ver documentos", "/documentos", owner),
+    followup: emptyPriority("followup", "Sin seguimientos vencidos", "La cartera está al día", "Ver clientes", "/clientes", owner),
+  };
+  return (["budget", "invoice", "agenda", "document", "followup"] as const)
+    .filter((kind) => access[kind])
+    .map((kind) => byKind.get(kind) ?? empty[kind]);
+}
+
+type TodayOverviewAccess = TodayOverview["access"];
+
+function emptyPriority(kind: TodayPriority["kind"], title: string, source: string, action: string, href: string, owner: string): PriorityDisplay {
+  const tone = kind === "invoice" ? "urgent" : kind === "document" ? "pending" : kind === "agenda" ? "agenda" : kind === "followup" ? "followup" : "review";
+  return { id: `empty-${kind}`, kind, title, status: "Al día", tone, source, due: "Sin vencimientos", owner, href, action, empty: true };
+}
+
 function isContinuousReviewStateProbe() {
-  return process.env.NEXT_PUBLIC_APP_ENV === "preview"
-    && process.env.CREDENTIAL_SCOPE === "preview";
-}
-
-function destinationForWidget(widget: string, destinations: Array<{ href: string; label: string }>) {
-  const candidates: Record<string, string[]> = {
-    clients: ["/clientes"], quotes: ["/presupuestos"], followups: ["/recordatorios"], agenda: ["/agenda"], tasks: ["/tareas"],
-    work: ["/obras"], "assigned-work": ["/obras"], assignments: ["/obras"], documents: ["/documentos"], deliveries: ["/documentos"],
-    collections: ["/dinero"], payments: ["/tesoreria", "/dinero"], invoices: ["/dinero"], "due-dates": ["/dinero"], treasury: ["/tesoreria"],
-    suppliers: ["/proveedores"], requests: ["/proveedores"], orders: ["/proveedores"], materials: ["/gastos-materiales"],
-    operation: ["/obras"], operations: ["/obras"], business: ["/dashboard"], economy: ["/dashboard"], decisions: ["/dashboard"], team: ["/equipo"],
-    risks: ["/obras"], workload: ["/obras"], pipeline: ["/clientes"], "pending-data": ["/clientes"], progress: ["/obras"], "daily-plan": ["/agenda"]
-  };
-  return (candidates[widget] ?? []).map((href) => destinations.find((item) => item.href === href)).find(Boolean);
-}
-
-const homeWidgetLabels: Record<string, string> = {
-  "assigned-reports": "Informes asignados",
-  "assigned-work": "Trabajos asignados",
-  agenda: "Agenda",
-  approvals: "Aprobaciones",
-  assignments: "Asignaciones",
-  blockers: "Bloqueos",
-  business: "Negocio",
-  clients: "Clientes",
-  collections: "Cobros",
-  decisions: "Decisiones",
-  deliveries: "Entregas",
-  documents: "Documentos",
-  economy: "Economía",
-  followups: "Seguimientos",
-  incidents: "Incidencias",
-  invoices: "Facturas",
-  materials: "Materiales",
-  operation: "Operación",
-  operations: "Operaciones",
-  orders: "Pedidos",
-  payments: "Pagos",
-  period: "Periodo",
-  pipeline: "Oportunidades",
-  "pending-data": "Datos pendientes",
-  progress: "Avance",
-  quotes: "Presupuestos",
-  requests: "Solicitudes",
-  risks: "Riesgos",
-  "sales-team": "Equipo comercial",
-  "supplier-invoices": "Facturas de proveedores",
-  suppliers: "Proveedores",
-  tasks: "Tareas",
-  team: "Equipo",
-  treasury: "Tesorería",
-  workload: "Carga de trabajo",
-  work: "Trabajos",
-  "daily-plan": "Plan del día",
-  "due-dates": "Vencimientos"
-};
-
-function homeWidgetLabel(value: string) {
-  return homeWidgetLabels[value] ?? "Área de trabajo";
-}
-function homeWidgetReason(value: string, profile: string) {
-  if (profile === "WORKER") return `${homeWidgetLabel(value)}: información preparada para tu jornada y los trabajos que tienes asignados.`;
-  return `${homeWidgetLabel(value)}: información preparada para las responsabilidades configuradas en tu perfil.`;
-}
-function homeWidgetImpact(value: string) {
-  const impacts: Record<string, string> = {
-    collections: "Conserva factura, vencimiento y cobro en su origen.",
-    payments: "Conserva obligación, proveedor y fecha en su origen.",
-    invoices: "Abre el documento y su saldo autorizado sin resumirlo fuera de contexto.",
-    treasury: "Mantiene caja, vencimientos y previsión trazables.",
-    quotes: "Mantiene cliente, propuesta y siguiente acción conectados.",
-    clients: "Mantiene relación, trabajo y siguiente acción conectados.",
-    work: "Mantiene planificación, ejecución y costes dentro del trabajo.",
-    "assigned-work": "Evita mezclar trabajos fuera de tu asignación.",
-    tasks: "Mantiene instrucciones, fecha y avance en la tarea original.",
-    suppliers: "Mantiene proveedor, documentación y compras relacionados.",
-    documents: "Mantiene archivo, entidad y estado documental relacionados.",
-  };
-  return impacts[value] ?? "Abre el dato original y mantiene la siguiente acción dentro de su contexto.";
-}
-function timeLabel(date: Date) { return date.getHours() === 0 && date.getMinutes() === 0 ? "Sin hora" : new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(date); }
-function startOfDay(date: Date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
-function addDays(date: Date, days: number) { const copy = new Date(date); copy.setDate(copy.getDate() + days); return copy; }
-function capitalize(value: string) { return value.charAt(0).toUpperCase() + value.slice(1); }
-
-function portalExperience(profile: string) {
-  const experiences: Record<string, { label: string; title: string; description: string; priorityTitle: string; flow: string[]; tone: string }> = {
-    SALES: { label: "Portal comercial", title: "Relaciones que deben avanzar hoy", description: "Clientes, presupuestos, seguimientos y agenda forman un pipeline legible.", priorityTitle: "Clientes y oportunidades", flow: ["Cliente", "Presupuesto", "Seguimiento", "Agenda"], tone: "sales" },
-    FINANCE: { label: "Portal finanzas", title: "Vencimientos antes que sorpresas", description: "Cobros, pagos y tesorería conservan documento y fecha de origen.", priorityTitle: "Control económico del día", flow: ["Vencimiento", "Cobro", "Pago", "Tesorería"], tone: "finance" },
-    PROCUREMENT: { label: "Portal compras", title: "De la solicitud a la recepción", description: "Proveedor, pedido y factura recibida permanecen relacionados con el trabajo.", priorityTitle: "Suministro y proveedores", flow: ["Solicitud", "Proveedor", "Recepción", "Factura"], tone: "procurement" },
-    WORKER: { label: "Portal operativo", title: "Tu jornada, sin distracciones", description: "Tareas, trabajo, agenda y avance aparecen en el orden de ejecución.", priorityTitle: "Plan del día", flow: ["Tarea", "Instrucciones", "Avance", "Cierre"], tone: "worker" },
-  };
-  return experiences[profile] ?? { label: "Portal personal", title: "Decisiones conectadas", description: "Prioridades, contexto y acciones según tu responsabilidad.", priorityTitle: "Tus prioridades", flow: ["Revisar", "Decidir", "Coordinar", "Continuar"], tone: "general" };
+  return process.env.NEXT_PUBLIC_APP_ENV === "preview" && process.env.CREDENTIAL_SCOPE === "preview";
 }

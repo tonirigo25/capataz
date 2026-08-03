@@ -1,7 +1,20 @@
 import { redirect } from "next/navigation";
-import { AuthShell } from "@/components/auth/auth-shell";
+import { LoginShell } from "@/components/auth/login-shell";
 import { LoginForm } from "@/components/auth/login-form";
 import { getOptionalSession } from "@/lib/auth/session";
-import { isPublicRegistrationEnabled } from "@/lib/public-registration";
 
-export default async function LoginPage() { if (await getOptionalSession()) redirect("/hoy"); return <AuthShell title="Entra en tu empresa" description="Accede de forma segura a los datos de tu equipo."><LoginForm publicRegistrationEnabled={isPublicRegistrationEnabled()} /></AuthShell>; }
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: Promise<{ next?: string; returnTo?: string }>;
+}) {
+  if (await getOptionalSession()) redirect("/hoy");
+  const params = await searchParams;
+  const returnTo = params.next ?? params.returnTo;
+
+  return (
+    <LoginShell title="Iniciar sesión" description="Accede a tu cuenta de Orqena para continuar.">
+      <LoginForm returnTo={returnTo} />
+    </LoginShell>
+  );
+}

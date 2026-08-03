@@ -39,7 +39,9 @@ const layout = text("app/layout.tsx");
 const themeProvider = text("components/theme/theme-provider.tsx");
 const themeSwitcher = text("components/theme/theme-switcher.tsx");
 check(layout.includes("themeBootScript") && layout.includes("suppressHydrationWarning"), "Falta arranque de tema previo a hidratación");
-check(themeProvider.includes("prefers-color-scheme") && themeProvider.includes("localStorage") && themeProvider.includes("document.cookie"), "La preferencia debe persistir y respetar Sistema");
+check(themeProvider.includes('?v:"light"') && themeProvider.includes('value : "light"'), "El tema inicial debe ser claro y estable");
+check(themeProvider.includes("prefers-color-scheme") && themeProvider.includes("localStorage") && themeProvider.includes("document.cookie"), "La preferencia explícita debe persistir y respetar Sistema");
+check(layout.includes('themeColor: "#f8f5ed"'), "El color inicial del navegador no debe cambiar con el sistema");
 for (const label of ["Claro", "Oscuro", "Sistema"]) check(themeSwitcher.includes(`label: "${label}"`), `Falta opción de tema ${label}`);
 
 const css = text("app/globals.css");

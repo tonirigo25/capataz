@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Eraser, Search } from "lucide-react";
+import { Download, Eraser, Search, Upload, UserPlus } from "lucide-react";
 import { FilterSheet, FilterTrigger } from "@/components/compact-filters";
+import type { ClientSmartViewCounts } from "@/lib/client-crm";
 
 type Option = readonly [string, string];
 
@@ -17,6 +18,15 @@ export type ClientFilterQuery = {
   filtros?: string;
 };
 
+const smartViews: Array<{ id: keyof ClientSmartViewCounts; label: string }> = [
+  { id: "todos", label: "Todos" },
+  { id: "seguimiento", label: "Seguimiento" },
+  { id: "presupuesto", label: "Presupuesto abierto" },
+  { id: "trabajo", label: "Trabajo activo" },
+  { id: "cobro", label: "Cobro pendiente" },
+  { id: "riesgo", label: "En riesgo" },
+];
+
 export function ClientFilterBar({
   query,
   typeOptions,
@@ -24,6 +34,10 @@ export function ClientFilterBar({
   filterOptions,
   orderOptions,
   activeFilterLabels,
+  smartViewCounts,
+  canCreate,
+  canExport,
+  canImport,
 }: {
   query: ClientFilterQuery;
   typeOptions: string[];
@@ -31,6 +45,10 @@ export function ClientFilterBar({
   filterOptions: readonly Option[];
   orderOptions: readonly Option[];
   activeFilterLabels: string[];
+  smartViewCounts: ClientSmartViewCounts;
+  canCreate: boolean;
+  canExport: boolean;
+  canImport: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const activeFilters = new Set((query.filtros ?? "").split(",").filter(Boolean));
@@ -41,76 +59,63 @@ export function ClientFilterBar({
     query.ordenar && query.ordenar !== "ultimaActividad_desc",
     ...activeFilters,
   ].filter(Boolean).length;
-  const selectedView = query.vista ?? "accion";
+  const selectedView = smartViews.some(({ id }) => id === query.vista)
+    ? (query.vista as keyof ClientSmartViewCounts)
+    : "todos";
 
   return (
-    <div className="grid gap-3">
-      <nav
-        className="flex gap-2 overflow-x-auto pb-1"
-        aria-label="Vistas inteligentes de clientes"
-        data-client-smart-views="3"
-      >
-        {[
-          ["accion", "Necesitan acción"],
-          ["activos", "Activos"],
-          ["todos", "Todos"],
-        ].map(([id, label]) => (
+    <div className="clients-tools">
+      <nav className="clients-smart-views" aria-label="Vistas inteligentes de clientes" data-client-smart-views="6">
+        {smartViews.map(({ id, label }) => (
           <Link
             key={id}
-            href={`/clientes?vista=${id}`}
+            href={clientViewHref(query, id)}
             aria-current={selectedView === id ? "page" : undefined}
-            className={
-              selectedView === id
-                ? "inline-flex min-h-10 shrink-0 items-center rounded-xl bg-content px-4 text-sm font-semibold text-surface"
-                : "secondary-button min-h-10 shrink-0"
-            }
+            className="clients-smart-view"
           >
-            {label}
+            <span>{label}</span>
+            <span className="clients-smart-view__count">{smartViewCounts[id]}</span>
           </Link>
         ))}
       </nav>
 
-      <div className="flex items-end gap-2">
-        <form action="/clientes" className="min-w-0 flex-1">
+      <div className="clients-toolbar">
+        <form action="/clientes" className="clients-search-form">
           <input type="hidden" name="vista" value={selectedView} />
           {hiddenFilterInputs(query)}
-          <label className="block">
-            <span className="label mb-1 block">Buscar</span>
-            <span className="relative block">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary"
-                size={18}
-              />
-              <input
-                className="field min-h-11 pl-10 pr-24"
-                type="search"
-                name="buscar"
-                defaultValue={query.buscar ?? ""}
-                placeholder="Nombre, CIF/NIF, email, teléfono…"
-              />
-              <button
-                type="submit"
-                className="absolute right-1.5 top-1/2 min-h-8 -translate-y-1/2 rounded-lg px-3 text-sm font-semibold text-brand-strong hover:bg-brand-soft"
-              >
-                Buscar
-              </button>
-            </span>
+          <label className="clients-search-field">
+            <span className="sr-only">Buscar clientes</span>
+            <Search aria-hidden="true" size={18} />
+            <input type="search" name="buscar" defaultValue={query.buscar ?? ""} placeholder="Buscar cliente, contacto, empresa…" />
           </label>
         </form>
         <FilterTrigger count={filterCount} onClick={() => setOpen(true)} />
+        {canImport || canExport ? (
+          <div className="flex items-center gap-2">
+            {canImport ? (
+              <Link href="/configuracion/importar" className="secondary-button">
+                <Upload size={17} aria-hidden="true" /><span>Importar</span>
+              </Link>
+            ) : null}
+            {canExport ? (
+              <Link href={exportHref(query)} className="secondary-button clients-export-action" download>
+                <Download size={17} aria-hidden="true" /><span>Exportar</span>
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+        {canCreate ? (
+          <Link href="/gestion?tipo=cliente&returnTo=/clientes" className="primary-button clients-create-action">
+            <UserPlus size={17} aria-hidden="true" /><span>Nuevo cliente</span>
+          </Link>
+        ) : null}
       </div>
 
       {activeFilterLabels.length ? (
-        <div className="flex flex-wrap items-center gap-2" aria-label="Filtros activos">
-          {activeFilterLabels.map((label) => (
-            <span key={label} className="rounded-full bg-subtle px-3 py-1.5 text-xs font-semibold text-content-secondary">
-              {label}
-            </span>
-          ))}
+        <div className="clients-filter-chips" aria-label="Filtros activos">
+          {activeFilterLabels.map((label) => <span key={label}>{label}</span>)}
           <Link href={`/clientes?vista=${selectedView}`} className="secondary-button min-h-9 px-3 py-1 text-xs">
-            <Eraser size={15} />
-            Limpiar filtros
+            <Eraser size={15} aria-hidden="true" />Limpiar filtros
           </Link>
         </div>
       ) : null}
@@ -121,16 +126,7 @@ export function ClientFilterBar({
           {query.buscar ? <input type="hidden" name="buscar" value={query.buscar} /> : null}
           <Select name="tipo" label="Tipo" value={query.tipo ?? "todos"} options={[["todos", "Todos"], ...typeOptions.map((type) => [type, type] as const)]} />
           <Select name="estado" label="Estado" value={query.estado ?? "todos"} options={statusOptions} />
-          <Select
-            name="archivo"
-            label="Archivo"
-            value={query.archivo ?? defaultArchive(selectedView)}
-            options={[
-              ["activos", "Activos"],
-              ["archivados", "Archivados"],
-              ["todos", "Todos"],
-            ]}
-          />
+          <Select name="archivo" label="Archivo" value={query.archivo ?? defaultArchive(selectedView)} options={[["activos", "Activos"], ["archivados", "Archivados"], ["todos", "Todos"]]} />
           <Select name="ordenar" label="Orden" value={query.ordenar ?? "ultimaActividad_desc"} options={orderOptions} />
           <fieldset className="grid gap-2">
             <legend className="label">Situaciones</legend>
@@ -147,26 +143,12 @@ export function ClientFilterBar({
   );
 }
 
-function Select({
-  name,
-  label,
-  value,
-  options,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: readonly Option[];
-}) {
+function Select({ name, label, value, options }: { name: string; label: string; value: string; options: readonly Option[] }) {
   return (
     <label>
       <span className="label mb-1 block">{label}</span>
       <select className="field" name={name} defaultValue={value}>
-        {options.map(([id, optionLabel]) => (
-          <option key={id} value={id}>
-            {optionLabel}
-          </option>
-        ))}
+        {options.map(([id, optionLabel]) => <option key={id} value={id}>{optionLabel}</option>)}
       </select>
     </label>
   );
@@ -184,6 +166,30 @@ function hiddenFilterInputs(query: ClientFilterQuery) {
   );
 }
 
+function clientViewHref(query: ClientFilterQuery, view: keyof ClientSmartViewCounts) {
+  const params = queryParams(query);
+  params.set("vista", view);
+  params.delete("pagina");
+  if (view !== "todos") params.set("archivo", "activos");
+  const suffix = params.toString();
+  return suffix ? `/clientes?${suffix}` : "/clientes";
+}
+
+function exportHref(query: ClientFilterQuery) {
+  const params = queryParams(query);
+  params.delete("pagina");
+  const suffix = params.toString();
+  return suffix ? `/clientes/export?${suffix}` : "/clientes/export";
+}
+
+function queryParams(query: ClientFilterQuery) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value) params.set(key, value);
+  }
+  return params;
+}
+
 function defaultArchive(view: string | undefined) {
-  return view === "todos" ? "todos" : "activos";
+  return view === "archivados" ? "archivados" : "activos";
 }

@@ -19,12 +19,23 @@ import {
   editTaskSeries,
 } from "@/lib/tasks/task-recurrence";
 import { prisma } from "@/lib/prisma";
-import { assertScopedTaskAccess, requireCapability } from "@/lib/commercial/authorization";
+import { assertScopedEntityAccess, assertScopedTaskAccess, requireCapability } from "@/lib/commercial/authorization";
 async function taskGuard(data:FormData){const auth=await requireCapability("tasks.manage");const ids=["id","taskId","parentTaskId","dependsOnTaskId"].map(key=>String(data.get(key)??"")).filter(Boolean);for(const id of ids){const found=await prisma.task.findFirst({where:{companyId:auth.companyId,OR:[{id},{checklist:{some:{id}}},{dependencies:{some:{id}}},{blocking:{some:{id}}}]},select:{id:true}});if(!found)throw new Error("TASK_NOT_AVAILABLE");await assertScopedTaskAccess(auth,"tasks.manage",found.id);}return auth;}
 export async function createTaskAction(data: FormData) {
   const auth=await requireCapability("tasks.manage");
   const title = String(data.get("title") ?? "").trim();
   if (!title) return;
+  const requestedWorkId = String(data.get("workId") ?? "").trim() || undefined;
+  const requestedClientId = String(data.get("clientId") ?? "").trim() || undefined;
+  if (requestedWorkId) await assertScopedEntityAccess(auth, "tasks.manage", "Work", requestedWorkId);
+  else if (requestedClientId) await assertScopedEntityAccess(auth, "tasks.manage", "Client", requestedClientId);
+  const linkedWork = requestedWorkId ? await prisma.work.findFirst({ where: { id: requestedWorkId, companyId: auth.companyId }, select: { id: true, clienteId: true } }) : null;
+  if (requestedWorkId && !linkedWork) throw new Error("WORK_NOT_AVAILABLE");
+  const clientId = linkedWork?.clienteId ?? requestedClientId;
+  if (clientId) {
+    const clientExists = await prisma.client.count({ where: { id: clientId, companyId: auth.companyId } });
+    if (!clientExists) throw new Error("CLIENT_NOT_AVAILABLE");
+  }
   await createTask({
     companyId:auth.companyId,
     title,
@@ -36,9 +47,13 @@ export async function createTaskAction(data: FormData) {
       | "high"
       | "urgent",
     assigneeId: auth.scope === "COMPANY" ? undefined : auth.userId,
+    createdById: auth.userId,
+    workId: linkedWork?.id,
+    clientId,
   });
   revalidatePath("/tareas");
   revalidatePath("/hoy");
+  if (linkedWork) revalidatePath(`/obras/${linkedWork.id}`);
 }
 export async function completeTaskAction(data: FormData) {
   await taskGuard(data);
@@ -67,7 +82,12 @@ export async function toggleChecklistAction(data: FormData) {
   revalidatePath("/tareas");
 }
 export async function updateTaskAction(data: FormData) {
-  await taskGuard(data);
+  const auth = await taskGuard(data);
+  const assigneeId = String(data.get("assigneeId") ?? "").trim() || null;
+  if (assigneeId) {
+    const activeMembership = await prisma.companyMembership.count({ where: { companyId: auth.companyId, userId: assigneeId, status: "active" } });
+    if (!activeMembership) throw new Error("TASK_ASSIGNEE_NOT_AVAILABLE");
+  }
   await editTask(String(data.get("id")), {
     title: String(data.get("title") ?? "").trim() || undefined,
     description: String(data.get("description") ?? "").trim() || null,
@@ -77,7 +97,7 @@ export async function updateTaskAction(data: FormData) {
       | "high"
       | "urgent",
     dueAt: data.get("dueAt") ? new Date(String(data.get("dueAt"))) : null,
-    assigneeId: String(data.get("assigneeId") ?? "").trim() || null,
+    assigneeId,
   });
   revalidatePath("/tareas");
   revalidatePath(`/tareas/${String(data.get("id"))}`);

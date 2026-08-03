@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth/config";
 import { hashPassword, hashToken, normalizeEmail, validatePassword, verifyPassword } from "@/lib/auth/crypto";
 import { createSession, getAvailableCompanies, revokeCurrentSession } from "@/lib/auth/session";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 import { recordSecurityEvent } from "@/lib/auth/audit";
 import type { AuthActionState } from "@/lib/auth/state";
 import { ensureBasePlans, provisionCompanyInTransaction } from "@/lib/commercial/provisioning";
@@ -69,6 +70,8 @@ export async function registerAction(_previous: AuthActionState, form: FormData)
 export async function loginAction(_previous: AuthActionState, form: FormData): Promise<AuthActionState> {
   const email = text(form, "email");
   const password = String(form.get("password") ?? "");
+  const remember = form.get("remember") === "on";
+  const returnTo = normalizeLoginReturnPath(String(form.get("returnTo") ?? ""));
   if (!(await allowAuthAttempt("login", normalizeEmail(email), 10))) return { status: "error", message: genericCredentials, fields: { email } };
   const user = await prisma.user.findUnique({ where: { emailNormalized: normalizeEmail(email) } });
   if (!user) { await recordSecurityEvent({ type: "login_attempt", outcome: "failure" }); return { status: "error", message: genericCredentials, fields: { email } }; }
@@ -84,14 +87,14 @@ export async function loginAction(_previous: AuthActionState, form: FormData): P
   }
   if (user.status !== "active" || !user.emailVerifiedAt) { await recordSecurityEvent({ type: "login_unverified", outcome: "blocked", userId: user.id }); return { status: "error", message: "Debes verificar el correo antes de entrar.", fields: { email } }; }
   await prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: now } });
-  await createSession(user.id);
+  await createSession(user.id, { remember });
   await recordSecurityEvent({ type: "login_success", outcome: "success", userId: user.id });
   const activeMemberships = await getAvailableCompanies(user.id);
   if (!activeMemberships.length) {
     const pendingMembership = await prisma.companyMembership.findFirst({ where: { userId: user.id, status: "pending_owner_approval" }, select: { id: true } });
     if (pendingMembership) redirect("/acceso-pendiente");
   }
-  redirect("/hoy");
+  redirect(returnTo);
 }
 
 export async function logoutAction() { await revokeCurrentSession(); redirect("/login"); }

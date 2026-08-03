@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Activity,
   BarChart3,
@@ -13,6 +13,7 @@ import {
   Building2,
   CalendarDays,
   ChevronDown,
+  CircleHelp,
   CircleUserRound,
   Ellipsis,
   FileText,
@@ -37,18 +38,34 @@ import {
   captureActions,
   createActions,
   isProductDestinationActive,
+  productSubnavigation,
   resolveRouteContext,
   type ProductDestination,
   type ProductIcon
 } from "@/lib/product-navigation";
 import type { PortalManifest } from "@/lib/commercial/portal-manifest";
-import { BrandMark } from "@/components/brand/brand-mark";
+import { BrandLogo } from "@/components/brand/brand-mark";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { brand } from "@/lib/brand";
 import { OrqenaContextRail } from "@/components/portal/orqena-context-rail";
+import { GlobalSearchCombobox } from "@/components/global-search-combobox";
+import type { PortalRailRecommendations } from "@/lib/application/intelligence/today-recommendation";
 
-type DesktopPanel = "more" | "create" | "user" | null;
+type DesktopPanel = "create" | "user" | null;
 type Overlay = "search" | "capture" | "more" | null;
+type ShellDestination = ProductDestination & { unavailable?: boolean; children?: ProductDestination[] };
+
+const activityRouteCapabilities = [
+  "reports.view",
+  "clients.view",
+  "work.view",
+  "sales.budgets.view",
+  "sales.invoices.view",
+  "treasury.view",
+  "purchase_cost.view",
+  "agenda.view",
+  "documents.view",
+] as const;
 
 const icons: Record<ProductIcon, LucideIcon> = {
   activity: Activity,
@@ -77,7 +94,8 @@ export function AppChrome({
   companyName,
   userName,
   platformAccess,
-  logoutAction
+  logoutAction,
+  railRecommendations,
 }: {
   children: ReactNode;
   portalManifest: PortalManifest;
@@ -88,22 +106,63 @@ export function AppChrome({
   userName: string;
   platformAccess: boolean;
   logoutAction: () => Promise<void>;
+  railRecommendations: PortalRailRecommendations;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const editedClientId =
+    pathname === "/gestion" && searchParams.get("tipo") === "cliente"
+      ? searchParams.get("id")
+      : null;
+  const railPathname = editedClientId
+    ? `/clientes/${editedClientId}/editar`
+    : pathname;
+  const hasEmbeddedClientContext =
+    pathname === "/clientes" || /^\/clientes\/[^/]+$/.test(pathname);
   const dialogId = useId();
   const [desktopPanel, setDesktopPanel] = useState<DesktopPanel>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const context = useMemo(() => resolveRouteContext(pathname), [pathname]);
-  const desktopNavigation = useMemo(() => buildCanonicalDesktopNavigation(portalManifest), [portalManifest]);
-  const contextLabel = pathname === "/capataz" ? brand.assistantName : context.label;
+  const activityRouteAvailable = useMemo(() => {
+    const capabilitySet = new Set(capabilities);
+    const required = new Set<string>(activityRouteCapabilities);
+    return activityRouteCapabilities.every((capability) => capabilitySet.has(capability)) &&
+      !portalManifest.scopes.some((scope) => required.has(scope.capabilityKey) && scope.scope !== "COMPANY");
+  }, [capabilities, portalManifest.scopes]);
+  const desktopNavigation = useMemo(
+    () => buildCanonicalDesktopNavigation(portalManifest, capabilities, activityRouteAvailable),
+    [activityRouteAvailable, capabilities, portalManifest],
+  );
+  const shellNavigationGroups = useMemo(
+    () => portalManifest.navigationGroups
+      .map((group) => ({ ...group, items: group.items.filter((item) => item.href !== "/actividad" || activityRouteAvailable) }))
+      .filter((group) => group.items.length > 0),
+    [activityRouteAvailable, portalManifest.navigationGroups],
+  );
+  const contextLabel = editedClientId
+    ? "Clientes"
+    : pathname === "/capataz" || pathname.startsWith("/orqena-ia")
+      ? brand.assistantName
+      : context.label;
+  const orqenaAvailable = capabilities.includes("orqena.use");
   const canCapture = useMemo(
     () => captureActions.some((item) => !item.capability || capabilities.includes(item.capability)),
     [capabilities],
   );
+  const canCreate = canCapture || portalManifest.quickActions.length > 0;
+
+  useEffect(() => {
+    try {
+      setRailCollapsed(window.localStorage.getItem("orqena.portal.iaRailCollapsed") === "true");
+    } catch {
+      // La preferencia es opcional; el rail sigue funcionando sin almacenamiento local.
+    }
+  }, []);
 
   useEffect(() => {
     setDesktopPanel(null);
@@ -217,31 +276,23 @@ export function AppChrome({
         <DesktopNavigation
           navigation={desktopNavigation}
           pathname={pathname}
-          companyName={companyName}
-          userName={userName}
-          modeLabel={modeLabel}
           collapsed={sidebarCollapsed}
-          desktopPanel={desktopPanel}
           onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-          onOpenPanel={openDesktopPanel}
         />
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/95">
-        <div className="mx-auto flex h-16 max-w-product items-center gap-2 px-4 sm:px-6 lg:px-8">
+      <header className="field-os-topbar sticky top-0 z-30 border-b border-border bg-surface/95">
+        <div className="field-os-topbar__inner flex items-center gap-2 px-4 sm:px-6">
           <Link
             href={portalManifest.safeHome}
-            className="field-os-mobile-brand h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white"
+            className="field-os-mobile-brand h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-sm font-bold text-content"
             aria-label="Ir a Hoy"
           >
-            <BrandMark className="h-7 w-7 text-white" />
+            <BrandLogo variant="symbol" size="sm" className="h-7 w-7" />
           </Link>
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-content lg:max-w-44" aria-label={`Área actual: ${contextLabel}`}>
+          <p className="field-os-mobile-context min-w-0 flex-1 truncate text-sm font-semibold text-content" aria-label={`Área actual: ${contextLabel}`}>
             {contextLabel}
           </p>
-          <Link href="/seleccionar-empresa" className="ghost-button max-w-40 truncate px-2 text-xs" aria-label={`Cambiar empresa. Activa: ${companyName}`}>
-            <Building2 size={17} aria-hidden="true"/><span className="truncate">{companyName}</span><ChevronDown size={14} aria-hidden="true"/>
-          </Link>
 
           <button
             type="button"
@@ -250,9 +301,20 @@ export function AppChrome({
             onClick={(event) => openOverlay("search", event.currentTarget)}
           >
             <Search size={18} aria-hidden="true" />
-            <span className="flex-1">Buscar en {brand.productName}</span>
+            <span className="flex-1">Buscar en Orqena Tech...</span>
             <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-content-tertiary">Ctrl K</kbd>
           </button>
+
+          <Link
+            href="/seleccionar-empresa"
+            className="field-os-company-switcher"
+            aria-label={`Cambiar empresa. Activa: ${companyName}`}
+          >
+            <Building2 size={18} aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{companyName}</span>
+            {modeLabel ? <span className="field-os-environment-badge">{modeLabel}</span> : null}
+            <ChevronDown size={15} aria-hidden="true" />
+          </Link>
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <button
@@ -263,44 +325,71 @@ export function AppChrome({
             >
               <Search size={20} aria-hidden="true" />
             </button>
+            <NotificationLink unread={unreadNotifications} />
+            <Link href="/configuracion/soporte/ayuda" className="icon-button field-os-help-link" aria-label="Abrir ayuda">
+              <CircleHelp size={20} aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              className="field-os-user-trigger"
+              aria-expanded={desktopPanel === "user"}
+              onClick={(event) => openDesktopPanel("user", event.currentTarget)}
+            >
+              <UserAvatar name={userName} />
+              <span className="truncate">{userName}</span>
+              <ChevronDown size={15} aria-hidden="true" />
+            </button>
             {portalManifest.quickActions.length ? <button
               type="button"
-              className="field-os-desktop-action secondary-button"
+              className="field-os-desktop-action field-os-new-action"
               aria-expanded={desktopPanel === "create"}
               onClick={(event) => openDesktopPanel("create", event.currentTarget)}
             >
-              <Plus size={18} aria-hidden="true" />Crear
-            </button> : null}
-            {portalManifest.orqenaTools.length ? <Link href="/capataz" className="ghost-button hidden sm:inline-flex">
-              <Bot size={18} aria-hidden="true" />Orqena IA
-            </Link> : null}
-            <NotificationLink unread={unreadNotifications} />
+              <Plus className="field-os-new-action__leading" size={17} aria-hidden="true" />
+              <span className="field-os-new-action__label">Nuevo</span>
+              <ChevronDown className="field-os-new-action__trailing" size={15} aria-hidden="true" />
+            </button> : <button
+              type="button"
+              className="field-os-desktop-action field-os-new-action"
+              aria-label="Nuevo no disponible con este acceso"
+              title="Tu acceso actual es de solo lectura"
+              disabled
+            >
+              <Plus className="field-os-new-action__leading" size={17} aria-hidden="true" />
+              <span className="field-os-new-action__label">Nuevo</span>
+              <ChevronDown className="field-os-new-action__trailing" size={15} aria-hidden="true" />
+            </button>}
           </div>
         </div>
       </header>
 
-      <div className="field-os-workspace">
+      <div
+        className="field-os-workspace"
+        data-rail-collapsed={railCollapsed ? "true" : "false"}
+        data-embedded-context={hasEmbeddedClientContext ? "client" : undefined}
+      >
         <div id="main-content" className="field-os-main-canvas relative" tabIndex={-1}>{children}</div>
-        <OrqenaContextRail pathname={pathname} />
+        {hasEmbeddedClientContext ? null : <OrqenaContextRail pathname={railPathname} recommendations={railRecommendations} canUse={orqenaAvailable} canExecute={capabilities.includes("orqena.execute")} collapsed={railCollapsed} onToggleCollapsed={() => setRailCollapsed((current) => {
+          const next = !current;
+          try {
+            window.localStorage.setItem("orqena.portal.iaRailCollapsed", String(next));
+          } catch {
+            // Mantener el control operativo aunque el navegador bloquee storage.
+          }
+          return next;
+        })} />}
       </div>
 
       <MobileBottomNavigation
         items={portalManifest.mobileNavigation}
-        canCapture={canCapture}
+        capabilities={capabilities}
+        canCapture={canCreate}
         pathname={pathname}
+        activityRouteAvailable={activityRouteAvailable}
         overlay={overlay}
         onOpen={openOverlay}
       />
 
-      {desktopPanel === "more" ? (
-        <DesktopMorePanel
-          groups={portalManifest.navigationGroups}
-          ref={panelRef}
-          pathname={pathname}
-          unread={unreadNotifications}
-          onClose={closeDesktopPanel}
-        />
-      ) : null}
       {desktopPanel === "create" ? (
         <DesktopCreatePanel capabilities={capabilities} ref={panelRef} onClose={closeDesktopPanel} />
       ) : null}
@@ -342,7 +431,7 @@ export function AppChrome({
             ) : (
               <MobileMoreSheet
                 navigation={portalManifest.navigation}
-                groups={portalManifest.navigationGroups}
+                groups={shellNavigationGroups}
                 id={dialogId}
                 pathname={pathname}
                 unread={unreadNotifications}
@@ -351,6 +440,7 @@ export function AppChrome({
                 modeLabel={modeLabel}
                 logoutAction={logoutAction}
                 platformAccess={platformAccess}
+                orqenaAvailable={orqenaAvailable}
                 onClose={() => setOverlay(null)}
               />
             )}
@@ -361,7 +451,11 @@ export function AppChrome({
   );
 }
 
-function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): ProductDestination[] {
+function buildCanonicalDesktopNavigation(
+  portalManifest: PortalManifest,
+  capabilities: string[],
+  activityRouteAvailable: boolean,
+): ShellDestination[] {
   const allowed = new Map(
     [...portalManifest.navigation, ...portalManifest.navigationGroups.flatMap((group) => group.items)]
       .map((item) => [item.href, item] as const),
@@ -376,76 +470,55 @@ function buildCanonicalDesktopNavigation(portalManifest: PortalManifest): Produc
     { href: "/documentos", label: "Documentos", icon: "document" },
     { href: "/agenda", label: "Agenda", icon: "agenda" },
     { href: "/equipo", label: "Equipo", icon: "client" },
-    { href: "/capataz", label: brand.assistantName, icon: "bot" },
+    { href: "/orqena-ia", label: brand.assistantName, icon: "bot" },
     { href: "/configuracion", label: "Configuración", icon: "settings" },
   ];
 
-  return order.flatMap((target) => {
-    if (target.href === "/capataz") return [target];
+  const capabilitySet = new Set(capabilities);
+  return order.flatMap<ShellDestination>((target): ShellDestination[] => {
     const source = allowed.get(target.href);
-    return source ? [{ ...source, label: target.label, icon: target.icon }] : [];
+    if (target.href === "/orqena-ia" && !source) return [{ ...target, capability: "orqena.use", unavailable: true }];
+    const children = (productSubnavigation[target.href] ?? []).filter((item) =>
+      (!item.capability || capabilitySet.has(item.capability)) &&
+      (item.href !== "/actividad" || activityRouteAvailable),
+    );
+    if (!source && target.href === "/dinero" && children.length > 0) {
+      const [landing, ...purchaseChildren] = children;
+      if (landing) return [{ ...landing, label: "Compras", icon: "expense", children: purchaseChildren }];
+    }
+    if (!source) return [];
+    return [{ ...source, label: target.label, icon: target.icon, children }];
   });
 }
 
 function DesktopNavigation({
   navigation,
   pathname,
-  companyName,
-  userName,
-  modeLabel,
   collapsed,
-  desktopPanel,
   onToggleCollapsed,
-  onOpenPanel
 }: {
-  navigation: ProductDestination[];
+  navigation: ShellDestination[];
   pathname: string;
-  companyName: string;
-  userName: string;
-  modeLabel?: string;
   collapsed: boolean;
-  desktopPanel: DesktopPanel;
   onToggleCollapsed: () => void;
-  onOpenPanel: (panel: Exclude<DesktopPanel, null>, trigger: HTMLButtonElement) => void;
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pb-3 pt-4">
-        <Link href="/hoy" className="field-os-sidebar__brand flex min-h-12 items-center gap-3 rounded-lg px-2 hover:bg-subtle" aria-label="Ir a Hoy">
-          <span className="field-os-sidebar__brand-mark flex h-10 w-10 shrink-0 items-center justify-center">
-            <BrandMark className="h-8 w-8" />
-          </span>
-          <span className="field-os-sidebar__brand-copy min-w-0">
-            <span className="block text-base font-bold leading-5 text-content">{brand.companyName}</span>
-            <span className="block truncate text-xs text-content-secondary">Portal empresarial</span>
-          </span>
+      <div className="field-os-sidebar__brand-area">
+        <Link href="/hoy" className="field-os-sidebar__brand" aria-label="Ir a Hoy">
+          {collapsed ? <BrandLogo variant="symbol" size="sm" className="h-8 w-8" /> : <BrandLogo variant="sidebar" size="lg" title={brand.companyName} />}
         </Link>
-        {modeLabel && !collapsed ? <p className="mt-1 truncate px-2 text-[11px] font-medium text-content-tertiary">{modeLabel}</p> : null}
       </div>
 
       <nav className="field-os-sidebar__navigation flex-1 overflow-y-auto px-3" aria-label="Navegación principal">
         <div className="grid gap-1">
           {navigation.map((item) => (
-            <NavigationLink key={item.href} item={item} pathname={pathname} />
+            <NavigationBranch key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
           ))}
         </div>
-        {!collapsed ? <button
-            type="button"
-            className={clsx(
-              "mt-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
-              desktopPanel === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
-            )}
-            aria-expanded={desktopPanel === "more"}
-            aria-controls="desktop-more-navigation"
-            onClick={(event) => onOpenPanel("more", event.currentTarget)}
-          >
-            <Ellipsis size={19} aria-hidden="true" />
-            <span className="flex-1 text-left">Más</span>
-            <ChevronDown size={16} className="-rotate-90" aria-hidden="true" />
-          </button> : null}
       </nav>
 
-      <div className="border-t border-border p-3">
+      <div className="field-os-sidebar__footer border-t border-border p-3">
         <button
           type="button"
           className="mb-2 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-secondary transition hover:bg-subtle hover:text-content"
@@ -455,61 +528,36 @@ function DesktopNavigation({
           {collapsed ? <PanelLeftOpen size={19} aria-hidden="true" /> : <PanelLeftClose size={19} aria-hidden="true" />}
           <span className="field-os-sidebar__label">Ocultar menú</span>
         </button>
-        <button
-          type="button"
-          className={clsx(
-            "flex min-h-14 w-full items-center gap-3 rounded-lg px-2 text-left transition hover:bg-subtle",
-            desktopPanel === "user" && "bg-subtle"
-          )}
-          aria-expanded={desktopPanel === "user"}
-          onClick={(event) => onOpenPanel("user", event.currentTarget)}
-        >
-          <UserAvatar name={userName} />
-          <span className="field-os-sidebar__label min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-content">{userName}</span>
-            <span className="block truncate text-xs text-content-secondary">{companyName}</span>
-          </span>
-          {!collapsed ? <ChevronDown size={16} aria-hidden="true" /> : null}
-        </button>
       </div>
     </div>
   );
 }
 
-const DesktopMorePanel = forwardRef<HTMLDivElement, {
-  groups: PortalManifest["navigationGroups"];
-  pathname: string;
-  unread: number;
-  onClose: () => void;
-}>(function DesktopMorePanel({
-  groups,
-  pathname,
-  unread,
-  onClose
-}, ref) {
+function NavigationBranch({ item, pathname, collapsed }: { item: ShellDestination; pathname: string; collapsed: boolean }) {
+  const children = item.children ?? [];
+  const childActive = children.some((child) => isProductDestinationActive(pathname, child.href));
+  const parentActive = isProductDestinationActive(pathname, item.href);
+  const expanded = !collapsed && children.length > 0 && (parentActive || childActive);
+  const groupId = children.length > 0 ? `subnavigation-${item.href.replace(/[^a-z0-9]+/gi, "-")}` : undefined;
   return (
-    <div
-      ref={ref}
-      id="desktop-more-navigation"
-      className="field-os-sidebar-panel fixed bottom-5 top-20 z-50 w-[25rem] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-card"
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="type-section-title text-content">Más áreas</p>
-          <p className="type-secondary mt-1">Operación y control, cuando los necesites.</p>
+    <div className="field-os-navigation-branch" data-expanded={expanded ? "true" : "false"}>
+      <NavigationLink
+        item={item}
+        pathname={pathname}
+        activeOverride={parentActive || childActive}
+        currentOverride={parentActive}
+        expanded={children.length > 0 ? expanded : undefined}
+        controls={expanded ? groupId : undefined}
+        trailing={children.length ? <ChevronDown className={clsx("field-os-sidebar__label transition-transform", expanded && "rotate-180")} size={14} aria-hidden="true" /> : undefined}
+      />
+      {expanded ? (
+        <div id={groupId} className="field-os-navigation-children ml-[27px] grid gap-0.5 border-l border-white/15 py-1" role="group" aria-label={`Submenús de ${item.label}`}>
+          {children.map((child) => <NavigationLink key={child.href} item={child} pathname={pathname} compact />)}
         </div>
-        <button type="button" className="icon-button" aria-label="Cerrar Más" onClick={onClose}>
-          <X size={19} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="grid gap-5">
-        {groups.map((group) => (
-          <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
-        ))}
-      </div>
+      ) : null}
     </div>
   );
-});
+}
 
 const DesktopCreatePanel = forwardRef<HTMLDivElement, {
   capabilities: string[];
@@ -547,7 +595,7 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
   onClose
 }, ref) {
   return (
-    <div ref={ref} className="field-os-sidebar-panel fixed bottom-3 z-50 w-72 rounded-2xl border border-border bg-surface p-3 shadow-card">
+    <div ref={ref} className="field-os-user-panel fixed right-4 top-[4.25rem] z-50 w-72 rounded-2xl border border-border bg-surface p-3 shadow-card">
       <div className="border-b border-border px-2 pb-3">
         <p className="truncate text-sm font-semibold text-content">{userName}</p>
         <p className="truncate text-xs text-content-secondary">{companyName}</p>
@@ -577,38 +625,43 @@ const DesktopUserPanel = forwardRef<HTMLDivElement, {
 
 function MobileBottomNavigation({
   items,
+  capabilities,
   canCapture,
   pathname,
+  activityRouteAvailable,
   overlay,
   onOpen
 }: {
   items: ProductDestination[];
+  capabilities: string[];
   canCapture: boolean;
   pathname: string;
+  activityRouteAvailable: boolean;
   overlay: Overlay;
   onOpen: (overlay: Exclude<Overlay, null>, trigger: HTMLButtonElement) => void;
 }) {
   const mobileItems = items.slice(0, canCapture ? 3 : 4);
+  const capabilitySet = new Set(capabilities);
   return (
     <nav
       className="field-os-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)]"
       aria-label="Navegación móvil"
     >
-      <div className="mx-auto flex h-16 max-w-lg justify-around px-1">
-        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1">
+        {mobileItems.slice(0, 2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} activityRouteAvailable={activityRouteAvailable} />)}
         {canCapture ? <button
           type="button"
           className={clsx("field-os-capture-trigger shell-bottom-item", overlay === "capture" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
-          aria-label="Capturar"
+          aria-label="Crear o capturar"
           aria-expanded={overlay === "capture"}
           onClick={(event) => onOpen("capture", event.currentTarget)}
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-lg">
             <Plus size={19} aria-hidden="true" />
           </span>
-          <span>Capturar</span>
+          <span>Nuevo</span>
         </button> : null}
-        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} />)}
+        {mobileItems.slice(2).map((item) => <BottomLink key={item.href} item={item} pathname={pathname} capabilitySet={capabilitySet} activityRouteAvailable={activityRouteAvailable} />)}
         <button
           type="button"
           className={clsx("shell-bottom-item", overlay === "more" ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
@@ -624,8 +677,23 @@ function MobileBottomNavigation({
   );
 }
 
-function BottomLink({ item, pathname }: { item: ProductDestination; pathname: string }) {
-  const active = isProductDestinationActive(pathname, item.href);
+function BottomLink({
+  item,
+  pathname,
+  capabilitySet,
+  activityRouteAvailable,
+}: {
+  item: ProductDestination;
+  pathname: string;
+  capabilitySet: Set<string>;
+  activityRouteAvailable: boolean;
+}) {
+  const active = isProductDestinationActive(pathname, item.href) ||
+    (productSubnavigation[item.href] ?? []).some((child) =>
+      (!child.capability || capabilitySet.has(child.capability)) &&
+      (child.href !== "/actividad" || activityRouteAvailable) &&
+      isProductDestinationActive(pathname, child.href),
+    );
   const Icon = icons[item.icon];
   return (
     <Link
@@ -634,7 +702,7 @@ function BottomLink({ item, pathname }: { item: ProductDestination; pathname: st
       className={clsx("shell-bottom-item", active ? "bg-brand-soft text-brand-strong" : "text-content-secondary")}
     >
       <Icon size={22} aria-hidden="true" />
-      <span>{item.href === "/capataz" ? brand.assistantName : item.label}</span>
+      <span>{item.href === "/orqena-ia" ? brand.assistantName : item.label}</span>
     </Link>
   );
 }
@@ -645,28 +713,13 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 id={`${id}-title`} className="type-section-title text-content">Buscar en {brand.productName}</h2>
-          <p className="type-secondary mt-1">Clientes, trabajos, presupuestos, facturas y documentos.</p>
+          <p className="type-secondary mt-1">Clientes, trabajo, dinero, agenda y documentos.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Cerrar búsqueda" onClick={onClose}>
           <X size={20} aria-hidden="true" />
         </button>
       </div>
-      <form action="/buscar" className="mt-5">
-        <label htmlFor={`${id}-query`} className="sr-only">Qué quieres buscar</label>
-        <div className="relative">
-          <Search size={20} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" aria-hidden="true" />
-          <input
-            id={`${id}-query`}
-            data-autofocus
-            className="field pl-11 pr-24"
-            name="q"
-            type="search"
-            autoComplete="off"
-            placeholder="Cliente, trabajo, factura…"
-          />
-          <button type="submit" className="primary-button absolute right-1 top-1 min-h-10 px-3">Buscar</button>
-        </div>
-      </form>
+      <GlobalSearchCombobox id={`${id}-query`} autoFocus onNavigate={onClose} className="mt-5" />
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-content-tertiary">
         <span><kbd className="font-semibold">↑ ↓</kbd> recorrer</span>
         <span><kbd className="font-semibold">Enter</kbd> buscar</span>
@@ -684,8 +737,15 @@ function SearchDialog({ id, showDashboard, onClose }: { id: string; showDashboar
 
 function MobileCaptureSheet({ id, capabilities, onClose }: { id: string; capabilities: string[]; onClose: () => void }) {
   return (
-    <SheetFrame id={id} title="Capturar" description="Registra lo que acaba de pasar." onClose={onClose}>
+    <SheetFrame id={id} title="Nuevo" description="Crea o registra una acción autorizada." onClose={onClose}>
+      <section>
+        <h3 className="type-label mb-2">Crear</h3>
+        <CreateRows capabilities={capabilities} onNavigate={onClose} />
+      </section>
+      <section className="mt-5 border-t border-border pt-4">
+        <h3 className="type-label mb-2">Captura rápida</h3>
       <CaptureRows capabilities={capabilities} onNavigate={onClose} />
+      </section>
       <p className="mt-4 rounded-lg bg-subtle p-3 text-xs leading-5 text-content-secondary">
         La cámara o el micrófono sólo se solicitarán después de elegir una acción que los necesite.
       </p>
@@ -703,6 +763,7 @@ function MobileMoreSheet({
   userName,
   modeLabel,
   platformAccess,
+  orqenaAvailable,
   logoutAction,
   onClose
 }: {
@@ -715,24 +776,29 @@ function MobileMoreSheet({
   userName: string;
   modeLabel?: string;
   platformAccess: boolean;
+  orqenaAvailable: boolean;
   logoutAction: () => Promise<void>;
   onClose: () => void;
 }) {
+  const mobileUtilityDestinations = new Set(["/notificaciones", "/configuracion"]);
+  const mobileGroups = groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !mobileUtilityDestinations.has(item.href)) }))
+    .filter((group) => group.items.length > 0);
   return (
     <SheetFrame id={id} title="Más" description="Todas las áreas, sin saturar tu día." onClose={onClose}>
-      {navigation.some((item) => item.href === "/capataz") ? <Link href="/capataz" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
+      {orqenaAvailable ? <Link href="/orqena-ia" onClick={onClose} className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-brand-soft px-3 font-semibold text-brand-strong">
         <Bot size={20} aria-hidden="true" />{brand.assistantName}
-      </Link> : null}
+      </Link> : <span aria-disabled="true" title="No disponible en tu plan o permisos" className="mb-5 flex min-h-12 items-center gap-3 rounded-lg bg-subtle px-3 font-semibold text-content-tertiary"><Bot size={20} aria-hidden="true" />{brand.assistantName}<small className="ml-auto">No disponible</small></span>}
       <div className="grid gap-5">
         <section>
           <h3 className="type-label mb-2">Trabajo y gestión</h3>
           <div className="grid gap-1">
-            {navigation.filter((item) => !["/hoy", "/clientes", "/obras", "/capataz"].includes(item.href)).map((item) => (
+            {navigation.filter((item) => !["/hoy", "/clientes", "/obras", "/orqena-ia"].includes(item.href)).map((item) => (
               <NavigationLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />
             ))}
           </div>
         </section>
-        {groups.slice(0, 2).map((group) => (
+        {mobileGroups.map((group) => (
           <NavigationGroup key={group.label} group={group} pathname={pathname} unread={unread} onNavigate={onClose} />
         ))}
       </div>
@@ -746,6 +812,15 @@ function MobileMoreSheet({
           </div>
         </div>
         <div className="mt-3 grid gap-1">
+          <Link href="/seleccionar-empresa" className="shell-menu-row" onClick={onClose}>
+            <Building2 size={18} aria-hidden="true" />Cambiar empresa
+          </Link>
+          <Link href="/notificaciones" className="shell-menu-row" onClick={onClose}>
+            <Bell size={18} aria-hidden="true" />Notificaciones{unread ? ` (${unread})` : ""}
+          </Link>
+          <Link href="/configuracion/soporte/ayuda" className="shell-menu-row" onClick={onClose}>
+            <CircleHelp size={18} aria-hidden="true" />Ayuda
+          </Link>
           <div className="px-2 py-2">
             <p className="mb-2 text-xs font-semibold text-content-secondary">Apariencia</p>
             <ThemeSwitcher />
@@ -868,28 +943,61 @@ function NavigationLink({
   item,
   pathname,
   onNavigate,
-  badge = 0
+  badge = 0,
+  activeOverride,
+  currentOverride,
+  expanded,
+  controls,
+  trailing,
+  compact = false,
 }: {
-  item: ProductDestination;
+  item: ShellDestination;
   pathname: string;
   onNavigate?: () => void;
   badge?: number;
+  activeOverride?: boolean;
+  currentOverride?: boolean;
+  expanded?: boolean;
+  controls?: string;
+  trailing?: ReactNode;
+  compact?: boolean;
 }) {
-  const active = isProductDestinationActive(pathname, item.href);
+  const directActive = isProductDestinationActive(pathname, item.href);
+  const active = activeOverride ?? directActive;
+  const current = currentOverride ?? directActive;
   const Icon = icons[item.icon];
+  const label = item.href === "/orqena-ia" ? brand.assistantName : item.label;
+  if (item.unavailable) {
+    return (
+      <span
+        aria-disabled="true"
+        title="No disponible en tu plan o permisos"
+        className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-content-tertiary"
+      >
+        <Icon size={19} aria-hidden="true" />
+        <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{label}</span>
+      </span>
+    );
+  }
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
+      aria-current={current ? "page" : undefined}
+      aria-expanded={expanded}
+      aria-controls={controls}
+      aria-label={label}
+      data-navigation-child={compact ? "true" : undefined}
       className={clsx(
         "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition",
+        compact && "field-os-navigation-child !min-h-8 !gap-2 !rounded-md !py-1 !pl-4 !pr-2 !text-[12px] !font-medium",
         active ? "bg-brand-soft text-brand-strong" : "text-content-secondary hover:bg-subtle hover:text-content"
       )}
     >
-      <Icon size={19} aria-hidden="true" />
-      <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{item.href === "/capataz" ? brand.assistantName : item.label}</span>
+      <Icon size={compact ? 14 : 19} aria-hidden="true" />
+      <span className="field-os-sidebar__label min-w-0 flex-1 truncate">{label}</span>
       {badge ? <NotificationBadge count={badge} /> : null}
+      {trailing}
     </Link>
   );
 }
@@ -902,16 +1010,17 @@ function NotificationLink({ unread }: { unread: number }) {
       aria-label={`Notificaciones${unread ? `, ${unread} sin leer` : ""}`}
     >
       <Bell size={20} aria-hidden="true" />
-      {unread ? <span className="absolute -right-1 -top-1"><NotificationBadge count={unread} compact /></span> : null}
+      {unread ? <span className="absolute -right-1 -top-1"><NotificationBadge count={unread} compact tone="alert" /></span> : null}
     </Link>
   );
 }
 
-function NotificationBadge({ count, compact = false }: { count: number; compact?: boolean }) {
+function NotificationBadge({ count, compact = false, tone = "default" }: { count: number; compact?: boolean; tone?: "default" | "alert" }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center justify-center rounded-full bg-content px-1.5 font-bold leading-none text-white",
+        "inline-flex items-center justify-center rounded-full px-1.5 font-bold leading-none text-white",
+        tone === "alert" ? "bg-red-600" : "bg-content",
         compact ? "min-h-5 min-w-5 text-[10px]" : "min-h-6 min-w-6 text-xs"
       )}
       aria-hidden="true"

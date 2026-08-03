@@ -1,7 +1,7 @@
 import { publicRequestContext } from "@/lib/platform/request-boundary";
 import { createHash } from "node:crypto";
 import { notFound } from "next/navigation";
-import { parseBudgetLines } from "@/lib/budget-lines";
+import { reconcileBudgetRecord, parseBudgetLines } from "@/lib/budget-lines";
 import { createProfessionalDocumentPdf, professionalDocumentTemplateVersion } from "@/lib/document-pdf";
 import { loadCompanyPdfLogo } from "@/lib/document-pdf-assets";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +27,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const logo = await loadCompanyPdfLogo(auth.companyId, company.logoStoredObjectId);
   const preview = new URL(request.url).searchParams.get("preview") === "1";
   const lines = parseBudgetLines(budget.partidas);
+  if (!reconcileBudgetRecord(lines, budget).ok) {
+    return new Response("BUDGET_TOTALS_MISMATCH", {
+      status: 409,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
   const taxable = Math.max(0, budget.subtotal - budget.descuento);
   const ivaPercent = taxable > 0 ? (budget.iva / taxable) * 100 : company.defaultVat;
   const pdf = createProfessionalDocumentPdf({

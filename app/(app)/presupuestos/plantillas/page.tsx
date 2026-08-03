@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { ArrowLeft, Copy, FileText, Plus } from "lucide-react";
+import { ArrowLeft, FileText, Plus } from "lucide-react";
 import { createBudgetFromTemplate } from "@/app/(app)/presupuestos/actions";
 import { DemoLimitButton } from "@/components/demo-limit-button";
+import { InternalBreadcrumbs } from "@/components/internal-breadcrumbs";
 import { Notice } from "@/components/ui-primitives";
 import { isUnlimitedMode } from "@/lib/app-mode";
 import { budgetTemplates } from "@/lib/budget-templates";
 import { prisma } from "@/lib/prisma";
 import { requireCapability, resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { normalizeLoginReturnPath } from "@/lib/auth/return-path";
 
 export const dynamic = "force-dynamic";
 
-export default async function BudgetTemplatesPage() {
+export default async function BudgetTemplatesPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
+  const query = await searchParams;
+  const returnTo = normalizeLoginReturnPath(query.returnTo ?? "/presupuestos");
   const auth = await requireCapability("sales.budgets.view");
   const { companyId } = auth;
   const [createDecision, pricingDecision] = await Promise.all([
@@ -34,10 +38,20 @@ export default async function BudgetTemplatesPage() {
   const demoLimitReached = !isUnlimitedMode() && budgetCount >= 2;
 
   return <main className="screen">
-    <Link href="/presupuestos" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink"><ArrowLeft size={18} />Presupuestos</Link>
+    <InternalBreadcrumbs items={[{ label: "Presupuestos", href: returnTo }, { label: "Plantillas" }]} />
+    <Link href={returnTo} className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-obra-ink"><ArrowLeft size={18} />Presupuestos</Link>
     <section className="mb-5"><h1 className="text-2xl font-black text-obra-ink">Crear presupuesto desde plantilla</h1><p className="mt-2 text-sm leading-6 text-slate-600">Elige oficio, cliente y, cuando tu alcance lo exige, una obra autorizada.</p></section>
     {!canCreate ? <Notice tone="info" title="Plantillas en modo lectura" description="Crear un presupuesto desde plantilla requiere permiso de creación y acceso a precios de venta." /> : null}
-    <div className="grid gap-5">{groups.map((group) => <section key={group}><h2 className="mb-3 text-lg font-black text-obra-ink">{group}</h2><div className="grid gap-3">{budgetTemplates.filter((template) => template.group === group).map((template) => canCreate ? <form key={template.id} action={createBudgetFromTemplate} className="card grid gap-3 p-4"><input type="hidden" name="templateId" value={template.id} /><TemplateHeader template={template} /><label><span className="label mb-1 block">Cliente</span><select className="field" name="clienteId" required defaultValue=""><option value="">Seleccionar cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.nombre}</option>)}</select></label><label><span className="label mb-1 block">Obra {requiresWork ? "obligatoria" : "opcional"}</span><select className="field" name="obraId" required={requiresWork} defaultValue=""><option value="">{requiresWork ? "Seleccionar obra autorizada" : "Sin obra asociada"}</option>{works.map((work) => <option key={work.id} value={work.id}>{work.titulo} · {work.client.nombre}</option>)}</select></label>{demoLimitReached ? <DemoLimitButton className="secondary-button w-full" currentCount={budgetCount} limit={2}>Crear desde plantilla</DemoLimitButton> : <button type="submit" className="secondary-button w-full"><Plus size={18} />Crear desde plantilla</button>}<button type="submit" className="secondary-button w-full"><Copy size={18} />Duplicar plantilla como presupuesto</button></form> : <article key={template.id} className="card p-4"><TemplateHeader template={template} /></article>)}</div></section>)}</div>
+    {canCreate ? <form action={createBudgetFromTemplate} className="card mb-5 grid gap-4 p-4 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-end">
+      <label><span className="label mb-1 block">Plantilla</span><select className="field" name="templateId" required defaultValue=""><option value="">Seleccionar plantilla</option>{groups.map((group) => <optgroup key={group} label={group}>{budgetTemplates.filter((template) => template.group === group).map((template) => <option key={template.id} value={template.id}>{template.name} · {template.lines.length} partidas</option>)}</optgroup>)}</select></label>
+      <label><span className="label mb-1 block">Cliente</span><select className="field" name="clienteId" required defaultValue=""><option value="">Seleccionar cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.nombre}</option>)}</select></label>
+      <label><span className="label mb-1 block">Obra {requiresWork ? "obligatoria" : "opcional"}</span><select className="field" name="obraId" required={requiresWork} defaultValue=""><option value="">{requiresWork ? "Seleccionar obra autorizada" : "Sin obra asociada"}</option>{works.map((work) => <option key={work.id} value={work.id}>{work.titulo} · {work.client.nombre}</option>)}</select></label>
+      {demoLimitReached ? <DemoLimitButton className="secondary-button whitespace-nowrap" currentCount={budgetCount} limit={2}>Crear desde plantilla</DemoLimitButton> : <button type="submit" className="secondary-button whitespace-nowrap"><Plus size={18} />Crear presupuesto</button>}
+    </form> : null}
+    <div className="grid gap-3 lg:grid-cols-2">{groups.map((group) => {
+      const templates = budgetTemplates.filter((template) => template.group === group);
+      return <details key={group} className="card p-4"><summary className="cursor-pointer font-black text-obra-ink">{group} <span className="ml-2 text-sm font-semibold text-slate-500">{templates.length} plantillas</span></summary><div className="mt-4 grid gap-3">{templates.map((template) => <article key={template.id} className="rounded-lg border border-slate-200 p-3"><TemplateHeader template={template} /></article>)}</div></details>;
+    })}</div>
   </main>;
 }
 

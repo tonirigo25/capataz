@@ -560,7 +560,7 @@ export async function PurchaseInvoiceProfile({
         </div>
         <aside className="grid content-start gap-5">
           {canPay && invoice.status !== "PAID" && invoice.status !== "VOID" ? (
-            <section className="card p-4">
+            <section id="pago" className="card p-4">
               <h2 className="font-black">Registrar pago</h2>
               <form
                 action={registerPurchaseInvoicePayment}

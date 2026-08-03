@@ -2,7 +2,7 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { applyThemePreference, themeStorageKey, type ThemePreference } from "@/components/theme/theme-provider";
+import { applyThemePreference, normalizeThemePreference, themeStorageKey, type ThemePreference } from "@/components/theme/theme-provider";
 
 const options = [
   { id: "light" as const, label: "Claro", Icon: Sun },
@@ -11,10 +11,10 @@ const options = [
 ];
 
 export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
-  const [preference, setPreference] = useState<ThemePreference>("system");
+  const [preference, setPreference] = useState<ThemePreference | null>(null);
 
   useEffect(() => {
-    const read = () => setPreference((localStorage.getItem(themeStorageKey) || "system") as ThemePreference);
+    const read = () => setPreference(normalizeThemePreference(localStorage.getItem(themeStorageKey)));
     read();
     window.addEventListener("orqena-theme-change", read);
     return () => window.removeEventListener("orqena-theme-change", read);

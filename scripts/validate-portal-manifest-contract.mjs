@@ -7,6 +7,7 @@ const manifest = read("lib/commercial/portal-manifest.ts");
 const shell = read("components/app-shell.tsx");
 const chrome = read("components/app-chrome.tsx");
 const today = read("app/(app)/hoy/page.tsx");
+const todayOverview = read("lib/portal/today-overview.ts");
 const search = read("lib/search.ts");
 const notifications = read("lib/notifications.ts");
 
@@ -34,7 +35,9 @@ assert.match(manifest, /fieldVisibility/);
 assert.match(shell, /buildPortalManifest\(context\)/);
 assert.match(chrome, /portalManifest\.mobileNavigation/);
 assert.match(chrome, /portalManifest\.quickActions/);
-assert.match(today, /portal\.homeWidgets/);
+assert.match(today, /getTodayOverview\(auth\)/);
+assert.match(todayOverview, /resolveAuthorization\(context/);
+assert.match(todayOverview, /resolveScopedEntityIds\(context/);
 assert.match(search, /buildPortalManifest\(context\)/);
 assert.match(notifications, /buildPortalManifest\(context\)/);
 

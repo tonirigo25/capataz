@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T19:12:09.714Z",
+  "generatedAt": "2026-08-02T07:49:18.177Z",
   "classifications": [
     {
       "id": "app/(app)/agenda/actions.ts#updateAgendaEventStatus",
@@ -120,6 +120,7 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertEntitlementMutationAllowed",
         "requireCapability:company.update"
       ],
       "operation": "COMMAND",
@@ -204,6 +205,7 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertEntitlementMutationAllowed",
         "requireCapability:company.update"
       ],
       "operation": "COMMAND",
@@ -400,6 +402,7 @@
         "requireCompanyContext",
         "requireOrqenaAuthorization",
         "resolveAuthorization:clients.view",
+        "resolveAuthorization:orqena.use",
         "resolveAuthorization:sales.budgets.view",
         "resolveAuthorization:sales.invoices.view",
         "resolveAuthorization:work.view"
@@ -669,6 +672,8 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:clients.update",
         "requireCapability:clients.update"
       ],
       "operation": "COMMAND",
@@ -1215,6 +1220,28 @@
       }
     },
     {
+      "id": "app/(app)/documentos/actions.ts#uploadRepositoryDocument",
+      "actionFile": "app/(app)/documentos/actions.ts",
+      "exportName": "uploadRepositoryDocument",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertDocumentCreationAllowed",
+        "requireCapability:documents.upload"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/documents/repository-document-use-cases.ts",
+      "postEffects": {
+        "revalidate": true,
+        "redirect": true,
+        "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
       "id": "app/(app)/equipo/actions.ts#inviteMember",
       "actionFile": "app/(app)/equipo/actions.ts",
       "exportName": "inviteMember",
@@ -1584,6 +1611,7 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertDocumentCreationAllowed",
         "assertExpenseScope",
         "assertScopedEntityAccess:Client",
         "assertScopedEntityAccess:Work",
@@ -1661,7 +1689,7 @@
         "assertExpenseScope",
         "assertScopedEntityAccess:Client",
         "assertScopedEntityAccess:Work",
-        "requireCapability:purchases.received_invoices.manage"
+        "requireCapability:documents.delete"
       ],
       "operation": "COMMAND",
       "service": "lib/application/finance/expense-use-cases.ts",
@@ -1704,6 +1732,7 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertDocumentCreationAllowed",
         "assertManualRecordScope",
         "assertRelated",
         "assertSafeDocumentUrl",
@@ -1720,14 +1749,13 @@
         "requireApprovalAuthority:quote.approve",
         "requireCapability:agenda.manage",
         "requireCompanyContext",
+        "requiredCanonicalMargin",
         "requiredDate:fecha",
         "requiredDate:fechaEmision",
         "requiredDate:fechaInicio",
         "requiredDate:fechaProgramada",
         "requiredDate:fechaVencimiento",
         "requiredDate:tomadaEn",
-        "resolveAuthorization:margin_amount.view",
-        "resolveAuthorization:margin_percent.view",
         "resolveAuthorization:sales.budgets.approve",
         "resolveAuthorization:sales.discount.apply",
         "resolveAuthorization:sales.invoices.issue",
@@ -1739,6 +1767,72 @@
         "revalidate": true,
         "redirect": true,
         "audit": false,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/hoy/actions.ts#acceptTodayRecommendationAction",
+      "actionFile": "app/(app)/hoy/actions.ts",
+      "exportName": "acceptTodayRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertTodayRecommendation",
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/today-action-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/hoy/actions.ts#snoozeTodayRecommendationAction",
+      "actionFile": "app/(app)/hoy/actions.ts",
+      "exportName": "snoozeTodayRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertTodayRecommendation",
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/today-action-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
+        "outbox": false,
+        "businessEvent": false
+      }
+    },
+    {
+      "id": "app/(app)/hoy/actions.ts#dismissTodayRecommendationAction",
+      "actionFile": "app/(app)/hoy/actions.ts",
+      "exportName": "dismissTodayRecommendationAction",
+      "inputShape": [
+        "formData: FormData"
+      ],
+      "authentication": "trusted request/session boundary",
+      "authorization": [
+        "assertTodayRecommendation",
+        "requireCapability:orqena.execute"
+      ],
+      "operation": "COMMAND",
+      "service": "lib/application/intelligence/today-action-use-cases.ts",
+      "postEffects": {
+        "revalidate": false,
+        "redirect": false,
+        "audit": true,
         "outbox": false,
         "businessEvent": false
       }
@@ -1832,10 +1926,12 @@
       "actionFile": "app/(app)/plan-y-uso/actions.ts",
       "exportName": "changeLocalPlan",
       "inputShape": [
-        "formData:FormData"
+        "formData: FormData"
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertLocalPlanSimulation",
+        "assertLocalPlanSimulationAllowed",
         "requireCapability:company.billing.manage"
       ],
       "operation": "COMMAND",
@@ -2109,11 +2205,13 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertBudgetRecordReconciled",
         "assertScopedEntityAccess:Client",
         "assertScopedEntityAccess:Work",
         "assertScopedEntityAccess:sales.pricing.view",
         "requireApprovalAuthority:quote.approve",
         "requireCapability",
+        "requiredBudgetMargin",
         "resolveAuthorization:sales.budgets.approve",
         "resolveAuthorization:sales.pricing.view"
       ],
@@ -2136,11 +2234,13 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertBudgetRecordReconciled",
         "assertScopedEntityAccess:Client",
         "assertScopedEntityAccess:Work",
         "assertScopedEntityAccess:sales.pricing.view",
         "requireApprovalAuthority:quote.approve",
         "requireCapability:work.create",
+        "requiredBudgetMargin",
         "resolveAuthorization:sales.budgets.approve",
         "resolveAuthorization:sales.pricing.view"
       ],
@@ -2163,10 +2263,10 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertBudgetRecordReconciled",
         "assertScopedEntityAccess:Client",
         "assertScopedEntityAccess:Work",
         "assertScopedEntityAccess:sales.pricing.view",
-        "requireApprovalAuthority:quote.approve",
         "requireCapability",
         "resolveAuthorization:sales.budgets.approve",
         "resolveAuthorization:sales.pricing.view"
@@ -2193,7 +2293,6 @@
         "assertScopedEntityAccess:Client",
         "assertScopedEntityAccess:Work",
         "assertScopedEntityAccess:sales.pricing.view",
-        "requireApprovalAuthority:quote.approve",
         "requireCapability",
         "resolveAuthorization:sales.budgets.approve",
         "resolveAuthorization:sales.pricing.view"
@@ -2248,6 +2347,9 @@
         "assertScopedEntityAccess:sales.pricing.view",
         "requireApprovalAuthority:quote.approve",
         "requireCapability",
+        "requiredNumber:cantidad",
+        "requiredNumber:costeUnitario",
+        "requiredNumber:precioUnitario",
         "resolveAuthorization:sales.budgets.approve",
         "resolveAuthorization:sales.pricing.view"
       ],
@@ -2795,6 +2897,9 @@
       ],
       "authentication": "trusted request/session boundary",
       "authorization": [
+        "assertScopedEntityAccess:Client",
+        "assertScopedEntityAccess:Work",
+        "assertScopedEntityAccess:tasks.manage",
         "requireCapability:tasks.manage"
       ],
       "operation": "COMMAND",
@@ -3393,7 +3498,7 @@
         "revalidate": false,
         "redirect": false,
         "audit": true,
-        "outbox": false,
+        "outbox": true,
         "businessEvent": false
       }
     },

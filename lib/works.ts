@@ -81,9 +81,10 @@ export type WorkFinancialInput = {
   gastoReal?: number | null;
   margenEstimado?: number | null;
   subcontratasCoste?: number | null;
-  budgets?: Array<{ total: number; estado: string }>;
+  budgets?: Array<{ total: number; subtotal?: number | null; descuento?: number | null; estado: string }>;
   invoices?: Array<{
     total: number;
+    importeBase?: number | null;
     pagado?: number | null;
     pendiente?: number | null;
     estado: string;
@@ -96,12 +97,12 @@ export function calculateWorkFinancials(work: WorkFinancialInput) {
   const budgets = work.budgets ?? [];
   const invoices = work.invoices ?? [];
   const expenses = work.expenses ?? [];
-  const quoted = sum(budgets.filter((budget) => !["rechazado", "caducado"].includes(normalizeStatus(budget.estado))).map((budget) => budget.total));
-  const accepted = sum(budgets.filter((budget) => ACCEPTED_BUDGET_STATUSES.includes(normalizeStatus(budget.estado))).map((budget) => budget.total));
-  const budgeted = safeNumber(work.presupuestoAprobado) || accepted || quoted;
-  const forecastCost = safeNumber(work.costePrevisto) || Math.max(0, budgeted - safeNumber(work.margenEstimado));
+  const quoted = sum(budgets.filter((budget) => !["rechazado", "caducado"].includes(normalizeStatus(budget.estado))).map(budgetRevenue));
+  const accepted = sum(budgets.filter((budget) => ACCEPTED_BUDGET_STATUSES.includes(normalizeStatus(budget.estado))).map(budgetRevenue));
+  const budgeted = accepted || quoted || safeNumber(work.presupuestoAprobado);
   const billableInvoices = invoices.filter((invoice) => !BILLABLE_INVOICE_EXCLUDED_STATUSES.includes(normalizeStatus(invoice.estado)));
   const invoiced = sum(billableInvoices.map((invoice) => invoice.total));
+  const invoicedRevenue = sum(billableInvoices.map((invoice) => invoice.importeBase == null ? invoice.total : invoice.importeBase));
   const paid = sum(billableInvoices.map((invoice) => invoicePaid(invoice)));
   const pending = sum(billableInvoices.map((invoice) => Math.max(0, invoice.total - invoicePaid(invoice))));
   const registeredExpenses = sum(expenses.map((expense) => expense.importe));
@@ -110,9 +111,12 @@ export function calculateWorkFinancials(work: WorkFinancialInput) {
   const materialExpenses = sum(expenses.filter((expense) => materialCategories.has(normalizeStatus(expense.categoria))).map((expense) => expense.importe));
   const generalExpenses = Math.max(0, registeredExpenses - materialExpenses - subcontractorExpenses);
   const realCost = Math.max(safeNumber(work.gastoReal), registeredExpenses);
-  const revenueBase = invoiced || budgeted;
+  const forecastCost = safeNumber(work.costePrevisto) || realCost;
+  const revenueBase = invoicedRevenue || budgeted;
   const benefit = revenueBase - realCost;
   const marginPercent = revenueBase > 0 ? Math.round((benefit / revenueBase) * 1000) / 10 : 0;
+  const forecastBenefit = budgeted - forecastCost;
+  const forecastMarginPercent = budgeted > 0 ? Math.round((forecastBenefit / budgeted) * 1000) / 10 : 0;
   const deviation = realCost - forecastCost;
 
   return {
@@ -120,6 +124,7 @@ export function calculateWorkFinancials(work: WorkFinancialInput) {
     budgeted,
     forecastCost,
     invoiced,
+    invoicedRevenue,
     paid,
     pending,
     registeredExpenses,
@@ -129,6 +134,9 @@ export function calculateWorkFinancials(work: WorkFinancialInput) {
     realCost,
     benefit,
     marginPercent,
+    forecastBenefit,
+    forecastMarginPercent,
+    marginRevenueBase: revenueBase,
     deviation,
     invoiceCount: billableInvoices.length,
     openInvoiceCount: billableInvoices.filter((invoice) => OPEN_INVOICE_STATUSES.includes(normalizeStatus(invoice.estado)) && Math.max(0, invoice.total - invoicePaid(invoice)) > 0).length,
@@ -338,7 +346,14 @@ export function validWorkPriority(value: string | null | undefined): WorkPriorit
   return ["baja", "media", "alta", "urgente"].includes(normalized) ? normalized as WorkPriority : "media";
 }
 
-export function validWorkStatus(value: string | null | undefined): WorkStatus {
+export function validWorkStatus(value: string | null | undefined): WorkStatus | null {
   const normalized = normalizeStatus(value);
-  return Object.keys(WORK_STATUS_META).includes(normalized) ? normalized as WorkStatus : "pendiente_inicio";
+  return Object.keys(WORK_STATUS_META).includes(normalized) ? normalized as WorkStatus : null;
+}
+
+function budgetRevenue(budget: { total: number; subtotal?: number | null; descuento?: number | null }) {
+  if (budget.subtotal != null && Number.isFinite(Number(budget.subtotal))) {
+    return Math.max(0, safeNumber(budget.subtotal) - safeNumber(budget.descuento));
+  }
+  return safeNumber(budget.total);
 }

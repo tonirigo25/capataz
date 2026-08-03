@@ -5,13 +5,14 @@ import {
   AlertTriangle,
   ArrowRight,
   BadgeEuro,
-  Bot,
   BriefcaseBusiness,
+  CalendarDays,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
   FileSearch,
   Gauge,
+  History,
   ListTodo,
   LockKeyhole,
   ShieldCheck,
@@ -19,6 +20,7 @@ import {
   UsersRound,
   Workflow,
 } from "lucide-react";
+import styles from "./orqena-ai-workspace.module.css";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyContext } from "@/lib/auth/session";
 import {
@@ -28,12 +30,13 @@ import {
 } from "@/lib/commercial/authorization";
 import { readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
 import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
+import { calculateBudgetMargin, parseBudgetLines } from "@/lib/budget-lines";
 
 export const orqenaAiAreas = [
   "comercial",
   "operaciones",
-  "documentos",
   "finanzas",
+  "documentos",
   "equipo",
 ] as const;
 
@@ -45,6 +48,7 @@ type Metric = {
   detail: string;
   icon: LucideIcon;
   tone: "green" | "violet" | "blue" | "amber";
+  href?: string;
 };
 
 type QueueRow = {
@@ -57,42 +61,58 @@ type QueueRow = {
   requiresConfirmation?: boolean;
 };
 
-const areaMeta: Record<OrqenaAiArea, { label: string; description: string; queueTitle: string; contextTitle: string }> = {
+type AreaMeta = { label: string; description: string; queueTitle: string; contextTitle: string; automationTitle: string };
+
+type BudgetView = { id: string; numero: string; titulo: string; total: number; partidas: string; descuento: number; estado: string; fechaSeguimiento: Date | null; client: { nombre: string }; work: { titulo: string } | null };
+type WorkView = { id: string; titulo: string; estado: string; prioridad: string; responsable: string | null; fechaFinPrevista: Date | null };
+type TaskView = { id: string; title: string; category: string; status: string; priority: string; assigneeId: string | null; estimatedMinutes: number | null; dueAt: Date | null; blockedReason: string | null; workId: string | null; clientId: string | null };
+type DocumentView = { id: string; name: string; category: string; status: string; extractionStatus: string; extractionConfidence: number | null; extractedIssuer: string | null; extractedInvoiceNo: string | null; extractedTotal: number | null; processedAt: Date | null; updatedAt: Date; work: { titulo: string } | null; client: { nombre: string } | null };
+type InvoiceView = { id: string; numero: string; concepto: string; total: number; pagado: number; pendiente: number; estado: string; fechaVencimiento: Date; client: { nombre: string }; work: { titulo: string } | null };
+type MembershipView = { id: string; role: string; functionalProfileKey: string | null; lastActivityAt: Date | null; user: { id: string; displayName: string; email: string; lastLoginAt: Date | null } };
+type ClientView = { id: string; nombre: string; estado: string; ultimaInteraccion: Date | null };
+
+const areaMeta: Record<OrqenaAiArea, AreaMeta> = {
   general: {
     label: "Todos",
     description: "Centro de recomendaciones, automatización supervisada y contexto autorizado para tu empresa.",
     queueTitle: "Bandeja inteligente",
     contextTitle: "Contexto y aprendizaje",
+    automationTitle: "Automatizaciones configuradas",
   },
   comercial: {
     label: "Comercial",
     description: "Oportunidades, presupuestos y siguientes pasos dentro de tu alcance comercial.",
-    queueTitle: "Pipeline autorizado",
+    queueTitle: "Pipeline inteligente",
     contextTitle: "Contexto comercial",
+    automationTitle: "Automatizaciones comerciales",
   },
   operaciones: {
     label: "Operaciones",
     description: "Trabajo, tareas y bloqueos visibles para tu rol, sin reasignaciones automáticas.",
     queueTitle: "Cola operativa priorizada",
     contextTitle: "Contexto operativo",
+    automationTitle: "Automatizaciones para operaciones",
   },
   documentos: {
     label: "Documentos",
     description: "Revisión documental con extracción trazable y confirmación humana.",
     queueTitle: "Cola de revisión de documentos",
     contextTitle: "Contexto documental",
+    automationTitle: "Automatizaciones documentales",
   },
   finanzas: {
     label: "Finanzas",
     description: "Cobros, vencimientos y riesgos financieros sólo cuando tus permisos lo permiten.",
-    queueTitle: "Prioridades financieras",
+    queueTitle: "Recomendaciones financieras",
     contextTitle: "Contexto financiero",
+    automationTitle: "Automatizaciones financieras",
   },
   equipo: {
     label: "Equipo",
     description: "Coordinación agregada de personas y tareas sin ampliar permisos ni exponer datos ajenos.",
-    queueTitle: "Coordinación del equipo",
-    contextTitle: "Contexto del equipo",
+    queueTitle: "Recomendaciones para tu equipo",
+    contextTitle: "Contexto y análisis del equipo",
+    automationTitle: "Automatizaciones para tu equipo",
   },
 };
 
@@ -164,25 +184,25 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
       ? prisma.work.findMany({ where: { companyId: auth.companyId, archivada: false, estado: { in: [...activeWorkStates] }, ...idScope(workIds) }, orderBy: [{ prioridad: "desc" }, { updatedAt: "desc" }], take: 100, select: { id: true, titulo: true, estado: true, prioridad: true, responsable: true, fechaFinPrevista: true } })
       : Promise.resolve([]),
     canSeeBudgets
-      ? prisma.budget.findMany({ where: { companyId: auth.companyId, estado: { in: [...openBudgetStates] }, AND: [relationScope(budgetDecision.scope, budgetWorkIds, budgetClientIds), relationScope(pricingDecision.scope, pricingWorkIds, pricingClientIds)] }, orderBy: { fechaCreacion: "desc" }, take: 100, select: { id: true, numero: true, titulo: true, total: true, estado: true, fechaSeguimiento: true, client: { select: { nombre: true } } } })
+      ? prisma.budget.findMany({ where: { companyId: auth.companyId, estado: { in: [...openBudgetStates] }, AND: [relationScope(budgetDecision.scope, budgetWorkIds, budgetClientIds), relationScope(pricingDecision.scope, pricingWorkIds, pricingClientIds)] }, orderBy: { fechaCreacion: "desc" }, take: 100, select: { id: true, numero: true, titulo: true, total: true, partidas: true, descuento: true, estado: true, fechaSeguimiento: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } } })
       : Promise.resolve([]),
     canSeeFinance
-      ? prisma.invoice.findMany({ where: { companyId: auth.companyId, estado: { in: [...openInvoiceStates] }, ...relationScope(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds) }, orderBy: { fechaVencimiento: "asc" }, take: 100, select: { id: true, numero: true, concepto: true, pendiente: true, estado: true, fechaVencimiento: true, client: { select: { nombre: true } } } })
+      ? prisma.invoice.findMany({ where: { companyId: auth.companyId, estado: { in: [...openInvoiceStates] }, ...relationScope(invoiceDecision.scope, invoiceWorkIds, invoiceClientIds) }, orderBy: { fechaVencimiento: "asc" }, take: 100, select: { id: true, numero: true, concepto: true, total: true, pagado: true, pendiente: true, estado: true, fechaVencimiento: true, client: { select: { nombre: true } }, work: { select: { titulo: true } } } })
       : Promise.resolve([]),
     documentsDecision.allowed
-      ? prisma.document.findMany({ where: { companyId: auth.companyId, archivedAt: null, classification: { in: portalManifest?.documentClasses ?? [] }, ...idScope(documentIds) }, orderBy: { updatedAt: "desc" }, take: 100, select: { id: true, name: true, category: true, extractionStatus: true, extractionConfidence: true, updatedAt: true, work: { select: { titulo: true } }, client: { select: { nombre: true } } } })
+      ? prisma.document.findMany({ where: { companyId: auth.companyId, archivedAt: null, classification: { in: portalManifest?.documentClasses ?? [] }, ...idScope(documentIds) }, orderBy: { updatedAt: "desc" }, take: 100, select: { id: true, name: true, category: true, status: true, extractionStatus: true, extractionConfidence: true, extractedIssuer: true, extractedInvoiceNo: true, extractedTotal: true, processedAt: true, updatedAt: true, work: { select: { titulo: true } }, client: { select: { nombre: true } } } })
       : Promise.resolve([]),
     tasksDecision.allowed
-      ? prisma.task.findMany({ where: { companyId: auth.companyId, archivedAt: null, status: { in: [...openTaskStates] }, ...idScope(taskIds) }, orderBy: [{ priority: "desc" }, { dueAt: "asc" }], take: 100, select: { id: true, title: true, status: true, priority: true, dueAt: true, blockedReason: true, workId: true, clientId: true } })
+      ? prisma.task.findMany({ where: { companyId: auth.companyId, archivedAt: null, status: { in: [...openTaskStates] }, ...idScope(taskIds) }, orderBy: [{ priority: "desc" }, { dueAt: "asc" }], take: 100, select: { id: true, title: true, category: true, status: true, priority: true, assigneeId: true, estimatedMinutes: true, dueAt: true, blockedReason: true, workId: true, clientId: true } })
       : Promise.resolve([]),
     membersDecision.allowed
-      ? prisma.companyMembership.findMany({ where: { companyId: auth.companyId, status: "active" }, select: { role: true, functionalProfileKey: true } })
+      ? prisma.companyMembership.findMany({ where: { companyId: auth.companyId, status: "active" }, orderBy: { lastActivityAt: "desc" }, take: 100, select: { id: true, role: true, functionalProfileKey: true, lastActivityAt: true, user: { select: { id: true, displayName: true, email: true, lastLoginAt: true } } } })
       : Promise.resolve([]),
     executeDecision.allowed
       ? prisma.businessRecommendation.findMany({ where: { companyId: auth.companyId, status: { in: ["active", "viewed", "accepted", "in_progress", "failed"] } }, orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], take: 250, select: { id: true, title: true, summary: true, source: true, status: true, priority: true, amount: true, requiresConfirmation: true, clientId: true, workId: true, invoiceId: true, budgetId: true, updatedAt: true } })
       : Promise.resolve([]),
     automationDecision.allowed
-      ? prisma.automationDefinition.findMany({ where: { companyId: auth.companyId, archivedAt: null }, orderBy: [{ active: "desc" }, { updatedAt: "desc" }], take: 20, select: { id: true, name: true, category: true, status: true, active: true, updatedAt: true, currentVersion: { select: { requiresConfirmation: true } }, schedule: { select: { nextRunAt: true } } } })
+      ? prisma.automationDefinition.findMany({ where: { companyId: auth.companyId, archivedAt: null }, orderBy: [{ active: "desc" }, { updatedAt: "desc" }], take: 100, select: { id: true, name: true, category: true, status: true, active: true, updatedAt: true, currentVersion: { select: { requiresConfirmation: true } }, schedule: { select: { nextRunAt: true } } } })
       : Promise.resolve([]),
     automationDecision.allowed
       ? prisma.automationRun.count({ where: { companyId: auth.companyId, status: "waiting_confirmation" } })
@@ -191,7 +211,7 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
       ? prisma.aiUsageEvent.count({ where: { companyId: auth.companyId, createdAt: { gte: monthStart } } })
       : Promise.resolve(0),
     executeDecision.allowed
-      ? prisma.aiUsageEvent.findMany({ where: { companyId: auth.companyId }, orderBy: { createdAt: "desc" }, take: 5, select: { id: true, purpose: true, outcome: true, humanReviewed: true, createdAt: true } })
+      ? prisma.aiUsageEvent.findMany({ where: { companyId: auth.companyId }, orderBy: { createdAt: "desc" }, take: 40, select: { id: true, purpose: true, outcome: true, humanReviewed: true, createdAt: true } })
       : Promise.resolve([]),
     prisma.companyAiPolicy.findUnique({ where: { companyId: auth.companyId }, select: { enabled: true, killSwitch: true, humanReviewRequired: true } }),
   ]);
@@ -216,8 +236,12 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
     canSeeMembers: membersDecision.allowed,
   }));
   const queue = buildQueue(area, { recommendations: visibleRecommendations, clients, budgets, works, tasks, documents, invoices, memberships });
+  const visibleAutomations = filterAreaAutomations(area, automations);
+  const visibleAiActivity = filterAreaActivity(area, recentAi);
   const metrics = buildMetrics(area, {
     recommendations: visibleRecommendations.length,
+    confirmedRecommendations: visibleRecommendations.filter((item) => ["accepted", "in_progress"].includes(item.status)).length,
+    recordedImpact: visibleRecommendations.reduce((sum, item) => sum + (item.amount ?? 0), 0),
     clients: clients.length,
     works: works.length,
     budgets,
@@ -225,7 +249,7 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
     documents,
     tasks,
     memberships,
-    automations,
+    automations: visibleAutomations,
     pendingConfirmations,
     aiUsage,
     access: {
@@ -252,76 +276,430 @@ export async function OrqenaAiWorkspace({ area }: { area: OrqenaAiArea }) {
     members: membersDecision.allowed,
   });
 
+  const currentDate = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
+
   return (
-    <main className="screen" data-orqena-ai-workspace={area}>
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="type-label">Asistencia gobernada</p>
-          <h1 className="type-page-title mt-2">Orqena IA</h1>
-          <p className="type-secondary mt-2 max-w-3xl">{meta.description}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/capataz" className="primary-button"><Bot size={17} aria-hidden="true" />Abrir chat real</Link>
-          {executeDecision.allowed ? <Link href="/recomendaciones" className="secondary-button">Historial de recomendaciones</Link> : null}
+    <main className={styles.workspace} data-orqena-ai-workspace={area}>
+      <header className={styles.headingRow}>
+        <div className={styles.heading}>
+          <h1>Orqena IA</h1>
+          <p>{meta.description}</p>
         </div>
       </header>
 
-      <nav className="mt-5 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1" aria-label="Áreas de Orqena IA">
-        <AreaTab href="/orqena-ia" active={area === "general"}>Todos</AreaTab>
-        {orqenaAiAreas.map((item) => <AreaTab key={item} href={`/orqena-ia/${item}`} active={area === item}>{areaMeta[item].label}</AreaTab>)}
-      </nav>
+      <div className={styles.navigationRow}>
+        <nav className={styles.tabs} aria-label="Áreas de Orqena IA">
+          <AreaTab href="/orqena-ia" active={area === "general"}>Todos</AreaTab>
+          {orqenaAiAreas.map((item) => (
+            <AreaTab key={item} href={`/orqena-ia/${item}`} active={area === item}>
+              {areaMeta[item].label}
+            </AreaTab>
+          ))}
+        </nav>
+        <div className={styles.navActions}>
+          <span className={styles.navAction}><CalendarDays size={14} aria-hidden="true" />{currentDate}</span>
+          {executeDecision.allowed ? (
+            <Link href="/recomendaciones?estado=all" className={styles.navAction}>
+              <History size={14} aria-hidden="true" />Historial de recomendaciones
+            </Link>
+          ) : null}
+        </div>
+      </div>
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores reales de la vista">
+      <section
+        className={styles.metrics}
+        style={{ "--metric-count": metrics.length } as React.CSSProperties}
+        aria-label="Indicadores reales de la vista"
+      >
         {metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
       </section>
 
-      <div className="mt-4">
-        <div className="min-w-0 space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,.75fr)]">
-            <section className="card overflow-hidden" aria-labelledby="orqena-queue-title">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-4">
-                <div className="flex items-center gap-2"><Sparkles className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-queue-title" className="font-black text-obra-ink">{meta.queueTitle}</h2></div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{queue.length} visibles</span>
-              </div>
-              {queue.length ? <div className="divide-y divide-slate-100">{queue.slice(0, 6).map((row) => <QueueItem key={row.id} row={row} />)}</div> : <HonestEmpty description="No hay elementos registrados y autorizados que requieran revisión en esta área." />}
-              {originLink ? <div className="border-t border-slate-100 px-4 py-3 text-center"><Link href={originLink} className="text-sm font-bold text-emerald-700 hover:underline">Abrir el módulo de origen</Link></div> : null}
-            </section>
+      <AreaPrimary
+        area={area}
+        meta={meta}
+        queue={queue}
+        budgets={budgets}
+        works={works}
+        tasks={tasks}
+        documents={documents}
+        invoices={invoices}
+        memberships={memberships}
+        automations={visibleAutomations}
+        automationAllowed={automationDecision.allowed}
+        originLink={originLink}
+      />
 
-            <section className="card overflow-hidden" aria-labelledby="orqena-automations-title">
-              <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-4"><Workflow className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-automations-title" className="font-black text-obra-ink">Automatizaciones configuradas</h2></div>
-              {automations.length ? <div className="divide-y divide-slate-100">{automations.slice(0, 5).map((automation) => (
-                <article key={automation.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-black text-obra-ink">{automation.name}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{humanize(automation.category)} · {automation.schedule?.nextRunAt ? `próxima ${formatDateTime(automation.schedule.nextRunAt)}` : "sin próxima ejecución"}</p></div><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${automation.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{automation.active ? "Activa" : humanize(automation.status)}</span></div>
-                  <p className="mt-2 text-xs leading-5 text-slate-600">{automation.currentVersion?.requiresConfirmation ? "Cada efecto requiere confirmación." : "Se aplican los controles definidos en su versión."}</p>
-                  <Link href={`/automatizaciones/${automation.id}`} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-emerald-700">Abrir para revisar <ArrowRight size={13} aria-hidden="true" /></Link>
-                </article>
-              ))}</div> : <HonestEmpty description={automationDecision.allowed ? "No hay automatizaciones configuradas en esta empresa." : "Tu perfil no puede consultar la configuración de automatizaciones."} />}
-              {automationDecision.allowed ? <div className="border-t border-slate-100 px-4 py-3 text-center"><Link href="/automatizaciones" className="text-sm font-bold text-emerald-700 hover:underline">Ver automatizaciones</Link></div> : null}
-            </section>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,.9fr)]">
-            <section className="card p-4" aria-labelledby="orqena-context-title">
-              <div className="flex items-center gap-2"><Gauge className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-context-title" className="font-black text-obra-ink">{meta.contextTitle}</h2></div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <ContextMini label="Empresa activa" value={auth.companyName} />
-                <ContextMini label="Alcance" value={scopeLabel(useDecision.scope)} />
-                <ContextMini label="Política IA" value={aiPolicy?.enabled && !aiPolicy.killSwitch ? "Habilitada" : "Fail-closed"} />
-                <ContextMini label="Proveedor" value={runtime ? "Activo para la empresa" : "Modo manual"} />
-              </div>
-              <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm leading-6 text-emerald-950"><ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={19} aria-hidden="true" /><p>Los datos se limitan a tu empresa y a tu alcance. Ninguna recomendación de esta vista modifica registros; las acciones sensibles conservan revisión humana, confirmación e idempotencia.</p></div>
-            </section>
-
-            <section className="card overflow-hidden" aria-labelledby="orqena-activity-title">
-              <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-4"><Activity className="text-emerald-600" size={18} aria-hidden="true" /><h2 id="orqena-activity-title" className="font-black text-obra-ink">Actividad reciente de IA</h2></div>
-              {recentAi.length ? <ol className="divide-y divide-slate-100">{recentAi.map((event) => <li key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-xs"><time className="font-semibold text-slate-500">{event.createdAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</time><span className="min-w-0 truncate text-slate-700">{humanize(event.purpose)}</span><span className="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-600">{event.humanReviewed ? "Revisada" : humanize(event.outcome)}</span></li>)}</ol> : <HonestEmpty description={executeDecision.allowed ? "Aún no hay operaciones de IA registradas." : "Tu perfil no puede consultar esta actividad."} />}
-            </section>
-          </div>
-        </div>
-
-      </div>
+      <AreaSecondary
+        area={area}
+        companyName={auth.companyName}
+        scope={scopeLabel(useDecision.scope)}
+        aiEnabled={Boolean(aiPolicy?.enabled && !aiPolicy.killSwitch)}
+        runtime={runtime}
+        clients={clients}
+        works={works}
+        budgets={budgets}
+        invoices={invoices}
+        documents={documents}
+        tasks={tasks}
+        memberships={memberships}
+        activity={visibleAiActivity.slice(0, 5)}
+        activityAllowed={executeDecision.allowed}
+      />
     </main>
   );
+}
+
+function AreaPrimary({ area, meta, queue, budgets, works, tasks, documents, invoices, memberships, automations, automationAllowed, originLink }: {
+  area: OrqenaAiArea;
+  meta: AreaMeta;
+  queue: QueueRow[];
+  budgets: BudgetView[];
+  works: WorkView[];
+  tasks: TaskView[];
+  documents: DocumentView[];
+  invoices: InvoiceView[];
+  memberships: MembershipView[];
+  automations: AreaAutomation[];
+  automationAllowed: boolean;
+  originLink: string | null;
+}) {
+  return (
+    <div className={styles.primaryGrid} data-area={area}>
+      <section className={styles.panel} aria-labelledby="orqena-queue-title">
+        <SectionHeading icon={Sparkles} id="orqena-queue-title" title={meta.queueTitle} meta={queueCountLabel(area, { queue, budgets, tasks, documents, invoices, memberships })} />
+        <div className={styles.tableViewport}>
+          <AreaTable area={area} queue={queue} budgets={budgets} works={works} tasks={tasks} documents={documents} invoices={invoices} memberships={memberships} />
+        </div>
+        {originLink ? <PanelFooter href={originLink}>{originFooterLabel(area)}</PanelFooter> : null}
+      </section>
+      <AutomationPanel title={meta.automationTitle} items={automations} allowed={automationAllowed} />
+    </div>
+  );
+}
+
+function AreaTable({ area, queue, budgets, works, tasks, documents, invoices, memberships }: {
+  area: OrqenaAiArea;
+  queue: QueueRow[];
+  budgets: BudgetView[];
+  works: WorkView[];
+  tasks: TaskView[];
+  documents: DocumentView[];
+  invoices: InvoiceView[];
+  memberships: MembershipView[];
+}) {
+  if (area === "comercial") return <DenseTable
+    label="Pipeline comercial autorizado"
+    columns={["Presupuesto", "Cliente / trabajo", "Seguimiento", "Margen", "Importe", "Estado", "Acción"]}
+    rows={budgets.slice(0, 5).map((item) => ({
+      id: item.id,
+      cells: [
+        <strong key="budget">{item.numero}<small>{item.titulo}</small></strong>,
+        <span key="client">{item.client.nombre}<small>{item.work?.titulo ?? "Sin trabajo vinculado"}</small></span>,
+        item.fechaSeguimiento ? formatDateTime(item.fechaSeguimiento) : "Sin fecha",
+        budgetMarginLabel(item),
+        formatCurrencyCompact(item.total),
+        <StatusBadge key="status" value={item.estado} />,
+        <RowAction key="action" href={`/presupuestos/${item.id}`}>Revisar</RowAction>,
+      ],
+    }))}
+    empty="No hay presupuestos abiertos dentro de tu alcance."
+  />;
+
+  if (area === "operaciones") return <DenseTable
+    label="Cola operativa autorizada"
+    columns={["Tarea", "Trabajo / contexto", "Bloqueo", "Responsable", "Vencimiento", "Prioridad", "Estado", "Acción"]}
+    rows={tasks.slice(0, 5).map((item) => {
+      const work = works.find((candidate) => candidate.id === item.workId);
+      const member = memberships.find((candidate) => candidate.user.id === item.assigneeId);
+      return {
+        id: item.id,
+        cells: [
+          <strong key="task">{item.title}<small>{humanize(item.category)}</small></strong>,
+          work?.titulo ?? "Tarea interna",
+          item.blockedReason ?? "Sin bloqueo registrado",
+          member?.user.displayName ?? work?.responsable ?? "Sin asignar",
+          item.dueAt ? formatDateTime(item.dueAt) : "Sin fecha",
+          <StatusBadge key="priority" value={item.priority} />,
+          <StatusBadge key="status" value={item.status} />,
+          <RowAction key="action" href={`/tareas/${item.id}`}>Resolver</RowAction>,
+        ],
+      };
+    })}
+    empty="No hay tareas abiertas dentro de tu alcance."
+  />;
+
+  if (area === "documentos") return <DenseTable
+    label="Cola documental autorizada"
+    columns={["Documento", "Tipo", "Proveedor / cliente", "Datos extraídos", "Revisión", "Confianza", "Trabajo", "Acción"]}
+    rows={documents.slice(0, 5).map((item) => ({
+      id: item.id,
+      cells: [
+        <strong key="document">{item.name}<small>{item.extractedInvoiceNo ?? formatDateTime(item.updatedAt)}</small></strong>,
+        humanize(item.category),
+        item.extractedIssuer ?? item.client?.nombre ?? "No identificado",
+        item.extractedTotal != null ? formatCurrencyCompact(item.extractedTotal) : "Sin importe",
+        <StatusBadge key="extraction" value={item.extractionStatus} />,
+        item.extractionConfidence == null ? "No registrada" : `${Math.round(item.extractionConfidence * 100)}%`,
+        item.work?.titulo ?? "Sin vínculo",
+        <RowAction key="action" href={`/documentos?documento=${encodeURIComponent(item.id)}`}>Revisar</RowAction>,
+      ],
+    }))}
+    empty="No hay documentos dentro de las clases permitidas para tu perfil."
+  />;
+
+  if (area === "finanzas") return <DenseTable
+    label="Recomendaciones y vencimientos financieros"
+    columns={["Factura", "Cliente / trabajo", "Vencimiento", "Estado", "Total", "Pagado", "Pendiente", "Acción"]}
+    rows={invoices.slice(0, 5).map((item) => ({
+      id: item.id,
+      cells: [
+        <strong key="invoice">{item.numero}<small>{item.concepto}</small></strong>,
+        <span key="client">{item.client.nombre}<small>{item.work?.titulo ?? "Sin trabajo vinculado"}</small></span>,
+        formatDateTime(item.fechaVencimiento),
+        <StatusBadge key="status" value={item.estado} />,
+        formatCurrencyCompact(item.total),
+        formatCurrencyCompact(item.pagado),
+        formatCurrencyCompact(item.pendiente),
+        <RowAction key="action" href={`/dinero/${item.id}`}>Ver detalle</RowAction>,
+      ],
+    }))}
+    empty="No hay facturas abiertas dentro de tu alcance financiero."
+  />;
+
+  if (area === "equipo") return <DenseTable
+    label="Equipo autorizado"
+    columns={["Persona", "Rol", "Perfil", "Última actividad", "Tareas abiertas", "Estado", "Acción"]}
+    rows={memberships.slice(0, 5).map((item) => ({
+      id: item.id,
+      cells: [
+        <strong key="person">{item.user.displayName}<small>{maskEmail(item.user.email)}</small></strong>,
+        humanize(item.role),
+        humanize(item.functionalProfileKey ?? "Sin perfil funcional"),
+        item.lastActivityAt ? formatDateTime(item.lastActivityAt) : "Sin actividad",
+        tasks.filter((task) => task.assigneeId === item.user.id).length,
+        <StatusBadge key="status" value="Activo" />,
+        <RowAction key="action" href={`/equipo?perfil=${encodeURIComponent(item.id)}`}>Ver detalle</RowAction>,
+      ],
+    }))}
+    empty="No hay miembros activos visibles para tu perfil."
+  />;
+
+  return <DenseTable
+    label="Bandeja inteligente autorizada"
+    columns={["Recomendación", "Contexto", "Evidencia", "Estado", "Acción"]}
+    rows={queue.slice(0, 5).map((item) => ({
+      id: item.id,
+      cells: [
+        <strong key="recommendation">{item.title}{item.requiresConfirmation ? <small>Confirmación humana</small> : null}</strong>,
+        item.context,
+        item.meta,
+        <StatusBadge key="status" value={item.status} />,
+        item.href ? <RowAction key="action" href={item.href}>Revisar</RowAction> : "Sin acción",
+      ],
+    }))}
+    empty="No hay recomendaciones registradas y autorizadas que requieran revisión."
+  />;
+}
+
+function DenseTable({ label, columns, rows, empty }: { label: string; columns: string[]; rows: Array<{ id: string; cells: React.ReactNode[] }>; empty: string }) {
+  if (!rows.length) return <HonestEmpty description={empty} />;
+  return (
+    <table className={styles.dataTable} aria-label={label}>
+      <thead><tr>{columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr></thead>
+      <tbody>{rows.map((row) => <tr key={row.id}>{row.cells.map((cell, index) => <td key={`${row.id}-${columns[index]}`}>{cell}</td>)}</tr>)}</tbody>
+    </table>
+  );
+}
+
+function RowAction({ href, children }: { href: string; children: React.ReactNode }) {
+  return <Link href={href} className={styles.tableAction}>{children}</Link>;
+}
+
+function StatusBadge({ value }: { value: string }) {
+  const tone = /venc|fall|block|alta|failed/i.test(value) ? "danger" : /pend|wait|medio|borrador|proces/i.test(value) ? "warning" : "success";
+  return <span className={styles.status} data-tone={tone}>{humanize(value)}</span>;
+}
+
+function AutomationPanel({ title, items, allowed }: { title: string; items: AreaAutomation[]; allowed: boolean }) {
+  return (
+    <section className={styles.panel} aria-labelledby="orqena-automations-title">
+      <SectionHeading icon={Workflow} id="orqena-automations-title" title={title} meta={items.length ? `${items.length} configuradas` : undefined} />
+      {items.length ? items.slice(0, 4).map((automation) => (
+        <article key={automation.id} className={styles.automationRow}>
+          <span className={styles.automationIcon}><Workflow size={17} aria-hidden="true" /></span>
+          <div><h3>{automation.name}</h3><p>{humanize(automation.category)} · {automation.currentVersion?.requiresConfirmation ? "revisión humana obligatoria" : "controles configurados"}</p></div>
+          <Link href={`/automatizaciones/${automation.id}`} className={styles.reviewLink}>Activar con revisión</Link>
+        </article>
+      )) : <HonestEmpty description={allowed ? "No hay automatizaciones configuradas para esta área." : "Tu perfil no puede consultar automatizaciones."} />}
+      {allowed ? <PanelFooter href="/automatizaciones">Ver todas las automatizaciones</PanelFooter> : null}
+    </section>
+  );
+}
+
+function AreaSecondary({ area, companyName, scope, aiEnabled, runtime, clients, works, budgets, invoices, documents, tasks, memberships, activity, activityAllowed }: {
+  area: OrqenaAiArea;
+  companyName: string;
+  scope: string;
+  aiEnabled: boolean;
+  runtime: boolean;
+  clients: ClientView[];
+  works: WorkView[];
+  budgets: BudgetView[];
+  invoices: InvoiceView[];
+  documents: DocumentView[];
+  tasks: TaskView[];
+  memberships: MembershipView[];
+  activity: AreaActivity[];
+  activityAllowed: boolean;
+}) {
+  const groups = buildContextGroups(area, { companyName, scope, aiEnabled, runtime, clients, works, budgets, invoices, documents, tasks, memberships });
+  return (
+    <div className={styles.secondaryGrid} data-area={area}>
+      <section className={styles.panel} aria-labelledby="orqena-context-title">
+        <SectionHeading icon={Gauge} id="orqena-context-title" title={areaMeta[area].contextTitle} />
+        <div className={styles.contextGrid}>
+          {groups.map((group) => <ContextGroup key={group.title} title={group.title} rows={group.rows} href={group.href} />)}
+        </div>
+        <div className={styles.governance}><ShieldCheck size={16} aria-hidden="true" /><span>Contexto limitado a la empresa y al alcance del usuario. Ninguna sugerencia sensible se ejecuta sin autorización, revisión y confirmación humana.</span></div>
+      </section>
+      <section className={styles.panel} aria-labelledby="orqena-activity-title">
+        <SectionHeading icon={Activity} id="orqena-activity-title" title="Actividad reciente de Orqena IA" />
+        {activity.length ? <ol>{activity.map((event) => (
+          <li key={event.id} className={styles.activityRow}>
+            <time>{event.createdAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</time>
+            <span>{humanize(event.purpose)}</span>
+            <span className={styles.status}>{event.humanReviewed ? "Revisada" : humanize(event.outcome)}</span>
+          </li>
+        ))}</ol> : <HonestEmpty description={activityAllowed ? "Aún no hay operaciones registradas para esta área." : "Tu perfil no puede consultar esta actividad."} />}
+        {activityAllowed ? <PanelFooter href="/recomendaciones?estado=all">Ver toda la actividad</PanelFooter> : null}
+      </section>
+    </div>
+  );
+}
+
+type ContextGroupData = { title: string; rows: Array<{ label: string; value: string }>; href?: string };
+
+function ContextGroup({ title, rows, href }: ContextGroupData) {
+  return <section className={styles.contextCell}><h3>{title}</h3><dl>{rows.map((row) => <div key={`${title}-${row.label}`}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>{href ? <Link href={href}>Ver detalle</Link> : null}</section>;
+}
+
+function buildContextGroups(area: OrqenaAiArea, data: {
+  companyName: string; scope: string; aiEnabled: boolean; runtime: boolean; clients: ClientView[]; works: WorkView[]; budgets: BudgetView[]; invoices: InvoiceView[]; documents: DocumentView[]; tasks: TaskView[]; memberships: MembershipView[];
+}): ContextGroupData[] {
+  if (area === "comercial") return [
+    countGroup("Estados de presupuestos", data.budgets.map((item) => item.estado), "/presupuestos"),
+    { title: "Clientes con seguimiento", rows: data.clients.filter((item) => item.ultimaInteraccion).slice(0, 4).map((item) => ({ label: item.nombre, value: formatDateTime(item.ultimaInteraccion!) })), href: "/clientes" },
+    { title: "Importe por cliente", rows: aggregateMoney(data.budgets, (item) => item.client.nombre, (item) => item.total).slice(0, 4), href: "/presupuestos" },
+    countGroup("Próximos pasos", data.budgets.map((item) => item.fechaSeguimiento ? "Con seguimiento" : "Sin seguimiento"), "/presupuestos"),
+  ];
+  if (area === "operaciones") return [
+    countGroup("Estado de trabajos", data.works.map((item) => item.estado), "/obras"),
+    countGroup("Prioridad de tareas", data.tasks.map((item) => item.priority), "/tareas"),
+    countGroup("Cuellos de botella", data.tasks.map((item) => item.blockedReason ?? "Sin bloqueo"), "/tareas"),
+    countGroup("Tipos de tarea", data.tasks.map((item) => item.category), "/tareas"),
+  ];
+  if (area === "documentos") return [
+    countGroup("Categorías", data.documents.map((item) => item.category), "/documentos"),
+    countGroup("Estado OCR", data.documents.map((item) => item.extractionStatus), "/documentos"),
+    { title: "Calidad de extracción", rows: [
+      { label: "Con confianza", value: String(data.documents.filter((item) => item.extractionConfidence != null).length) },
+      { label: "Sin confianza", value: String(data.documents.filter((item) => item.extractionConfidence == null).length) },
+      { label: "Procesados", value: String(data.documents.filter((item) => item.processedAt).length) },
+    ], href: "/documentos" },
+    { title: "Vinculación", rows: [
+      { label: "Con trabajo", value: String(data.documents.filter((item) => item.work).length) },
+      { label: "Con cliente", value: String(data.documents.filter((item) => item.client).length) },
+      { label: "Sin vínculo", value: String(data.documents.filter((item) => !item.work && !item.client).length) },
+    ], href: "/documentos" },
+  ];
+  if (area === "finanzas") return [
+    { title: "Saldo por cliente", rows: aggregateMoney(data.invoices, (item) => item.client.nombre, (item) => item.pendiente).slice(0, 4), href: "/dinero" },
+    countGroup("Estado de facturas", data.invoices.map((item) => item.estado), "/dinero"),
+    { title: "Cobro registrado", rows: [
+      { label: "Total abierto", value: formatCurrencyCompact(data.invoices.reduce((sum, item) => sum + item.total, 0)) },
+      { label: "Pagado", value: formatCurrencyCompact(data.invoices.reduce((sum, item) => sum + item.pagado, 0)) },
+      { label: "Pendiente", value: formatCurrencyCompact(data.invoices.reduce((sum, item) => sum + item.pendiente, 0)) },
+    ], href: "/dinero" },
+    countGroup("Vencimientos", data.invoices.map((item) => dueBucket(item.fechaVencimiento)), "/dinero"),
+  ];
+  if (area === "equipo") return [
+    countGroup("Roles activos", data.memberships.map((item) => item.role), "/equipo"),
+    countGroup("Perfiles funcionales", data.memberships.map((item) => item.functionalProfileKey ?? "Sin perfil"), "/equipo"),
+    countGroup("Tareas asignadas", data.tasks.map((item) => item.assigneeId ? "Asignada" : "Sin asignar"), "/tareas"),
+    countGroup("Carga registrada", data.tasks.map((item) => item.estimatedMinutes ? "Con estimación" : "Sin estimación"), "/tareas"),
+  ];
+  return [
+    countGroup("Trabajo activo", data.works.map((item) => item.estado), "/obras"),
+    countGroup("Presupuestos", data.budgets.map((item) => item.estado), "/presupuestos"),
+    countGroup("Documentos", data.documents.map((item) => item.category), "/documentos"),
+    { title: "Gobierno y alcance", rows: [
+      { label: "Empresa", value: data.companyName },
+      { label: "Alcance", value: data.scope },
+      { label: "Política IA", value: data.aiEnabled ? "Habilitada" : "Fail-closed" },
+      { label: "Proveedor", value: data.runtime ? "Activo" : "Modo manual" },
+    ], href: "/configuracion" },
+  ];
+}
+
+function countGroup(title: string, values: string[], href: string): ContextGroupData {
+  const counts = new Map<string, number>();
+  for (const raw of values) {
+    const value = humanize(raw || "Sin clasificar");
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  const rows = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([label, value]) => ({ label, value: String(value) }));
+  return { title, rows: rows.length ? rows : [{ label: "Sin datos registrados", value: "0" }], href };
+}
+
+function aggregateMoney<T>(items: T[], label: (item: T) => string, amount: (item: T) => number) {
+  const totals = new Map<string, number>();
+  for (const item of items) totals.set(label(item), (totals.get(label(item)) ?? 0) + amount(item));
+  return [...totals].sort((a, b) => b[1] - a[1]).map(([key, value]) => ({ label: key, value: formatCurrencyCompact(value) }));
+}
+
+function queueCountLabel(area: OrqenaAiArea, data: { queue: QueueRow[]; budgets: BudgetView[]; tasks: TaskView[]; documents: DocumentView[]; invoices: InvoiceView[]; memberships: MembershipView[] }) {
+  const count = area === "comercial" ? data.budgets.length : area === "operaciones" ? data.tasks.length : area === "documentos" ? data.documents.length : area === "finanzas" ? data.invoices.length : area === "equipo" ? data.memberships.length : data.queue.length;
+  return `${count} visibles`;
+}
+
+function originFooterLabel(area: OrqenaAiArea) {
+  if (area === "general") return "Ver todas las recomendaciones";
+  if (area === "comercial") return "Ver todas las oportunidades";
+  if (area === "operaciones") return "Ver toda la cola operativa";
+  if (area === "documentos") return "Ver todos los documentos";
+  if (area === "finanzas") return "Ver todo el detalle financiero";
+  return "Ver todo el equipo";
+}
+
+function dueBucket(value: Date) {
+  const days = Math.ceil((value.getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return "Vencida";
+  if (days === 0) return "Vence hoy";
+  if (days <= 7) return "Próximos 7 días";
+  return "Más de 7 días";
+}
+
+function formatCurrencyCompact(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", notation: Math.abs(value) >= 1_000_000 ? "compact" : "standard", maximumFractionDigits: 0 }).format(Number.isFinite(value) ? value : 0);
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("es-ES", { style: "percent", maximumFractionDigits: 1 }).format(Math.abs(value) <= 1 ? value : value / 100);
+}
+
+function budgetMarginLabel(budget: Pick<BudgetView, "partidas" | "descuento">) {
+  const margin = calculateBudgetMargin(parseBudgetLines(budget.partidas), budget.descuento);
+  return margin.percent === null ? "Pendiente de costes" : formatPercent(margin.percent);
+}
+
+function maskEmail(email: string) {
+  const [local, domain] = email.split("@");
+  if (!domain) return "Cuenta activa";
+  return `${local.slice(0, 2)}•••@${domain}`;
 }
 
 export function CapatazWorkspaceEntry() {
@@ -334,31 +712,25 @@ export function CapatazWorkspaceEntry() {
 }
 
 function AreaTab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return <Link href={href} aria-current={active ? "page" : undefined} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-black transition ${active ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-obra-ink"}`}>{children}</Link>;
+  return <Link href={href} aria-current={active ? "page" : undefined} className={styles.tab} data-active={active}>{children}</Link>;
 }
 
 function MetricCard({ metric }: { metric: Metric }) {
   const Icon = metric.icon;
-  const tones = {
-    green: "bg-emerald-50 text-emerald-700",
-    violet: "bg-violet-50 text-violet-700",
-    blue: "bg-sky-50 text-sky-700",
-    amber: "bg-amber-50 text-amber-700",
-  };
-  return <article className="card flex min-h-28 items-center gap-4 p-4"><span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tones[metric.tone]}`}><Icon size={23} aria-hidden="true" /></span><div className="min-w-0"><p className="text-xs font-bold text-slate-500">{metric.label}</p><p className="mt-1 truncate text-2xl font-black text-obra-ink">{metric.value}</p><p className="mt-1 text-xs text-slate-500">{metric.detail}</p></div></article>;
-}
-
-function QueueItem({ row }: { row: QueueRow }) {
-  const content = <><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-obra-ink">{row.title}</h3>{row.requiresConfirmation ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">Confirmación humana</span> : null}</div><p className="mt-1 text-sm leading-5 text-slate-600">{row.context}</p><p className="mt-1 text-xs text-slate-500">{row.meta}</p></div><span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{row.status}</span></>;
-  return row.href ? <Link href={row.href} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">{content}</Link> : <article className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">{content}</article>;
+  const content = <><span className={styles.metricIcon} data-tone={metric.tone}><Icon size={20} aria-hidden="true" /></span><div><p className={styles.metricLabel}>{metric.label}</p><p className={styles.metricValue}>{metric.value}</p><p className={styles.metricDetail}>{metric.detail}</p></div></>;
+  return metric.href ? <Link href={metric.href} className={styles.metric}>{content}</Link> : <article className={styles.metric}>{content}</article>;
 }
 
 function HonestEmpty({ description }: { description: string }) {
-  return <div className="p-5 text-center"><CheckCircle2 className="mx-auto text-emerald-600" size={25} aria-hidden="true" /><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">{description}</p></div>;
+  return <div className={styles.empty}><div><CheckCircle2 size={22} aria-hidden="true" /><p>{description}</p></div></div>;
 }
 
-function ContextMini({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-xs font-bold text-slate-500">{label}</p><p className="mt-2 text-sm font-black text-obra-ink">{value}</p></div>;
+function SectionHeading({ icon: Icon, id, title, meta }: { icon: LucideIcon; id: string; title: string; meta?: string }) {
+  return <header className={styles.sectionHeader}><div className={styles.sectionHeaderTitle}><Icon size={16} aria-hidden="true" /><h2 id={id}>{title}</h2></div>{meta ? <span>{meta}</span> : null}</header>;
+}
+
+function PanelFooter({ href, children }: { href: string; children: React.ReactNode }) {
+  return <footer className={styles.panelFooter}><Link href={href}>{children}</Link></footer>;
 }
 
 function buildQueue(area: OrqenaAiArea, data: {
@@ -377,17 +749,19 @@ function buildQueue(area: OrqenaAiArea, data: {
     return data.works.slice(0, 8).map((item) => ({ id: item.id, title: item.titulo, context: item.responsable ?? "Responsable no asignado", meta: `${humanize(item.prioridad)}${item.fechaFinPrevista ? ` · prevista ${formatDateTime(item.fechaFinPrevista)}` : ""}`, status: humanize(item.estado), href: `/obras/${item.id}` }));
   }
   if (area === "documentos") return data.documents.slice(0, 8).map((item) => ({ id: item.id, title: item.name, context: item.work?.titulo ?? item.client?.nombre ?? "Documento interno", meta: `${humanize(item.category)}${item.extractionConfidence != null ? ` · confianza registrada ${Math.round(item.extractionConfidence * 100)}%` : " · sin confianza registrada"}`, status: humanize(item.extractionStatus), href: "/documentos", requiresConfirmation: true }));
-  if (area === "finanzas") return data.invoices.slice(0, 8).map((item) => ({ id: item.id, title: `${item.numero} · ${item.concepto}`, context: item.client.nombre, meta: `${formatCurrency(item.pendiente)} pendientes · vence ${formatDateTime(item.fechaVencimiento)}`, status: humanize(item.estado), href: "/tesoreria?vista=cobros", requiresConfirmation: true }));
+  if (area === "finanzas") return data.invoices.slice(0, 8).map((item) => ({ id: item.id, title: `${item.numero} · ${item.concepto}`, context: item.client.nombre, meta: `${formatCurrency(item.pendiente)} pendientes · vence ${formatDateTime(item.fechaVencimiento)}`, status: humanize(item.estado), href: `/dinero/${item.id}`, requiresConfirmation: true }));
   if (area === "equipo") {
     const roleCounts = new Map<string, number>();
     for (const member of data.memberships) roleCounts.set(member.functionalProfileKey ?? member.role, (roleCounts.get(member.functionalProfileKey ?? member.role) ?? 0) + 1);
     return [...roleCounts].map(([role, count]) => ({ id: role, title: humanize(role), context: `${count} ${count === 1 ? "miembro activo" : "miembros activos"}`, meta: "Datos agregados; abre Equipo para revisar permisos y alcance.", status: "Agregado", href: "/equipo" }));
   }
-  return data.recommendations.slice(0, 8).map((item) => ({ id: item.id, title: item.title, context: item.summary, meta: `Prioridad registrada ${item.priority} · actualizada ${formatDateTime(item.updatedAt)}`, status: humanize(item.status), href: `/recomendaciones?q=${encodeURIComponent(item.title)}`, requiresConfirmation: item.requiresConfirmation }));
+  return data.recommendations.slice(0, 8).map((item) => ({ id: item.id, title: item.title, context: item.summary, meta: `Prioridad registrada ${item.priority} · actualizada ${formatDateTime(item.updatedAt)}`, status: humanize(item.status), href: `/recomendaciones?estado=all&seleccion=${encodeURIComponent(item.id)}`, requiresConfirmation: item.requiresConfirmation }));
 }
 
 function buildMetrics(area: OrqenaAiArea, data: {
   recommendations: number;
+  confirmedRecommendations: number;
+  recordedImpact: number;
   clients: number;
   works: number;
   budgets: Array<{ total: number }>;
@@ -411,49 +785,50 @@ function buildMetrics(area: OrqenaAiArea, data: {
   };
 }): Metric[] {
   if (area === "comercial") return [
-    controlledMetric(data.access.clients, "Clientes en muestra", data.clients, "muestra autorizada (máx. 100)", BriefcaseBusiness, "violet"),
-    controlledMetric(data.access.budgets, "Presupuestos en muestra", data.budgets.length, "abiertos en la muestra autorizada (máx. 100)", FileSearch, "green"),
-    controlledMetric(data.access.budgets, "Importe de la muestra", formatCurrency(data.budgets.reduce((sum, item) => sum + item.total, 0)), "suma autorizada de hasta 100 presupuestos", BadgeEuro, "blue"),
-    controlledMetric(data.access.recommendations, "Recomendaciones en muestra", data.recommendations, "autorizadas dentro de la muestra (máx. 250)", Sparkles, "amber"),
+    controlledMetric(data.access.clients, "Clientes en muestra", data.clients, "muestra autorizada (máx. 100)", BriefcaseBusiness, "violet", "/clientes"),
+    controlledMetric(data.access.budgets, "Presupuestos en muestra", data.budgets.length, "abiertos en la muestra autorizada (máx. 100)", FileSearch, "green", "/presupuestos"),
+    controlledMetric(data.access.budgets, "Importe de la muestra", formatCurrency(data.budgets.reduce((sum, item) => sum + item.total, 0)), "suma autorizada de hasta 100 presupuestos", BadgeEuro, "blue", "/presupuestos"),
+    controlledMetric(data.access.recommendations, "Recomendaciones en muestra", data.recommendations, "autorizadas dentro de la muestra (máx. 250)", Sparkles, "amber", "/recomendaciones?estado=all"),
   ];
   if (area === "operaciones") return [
-    controlledMetric(data.access.works, "Trabajos en muestra", data.works, "muestra autorizada (máx. 100)", BriefcaseBusiness, "violet"),
-    controlledMetric(data.access.tasks, "Tareas en muestra", data.tasks.length, "abiertas en la muestra autorizada (máx. 100)", ListTodo, "green"),
-    controlledMetric(data.access.tasks, "Bloqueos en muestra", data.tasks.filter((item) => item.status === "blocked").length, "bloqueos de hasta 100 tareas autorizadas", AlertTriangle, "amber"),
-    controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 20 más recientes", Workflow, "blue"),
+    controlledMetric(data.access.works, "Trabajos en muestra", data.works, "muestra autorizada (máx. 100)", BriefcaseBusiness, "violet", "/obras"),
+    controlledMetric(data.access.tasks, "Tareas en muestra", data.tasks.length, "abiertas en la muestra autorizada (máx. 100)", ListTodo, "green", "/tareas"),
+    controlledMetric(data.access.tasks, "Bloqueos en muestra", data.tasks.filter((item) => item.status === "blocked").length, "bloqueos de hasta 100 tareas autorizadas", AlertTriangle, "amber", "/tareas?filtro=blocked"),
+    controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 100 más recientes", Workflow, "blue", "/automatizaciones"),
   ];
   if (area === "documentos") return [
-    controlledMetric(data.access.documents, "Documentos en muestra", data.documents.length, "clases permitidas, sin archivar (máx. 100)", FileSearch, "violet"),
-    controlledMetric(data.access.documents, "Extracciones en muestra", data.documents.filter((item) => ["PENDING", "PROCESSING"].includes(item.extractionStatus)).length, "pendientes entre hasta 100 documentos", Clock3, "blue"),
-    controlledMetric(data.access.documents, "Revisión en muestra", data.documents.filter((item) => item.extractionStatus === "FAILED").length, "fallidas entre hasta 100 documentos", AlertTriangle, "amber"),
-    controlledMetric(data.access.recommendations && data.access.documents, "Recomendaciones en muestra", data.recommendations, "documentales autorizadas (máx. 250)", Sparkles, "green"),
+    controlledMetric(data.access.documents, "Documentos en muestra", data.documents.length, "clases permitidas, sin archivar (máx. 100)", FileSearch, "violet", "/documentos"),
+    controlledMetric(data.access.documents, "Extracciones en muestra", data.documents.filter((item) => ["PENDING", "PROCESSING"].includes(item.extractionStatus)).length, "pendientes entre hasta 100 documentos", Clock3, "blue", "/documentos"),
+    controlledMetric(data.access.documents, "Revisión en muestra", data.documents.filter((item) => item.extractionStatus === "FAILED").length, "fallidas entre hasta 100 documentos", AlertTriangle, "amber", "/documentos"),
+    controlledMetric(data.access.recommendations && data.access.documents, "Recomendaciones en muestra", data.recommendations, "documentales autorizadas (máx. 250)", Sparkles, "green", "/recomendaciones?estado=all"),
   ];
   if (area === "finanzas") return [
-    controlledMetric(data.access.finance, "Pendiente en muestra", formatCurrency(data.invoices.reduce((sum, item) => sum + item.pendiente, 0)), "suma autorizada de hasta 100 facturas", CircleDollarSign, "green"),
-    controlledMetric(data.access.finance, "Facturas en muestra", data.invoices.length, "abiertas en la muestra autorizada (máx. 100)", FileSearch, "violet"),
-    controlledMetric(data.access.finance, "Vencidas en muestra", data.invoices.filter((item) => ["vencida", "reclamada"].includes(item.estado)).length, "entre hasta 100 facturas autorizadas", AlertTriangle, "amber"),
-    controlledMetric(data.access.recommendations && data.access.finance, "Recomendaciones en muestra", data.recommendations, "financieras autorizadas (máx. 250)", Sparkles, "blue"),
+    controlledMetric(data.access.finance, "Pendiente en muestra", formatCurrency(data.invoices.reduce((sum, item) => sum + item.pendiente, 0)), "suma autorizada de hasta 100 facturas", CircleDollarSign, "green", "/dinero"),
+    controlledMetric(data.access.finance, "Facturas en muestra", data.invoices.length, "abiertas en la muestra autorizada (máx. 100)", FileSearch, "violet", "/dinero"),
+    controlledMetric(data.access.finance, "Vencidas en muestra", data.invoices.filter((item) => ["vencida", "reclamada"].includes(item.estado)).length, "entre hasta 100 facturas autorizadas", AlertTriangle, "amber", "/dinero"),
+    controlledMetric(data.access.recommendations && data.access.finance, "Recomendaciones en muestra", data.recommendations, "financieras autorizadas (máx. 250)", Sparkles, "blue", "/recomendaciones?estado=all"),
   ];
   if (area === "equipo") return [
-    controlledMetric(data.access.members, "Miembros visibles", data.memberships.length, "activos en la empresa", UsersRound, "green"),
-    controlledMetric(data.access.tasks, "Tareas en muestra", data.tasks.length, "abiertas en la muestra autorizada (máx. 100)", ListTodo, "violet"),
-    controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "recuento registrado de ejecuciones", ShieldCheck, "amber"),
-    controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 20 más recientes", Workflow, "blue"),
+    controlledMetric(data.access.members, "Miembros visibles", data.memberships.length, "activos en la empresa", UsersRound, "green", "/equipo"),
+    controlledMetric(data.access.tasks, "Tareas en muestra", data.tasks.length, "abiertas en la muestra autorizada (máx. 100)", ListTodo, "violet", "/tareas"),
+    controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "recuento registrado de ejecuciones", ShieldCheck, "amber", "/automatizaciones"),
+    controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 100 más recientes", Workflow, "blue", "/automatizaciones"),
   ];
   return [
-    controlledMetric(data.access.recommendations, "Recomendaciones en muestra", data.recommendations, "autorizadas dentro de la muestra (máx. 250)", Sparkles, "violet"),
-    controlledMetric(data.access.automations, "Automatizaciones en muestra", data.automations.filter((item) => item.active).length, "activas entre las 20 más recientes", Workflow, "green"),
-    controlledMetric(data.access.recommendations, "Operaciones IA este mes", data.aiUsage, "recuento agregado registrado", Activity, "blue"),
-    controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "recuento registrado; no se aplican automáticamente", ShieldCheck, "amber"),
+    controlledMetric(data.access.recommendations, "Recomendaciones visibles", data.recommendations, "autorizadas dentro de la muestra", Sparkles, "violet", "/recomendaciones?estado=all"),
+    controlledMetric(data.access.recommendations, "Acciones confirmadas", data.confirmedRecommendations, "aceptadas o en curso", CheckCircle2, "green", "/recomendaciones?estado=accepted"),
+    controlledMetric(data.access.recommendations, "Impacto registrado", formatCurrencyCompact(data.recordedImpact), "importe documentado en recomendaciones", BadgeEuro, "blue", "/recomendaciones?estado=all"),
+    controlledMetric(data.access.recommendations, "Operaciones IA este mes", data.aiUsage, "recuento agregado registrado", Activity, "amber", "/recomendaciones?estado=all"),
+    controlledMetric(data.access.automations, "Pendientes de confirmación", data.pendingConfirmations, "sin ejecución automática", ShieldCheck, "green", "/automatizaciones"),
   ];
 }
 
-function metric(label: string, value: string | number, detail: string, icon: LucideIcon, tone: Metric["tone"]): Metric {
-  return { label, value: String(value), detail, icon, tone };
+function metric(label: string, value: string | number, detail: string, icon: LucideIcon, tone: Metric["tone"], href?: string): Metric {
+  return { label, value: String(value), detail, icon, tone, href };
 }
 
-function controlledMetric(allowed: boolean, label: string, value: string | number, detail: string, icon: LucideIcon, tone: Metric["tone"]): Metric {
-  return metric(label, allowed ? value : "Restringido", allowed ? detail : "No disponible para tu perfil", icon, tone);
+function controlledMetric(allowed: boolean, label: string, value: string | number, detail: string, icon: LucideIcon, tone: Metric["tone"], href?: string): Metric {
+  return metric(label, allowed ? value : "Restringido", allowed ? detail : "No disponible para tu perfil", icon, tone, allowed ? href : undefined);
 }
 
 function recommendationVisible(item: { source: string; title: string; summary: string; clientId: string | null; workId: string | null; invoiceId: string | null; budgetId: string | null }, options: { area: OrqenaAiArea; clientIds: string[] | null; workIds: string[] | null; invoiceIds: string[]; budgetIds: string[]; canSeeClients: boolean; canSeeWorks: boolean; canSeeInvoices: boolean; canSeeBudgets: boolean; canSeeFinance: boolean; canSeeDocuments: boolean; canSeeOperations: boolean; canSeeCommercial: boolean; canSeeMembers: boolean }) {
@@ -461,14 +836,15 @@ function recommendationVisible(item: { source: string; title: string; summary: s
   if (item.workId && (!options.canSeeWorks || !idVisible(options.workIds, item.workId))) return false;
   if (item.invoiceId && (!options.canSeeInvoices || !options.invoiceIds.includes(item.invoiceId))) return false;
   if (item.budgetId && (!options.canSeeBudgets || !options.budgetIds.includes(item.budgetId))) return false;
-  if (areaSources.finanzas.has(item.source) && !options.canSeeFinance) return false;
-  if (areaSources.documentos.has(item.source) && !options.canSeeDocuments) return false;
-  if (areaSources.operaciones.has(item.source) && !options.canSeeOperations) return false;
-  if (item.source === "presupuestos" && !options.canSeeBudgets) return false;
-  if (["crm", "visitas", "recordatorios"].includes(item.source) && !options.canSeeClients) return false;
-  if (areaSources.comercial.has(item.source) && !options.canSeeCommercial) return false;
+  const normalizedSource = item.source.toLocaleLowerCase("es-ES");
+  if (areaSources.finanzas.has(normalizedSource) && !options.canSeeFinance) return false;
+  if (areaSources.documentos.has(normalizedSource) && !options.canSeeDocuments) return false;
+  if (areaSources.operaciones.has(normalizedSource) && !options.canSeeOperations) return false;
+  if (normalizedSource === "presupuestos" && !options.canSeeBudgets) return false;
+  if (["crm", "visitas", "recordatorios"].includes(normalizedSource) && !options.canSeeClients) return false;
+  if (areaSources.comercial.has(normalizedSource) && !options.canSeeCommercial) return false;
   if (options.area === "general") return true;
-  if (!areaSources[options.area].has(item.source)) return false;
+  if (!areaSources[options.area].has(normalizedSource)) return false;
   if (options.area !== "equipo") return true;
   return options.canSeeMembers && /equipo|carga|asign|persona|turno|formaci[oó]n|miembro/i.test(`${item.title} ${item.summary}`);
 }
@@ -478,12 +854,54 @@ function idVisible(ids: string[] | null, id: string) {
 }
 
 function resolveOriginLink(area: OrqenaAiArea, access: { recommendations: boolean; clients: boolean; budgets: boolean; works: boolean; tasks: boolean; documents: boolean; finance: boolean; members: boolean }) {
-  if (area === "general") return access.recommendations ? "/recomendaciones" : null;
+  if (area === "general") return access.recommendations ? "/recomendaciones?estado=all" : null;
   if (area === "comercial") return access.budgets ? "/presupuestos" : access.clients ? "/clientes" : null;
   if (area === "operaciones") return access.tasks ? "/tareas" : access.works ? "/obras" : null;
   if (area === "documentos") return access.documents ? "/documentos" : null;
-  if (area === "finanzas") return access.finance ? "/tesoreria" : null;
+  if (area === "finanzas") return access.finance ? "/dinero" : null;
   return access.members ? "/equipo" : null;
+}
+
+type AreaAutomation = {
+  id: string;
+  name: string;
+  category: string;
+  status: string;
+  active: boolean;
+  updatedAt: Date;
+  currentVersion: { requiresConfirmation: boolean } | null;
+  schedule: { nextRunAt: Date | null } | null;
+};
+
+type AreaActivity = {
+  id: string;
+  purpose: string;
+  outcome: string;
+  humanReviewed: boolean;
+  createdAt: Date;
+};
+
+const areaKeywords: Record<Exclude<OrqenaAiArea, "general">, string[]> = {
+  comercial: ["client", "cliente", "crm", "lead", "budget", "presupuesto", "quote", "visit", "visita", "follow", "seguimiento"],
+  operaciones: ["work", "obra", "task", "tarea", "operacion", "incidencia", "material", "planning", "planificacion"],
+  finanzas: ["invoice", "factura", "payment", "pago", "cobro", "treasury", "tesorer", "margin", "margen", "gasto", "coste"],
+  documentos: ["document", "documento", "archivo", "ocr", "extract", "clasific"],
+  equipo: ["team", "equipo", "member", "miembro", "persona", "role", "rol", "permission", "permiso", "assign", "asign", "training", "formacion", "carga"],
+};
+
+function filterAreaAutomations(area: OrqenaAiArea, items: AreaAutomation[]) {
+  if (area === "general") return items;
+  return items.filter((item) => areaTextMatches(area, `${item.category} ${item.name}`));
+}
+
+function filterAreaActivity(area: OrqenaAiArea, items: AreaActivity[]) {
+  if (area === "general") return items;
+  return items.filter((item) => areaTextMatches(area, item.purpose));
+}
+
+function areaTextMatches(area: Exclude<OrqenaAiArea, "general">, value: string) {
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-ES");
+  return areaKeywords[area].some((keyword) => normalized.includes(keyword));
 }
 
 function idScope(ids: string[] | null) {

@@ -81,3 +81,30 @@ test("reduced motion keeps the compact guided demo usable without scroll control
   await expect(page.getByRole("navigation", { name: "Pasos de la demostración" }).getByRole("button")).toHaveCount(6);
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollSnapType)).not.toContain("mandatory");
 });
+
+test("theme remains stable until the user explicitly selects system mode", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => localStorage.removeItem("orqena-theme"));
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  await page.evaluate(() => localStorage.setItem("orqena-theme", "system"));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "system");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  await page.evaluate(() => localStorage.setItem("orqena-theme", "light"));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});

@@ -5,27 +5,81 @@ import { brand } from "@/lib/brand";
 
 const OFFICIAL_SYMBOL = "/brand/orqena/orqena-simbolo-oficial.png";
 
+type BrandLogoVariant = "sidebar" | "light" | "symbol";
+type BrandLogoSize = "sm" | "md" | "lg";
+
 export function BrandLogo({
   className,
+  variant = "symbol",
+  size = "md",
   title,
   style
 }: {
   className?: string;
+  variant?: BrandLogoVariant;
+  size?: BrandLogoSize;
   title?: string;
   style?: CSSProperties;
 }) {
-  return (
+  if (variant === "sidebar") {
+    return (
+      <span
+        className={clsx("brand-logo brand-logo--sidebar", `brand-logo--${size}`, className)}
+        style={style}
+        role={title ? "img" : undefined}
+        aria-label={title}
+      >
+        <Image
+          src={OFFICIAL_SYMBOL}
+          alt=""
+          width={512}
+          height={512}
+          sizes="44px"
+          className="brand-logo__sidebar-symbol"
+          unoptimized
+          priority
+        />
+        <strong className="brand-logo__sidebar-wordmark" aria-hidden="true">{brand.companyName}</strong>
+      </span>
+    );
+  }
+
+  const symbol = (
     <Image
       src={OFFICIAL_SYMBOL}
-      alt={title ?? ""}
-      width={64}
-      height={64}
-      sizes="64px"
-      className={clsx("brand-mark", className)}
-      style={style}
+      alt=""
+      width={60}
+      height={60}
+      sizes="60px"
+      className="brand-logo__symbol"
       unoptimized
       priority
     />
+  );
+
+  if (variant === "light") {
+    return (
+      <span
+        className={clsx("brand-logo brand-logo--light", `brand-logo--${size}`, className)}
+        style={style}
+        role={title ? "img" : undefined}
+        aria-label={title}
+      >
+        {symbol}
+        <strong className="brand-logo__wordmark" aria-hidden="true">{brand.companyName}</strong>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={clsx("brand-logo brand-logo--symbol brand-mark", `brand-logo--${size}`, className)}
+      style={style}
+      role={title ? "img" : undefined}
+      aria-label={title}
+    >
+      {symbol}
+    </span>
   );
 }
 
