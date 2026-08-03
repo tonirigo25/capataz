@@ -71,4 +71,3 @@ function csvCell(value: string | number) {
   if (/^[=+\-@]/.test(normalized)) normalized = `'${normalized}`;
   return `"${normalized.replaceAll('"', '""')}"`;
 }
-

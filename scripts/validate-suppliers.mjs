@@ -45,4 +45,3 @@ if (failures.length) {
   process.exit(1);
 }
 process.stdout.write("suppliers workspace: PASS (tenant data, actions, export, contextual IA)\n");
-
