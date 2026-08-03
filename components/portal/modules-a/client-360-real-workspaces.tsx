@@ -200,7 +200,7 @@ export function ClientInvoicesWorkspace({ summary, returnTo }: WorkspaceProps) {
           status: statusLabel(invoice.estado),
           statusTone: toneForStatus(invoice.estado),
           paymentMethod: invoice.metodoPago,
-          href: `/dinero/${invoice.id}`,
+          href: `/facturas-cliente/${invoice.id}?returnTo=${encodeURIComponent(returnTo)}`,
         };
         return invoice.work
           ? { ...base, scope: "work" as const, workId: invoice.work.id, workTitle: invoice.work.titulo }
