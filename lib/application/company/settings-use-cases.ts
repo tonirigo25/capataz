@@ -4,6 +4,11 @@ import { requireCompanyContext } from "@/lib/auth/session";
 import { requireActiveOwner } from "@/lib/commercial/owner-governance";
 import { getPrivateStorageService } from "@/lib/private-storage";
 
+const COMPANY_ASSET_MAX_BYTES = 5 * 1024 * 1024;
+const COMPANY_ASSET_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const COMPANY_TIMEZONES = new Set(["Europe/Madrid", "Atlantic/Canary", "UTC"]);
+const COMPANY_LOCALES = new Set(["es-ES", "ca-ES", "eu-ES", "gl-ES", "en-GB"]);
+
 export async function saveUserProfile(formData: FormData) {
   const auth = await requireCompanyContext();
   const id = auth.userId;
@@ -54,7 +59,9 @@ export async function saveCompanySettings(formData: FormData) {
     iban: optionalText(formData, "iban"),
     condicionesPorDefecto: optionalText(formData, "condicionesPorDefecto"),
     textoLegal: optionalText(formData, "textoLegal"),
-    colorMarca: text(formData, "colorMarca") || "#f6c945",
+    colorMarca: optionalHexColor(formData, "colorMarca"),
+    timezone: optionalAllowedValue(formData, "timezone", COMPANY_TIMEZONES),
+    locale: optionalAllowedValue(formData, "locale", COMPANY_LOCALES),
     ivaDefecto: number(formData, "ivaDefecto", 21),
     moneda: text(formData, "moneda") || "EUR",
     validezPresupuestoDias: integer(formData, "validezPresupuestoDias", 15),
@@ -73,7 +80,10 @@ export async function saveCompanySettings(formData: FormData) {
     provincia: data.provincia, pais: data.pais, telefono: data.telefono, email: data.email,
     web: data.web, contactPerson: data.personaContacto, iban: data.iban,
     defaultConditions: data.condicionesPorDefecto, legalText: data.textoLegal,
-    brandColor: data.colorMarca, defaultVat: data.ivaDefecto,
+    ...(data.colorMarca ? { brandColor: data.colorMarca } : {}),
+    ...(data.timezone ? { timezone: data.timezone } : {}),
+    ...(data.locale ? { locale: data.locale } : {}),
+    defaultVat: data.ivaDefecto,
     currency: data.moneda, budgetValidityDays: data.validezPresupuestoDias,
     defaultPaymentTerms: data.formaPagoDefecto, budgetSeries: data.seriePresupuestos,
     invoiceSeries: data.serieFacturas, workSeries: data.serieObras, budgetPrefix: data.prefijoPresupuesto,
@@ -93,6 +103,8 @@ export async function uploadCompanyAsset(formData: FormData) {
   if (!['logo', 'seal'].includes(kind)) throw new Error("COMPANY_ASSET_KIND_INVALID");
   const file = formData.get("asset");
   if (!(file instanceof File) || file.size === 0) throw new Error("COMPANY_ASSET_REQUIRED");
+  if (file.size > COMPANY_ASSET_MAX_BYTES) throw new Error("COMPANY_ASSET_TOO_LARGE");
+  if (!COMPANY_ASSET_MIME_TYPES.has(file.type)) throw new Error("COMPANY_ASSET_TYPE_INVALID");
   const storage = getPrivateStorageService();
   const object = await storage.put({ companyId: auth.companyId, bytes: new Uint8Array(await file.arrayBuffer()), originalName: file.name, mimeType: file.type, classification: "COMPANY_BRAND", idempotencyKey: `company-${kind}:${auth.companyId}:${file.name}:${file.size}` });
   await prisma.$transaction(async (transaction) => {
@@ -110,6 +122,16 @@ function text(formData: FormData, key: string) {
 function optionalText(formData: FormData, key: string) {
   const value = text(formData, key);
   return value || null;
+}
+
+function optionalAllowedValue(formData: FormData, key: string, allowed: Set<string>) {
+  const value = text(formData, key);
+  return value && allowed.has(value) ? value : null;
+}
+
+function optionalHexColor(formData: FormData, key: string) {
+  const value = text(formData, key);
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : null;
 }
 
 function number(formData: FormData, key: string, fallback: number) {

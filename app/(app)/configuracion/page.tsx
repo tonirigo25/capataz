@@ -10,6 +10,7 @@ import { getEffectiveCapabilities, getEntitlements } from "@/lib/commercial/auth
 import { planCatalog } from "@/lib/commercial/plans";
 import { readRuntimeAiControl } from "@/lib/ai/runtime-gateway";
 import { ConfigurationOverview } from "@/components/portal/modules-c/configuration-overview";
+import { CompanySettingsWorkspace } from "@/components/portal/modules-c/company-settings-workspace";
 
 
 export const dynamic = "force-dynamic";
@@ -17,20 +18,24 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ area?: string }>;
+  searchParams: Promise<{ area?: string; edit?: string; preview?: string }>;
 }) {
   const query = await searchParams;
-  const area = query.area ?? "perfil";
   const auth = await requireCompanyContext();
   const owner = auth.role === "OWNER";
+  const requestedArea = query.area ?? "perfil";
+  const ownerOnlyAreas = new Set(["empresa", "identidad-marca", "fiscal-documentos", "zona-sensible"]);
+  const area = !owner && ownerOnlyAreas.has(requestedArea) ? "perfil" : requestedArea;
   const periodStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
-  const [companyRecord, legacyProfile, commercial, capabilities, activeMfa, memberCount, aiUsage, aiPolicy] = await Promise.all([
+  const [companyRecord, legacyProfile, commercial, capabilities, activeMfa, memberCount, adminCount, activeIntegrationCount, aiUsage, aiPolicy] = await Promise.all([
     owner ? prisma.company.findUniqueOrThrow({ where: { id: auth.companyId } }) : Promise.resolve(null),
     prisma.usuarioPerfil.findUnique({ where: { id: auth.userId } }),
     getEntitlements(auth.companyId),
     getEffectiveCapabilities(auth),
     prisma.mfaFactor.count({ where: { userId: auth.userId, status: "ACTIVE", disabledAt: null } }),
     owner ? prisma.companyMembership.count({ where: { companyId: auth.companyId, status: "active" } }) : Promise.resolve(null),
+    owner ? prisma.companyMembership.count({ where: { companyId: auth.companyId, status: "active", role: { in: ["OWNER", "ADMIN"] } } }) : Promise.resolve(null),
+    owner ? prisma.integrationConnection.count({ where: { companyId: auth.companyId, status: { in: ["ACTIVE", "CONNECTED", "ENABLED"] } } }) : Promise.resolve(null),
     owner ? prisma.aiUsageEvent.count({ where: { companyId: auth.companyId, createdAt: { gte: periodStart } } }) : Promise.resolve(null),
     prisma.companyAiPolicy.findUnique({ where: { companyId: auth.companyId }, select: { enabled: true, killSwitch: true } }),
   ]);
@@ -47,6 +52,58 @@ export default async function SettingsPage({
   const aiLimit = numericLimit(commercial.values.monthly_orqena_actions);
   const planName = planCatalog[commercial.planKey as keyof typeof planCatalog]?.name ?? commercial.planKey;
   const aiEnabled = aiPolicy?.enabled === true && aiPolicy.killSwitch === false && companyRuntimeAiEnabled(auth.companyId);
+
+  if (owner && company && companyStatus && (area === "empresa" || area === "identidad-marca")) {
+    return (
+      <main className="screen">
+        <CompanySettingsWorkspace
+          activeView={area}
+          editMode={Boolean(query.edit)}
+          preview={query.preview}
+          data={{
+            id: company.id,
+            nombreComercial: company.nombreComercial,
+            razonSocial: company.razonSocial,
+            nifCif: company.nifCif,
+            email: company.email,
+            telefono: company.telefono,
+            web: company.web,
+            personaContacto: company.personaContacto,
+            direccionFiscal: company.direccionFiscal,
+            codigoPostal: company.codigoPostal,
+            ciudad: company.ciudad,
+            provincia: company.provincia,
+            pais: company.pais,
+            iban: company.iban,
+            timezone: company.timezone,
+            locale: company.locale,
+            moneda: company.moneda,
+            ivaDefecto: company.ivaDefecto,
+            validezPresupuestoDias: company.validezPresupuestoDias,
+            formaPagoDefecto: company.formaPagoDefecto,
+            seriePresupuestos: company.seriePresupuestos,
+            serieFacturas: company.serieFacturas,
+            serieObras: company.serieObras,
+            prefijoPresupuesto: company.prefijoPresupuesto,
+            prefijoFactura: company.prefijoFactura,
+            prefijoObra: company.prefijoObra,
+            condicionesPorDefecto: company.condicionesPorDefecto,
+            textoLegal: company.textoLegal,
+            colorMarca: company.colorMarca,
+            logoConfigured: Boolean(company.logoStoredObjectId),
+            sealConfigured: Boolean(company.sealStoredObjectId),
+            status: company.status,
+            updatedAt: company.updatedAt,
+            completion: companyStatus,
+            memberCount: memberCount ?? 0,
+            adminCount: adminCount ?? 0,
+            activeIntegrationCount: activeIntegrationCount ?? 0,
+            mfaEnabled: activeMfa > 0,
+          }}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="screen">
@@ -74,6 +131,7 @@ export default async function SettingsPage({
           <nav aria-label="Secciones de configuración" className="mt-2 grid gap-1">
             <a href="/configuracion?area=perfil#perfil" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Datos personales</a>
             {owner ? <a href="/configuracion?area=empresa#empresa" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Empresa</a> : null}
+            {owner ? <a href="/configuracion?area=identidad-marca" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Identidad y marca</a> : null}
             {owner ? <a href="/configuracion?area=fiscal-documentos#fiscal-documentos" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Fiscal y documentos</a> : null}
             {owner ? <a href="/equipo" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Equipo</a> : null}
             <a href="/configuracion?area=integraciones#integraciones" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Integraciones</a>
