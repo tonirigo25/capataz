@@ -44,7 +44,21 @@ if (fixture) {
   inspectRoute(path.resolve(root, fixture));
 } else {
   const routes = walk(path.join(root, "app"), "route.ts").map(inspectRoute);
-  if (routes.length !== 49) failures.push(`expected 49 routes, found ${routes.length}`);
+  if (routes.length !== 50) failures.push(`expected 50 routes, found ${routes.length}`);
+  const importTemplate = routes.find((route) => route.relative === "app/(app)/configuracion/importar/plantillas/[kind]/route.ts");
+  if (!importTemplate) {
+    failures.push("app/(app)/configuracion/importar/plantillas/[kind]/route.ts: authenticated tenant template route missing");
+  } else {
+    const source = fs.readFileSync(path.join(root, importTemplate.relative), "utf8");
+    if (!importTemplate.methods.includes("GET")) failures.push(`${importTemplate.relative}: GET handler missing`);
+    for (const token of [
+      'requireCompanyRole(["OWNER", "ADMIN"])',
+      "getImportDefinition",
+      "buildImportTemplate",
+      '"Cache-Control": "private, no-store"',
+      '"X-Content-Type-Options": "nosniff"'
+    ]) if (!source.includes(token)) failures.push(`${importTemplate.relative}: secure template boundary missing ${token}`);
+  }
   const alertsExport = routes.find((route) => route.relative === "app/(app)/alertas/export/route.ts");
   if (!alertsExport) {
     failures.push("app/(app)/alertas/export/route.ts: authenticated tenant export route missing");
@@ -137,4 +151,4 @@ if (unique.length) {
   process.stderr.write(`${unique.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 49 routes, 7 jobs)\n");
+process.stdout.write(fixture ? "fixture unexpectedly passed\n" : "context boundaries: PASS (38 actions, 50 routes, 7 jobs)\n");
