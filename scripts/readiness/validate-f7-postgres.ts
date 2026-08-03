@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
-import { applyCompanyImport, previewCompanyImport, rollbackCompanyImport } from "../../lib/product/import-service";
+import { applyCompanyImport, previewCompanyImport, rollbackCompanyImport, type ImportKind } from "../../lib/product/import-service";
 import { saveExperiencePreferences } from "../../lib/product/experience-preferences";
 import { createAuthenticatedSupportTicket } from "../../lib/product/support-service";
 import { getAndMeasureActivationStatus } from "../../lib/product/activation";
@@ -15,7 +15,7 @@ async function main() {
   assert.equal(migrations[0]?.count, 45);
   const suffix = Date.now().toString(36);
   const [companyA, companyB] = await Promise.all([
-    prisma.company.create({ data: { slug: `f7-a-${suffix}`, nombreComercial: "F7 Synthetic Alpha", onboardingCompletedAt: new Date("2026-07-26T10:00:00.000Z") } }),
+    prisma.company.create({ data: { slug: `f7-a-${suffix}`, nombreComercial: "F7 Synthetic Alpha", onboardingCompletedAt: new Date() } }),
     prisma.company.create({ data: { slug: `f7-b-${suffix}`, nombreComercial: "F7 Synthetic Beta" } }),
   ]);
   const [userA, userB] = await Promise.all([
@@ -53,6 +53,32 @@ async function main() {
     const result = await rollbackCompanyImport(prisma, { companyId: companyA.id, actorId: userA.id, batchId: clientBatchId, confirmation: `ROLLBACK_BATCH:${clientBatchId}` });
     assert.equal(result.rolledBackRows, 1);
     assert.equal((await prisma.client.findUniqueOrThrow({ where: { id: existing.id } })).archivadoAt, null);
+  });
+
+  const importParent = await prisma.client.create({ data: { companyId: companyA.id, nombre: "Cliente Referencias", nifCif: "B11111111", telefono: "600000011", direccion: "Calle Referencias 11", tipo: "empresa", origen: "fixture" } });
+  const importWork = await prisma.work.create({ data: { companyId: companyA.id, clienteId: importParent.id, codigo: `OB-F7-${suffix}`, titulo: "Obra referencias", direccion: "Calle Referencias 11", tipoTrabajo: "Reforma", presupuestoAprobado: 1000, costePrevisto: 600, margenEstimado: 400 } });
+  const expandedImports: Array<{ kind: ImportKind; csv: string }> = [
+    { kind: "CONTACTS", csv: "clienteNifCif,nombre,email\nB11111111,Contacto Importado,contacto-importado@example.invalid" },
+    { kind: "WORKS", csv: `codigo,clienteNifCif,titulo,direccion,tipoTrabajo,presupuestoAprobado,costePrevisto\nOB-IMPORT-${suffix},B11111111,Obra importada,Calle Importada 1,Reforma,2000.00,1250.00` },
+    { kind: "TASKS", csv: `titulo,obraCodigo,prioridad,estado\nTarea importada ${suffix},${importWork.codigo},high,planned` },
+    { kind: "FOLLOW_UPS", csv: `titulo,clienteNifCif,estado,prioridad\nSeguimiento importado ${suffix},B11111111,planned,medium` },
+    { kind: "SUPPLIERS", csv: `nombreComercial,razonSocial,nifCif,diasVencimiento\nProveedor importado,Proveedor Importado SL,B2${suffix.padStart(7, "0").slice(-7)},30` },
+    { kind: "SUBCONTRACTORS", csv: `nombreComercial,razonSocial,nifCif,diasVencimiento\nSubcontrata importada,Subcontrata Importada SL,B3${suffix.padStart(7, "0").slice(-7)},30` },
+    { kind: "FINANCIAL_ACCOUNTS", csv: `nombre,tipo,moneda,saldoInicial,activa\nCuenta importada ${suffix},bank,EUR,1250.00,si` },
+    { kind: "INTERNAL_NOTES", csv: `clienteNifCif,obraCodigo,contenido\nB11111111,${importWork.codigo},Nota importada ${suffix}` },
+  ];
+  await check("expanded import catalog applies and rolls back every reversible module", async () => {
+    for (const testCase of expandedImports) {
+      const batch = await previewCompanyImport(prisma, { companyId: companyA.id, actorId: userA.id, kind: testCase.kind, source: testCase.csv });
+      assert.deepEqual([batch.validRows, batch.invalidRows, batch.duplicateRows], [1, 0, 0], testCase.kind);
+      assert.equal((await applyCompanyImport(prisma, { companyId: companyA.id, actorId: userA.id, batchId: batch.id, confirmation: batch.confirmationKey })).appliedRows, 1, testCase.kind);
+      assert.equal((await rollbackCompanyImport(prisma, { companyId: companyA.id, actorId: userA.id, batchId: batch.id, confirmation: `ROLLBACK_BATCH:${batch.id}` })).rolledBackRows, 1, testCase.kind);
+    }
+  });
+  await check("cross-tenant references are rejected during preview", async () => {
+    const batch = await previewCompanyImport(prisma, { companyId: companyA.id, actorId: userA.id, kind: "CONTACTS", source: "clienteNombre,nombre\nCliente Otro Tenant,Contacto prohibido" });
+    assert.deepEqual([batch.validRows, batch.invalidRows], [0, 1]);
+    assert.match(JSON.stringify(batch.rows[0]?.errorCodes), /CLIENT_REFERENCE_NOT_FOUND/);
   });
 
   const documentCsv = ["name,category,classification,originalName,mimeType,sha256", "Parte técnico.pdf,informe,OPERATIONAL,Parte técnico.pdf,application/pdf," + "a".repeat(64), "Documento inválido,desconocida,SECRET,,,"] .join("\n");
@@ -131,7 +157,7 @@ async function main() {
     assert.equal(await prisma.companyExperiencePreference.count({ where: { companyId: companyB.id } }), 0);
     assert.equal(await prisma.productEvent.count({ where: { companyId: companyB.id } }), 0);
   });
-  console.log(JSON.stringify({ ok: true, passed, migrations: migrations[0]?.count, companies: 2, imports: { clients: true, documents: true, rollback: true }, activationEvents: 6, supportSanitized: true, externalCalls: 0, productionWrites: 0 }, null, 2));
+  console.log(JSON.stringify({ ok: true, passed, migrations: migrations[0]?.count, companies: 2, imports: { clients: true, contacts: true, works: true, tasks: true, followUps: true, suppliers: true, subcontractors: true, financialAccounts: true, internalNotes: true, documents: true, rollback: true, tenantReferences: true }, activationEvents: 6, supportSanitized: true, externalCalls: 0, productionWrites: 0 }, null, 2));
 }
 
 main().finally(() => prisma.$disconnect()).catch((error) => { console.error(error); process.exitCode = 1; });

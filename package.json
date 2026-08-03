@@ -164,6 +164,7 @@
     "test:notifications": "node scripts/validate-notifications.mjs",
     "test:global-search": "node scripts/validate-global-search.mjs",
     "test:settings": "node scripts/validate-settings.mjs",
+    "test:safe-import-catalog": "vitest run tests/unit/safe-import-catalog.test.ts",
     "test:block2-integration": "node scripts/validate-block2-integration.mjs",
     "test:business-periods": "node scripts/validate-business-periods.mjs",
     "test:business-metrics": "node scripts/validate-business-metrics.mjs",
