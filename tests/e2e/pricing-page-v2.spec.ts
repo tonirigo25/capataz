@@ -28,11 +28,14 @@ test.describe("pricing page v2", () => {
   test("recommender reacts without creating a transactional action", async ({ page }) => {
     await page.goto("/precios");
     const slider = page.getByRole("slider", { name: /personas/i });
-    await slider.fill("12");
+    await slider.focus();
+    await slider.press("End");
+    await expect(slider).toHaveValue("20");
 
-    await expect(page.getByText("Business", { exact: true }).first()).toBeVisible();
+    const recommender = page.getByRole("complementary", { name: /encuentra un punto de partida/i });
+    await expect(recommender.getByText("Business", { exact: true })).toBeVisible();
     await expect(page.getByText(/no se crea ninguna compra/i)).toBeVisible();
-    await expect(page.getByRole("link", { name: /comentar esta opción/i }).first()).toHaveAttribute("href", /plan=business/);
+    await expect(recommender.getByRole("link", { name: /comentar esta opción/i })).toHaveAttribute("href", /plan=business/);
   });
 
   test("keeps access requests non-transactional and metadata canonical", async ({ page }) => {
