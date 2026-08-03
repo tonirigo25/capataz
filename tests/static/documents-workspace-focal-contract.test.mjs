@@ -12,6 +12,7 @@ const uploadAction = read("app/(app)/documentos/actions.ts");
 const uploadUseCase = read("lib/application/documents/repository-document-use-cases.ts");
 const uploadPage = read("app/(app)/documentos/subir/page.tsx");
 const templateRoute = read("app/(app)/documentos/plantillas/[slug]/route.ts");
+const authorization = read("lib/commercial/authorization.ts");
 
 test("la visibilidad scoped usa IDs Document autorizados", () => {
   assert.match(page, /resolveScopedEntityIds\(auth, "documents\.view", "Document"\)/);
@@ -51,6 +52,12 @@ test("la subida general valida contenido real y usa almacenamiento privado", () 
   assert.doesNotMatch(uploadBoundary, /formData\.get\("companyId"\)/);
   assert.match(uploadPage, /PDF, JPG, PNG, WEBP o TXT/);
   assert.match(uploadPage, /Abrir lector de gastos/);
+});
+
+test("el documento subido permanece visible para su autor en cualquier scope limitado", () => {
+  assert.match(authorization, /if \(entityType === "Document"\)/);
+  assert.match(authorization, /companyId: context\.companyId, uploadedById: context\.userId/);
+  assert.doesNotMatch(authorization, /if \(effectiveScope === "OWN"\) \{\s*const ownDocuments/);
 });
 
 test("el preview usa partidas e importes canónicos cuando existen", () => {

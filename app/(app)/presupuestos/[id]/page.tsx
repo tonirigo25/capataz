@@ -94,7 +94,11 @@ export default async function BudgetDetailPage({
   const canCreateInvoice = canCreateInvoiceRaw && canSeePricing;
   const canCreateWork = canCreateWorkRaw && canSeePricing;
   const canDuplicate = canDuplicateRaw && canSeePricing;
-  const canEditBudget = canUpdate && budget.estado !== "aceptado";
+  // Accepted legacy records can contain line data that predates canonical
+  // totals. Only a member who can both update and approve the budget may open
+  // the existing audited editor to reconcile those records. Ordinary accepted
+  // budgets remain immutable for users without approval authority.
+  const canEditBudget = canUpdate && (budget.estado !== "aceptado" || canApprove);
   const durationDays = plannedDurationDays(budget.work?.fechaInicioPrevista, budget.work?.fechaFinPrevista);
   const categories = aggregateCategories(lines);
   const timeline = buildTimeline(budget, auditEntries);

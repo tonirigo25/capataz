@@ -31,6 +31,12 @@ test("irreversible budget actions fail closed on unreconciled totals", () => {
   assert.match(detailPage, /¿Eliminar la partida/);
 });
 
+test("accepted legacy budgets expose reconciliation only to update plus approval authority", () => {
+  assert.match(detailPage, /canUpdate && \(budget\.estado !== "aceptado" \|\| canApprove\)/);
+  assert.match(financeUseCases, /budget\?\.estado === "aceptado" && capability === "sales\.budgets\.update"/);
+  assert.match(financeUseCases, /ACCEPTED_BUDGET_APPROVAL_REQUIRED/);
+});
+
 test("template catalog has one gated creation path and no duplicate submit bypass", () => {
   assert.equal((templatesPage.match(/action=\{createBudgetFromTemplate\}/g) ?? []).length, 1);
   assert.doesNotMatch(templatesPage, /Duplicar plantilla como presupuesto/);
