@@ -2,6 +2,7 @@ import type { CompanyContext } from "@/lib/auth/session";
 import type { Prisma } from "@prisma/client";
 import { getAgendaItems, type AgendaItem } from "@/lib/agenda";
 import { resolveAuthorization, resolveScopedEntityIds } from "@/lib/commercial/authorization";
+import { buildPortalManifest } from "@/lib/commercial/portal-manifest";
 import { prisma } from "@/lib/prisma";
 
 export type TodayPriority = {
@@ -124,10 +125,11 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
     resolveAuthorization(context, "orqena.use"),
   ]);
 
-  const [budgetScopes, invoiceScopes, documentIds, followupScopes, workIds, purchaseScopes] = await Promise.all([
+  const [budgetScopes, invoiceScopes, documentIds, documentManifest, followupScopes, workIds, purchaseScopes] = await Promise.all([
     budgetAccess.allowed ? relationScopes(context, "sales.budgets.view") : Promise.resolve(emptyRelationScopes()),
     invoiceAccess.allowed ? relationScopes(context, "sales.invoices.view") : Promise.resolve(emptyRelationScopes()),
     documentAccess.allowed ? resolveScopedEntityIds(context, "documents.view", "Document") : Promise.resolve([]),
+    documentAccess.allowed ? buildPortalManifest(context) : Promise.resolve(null),
     followupAccess.allowed ? relationScopes(context, "followups.view") : Promise.resolve(emptyRelationScopes()),
     workAccess.allowed ? resolveScopedEntityIds(context, "work.view", "Work") : Promise.resolve([]),
     purchaseAccess.allowed ? relationScopes(context, "purchase_cost.view") : Promise.resolve(emptyRelationScopes()),
@@ -149,6 +151,7 @@ export async function getTodayOverview(context: CompanyContext, now = new Date()
     companyId,
     archivedAt: null,
     status: { in: ["REVIEW_REQUIRED", "PROCESSING", "UPLOADED"] },
+    classification: { in: documentManifest?.documentClasses ?? [] },
     ...(documentIds === null ? {} : { id: { in: documentIds } }),
   };
   const followupWhere: Prisma.FollowUpWhereInput = {

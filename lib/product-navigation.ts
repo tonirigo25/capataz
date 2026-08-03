@@ -39,6 +39,7 @@ export const productSubnavigation: Record<string, ProductDestination[]> = {
     { href: "/actividad", label: "Actividad", icon: "activity", capability: "reports.view" },
   ],
   "/dinero": [
+    { href: "/tesoreria", label: "Tesorería", icon: "landmark", capability: "treasury.view" },
     { href: "/proveedores", label: "Proveedores", icon: "client", capability: "purchases.suppliers.view" },
     { href: "/subcontratas", label: "Subcontratas", icon: "building", capability: "purchases.suppliers.view" },
     { href: "/facturas-proveedor", label: "Facturas proveedor", icon: "receipt", capability: "purchases.received_invoices.view" },

@@ -5,10 +5,6 @@ const NOW = new Date(2026, 6, 11, 12, 0, 0);
 const JUL = (day) => new Date(2026, 6, day, 12, 0, 0);
 const JUN = (day) => new Date(2026, 5, day, 12, 0, 0);
 
-function money(value) {
-  return Math.round(value * 100) / 100;
-}
-
 function expectApprox(actual, expected, message) {
   expect(Math.abs(actual - expected) < 0.01, message, { actual, expected });
 }
@@ -433,7 +429,11 @@ async function validateChat() {
     expect(["aggregate_query", "comparison_query", "database_query"].includes(result.kind), `[treasury-chat] read-only query kind expected for "${text}"`, result);
   }
 
-  const actionsSource = fs.readFileSync("app/(app)/capataz/actions.ts", "utf8");
+  const actionsSource = [
+    fs.readFileSync("app/(app)/capataz/actions.ts", "utf8"),
+    fs.readFileSync("lib/orqena/application/capataz/orchestration.ts", "utf8"),
+    fs.readFileSync("lib/orqena/application/capataz/finance-queries.ts", "utf8"),
+  ].join("\n");
   for (const [, action] of cases) {
     expect(actionsSource.includes(`case "${action}"`), `[treasury-chat] missing action handler for ${action}`);
   }
@@ -445,6 +445,7 @@ async function validateIntegration() {
   const treasuryPage = fs.readFileSync("app/(app)/tesoreria/page.tsx", "utf8");
   const treasuryActions = fs.readFileSync("app/(app)/tesoreria/actions.ts", "utf8");
   const hoyPage = fs.readFileSync("app/(app)/hoy/page.tsx", "utf8");
+  const todayOverview = fs.readFileSync("lib/portal/today-overview.ts", "utf8");
   const workPage = fs.readFileSync("app/(app)/obras/[id]/page.tsx", "utf8");
   const clientPage = fs.readFileSync("app/(app)/clientes/[id]/page.tsx", "utf8");
   const nav = fs.readFileSync("lib/product-navigation.ts", "utf8");
@@ -463,7 +464,7 @@ async function validateIntegration() {
   expect(treasuryActions.includes("createCashTransfer") && treasuryActions.includes("saveTreasurySettings"), "[treasury-integration] treasury actions missing key commands");
   expect(fs.existsSync("app/(app)/tesoreria/export/route.ts"), "[treasury-integration] treasury CSV export route missing");
   expect(
-    hoyPage.includes("buildPortalManifest")
+    (hoyPage.includes("buildPortalManifest") || todayOverview.includes("buildPortalManifest"))
       && !hoyPage.includes("getEconomicControl")
       && portalManifest.includes('FINANCE: ["collections", "payments", "invoices", "due-dates", "treasury"')
       && portalManifest.includes('return ["/hoy", "/dinero", "/tesoreria", "/capataz"]'),

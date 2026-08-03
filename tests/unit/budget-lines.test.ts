@@ -52,4 +52,18 @@ describe("budget line compatibility and reconciliation", () => {
       missingCostLines: 1,
     });
   });
+
+  it("reconciles a stale cost total from quantity and unit cost", () => {
+    const line = normalizeLine({
+      descripcion: "Partida manipulada",
+      cantidad: 2,
+      precioUnitario: 150,
+      costeUnitario: 100,
+      costeTotal: 0,
+    });
+
+    expect(line.costeUnitario).toBe(100);
+    expect(line.costeTotal).toBe(200);
+    expect(calculateBudgetMargin([line])).toMatchObject({ cost: 200, amount: 100, percent: 33.3 });
+  });
 });

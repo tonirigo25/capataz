@@ -102,6 +102,14 @@ export default async function OpportunitiesPage({
     resolveAuthorization(auth, "sales.budgets.create"),
     resolveAuthorization(auth, "sales.pricing.view"),
   ]);
+  const [pricingWorkIds, pricingClientIds] = await Promise.all([
+    pricingDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.pricing.view", "Work")
+      : Promise.resolve([]),
+    pricingDecision.allowed
+      ? resolveScopedEntityIds(auth, "sales.pricing.view", "Client")
+      : Promise.resolve([]),
+  ]);
   const scopeWhere = relationScope(auth.scope, workIds, clientIds);
   const budgets = await prisma.budget.findMany({
     where: { companyId: auth.companyId, ...scopeWhere },
@@ -140,7 +148,18 @@ export default async function OpportunitiesPage({
   const awaitingDecision = budgets.filter((budget) =>
     ["enviado", "visto", "pendiente_respuesta"].includes(budget.estado),
   );
-  const visibleValue = budgets.reduce((sum, budget) => sum + budget.total, 0);
+  const canSeeBudgetPricing = (budget: BudgetRow) =>
+    pricingDecision.allowed &&
+    relationAllowed(
+      pricingDecision.scope,
+      pricingWorkIds,
+      pricingClientIds,
+      budget,
+    );
+  const visibleValue = budgets.reduce(
+    (sum, budget) => sum + (canSeeBudgetPricing(budget) ? budget.total : 0),
+    0,
+  );
   const canSeePricing = pricingDecision.allowed;
   const canCreate = createDecision.allowed && canSeePricing;
 
@@ -227,7 +246,10 @@ export default async function OpportunitiesPage({
           {stages.map((stage) => {
             const Icon = stage.icon;
             const rows = baseFiltered.filter((budget) => stage.statuses.includes(budget.estado));
-            const stageValue = rows.reduce((sum, budget) => sum + budget.total, 0);
+            const stageValue = rows.reduce(
+              (sum, budget) => sum + (canSeeBudgetPricing(budget) ? budget.total : 0),
+              0,
+            );
             return (
               <article className={styles.pipelineColumn} key={stage.id}>
                 <header className={styles.columnHeader}>
@@ -249,7 +271,7 @@ export default async function OpportunitiesPage({
                     <OpportunityCard
                       key={budget.id}
                       budget={budget}
-                      canSeePricing={canSeePricing}
+                      canSeePricing={canSeeBudgetPricing(budget)}
                     />
                   ))}
                   {!rows.length ? (
@@ -344,7 +366,7 @@ export default async function OpportunitiesPage({
                       <td>{budget.work?.titulo ?? "Sin obra vinculada"}</td>
                       <td><StagePill stage={stage} /></td>
                       <td className={styles.amountCell}>
-                        {canSeePricing ? formatCurrency(budget.total) : "Restringido"}
+                        {canSeeBudgetPricing(budget) ? formatCurrency(budget.total) : "Restringido"}
                       </td>
                       <td>
                         {budget.fechaSeguimiento
@@ -456,6 +478,20 @@ function relationScope(scope: string, workIds: string[] | null, clientIds: strin
   if (workIds?.length) OR.push({ obraId: { in: workIds } });
   if (clientIds?.length) OR.push({ clienteId: { in: clientIds }, obraId: null });
   return OR.length ? { OR } : { id: { in: [] as string[] } };
+}
+
+function relationAllowed(
+  scope: string,
+  workIds: string[] | null,
+  clientIds: string[] | null,
+  entity: { obraId: string | null; clienteId: string },
+) {
+  if (scope === "COMPANY") return true;
+  if (scope === "SELECTED_WORKS") return Boolean(entity.obraId && workIds?.includes(entity.obraId));
+  if (scope === "SELECTED_CLIENTS") return Boolean(clientIds?.includes(entity.clienteId));
+  return entity.obraId
+    ? Boolean(workIds?.includes(entity.obraId))
+    : Boolean(clientIds?.includes(entity.clienteId));
 }
 
 function hrefFor(query: SearchQuery, changes: Partial<Record<keyof SearchQuery, string | null>>) {

@@ -86,7 +86,9 @@ export function normalizeLine(item: unknown): BudgetLine {
   const suppliedCostTotal = optionalNum(value.costeTotal);
   const suppliedUnitCost = optionalNum(value.costeUnitario);
   const costeUnitario = suppliedUnitCost ?? (suppliedCostTotal !== null && cantidad > 0 ? money(suppliedCostTotal / cantidad) : null);
-  const costeTotal = suppliedCostTotal ?? (costeUnitario !== null ? lineTotal(cantidad, costeUnitario) : null);
+  // Quantity and unit cost are canonical. Never trust a stale or manipulated
+  // aggregate when both fields are present.
+  const costeTotal = costeUnitario !== null ? lineTotal(cantidad, costeUnitario) : null;
   return {
     descripcion: String(value.descripcion ?? value.concepto ?? "Partida").trim(),
     cantidad,

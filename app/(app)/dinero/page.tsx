@@ -97,6 +97,10 @@ export default async function MoneyPage({
   const auth = await requireCapability("sales.invoices.view");
   const { companyId } = auth;
   const economicCapabilities = [
+    "clients.view",
+    "work.view",
+    "sales.budgets.view",
+    "sales.pricing.view",
     "treasury.view",
     "banking.view",
     "purchases.received_invoices.view",
