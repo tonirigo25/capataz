@@ -53,7 +53,7 @@ export default async function SettingsPage({
   const planName = planCatalog[commercial.planKey as keyof typeof planCatalog]?.name ?? commercial.planKey;
   const aiEnabled = aiPolicy?.enabled === true && aiPolicy.killSwitch === false && companyRuntimeAiEnabled(auth.companyId);
 
-  if (owner && company && companyStatus && (area === "empresa" || area === "identidad-marca")) {
+  if (owner && company && companyStatus && (area === "empresa" || area === "identidad-marca" || area === "fiscal-documentos")) {
     return (
       <main className="screen">
         <CompanySettingsWorkspace

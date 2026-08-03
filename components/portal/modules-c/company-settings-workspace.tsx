@@ -75,7 +75,7 @@ export function CompanySettingsWorkspace({
   preview,
   data,
 }: {
-  activeView: "empresa" | "identidad-marca";
+  activeView: "empresa" | "identidad-marca" | "fiscal-documentos";
   editMode: boolean;
   preview?: string;
   data: CompanySettingsWorkspaceData;
@@ -89,20 +89,18 @@ export function CompanySettingsWorkspace({
         <p>Define la estructura corporativa, fiscal y operativa de Orqena para trabajar con menos fricción.</p>
       </header>
       <SettingsTabs activeView={activeView} />
-      {activeView === "empresa" ? (
-        <CompanyGeneralView data={data} editMode={editMode} />
-      ) : (
-        <CompanyIdentityView data={data} preview={selectedPreview} />
-      )}
+      {activeView === "empresa" ? <CompanyGeneralView data={data} editMode={editMode} /> : null}
+      {activeView === "identidad-marca" ? <CompanyIdentityView data={data} preview={selectedPreview} /> : null}
+      {activeView === "fiscal-documentos" ? <CompanyFiscalView data={data} editMode={editMode} /> : null}
     </div>
   );
 }
 
-function SettingsTabs({ activeView }: { activeView: "empresa" | "identidad-marca" }) {
+function SettingsTabs({ activeView }: { activeView: "empresa" | "identidad-marca" | "fiscal-documentos" }) {
   const tabs = [
     { label: "Empresa", href: "/configuracion?area=empresa", active: activeView === "empresa" },
     { label: "Identidad y marca", href: "/configuracion?area=identidad-marca", active: activeView === "identidad-marca" },
-    { label: "Facturación y fiscalidad", href: "/configuracion?area=fiscal-documentos#fiscal-documentos" },
+    { label: "Facturación y fiscalidad", href: "/configuracion?area=fiscal-documentos", active: activeView === "fiscal-documentos" },
     { label: "Sucursales", href: "/configuracion/sucursales" },
     { label: "Usuarios y permisos", href: "/configuracion/usuarios-permisos" },
     { label: "Integraciones", href: "/configuracion?area=integraciones#integraciones" },
@@ -117,6 +115,71 @@ function SettingsTabs({ activeView }: { activeView: "empresa" | "identidad-marca
         </Link>
       ))}
     </nav>
+  );
+}
+
+function CompanyFiscalView({ data, editMode }: { data: CompanySettingsWorkspaceData; editMode: boolean }) {
+  const fiscalReady = Boolean(data.razonSocial && data.nifCif && data.direccionFiscal && data.codigoPostal && data.ciudad);
+  const paymentReady = Boolean(data.formaPagoDefecto);
+  const bankReady = Boolean(data.iban);
+
+  return (
+    <div className={styles.view} data-company-fiscal-view>
+      <section className={styles.panelGrid} aria-label="Configuración fiscal y de facturación">
+        <InfoPanel title="1. Datos fiscales" editHref="/configuracion?area=fiscal-documentos&edit=fiscal#editar-fiscal">
+          <DataRows rows={[["Razón social", data.razonSocial], ["CIF / NIF", data.nifCif], ["País fiscal", data.pais], ["Moneda", currencyLabel(data.moneda)]]} />
+          <StatusRow label="Identidad fiscal" ready={fiscalReady} readyText="Verificada internamente" missingText="Datos pendientes" />
+        </InfoPanel>
+
+        <InfoPanel title="2. Domicilio fiscal" editHref="/configuracion?area=fiscal-documentos&edit=domicilio#editar-fiscal">
+          <DataRows rows={[["Dirección", data.direccionFiscal], ["Código postal", data.codigoPostal], ["Ciudad", data.ciudad], ["Provincia", data.provincia], ["País", data.pais]]} />
+        </InfoPanel>
+
+        <InfoPanel title="3. Series documentales" editHref="/configuracion?area=fiscal-documentos&edit=series#editar-fiscal">
+          <DataRows rows={[["Facturas", `${data.prefijoFactura}-${data.serieFacturas}`], ["Presupuestos", `${data.prefijoPresupuesto}-${data.seriePresupuestos}`], ["Trabajos", `${data.prefijoObra}-${data.serieObras}`]]} />
+          <p className={styles.subheading}>La numeración real se asigna por el servicio protegido de cada documento.</p>
+        </InfoPanel>
+
+        <InfoPanel title="4. Impuestos por defecto" editHref="/configuracion?area=fiscal-documentos&edit=impuestos#editar-fiscal">
+          <DataRows rows={[["IVA general", `${formatNumber(data.ivaDefecto)}%`], ["Impuestos incluidos", "No"], ["Moneda documental", currencyLabel(data.moneda)]]} />
+          <p className={styles.subheading}>Los tipos distintos se eligen en cada línea autorizada; esta vista no inventa tipos reducidos.</p>
+        </InfoPanel>
+
+        <InfoPanel title="5. Retenciones">
+          <StatusRow label="Retención predeterminada" ready={false} readyText="Configurada" missingText="No configurada" />
+          <p className={styles.subheading}>Las retenciones sólo se aplican cuando el documento y el perfil fiscal las definen expresamente.</p>
+        </InfoPanel>
+
+        <InfoPanel title="6. Condiciones de pago" editHref="/configuracion?area=fiscal-documentos&edit=pago#editar-fiscal">
+          <DataRows rows={[["Condición predeterminada", data.formaPagoDefecto], ["Validez de presupuestos", `${data.validezPresupuestoDias} días`]]} />
+          <StatusRow label="Condiciones comerciales" ready={paymentReady} readyText="Configuradas" missingText="Pendientes" />
+        </InfoPanel>
+
+        <InfoPanel title="7. Cuenta bancaria" editHref="/configuracion?area=fiscal-documentos&edit=banco#editar-fiscal">
+          <DataRows rows={[["IBAN de cobro", maskIban(data.iban)]]} />
+          <StatusRow label="Cuenta para documentos" ready={bankReady} readyText="Configurada" missingText="Pendiente" />
+          <p className={styles.subheading}>El valor completo sólo se procesa en formularios protegidos y no se expone en esta vista.</p>
+        </InfoPanel>
+
+        <InfoPanel title="8. Plantillas de documentos" href="/configuracion?area=identidad-marca&preview=factura" linkLabel="Vista previa">
+          <StatusRow label="Logo privado" ready={data.logoConfigured} readyText="Configurado" missingText="Pendiente" />
+          <StatusRow label="Sello privado" ready={data.sealConfigured} readyText="Configurado" missingText="Pendiente" />
+          <DataRows rows={[["Texto legal", data.textoLegal ? "Configurado" : null], ["Condiciones", data.condicionesPorDefecto ? "Configuradas" : null]]} />
+        </InfoPanel>
+
+        <InfoPanel title="9. Cumplimiento y proveedores live" href="/auditoria" linkLabel="Abrir auditoría">
+          <StatusRow label="Datos fiscales mínimos" ready={fiscalReady} readyText="Completos" missingText="Pendientes" />
+          <StatusRow label="Fiscalidad live" ready={false} readyText="Activa" missingText="Desactivada por política" />
+          <p className={styles.subheading}>La configuración documental no activa transmisión fiscal, registro público ni cobros.</p>
+        </InfoPanel>
+      </section>
+
+      <details id="editar-fiscal" className={styles.editPanel} open={editMode}>
+        <summary><Pencil size={16} />Editar datos fiscales y documentales</summary>
+        <CompanyGeneralForm data={data} />
+      </details>
+      <div className={styles.savedFooter}><CheckCircle2 size={15} />Último guardado: {formatSavedAt(data.updatedAt)}<Link href="/auditoria">Historial de cambios</Link></div>
+    </div>
   );
 }
 
@@ -425,6 +488,13 @@ function formatNumber(value: number) {
 
 function formatSavedAt(value: Date) {
   return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(value);
+}
+
+function maskIban(value: string | null) {
+  if (!value) return null;
+  const compact = value.replace(/\s+/g, "");
+  if (compact.length < 8) return "Configurado";
+  return `${compact.slice(0, 4)} •••• •••• ${compact.slice(-4)}`;
 }
 
 function humanize(value: string) {
