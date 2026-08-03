@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 10;
 const pendingInvitationStates = ["PENDING", "PENDING_EMPLOYEE", "EMPLOYEE_ACCEPTED", "PENDING_OWNER_APPROVAL"] as const;
-const tabs = [
+const baseTabs = [
   ["/configuracion?area=empresa", "Empresa"], ["/configuracion?area=identidad-marca", "Identidad y marca"],
   ["/configuracion?area=fiscal-documentos", "Facturación y fiscalidad"], ["/configuracion/sucursales", "Sucursales"],
-  ["/configuracion/usuarios-permisos", "Usuarios y permisos"], ["/configuracion?area=integraciones", "Integraciones"],
+  ["/configuracion/usuarios-permisos", "Usuarios y permisos"], ["/configuracion/integraciones", "Integraciones"],
   ["/configuracion/seguridad", "Seguridad"],
 ] as const;
 
@@ -23,10 +23,11 @@ type Member = Awaited<ReturnType<typeof loadMembers>>[number];
 export default async function UsersPermissionsPage({ searchParams }: { searchParams: Promise<Query> }) {
   const query = await searchParams;
   const auth = await requireCapability("company.members.view");
-  const [inviteDecision, updateDecision, reportsDecision, commercial] = await Promise.all([
+  const [inviteDecision, updateDecision, reportsDecision, billingDecision, commercial] = await Promise.all([
     resolveAuthorization(auth, "company.members.invite"), resolveAuthorization(auth, "company.members.update"),
-    resolveAuthorization(auth, "reports.view"), getEntitlements(auth.companyId),
+    resolveAuthorization(auth, "reports.view"), resolveAuthorization(auth, "company.billing.manage"), getEntitlements(auth.companyId),
   ]);
+  const tabs = billingDecision.allowed ? [...baseTabs, ["/plan-y-uso", "Plan y uso"] as const] : baseTabs;
   const owner = auth.role === "OWNER";
   const canInvite = owner && inviteDecision.allowed && inviteDecision.scope === "COMPANY";
   const canUpdate = owner && updateDecision.allowed && updateDecision.scope === "COMPANY";

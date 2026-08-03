@@ -103,8 +103,9 @@ function SettingsTabs({ activeView }: { activeView: "empresa" | "identidad-marca
     { label: "Facturación y fiscalidad", href: "/configuracion?area=fiscal-documentos", active: activeView === "fiscal-documentos" },
     { label: "Sucursales", href: "/configuracion/sucursales" },
     { label: "Usuarios y permisos", href: "/configuracion/usuarios-permisos" },
-    { label: "Integraciones", href: "/configuracion?area=integraciones#integraciones" },
+    { label: "Integraciones", href: "/configuracion/integraciones" },
     { label: "Seguridad", href: "/configuracion/seguridad" },
+    { label: "Plan y uso", href: "/plan-y-uso" },
   ];
 
   return (
@@ -199,7 +200,7 @@ function CompanyGeneralView({ data, editMode }: { data: CompanySettingsWorkspace
           <div><p>Completitud de empresa</p><strong>Perfil corporativo</strong><Link href="#company-checklist">Ver detalles</Link></div>
         </article>
         <MetricCard icon={ShieldCheck} label="Validaciones superadas" value={`${data.completion.completed} de ${data.completion.total}`} href="#company-checklist" linkLabel="Ver checklist" />
-        <MetricCard icon={PlugZap} label="Integraciones activas" value={String(data.activeIntegrationCount)} href="/configuracion?area=integraciones#integraciones" linkLabel="Gestionar" />
+        <MetricCard icon={PlugZap} label="Integraciones activas" value={String(data.activeIntegrationCount)} href="/configuracion/integraciones" linkLabel="Gestionar" />
         <MetricCard icon={UsersRound} label="Usuarios administradores" value={String(data.adminCount)} href="/configuracion/usuarios-permisos" linkLabel="Ver usuarios" />
       </section>
 

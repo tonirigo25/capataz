@@ -20,20 +20,20 @@ export const dynamic = "force-dynamic";
 
 type Query = { buscar?: string; estado?: string };
 
-const tabs = [
+const baseTabs = [
   ["/configuracion?area=empresa", "Empresa"],
   ["/configuracion?area=identidad-marca", "Identidad y marca"],
   ["/configuracion?area=fiscal-documentos", "Facturación y fiscalidad"],
   ["/configuracion/sucursales", "Sucursales"],
-  ["/equipo", "Usuarios y permisos"],
-  ["/configuracion?area=integraciones", "Integraciones"],
+  ["/configuracion/usuarios-permisos", "Usuarios y permisos"],
+  ["/configuracion/integraciones", "Integraciones"],
   ["/configuracion/seguridad", "Seguridad"],
 ] as const;
 
 export default async function BranchesPage({ searchParams }: { searchParams: Promise<Query> }) {
   const query = await searchParams;
   const auth = await requireCapability("company.view");
-  const [company, updateDecision, activeMembers, ownerMembership] = await Promise.all([
+  const [company, updateDecision, billingDecision, activeMembers, ownerMembership] = await Promise.all([
     prisma.company.findUnique({
       where: { id: auth.companyId },
       select: {
@@ -52,6 +52,7 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
       },
     }),
     resolveAuthorization(auth, "company.update"),
+    resolveAuthorization(auth, "company.billing.manage"),
     prisma.companyMembership.count({ where: { companyId: auth.companyId, status: "active" } }),
     prisma.companyMembership.findFirst({
       where: { companyId: auth.companyId, role: "OWNER", status: "active" },
@@ -59,6 +60,7 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
       select: { user: { select: { displayName: true } } },
     }),
   ]);
+  const tabs = billingDecision.allowed ? [...baseTabs, ["/plan-y-uso", "Plan y uso"] as const] : baseTabs;
   if (!company) return null;
 
   const addressParts = [company.direccion, company.codigoPostal, company.ciudad, company.provincia, company.pais].filter(Boolean);

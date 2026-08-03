@@ -133,8 +133,8 @@ export default async function SettingsPage({
             {owner ? <a href="/configuracion?area=empresa#empresa" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Empresa</a> : null}
             {owner ? <a href="/configuracion?area=identidad-marca" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Identidad y marca</a> : null}
             {owner ? <a href="/configuracion?area=fiscal-documentos#fiscal-documentos" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Fiscal y documentos</a> : null}
-            {owner ? <a href="/equipo" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Equipo</a> : null}
-            <a href="/configuracion?area=integraciones#integraciones" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Integraciones</a>
+            {owner ? <a href="/configuracion/usuarios-permisos" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Equipo</a> : null}
+            <a href="/configuracion/integraciones" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Integraciones</a>
             <a href="/configuracion/seguridad" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Seguridad</a>
             {owner ? <a href="/plan-y-uso" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">Plan y uso</a> : null}
             <a href="/configuracion?area=app#app" className="rounded-lg px-3 py-2 text-sm font-bold text-obra-ink hover:bg-slate-50">App móvil</a>
@@ -150,8 +150,8 @@ export default async function SettingsPage({
               <ReadinessItem label="Perfil personal" detail={`${profileStatus.percent}% completo`} ready={profileStatus.missingRequired.length === 0} href="/configuracion?area=perfil#perfil" />
               {owner && companyStatus ? <ReadinessItem label="Datos de empresa" detail={`${companyStatus.percent}% completo`} ready={companyStatus.missingRequired.length === 0} href="/configuracion?area=empresa#empresa" /> : null}
               <ReadinessItem label="Seguridad y MFA" detail={activeMfa > 0 ? "Segundo factor activo" : "Segundo factor pendiente"} ready={activeMfa > 0} href="/configuracion/seguridad" />
-              {owner ? <ReadinessItem label="Equipo y permisos" detail="Perfiles, scopes y aprobación" ready href="/equipo" /> : null}
-              <ReadinessItem label="Modo manual" detail="Funciona sin providers live" ready href="/configuracion?area=integraciones#integraciones" />
+              {owner ? <ReadinessItem label="Equipo y permisos" detail="Perfiles, scopes y aprobación" ready href="/configuracion/usuarios-permisos" /> : null}
+              <ReadinessItem label="Modo manual" detail="Funciona sin providers live" ready href="/configuracion/integraciones" />
             </div>
           </section>
 
