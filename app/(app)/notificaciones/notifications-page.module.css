@@ -249,7 +249,7 @@
 .empty p { margin: 0.25rem 0 0; font-size: 0.58rem; }
 .empty > a { color: var(--cap-brand); font-size: 0.56rem; font-weight: 700; }
 
-@container (max-width: 61rem) {
+@container (max-width: 48rem) {
   .filterBar { align-items: stretch; flex-direction: column; }
   .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .searchField { grid-column: span 2; }
